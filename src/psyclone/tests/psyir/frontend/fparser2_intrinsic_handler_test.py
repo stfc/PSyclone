@@ -50,7 +50,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, _get_arg_names, _canonicalise_minmaxsum)
 from psyclone.psyir.nodes import (
-    Schedule, Assignment, Reference, IntrinsicCall, CodeBlock)
+    Schedule, Assignment, Reference, IntrinsicCall, Literal, CodeBlock)
 from psyclone.psyir.symbols import (
     REAL_TYPE, DataSymbol, UnknownFortranType, INTEGER_TYPE, SymbolTable,
     ArrayType, RoutineSymbol, AutomaticInterface)
@@ -378,7 +378,9 @@ def test_handling_nested_intrinsic():
     # Declare all the symbols needed by the test code.
     symtab = fake_parent.symbol_table
     symtab.add(DataSymbol("jk", INTEGER_TYPE))
-    symtab.add(DataSymbol("wp", INTEGER_TYPE))
+    symtab.add(DataSymbol("wp", INTEGER_TYPE,
+                          is_constant=True,
+                          initial_value=Literal("4", INTEGER_TYPE)))
     symtab.add(DataSymbol("rcpi", REAL_TYPE))
     symtab.add(DataSymbol("rLfus", REAL_TYPE))
     symtab.add(DataSymbol("ze_z", REAL_TYPE))

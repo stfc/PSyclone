@@ -1113,6 +1113,50 @@ class Node():
             local_list += child.walk(my_type, stop_type, depth=depth)
         return local_list
 
+    def get_sibling_lists(self, my_type, stop_type=None):
+        '''
+        Recurse through the PSyIR tree and return lists of Nodes that are
+        instances of 'my_type' and are immediate siblings. Here 'my_type' is
+        either a single class or a tuple of classes. In the latter case all
+        nodes are returned that are instances of any classes in the tuple. The
+        recursion into the tree is stopped if an instance of 'stop_type' (which
+        is either a single class or a tuple of classes) is found.
+
+        :param my_type: the class(es) for which the instances are collected.
+        :type my_type: type | Tuple[type, ...]
+        :param stop_type: class(es) at which recursion is halted (optional).
+        :type stop_type: Optional[type | Tuple[type, ...]]
+
+        :returns: list of lists, each of which containing nodes that are
+                  instances of my_type and are immediate siblings, starting at
+                  and including this node.
+        :rtype: List[List[:py:class:`psyclone.psyir.nodes.Node`]]
+
+        '''
+        # Separate nodes by depth
+        by_depth = {}
+        for node in self.walk(my_type, stop_type=stop_type):
+            depth = node.depth
+            if depth not in by_depth:
+                by_depth[depth] = []
+            by_depth[depth].append(node)
+
+        # Determine lists of consecutive nodes
+        global_list = []
+        for depth, local_list in sorted(by_depth.items()):
+            block = []
+            for node in local_list:
+                if not block or node.immediately_follows(block[-1]):
+                    block.append(node)
+                else:
+                    # Current node does not immediately follow the previous one
+                    # so this marks the end of the current block.
+                    global_list.append(block)
+                    block = [node]
+            if block:
+                global_list.append(block)
+        return global_list
+
     def ancestor(self, my_type, excluding=None, include_self=False,
                  limit=None, shared_with=None):
         '''
@@ -1302,6 +1346,30 @@ class Node():
         if reverse:
             nodes.reverse()
         return nodes
+
+    def immediately_precedes(self, node_2):
+        '''
+        :returns: True if this node immediately precedes `node_2`, False
+                  otherwise
+        :rtype: bool
+        '''
+        return (
+            self.sameParent(node_2)
+            and self in node_2.preceding()
+            and self.position + 1 == node_2.position
+        )
+
+    def immediately_follows(self, node_1):
+        '''
+        :returns: True if this node immediately follows `node_1`, False
+                  otherwise
+        :rtype: bool
+        '''
+        return (
+            self.sameParent(node_1)
+            and self in node_1.following()
+            and self.position == node_1.position + 1
+        )
 
     def coded_kernels(self):
         '''
