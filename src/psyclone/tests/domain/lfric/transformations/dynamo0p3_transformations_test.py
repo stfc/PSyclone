@@ -169,7 +169,7 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
     # and colour-map pointers
     assert "integer(kind=i_def), pointer :: cmap(:,:)" in gen
     assert "integer(kind=i_def) ncolour" in gen
-    assert "integer colour" in gen
+    assert "integer(kind=i_def) colour" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -217,14 +217,15 @@ def test_colour_trans(tmpdir, dist_mem):
                 "colours()" in gen)
         output = (
             "      do colour=loop0_start,loop0_stop\n"
-            "        do cell=loop1_start,last_halo_cell_all_colours(colour,"
-            "1)\n")
+            "        do cell = loop1_start, last_halo_cell_all_colours(colour,"
+            "1), 1\n")
     else:  # not dist_mem
         assert ("last_edge_cell_all_colours = mesh%get_last_edge_cell_all_"
                 "colours()" in gen)
         output = (
             "      do colour=loop0_start,loop0_stop\n"
-            "        do cell=loop1_start,last_edge_cell_all_colours(colour)\n")
+            "        do cell = loop1_start, "
+            "last_edge_cell_all_colours(colour), 1\n")
     assert output in gen
 
     # Check that we're using the colour map when getting the cell dof maps
