@@ -3749,6 +3749,21 @@ values are defined in the LFRic infrastructure code.
           not yet available for fields and operators. This will be added
           as required in future releases.
 
+.. _lfric-precision-map:
+
+Precision Map
++++++++++++++
+
+When scalars are defined in a kernel, they are allocated a set amount of
+memory. This amount, given in bytes, is defined in the precision map
+within the LFRic API.
+
+.. note:: The values for 'r_tran', 'r_solver', 'r_def',
+          'r_bl' and 'r_phys' are set according to CPP ifdefs.
+          The values given below are the defaults. 'l_def' is
+          included in this dict so that it contains a complete
+          record of the various precision symbols used in LFRic.
+
 .. _lfric-num-any-spaces:
 
 Number of Generalised ``ANY_*_SPACE`` Function Spaces

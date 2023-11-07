@@ -788,7 +788,10 @@ class APISpecificConfig:
         return_dict = {}
         return_dict = APISpecificConfig.create_dict_from_list(precisions_list)
 
-        for key, value in return_dict.items():
+        for key, value in return_dict.items(): 
+            # isdecimal returns True if all the characters are decimals (0-9).
+            # isdigit returns True if all characters are digits (this excludes
+            # special characters such as the decimal point).
             if value.isdecimal() and value.isdigit():
                 return_dict[str(key.strip())] = int(value)
             else:
@@ -1044,7 +1047,7 @@ class LFRicConfig(APISpecificConfig):
         kind parameter).
 
         :returns: the precision map values for main datatypes in LFRic.
-        :rtype: Dict[int]
+        :rtype: dict[str, int]
 
         '''
         return self._precision_map
