@@ -127,6 +127,7 @@ class DataSymbol(TypedSymbol):
             self._is_constant = False
 
         # Record whether an explicit value has been supplied for 'interface'
+        # (before it is consumed by the super method).
         interface_supplied = "interface" in kwargs
 
         super()._process_arguments(**kwargs)
@@ -141,21 +142,11 @@ class DataSymbol(TypedSymbol):
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value
 
-        # A run-time constant must have a StaticInterface, UnresolvedInterface
-        # or an ImportInterface. Check that any supplied interface is valid.
-        if self.is_constant:
-            if interface_supplied:
-                if not (self.is_static or self.is_import or
-                        self.is_unresolved):
-                    raise ValueError(
-                        f"A DataSymbol representing a constant must have "
-                        f"a Static, Import or Unresolved Interface but "
-                        f"'{self.name}' has interface '{self.interface}'.")
-            elif self.is_automatic:
-                # No explicit interface was supplied and this Symbol represents
-                # a runtime constant so change its interface to be static if it
-                # would otherwise default to Automatic.
-                self.interface = StaticInterface()
+        if self.is_constant and not interface_supplied and self.is_automatic:
+            # No explicit interface was supplied and this Symbol represents
+            # a runtime constant so change its interface to be static if it
+            # would otherwise default to Automatic.
+            self.interface = StaticInterface()
 
     @property
     def is_constant(self):

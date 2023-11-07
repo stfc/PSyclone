@@ -184,6 +184,15 @@ def test_datasymbol_specialise_and_process_arguments():
                     is_constant=True)
     assert sym7.is_constant
     assert sym7.is_static
+    sym8 = Symbol("symbol8")
+    with pytest.raises(ValueError) as err:
+        sym8.specialise(
+            DataSymbol, datatype=INTEGER_SINGLE_TYPE, is_constant=True,
+            initial_value=Literal("1", INTEGER_SINGLE_TYPE),
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+    assert ("Error setting initial value for symbol 'symbol8'. A DataSymbol "
+            "with an ArgumentInterface can not have an initial value."
+            in str(err.value))
 
 
 def test_datasymbol_can_be_printed():
@@ -438,6 +447,10 @@ def test_datasymbol_copy():
     assert (symbol.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     assert symbol.initial_value is None
+
+    new_new_symbol = new_symbol.copy()
+    assert new_symbol.initial_value == new_new_symbol.initial_value
+    assert new_symbol.initial_value is not new_new_symbol.initial_value
 
 
 def test_datasymbol_copy_properties():
