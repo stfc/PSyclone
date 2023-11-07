@@ -1499,7 +1499,9 @@ class CodedKern(Kern):
             self.rename_and_write()
             # Then find or create the imported RoutineSymbol
             try:
-                rsymbol = symtab.lookup(self._name)
+                # Limit scope to this Invoke, since a kernel with the same name
+                # may have been inlined from another invoke.
+                rsymbol = symtab.lookup(self._name, scope_limit=symtab.node)
             except KeyError:
                 csymbol = symtab.find_or_create(
                         self._module_name,
