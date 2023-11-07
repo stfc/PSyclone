@@ -3729,6 +3729,7 @@ class DynMeshes():
 
         for call in [call for call in self._schedule.coded_kernels() if
                      call.is_coloured()]:
+            self._add_mesh_symbols(["mesh"])
             # Keep a record of whether or not any kernels (loops) in this
             # invoke have been coloured and, if so, whether the associated loop
             # goes into the halo.
@@ -3778,9 +3779,6 @@ class DynMeshes():
 
         if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
-            # There aren't any inter-grid kernels but we do need colourmap
-            # information and that means we'll need a mesh object
-            self._add_mesh_symbols(["mesh"])
             # This creates the colourmap information for this invoke if we
             # don't already have one.
             colour_map = non_intergrid_kern.colourmap
@@ -3889,7 +3887,7 @@ class DynMeshes():
                     DeclGen(parent, datatype="integer", allocatable=True,
                             kind=api_config.default_kind["integer"],
                             entity_decls=[decln]))
-            if kern.colourtilemap_symbol:
+            if kern.tilecolourmap_symbol:
                 parent.add(
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
@@ -7266,6 +7264,8 @@ class DynLoop(PSyLoop):
             colour_var = loop.ancestor(Loop).variable
 
             mesh_sym = sym_table.lookup_with_tag("mesh")
+            # Create a different array_reference accessor depending on the
+            # loop type
             if self._loop_type == "colour":
                 asym = self.kernel.last_cell_all_colours_symbol
                 if not asym:
@@ -7295,7 +7295,8 @@ class DynLoop(PSyLoop):
 
             # If it has halos, add an extra argument with the halo depth
             const = LFRicConstants()
-            if self.upper_bound_name in LFRicConstants.HALO_ACCESS_LOOP_BOUNDS:
+            h_needed = self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS
+            if Config.get().distributed_memory and h_needed:
                 if self._upper_bound_halo_depth:
                     # TODO: #696 Add kind (precision) once the
                     # DynInvokeSchedule constructor has been extended to
@@ -7312,8 +7313,6 @@ class DynLoop(PSyLoop):
                     halo_depth = Reference(depth_sym)
 
                 aref.addchild(halo_depth)
-            if sref is not None:
-                return sref
             return aref
 
         # This isn't a 'colour' loop so we have already set-up a
