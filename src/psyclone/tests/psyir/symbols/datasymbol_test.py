@@ -66,7 +66,7 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', real_kind_type),
                       DataSymbol)
     assert isinstance(DataSymbol('a', INTEGER_SINGLE_TYPE), DataSymbol)
-    # Run-time constant - must have an interface supplied
+    # Run-time constant with no interface specified.
     sym = DataSymbol('a', REAL_DOUBLE_TYPE, is_constant=True,
                      initial_value=0.0)
     assert isinstance(sym, DataSymbol)

@@ -121,10 +121,12 @@ class ExcludeSettings():
     '''
     Class to hold settings on what to exclude from OpenACC KERNELS regions.
 
-    :param Optional[dict] settings: map of settings to override.
+    :param Optional[dict[str, str]] settings: map of settings to override.
 
     '''
-    def __init__(self, settings={}):
+    def __init__(self, settings=None):
+        if settings is None:
+            settings = {}
         # Whether we exclude IFs where the logical expression is not a
         # comparison operation.
         self.ifs_scalars = settings.get("ifs_scalars", False)

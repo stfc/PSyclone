@@ -228,10 +228,10 @@ class Symbol():
 
     def resolve_deferred(self):
         '''
-        Search for the Container in which this Symbol is defined and
-        update its properties with the definition found.
-        If this symbol does not have an ImportInterface then there is no
-        lookup needed and we just return this symbol.
+        Update the properties of this Symbol by using the definition imported
+        from the external Container. If this symbol does not have an
+        ImportInterface then there is no lookup needed and we just return this
+        symbol.
 
         :returns: a symbol object with the class and type determined by
                   examining the Container from which it is imported.

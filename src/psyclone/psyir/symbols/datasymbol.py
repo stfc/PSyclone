@@ -171,7 +171,7 @@ class DataSymbol(TypedSymbol):
                 self.initial_value is None):
             # A Symbol of UnknownType could have initialisation within its
             # original declaration.
-            # TODO could give TypedSymbol an 'is_unknown_type' property.
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.symbols.datatypes import UnknownType
             if not isinstance(self.datatype, UnknownType):
                 raise ValueError(
