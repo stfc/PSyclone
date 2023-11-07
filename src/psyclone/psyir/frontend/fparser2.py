@@ -670,7 +670,7 @@ def _kind_find_or_create(name, symbol_table):
     If it is a DataSymbol then it must have a datatype of
     'integer', 'deferred' or 'unknown'. If it is deferred then the fact
     that we now know that this Symbol represents a KIND parameter means we
-    can change the datatype to be 'integer'.
+    can change the datatype to be 'integer' and mark it as constant.
 
     If the existing symbol is a generic Symbol then it is replaced with
     a new DataSymbol of type 'integer'.
@@ -696,17 +696,9 @@ def _kind_find_or_create(name, symbol_table):
         # pylint: disable=unidiomatic-typecheck
         if type(kind_symbol) is Symbol:
             # There is an existing entry but it's only a generic Symbol
-            # so we need to replace it with a DataSymbol of integer type.
-            # Since the lookup() above looks through *all* ancestor symbol
-            # tables, we have to find precisely which table the existing
-            # Symbol is in.
-            table = kind_symbol.find_symbol_table(symbol_table.node)
-            new_symbol = DataSymbol(lower_name,
-                                    default_integer_type(),
-                                    visibility=kind_symbol.visibility,
-                                    interface=kind_symbol.interface)
-            table.swap(kind_symbol, new_symbol)
-            kind_symbol = new_symbol
+            # so we need to specialise it to a DataSymbol of integer type.
+            kind_symbol.specialise(DataSymbol, datatype=default_integer_type(),
+                                   is_constant=True)
         elif isinstance(kind_symbol, DataSymbol):
 
             if not (isinstance(kind_symbol.datatype,
@@ -723,6 +715,7 @@ def _kind_find_or_create(name, symbol_table):
             # so set it to the default.
             if isinstance(kind_symbol.datatype, DeferredType):
                 kind_symbol.datatype = default_integer_type()
+                kind_symbol.is_constant = True
         else:
             raise TypeError(
                 f"A symbol representing a kind parameter must be an instance "
@@ -736,7 +729,8 @@ def _kind_find_or_create(name, symbol_table):
             symbol_table.node, lower_name,
             symbol_type=DataSymbol,
             datatype=default_integer_type(),
-            visibility=symbol_table.default_visibility)
+            visibility=symbol_table.default_visibility,
+            is_constant=True)
     return kind_symbol
 
 

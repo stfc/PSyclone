@@ -114,7 +114,10 @@ def trans(psy):
             if not invoke.schedule.walk(Loop):
                 calls = invoke.schedule.walk(Call)
                 if all(call.is_available_on_device() for call in calls):
-                    ACCRoutineTrans().apply(invoke.schedule)
+                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
+                    # array notation. (TODO #717)
+                    ACCRoutineTrans().apply(invoke.schedule,
+                                            options={"force": True})
                     continue
 
         insert_explicit_loop_parallelism(
