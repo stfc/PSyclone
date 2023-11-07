@@ -3025,9 +3025,10 @@ class Fparser2Reader():
                     raise NotImplementedError()
 
         ctrl = walk(nonlabel_do, Fortran2003.Loop_Control)
-        # In fparser Loop_Control has 4 children, all but one should be None,
-        # the one which is not None defines the loop boundaries style:
-        # LoopCtrl(While_Loop, Counter_Loop, Concurrent_Loop, Concurrent_Loop)
+        # In fparser Loop_Control has 4 children, but just one of the Loop
+        # types children None is not None, this one defines the loop boundaries
+        # style: LoopCtrl(While_Loop, Counter_Loop, OptionalDelimiter,
+        #                 Concurrent_Loop)
         if not ctrl or ctrl[0].items[0] is not None:
             # do loops with no condition and do while loops
             annotation = ['was_unconditional'] if not ctrl else None
@@ -3048,6 +3049,10 @@ class Fparser2Reader():
             loop_body = loop.loop_body
             loop_body.ast = node
         elif ctrl[0].items[3] is not None:
+            # The triplet is the var=X:X:X representing the variable with the
+            # start, stop and step boundaries of the ForAll construct. We use
+            # a walk because Loop concurrent can have a list of triplets that
+            # represent nested loops.
             triplet = walk(ctrl[0].items[3], Fortran2003.Forall_Triplet_Spec)
             loop = None
             for expr in triplet:

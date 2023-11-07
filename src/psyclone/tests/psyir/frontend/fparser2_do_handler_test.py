@@ -309,6 +309,39 @@ def test_do_concurrent(fortran_reader, fortran_writer, tmpdir):
   enddo""" in output
     assert Compile(tmpdir).string_compiles(output)
 
+    # Do concurrent with nested loops and step values
+    code = '''
+    subroutine test
+      integer, parameter :: N =10, M=20
+      integer, dimension(N,M,N,M) :: array
+      integer i, j, k, f
+
+      do concurrent(i=1:N:3, j=1:M:2)
+        do k = 1, i
+          do concurrent(f=1:i:k)
+            array(i,j,k,f) = 1
+          end do
+        end do
+      end do
+    end subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assert len(loops) == 4
+    output = fortran_writer(psyir)
+    print (output)
+    assert """
+  do i = 1, n, 3
+    do j = 1, m, 2
+      do k = 1, i, 1
+        do f = 1, i, k
+          array(i,j,k,f) = 1
+        enddo
+      enddo
+    enddo
+  enddo""" in output
+    assert Compile(tmpdir).string_compiles(output)
+
 
 def test_unsupported_loop(parser):
     '''Test that loops with unsupported LoopCtrl are put in a CodeBlock'''
