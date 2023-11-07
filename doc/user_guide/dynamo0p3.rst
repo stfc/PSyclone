@@ -3755,14 +3755,20 @@ Precision Map
 +++++++++++++
 
 When scalars are defined in a kernel, they are allocated a set amount of
-memory. This amount, given in bytes, is defined in the precision map
-within the LFRic API.
+memory. This amount, given in bytes, is currently defined in the precision
+map within the LFRic API *and* the LFRic infrastructure.
 
-.. note:: The values for 'r_tran', 'r_solver', 'r_def',
-          'r_bl' and 'r_phys' are set according to CPP ifdefs.
-          The values given below are the defaults. 'l_def' is
-          included in this dict so that it contains a complete
-          record of the various precision symbols used in LFRic.
+The values for 'r_tran', 'r_solver', 'r_def', 'r_bl' and 'r_phys' are set
+according to CPP ifdefs. The values given are the defaults. 'l_def' is
+included in the dictionary so that it contains a complete record of the
+various precision symbols used in LFRic.
+
+.. note:: Storing the precision map in the LFRic API within PSyclone is a
+          temporary measure which will yield to the LFRic infrastructure
+          as the single source of precisions, as discussed in PSyclone
+          issue #1941.
+
+.. note:: 
 
 .. _lfric-num-any-spaces:
 
