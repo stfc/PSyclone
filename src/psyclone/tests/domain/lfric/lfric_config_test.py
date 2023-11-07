@@ -257,15 +257,15 @@ def test_invalid_precision_map(tmpdir):
     assert ("Wrong type supplied to mapping: '8.5' is not an integer"
             " or contains special characters." in str(err.value))
 
-    # Test invalid datatype: unicode
-    content = re.sub(r"r_double: 8,", "r_double: U+00B2,",
+    # Test invalid datatype: unicode ('\u00b2' = superscript 2)
+    content = re.sub(r"r_double: 8,", "r_double: \u00b2,",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert ("Wrong type supplied to mapping: 'U+00B2' is not an integer"
+    assert ("Wrong type supplied to mapping: '\u00b2' is not an integer"
             " or contains special characters." in str(err.value))
     
 
