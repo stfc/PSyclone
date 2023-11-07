@@ -223,17 +223,6 @@ def test_invalid_precision_map(tmpdir):
 
     '''
     config_file = tmpdir.join("config_dyn")
-
-    # Test invalid datatype 'special character'
-    content = re.sub(r"r_double: 8,", "r_double: -8,",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
-
-    with pytest.raises(ConfigurationError) as err:
-        config(config_file, content)
-
-    assert ("Wrong type supplied to mapping: '-8' is not a number"
-            " or contains special characters." in str(err.value))
     
     # Test invalid datatype 'string'
     content = re.sub(r"r_double: 8,", "r_double: number 5,",
@@ -243,8 +232,19 @@ def test_invalid_precision_map(tmpdir):
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert ("Wrong type supplied to mapping: 'number 5' is not a number"
+    assert ("Wrong type supplied to mapping: 'number 5' is not an integer"
             " or contains special characters." in str(err.value))
+
+    # Test invalid datatype 'special character'
+    content = re.sub(r"r_double: 8,", "r_double: -8,",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("Negative integer supplied to mapping: '-8' is not a positive"
+            " integer." in str(err.value))
     
 
 def test_invalid_num_any_anyd_spaces(tmpdir):

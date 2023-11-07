@@ -780,21 +780,29 @@ class APISpecificConfig:
     def get_precision_map_dict(section):
         '''Extracts the precision map values from the psyclone.cfg file
         and converts them to a dictionary with integer values.
+
         :returns: The precision maps to be used by this API.
-        :rtype: Dictionary of integers
+        :rtype: dict[str, int]
         '''
         precisions_list = section.getlist("precision_map")
         return_dict = {}
         return_dict = APISpecificConfig.create_dict_from_list(precisions_list)
 
         for key, value in return_dict.items():
-            if value.isdigit():
-                return_dict[key] = int(value)
-            else:
+            try:
+                value = int(value)
+            except ValueError as err:
                 # Raised when key contains special characters or letters:
                 raise ConfigurationError(
                     f"Wrong type supplied to mapping: '{value.strip()}'"
-                    f" is not a number or contains special characters.")
+                    f" is not an integer or contains special characters.")
+            else:
+                if value > 0:
+                    return_dict[str(key.strip())] = value
+                else:
+                    raise ConfigurationError(
+                    f"Negative integer supplied to mapping: '{value}'"
+                    f" is not a positive integer.")
         return return_dict
 
     def get_access_mapping(self):

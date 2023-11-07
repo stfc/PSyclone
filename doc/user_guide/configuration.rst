@@ -234,6 +234,13 @@ default_kind                Captures the default kinds (precisions) for the
                             supported Fortran data types in LFRic, see
                             :ref:`lfric-datatype-kind`.
 
+precision_map               Captures the value of the actual precisions in
+                            bytes. The values for 'r_tran', 'r_solver', 'r_def',
+                            'r_bl' and 'r_phys' are set according to CPP ifdefs.
+                            The values given below are the defaults. 'l_def' is
+                            included in this dict so that it contains a complete
+                            record of the various precision symbols used in LFRic.
+                            
 RUN_TIME_CHECKS             Specifies whether to generate run-time validation
                             checks, see :ref:`lfric-run-time-checks`.
 
