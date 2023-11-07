@@ -789,20 +789,13 @@ class APISpecificConfig:
         return_dict = APISpecificConfig.create_dict_from_list(precisions_list)
 
         for key, value in return_dict.items():
-            try:
-                value = int(value)
-            except ValueError as err:
+            if value.isdecimal() and value.isdigit():
+                return_dict[str(key.strip())] = int(value)
+            else:
                 # Raised when key contains special characters or letters:
                 raise ConfigurationError(
                     f"Wrong type supplied to mapping: '{value.strip()}'"
                     f" is not an integer or contains special characters.")
-            else:
-                if value > 0:
-                    return_dict[str(key.strip())] = value
-                else:
-                    raise ConfigurationError(
-                    f"Negative integer supplied to mapping: '{value}'"
-                    f" is not a positive integer.")
         return return_dict
 
     def get_access_mapping(self):
