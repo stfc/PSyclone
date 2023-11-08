@@ -586,7 +586,9 @@ class KernelInterface(ArgOrdering):
                            basis_name_func, first_dim_value_func)
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
-        '''Not implemented.
+        '''Create the boundary-dofs mask argument required for the
+        enforce_bc_code kernel. Adds it to the symbol table and the argument
+        list.
 
         :param function_space: the function space for this boundary condition.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
@@ -594,11 +596,15 @@ class KernelInterface(ArgOrdering):
             information about variable accesses.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
+        :raises InternalError: TODO
+
         '''
         fspace = None
         for fspace in self._kern.arguments.unique_fss:
             if fspace.orig_name == "any_space_1":
                 break
+        else:
+            raise InternalError("TODO")
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.

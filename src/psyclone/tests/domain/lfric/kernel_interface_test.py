@@ -775,7 +775,7 @@ def test_diff_basis():
     assert diff_basis_symbol.shape[3].upper.symbol is nqpv_symbol
 
 
-def test_field_bcs_kernel():
+def test_field_bcs_kernel(monkeypatch):
     '''Test that the KernelInterface class field_bcs_kernel method adds the
     expected symbols to the symbol table and the _arglist list.
 
@@ -809,6 +809,14 @@ def test_field_bcs_kernel():
     assert mask_sym.shape[0].upper.symbol is ndf_symbol
     assert isinstance(mask_sym.shape[1].upper, Literal)
     assert mask_sym.shape[1].upper.value == "2"
+    # Monkeypatch the kernel so that it appears to have the wrong type of
+    # argument.
+    monkeypatch.setattr(
+        kernel.arguments.args[0], "_function_spaces",
+        [FunctionSpace("w3", kernel.arguments.args[0]._kernel_args), None])
+    with pytest.raises(InternalError) as err:
+        kernel_interface.field_bcs_kernel(None)
+    assert "hohoho" in str(err.value)
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
