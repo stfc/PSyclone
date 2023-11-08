@@ -422,6 +422,7 @@ class Routine(Schedule, CommentableMixin):
     def get_non_local_symbols(self):
         '''This function returns a list of non-local accesses in this
         routine. It returns a list of triplets, each one containing:
+
         - the type ('routine', 'function', 'reference', 'unknown').
           The latter is used for array references or function calls,
           which we cannot distinguish till #1314 is done.
