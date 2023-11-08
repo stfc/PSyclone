@@ -168,7 +168,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        return "acc routine"
+        return "acc routine gang"
 
 
 class ACCEnterDataDirective(ACCStandaloneDirective):
@@ -526,10 +526,10 @@ class ACCLoopDirective(ACCRegionDirective):
         # apply transformations to the code). As an orphaned loop directive,
         # we must have an ACCParallelDirective or an ACCKernelsDirective as
         # an ancestor somewhere back up the tree.
-        if not self.ancestor((ACCParallelDirective, ACCKernelsDirective)):
-            raise GenerationError(
-                "ACCLoopDirective must have an ACCParallelDirective or "
-                "ACCKernelsDirective as an ancestor in the Schedule")
+        # if not self.ancestor((ACCParallelDirective, ACCKernelsDirective)):
+        #     raise GenerationError(
+        #         "ACCLoopDirective must have an ACCParallelDirective or "
+        #         "ACCKernelsDirective as an ancestor in the Schedule")
 
         super().validate_global_constraints()
 

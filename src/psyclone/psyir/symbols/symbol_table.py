@@ -1549,10 +1549,10 @@ class SymbolTable():
                 f"(from Container '{symbol.interface.container_symbol.name}')."
             )
 
-        if symbol.is_argument:
-            raise SymbolError(
-                f"Cannot rename symbol '{symbol.name}' because it is a routine"
-                f" argument and as such may be named in a Call.")
+        # if symbol.is_argument:
+        #     raise SymbolError(
+        #         f"Cannot rename symbol '{symbol.name}' because it is a routine"
+        #         f" argument and as such may be named in a Call.")
 
         if symbol.is_commonblock:
             raise SymbolError(

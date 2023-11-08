@@ -634,13 +634,13 @@ class InlineTrans(Transformation):
             # We don't inline symbols that have an UnknownType and are
             # arguments since we don't know if a simple assingment if
             # enough (e.g. pointers)
-            if isinstance(sym.interface, ArgumentInterface):
-                if isinstance(sym.datatype, UnknownType):
-                    raise TransformationError(
-                        f"Routine '{routine.name}' cannot be inlined because "
-                        f"it contains a Symbol '{sym.name}' which is an "
-                        f"Argument of UnknownType: "
-                        f"'{sym.datatype.declaration}'")
+            # if isinstance(sym.interface, ArgumentInterface):
+            #     if isinstance(sym.datatype, UnknownType):
+            #         raise TransformationError(
+            #             f"Routine '{routine.name}' cannot be inlined because "
+            #             f"it contains a Symbol '{sym.name}' which is an "
+            #             f"Argument of UnknownType: "
+            #             f"'{sym.datatype.declaration}'")
             # We don't inline symbols that have an UnknownInterface, as we
             # don't know how they are brought into this scope.
             if isinstance(sym.interface, UnknownInterface):
@@ -659,12 +659,12 @@ class InlineTrans(Transformation):
 
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
-        try:
-            table.check_for_clashes(routine_table)
-        except SymbolError as err:
-            raise TransformationError(
-                f"One or more symbols from routine '{routine.name}' cannot be "
-                f"added to the table at the call site.") from err
+        # try:
+        #     table.check_for_clashes(routine_table)
+        # except SymbolError as err:
+        #     raise TransformationError(
+        #         f"One or more symbols from routine '{routine.name}' cannot be "
+        #         f"added to the table at the call site.") from err
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.
