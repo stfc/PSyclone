@@ -83,7 +83,7 @@ def test_module_info():
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_routine_info_get_psyir():
+def test_module_info_get_psyir():
     '''Tests that we can get the PSyIR from the module info object:
     '''
 
@@ -287,8 +287,8 @@ def test_module_info_get_symbol():
     mod_info = mod_man.get_module_info("g_mod")
     assert mod_info.name == "g_mod"
 
-    routine_info = mod_info.get_symbol("myfunc1")
-    assert routine_info.name == "myfunc1"
+    symbol = mod_info.get_symbol("myfunc1")
+    assert symbol.name == "myfunc1"
 
     mod_info = mod_man.get_module_info("error_mod")
     assert mod_info.name == "error_mod"
@@ -298,10 +298,10 @@ def test_module_info_get_symbol():
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_generic_routine_info():
-    '''Tests the GenericRoutineInfo class, which should return the combined
-    results from all individual subroutines. The example in g_mod declares
-    myfunc to be myfunc1 and myfunc2, which are implemented as:
+def test_module_info_generic_interfaces():
+    '''Tests the handling of generic interfaces, which should return the
+    combined results from all individual subroutines. The example in g_mod
+    declares myfunc to be myfunc1 and myfunc2, which are implemented as:
         subroutine myfunc1() ...
             a = p + module_var_1 + module_var
         end subroutine myfunc1
