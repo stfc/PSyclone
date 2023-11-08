@@ -3213,8 +3213,8 @@ class DynCellIterators(LFRicCollection):
     def __init__(self, kern_or_invoke):
         super().__init__(kern_or_invoke)
 
-        self._nlayers_name = self._symbol_table.\
-            find_or_create_integer_symbol("nlayers", tag="nlayers").name
+        self._nlayers_name = self._symbol_table.find_or_create_tag(
+            "nlayers", symbol_type=LFRicTypes("MeshHeightDataSymbol")).name
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
