@@ -590,16 +590,37 @@ class KernelInterface(ArgOrdering):
 
         :param function_space: the function space for this boundary condition.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: an unused optional argument that stores \
+        :param var_accesses: an unused optional argument that stores
             information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.VariablesAccessInfo`
-
-        :raises NotImplementedError: as this method is not implemented.
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        raise NotImplementedError(
-            "TODO #928: field_bcs_kernel not implemented")
+        fspace = None
+        for fspace in self._kern.arguments.unique_fss:
+            if fspace.orig_name == "any_space_1":
+                break
+        farg = self._kern.arguments.get_arg_on_space(fspace)
+        # Sanity check - expect the enforce_bc_code kernel to only have
+        # a field argument.
+        if not farg.is_field:
+            const = LFRicConstants()
+            raise InternalError(
+                f"Expected an argument of {const.VALID_FIELD_NAMES} type "
+                f"from which to look-up boundary dofs for kernel "
+                f"{self._kern.name} but got '{farg.argument_type}'")
+
+        ndf_symbol = self._symtab.find_or_create_tag(
+            f"ndf_{fspace.orig_name}", fs=fspace.orig_name,
+            symbol_type=LFRicTypes("NumberOfDofsDataSymbol"),
+            interface=self._read_access)
+
+        # Add the boundary-dofs array argument.
+        sym = self._symtab.find_or_create_tag(
+            f"boundary_dofs_{farg.name}",
+            interface=self._read_access,
+            symbol_type=LFRicTypes("VerticalBoundaryDofMaskDataSymbol"),
+            dims=[Reference(ndf_symbol), 2])
+        self._arglist.append(sym)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
         '''Not implemented.

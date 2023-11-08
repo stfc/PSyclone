@@ -775,14 +775,40 @@ def test_diff_basis():
     assert diff_basis_symbol.shape[3].upper.symbol is nqpv_symbol
 
 
-@pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
 def test_field_bcs_kernel():
     '''Test that the KernelInterface class field_bcs_kernel method adds the
     expected symbols to the symbol table and the _arglist list.
 
     '''
-    kernel_interface = KernelInterface(None)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "12.2_enforce_bc_kernel.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    kernel_interface = KernelInterface(kernel)
     kernel_interface.field_bcs_kernel(None)
+    fld_name = kernel.arguments.args[0].name
+    fspace = kernel.arguments.unique_fss[0]
+    fs_name = fspace.orig_name
+    # ndf declared
+    ndf_symbol = kernel_interface._symtab.lookup(f"ndf_{fs_name}")
+    assert isinstance(ndf_symbol, LFRicTypes("NumberOfDofsDataSymbol"))
+    assert isinstance(ndf_symbol.interface, ArgumentInterface)
+    assert (ndf_symbol.interface.access ==
+            kernel_interface._read_access.access)
+    # boundary dofs mask declared
+    mask_sym = kernel_interface._symtab.lookup(f"boundary_dofs_{fld_name}")
+    assert isinstance(mask_sym,
+                      LFRicTypes("VerticalBoundaryDofMaskDataSymbol"))
+    assert isinstance(mask_sym.interface, ArgumentInterface)
+    assert mask_sym.interface.access == kernel_interface._read_access.access
+    assert len(mask_sym.shape) == 2
+    assert isinstance(mask_sym.shape[0].upper, Reference)
+    assert mask_sym.shape[0].upper.symbol is ndf_symbol
+    assert isinstance(mask_sym.shape[1].upper, Literal)
+    assert mask_sym.shape[1].upper.value == "2"
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
