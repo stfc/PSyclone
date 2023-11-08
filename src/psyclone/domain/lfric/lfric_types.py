@@ -31,28 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''This module contains a singleton class that manages LFRic types. '''
 
 
 from collections import namedtuple
+from dataclasses import dataclass
 
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE, ScalarType)
-
-
-# The Array namedtuple has 4 properties: the first determines the
-# names of the resultant datatype and datasymbol classes, the second
-# references the generic scalar type classes declared above, the third
-# property is a textual description of each of the dimensions.
-# The fourth specifies any additional class properties that should be
-# declared in the generated datasymbol class.
-_Array = namedtuple('Array',
-                    ["name", "scalar_type", "dims", "properties"])
 
 
 class LFRicTypes:
@@ -413,13 +404,31 @@ class LFRicTypes:
         # list because they are used to create vector field datatypes and
         # symbols.
 
+        @dataclass(frozen=True)
+        class Array:
+            '''
+            Holds the properties of an LFRic array type, used when generating
+            DataSymbol and DataSymbolType classes.
+
+            :param: the base name to use for the datatype and datasymbol.
+            :param scalar_type: the name of the LFRic scalar type that this is
+                                an array of.
+            :param dims: textual description of each of the dimensions.
+            :param properties: Names of additional class properties that should
+                               be declared in the generated datasysmbol class.
+            '''
+            name: str
+            scalar_type: str
+            dims: list[str]
+            properties: list[str]
+
         field_datatypes = [
-            _Array("RealField", "LFRicRealScalarDataType",
-                   ["number of unique dofs"], ["fs"]),
-            _Array("IntegerField", "LFRicIntegerScalarDataType",
-                   ["number of unique dofs"], ["fs"]),
-            _Array("LogicalField", "LFRicLogicalScalarDataType",
-                   ["number of unique dofs"], ["fs"])]
+            Array("RealField", "LFRicRealScalarDataType",
+                  ["number of unique dofs"], ["fs"]),
+            Array("IntegerField", "LFRicIntegerScalarDataType",
+                  ["number of unique dofs"], ["fs"]),
+            Array("LogicalField", "LFRicLogicalScalarDataType",
+                  ["number of unique dofs"], ["fs"])]
 
         # TBD: #918 the dimension datatypes and their ordering is captured in
         # field_datatypes and array_datatypes but is not stored in the
@@ -437,44 +446,44 @@ class LFRicTypes:
         # function space attribute and the two function spaces must be
         # the same. This is not currently checked.
         array_datatypes = [
-            _Array("Operator", "LFRicRealScalarDataType",
-                   ["number of dofs", "number of dofs", "number of cells"],
-                   ["fs_from", "fs_to"]),
-            _Array("DofMap", "LFRicIntegerScalarDataType",
-                   ["number of dofs"], ["fs"]),
-            _Array("BasisFunctionQrXyoz", "LFRicRealScalarDataType",
-                   [LFRicTypes("LFRicDimension"), "number of dofs",
-                    "number of qr points in xy",
-                    "number of qr points in z"], ["fs"]),
-            _Array("BasisFunctionQrFace", "LFRicRealScalarDataType",
-                   [LFRicTypes("LFRicDimension"), "number of dofs",
-                    "number of qr points in faces",
-                    "number of faces"], ["fs"]),
-            _Array("BasisFunctionQrEdge", "LFRicRealScalarDataType",
-                   [LFRicTypes("LFRicDimension"), "number of dofs",
-                    "number of qr points in edges",
-                    "number of edges"], ["fs"]),
-            _Array("DiffBasisFunctionQrXyoz", "LFRicRealScalarDataType",
-                   [LFRicTypes("LFRicDimension"), "number of dofs",
-                    "number of qr points in xy",
-                    "number of qr points in z"], ["fs"]),
-            _Array("DiffBasisFunctionQrFace", "LFRicRealScalarDataType",
-                   [LFRicTypes("LFRicDimension"), "number of dofs",
-                    "number of qr points in faces",
-                    "number of faces"], ["fs"]),
-            _Array("DiffBasisFunctionQrEdge", "LFRicRealScalarDataType",
-                   [LFRicTypes("LFRicDimension"), "number of dofs",
-                    "number of qr points in edges", "number of edges"], ["fs"]),
-            _Array("QrWeightsInXy", "LFRicRealScalarDataType",
-                   ["number of qr points in xy"], []),
-            _Array("QrWeightsInZ", "LFRicRealScalarDataType",
-                   ["number of qr points in z"], []),
-            _Array("QrWeightsInFaces", "LFRicRealScalarDataType",
-                   ["number of qr points in faces"], []),
-            _Array("QrWeightsInEdges", "LFRicRealScalarDataType",
-                   ["number of qr points in edges"], []),
-            _Array("VerticalBoundaryDofMask", "LFRicIntegerScalarDataType",
-                   ["number of dofs", LFRicTypes("LFRicDimension")], [])
+            Array("Operator", "LFRicRealScalarDataType",
+                  ["number of dofs", "number of dofs", "number of cells"],
+                  ["fs_from", "fs_to"]),
+            Array("DofMap", "LFRicIntegerScalarDataType",
+                  ["number of dofs"], ["fs"]),
+            Array("BasisFunctionQrXyoz", "LFRicRealScalarDataType",
+                  [LFRicTypes("LFRicDimension"), "number of dofs",
+                   "number of qr points in xy",
+                   "number of qr points in z"], ["fs"]),
+            Array("BasisFunctionQrFace", "LFRicRealScalarDataType",
+                  [LFRicTypes("LFRicDimension"), "number of dofs",
+                   "number of qr points in faces",
+                   "number of faces"], ["fs"]),
+            Array("BasisFunctionQrEdge", "LFRicRealScalarDataType",
+                  [LFRicTypes("LFRicDimension"), "number of dofs",
+                   "number of qr points in edges",
+                   "number of edges"], ["fs"]),
+            Array("DiffBasisFunctionQrXyoz", "LFRicRealScalarDataType",
+                  [LFRicTypes("LFRicDimension"), "number of dofs",
+                   "number of qr points in xy",
+                   "number of qr points in z"], ["fs"]),
+            Array("DiffBasisFunctionQrFace", "LFRicRealScalarDataType",
+                  [LFRicTypes("LFRicDimension"), "number of dofs",
+                   "number of qr points in faces",
+                   "number of faces"], ["fs"]),
+            Array("DiffBasisFunctionQrEdge", "LFRicRealScalarDataType",
+                  [LFRicTypes("LFRicDimension"), "number of dofs",
+                   "number of qr points in edges", "number of edges"], ["fs"]),
+            Array("QrWeightsInXy", "LFRicRealScalarDataType",
+                  ["number of qr points in xy"], []),
+            Array("QrWeightsInZ", "LFRicRealScalarDataType",
+                  ["number of qr points in z"], []),
+            Array("QrWeightsInFaces", "LFRicRealScalarDataType",
+                  ["number of qr points in faces"], []),
+            Array("QrWeightsInEdges", "LFRicRealScalarDataType",
+                  ["number of qr points in edges"], []),
+            Array("VerticalBoundaryDofMask", "LFRicIntegerScalarDataType",
+                  ["number of dofs", LFRicTypes("LFRicDimension")], [])
             ]
 
         for array_type in array_datatypes + field_datatypes:
