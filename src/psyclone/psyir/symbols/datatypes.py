@@ -161,7 +161,7 @@ class UnknownFortranType(UnknownType):
     @property
     def partial_datatype(self):
         '''
-        :returns: partial datatype information if it can be determined, \
+        :returns: partial datatype information if it can be determined,
             else None.
         :rtype: Optional[:py:class:`psyclone.symbols.DataType`]
         '''
@@ -179,8 +179,16 @@ class UnknownFortranType(UnknownType):
         of the variable being declared. Once that is done this method
         won't be required.
 
+        Note that UnknownFortranType is also used to hold things like
+        'SAVE :: /my_common/' and thus it is not always possible/appropriate
+        to extract a type expression.
+
         :returns: the Fortran code specifying the type.
         :rtype: str
+
+        :raises NotImplementedError: if declaration text cannot be
+            extracted from the original Fortran declaration.
+
         '''
         if self._type_text:
             return self._type_text
@@ -195,10 +203,28 @@ class UnknownFortranType(UnknownType):
         # Set reader to free format.
         string_reader.set_format(FortranFormat(True, False))
         ParserFactory().create(std="f2008")
-        ptree = Fortran2003.Declaration_Construct(
-            string_reader)
-        self._type_text = str(ptree.children[0])
-
+        try:
+            ptree = Fortran2003.Specification_Part(
+                string_reader)
+        except Exception as err:
+            raise NotImplementedError(
+                f"Cannot extract the declaration part from UnknownFortranType "
+                f"'{self._declaration}' because parsing (attempting to match "
+                f"a Fortran2003.Specification_Part) failed.") from err
+        node = ptree.children[0]
+        if isinstance(node, (Fortran2003.Declaration_Construct,
+                             Fortran2003.Type_Declaration_Stmt)):
+            self._type_text = str(node.children[0])
+        elif isinstance(node, Fortran2003.Save_Stmt):
+            self._type_text = "SAVE"
+        elif isinstance(node, Fortran2003.Common_Stmt):
+            self._type_text = "COMMON"
+        else:
+            raise NotImplementedError(
+                f"Cannot extract the declaration part from UnknownFortranType "
+                f"'{self._declaration}'. Only Declaration_Construct, "
+                f"Type_Declaration_Stmt, Save_Stmt and Common_Stmt are "
+                f"supported but got '{type(node).__name__}' from the parser.")
         return self._type_text
 
     def __eq__(self, other):

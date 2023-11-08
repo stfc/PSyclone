@@ -82,6 +82,9 @@ class ArgOrdering:
         # as this creates a double reference (with
         # self._kernel.ancestor(InvokeSchedule)._symbol_table) to that table
         # and might go stale e.g. if the tree is copied.
+        # In fact, using the same symbol table as the Invoke is a bit odd as
+        # we are describing kernel *arguments* here so they will have a
+        # different interface to those in the Schedule of the invoke.
         if invoke_sched:
             self._symtab = invoke_sched.symbol_table
         else:

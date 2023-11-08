@@ -281,7 +281,7 @@ def test_routine_copy():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_routine_info_get_used_symbols_from_modules():
+def test_routine_get_used_symbols_from_modules():
     '''Tests that we get the used symbols from a routine reported correctly.
     '''
     test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
@@ -320,7 +320,7 @@ def test_routine_info_get_used_symbols_from_modules():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_routine_info_get_used_symbols_from_modules_renamed():
+def test_routine_get_used_symbols_from_modules_renamed():
     '''Tests that we get the used symbols from a routine reported correctly
     when a symbol is renamed, we need to get the original name.
     '''
@@ -344,7 +344,7 @@ def test_routine_info_get_used_symbols_from_modules_renamed():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_routine_info_non_locals_invokes():
+def test_routine_non_locals_invokes():
     '''Tests that kernels and builtins are handled correctly. We need to get
     the PSyIR after being processed by PSyclone, so that the invoke-call has
     been replaced with the builtin/kernel.

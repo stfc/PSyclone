@@ -56,11 +56,13 @@ def test_datatype():
     with pytest.raises(TypeError) as excinfo:
         _ = DataType()
     msg = str(excinfo.value)
-    # Have to split this check as Python >= 3.10 spots that 'method'
-    # should be singular.
-    assert ("Can't instantiate abstract class DataType with abstract "
-            "method" in msg)
-    assert " __str__" in msg
+    # Python >= 3.9 spots that 'method' should be singular. Prior to this it
+    # was plural. Python >= 3.12 tweaks the error message yet again to mention
+    # the lack of an implementation and to quote the method name.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class DataType with" in msg)
+    assert ("abstract method" in msg)
+    assert ("__str__" in msg)
 
 
 # DeferredType class
@@ -624,6 +626,43 @@ def test_unknown_fortran_type_text():
     # Calling it a second time should just return the previously cached
     # result.
     assert utype.type_text is text
+    # Test for a SAVE for a common block.
+    decl2 = "save :: /a_common_fault/"
+    utype2 = UnknownFortranType(decl2)
+    assert utype2.type_text == "SAVE"
+    # Test for a Common block.
+    decl3 = "common /name1/ a, b, c"
+    utype3 = UnknownFortranType(decl3)
+    assert utype3.type_text == "COMMON"
+
+
+def test_unknown_fortran_type_text_error():
+    '''
+    Check that the expected error is raised if the 'type_text' is requested
+    for something that is not a straightforward declaration.
+    '''
+    decl = "10 format('4I4')"
+    utype = UnknownFortranType(decl)
+    with pytest.raises(NotImplementedError) as err:
+        utype.type_text
+    assert ("Cannot extract the declaration part from UnknownFortranType "
+            "'10 format('4I4')'. Only Declaration_Construct, "
+            "Type_Declaration_Stmt, Save_Stmt and Common_Stmt are supported "
+            "but got 'Implicit_Part' from the parser." in str(err.value))
+    # Valid Fortran but not a declaration.
+    utype = UnknownFortranType("call fn(a)")
+    with pytest.raises(NotImplementedError) as err:
+        utype.type_text
+    assert ("Cannot extract the declaration part from UnknownFortranType "
+            "'call fn(a)' because parsing (attempting to match a "
+            "Fortran2003.Specification_Part) failed." in str(err.value))
+    # Invalid Fortran.
+    utype = UnknownFortranType("not valid fortran")
+    with pytest.raises(NotImplementedError) as err:
+        utype.type_text
+    assert ("Cannot extract the declaration part from UnknownFortranType "
+            "'not valid fortran' because parsing (attempting to match a "
+            "Fortran2003.Specification_Part) failed." in str(err.value))
 
 
 def test_unknown_fortran_type_eq():
@@ -635,6 +674,15 @@ def test_unknown_fortran_type_eq():
     # Type is the same even if the variable name is different.
     assert utype == UnknownFortranType("type(some_type) :: var1")
     assert utype != UnknownFortranType("type(other_type) :: var")
+    # A common block is the same type as another common block.
+    assert (UnknownFortranType("common /how_common/ a, b, cc") ==
+            UnknownFortranType("common /common_land/ a, b, cc"))
+    # A SAVE statement is the same type as another SAVE statement.
+    assert (UnknownFortranType("save :: /how_common/") ==
+            UnknownFortranType("save :: blue_blood"))
+    # Just sanity check that the type of a SAVE != that of a common.
+    assert (UnknownFortranType("common /how_common/ a, b, cc") !=
+            UnknownFortranType("save :: blue_blood"))
 
 
 # StructureType tests

@@ -206,8 +206,8 @@ class ModuleInfo:
                     routine_name = str(routine.content[0].items[1])
                     self._routine_names.add(routine_name)
 
-            # Then handle all generic interfaces, which will internally
-            # use references to the RoutineInfo objects collected above:
+            # Then handle all generic interfaces and add them to
+            # _generic_interfaces:
             for interface in all_generic_interfaces:
                 # Get the name of the interface from the Interface_Stmt:
                 name = str(walk(interface, Interface_Stmt)[0].items[0]).lower()
@@ -354,6 +354,7 @@ class ModuleInfo:
     def get_non_local_symbols(self, routine_name):
         '''This function returns a list of non-local accesses in this
         routine. It returns a list of triplets, each one containing:
+
         - the type ('routine', 'function', 'reference', 'unknown').
           The latter is used for array references or function calls,
           which we cannot distinguish till #1314 is done.
