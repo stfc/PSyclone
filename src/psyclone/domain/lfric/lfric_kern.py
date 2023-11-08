@@ -82,8 +82,8 @@ class LFRicKern(CodedKern):
         # pylint: disable=super-init-not-called
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynKernelArguments
         if False:  # pylint: disable=using-constant-test
+            from psyclone.dynamo0p3 import DynKernelArguments
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._parent = None
         self._base_name = ""
@@ -242,7 +242,7 @@ class LFRicKern(CodedKern):
                                 the source of this Kernel.
         :param args: list of Arg objects produced by the parser for the \
                      arguments of this kernel call.
-        :type args: List[:py:class:`psyclone.parse.algorithm.Arg`] objects
+        :type args: List[:py:class:`psyclone.parse.algorithm.Arg`]
         :param parent: the parent of this kernel call in the generated \
                        AST (will be a loop object).
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
@@ -385,11 +385,14 @@ class LFRicKern(CodedKern):
     def colourmap(self):
         '''
         Getter for the name of the colourmap associated with this kernel call.
+
         :returns: name of the colourmap (Fortran array).
         :rtype: str
+
         :raises InternalError: if this kernel is not coloured or the \
                                dictionary of inter-grid kernels and \
                                colourmaps has not been constructed.
+
         '''
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
@@ -420,8 +423,10 @@ class LFRicKern(CodedKern):
         '''
         Getter for the symbol of the array holding the index of the last
         cell of each colour.
+
         :returns: name of the array.
         :rtype: str
+
         :raises InternalError: if this kernel is not coloured or the \
                                dictionary of inter-grid kernels and \
                                colourmaps has not been constructed.
@@ -488,7 +493,7 @@ class LFRicKern(CodedKern):
         :return: a list of function space descriptor objects of
                  type FSDescriptors which contain information about
                  the function spaces.
-        :rtype: list of :py:class:`psyclone.FSDescriptors`.
+        :rtype: List[:py:class:`psyclone.FSDescriptors`].
 
         '''
         return self._fs_descriptors
@@ -604,13 +609,13 @@ class LFRicKern(CodedKern):
         # Add all the declarations
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric import LFRicScalarArgs
         from psyclone.dynamo0p3 import (DynCellIterators, DynDofmaps,
                                         DynFunctionSpaces, DynCMAOperators,
                                         DynBoundaryConditions,
                                         DynLMAOperators, LFRicMeshProperties,
                                         DynBasisFunctions, LFRicFields,
                                         DynReferenceElement, DynStencils)
-        from psyclone.domain.lfric import LFRicScalarArgs
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
