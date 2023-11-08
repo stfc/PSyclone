@@ -438,7 +438,7 @@ class Routine(Schedule, CommentableMixin):
 
         :returns: the non-local accesses in this routine.
         :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`, \
-                          :py:class:`psyclone.core.SingleVariableAccessInfo`]]
+            :py:class:`psyclone.core.SingleVariableAccessInfo`]]
 
         '''
         non_locals = self._compute_all_non_locals()
