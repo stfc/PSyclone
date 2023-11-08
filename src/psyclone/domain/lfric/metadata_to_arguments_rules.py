@@ -38,6 +38,7 @@
 
 '''
 from collections import OrderedDict
+import re
 
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
@@ -67,6 +68,7 @@ class MetadataToArgumentsRules():
     '''
     _metadata = None
     _info = None
+    bc_kern_regex = re.compile(r"enforce_bc_(\d+_)?code", flags=re.I)
 
     @classmethod
     def mapping(cls, metadata, info=None):
@@ -538,8 +540,8 @@ class MetadataToArgumentsRules():
 
         # The boundary condition kernel (enforce_bc_kernel) is a
         # special case.
-        if cls._metadata.procedure_name and \
-                cls._metadata.procedure_name.lower() == "enforce_bc_code":
+        if (cls._metadata.procedure_name and
+                cls.bc_kern_regex.match(cls._metadata.procedure_name)):
             cls._field_bcs_kernel()
 
         # The operator boundary condition kernel

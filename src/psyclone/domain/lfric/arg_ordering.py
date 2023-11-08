@@ -47,6 +47,8 @@ from psyclone.core import AccessType, Signature
 # a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
+from psyclone.domain.lfric.metadata_to_arguments_rules import (
+    MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
 from psyclone.psyir.symbols import ScalarType
@@ -472,8 +474,8 @@ class ArgOrdering:
                     self.diff_basis(unique_fs, var_accesses=var_accesses)
             # Fix for boundary_dofs array to the boundary condition
             # kernel (enforce_bc_kernel) arguments
-            if self._kern.name.lower() == "enforce_bc_code" and \
-               unique_fs.orig_name.lower() == "any_space_1":
+            if (MetadataToArgumentsRules.bc_kern_regex.match(self._kern.name)
+                    and unique_fs.orig_name.lower() == "any_space_1"):
                 self.field_bcs_kernel(unique_fs, var_accesses=var_accesses)
 
         # Add boundary dofs array to the operator boundary condition
