@@ -1,0 +1,209 @@
+{# Added this as Jinja code so that it is understood that the
+   comment does not apply to THIS file. #}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
+{{ "! ================================================== !" }}
+
+{# This jinja template provides functions to compare
+   scalar and arrays. It is used by the drivers created
+   by PSyclone driver creation script to compare the expected
+   results with the actual results. When preprocessing this
+   file you can use ALL_DIMS and ALL_TYPES (see below) to
+   create code for the required data types. Note that this
+   function only supports standard Fortran data types, no
+   derived type (e.g. LFRic fields etc)
+#}
+
+{% if ALL_DIMS is not defined -%}
+   {# Support 1 to 4 dimensional arrays if not specified #}
+   {% set ALL_DIMS = [1, 2, 3, 4] -%}
+   {% set ALL_DIMS = [] -%}
+{% endif -%}
+
+{# The types that are supported. The first entry of each tuple
+   is the name used when naming subroutines and in user messages.
+   The second entry is the Fortran declaration. The third entry
+   is the number of bits. There is slightly different code
+   required for 32 and 64 bit values (due to the fact that the
+   Fortran transfer(value, mould) function leaves undefined bits
+   when mould is larger than value.) #}
+
+{% if ALL_TYPES is not defined -%}
+   {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
+                        ("Real",   "real(kind=real32)",   32),
+                        ("Character",   "character(*)",    8),
+                        ("Long",   "real(kind=int64)",    64),
+                        ("Int",    "integer(kind=int32)", 32) ] %}
+{% endif -%}
+
+
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2023, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: J. Henrichs, Bureau of Meteorology
+
+module compare_variables_mod
+
+    integer, parameter :: MIN_ABS_ERROR = 1
+    integer, parameter :: MAX_ABS_ERROR = 2
+    integer, parameter :: MIN_REL_ERROR = 3
+    integer, parameter :: MAX_REL_ERROR = 4
+    integer, parameter :: L2_DIFF = 5
+    integer, parameter :: L2_COS_SIMILAR = 6
+
+    integer, parameter :: NUM_RESULTS = 6
+
+    ! Declare generic interface for Compare:
+    {# Collect and declare the various procedures for the same generic interface -#}
+    {# ------------------------------------------------------------------------- #}
+    interface compare
+    {% set all_compares=[] -%}
+    {% for name, type, bits in ALL_TYPES %}
+        module procedure compare_scalar_{{name}}
+      {% for dim in ALL_DIMS %}
+        module procedure compare_array_{{dim}}d{{name}}
+      {% endfor %}
+    {% endfor %}
+    end interface
+
+contains
+{% for name, type, bits in ALL_TYPES %}
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine writes the value of a scalar {{type}}
+    !! variable to the file. It takes the variable id from the
+    !! corresponding declaration.
+    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine compare_scalar_{{name}}(value, correct_value, errors)
+        use, intrinsic :: iso_fortran_env, only : int64, int32,   &
+                                                  real32, real64 
+        implicit none
+        {{type}}, intent(in)           :: value, correct_value
+        real(kind=real64), intent(out), dimension(NUM_RESULTS) :: errors
+
+        {% if name == "Logical" %}
+        if (value .eqv. correct_value) then
+        {% else %}
+        if (value .eq. correct_value) then
+        {% endif %}
+            errors(MIN_ABS_ERROR) = 0
+            errors(MAX_ABS_ERROR) = 0
+            errors(MIN_REL_ERROR) = 0
+            errors(MAX_REL_ERROR) = 0
+        else
+        {% if name in ["Char", "Logical"] %}
+            ! Set all errors to 1
+            errors(MIN_ABS_ERROR) = 1.0
+            errors(MAX_ABS_ERROR) = 1.0
+        {% elif name in ["Long", "Int"] %}
+            errors(MIN_ABS_ERROR) = correct_value - value
+            errors(MAX_ABS_ERROR) = correct_value - value
+        {% elif name in ["Real", "Double"] %}
+            errors(MIN_ABS_ERROR) = correct_value - value
+            errors(MAX_ABS_ERROR) = correct_value - value
+        {% endif %}
+            errors(MIN_REL_ERROR) = 1.0
+            errors(MAX_REL_ERROR) = 1.0
+        endif
+
+    end subroutine compare_scalar_{{name}}
+
+  {# Now provide the array implementations -#}
+  {# ------------------------------------- -#}
+  {% for dim in ALL_DIMS %}
+    {# Create the ':,:,:,:' string
+       We repeat the list [":"] DIM-times, which is then joined #}
+    {% set DIMENSION=([":"]*dim)|join(",") %}
+
+    {# Create list of variables: "dimid1, dimid2, dimid3, dimid4" #}
+    {% set vars = "dimid"~range(1,dim+1)|join(", dimid") %}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine writes a {{dim}}D array of {{type}}
+    !! to the file.
+    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !! @param[in] value The value of the variable.
+    subroutine compare_array_{{dim}}d{{name}}(values, correct_values, errors)
+
+        use, intrinsic :: iso_fortran_env, only : int64, int32,   &
+                                                  real32, real64
+        implicit none
+
+        {{type}}, dimension({{DIMENSION}}), intent(in)  :: values, correct_values
+        real(kind=real64), dimension(NUM_RESULTS), intent(out) :: errors
+        {% if name not in ["Char", "Logical"] %}
+        {{type}}, dimension({{DIMENSION}}), allocatable :: tmp
+        {% endif %}
+
+        {% if name == "Logical" %}
+        if (any(values .neqv. correct_values)) then
+        {% else %}
+        if (any(values /= correct_values)) then
+        {% endif %}
+        {% if name in ["Char", "Logical"] %}
+            ! Set all errors to 1
+            errors(MIN_ABS_ERROR) = 1.0
+            errors(MAX_ABS_ERROR) = 1.0
+        {% elif name in ["Int", "Long"] %}
+        {% else %}
+            errors(MIN_ABS_ERROR) = minval(correct_values - values)
+            errors(MAX_ABS_ERROR) = maxval(correct_values - values)
+            allocate(tmp, mold=values)
+            where(values /= 0)
+                tmp = (correct_values - values)/values
+            elsewhere
+                tmp = -1
+            endwhere
+            errors(MAX_REL_ERROR) = maxval(tmp)
+            tmp = (correct_values - values)
+            errors(L2_DIFF) = sqrt(sum(tmp*tmp))
+            errors(L2_COS_SIMILAR) = sum(values*correct_values) &
+                                   / sqrt(sum(values*values))  &
+                                   / sqrt(sum(correct_values*correct_values))
+        {% endif %}
+        else
+            errors(MIN_ABS_ERROR) = 0
+            errors(MAX_ABS_ERROR) = 0
+            errors(MIN_REL_ERROR) = 0
+            errors(MAX_REL_ERROR) = 0
+        endif
+
+    end subroutine Compare_array_{{dim}}d{{name}}
+
+    {% endfor -%}  {# for dim in ALL_DIMS #}
+
+{%- endfor -%}  {# for name, type, bits in ALL_TYPES #}
+
+end module compare_variables_mod
