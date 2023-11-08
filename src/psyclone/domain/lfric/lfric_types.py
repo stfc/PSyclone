@@ -288,13 +288,11 @@ class LFRicTypes:
 
         # Create the required entries in the dictionary
         # TODO use `update` here?
-        LFRicTypes._name_to_class["LFRicDimension"] = LFRicDimension
-        LFRicTypes._name_to_class["LFRIC_SCALAR_DIMENSION"] = \
-            LFRicDimension("1")
-        LFRicTypes._name_to_class["LFRIC_VERTICAL_BOUNDARIES_DIMENSION"] = (
-            LFRicDimension("2"))
-        LFRicTypes._name_to_class["LFRIC_VECTOR_DIMENSION"] = \
-            LFRicDimension("3")
+        LFRicTypes._name_to_class.update({
+            "LFRicDimension": LFRicDimension,
+            "LFRIC_SCALAR_DIMENSION": LFRicDimension("1"),
+            "LFRIC_VERTICAL_BOUNDARIES_DIMENSION": LFRicDimension("2"),
+            "LFRIC_VECTOR_DIMENSION": LFRicDimension("3")})
 
     # ------------------------------------------------------------------------
     @staticmethod
@@ -419,8 +417,8 @@ class LFRicTypes:
             '''
             name: str
             scalar_type: str
-            dims: list[str]
-            properties: list[str]
+            dims: list        # list[str] notation supported in Python 3.9+
+            properties: list  # ditto
 
         field_datatypes = [
             Array("RealField", "LFRicRealScalarDataType",
