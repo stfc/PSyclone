@@ -798,7 +798,7 @@ def test_field_bcs_kernel():
     assert isinstance(ndf_symbol.interface, ArgumentInterface)
     assert (ndf_symbol.interface.access ==
             kernel_interface._read_access.access)
-    # boundary dofs mask declared
+    # vertical-boundary dofs mask declared
     mask_sym = kernel_interface._symtab.lookup(f"boundary_dofs_{fld_name}")
     assert isinstance(mask_sym,
                       LFRicTypes("VerticalBoundaryDofMaskDataSymbol"))
