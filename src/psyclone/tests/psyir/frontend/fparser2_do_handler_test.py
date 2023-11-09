@@ -329,7 +329,6 @@ def test_do_concurrent(fortran_reader, fortran_writer, tmpdir):
     loops = psyir.walk(Loop)
     assert len(loops) == 4
     output = fortran_writer(psyir)
-    print (output)
     assert """
   do i = 1, n, 3
     do j = 1, m, 2
