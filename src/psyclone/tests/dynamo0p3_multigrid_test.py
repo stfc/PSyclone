@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and O. Brunt, Met Office
+# Modified I. Kavcic, O. Brunt and L. Turner, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the inter-grid part of the LFRic API
@@ -44,9 +44,8 @@ import fparser
 
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import (LFRicHaloExchange, DynKernMetadata,
-                                HaloReadAccess)
+from psyclone.domain.lfric import LFRicConstants, LFRicKernMetadata
+from psyclone.dynamo0p3 import LFRicHaloExchange, HaloReadAccess
 from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
@@ -55,9 +54,10 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Node, Loop
 from psyclone.psyir.symbols import Symbol
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import (
-    ACCEnterDataTrans, ACCKernelsTrans, check_intergrid, Dynamo0p3ColourTrans,
-    DynamoOMPParallelLoopTrans, TransformationError)
+from psyclone.transformations import (ACCEnterDataTrans, ACCKernelsTrans, 
+                                      check_intergrid, Dynamo0p3ColourTrans,
+                                      DynamoOMPParallelLoopTrans, 
+                                      TransformationError)
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -107,7 +107,7 @@ def test_invalid_mesh_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("mesh_arg must be one of ['gh_coarse', "
             "'gh_fine'] but got gh_rubbish" in str(excinfo.value))
 
@@ -120,7 +120,7 @@ def test_invalid_mesh_specifier():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("mesh_ar=gh_coarse is not a valid mesh identifier" in
             str(excinfo.value))
 
@@ -134,7 +134,7 @@ def test_all_args_same_mesh_error():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     const = LFRicConstants()
     assert (f"Inter-grid kernels in the Dynamo 0.3 API must have at least "
             f"one field argument on each of the mesh types "
@@ -145,7 +145,7 @@ def test_all_args_same_mesh_error():
     code = RESTRICT_MDATA.replace("GH_FINE", "GH_COARSE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"Inter-grid kernels in the Dynamo 0.3 API must have at least "
             f"one field argument on each of the mesh types "
             f"({const.VALID_MESH_TYPES}). However, kernel "
@@ -167,7 +167,7 @@ def test_all_fields_have_mesh():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API must specify which "
             "mesh each field argument "
             "is on but kernel restrict_kernel_type has at least one field "
@@ -184,7 +184,7 @@ def test_args_same_space_error():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("inter-grid kernels must be on different function spaces if "
             "they are on different meshes. However kernel "
             "restrict_kernel_type has a field on function space(s)"
@@ -208,7 +208,7 @@ def test_only_field_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("Inter-grid kernels in the Dynamo 0.3 API are only permitted to "
             "have field arguments but kernel restrict_kernel_type also has "
             "arguments of type ['gh_scalar']" in str(excinfo.value))
@@ -222,13 +222,13 @@ def test_field_vector():
     code = RESTRICT_MDATA.replace("GH_FIELD,", "GH_FIELD*2,", 2)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     for arg in dkm.arg_descriptors:
         assert arg.vector_size == 2
     # Change only one of the arguments to be a vector
     code = RESTRICT_MDATA.replace("GH_FIELD,", "GH_FIELD*3,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     assert dkm.arg_descriptors[0].vector_size == 3
     assert dkm.arg_descriptors[1].vector_size == 1
 
@@ -245,7 +245,7 @@ def test_two_grid_types(monkeypatch):
     ast = fpapi.parse(RESTRICT_MDATA, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(InternalError) as err:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("The implementation of inter-grid support in the LFRic "
             "API assumes there are exactly two mesh types but "
             "LFRicConstants.VALID_MESH_TYPES contains 3: "

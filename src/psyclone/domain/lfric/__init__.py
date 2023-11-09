@@ -68,6 +68,7 @@ from psyclone.domain.lfric.lfric_run_time_checks import LFRicRunTimeChecks
 from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
+from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
 
 
 __all__ = [

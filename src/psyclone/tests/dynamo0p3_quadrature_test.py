@@ -45,9 +45,8 @@ import pytest
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicKern
-from psyclone.dynamo0p3 import DynKernMetadata, DynBasisFunctions, \
-    qr_basis_alloc_args
+from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
+from psyclone.dynamo0p3 import DynBasisFunctions, qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import KernelCall, parse
@@ -722,12 +721,12 @@ def test_lfrickern_setup(monkeypatch):
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
     monkeypatch.setattr(kern, "_eval_shapes", value=["gh_wrong_shape"])
-    # Rather than try and mock-up a DynKernMetadata object, it's easier
+    # Rather than try and mock-up a LFRicKernMetadata object, it's easier
     # to make one properly by parsing the kernel code.
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_mod.F90"),
                       ignore_comments=False)
     name = "testkern_qr_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     # Finally, call the _setup() method
     with pytest.raises(InternalError) as excinfo:
         kern._setup(dkm, "my module", None, None)
@@ -787,7 +786,7 @@ def test_qr_basis_stub():
 
     '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
@@ -901,7 +900,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
     for quadrature raises the correct errors if the kernel meta-data is
     broken '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
@@ -931,7 +930,7 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
 
     ast = fpapi.parse(diff_basis, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",

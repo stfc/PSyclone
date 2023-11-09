@@ -47,12 +47,13 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import FunctionSpace, LFRicArgDescriptor, \
-    LFRicConstants, LFRicKern
-from psyclone.dynamo0p3 import DynACCEnterDataDirective, \
-    DynBoundaryConditions, DynCellIterators, DynGlobalSum, \
-    DynKernelArguments, DynKernMetadata, DynLoop, DynProxies, \
-    HaloReadAccess, KernCallArgList
+from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
+                                   LFRicConstants, LFRicKern,
+                                   LFRicKernMetadata)
+from psyclone.dynamo0p3 import (DynACCEnterDataDirective,
+                                DynBoundaryConditions, DynCellIterators,
+                                DynGlobalSum, DynKernelArguments, DynLoop, 
+                                DynProxies, HaloReadAccess, KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -125,7 +126,7 @@ def test_arg_descriptor_wrong_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("each 'meta_arg' entry must be of type 'arg_type'" in
             str(excinfo.value))
 
@@ -143,7 +144,7 @@ def test_ad_invalid_type():
     const = LFRicConstants()
 
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"the 1st argument of a 'meta_arg' entry should be a valid "
             f"argument type (one of {const.VALID_ARG_TYPE_NAMES}), "
             f"but found 'gh_operato'" in str(excinfo.value))
@@ -153,7 +154,7 @@ def test_ad_invalid_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"the 1st argument of a 'meta_arg' entry should be a valid "
             f"argument type (one of {const.VALID_ARG_TYPE_NAMES}), "
             f"but found ':'" in str(excinfo.value))
@@ -170,7 +171,7 @@ def test_ad_invalid_access_type():
     api_config = Config.get().api_conf("dynamo0.3")
     valid_access_names = api_config.get_valid_accesses_api()
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"argument 3 of a 'meta_arg' entry must be a valid "
             f"access descriptor (one of {valid_access_names}), "
             "but found 'gh_ead'" in str(excinfo.value))
@@ -182,7 +183,7 @@ def test_ad_invalid_iteration_space():
     (other than "cells" or "dofs"). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
     # Extract an arg_type object that we can use to create an
     # LFRicArgDescriptor object
@@ -209,7 +210,7 @@ def test_missing_shape_both():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
             "'gh_shape' in the kernel meta-data but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo.value))
@@ -234,7 +235,7 @@ def test_missing_shape_basis_only():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
             "'gh_shape' in the kernel meta-data but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo.value))
@@ -259,7 +260,7 @@ def test_missing_eval_shape_diff_basis_only():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
             "'gh_shape' in the kernel meta-data but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo.value))
@@ -276,7 +277,7 @@ def test_invalid_shape():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("request one or more valid gh_shapes (one of ['gh_quadrature_xyoz'"
             ", 'gh_quadrature_face', 'gh_quadrature_edge', 'gh_evaluator']) "
             "but got '['quadrature_wrong']' for kernel 'testkern_qr_type'"
@@ -298,7 +299,7 @@ def test_unnecessary_shape():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("Kernel 'testkern_qr_type' specifies one or more gh_shapes "
             "(['gh_quadrature_xyoz']) but does not need an evaluator because "
             "no basis or differential basis functions are required"
@@ -1214,7 +1215,7 @@ def test_arg_descriptor_funcs_method_error():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
     field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
@@ -1249,7 +1250,7 @@ def test_dynkernmetadata_read_fs_error():
         "end module testkern_chi_write_mod\n")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as info:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert ("Found kernel metadata in 'testkern_chi_write_type' that "
             "specifies writing to the read-only function space 'wchi'."
             in str(info.value))
@@ -2117,7 +2118,7 @@ def test_arg_descriptor_func_method_error():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     scalar_descriptor = metadata.arg_descriptors[0]
     scalar_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
@@ -2135,7 +2136,7 @@ def test_arg_descriptor_str_error():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     scalar_descriptor = metadata.arg_descriptors[0]
     scalar_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
@@ -2152,7 +2153,7 @@ def test_arg_desc_func_space_tofrom_err():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     scalar_descriptor = metadata.arg_descriptors[0]
     with pytest.raises(InternalError) as excinfo:
         _ = scalar_descriptor.function_space_to
@@ -2293,7 +2294,7 @@ def test_arg_descriptor_init_error(monkeypatch):
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
     # Extract an arg_type object that we can use to create an
     # LFRicArgDescriptor object
@@ -2316,7 +2317,7 @@ def test_func_descriptor_repr():
     ''' Tests the __repr__ output of a func_descriptor '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     func_descriptor = metadata.func_descriptors[0]
     func_str = repr(func_descriptor)
     assert "DynFuncDescriptor03(func_type(w1, gh_basis))" in func_str
@@ -2326,7 +2327,7 @@ def test_func_descriptor_str():
     ''' Tests the __str__ output of a func_descriptor '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     func_descriptor = metadata.func_descriptors[0]
     func_str = str(func_descriptor)
     output = (
@@ -2790,7 +2791,7 @@ def test_operator_gh_sum_invalid():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("allowed accesses for operators are ['gh_read', 'gh_write', "
             "'gh_readwrite'] because they behave as discontinuous "
             "quantities, but found 'gh_sum'" in str(excinfo.value))
@@ -2999,7 +3000,7 @@ def test_no_updated_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("An LFRic kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
             "'testkern_qr_type'." in str(excinfo.value))
@@ -3028,7 +3029,7 @@ end module testkern
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("An LFRic kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
             "'testkern_type'." in str(excinfo.value))
@@ -3043,7 +3044,7 @@ def test_multiple_updated_op_args():
         "arg_type(gh_operator, gh_real,    gh_write, w1, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
         if (descriptor.argument_type in ["gh_field", "gh_operator"] and
