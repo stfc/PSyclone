@@ -47,7 +47,6 @@ import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 import fparser
-from dataclasses import dataclass
 from typing import Any
 
 from psyclone import psyGen
@@ -8393,7 +8392,6 @@ def check_args(call):
             f"qr_arguments'")
 
 
-@dataclass(frozen=True)
 class LFRicArgStencil:
     '''
     Provides stencil information about an LFRic kernel argument.
