@@ -654,9 +654,12 @@ def test_module_inline_with_interfaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir, monkeypatch):
+def test_psyir_mod_inline_program(fortran_reader, fortran_writer, tmpdir,
+                                  monkeypatch):
     '''
-    Test module inlining a subroutine in generic PSyIR.
+    Test module inlining a subroutine in generic PSyIR when the Call is
+    within a Program.
+
     '''
     intrans = KernelModuleInlineTrans()
     code = '''\
@@ -666,6 +669,8 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir, monkeypatch):
       call my_sub(a)
     end program my_prog
     '''
+    # Create the module containing the subroutine definition, write it to
+    # file and set the search path so that PSyclone can find it.
     mod_code = '''\
     module my_mod
     contains
