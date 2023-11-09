@@ -83,34 +83,39 @@ class KernelModuleInlineTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the target node is not a sub-class of \
+        :raises TransformationError: if the target node is not a sub-class of
             psyGen.CodedKern.
-        :raises TransformationError: if the subroutine containing the \
-            implementation of the kernel cannot be retrieved with \
+        :raises TransformationError: if the subroutine containing the
+            implementation of the kernel cannot be retrieved with
             'get_kernel_schedule'.
-        :raises TransformationError: if the name of the routine that \
-            implements the kernel is not the same as the kernel name. This \
-            will happen if the kernel is polymorphic (uses a Fortran \
+        :raises TransformationError: if the name of the routine that
+            implements the kernel is not the same as the kernel name. This
+            will happen if the kernel is polymorphic (uses a Fortran
             INTERFACE) and will be resolved by #1824.
         :raises TransformationError: if the kernel cannot be safely inlined.
 
         '''
-        if not isinstance(node, CodedKern):
+        if not isinstance(node, (CodedKern, Call)):
             raise TransformationError(
                 f"Target of a {self.name} must be a sub-class of "
-                f"psyGen.CodedKern but got '{type(node).__name__}'")
+                f"psyGen.CodedKern or psyir.nodes.Call but got "
+                f"'{type(node).__name__}'")
 
         # Check that the PSyIR and associated Symbol table of the Kernel is OK.
         # If this kernel contains symbols that are not captured in the PSyIR
         # SymbolTable then this raises an exception.
-        try:
-            kernel_schedule = node.get_kernel_schedule()
-        except Exception as error:
-            raise TransformationError(
-                f"{self.name} failed to retrieve PSyIR for kernel "
-                f"'{node.name}' using the 'get_kernel_schedule' method"
-                f" due to {error}."
-                ) from error
+        if isinstance(node, CodedKern):
+            try:
+                kernel_schedule = node.get_kernel_schedule()
+            except Exception as error:
+                raise TransformationError(
+                    f"{self.name} failed to retrieve PSyIR for kernel "
+                    f"'{node.name}' using the 'get_kernel_schedule' method"
+                    f" due to {error}."
+                    ) from error
+        else:
+            kernel_schedule = node.routine.get_schedule(
+                node.ancestor(Container))
 
         # We do not support kernels that use symbols representing global
         # variables declared in its own parent module (we would need to
@@ -142,7 +147,7 @@ class KernelModuleInlineTrans(Transformation):
                 except KeyError as err:
                     if not block.scope.symbol_table.lookup(name).is_import:
                         raise TransformationError(
-                            f"Kernel '{node.name}' contains accesses to "
+                            f"Kernel '{kernel_schedule.name}' contains accesses to "
                             f"'{name}' in a CodeBlock that is declared in the "
                             f"same module scope. "
                             f"Cannot inline such a kernel.") from err
@@ -156,14 +161,14 @@ class KernelModuleInlineTrans(Transformation):
                     if symbol.name == mod.name and not \
                             isinstance(symbol, ContainerSymbol):
                         raise TransformationError(
-                            f"Kernel '{node.name}' cannot be module-inlined"
+                            f"Kernel '{kernel_schedule.name}' cannot be module-inlined"
                             f" because the subroutine shadows the symbol "
                             f"name of the module container '{symbol.name}'.")
 
         # If the symbol already exist at the call site it must be referring
         # to a Routine
         try:
-            existing_symbol = node.scope.symbol_table.lookup(node.name)
+            existing_symbol = node.scope.symbol_table.lookup(kernel_schedule.name)
         except KeyError:
             existing_symbol = None
         if existing_symbol and not isinstance(existing_symbol, RoutineSymbol):
@@ -270,48 +275,66 @@ class KernelModuleInlineTrans(Transformation):
         # may already be in use, but the equality check below guarantees
         # that if it exists it is only valid when it references the exact same
         # implementation.
-        code_to_inline = node.get_kernel_schedule()
-        name = code_to_inline.name
+        if isinstance(node, CodedKern):
+            code_to_inline = node.get_kernel_schedule()
+            caller_name = node.name.lower()
+        else:
+            code_to_inline = node.routine.get_schedule(node)
+            caller_name = node.routine.name.lower()
+
+        callee_name = code_to_inline.name
 
         try:
-            existing_symbol = node.scope.symbol_table.lookup(name)
+            existing_symbol = node.scope.symbol_table.lookup(callee_name)
         except KeyError:
             existing_symbol = None
 
         self._prepare_code_to_inline(code_to_inline)
 
+        container = node.ancestor(Container)
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
-            node.ancestor(Container).symbol_table.add(RoutineSymbol(
-                    name, interface=DefaultModuleInterface()
+            container.symbol_table.add(RoutineSymbol(
+                    callee_name, interface=DefaultModuleInterface()
             ))
             # 2) Insert the relevant code into the tree.
-            node.ancestor(Container).addchild(code_to_inline.detach())
+            container.addchild(code_to_inline.detach())
         else:
-            # The routine symbol already exist, and we know from the validation
-            # that its a Routine. Now check if they are exactly the same.
-            for routine in node.ancestor(Container).walk(Routine,
-                                                         stop_type=Routine):
-                if routine.name == node.name:
-                    # This TransformationError happens here and not in the
-                    # validation because it needs the symbols_to_bring_in
-                    # applied to effectively compare both versions
-                    # This will be fixed when module-inlining versioning is
-                    # implemented.
-                    if routine != code_to_inline:
-                        raise TransformationError(
-                            f"Cannot inline subroutine '{node.name}' because "
-                            f"another, different, subroutine with the same "
-                            f"name already exists and versioning of module-"
-                            f"inlined subroutines is not implemented yet.")
+            if existing_symbol.is_import:
+                table = node.scope.symbol_table
+                csym = existing_symbol.interface.container_symbol
+                remove_csym = (table.symbols_imported_from(csym) ==
+                               [existing_symbol])
+                existing_symbol.interface = DefaultModuleInterface()
+                if remove_csym:
+                    table.remove(csym)
+                container.addchild(code_to_inline.detach())
+            else:
+                # The routine symbol already exists, and we know from the validation
+                # that it's a Routine. Now check if they are exactly the same.
+                for routine in container.walk(Routine, stop_type=Routine):
+                    if routine.name == caller_name:
+                        # This TransformationError happens here and not in the
+                        # validation because it needs the symbols_to_bring_in
+                        # applied to effectively compare both versions
+                        # This will be fixed when module-inlining versioning is
+                        # implemented.
+                        if routine != code_to_inline:
+                            raise TransformationError(
+                                f"Cannot inline subroutine '{caller_name}' because "
+                                f"another, different, subroutine with the same "
+                                f"name already exists and versioning of module-"
+                                f"inlined subroutines is not implemented yet.")
 
         # We only modify the kernel call name after the equality check to
         # ensure the apply will succeed and we don't leave with an inconsistent
         # tree.
-        if node.name.lower() != name:
-            node.name = name
-
+        if callee_name != caller_name:
+            if isinstance(node, CodedKern):
+                node.name = callee_name
+            else:
+                node.routine = container.symbol_table.lookup(callee_name)
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer
         # creation time, we could just remove it here instead of setting a

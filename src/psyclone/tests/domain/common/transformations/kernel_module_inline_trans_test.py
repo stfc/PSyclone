@@ -39,6 +39,7 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
+import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
@@ -52,7 +53,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import count_lines, get_invoke
+from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
 
 def test_module_inline_constructor_and_str():
@@ -73,12 +74,13 @@ def test_validate_inline_error_if_not_kernel():
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kern_call)
     assert ("Target of a KernelModuleInlineTrans must be a sub-class of "
-            "psyGen.CodedKern but got 'GOLoop'" in str(err.value))
+            "psyGen.CodedKern or psyir.nodes.Call but got 'GOLoop'" in
+            str(err.value))
 
 
 def test_validate_with_imported_subroutine_call():
     ''' Test that the module inline transformation supports kernels with
-    call nodes that reference and imported symbol. '''
+    call nodes that reference an imported symbol. '''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
@@ -650,3 +652,44 @@ def test_module_inline_with_interfaces(tmpdir):
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir, monkeypatch):
+    '''
+    Test module inlining a subroutine in generic PSyIR.
+    '''
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    program my_prog
+      use my_mod, only: my_sub
+      real, dimension(10) :: a
+      call my_sub(a)
+    end program my_prog
+    '''
+    mod_code = '''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    '''
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+ 
+    with open(os.path.join(path, "my_mod.f90"), "w") as mfile:
+        mfile.write(mod_code)
+
+    prog_psyir = fortran_reader.psyir_from_source(code)
+    call = prog_psyir.walk(Call)[0]
+    intrans.apply(call)
+    routines = prog_psyir.walk(Routine)
+    assert len(routines) == 2
+    assert routines[0].name in ["my_prog", "my_sub"]
+    assert routines[1].name in ["my_prog", "my_sub"]
+    output = fortran_writer(prog_psyir)
+    assert "program my_prog" in output
+    assert "subroutine my_sub" in output
+    assert "use my_mod" not in output
+    assert Compile(tmpdir).string_compiles(output)

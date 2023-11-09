@@ -151,6 +151,35 @@ class RoutineSymbol(TypedSymbol):
                             f"'{type(value).__name__}'")
         self._is_elemental = value
 
+    def get_schedule(self, container=None):
+        '''
+        '''
+        if self.is_import:
+            csym = self.interface.container_symbol
+            # If necessary, this will search for and process the source file
+            # defining the container.
+            container = csym.container
+            rsym = container.symbol_table.lookup(self.name)
+            if rsym.is_import:
+                # Recursively follow imports
+                return rsym.get_schedule(container)
+        else:
+            if not container:
+                raise ValueError(
+                    f"RoutineSymbol '{self.name}' is not imported so a "
+                    f"Container node must be provided in order to search for "
+                    f"its Schedule.")
+
+        from psyclone.psyir.nodes.routine import Routine
+        for routine in container.walk(Routine, stop_type=Routine):
+            if routine.name.lower() == self.name.lower():
+                kernel_schedule = routine
+                return kernel_schedule
+
+        raise SymbolError(
+            f"Routine '{self.name}' is imported from '{container.name}' "
+            f"but failed to find a matching routine in that "
+            f"container.")
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ["RoutineSymbol"]
