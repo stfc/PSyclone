@@ -130,13 +130,26 @@ contains
     ! -------------------------------------------------------------------------
     subroutine compare_summary()
         implicit none
-        integer :: i
+        integer :: i, max_name_len
+        character(256) :: out_format
 
-        print *,"GOT", size(all_names), "results"
+        ! First compute the format, based on maximum name length:
+        max_name_len = -1
 
         do i=1, current_index
-            print *,trim(all_names(i)), " ",all_results(i,:)
+            if (len(trim(all_names(i))) > max_name_len) then
+                max_name_len = len(trim(all_names(i)))
+            endif
         enddo
+
+        write(out_format, "('(A',I0)" ) max_name_len
+        out_format = trim(out_format)//",10F8.3)"
+
+        ! Then write out the results for each variable:
+        do i=1, current_index
+            write(*,out_format) trim(all_names(i)), all_results(i,:)
+        enddo
+
     end subroutine compare_summary
 
     ! -------------------------------------------------------------------------
