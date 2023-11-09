@@ -749,9 +749,26 @@ class LFRicExtractDriverCreator:
                        :py:class:`psyclone.psyir.symbols.Symbol`]]
 
         '''
+
+        module = ContainerSymbol("compare_variables_mod")
+        program.symbol_table.add(module)
+        for compare_func in ["compare", "compare_init", "compare_summary"]:
+            compare_sym = RoutineSymbol(compare_func, DeferredType(),
+                                        interface=ImportInterface(module))
+            program.symbol_table.add(compare_sym)
+
+        LFRicExtractDriverCreator.\
+            _add_call(program, "compare_init",
+                      [Literal(f"{len(output_symbols)}", INTEGER_TYPE)])
+
         # TODO #2083: check if this can be combined with psyad result
         # comparison.
         for (sym_computed, sym_read) in output_symbols:
+            lit_name = Literal(sym_computed.name, CHARACTER_TYPE)
+            LFRicExtractDriverCreator._add_call(program, "compare",
+                                                [lit_name,
+                                                 Reference(sym_computed),
+                                                 Reference(sym_read)])
             if (isinstance(sym_computed.datatype, ArrayType) or
                     (isinstance(sym_computed.datatype, UnknownFortranType) and
                      isinstance(sym_computed.datatype.partial_datatype,
@@ -779,6 +796,9 @@ class LFRicExtractDriverCreator:
             container = fortran_reader.psyir_from_source(code)
             if_block = container.children[0].children[0]
             program.addchild(if_block.detach())
+
+        LFRicExtractDriverCreator.\
+            _add_call(program, "compare_summary", [])
 
     # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):

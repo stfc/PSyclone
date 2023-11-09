@@ -75,6 +75,9 @@
 
 module compare_variables_mod
 
+    use, intrinsic :: iso_fortran_env, only : real64, stderr => Error_Unit
+
+    implicit None
     integer, parameter :: MIN_ABS_ERROR = 1
     integer, parameter :: MAX_ABS_ERROR = 2
     integer, parameter :: MIN_REL_ERROR = 3
@@ -83,6 +86,11 @@ module compare_variables_mod
     integer, parameter :: L2_COS_SIMILAR = 6
 
     integer, parameter :: NUM_RESULTS = 6
+
+    integer, parameter                                        :: MAX_STRING_LENGTH=512
+    character(MAX_STRING_LENGTH), dimension(:),   allocatable :: all_names
+    real(kind=real64),            dimension(:,:), allocatable :: all_results
+    integer                                                   :: current_index = 0
 
     ! Declare generic interface for Compare:
     {# Collect and declare the various procedures for the same generic interface -#}
@@ -98,6 +106,40 @@ module compare_variables_mod
     end interface
 
 contains
+
+    subroutine compare_init(num_vars)
+        implicit none
+        integer :: num_vars, error
+
+        allocate(all_names(num_vars), stat=error)
+        if (error /= 0) then
+            write(stderr,*) "Cannot allocate array for ", num_vars, &
+                            " result names."
+            stop
+        endif
+        allocate(all_results(num_vars, NUM_RESULTS), stat=error)
+        if (error /= 0) then
+            write(stderr,*) "Cannot allocate array for ", num_vars, &
+                            " result summaries."
+            stop
+        endif
+        current_index = 0
+
+    end subroutine compare_init
+
+    ! -------------------------------------------------------------------------
+    subroutine compare_summary()
+        implicit none
+        integer :: i
+
+        print *,"GOT", size(all_names), "results"
+
+        do i=1, current_index
+            print *,trim(all_names(i)), " ",all_results(i,:)
+        enddo
+    end subroutine compare_summary
+
+    ! -------------------------------------------------------------------------
 {% for name, type, bits in ALL_TYPES %}
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes the value of a scalar {{type}}
@@ -106,36 +148,38 @@ contains
     !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    subroutine compare_scalar_{{name}}(value, correct_value, errors)
+    subroutine compare_scalar_{{name}}(name, value, correct_value)
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                                   real32, real64 
         implicit none
         {{type}}, intent(in)           :: value, correct_value
-        real(kind=real64), intent(out), dimension(NUM_RESULTS) :: errors
+        character(*)                   :: name
 
+        current_index = current_index + 1
+        all_names(current_index) = name
         {% if name == "Logical" %}
         if (value .eqv. correct_value) then
         {% else %}
         if (value .eq. correct_value) then
         {% endif %}
-            errors(MIN_ABS_ERROR) = 0
-            errors(MAX_ABS_ERROR) = 0
-            errors(MIN_REL_ERROR) = 0
-            errors(MAX_REL_ERROR) = 0
+            all_results(current_index, MIN_ABS_ERROR) = 0
+            all_results(current_index, MAX_ABS_ERROR) = 0
+            all_results(current_index, MIN_REL_ERROR) = 0
+            all_results(current_index, MAX_REL_ERROR) = 0
         else
         {% if name in ["Char", "Logical"] %}
             ! Set all errors to 1
-            errors(MIN_ABS_ERROR) = 1.0
-            errors(MAX_ABS_ERROR) = 1.0
+            all_results(current_index, MIN_ABS_ERROR) = 1.0
+            all_results(current_index, MAX_ABS_ERROR) = 1.0
         {% elif name in ["Long", "Int"] %}
-            errors(MIN_ABS_ERROR) = correct_value - value
-            errors(MAX_ABS_ERROR) = correct_value - value
+            all_results(current_index, MIN_ABS_ERROR) = correct_value - value
+            all_results(current_index, MAX_ABS_ERROR) = correct_value - value
         {% elif name in ["Real", "Double"] %}
-            errors(MIN_ABS_ERROR) = correct_value - value
-            errors(MAX_ABS_ERROR) = correct_value - value
+            all_results(current_index, MIN_ABS_ERROR) = correct_value - value
+            all_results(current_index, MAX_ABS_ERROR) = correct_value - value
         {% endif %}
-            errors(MIN_REL_ERROR) = 1.0
-            errors(MAX_REL_ERROR) = 1.0
+            all_results(current_index, MIN_REL_ERROR) = 1.0
+            all_results(current_index, MAX_REL_ERROR) = 1.0
         endif
 
     end subroutine compare_scalar_{{name}}
@@ -155,18 +199,20 @@ contains
     !! to the file.
     !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
     !! @param[in] value The value of the variable.
-    subroutine compare_array_{{dim}}d{{name}}(values, correct_values, errors)
+    subroutine compare_array_{{dim}}d{{name}}(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                                   real32, real64
         implicit none
 
         {{type}}, dimension({{DIMENSION}}), intent(in)  :: values, correct_values
-        real(kind=real64), dimension(NUM_RESULTS), intent(out) :: errors
+        character(*)                   :: name
         {% if name not in ["Char", "Logical"] %}
         {{type}}, dimension({{DIMENSION}}), allocatable :: tmp
         {% endif %}
 
+        current_index = current_index + 1
+        all_names(current_index) = name
         {% if name == "Logical" %}
         if (any(values .neqv. correct_values)) then
         {% else %}
@@ -174,30 +220,30 @@ contains
         {% endif %}
         {% if name in ["Char", "Logical"] %}
             ! Set all errors to 1
-            errors(MIN_ABS_ERROR) = 1.0
-            errors(MAX_ABS_ERROR) = 1.0
+            all_results(current_index, MIN_ABS_ERROR) = 1.0
+            all_results(current_index, MAX_ABS_ERROR) = 1.0
         {% elif name in ["Int", "Long"] %}
         {% else %}
-            errors(MIN_ABS_ERROR) = minval(correct_values - values)
-            errors(MAX_ABS_ERROR) = maxval(correct_values - values)
+            all_results(current_index, MIN_ABS_ERROR) = minval(correct_values - values)
+            all_results(current_index, MAX_ABS_ERROR) = maxval(correct_values - values)
             allocate(tmp, mold=values)
             where(values /= 0)
                 tmp = (correct_values - values)/values
             elsewhere
                 tmp = -1
             endwhere
-            errors(MAX_REL_ERROR) = maxval(tmp)
+            all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
             tmp = (correct_values - values)
-            errors(L2_DIFF) = sqrt(sum(tmp*tmp))
-            errors(L2_COS_SIMILAR) = sum(values*correct_values) &
+            all_results(current_index, L2_DIFF) = sqrt(sum(tmp*tmp))
+            all_results(current_index, L2_COS_SIMILAR) = sum(values*correct_values) &
                                    / sqrt(sum(values*values))  &
                                    / sqrt(sum(correct_values*correct_values))
         {% endif %}
         else
-            errors(MIN_ABS_ERROR) = 0
-            errors(MAX_ABS_ERROR) = 0
-            errors(MIN_REL_ERROR) = 0
-            errors(MAX_REL_ERROR) = 0
+            all_results(current_index, MIN_ABS_ERROR) = 0
+            all_results(current_index, MAX_ABS_ERROR) = 0
+            all_results(current_index, MIN_REL_ERROR) = 0
+            all_results(current_index, MAX_REL_ERROR) = 0
         endif
 
     end subroutine Compare_array_{{dim}}d{{name}}
