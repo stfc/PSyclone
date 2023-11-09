@@ -37,6 +37,7 @@
 ''' This module contains the RoutineSymbol.'''
 
 from psyclone.psyir.symbols.datatypes import NoType
+from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -153,20 +154,36 @@ class RoutineSymbol(TypedSymbol):
 
     def get_schedule(self, container=None):
         '''
+        Recursively searches for the implementation of this RoutineSymbol by
+        following Container imports.
+
+        :param container: the Container containing the RoutineSymbol we are
+                          searching for.
+
+        :returns:
+        :rtype: :py:class:`psyclone.psyir.nodes.Routine`
+
+        :raises NotImplementedError: if this symbol is unresolved.
+
         '''
         if self.is_unresolved:
-            # Use parser.module_manager here?
-            from psyclone.parse.module_manager import ModuleManager
-            mmgr = ModuleManager.get()
-            pass # ARPDBG
+            # TODO Use ModuleManager here?
+            raise NotImplementedError(
+                f"RoutineSymbol '{self.name}' is unresolved and searching for "
+                f"its implementation is not yet supported.")
         elif self.is_import:
             csym = self.interface.container_symbol
             # If necessary, this will search for and process the source file
             # defining the container.
             container = csym.container
             rsym = container.symbol_table.lookup(self.name)
+            if not isinstance(rsym, RoutineSymbol):
+                # We now know that this is a RoutineSymbol so specialise it
+                # in place.
+                rsym.specialise(RoutineSymbol)
             if rsym.is_import:
-                # Recursively follow imports
+                # This symbol is itself imported into the current Container so
+                # we recurse.
                 return rsym.get_schedule(container)
         else:
             if not container:
@@ -185,6 +202,7 @@ class RoutineSymbol(TypedSymbol):
             f"Routine '{self.name}' is imported from '{container.name}' "
             f"but failed to find a matching routine in that "
             f"container.")
+
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ["RoutineSymbol"]

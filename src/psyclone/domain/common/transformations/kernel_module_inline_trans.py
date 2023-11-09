@@ -99,7 +99,13 @@ class KernelModuleInlineTrans(Transformation):
         :raises TransformationError: if the kernel cannot be safely inlined.
 
         '''
-        if not isinstance(node, (CodedKern, Call)):
+        if isinstance(node, CodedKern):
+            kname = node.name
+            kern_or_call = "Kernel"
+        elif isinstance(node, Call):
+            kname = node.routine.name
+            kern_or_call = "routine"
+        else:
             raise TransformationError(
                 f"Target of a {self.name} must be a sub-class of "
                 f"psyGen.CodedKern or psyir.nodes.Call but got "
@@ -111,23 +117,22 @@ class KernelModuleInlineTrans(Transformation):
             # file scope.)
             raise TransformationError(
                 f"Target of a {self.name} must be within a Container (Fortran "
-                f"module) but '{node}' is not.")
+                f"module) but {kern_or_call} '{kname}' is not.")
 
         # Check that the PSyIR and associated Symbol table of the Kernel is OK.
         # If this kernel contains symbols that are not captured in the PSyIR
         # SymbolTable then this raises an exception.
-        if isinstance(node, CodedKern):
-            try:
+        try:
+            if isinstance(node, CodedKern):
                 kernel_schedule = node.get_kernel_schedule()
-            except Exception as error:
-                raise TransformationError(
-                    f"{self.name} failed to retrieve PSyIR for kernel "
-                    f"'{node.name}' using the 'get_kernel_schedule' method"
-                    f" due to {error}."
-                    ) from error
-        else:
-            kernel_schedule = node.routine.get_schedule(
-                node.ancestor(Container))
+            else:
+                kernel_schedule = node.routine.get_schedule(
+                    node.ancestor(Container))
+        except Exception as error:
+            raise TransformationError(
+                f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
+                f"'{kname}' due to: {error}"
+            ) from error
 
         # We do not support kernels that use symbols representing global
         # variables declared in its own parent module (we would need to
@@ -148,9 +153,10 @@ class KernelModuleInlineTrans(Transformation):
                         symbol.name, scope_limit=kernel_schedule)
                 except KeyError as err:
                     raise TransformationError(
-                        f"Kernel '{node.name}' contains accesses to "
+                        f"{kern_or_call} '{kname}' contains accesses to "
                         f"'{symbol.name}' which is declared in the same "
-                        f"module scope. Cannot inline such a kernel.") from err
+                        f"module scope. Cannot inline such a {kern_or_call}."
+                    ) from err
         for block in kernel_schedule.walk(CodeBlock):
             for name in block.get_symbol_names():
                 try:
@@ -159,10 +165,10 @@ class KernelModuleInlineTrans(Transformation):
                 except KeyError as err:
                     if not block.scope.symbol_table.lookup(name).is_import:
                         raise TransformationError(
-                            f"Kernel '{kernel_schedule.name}' contains accesses to "
-                            f"'{name}' in a CodeBlock that is declared in the "
-                            f"same module scope. "
-                            f"Cannot inline such a kernel.") from err
+                            f"{kern_or_call} '{kname}' contains "
+                            f"accesses to '{name}' in a CodeBlock that is "
+                            f"declared in the same module scope. "
+                            f"Cannot inline such a {kern_or_call}.") from err
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
@@ -173,19 +179,21 @@ class KernelModuleInlineTrans(Transformation):
                     if symbol.name == mod.name and not \
                             isinstance(symbol, ContainerSymbol):
                         raise TransformationError(
-                            f"Kernel '{kernel_schedule.name}' cannot be module-inlined"
-                            f" because the subroutine shadows the symbol "
-                            f"name of the module container '{symbol.name}'.")
+                            f"{kern_or_call} '{kname}' cannot "
+                            f"be module-inlined because the subroutine shadows"
+                            f" the symbol name of the module container "
+                            f"'{symbol.name}'.")
 
         # If the symbol already exist at the call site it must be referring
         # to a Routine
         try:
-            existing_symbol = node.scope.symbol_table.lookup(kernel_schedule.name)
+            existing_symbol = node.scope.symbol_table.lookup(
+                kernel_schedule.name)
         except KeyError:
             existing_symbol = None
         if existing_symbol and not isinstance(existing_symbol, RoutineSymbol):
             raise TransformationError(
-                f"Cannot module-inline subroutine '{node.name}' because "
+                f"Cannot module-inline {kern_or_call} '{kname}' because "
                 f"symbol '{existing_symbol}' with the same name already "
                 f"exists and changing the name of module-inlined "
                 f"subroutines is not supported yet.")

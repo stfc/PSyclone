@@ -119,9 +119,8 @@ def test_validate_invalid_get_kernel_schedule(monkeypatch):
     monkeypatch.setattr(kernel, "get_kernel_schedule", raise_symbol_error)
     with pytest.raises(TransformationError) as err:
         kernel_trans.apply(kernel)
-    assert ("KernelModuleInlineTrans failed to retrieve PSyIR for kernel "
-            "'kernel_with_global_code' using the 'get_kernel_schedule' "
-            "method due to" in str(err.value))
+    assert ("KernelModuleInlineTrans failed to retrieve PSyIR for Kernel "
+            "'kernel_with_global_code' due to: " in str(err.value))
 
 
 def test_validate_no_inline_global_var(parser):
@@ -134,9 +133,9 @@ def test_validate_no_inline_global_var(parser):
     kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to 'alpha' which is "
-            "declared in the same module scope. Cannot inline such a kernel."
-            in str(err.value))
+    assert ("Kernel 'kernel_with_global_code' contains accesses to 'alpha' "
+            "which is declared in the same module scope. Cannot inline such a "
+            "Kernel." in str(err.value))
 
     # Check that the issue is also reported if the symbol is inside a
     # Codeblock
@@ -153,7 +152,7 @@ def test_validate_no_inline_global_var(parser):
         inline_trans.validate(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to 'alpha' in a "
             "CodeBlock that is declared in the same module scope. Cannot "
-            "inline such a kernel." in str(err.value))
+            "inline such a Kernel." in str(err.value))
 
     # But make sure that an IntrinsicCall routine name is not considered
     # a global symbol, as they are implicitly declared everywhere
@@ -177,7 +176,7 @@ def test_validate_name_clashes():
     schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(coded_kern)
-    assert ("Cannot module-inline subroutine 'ru_code' because symbol "
+    assert ("Cannot module-inline Kernel 'ru_code' because symbol "
             "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Automatic>' with "
             "the same name already exists and changing the name of "
             "module-inlined subroutines is not supported yet."
@@ -673,14 +672,41 @@ def test_mod_inline_validate_no_container(fortran_reader):
     with pytest.raises(TransformationError) as err:
         intrans.validate(call)
     assert ("must be within a Container (Fortran module) but "
-            "'Call[name='my_sub']' is not" in str(err.value))
+            "routine 'my_sub' is not" in str(err.value))
+
+
+def test_psyir_mod_inline_validate_wildcard_import(fortran_reader):
+    '''
+    Test that the validate() method rejects an attempt to module-inline an
+    unresolved routine.
+
+    '''
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    module a_mod
+      use my_mod
+      use other_mod
+    contains
+      subroutine a_sub()
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine a_sub
+    end module a_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        intrans.validate(call)
+    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: "
+            "RoutineSymbol 'my_sub' is unresolved and searching for its "
+            "implementation is not yet supported." in str(err.value))
 
 
 def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
                           monkeypatch):
     '''
     Test module inlining a subroutine in generic PSyIR when the Call is
-    within a Routine in a Container..
+    within a Routine in a Container.
 
     '''
     intrans = KernelModuleInlineTrans()
@@ -725,14 +751,17 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_psyir_mod_inline_wildcard_import(fortran_reader):
+def test_psyir_recursive_mod_inline(fortran_reader, fortran_writer, tmpdir,
+                                    monkeypatch):
     '''
+    Test module inlining a subroutine in generic PSyIR when the implementation
+    of the routine is not in the immediately-imported Container..
+
     '''
     intrans = KernelModuleInlineTrans()
     code = '''\
     module a_mod
-      use my_mod
-      use other_mod
+      use my_mod, only: my_sub
     contains
       subroutine a_sub()
         real, dimension(10) :: a
@@ -740,7 +769,7 @@ def test_psyir_mod_inline_wildcard_import(fortran_reader):
       end subroutine a_sub
     end module a_mod
     '''
-    # Create the module containing the subroutine definition, write it to
+    # Create the modules containing the subroutine definition, write it to
     # file and set the search path so that PSyclone can find it.
     path = str(tmpdir)
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
@@ -748,15 +777,32 @@ def test_psyir_mod_inline_wildcard_import(fortran_reader):
     with open(os.path.join(path, "my_mod.f90"), "w") as mfile:
         mfile.write('''\
     module my_mod
+      use my_mod2, only: my_sub
+    contains
+      subroutine ignore_this()
+      end subroutine ignore_this
+    end module my_mod
+    ''')
+    with open(os.path.join(path, "my_mod2.f90"), "w") as mfile:
+        mfile.write('''\
+    module my_mod2
     contains
       subroutine my_sub(arg)
         real, dimension(10), intent(inout) :: arg
         arg(1:10) = 1.0
       end subroutine my_sub
-    end module my_mod
+    end module my_mod2
     ''')
     psyir = fortran_reader.psyir_from_source(code)
     container = psyir.children[0]
     call = psyir.walk(Call)[0]
     intrans.apply(call)
-
+    routines = container.walk(Routine)
+    assert len(routines) == 2
+    assert routines[0].name in ["a_sub", "my_sub"]
+    assert routines[1].name in ["a_sub", "my_sub"]
+    output = fortran_writer(psyir)
+    assert "subroutine a_sub" in output
+    assert "subroutine my_sub" in output
+    assert "use my_mod" not in output
+    assert Compile(tmpdir).string_compiles(output)
