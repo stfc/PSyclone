@@ -154,7 +154,12 @@ class RoutineSymbol(TypedSymbol):
     def get_schedule(self, container=None):
         '''
         '''
-        if self.is_import:
+        if self.is_unresolved:
+            # Use parser.module_manager here?
+            from psyclone.parse.module_manager import ModuleManager
+            mmgr = ModuleManager.get()
+            pass # ARPDBG
+        elif self.is_import:
             csym = self.interface.container_symbol
             # If necessary, this will search for and process the source file
             # defining the container.

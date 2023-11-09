@@ -722,3 +722,41 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert "subroutine a_sub" in output
     assert "subroutine my_sub" in output
     assert "use my_mod" not in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_psyir_mod_inline_wildcard_import(fortran_reader):
+    '''
+    '''
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    module a_mod
+      use my_mod
+      use other_mod
+    contains
+      subroutine a_sub()
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine a_sub
+    end module a_mod
+    '''
+    # Create the module containing the subroutine definition, write it to
+    # file and set the search path so that PSyclone can find it.
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "my_mod.f90"), "w") as mfile:
+        mfile.write('''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+    end module my_mod
+    ''')
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    call = psyir.walk(Call)[0]
+    intrans.apply(call)
+
