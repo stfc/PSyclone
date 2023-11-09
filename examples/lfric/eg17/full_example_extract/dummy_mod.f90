@@ -48,21 +48,18 @@ module dummy_mod
   subroutine dummy_code_1(a)
     implicit none
     integer :: a
-    print *,"dummy_code_1 called"
     dummy_var1 = dummy_var1 + 1
   end subroutine dummy_code_1
 
   subroutine dummy_code_2(a)
     implicit none
     real :: a
-    print *,"dummy_code_2 called"
     dummy_var1 = dummy_var1 + 1
   end subroutine dummy_code_2
 
   integer function dummy_func(a)
     implicit none
     integer :: a
-    print *, "dummy_func called"
     dummy_func = a+1 + dummy_var2
   end function dummy_func
 
