@@ -53,7 +53,6 @@ from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Node, Reference,
                                   Routine, StructureReference)
@@ -769,33 +768,6 @@ class LFRicExtractDriverCreator:
                                                 [lit_name,
                                                  Reference(sym_computed),
                                                  Reference(sym_read)])
-            if (isinstance(sym_computed.datatype, ArrayType) or
-                    (isinstance(sym_computed.datatype, UnknownFortranType) and
-                     isinstance(sym_computed.datatype.partial_datatype,
-                                ArrayType))):
-                cond = f"all({sym_computed.name} - {sym_read.name} == 0.0)"
-            else:
-                cond = f"{sym_computed.name} == {sym_read.name}"
-            # The PSyIR has no support for output functions, so we parse
-            # Fortran code to create a code block which stores the output
-            # statements.
-            code = f'''
-                subroutine tmp()
-                  integer :: {sym_computed.name}, {sym_read.name}
-                  if ({cond}) then
-                     print *,"{sym_computed.name} correct"
-                  else
-                     print *,"{sym_computed.name} incorrect. Values are:"
-                     print *,{sym_computed.name}
-                     print *,"{sym_computed.name} values should be:"
-                     print *,{sym_read.name}
-                  endif
-                end subroutine tmp'''
-
-            fortran_reader = FortranReader()
-            container = fortran_reader.psyir_from_source(code)
-            if_block = container.children[0].children[0]
-            program.addchild(if_block.detach())
 
         LFRicExtractDriverCreator.\
             _add_call(program, "compare_summary", [])
