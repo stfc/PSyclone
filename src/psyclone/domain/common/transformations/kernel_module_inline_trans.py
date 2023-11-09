@@ -41,10 +41,12 @@
 
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
-    DataTypeSymbol, Symbol, ContainerSymbol, DefaultModuleInterface
-from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine, \
-    Literal, CodeBlock, Call, IntrinsicCall
+from psyclone.psyir.symbols import (
+    RoutineSymbol, DataSymbol, DataTypeSymbol, Symbol, ContainerSymbol,
+    DefaultModuleInterface)
+from psyclone.psyir.nodes import (
+    Container, FileContainer, Reference, Routine, ScopingNode,
+    Literal, CodeBlock, Call, IntrinsicCall)
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -84,7 +86,9 @@ class KernelModuleInlineTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the target node is not a sub-class of
-            psyGen.CodedKern.
+            psyGen.CodedKern or psyir.nodes.Call.
+        :raises TransformationError: if the target node is not within a
+            Container (Fortran module).
         :raises TransformationError: if the subroutine containing the
             implementation of the kernel cannot be retrieved with
             'get_kernel_schedule'.
@@ -100,6 +104,14 @@ class KernelModuleInlineTrans(Transformation):
                 f"Target of a {self.name} must be a sub-class of "
                 f"psyGen.CodedKern or psyir.nodes.Call but got "
                 f"'{type(node).__name__}'")
+
+        if isinstance(node.ancestor(Container), FileContainer):
+            # We can't do 'module inlining' if there is no parent module.
+            # (Although we could if we extended the PSyIR to know about
+            # file scope.)
+            raise TransformationError(
+                f"Target of a {self.name} must be within a Container (Fortran "
+                f"module) but '{node}' is not.")
 
         # Check that the PSyIR and associated Symbol table of the Kernel is OK.
         # If this kernel contains symbols that are not captured in the PSyIR
@@ -302,16 +314,22 @@ class KernelModuleInlineTrans(Transformation):
             container.addchild(code_to_inline.detach())
         else:
             if existing_symbol.is_import:
+                # The RoutineSymbol is in the table but that is because it is
+                # imported. We must therefore update its interface and
+                # potentially remove the ContainerSymbol altogether.
                 table = node.scope.symbol_table
                 csym = existing_symbol.interface.container_symbol
-                remove_csym = (table.symbols_imported_from(csym) ==
+                # The import of the routine symbol may be in an outer scope.
+                ctable = csym.find_symbol_table(node)
+                remove_csym = (ctable.symbols_imported_from(csym) ==
                                [existing_symbol])
                 existing_symbol.interface = DefaultModuleInterface()
                 if remove_csym:
-                    table.remove(csym)
+                    ctable.remove(csym)
                 container.addchild(code_to_inline.detach())
             else:
-                # The routine symbol already exists, and we know from the validation
+                # The routine symbol already exists, and we know from the
+                # validation
                 # that it's a Routine. Now check if they are exactly the same.
                 for routine in container.walk(Routine, stop_type=Routine):
                     if routine.name == caller_name:

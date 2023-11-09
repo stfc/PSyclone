@@ -654,11 +654,10 @@ def test_module_inline_with_interfaces(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_psyir_mod_inline_program(fortran_reader, fortran_writer, tmpdir,
-                                  monkeypatch):
+def test_mod_inline_validate_no_container(fortran_reader):
     '''
-    Test module inlining a subroutine in generic PSyIR when the Call is
-    within a Program.
+    Test that validation fails when the Call is within a Program (i.e.
+    without an enclosing module).
 
     '''
     intrans = KernelModuleInlineTrans()
@@ -669,9 +668,39 @@ def test_psyir_mod_inline_program(fortran_reader, fortran_writer, tmpdir,
       call my_sub(a)
     end program my_prog
     '''
+    prog_psyir = fortran_reader.psyir_from_source(code)
+    call = prog_psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        intrans.validate(call)
+    assert ("must be within a Container (Fortran module) but "
+            "'Call[name='my_sub']' is not" in str(err.value))
+
+
+def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
+                          monkeypatch):
+    '''
+    Test module inlining a subroutine in generic PSyIR when the Call is
+    within a Routine in a Container..
+
+    '''
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    module a_mod
+      use my_mod, only: my_sub
+    contains
+      subroutine a_sub()
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine a_sub
+    end module a_mod
+    '''
     # Create the module containing the subroutine definition, write it to
     # file and set the search path so that PSyclone can find it.
-    mod_code = '''\
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "my_mod.f90"), "w") as mfile:
+        mfile.write('''\
     module my_mod
     contains
       subroutine my_sub(arg)
@@ -679,22 +708,17 @@ def test_psyir_mod_inline_program(fortran_reader, fortran_writer, tmpdir,
         arg(1:10) = 1.0
       end subroutine my_sub
     end module my_mod
-    '''
-    path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), '_include_paths', [path])
- 
-    with open(os.path.join(path, "my_mod.f90"), "w") as mfile:
-        mfile.write(mod_code)
-
-    prog_psyir = fortran_reader.psyir_from_source(code)
-    call = prog_psyir.walk(Call)[0]
+    ''')
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    call = psyir.walk(Call)[0]
     intrans.apply(call)
-    routines = prog_psyir.walk(Routine)
+
+    routines = container.walk(Routine)
     assert len(routines) == 2
-    assert routines[0].name in ["my_prog", "my_sub"]
-    assert routines[1].name in ["my_prog", "my_sub"]
-    output = fortran_writer(prog_psyir)
-    assert "program my_prog" in output
+    assert routines[0].name in ["a_sub", "my_sub"]
+    assert routines[1].name in ["a_sub", "my_sub"]
+    output = fortran_writer(psyir)
+    assert "subroutine a_sub" in output
     assert "subroutine my_sub" in output
     assert "use my_mod" not in output
-    assert Compile(tmpdir).string_compiles(output)
