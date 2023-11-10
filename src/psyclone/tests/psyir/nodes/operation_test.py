@@ -303,17 +303,26 @@ def test_binaryop_structure_datatype():
     structure types.
 
     '''
-    iarrtype = ArrayType(INTEGER_SINGLE_TYPE, [10, 5])
+    arrtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
     stype = StructureType.create([
         ("nx", INTEGER_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None),
-        ("data", iarrtype, Symbol.Visibility.PUBLIC, None)])
+        ("data", arrtype, Symbol.Visibility.PUBLIC, None)])
     sym1 = DataSymbol("field", stype)
     ref1 = StructureReference.create(sym1, ["nx"])
     oper = BinaryOperation.Operator.SUB
+    # field%nx - 2.0
     binop1 = BinaryOperation.create(oper,
                                     ref1, Literal("2.0", REAL_SINGLE_TYPE))
     dtype1 = binop1.datatype
     assert dtype1 == REAL_SINGLE_TYPE
+    ref2 = StructureReference.create(sym1, ["data"])
+    # field%nx - field%data
+    binop2 = BinaryOperation.create(oper, ref1.copy(), ref2)
+    dtype2 = binop2.datatype
+    assert isinstance(dtype2, ArrayType)
+    assert len(dtype2.shape) == 2
+    assert dtype2.shape == arrtype.shape
+    assert dtype2.intrinsic == REAL_SINGLE_TYPE.intrinsic
 
 
 def test_binaryop_partial_datatype():
