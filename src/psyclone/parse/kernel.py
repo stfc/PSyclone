@@ -242,7 +242,7 @@ class KernelTypeFactory():
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         if self._type == "dynamo0.3":
-            from psyclone.dynamo0p3 import LFRicKernMetadata
+            from psyclone.domain.lfric import LFRicKernMetadata
             return LFRicKernMetadata(parse_tree, name=name)
         if self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOKernelType1p0
