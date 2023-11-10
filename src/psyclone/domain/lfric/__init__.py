@@ -86,6 +86,7 @@ __all__ = [
     'LFRicInvokes',
     'LFRicKern',
     'LFRicKernCallFactory',
+    'LFRicKernMetadata',
     'LFRicLoopBounds',
     'LFRicRunTimeChecks',
     'LFRicScalarArgs',
