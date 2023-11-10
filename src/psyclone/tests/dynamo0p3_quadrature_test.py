@@ -45,8 +45,8 @@ import pytest
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynBasisFunctions, \
+from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.dynamo0p3 import DynKernMetadata, DynBasisFunctions, \
     qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen
@@ -603,7 +603,7 @@ def test_dynbasisfunctions(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
     call = sched.children[0].loop_body[0]
-    assert isinstance(call, DynKern)
+    assert isinstance(call, LFRicKern)
     monkeypatch.setattr(call, "_eval_shapes", ["not-a-shape"])
     with pytest.raises(InternalError) as err:
         _ = DynBasisFunctions(invoke)
@@ -620,7 +620,7 @@ def test_dynbasisfns_setup(monkeypatch):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].loop_body[0]
-    assert isinstance(call, DynKern)
+    assert isinstance(call, LFRicKern)
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     # Now we've created a DynBasisFunctions object, monkeypatch the call
     # to have the wrong shape and try and call setup_basis_fns_for_call()
@@ -632,7 +632,7 @@ def test_dynbasisfns_setup(monkeypatch):
     # something that is not a Kernel call
     with pytest.raises(InternalError) as err:
         dinf._setup_basis_fns_for_call("call")
-    assert "Expected a DynKern object but got: " in str(err.value)
+    assert "Expected a LFRicKern object but got: " in str(err.value)
 
 
 def test_dynbasisfns_initialise(monkeypatch):
@@ -693,7 +693,7 @@ def test_dynbasisfns_dealloc(monkeypatch):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].loop_body[0]
-    assert isinstance(call, DynKern)
+    assert isinstance(call, LFRicKern)
     dinf = DynBasisFunctions(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="testmodule")
     # Supply an invalid type for one of the basis functions
@@ -704,14 +704,14 @@ def test_dynbasisfns_dealloc(monkeypatch):
             "one of 'basis' or 'diff-basis'" in str(err.value))
 
 
-def test_dynkern_setup(monkeypatch):
-    ''' Check that internal-consistency checks in DynKern._setup() work
+def test_lfrickern_setup(monkeypatch):
+    ''' Check that internal-consistency checks in LFRicKern._setup() work
     as expected. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
-    # Get hold of a DynKern object
+    # Get hold of a LFRicKern object
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[4].loop_body[0]
     # Monkeypatch a couple of __init__ routines so that we can get past
@@ -788,7 +788,7 @@ def test_qr_basis_stub():
     '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -902,7 +902,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
     broken '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
                         value=["gh_quadrature_wrong"])
@@ -932,7 +932,7 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
 
     ast = fpapi.parse(diff_basis, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shapes",
                         value=["gh_quadrature_wrong"])
