@@ -880,9 +880,9 @@ spaces through the use of the ``gh_evaluator_targets`` metadata entry.
 Every evaluator used by that kernel will then be provided on all of the
 target spaces.
 
-When constructing a ``DynKernMetadata`` object from the parsed kernel
+When constructing a ``LFRicKernMetadata`` object from the parsed kernel
 metadata, the list of target function-space names (as they appear in
-the meta-data) is stored in ``DynKernMetadata._eval_targets``. This
+the meta-data) is stored in ``LFRicKernMetadata._eval_targets``. This
 information is then used in the ``LFRicKern._setup()`` method which
 populates ``LFRicKern._eval_targets``. This is an ``OrderedDict`` which has
 the (mangled) names of the target function spaces as keys and 2-tuples

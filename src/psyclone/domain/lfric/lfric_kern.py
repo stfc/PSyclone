@@ -158,7 +158,7 @@ class LFRicKern(CodedKern):
         metadata describing the kernel code.
 
         :param ktype: the kernel meta-data object produced by the parser
-        :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+        :type ktype: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
 
         :raises InternalError: for an invalid data type of a scalar argument.
         :raises GenerationError: if an invalid argument type is found \
@@ -223,7 +223,7 @@ class LFRicKern(CodedKern):
         needed before general setup so is computed in a separate method.
 
         :param kmetadata: The kernel meta-data object produced by the parser.
-        :type kmetadata: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+        :type kmetadata: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
         '''
         for descriptor in kmetadata.func_descriptors:
             if len(descriptor.operator_names) > 0:
@@ -237,7 +237,7 @@ class LFRicKern(CodedKern):
 
         :param ktype: object holding information on the parsed metadata for \
                       this kernel.
-        :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+        :type ktype: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
         :param str module_name: the name of the Fortran module that contains \
                                 the source of this Kernel.
         :param args: list of Arg objects produced by the parser for the \

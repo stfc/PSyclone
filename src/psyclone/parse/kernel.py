@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Authors: L. Mitchell Imperial College
 #          R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified: C.M. Maynard, Met Office / University of Reading,
-#           I. Kavcic, Met Office
+#           I. Kavcic and L. Turner, Met Office
 #           J. Henrichs, Bureau of Meteorology
 
 '''Module that uses the Fortran parser fparser1 to parse
