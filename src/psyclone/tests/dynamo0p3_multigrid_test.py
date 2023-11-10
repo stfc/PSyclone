@@ -54,9 +54,9 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Node, Loop
 from psyclone.psyir.symbols import Symbol
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import (ACCEnterDataTrans, ACCKernelsTrans, 
+from psyclone.transformations import (ACCEnterDataTrans, ACCKernelsTrans,
                                       check_intergrid, Dynamo0p3ColourTrans,
-                                      DynamoOMPParallelLoopTrans, 
+                                      DynamoOMPParallelLoopTrans,
                                       TransformationError)
 
 # constants

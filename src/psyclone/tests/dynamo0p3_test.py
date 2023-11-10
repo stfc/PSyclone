@@ -52,7 +52,7 @@ from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicKernMetadata)
 from psyclone.dynamo0p3 import (DynACCEnterDataDirective,
                                 DynBoundaryConditions, DynCellIterators,
-                                DynGlobalSum, DynKernelArguments, DynLoop, 
+                                DynGlobalSum, DynKernelArguments, DynLoop,
                                 DynProxies, HaloReadAccess, KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen

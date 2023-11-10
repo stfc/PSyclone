@@ -54,7 +54,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicKern, lfric_builtins, LFRicKernMetadata
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import (DynInvokeSchedule, DynKernelArguments, 
+from psyclone.dynamo0p3 import (DynInvokeSchedule, DynKernelArguments,
                                 DynGlobalSum)
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.generator import generate
@@ -65,8 +65,7 @@ from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
                              GlobalSum, InvokeSchedule, BuiltIn)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
-                                  Literal, Loop, Node, KernelSchedule, Call,
-                                  colored)
+                                  Literal, Node, KernelSchedule, Call, colored)
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
                                     ImportInterface, ContainerSymbol, Symbol,
                                     INTEGER_TYPE, DeferredType, SymbolTable)
@@ -75,8 +74,8 @@ from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
-                                      Dynamo0p3KernelConstTrans, 
-                                      Dynamo0p3OMPLoopTrans, 
+                                      Dynamo0p3KernelConstTrans,
+                                      Dynamo0p3OMPLoopTrans,
                                       Dynamo0p3ColourTrans, OMPParallelTrans)
 
 
