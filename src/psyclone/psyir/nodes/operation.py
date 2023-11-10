@@ -45,7 +45,8 @@ from enum import Enum
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols.datatypes import (
-    BOOLEAN_TYPE, DeferredType, ScalarType, UnknownType)
+    ArrayType, BOOLEAN_TYPE, DeferredType, ScalarType, UnknownFortranType,
+    UnknownType)
 
 
 class Operation(DataNode, metaclass=ABCMeta):
@@ -267,20 +268,29 @@ class BinaryOperation(Operation):
         :returns: the datatype of the result of this BinaryOperation.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
-        # If either operand is itself an operation this will recurse.
-        argtypes = (self.children[0].datatype, self.children[1].datatype)
+        # Get the types of the operands.
+        argtypes = []
+        for child in self.children:
+            # If the operand is itself an operation this will recurse.
+            dtype = child.datatype
+            if (isinstance(dtype, UnknownFortranType) and
+                    dtype.partial_datatype):
+                # We are still OK provided we have partial type information.
+                dtype = dtype.partial_datatype
+            argtypes.append(dtype)
 
         if self.operator not in self._numeric_ops:
             # Must be a relational or logical operator.
             # TODO what about precision?
             return BOOLEAN_TYPE
 
-        # We have a numerical operation.
+        # We have a numerical operation. Check that we have type information
+        # for both arguments.
         for atype in argtypes:
-            if isinstance(atype, (UnknownType, DeferredType)):
+            if isinstance(atype, (DeferredType, UnknownType)):
                 # If we don't know the type of one or both of the arguments
                 # then the game is up.
-                return atype
+                return DeferredType()
             if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
                                        ScalarType.Intrinsic.REAL):
                 raise InternalError(
@@ -295,12 +305,34 @@ class BinaryOperation(Operation):
                     "precision.")
             # Operands are of the same type so that is the type of the
             # result.
-            return argtypes[0]
-        if argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
-            return argtypes[0]
-        if argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
-            return argtypes[1]
-        # Should not be possible to get to here?
+            base_type = argtypes[0]
+        elif argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
+            base_type = argtypes[0]
+        elif argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
+            base_type = argtypes[1]
+        else:
+            # Should not be possible to get to here?
+            raise InternalError("Hmm")
+
+        if all(isinstance(atype, ScalarType) for atype in argtypes):
+            # Both operands are of scalar type.
+            return base_type
+
+        if all(isinstance(atype, ArrayType) for atype in argtypes):
+            # Both operands are of array type.
+            if len(argtypes[0].shape) != len(argtypes[1].shape):
+                # TODO - not sure what type of error to raise here.
+                raise TypeError(
+                    f"Binary operation '{self.debug_string()}' has operands "
+                    f"of different shape: '{self.children[0].debug_string()}' "
+                    f"has rank {len(argtypes[0].shape)} and "
+                    f"'{self.children[1].debug_string()}' has rank "
+                    f"{len(argtypes[1].shape)}")
+            # In general there is no way we can check that the extents of each
+            # dimension match so we have to assume that they do.
+        shape = (argtypes[0].shape if isinstance(argtypes[0], ArrayType) else
+                 argtypes[1].shape)
+        return ArrayType(base_type, shape=shape)
 
 
 # For automatic API documentation generation

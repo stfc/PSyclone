@@ -44,7 +44,8 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
+from psyclone.psyir.symbols import (DataSymbol, DeferredType,
+                                    UnknownFortranType, UnknownType,
                                     DataTypeSymbol, ScalarType, ArrayType,
                                     INTEGER_TYPE)
 
@@ -128,7 +129,15 @@ class ArrayReference(ArrayMixin, Reference):
         '''
         shape = self._get_effective_shape()
         if shape:
-            return ArrayType(self.symbol.datatype, shape)
+            if isinstance(self.symbol.datatype, UnknownType):
+                if (isinstance(self.symbol.datatype, UnknownFortranType) and
+                        self.symbol.datatype.partial_datatype):
+                    base_type = self.symbol.datatype.partial_datatype
+                else:
+                    base_type = UnknownType()
+            else:
+                base_type = self.symbol.datatype
+            return ArrayType(base_type, shape)
         if isinstance(self.symbol.datatype, UnknownType):
             return self.symbol.datatype
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
