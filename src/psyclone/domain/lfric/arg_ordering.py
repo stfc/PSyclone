@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements the base class for managing arguments to
@@ -67,7 +67,7 @@ class ArgOrdering:
     a list.
 
     :param kern: the kernel call object to use.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
     def __init__(self, kern):

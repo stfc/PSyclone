@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 #           A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 
@@ -71,7 +71,7 @@ class KernelInterface(ArgOrdering):
     code when all of its methods are implemented.
 
     :param kern: the kernel for which to create arguments.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
     #: Mapping from a generic PSyIR datatype to the equivalent
