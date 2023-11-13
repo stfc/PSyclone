@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements the base class for managing arguments to
@@ -65,7 +65,7 @@ class ArgOrdering:
     a list.
 
     :param kern: the kernel call object to use.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
     def __init__(self, kern):
@@ -82,6 +82,9 @@ class ArgOrdering:
         # as this creates a double reference (with
         # self._kernel.ancestor(InvokeSchedule)._symbol_table) to that table
         # and might go stale e.g. if the tree is copied.
+        # In fact, using the same symbol table as the Invoke is a bit odd as
+        # we are describing kernel *arguments* here so they will have a
+        # different interface to those in the Schedule of the invoke.
         if invoke_sched:
             self._symtab = invoke_sched.symbol_table
         else:
