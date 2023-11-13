@@ -121,10 +121,12 @@ class ExcludeSettings():
     '''
     Class to hold settings on what to exclude from OpenACC KERNELS regions.
 
-    :param Optional[dict] settings: map of settings to override.
+    :param Optional[dict[str, bool]] settings: map of settings to override.
 
     '''
-    def __init__(self, settings={}):
+    def __init__(self, settings=None):
+        if settings is None:
+            settings = {}
         # Whether we exclude IFs where the logical expression is not a
         # comparison operation.
         self.ifs_scalars = settings.get("ifs_scalars", False)
@@ -413,7 +415,9 @@ def trans(psy):
             if not invoke.schedule.walk(Loop):
                 calls = invoke.schedule.walk(Call)
                 if all(call.is_available_on_device() for call in calls):
-                    ACC_ROUTINE_TRANS.apply(sched)
+                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
+                    # array notation. (TODO #717)
+                    ACC_ROUTINE_TRANS.apply(sched, options={"force": True})
                     continue
 
         # Attempt to add OpenACC directives unless we are ignoring this routine

@@ -546,11 +546,17 @@ class FortranWriter(LanguageWriter):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                if include_visibility and not isinstance(symbol,
-                                                         RoutineSymbol):
+
+                if (include_visibility and
+                        not isinstance(symbol, RoutineSymbol) and
+                        not symbol.name.startswith("_PSYCLONE_INTERNAL")):
+                    # We don't attempt to add accessibility to RoutineSymbols
+                    # or to those created by PSyclone to handle named common
+                    # blocks appearing in SAVE statements.
                     decln = add_accessibility_to_unknown_declaration(symbol)
-                else:
-                    decln = symbol.datatype.declaration
+                    return f"{self._nindent}{decln}\n"
+
+                decln = symbol.datatype.declaration
                 return f"{self._nindent}{decln}\n"
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(
