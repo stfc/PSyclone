@@ -32,11 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford STFC Daresbury Lab
-<<<<<<< HEAD:src/psyclone/tests/dynkern_test.py
-# Modified: I. Kavcic and O. Brunt, Met Office
-=======
-# Modified: I. Kavcic and L. Turner, Met Office
->>>>>>> f6c635b68b8591b8679f4a489f2478f4197b0670:src/psyclone/tests/domain/lfric/lfric_kern_test.py
+# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
 #           J. Henrichs, Bureau of Meteorology
 #           A. R. Porter, STFC Daresbury Laboratory
 
@@ -335,22 +331,12 @@ def test_validate_kernel_code_arg(monkeypatch):
     assert ("Argument 'field' to kernel 'dummy' should be an array with 2 "
             "dimension(s) according to the LFRic API, but found 1."
             in str(info.value))
-<<<<<<< HEAD:src/psyclone/tests/dynkern_test.py
-    
-=======
-
->>>>>>> f6c635b68b8591b8679f4a489f2478f4197b0670:src/psyclone/tests/domain/lfric/lfric_kern_test.py
     # Monkeypatch the shape of lfric_real_field_symbol3 from ArrayBounds
     # to a Reference to check the 'continue' statement is triggered.
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
                         [Reference(undf)])
     kernel._validate_kernel_code_arg(lfric_real_field_symbol3,
                                      lfric_real_field_symbol2)
-<<<<<<< HEAD:src/psyclone/tests/dynkern_test.py
-    
-=======
-
->>>>>>> f6c635b68b8591b8679f4a489f2478f4197b0670:src/psyclone/tests/domain/lfric/lfric_kern_test.py
     # Lower array bound of 2 rather than 1
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
                         [ArrayType.ArrayBounds(2, Reference(undf))])
