@@ -47,7 +47,7 @@ from collections import OrderedDict
 
 from psyclone import psyGen
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.f2pygen import DeclGen, TypeDeclGen
 
 
