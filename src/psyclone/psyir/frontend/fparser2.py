@@ -1077,6 +1077,7 @@ class Fparser2Reader():
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
             Fortran2003.If_Construct: self._if_construct_handler,
             Fortran2003.Case_Construct: self._case_construct_handler,
+            Fortran2003.Select_Type_Construct: self._type_construct_handler,
             Fortran2003.Return_Stmt: self._return_handler,
             Fortran2003.UnaryOpBase: self._unary_op_handler,
             Fortran2003.Block_Nonlabel_Do_Construct:
@@ -3273,6 +3274,135 @@ class Fparser2Reader():
         ifblock.addchild(ifbody)
         self.process_nodes(parent=ifbody, nodes=[node.items[1]])
         return ifblock
+
+    def _type_construct_handler(self, node, parent):
+        ''' xxx '''
+        # Check that the fparser2 parsetree has the expected structure
+        if not isinstance(node, Fortran2003.Select_Type_Construct):
+            raise InternalError(
+                f"Failed to find opening select type statement in: {node}")
+        if not isinstance(node.children[-1], Fortran2003.End_Select_Type_Stmt):
+            raise InternalError(
+                f"Failed to find closing select type statement in: {node}")
+
+        # Search for all the TYPE IS clauses in the Select_Type_Construct. We do this
+        # because the fp2 parse tree has a flat structure at this point with
+        # the clauses being siblings of the contents of the clauses. The
+        # final index in this list will hold the position of the end-select
+        # statement.
+        select_idx = -1
+        default_idx = -1
+        guard_type = []
+        clause_type = []
+        stmts = []
+
+        for idx, child in enumerate(node.children):
+            if isinstance(child, Fortran2003.Select_Type_Stmt):
+                selector = child.children[1].string
+            elif isinstance(child, Fortran2003.Type_Guard_Stmt):
+                select_idx +=1
+                guard_type.append(child.children[1])
+                clause_type.append(child.children[0])
+                if child.children[0].lower() == "class default":
+                    print("found class default")
+                    default_idx = select_idx
+            elif isinstance(child, Fortran2003.End_Select_Type_Stmt):
+                pass
+            else:
+                # This must be a statement
+                try:
+                    stmts[select_idx].append(child)
+                except IndexError:
+                    stmts.append([])
+                    stmts[select_idx].append(child)
+
+        print (f"selector is '{selector}'.")
+        print (f"number of selector options are '{select_idx}'.")
+        for idx in range(select_idx+1):
+            if idx != default_idx:
+                print (f" option {idx}.")
+                print (f" clause is '{clause_type[idx]}',")
+                print (f" guard is '{guard_type[idx]}'.")
+                print ("  stmts are ...")
+                for stmt in stmts[idx]:
+                    print (f"    {stmt}")
+        if default_idx:
+            print ("default ...")
+            print ("  stmts are ...")
+            for stmt in stmts[default_idx]:
+                print (f"    {stmt}")
+
+        ifblock = None
+        currentparent = parent
+        for idx in range(select_idx+1):
+            if idx == default_idx:
+                continue
+            if ifblock:
+                # We already have an if so this is an else if
+                elsebody = Schedule(parent=currentparent)
+                currentparent.addchild(elsebody)
+                annotation = "was_select_type"
+                if clause_type[idx]=="CLASS IS":
+                    annotation = "was_class_type"
+                ifblock = IfBlock(annotations=[annotation])
+                elsebody.addchild(ifblock)
+            else:
+                annotation = "was_select_type"
+                if clause_type[idx]=="CLASS IS":
+                    annotation = "was_class_type"
+                ifblock = IfBlock(parent=currentparent,
+                                  annotations=[annotation])
+                stmt = ifblock
+
+            from psyclone.psyir.nodes import Call
+            from psyclone.psyir.symbols import BOOLEAN_TYPE, CHARACTER_TYPE
+
+            if clause_type[idx]=="CLASS IS":
+                routine_name = "same_class_type"
+                routine = RoutineSymbol(routine_name, BOOLEAN_TYPE)
+                selector_symbol = ifblock.scope.symbol_table.lookup(selector)
+                guard_symbol = ifblock.scope.symbol_table.lookup(guard_type[idx].string)
+                clause = Call.create(routine, [Reference(selector_symbol), Reference(guard_symbol)])
+            else:
+                routine_name = "same_intrinsic_type"
+                routine = RoutineSymbol(routine_name, BOOLEAN_TYPE)
+                selector_symbol = ifblock.scope.symbol_table.lookup(selector)
+                clause = Call.create(routine, [Reference(selector_symbol), Literal(str(guard_type[idx]), CHARACTER_TYPE)])
+
+            ifblock.addchild(clause)
+            # Add If_body
+            ifbody = Schedule(parent=ifblock)
+            self.process_nodes(parent=ifbody, nodes=stmts[idx])
+            ifblock.addchild(ifbody)
+            currentparent = ifblock
+
+        if default_idx>=0:
+            print("default idx has a value")
+            elsebody = Schedule(parent=currentparent)
+            currentparent.addchild(elsebody)
+            self.process_nodes(parent=elsebody, nodes=stmts[default_idx])
+
+        function_code = (
+            "logical function same_type(type, type_string)\n"
+            "  class(*) :: type\n"
+            "  character(len=*) :: type_string\n"
+            "  type select(type)\n"
+            "    type is (INTEGER)\n"
+            "      if type_string == \"INTEGER\" then\n"
+            "        return True\n"
+            "      return False\n"
+            "    type is (REAL)\n"
+            "      if type_string == \"REAL\" then\n"
+            "        return True\n"
+            "      return False\n"
+            "    default\n"
+            "     call log(\"Unsupported type found\")\n"
+            "end function same_type\n")
+        # TODO look at logical function implemented by Sergi - example in tests apparently
+        # TODO merge case and select type implementations where possible
+        # TODO add same_type PSyIR to the existing PSyIR
+
+        return stmt
 
     def _case_construct_handler(self, node, parent):
         '''
