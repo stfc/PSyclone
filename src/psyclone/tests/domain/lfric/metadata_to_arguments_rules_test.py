@@ -72,8 +72,21 @@ def check_called(monkeypatch, function, method_name, metadata):
 
 def test_bc_kern_regex():
     '''
+    Test the regular expression used to identify the boundary-condition kernel
+    and its transformed forms.
+
+    TODO #487 - this test should be removed once metadata is used to identify
+    the boundary-condition kernel.
+
     '''
-    
+    cls = MetadataToArgumentsRules
+    assert cls.bc_kern_regex.match("enforce_bc_code")
+    assert cls.bc_kern_regex.match("enforce_BC_code")
+    assert cls.bc_kern_regex.match("enforce_BC_1099_code")
+    assert not cls.bc_kern_regex.match("other_bc_code")
+    assert not cls.bc_kern_regex.match("enforce_bc_a1_code")
+    assert not cls.bc_kern_regex.match("enforce_bc_1a_code")
+
 
 def test_mapping(monkeypatch):
     '''Test the MetadataToArgumentRules class mapping method works as
