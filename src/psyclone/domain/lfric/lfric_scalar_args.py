@@ -62,7 +62,7 @@ class LFRicScalarArgs(LFRicCollection):
 
     :param node: the Invoke or Kernel stub for which to manage the scalar \
                  arguments.
-    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or \
                 :py:class:`psyclone.domain.lfric.LFRicInvoke`
 
     '''

@@ -3001,6 +3001,50 @@ class Fparser2Reader():
         '''
         return Loop(parent=parent, variable=variable)
 
+    def _create_bounded_loop(self, parent, variable, limits_list):
+        '''
+        Create a Loop instance with start, stop, step expressions.
+
+        :param parent: the parent of the node.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param variable: the loop variable.
+        :type variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param limits_list: a list of fparser expressions reprsenting the
+            loop bounds.
+        :type limits_list: List[:py:class:`fparser.two.utils.Base`]
+
+        :return: a new Loop instance.
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+        '''
+        # Loop variable must be a DataSymbol of integer type.
+        variable_name = str(variable)
+        data_symbol = _find_or_create_unresolved_symbol(
+            parent, variable_name, symbol_type=DataSymbol,
+            datatype=default_integer_type())
+
+        # The loop node is created with the _create_loop factory method as
+        # some APIs require a specialised loop node type.
+        loop = self._create_loop(parent, data_symbol)
+
+        # The Loop Limits are:
+        # [start value expression, end value expression, step expression]
+        self.process_nodes(parent=loop, nodes=[limits_list[0]])
+        self.process_nodes(parent=loop, nodes=[limits_list[1]])
+        if len(limits_list) == 3 and limits_list[2] is not None:
+            self.process_nodes(parent=loop, nodes=[limits_list[2]])
+        else:
+            # Default loop increment is 1. Use the type of the start
+            # or step nodes once #685 is complete. For the moment use
+            # the default precision.
+            default_step = Literal("1", default_integer_type())
+            loop.addchild(default_step)
+
+        # Create Loop body Schedule
+        loop_body = Schedule(parent=loop)
+        loop.addchild(loop_body)
+        return loop
+
     def _deallocate_handler(self, node, parent):
         '''
         Transforms a deallocate() statement into its PSyIR form.
@@ -3061,60 +3105,58 @@ class Fparser2Reader():
                     raise NotImplementedError()
 
         ctrl = walk(nonlabel_do, Fortran2003.Loop_Control)
-        # do loops with no condition and do while loops
-        if not ctrl or ctrl[0].items[0]:
+        # In fparser Loop_Control has 4 children, but just one of the Loop
+        # types children None is not None, this one defines the loop boundaries
+        # style: LoopCtrl(While_Loop, Counter_Loop, OptionalDelimiter,
+        #                 Concurrent_Loop)
+        if not ctrl or ctrl[0].items[0] is not None:
+            # do loops with no condition and do while loops
             annotation = ['was_unconditional'] if not ctrl else None
             loop = WhileLoop(parent=parent, annotations=annotation)
             loop.ast = node
             condition = [Fortran2003.Logical_Literal_Constant(".TRUE.")] \
                 if not ctrl else [ctrl[0].items[0]]
             self.process_nodes(parent=loop, nodes=condition)
+            # Create Loop body Schedule
             loop_body = Schedule(parent=loop)
+            loop_body.ast = node
             loop.addchild(loop_body)
-            self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
-            return loop
+        elif ctrl[0].items[1] is not None:
+            # CounterLoops, its children are: Loop variable and Loop Limits
+            loop_var, limits_list = ctrl[0].items[1]
+            loop = self._create_bounded_loop(parent, loop_var, limits_list)
+            loop.ast = node
+            loop_body = loop.loop_body
+            loop_body.ast = node
+        elif ctrl[0].items[3] is not None:
+            # The triplet is the var=X:X:X representing the variable with the
+            # start, stop and step boundaries of the ForAll construct. We use
+            # a walk because Loop concurrent can have a list of triplets that
+            # represent nested loops.
+            triplet = walk(ctrl[0].items[3], Fortran2003.Forall_Triplet_Spec)
+            loop = None
+            for expr in triplet:
+                variable, start, stop, step = expr.items
+                new_loop = self._create_bounded_loop(parent, variable,
+                                                     [start, stop, step])
+                # TODO #2256: We could store the information that it is
+                # concurrent do, we currently drop this information.
+                new_loop.ast = node
+                new_loop.loop_body.ast = node
+                # If its a new loop, bind it to the loop variable, otherwise
+                # add it as children of the last loop_body
+                if loop is None:
+                    loop = new_loop
+                else:
+                    loop_body.addchild(new_loop)
 
-        # Second element of items member of Loop Control is itself a
-        # tuple containing: Loop variable, [start value expression,
-        # end value expression, step expression] Loop variable will be
-        # an instance of Fortran2003.Name and will be an integer.
-        loop_var = str(ctrl[0].items[1][0])
-        variable_name = str(loop_var)
-        data_symbol = _find_or_create_unresolved_symbol(
-            parent, variable_name, symbol_type=DataSymbol,
-            datatype=default_integer_type())
-        # The loop node is created with the _create_loop factory method as some
-        # APIs require a specialised loop node type.
-        loop = self._create_loop(parent, data_symbol)
-        loop.ast = node
-
-        # Get the loop limits. These are given in a list which is the second
-        # element of a tuple which is itself the second element of the items
-        # tuple:
-        # (None, (Name('jk'), [Int_Literal_Constant('1', None), Name('jpk'),
-        #                      Int_Literal_Constant('1', None)]), None)
-        limits_list = ctrl[0].items[1][1]
-
-        # Start expression child
-        self.process_nodes(parent=loop, nodes=[limits_list[0]])
-
-        # Stop expression child
-        self.process_nodes(parent=loop, nodes=[limits_list[1]])
-
-        # Step expression child
-        if len(limits_list) == 3:
-            self.process_nodes(parent=loop, nodes=[limits_list[2]])
+                # Update loop_body and parent to always reference to the
+                # innermost schedule
+                loop_body = new_loop.loop_body
+                parent = loop_body
         else:
-            # Default loop increment is 1. Use the type of the start
-            # or step nodes once #685 is complete. For the moment use
-            # the default precision.
-            default_step = Literal("1", default_integer_type())
-            loop.addchild(default_step)
+            raise NotImplementedError("Unsupported Loop")
 
-        # Create Loop body Schedule
-        loop_body = Schedule(parent=loop)
-        loop_body.ast = node
-        loop.addchild(loop_body)
         # Process loop body (ignore 'do' and 'end do' statements with [1:-1])
         self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
 

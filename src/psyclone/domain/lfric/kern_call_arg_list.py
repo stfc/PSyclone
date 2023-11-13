@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that manages the argument for a kernel
@@ -70,7 +70,7 @@ class KernCallArgList(ArgOrdering):
     captured by the base class.
 
     :param kern: The kernel that is being called.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
     NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
