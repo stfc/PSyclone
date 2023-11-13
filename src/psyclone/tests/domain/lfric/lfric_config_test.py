@@ -232,8 +232,8 @@ def test_invalid_precision_map(tmpdir):
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert ("Wrong type supplied to mapping: '-8' is not an integer"
-            " or contains special characters." in str(err.value))
+    assert ("Wrong type supplied to mapping: '-8' is not a positive"
+            " integer or contains special characters." in str(err.value))
     
     # Test invalid datatype: letter string
     content = re.sub(r"r_double: 8,", "r_double: number 5,",
@@ -243,8 +243,8 @@ def test_invalid_precision_map(tmpdir):
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert ("Wrong type supplied to mapping: 'number 5' is not an integer"
-            " or contains special characters." in str(err.value))
+    assert ("Wrong type supplied to mapping: 'number 5' is not a positive"
+            " integer or contains special characters." in str(err.value))
         
     # Test invalid datatype: float
     content = re.sub(r"r_double: 8,", "r_double: 8.5,",
@@ -254,8 +254,8 @@ def test_invalid_precision_map(tmpdir):
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert ("Wrong type supplied to mapping: '8.5' is not an integer"
-            " or contains special characters." in str(err.value))
+    assert ("Wrong type supplied to mapping: '8.5' is not a positive"
+            " integer or contains special characters." in str(err.value))
 
     # Test invalid datatype: unicode ('\u00b2' = superscript 2)
     content = re.sub(r"r_double: 8,", "r_double: \u00b2,",
@@ -265,8 +265,8 @@ def test_invalid_precision_map(tmpdir):
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert ("Wrong type supplied to mapping: '\u00b2' is not an integer"
-            " or contains special characters." in str(err.value))
+    assert ("Wrong type supplied to mapping: '\u00b2' is not a positive"
+            " integer or contains special characters." in str(err.value))
     
 
 def test_invalid_num_any_anyd_spaces(tmpdir):

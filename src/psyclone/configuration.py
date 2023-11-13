@@ -798,7 +798,8 @@ class APISpecificConfig:
                 # Raised when key contains special characters or letters:
                 raise ConfigurationError(
                     f"Wrong type supplied to mapping: '{value.strip()}'"
-                    f" is not an integer or contains special characters.")
+                    f" is not a positive integer or contains special"
+                    f" characters.")
         return return_dict
 
     def get_access_mapping(self):

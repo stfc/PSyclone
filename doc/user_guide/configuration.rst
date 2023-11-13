@@ -235,7 +235,7 @@ default_kind                Captures the default kinds (precisions) for the
                             :ref:`lfric-datatype-kind`.
 
 precision_map               Captures the value of the actual precisions in
-                            bytes, see :ref:`_lfric-precision-map`
+                            bytes, see :ref:`lfric-precision-map`
                             
 RUN_TIME_CHECKS             Specifies whether to generate run-time validation
                             checks, see :ref:`lfric-run-time-checks`.
