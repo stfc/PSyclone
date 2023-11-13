@@ -596,7 +596,8 @@ class KernelInterface(ArgOrdering):
             information about variable accesses.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
-        :raises InternalError: TODO
+        :raises InternalError: if the kernel does not have a field argument on
+                               the 'ANY_SPACE_1' function space.
 
         '''
         fspace = None
@@ -604,7 +605,10 @@ class KernelInterface(ArgOrdering):
             if fspace.orig_name == "any_space_1":
                 break
         else:
-            raise InternalError("TODO")
+            raise InternalError(
+                f"Kernel '{self._kern.name}' applies boundary conditions to a "
+                f"field but does not have an argument on the 'ANY_SPACE_1' "
+                f"function space.")
         farg = self._kern.arguments.get_arg_on_space(fspace)
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
@@ -613,7 +617,7 @@ class KernelInterface(ArgOrdering):
             raise InternalError(
                 f"Expected an argument of {const.VALID_FIELD_NAMES} type "
                 f"from which to look-up boundary dofs for kernel "
-                f"{self._kern.name} but got '{farg.argument_type}'")
+                f"'{self._kern.name}' but got '{farg.argument_type}'")
 
         ndf_symbol = self._symtab.find_or_create_tag(
             f"ndf_{fspace.orig_name}", fs=fspace.orig_name,

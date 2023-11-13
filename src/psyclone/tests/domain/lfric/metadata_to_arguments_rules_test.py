@@ -70,6 +70,11 @@ def check_called(monkeypatch, function, method_name, metadata):
     assert method_name in str(info.value)
 
 
+def test_bc_kern_regex():
+    '''
+    '''
+    
+
 def test_mapping(monkeypatch):
     '''Test the MetadataToArgumentRules class mapping method works as
     expected.

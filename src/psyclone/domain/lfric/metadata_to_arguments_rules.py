@@ -68,6 +68,11 @@ class MetadataToArgumentsRules():
     '''
     _metadata = None
     _info = None
+    # Regex used to identify the special 'enforce_bc_code' kernel that
+    # applies boundary conditions to a field. Allows for the renaming
+    # performed by PSyclone when performing kernel transformations.
+    # TODO #487 - this can be removed when we have metadata to specify
+    # that a kernel applies boundary conditinos.
     bc_kern_regex = re.compile(r"enforce_bc_(\d+_)?code", flags=re.I)
 
     @classmethod

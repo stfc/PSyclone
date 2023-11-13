@@ -809,14 +809,43 @@ def test_field_bcs_kernel(monkeypatch):
     assert mask_sym.shape[0].upper.symbol is ndf_symbol
     assert isinstance(mask_sym.shape[1].upper, Literal)
     assert mask_sym.shape[1].upper.value == "2"
-    # Monkeypatch the kernel so that it appears to have the wrong type of
-    # argument.
-    monkeypatch.setattr(
-        kernel.arguments.args[0], "_function_spaces",
-        [FunctionSpace("w3", kernel.arguments.args[0]._kernel_args), None])
+
+
+def test_field_bcs_kernel_errors(monkeypatch):
+    '''
+    Test that the field_bcs_kernel method raises the expected errors if there
+    is no argument on 'ANY_SPACE_1' or if that argument is not a field.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    kernel_interface = KernelInterface(kernel)
     with pytest.raises(InternalError) as err:
         kernel_interface.field_bcs_kernel(None)
-    assert "hohoho" in str(err.value)
+    assert ("Kernel 'testkern_code' applies boundary conditions to a field "
+            "but does not have an argument on the 'ANY_SPACE_1' function "
+            "space" in str(err.value))
+    # Repeat for a kernel that *does* have an argument on ANY_SPACE_1.
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "11_any_space.f90"), api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    kernel = schedule[0].loop_body[0]
+    # Monkeypatch the argument so that it appears to be an operator rather than
+    # a field.
+    monkeypatch.setattr(
+        kernel.arguments._args[0], "_argument_type", "gh_operator")
+    kernel_interface = KernelInterface(kernel)
+    with pytest.raises(InternalError) as err:
+        kernel_interface.field_bcs_kernel(None)
+    assert ("Expected an argument of ['gh_field'] type from which to look-up "
+            "boundary dofs for kernel 'testkern_any_space_1_code' but got "
+            "'gh_operator'" in str(err.value))
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
