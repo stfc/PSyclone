@@ -34,8 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic and O. Brunt, Met Office
-# Modified J. G. Wallwork, Met Office
+# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -49,9 +48,9 @@ import abc
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallArgList, LFRicConstants
+from psyclone.domain.lfric import KernCallArgList, LFRicConstants, LFRicKern
 from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart, \
-    DynInvokeSchedule, DynKern, DynLoop
+    DynInvokeSchedule, DynLoop
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
@@ -99,7 +98,7 @@ def check_intergrid(node):
     '''
     if not node.children:
         return
-    child_kernels = node.walk(DynKern)
+    child_kernels = node.walk(LFRicKern)
     for kern in child_kernels:
         if kern.is_intergrid:
             raise TransformationError(
@@ -2051,7 +2050,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         is derived.
 
         :param node: a kernel node.
-        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the cells. This is\
@@ -2206,7 +2205,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         this transformation.
 
         :param node: a dynamo 0.3 kernel node.
-        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the elements/cells.
@@ -2226,7 +2225,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             provided (as the former needs the latter).
 
         '''
-        if not isinstance(node, DynKern):
+        if not isinstance(node, LFRicKern):
             raise TransformationError(
                 f"Error in Dynamo0p3KernelConstTrans transformation. Supplied "
                 f"node must be a dynamo kernel but found '{type(node)}'.")

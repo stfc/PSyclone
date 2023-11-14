@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by L. Turner, Met Office
 
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
@@ -385,7 +386,7 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
     properties of the field that it is supposed to represent.
 
     :param kern: the kernel under consideration.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
     :param in arg_idx: the 1-indexed position of the argument in the list \
                        defined in the kernel metadata.
     :param str name: the name of the argument that we are expecting.
@@ -510,16 +511,16 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
                                    datatype=DeferredType(),
                                    interface=ImportInterface(adj_mod))
 
-    # Construct a DynKern using the metadata and then use it to construct
+    # Construct a LFRicKern using the metadata and then use it to construct
     # the kernel argument list.
     # TODO #1806 - once we have the new PSyIR-based metadata handling then
     # we can pass PSyIR to this routine rather than an fparser1 parse tree.
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
 
     # Replace generic names for fields. operators etc generated in
-    # DynKern with the scientific names used by the tangent-linear
+    # LFRicKern with the scientific names used by the tangent-linear
     # kernel. This makes the harness code more readable. Changing the
-    # names in-place within DynKern is the neatest solution given that
+    # names in-place within LFRicKern is the neatest solution given that
     # this is a legacy structure.
 
     # First raise the tangent-linear kernel PSyIR to LFRic PSyIR. This
@@ -530,7 +531,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # Use the metadata to determine the mapping from a metadata
     # meta_arg index to the kernel argument index. Note, the meta_arg
     # index corresponds to the order of the arguments stored in
-    # DynKern.
+    # LFRicKern.
     index_map = ArgIndexToMetadataIndex.mapping(metadata)
     inv_index_map = {value: key for key, value in index_map.items()}
 

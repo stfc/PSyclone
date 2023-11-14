@@ -1279,14 +1279,17 @@ def test_no_invokes_lfric_new(monkeypatch):
             "empty PSy code" in str(info.value))
 
 
-def test_generate_unknown_container_lfric(tmpdir, monkeypatch):
+@pytest.mark.parametrize("invoke", ["call invoke", "if (.true.) call invoke"])
+def test_generate_unknown_container_lfric(invoke, tmpdir, monkeypatch):
     '''Test that a GenerationError exception in the generate function is
     raised for the LFRic DSL if one of the functors is not explicitly
     declared. This can happen in LFRic algorithm code as it is never
     compiled. The exception is only raised with the new PSyIR approach
     to modify the algorithm layer which is currently in development so
     is protected by a switch. This switch is turned on in this test by
-    monkeypatching.
+    monkeypatching. Test when the functor is at different levels of
+    PSyIR hierarchy to ensure that the name of the parent routine is
+    always found.
 
     At the moment this exception is only raised if the functor is
     declared in a different subroutine or function, as the original
@@ -1296,21 +1299,20 @@ def test_generate_unknown_container_lfric(tmpdir, monkeypatch):
     '''
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     code = (
-        "module some_kernel_mod\n"
-        "use module_mod, only : module_type\n"
-        "contains\n"
-        "subroutine dummy_kernel()\n"
-        " use testkern_mod, only: testkern_type\n"
-        "end subroutine dummy_kernel\n"
-        "subroutine some_kernel()\n"
-        "  use constants_mod, only: r_def\n"
-        "  use field_mod, only : field_type\n"
-        "  type(field_type) :: field1, field2, field3, field4\n"
-        "  real(kind=r_def) :: scalar\n"
-        "  call invoke(testkern_type(scalar, field1, field2, field3, "
-        "field4))\n"
-        "end subroutine some_kernel\n"
-        "end module some_kernel_mod\n")
+        f"module some_kernel_mod\n"
+        f"use module_mod, only : module_type\n"
+        f"contains\n"
+        f"subroutine dummy_kernel()\n"
+        f" use testkern_mod, only: testkern_type\n"
+        f"end subroutine dummy_kernel\n"
+        f"subroutine some_kernel()\n"
+        f"  use constants_mod, only: r_def\n"
+        f"  use field_mod, only : field_type\n"
+        f"  type(field_type) :: field1, field2, field3, field4\n"
+        f"  real(kind=r_def) :: scalar\n"
+        f"  {invoke}(testkern_type(scalar, field1, field2, field3, field4))\n"
+        f"end subroutine some_kernel\n"
+        f"end module some_kernel_mod\n")
     alg_filename = str(tmpdir.join("alg.f90"))
     with open(alg_filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
