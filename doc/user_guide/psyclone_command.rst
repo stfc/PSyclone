@@ -65,7 +65,9 @@ by the command:
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
                   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                  [--profile {invokes,kernels}] [--config CONFIG] [--version]
+                  [--profile {invokes,kernels}]
+		  [--backend {enable-validation,disable-validation}]
+		  [--config CONFIG] [--version]
                   filename
 
   Run the PSyclone code generator on a particular file
@@ -101,6 +103,10 @@ by the command:
                           kernels
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
+    --backend {dis,en}able-validation
+                          Options to control the PSyIR backend used for code
+                          generation. Use 'disable-validation' to disable the
+                          validation checks that are performed by default.
     --config CONFIG       Config file with PSyclone specific options.
     --version, -v         Display version information (\ |release|\ )
 

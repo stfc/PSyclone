@@ -572,6 +572,21 @@ class Config:
         '''
         return self._backend_checks_enabled
 
+    @backend_checks_enabled.setter
+    def backend_checks_enabled(self, value):
+        '''
+        Setter for whether or not the PSyIR backend is to perform validation
+        checks.
+
+        :param bool value: whether or not to perform validation.
+
+        :raises TypeError: if `value` is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError("ha")
+        self._backend_checks_enabled = value
+
     @property
     def supported_stub_apis(self):
         '''
