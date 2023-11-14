@@ -526,7 +526,10 @@ class ACCLoopDirective(ACCRegionDirective):
         # apply transformations to the code). As an orphaned loop directive,
         # we must have an ACCParallelDirective or an ACCKernelsDirective as
         # an ancestor somewhere back up the tree.
-        if not self.ancestor((ACCParallelDirective, ACCKernelsDirective)):
+        parent_routine = self.ancestor(Routine)
+        if not (self.ancestor((ACCParallelDirective, ACCKernelsDirective),
+                              limit=parent_routine) or
+                (parent_routine and parent_routine.walk(ACCRoutineDirective))):
             raise GenerationError(
                 "ACCLoopDirective must have an ACCParallelDirective or "
                 "ACCKernelsDirective as an ancestor in the Schedule")
