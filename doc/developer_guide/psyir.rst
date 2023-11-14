@@ -1025,7 +1025,7 @@ correspond to and how the arguments relate to each other (they just
 output strings).
 
 The logic and declaration of kernel variables is handled separately by
-the ``gen_stub`` method in ``DynKern`` and the ``gen_code`` method in
+the ``gen_stub`` method in ``LFRicKern`` and the ``gen_code`` method in
 ``LFRicInvoke``. In both cases these methods make use of the subclasses
 of ``LFRicCollection`` to declare variables.
 
