@@ -3754,15 +3754,12 @@ values are defined in the LFRic infrastructure code.
 Precision Map
 +++++++++++++
 
-The amount of storage (in bytes) associated with a particular LFRic precision
-is currently defined in a kernel, they are allocated a set amount of memory.
-This amount, given in bytes, is currently defined in the precision map within
-the LFRic API *and* the LFRic infrastructure.
-
-The values for 'r_tran', 'r_solver', 'r_def', 'r_bl' and 'r_phys' are set
-within LFRic infrastructure according to CPP ifdefs. The values given in the
-configuration file are the defaults. 'l_def' is included in the dictionary so
-that it contains a complete record of the various precision symbols used in
+This gives the amount of storage (in bytes) associated with a
+particular LFRic precision. The values for 'r_tran', 'r_solver',
+'r_def', 'r_bl' and 'r_phys' are set within LFRic infrastructure
+according to CPP ifdefs. The values given in the configuration file
+are the defaults. 'l_def' is included in the dictionary so that it
+contains a complete record of the various precision symbols used in
 LFRic.
 
 .. note:: Storing the precision map in the LFRic API within PSyclone is a

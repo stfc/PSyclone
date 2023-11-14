@@ -756,11 +756,10 @@ class APISpecificConfig:
         :param input_list: the input list.
         :type input_list: list of str
 
-        :returns: a dictionary with the key,value pairs from the input \
-            list.
-        :rtype: dict.
+        :returns: a dictionary with the key,value pairs from the input list.
+        :rtype: dict[str, Any]
 
-        :raises ConfigurationError: if any entry in the input list \
+        :raises ConfigurationError: if any entry in the input list
                 does not contain a ":".
 
         '''
@@ -788,16 +787,16 @@ class APISpecificConfig:
         return_dict = {}
         return_dict = APISpecificConfig.create_dict_from_list(precisions_list)
 
-        for key, value in return_dict.items(): 
+        for key, value in return_dict.items():
             # isdecimal returns True if all the characters are decimals (0-9).
             # isdigit returns True if all characters are digits (this excludes
             # special characters such as the decimal point).
             if value.isdecimal() and value.isdigit():
-                return_dict[str(key.strip())] = int(value)
+                return_dict[key] = int(value)
             else:
                 # Raised when key contains special characters or letters:
                 raise ConfigurationError(
-                    f"Wrong type supplied to mapping: '{value.strip()}'"
+                    f"Wrong type supplied to mapping: '{value}'"
                     f" is not a positive integer or contains special"
                     f" characters.")
         return return_dict
