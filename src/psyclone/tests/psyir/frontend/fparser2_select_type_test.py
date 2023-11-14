@@ -44,7 +44,7 @@ from fparser.two.Fortran2003 import (
     Assignment_Stmt, Execution_Part, Name)
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Schedule
+from psyclone.psyir.nodes import Schedule, CodeBlock
 
 
 def test_type(fortran_reader, fortran_writer):
@@ -54,7 +54,9 @@ def test_type(fortran_reader, fortran_writer):
 
     '''
     code = (
-        "program select_type\n"
+        "module select_mod\n"
+        "contains\n"
+        "subroutine select_type()\n"
         "  class(*) :: type\n"
         "  integer :: branch1, branch2\n"
         "  SELECT TYPE (type)\n"
@@ -64,20 +66,21 @@ def test_type(fortran_reader, fortran_writer):
         "    TYPE IS (REAL)\n"
         "      branch2 = 1\n"
         "  END SELECT\n"
-        "end program\n")
+        "end subroutine\n"
+        "end module\n")
     expected = (
-        "  if (same_intrinsic_type(type, 'INTEGER')) then\n"
-        "    branch1 = 1\n"
-        "    branch2 = 0\n"
-        "  else\n"
-        "    if (same_intrinsic_type(type, 'REAL')) then\n"
-        "      branch2 = 1\n"
-        "    end if\n"
-        "  end if\n")
+        "    if (psyclone_internal_cmp(type, 'INTEGER', 'INTEGER')) then\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "    else\n"
+        "      if (psyclone_internal_cmp(type, 'REAL', 'REAL')) then\n"
+        "        branch2 = 1\n"
+        "      end if\n"
+        "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
     assert expected in result
-    ifnode1 = psyir.children[0].children[0]
+    ifnode1 = psyir.children[0].children[5].children[0]
     assert "was_select_type" in ifnode1.annotations
     ifnode2 = ifnode1.children[2][0]
     assert "was_select_type" in ifnode1.annotations
@@ -91,7 +94,9 @@ def test_default(fortran_reader, fortran_writer):
 
     '''
     code = (
-        "program select_type\n"
+        "module select_mod\n"
+        "contains\n"
+        "subroutine select_type()\n"
         "  class(*) :: type\n"
         "  integer :: branch1, branch2, branch3\n"
         "  SELECT TYPE (type)\n"
@@ -103,18 +108,19 @@ def test_default(fortran_reader, fortran_writer):
         "    TYPE IS (REAL)\n"
         "        branch2 = 1\n"
         "  END SELECT\n"
-        "end program\n")
+        "end subroutine\n"
+        "end module\n")
     expected = (
-        "  if (same_intrinsic_type(type, 'INTEGER')) then\n"
-        "    branch1 = 1\n"
-        "    branch2 = 0\n"
-        "  else\n"
-        "    if (same_intrinsic_type(type, 'REAL')) then\n"
-        "      branch2 = 1\n"
+        "    if (psyclone_internal_cmp(type, 'INTEGER', 'INTEGER')) then\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
         "    else\n"
-        "      branch3 = 1\n"
-        "    end if\n"
-        "  end if\n")
+        "      if (psyclone_internal_cmp(type, 'REAL', 'REAL')) then\n"
+        "        branch2 = 1\n"
+        "      else\n"
+        "        branch3 = 1\n"
+        "      end if\n"
+        "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
     assert expected in result
@@ -126,7 +132,9 @@ def test_class(fortran_reader, fortran_writer):
 
     '''
     code = (
-        "program select_type\n"
+        "module select_mod\n"
+        "contains\n"
+        "subroutine select_type()\n"
         "  class(*) :: type, type2\n"
         "  integer :: branch1, branch2, branch3\n"
         "  SELECT TYPE (type)\n"
@@ -138,20 +146,119 @@ def test_class(fortran_reader, fortran_writer):
         "    TYPE IS (REAL)\n"
         "        branch2 = 1\n"
         "  END SELECT\n"
-        "end program\n")
+        "end subroutine\n"
+        "end module\n")
     expected = (
-        "  if (same_intrinsic_type(type, 'INTEGER')) then\n"
-        "    branch1 = 1\n"
-        "    branch2 = 0\n"
-        "  else\n"
-        "    if (same_class_type(type, type2)) then\n"
-        "      branch3 = 1\n"
+        "    if (psyclone_internal_cmp(type, 'INTEGER', 'INTEGER')) then\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
         "    else\n"
-        "      if (same_intrinsic_type(type, 'REAL')) then\n"
-        "        branch2 = 1\n"
+        "      if (psyclone_internal_cmp(type, type2)) then\n"
+        "        branch3 = 1\n"
+        "      else\n"
+        "        if (psyclone_internal_cmp(type, 'REAL', 'REAL')) then\n"
+        "          branch2 = 1\n"
+        "        end if\n"
         "      end if\n"
-        "    end if\n"
-        "  end if\n")
+        "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
     assert expected in result
+
+
+def test_select_rename(fortran_reader, fortran_writer):
+    '''Check that a code block is created when the type in select type is
+    renamed (i.e. the code is not modified). This is done as we are
+    not yet able to rename the variables inside the select type
+    clause.
+
+    '''
+    code = (
+        "module select_mod\n"
+        "contains\n"
+        "subroutine select_type()\n"
+        "  class(*) :: type\n"
+        "  SELECT TYPE (newtype => type)\n"
+        "    TYPE IS (INTEGER)\n"
+        "        print *, newtype\n"
+        "  END SELECT\n"
+        "end subroutine\n"
+        "end module\n")
+    expected = (
+        "    SELECT TYPE(newtype=>type)\n"
+        "  TYPE IS (INTEGER)\n"
+        "  PRINT *, newtype\n"
+        "END SELECT\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[0].children[0], CodeBlock)
+    result = fortran_writer(psyir)
+    assert expected in result
+
+
+def test_select_expr(fortran_reader, fortran_writer):
+    '''Check that a code block is created when the type in select type is
+    an expression (i.e. the code is not modified). This is done as we
+    are not yet able to simply convert an fparser2 expression into a
+    PSyIR expression.
+
+    '''
+    code = (
+        "module select_mod\n"
+        "contains\n"
+        "subroutine select_type()\n"
+        "  class(*) :: type, type2\n"
+        "  integer :: branch1\n"
+        "  SELECT TYPE (type+type2)\n"
+        "    TYPE IS (INTEGER)\n"
+        "      branch1 = 1\n"
+        "  END SELECT\n"
+        "end subroutine\n"
+        "end module\n")
+    expected = (
+        "    if (psyclone_internal_cmp(type + type2, 'INTEGER', 'INTEGER')) "
+        "then\n"
+        "      branch1 = 1\n"
+        "    end if\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir)
+    assert expected in result
+
+def test_kind(fortran_reader, fortran_writer):
+    '''Check that the correct code is output when the TYPE IS constructs include precision or 
+    construct. Also check that the appropriate annotation is added to
+    the if nodes.
+
+    '''
+    code = (
+        "module select_mod\n"
+        "contains\n"
+        "subroutine select_type()\n"
+        "  class(*) :: type\n"
+        "  integer :: branch1, branch2, branch3, branch4\n"
+        "  SELECT TYPE (type)\n"
+        "    TYPE IS (REAL(kind=8))\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "    TYPE IS (REAL(16))\n"
+        "      branch2 = 1\n"
+        "    TYPE IS (REAL*4)\n"
+        "      branch3 = 1\n"
+        "    TYPE IS (CHARACTER*10)\n" # There are lots of diferent options here
+        "      branch4 = 1\n"
+        "  END SELECT\n"
+        "end subroutine\n"
+        "end module\n")
+    expected = (
+        "XXX")
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir)
+    print(result)
+    exit(1)
+    assert expected in result
+
+
+# _find_or_create_psyclone_internal_cmp Working with program and
+# subroutine - separate PR I think - before this one
+
+# type is - support or disallow kind selector or char selector?
+# type is or class is - type-name [type-param-spec-list]

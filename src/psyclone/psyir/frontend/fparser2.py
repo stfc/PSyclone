@@ -62,8 +62,8 @@ from psyclone.psyir.symbols import (
     DeferredType, ImportInterface, AutomaticInterface, NoType,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
     UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE,
-    StaticInterface, DefaultModuleInterface, UnknownInterface,
-    CommonBlockInterface)
+    BOOLEAN_TYPE, CHARACTER_TYPE, StaticInterface, DefaultModuleInterface,
+    UnknownInterface, CommonBlockInterface)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -345,13 +345,17 @@ def _find_or_create_psyclone_internal_cmp(node):
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
             name_interface = node.scope.symbol_table.next_available_name(
-                                                       "psyclone_internal_cmp")
+                "psyclone_internal_cmp")
             name_f_int = node.scope.symbol_table.next_available_name(
-                                                       "psyclone_cmp_int")
+                "psyclone_cmp_int")
             name_f_logical = node.scope.symbol_table.next_available_name(
-                                                       "psyclone_cmp_logical")
+                "psyclone_cmp_logical")
             name_f_char = node.scope.symbol_table.next_available_name(
-                                                       "psyclone_cmp_char")
+                "psyclone_cmp_char")
+            name_f_type = node.scope.symbol_table.next_available_name(
+                "psyclone_cmp_type")
+            name_f_class = node.scope.symbol_table.next_available_name(
+                "psyclone_cmp_class")
             fortran_reader = FortranReader()
             dummymod = fortran_reader.psyir_from_source(f'''
             module dummy
@@ -360,9 +364,11 @@ def _find_or_create_psyclone_internal_cmp(node):
                     procedure {name_f_int}
                     procedure {name_f_logical}
                     procedure {name_f_char}
+                    procedure {name_f_type}
+                    procedure {name_f_class}
                 end interface {name_interface}
                 private {name_interface}
-                private {name_f_int}, {name_f_logical}, {name_f_char}
+                private {name_f_int}, {name_f_logical}, {name_f_char}, {name_f_class}, {name_f_type}
                 contains
                 logical pure function {name_f_int}(op1, op2)
                     integer, intent(in) :: op1, op2
@@ -376,8 +382,70 @@ def _find_or_create_psyclone_internal_cmp(node):
                     character(*), intent(in) :: op1, op2
                     {name_f_char} = op1.eq.op2
                 end function
+                logical pure function {name_f_type}(op1, op2, op3)
+                    class(*), intent(in) :: op1
+                    character(*), intent(in) :: op2
+                    ! op3 passes the integer kind value if there is one or a negative value otherwise
+                    integer :: op3
+                end function
+                logical pure function {name_f_class}(op1, op2)
+                    class(*), intent(in) :: op1, op2
+                end function
             end module dummy
             ''').children[0]  # We skip the top FileContainer
+
+            code = (
+                f"program dummy\n"
+                f"! Assumes that datatype*x is the same as datatype(kind=x) which may not always be true\n"
+                f"select type(op1)\n"
+                f"  type is (INTEGER)\n"
+                f"    if (op3<0 .or. op3==kind(op1)) then\n"
+                f"      return op2.eq.'INTEGER'\n"
+                f"    else\n"
+                f"      {name_f_type} = .false.\n"
+                f"    end if\n"
+                f"  type is (REAL)\n"
+                f"    if (op3<0 .or. op3==kind(op1)) then\n"
+                f"      return op2.eq.'REAL'\n"
+                f"    else\n"
+                f"      {name_f_type} = .false.\n"
+                f"    end if\n"
+                f"  type is (COMPLEX)\n"
+                f"    return op2.eq.'COMPLEX'\n"
+                f"  type is (LOGICAL)\n"
+                f"    if (op3<0 .or. op3==kind(op1)) then\n"
+                f"      return op2.eq.'LOGICAL'\n"
+                f"    else\n"
+                f"      {name_f_type} = .false.\n"
+                f"    end if\n"
+                f"  type is (CHARACTER)\n"
+                f"    return op2.eq.'CHARACTER'\n"
+                f"end select\n"
+                f"end program\n")
+            from fparser.common.readfortran import FortranStringReader
+            from fparser.two.parser import ParserFactory
+            parser = ParserFactory().create(std="f2008")
+            reader = FortranStringReader(code)
+            fp2_nodes = parser(reader)
+            execution_part = fp2_nodes.children[0].children[1]
+            type_function = dummymod.children[3]
+            code_block = Fparser2Reader.nodes_to_code_block(
+                type_function, [execution_part])
+            code = (
+                f"program dummy\n"
+                f"  select type(op1)\n"
+                f"    class is (op2)\n"
+                f"      {name_f_class} = .true.\n"
+                f"    class default\n"
+                f"      {name_f_class} = .false.\n"
+                f"  end select\n"
+                f"end program\n")
+            reader = FortranStringReader(code)
+            fp2_nodes = parser(reader)
+            execution_part = fp2_nodes.children[0].children[1]
+            class_function = dummymod.children[4]
+            code_block = Fparser2Reader.nodes_to_code_block(
+                class_function, [execution_part])
 
             # Add the new functions and interface to the ancestor container
             container.children.extend(dummymod.pop_all_children())
@@ -3276,7 +3344,24 @@ class Fparser2Reader():
         return ifblock
 
     def _type_construct_handler(self, node, parent):
-        ''' xxx '''
+        '''
+        Transforms an fparser2 Select_Type_Construct to the PSyIR
+        representation.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Select_Type_Construct`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
+
+        :raises InternalError: If the fparser2 tree has an unexpected \
+            structure.
+        :raises NotImplementedError: If the fparser2 tree contains an \
+            unsupported structure and should be placed in a CodeBlock.
+
+        '''
         # Check that the fparser2 parsetree has the expected structure
         if not isinstance(node, Fortran2003.Select_Type_Construct):
             raise InternalError(
@@ -3285,10 +3370,11 @@ class Fparser2Reader():
             raise InternalError(
                 f"Failed to find closing select type statement in: {node}")
 
-        # Search for all the TYPE IS clauses in the Select_Type_Construct. We do this
-        # because the fp2 parse tree has a flat structure at this point with
-        # the clauses being siblings of the contents of the clauses. The
-        # final index in this list will hold the position of the end-select
+        # Search for all the TYPE IS and CLASS IS clauses in the
+        # Select_Type_Construct. We do this because the fp2 parse tree
+        # has a flat structure at this point with the clauses being
+        # siblings of the contents of the clauses. The final index in
+        # this list will hold the position of the end-select
         # statement.
         select_idx = -1
         default_idx = -1
@@ -3298,13 +3384,20 @@ class Fparser2Reader():
 
         for idx, child in enumerate(node.children):
             if isinstance(child, Fortran2003.Select_Type_Stmt):
+                if child.children[0]:
+                    # The selector variable is renamed and this is not
+                    # yet supported.
+                    raise NotImplementedError(
+                        f"The selector variable '{child.children[1]}' is "
+                        f"renamed to '{child.children[0]}' in the select "
+                        f"clause '{str(node)}'. This is not yet supported in "
+                        f"the PSyIR.")
                 selector = child.children[1].string
             elif isinstance(child, Fortran2003.Type_Guard_Stmt):
                 select_idx +=1
                 guard_type.append(child.children[1])
                 clause_type.append(child.children[0])
                 if child.children[0].lower() == "class default":
-                    print("found class default")
                     default_idx = select_idx
             elif isinstance(child, Fortran2003.End_Select_Type_Stmt):
                 pass
@@ -3315,22 +3408,6 @@ class Fparser2Reader():
                 except IndexError:
                     stmts.append([])
                     stmts[select_idx].append(child)
-
-        print (f"selector is '{selector}'.")
-        print (f"number of selector options are '{select_idx}'.")
-        for idx in range(select_idx+1):
-            if idx != default_idx:
-                print (f" option {idx}.")
-                print (f" clause is '{clause_type[idx]}',")
-                print (f" guard is '{guard_type[idx]}'.")
-                print ("  stmts are ...")
-                for stmt in stmts[idx]:
-                    print (f"    {stmt}")
-        if default_idx:
-            print ("default ...")
-            print ("  stmts are ...")
-            for stmt in stmts[default_idx]:
-                print (f"    {stmt}")
 
         ifblock = None
         currentparent = parent
@@ -3354,20 +3431,24 @@ class Fparser2Reader():
                                   annotations=[annotation])
                 stmt = ifblock
 
-            from psyclone.psyir.nodes import Call
-            from psyclone.psyir.symbols import BOOLEAN_TYPE, CHARACTER_TYPE
-
+            routine = _find_or_create_psyclone_internal_cmp(ifblock)
+            try:
+                selector_symbol = ifblock.scope.symbol_table.lookup(selector)
+                psyir_selector = Reference(selector_symbol)
+            except KeyError:
+                # This is an expression captured in a string
+                symbol_table = ifblock.scope.symbol_table
+                from psyclone.psyir.frontend.fortran import FortranReader
+                fortran_reader = FortranReader()
+                psyir_selector = fortran_reader.psyir_from_expression(
+                    selector, symbol_table)
             if clause_type[idx]=="CLASS IS":
-                routine_name = "same_class_type"
-                routine = RoutineSymbol(routine_name, BOOLEAN_TYPE)
-                selector_symbol = ifblock.scope.symbol_table.lookup(selector)
                 guard_symbol = ifblock.scope.symbol_table.lookup(guard_type[idx].string)
-                clause = Call.create(routine, [Reference(selector_symbol), Reference(guard_symbol)])
+                clause = Call.create(routine, [psyir_selector, Reference(guard_symbol)])
             else:
-                routine_name = "same_intrinsic_type"
-                routine = RoutineSymbol(routine_name, BOOLEAN_TYPE)
-                selector_symbol = ifblock.scope.symbol_table.lookup(selector)
-                clause = Call.create(routine, [Reference(selector_symbol), Literal(str(guard_type[idx]), CHARACTER_TYPE)])
+                literal = Literal(str(guard_type[idx]), CHARACTER_TYPE)
+                # extra redundant arg to distinguish from character comparison
+                clause = Call.create(routine, [psyir_selector, literal, literal.copy()])
 
             ifblock.addchild(clause)
             # Add If_body
