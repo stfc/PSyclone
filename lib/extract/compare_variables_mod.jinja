@@ -170,6 +170,7 @@ contains
 
         current_index = current_index + 1
         all_names(current_index) = name
+        all_results(current_index,:) = 0.0
         {% if name == "Logical" %}
         if (value .eqv. correct_value) then
         {% else %}
@@ -226,6 +227,7 @@ contains
 
         current_index = current_index + 1
         all_names(current_index) = name
+        all_results(current_index,:) = 0.0
         {% if name == "Logical" %}
         if (any(values .neqv. correct_values)) then
         {% else %}
