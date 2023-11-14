@@ -897,15 +897,16 @@ class LFRicExtractDriverCreator:
         :returns: the driver in the selected language.
         :rtype: str
 
+        :raises NotImplementedError: if the driver creation fails.
+
         '''
         try:
             file_container = self.create(nodes, read_write_info, prefix,
                                          postfix, region_name)
-        except NotImplementedError as err:
-            print(f"Cannot create driver for '{region_name[0]}-"
-                  f"{region_name[1]}' because:")
-            print(str(err))
-            return ""
+        except Exception as err:
+            raise NotImplementedError(
+                f"Cannot create driver for '{region_name[0]}-"
+                f"{region_name[1]}' because: '{err}'.") from err
 
         module_dependencies = self.collect_all_required_modules(file_container)
         # Sort the modules by dependencies, i.e. start with modules
