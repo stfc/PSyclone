@@ -371,7 +371,7 @@ class Config:
                         'BACKEND_CHECKS_ENABLED'))
             except ValueError as err:
                 raise ConfigurationError(
-                    f"error while parsing BACKEND_CHECKS_ENABLED: {err}",
+                    f"Error while parsing BACKEND_CHECKS_ENABLED: {err}",
                     config=self) from err
 
         # Now we deal with the API-specific sections of the config file. We
@@ -584,7 +584,8 @@ class Config:
 
         '''
         if not isinstance(value, bool):
-            raise TypeError("ha")
+            raise TypeError(f"Config.backend_checks_enabled must be a boolean "
+                            f"but got '{type(value).__name__}'")
         self._backend_checks_enabled = value
 
     @property
