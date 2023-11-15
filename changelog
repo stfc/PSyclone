@@ -69,6 +69,9 @@
 
 	26) PR #2391 for #2390. Fix bug in generator.py error message.
 
+	27) PR #2364 towards #1941. Moves map of LFRic precisions to
+	config. file.
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a

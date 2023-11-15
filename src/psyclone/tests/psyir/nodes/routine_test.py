@@ -42,14 +42,14 @@ import os
 import pytest
 
 from psyclone.core import Signature
+from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
+from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
                                   ScopingNode, Schedule)
 from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
                                     SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links, get_base_path, get_invoke
-from psyclone.dynamo0p3 import DynKern
-from psyclone.psyGen import BuiltIn
 
 
 def test_routine_constructor():
@@ -367,7 +367,7 @@ def test_routine_non_locals_invokes():
     # This will return three schedule - the DynInvokeSchedule, and two
     # schedules for the kernel and builtin:
     schedules = psyir.walk(Schedule)
-    assert isinstance(schedules[1].children[0], DynKern)
+    assert isinstance(schedules[1].children[0], LFRicKern)
     assert isinstance(schedules[2].children[0], BuiltIn)
 
     non_locals = psyir._compute_all_non_locals()
