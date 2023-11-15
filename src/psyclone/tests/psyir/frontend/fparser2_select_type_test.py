@@ -69,18 +69,18 @@ def test_type(fortran_reader, fortran_writer):
         "end subroutine\n"
         "end module\n")
     expected = (
-        "    if (psyclone_internal_cmp(type, 'INTEGER', 'INTEGER')) then\n"
+        "    if (psyclone_cmp_type(type, 'INTEGER')) then\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
         "    else\n"
-        "      if (psyclone_internal_cmp(type, 'REAL', 'REAL')) then\n"
+        "      if (psyclone_cmp_type(type, 'REAL')) then\n"
         "        branch2 = 1\n"
         "      end if\n"
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
     assert expected in result
-    ifnode1 = psyir.children[0].children[5].children[0]
+    ifnode1 = psyir.children[0].children[7].children[0]
     assert "was_select_type" in ifnode1.annotations
     ifnode2 = ifnode1.children[2][0]
     assert "was_select_type" in ifnode1.annotations
@@ -111,11 +111,11 @@ def test_default(fortran_reader, fortran_writer):
         "end subroutine\n"
         "end module\n")
     expected = (
-        "    if (psyclone_internal_cmp(type, 'INTEGER', 'INTEGER')) then\n"
+        "    if (psyclone_cmp_type(type, 'INTEGER')) then\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
         "    else\n"
-        "      if (psyclone_internal_cmp(type, 'REAL', 'REAL')) then\n"
+        "      if (psyclone_cmp_type(type, 'REAL')) then\n"
         "        branch2 = 1\n"
         "      else\n"
         "        branch3 = 1\n"
@@ -149,14 +149,14 @@ def test_class(fortran_reader, fortran_writer):
         "end subroutine\n"
         "end module\n")
     expected = (
-        "    if (psyclone_internal_cmp(type, 'INTEGER', 'INTEGER')) then\n"
+        "    if (psyclone_cmp_type(type, 'INTEGER')) then\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
         "    else\n"
         "      if (psyclone_internal_cmp(type, type2)) then\n"
         "        branch3 = 1\n"
         "      else\n"
-        "        if (psyclone_internal_cmp(type, 'REAL', 'REAL')) then\n"
+        "        if (psyclone_cmp_type(type, 'REAL')) then\n"
         "          branch2 = 1\n"
         "        end if\n"
         "      end if\n"
@@ -215,7 +215,7 @@ def test_select_expr(fortran_reader, fortran_writer):
         "end subroutine\n"
         "end module\n")
     expected = (
-        "    if (psyclone_internal_cmp(type + type2, 'INTEGER', 'INTEGER')) "
+        "    if (psyclone_cmp_type(type + type2, 'INTEGER')) "
         "then\n"
         "      branch1 = 1\n"
         "    end if\n")
@@ -223,10 +223,10 @@ def test_select_expr(fortran_reader, fortran_writer):
     result = fortran_writer(psyir)
     assert expected in result
 
+
 def test_kind(fortran_reader, fortran_writer):
-    '''Check that the correct code is output when the TYPE IS constructs include precision or 
-    construct. Also check that the appropriate annotation is added to
-    the if nodes.
+    '''Check that the correct code is output when the TYPE IS intrinsic
+    content includes precision.
 
     '''
     code = (
@@ -243,22 +243,29 @@ def test_kind(fortran_reader, fortran_writer):
         "      branch2 = 1\n"
         "    TYPE IS (REAL*4)\n"
         "      branch3 = 1\n"
-        "    TYPE IS (CHARACTER*10)\n" # There are lots of diferent options here
-        "      branch4 = 1\n"
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
     expected = (
-        "XXX")
+        "    if (psyclone_cmp_type_kind(type, 'REAL', 8)) then\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "    else\n"
+        "      if (psyclone_cmp_type_kind(type, 'REAL', 16)) then\n"
+        "        branch2 = 1\n"
+        "      else\n"
+        "        if (psyclone_cmp_type_starred(type, 'REAL*4')) then\n"
+        "          branch3 = 1\n"
+        "        end if\n"
+        "      end if\n"
+        "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
-    print(result)
-    exit(1)
     assert expected in result
 
 
 # _find_or_create_psyclone_internal_cmp Working with program and
 # subroutine - separate PR I think - before this one
 
-# type is - support or disallow kind selector or char selector?
 # type is or class is - type-name [type-param-spec-list]
+# support char selector options
