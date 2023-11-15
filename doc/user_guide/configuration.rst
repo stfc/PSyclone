@@ -107,6 +107,19 @@ and an optional API specific section, for example for the
    COMPUTE_ANNEXED_DOFS = false
    supported_fortran_datatypes = real, integer, logical
    default_kind = real: r_def, integer: i_def, logical: l_def
+   precision_map = i_def: 4,
+                   l_def: 1,
+                   r_def: 8,
+                   r_double: 8,
+                   r_ncdf: 8,
+                   r_quad: 16,
+                   r_second: 8,
+                   r_single: 4,
+                   r_solver: 4,
+                   r_tran: 8,
+                   r_bl: 8,
+                   r_phys: 8,
+                   r_um: 8
    RUN_TIME_CHECKS = false
    NUM_ANY_SPACE = 10
    NUM_ANY_DISCONTINUOUS_SPACE = 10
@@ -221,6 +234,9 @@ default_kind                Captures the default kinds (precisions) for the
                             supported Fortran data types in LFRic, see
                             :ref:`lfric-datatype-kind`.
 
+precision_map               Captures the value of the actual precisions in
+                            bytes, see :ref:`lfric-precision-map`
+                            
 RUN_TIME_CHECKS             Specifies whether to generate run-time validation
                             checks, see :ref:`lfric-run-time-checks`.
 
