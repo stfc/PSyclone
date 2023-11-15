@@ -78,14 +78,16 @@ module compare_variables_mod
     use, intrinsic :: iso_fortran_env, only : real64, stderr => Error_Unit
 
     implicit None
-    integer, parameter :: MIN_ABS_ERROR = 1
-    integer, parameter :: MAX_ABS_ERROR = 2
-    integer, parameter :: MIN_REL_ERROR = 3
-    integer, parameter :: MAX_REL_ERROR = 4
-    integer, parameter :: L2_DIFF = 5
-    integer, parameter :: L2_COS_SIMILAR = 6
+    integer, parameter :: MAX_ABS_ERROR  = 1
+    integer, parameter :: MAX_REL_ERROR  = 2
+    integer, parameter :: L2_DIFF        = 3
+    integer, parameter :: L2_COS_SIMILAR = 4
+    integer, parameter :: count_0        = 5    ! No error
+    integer, parameter :: count_neg_3    = 6    ! rel error >=10^-3
+    integer, parameter :: count_neg_6    = 7    ! 10^-3 > rel error >=10^-6
+    integer, parameter :: count_neg_9    = 8    ! 10^-6 > rel error > 0
 
-    integer, parameter :: NUM_RESULTS = 6
+    integer, parameter :: NUM_RESULTS = 8
 
     integer, parameter                                        :: MAX_STRING_LENGTH=512
     character(MAX_STRING_LENGTH), dimension(:),   allocatable :: all_names
@@ -154,6 +156,13 @@ contains
 
     ! -------------------------------------------------------------------------
 {% for name, type, bits in ALL_TYPES %}
+    {# Logical needs EQV for its tests #}
+    {% if name == "Logical" %}
+        {% set EQUAL = ".EQV." -%}
+    {% else %}
+        {% set EQUAL = "==" -%}
+    {% endif %}
+
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes the value of a scalar {{type}}
     !! variable to the file. It takes the variable id from the
@@ -171,29 +180,39 @@ contains
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
-        {% if name == "Logical" %}
-        if (value .eqv. correct_value) then
-        {% else %}
-        if (value .eq. correct_value) then
-        {% endif %}
-            all_results(current_index, MIN_ABS_ERROR) = 0
-            all_results(current_index, MAX_ABS_ERROR) = 0
-            all_results(current_index, MIN_REL_ERROR) = 0
-            all_results(current_index, MAX_REL_ERROR) = 0
-        else
+        if (value {{EQUAL}} correct_value) then
+            ! All other values have already been initialised with 0
+            all_results(current_Index, L2_COS_SIMILAR) = 1
+            all_results(current_Index, COUNT_0       ) = 1
+        else   ! Results are different
         {% if name in ["Char", "Logical"] %}
             ! Set all errors to 1
-            all_results(current_index, MIN_ABS_ERROR) = 1.0
-            all_results(current_index, MAX_ABS_ERROR) = 1.0
-        {% elif name in ["Long", "Int"] %}
-            all_results(current_index, MIN_ABS_ERROR) = correct_value - value
-            all_results(current_index, MAX_ABS_ERROR) = correct_value - value
-        {% elif name in ["Real", "Double"] %}
-            all_results(current_index, MIN_ABS_ERROR) = correct_value - value
-            all_results(current_index, MAX_ABS_ERROR) = correct_value - value
+            all_results(current_index, MAX_ABS_ERROR ) = 1.0
+            all_results(current_index, L2_DIFF       ) = 1.0
+            all_results(current_index, L2_COS_SIMILAR) = 0.0
+            all_results(current_index, MAX_REL_ERROR ) = 1.0
+            all_results(current_Index, COUNT_NEG_3   ) = 1
+        {% else %}
+            all_results(current_index, MAX_ABS_ERROR ) = correct_value - value
+            if (correct_value /= 0) then
+        {% if name in ["Long", "Int"] %}
+                all_results(current_index, MAX_REL_ERROR) = &
+                    abs((correct_Value-value)/real(value))
+        {% else %}
+                all_results(current_index, MAX_REL_ERROR) = abs((correct_Value-value)/value)
         {% endif %}
-            all_results(current_index, MIN_REL_ERROR) = 1.0
-            all_results(current_index, MAX_REL_ERROR) = 1.0
+            else
+                ! Division by 0
+                all_results(current_index, MAX_REL_ERROR) = 1.0
+            endif
+            if(all_results(current_index, MAX_REL_ERROR) >= 1e-3) then
+                all_results(current_Index, COUNT_NEG_3   ) = 1
+            else if(all_results(current_index, MAX_REL_ERROR) >= 1e-6) then
+                all_results(current_Index, COUNT_NEG_6   ) = 1
+            else
+                all_results(current_Index, COUNT_NEG_9   ) = 1
+            endif
+        {% endif %}
         endif
 
     end subroutine compare_scalar_{{name}}
@@ -208,6 +227,7 @@ contains
     {# Create list of variables: "dimid1, dimid2, dimid3, dimid4" #}
     {% set vars = "dimid"~range(1,dim+1)|join(", dimid") %}
 
+
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a {{dim}}D array of {{type}}
     !! to the file.
@@ -220,49 +240,68 @@ contains
         implicit none
 
         {{type}}, dimension({{DIMENSION}}), intent(in)  :: values, correct_values
-        character(*)                   :: name
-        {% if name not in ["Char", "Logical"] %}
-        {{type}}, dimension({{DIMENSION}}), allocatable :: tmp
-        {% endif %}
+        character(*), intent(in)                        :: name
+
+        ! Convert any type to double to be able to use the same maths:
+        double precision, dimension({{DIMENSION}}), allocatable :: double_values
+        double precision, dimension({{DIMENSION}}), allocatable :: double_correct
+        double precision, dimension({{DIMENSION}}), allocatable :: tmp
 
         current_index = current_index + 1
         all_names(current_index) = name
         all_results(current_index,:) = 0.0
-        {% if name == "Logical" %}
-        if (any(values .neqv. correct_values)) then
-        {% else %}
-        if (any(values /= correct_values)) then
-        {% endif %}
-        {% if name in ["Char", "Logical"] %}
-            ! Set all errors to 1
-            all_results(current_index, MIN_ABS_ERROR) = 1.0
-            all_results(current_index, MAX_ABS_ERROR) = 1.0
-        {% elif name in ["Int", "Long"] %}
-        {% else %}
-            all_results(current_index, MIN_ABS_ERROR) = minval(correct_values - values)
-            all_results(current_index, MAX_ABS_ERROR) = maxval(correct_values - values)
-            allocate(tmp, mold=values)
-            where(values /= 0)
-                tmp = (correct_values - values)/values
+        if (all(values {{EQUAL}} correct_values)) then
+            ! All values correct. Notice that all results are already initialised
+            ! to 0, so only set the non-zero values here:
+            all_results(current_index, L2_COS_SIMILAR) = 1
+            all_results(current_index, COUNT_0       ) = size(correct_values)
+        else
+            ! There are errors
+            {% if name == "Logical" -%}
+            ! Convert the logical values to real to avoid special cases:
+            allocate(double_values, source=merge(1.0d0, 0.0d0, values))
+            allocate(double_correct, source=merge(1.0d0, 0.0d0, correct_values))
+            ! Now use the double precision arrays for computing the statistics
+            {% elif name == "Char" -%}
+            ! We convert the correct strings to be a '1', and the computed values to
+            ! be either 0 if the strings are different, or 1 otherwise.
+            allocate(double_values, source=merge(0.0d0, 1.0d0, values /= correct_values))
+            ! We need an array shape of booleans here
+            allocate(double_correct, source=merge(1.0d0, 0.0d0, values == values))
+            ! Now use the double precision arrays for computing the statistics
+            {% else -%}  {# numerical value - int, long, real, double #}
+            allocate(double_values, source=dble(values))
+            allocate(double_correct, source=dble(correct_values))
+            {% endif %}
+
+            allocate(tmp, mold=double_values)
+
+            tmp = double_correct - double_values
+            all_results(current_index, MAX_ABS_ERROR) = maxval(abs(tmp))
+            all_results(current_index, L2_DIFF) = sqrt(real(sum(tmp*tmp)))
+            all_results(current_index, L2_COS_SIMILAR) = &
+                sum(double_values*double_correct)        &
+                / sqrt(real(sum(double_values*double_values)))  &
+                / sqrt(real(sum(double_correct*double_correct)))
+
+
+            where(double_values /= 0)
+                tmp = abs(tmp/double_values)
             elsewhere
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            tmp = (correct_values - values)
-            all_results(current_index, L2_DIFF) = sqrt(sum(tmp*tmp))
-            all_results(current_index, L2_COS_SIMILAR) = sum(values*correct_values) &
-                                   / sqrt(sum(values*values))  &
-                                   / sqrt(sum(correct_values*correct_values))
-        {% endif %}
-        else
-            all_results(current_index, MIN_ABS_ERROR) = 0
-            all_results(current_index, MAX_ABS_ERROR) = 0
-            all_results(current_index, MIN_REL_ERROR) = 0
-            all_results(current_index, MAX_REL_ERROR) = 0
+            all_results(current_index, count_0) = count(tmp == 0.0d0)
+            all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
+            ! Count elements >10^-6, and subtract the ones larger than 10^-3
+            all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
+                - all_results(current_Index, COUNT_NEG_3)
+            all_results(current_index, COUNT_NEG_9) = count(tmp > 1.0d-9) &
+                - all_results(current_Index, COUNT_NEG_6)
+
         endif
 
     end subroutine Compare_array_{{dim}}d{{name}}
-
     {% endfor -%}  {# for dim in ALL_DIMS #}
 
 {%- endfor -%}  {# for name, type, bits in ALL_TYPES #}
