@@ -34,8 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic and O. Brunt, Met Office
-# Modified J. G. Wallwork, Met Office
+# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -49,27 +48,29 @@ import abc
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallArgList, LFRicConstants
+from psyclone.domain.lfric import KernCallArgList, LFRicConstants, LFRicKern
 from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart, \
-    DynInvokeSchedule, DynKern, DynLoop
+    DynInvokeSchedule, DynLoop
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
-from psyclone.psyGen import Transformation, CodedKern, Kern, InvokeSchedule, \
-    BuiltIn
-from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
-    ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective, \
-    ACCParallelDirective, ACCRoutineDirective, Assignment, CodeBlock, \
-    Directive, Loop, Node, OMPDeclareTargetDirective, \
-    OMPDirective, OMPMasterDirective, \
-    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
-    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference, \
-    Return, Routine, Schedule
+from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
+                             BuiltIn)
+from psyclone.psyir.nodes import (
+    ACCDataDirective, ACCDirective,
+    ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective,
+    ACCParallelDirective, ACCRoutineDirective, Assignment, Call, CodeBlock,
+    Directive, IntrinsicCall, Loop, Node, OMPDeclareTargetDirective,
+    OMPDirective, OMPMasterDirective,
+    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
+    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
+    Return, Routine, Schedule)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
-    DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
+from psyclone.psyir.symbols import (
+    ArgumentInterface, DataSymbol, DeferredType, INTEGER_TYPE, ScalarType,
+    Symbol, SymbolError)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
@@ -97,7 +98,7 @@ def check_intergrid(node):
     '''
     if not node.children:
         return
-    child_kernels = node.walk(DynKern)
+    child_kernels = node.walk(LFRicKern)
     for kern in child_kernels:
         if kern.is_intergrid:
             raise TransformationError(
@@ -2049,7 +2050,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         is derived.
 
         :param node: a kernel node.
-        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the cells. This is\
@@ -2116,11 +2117,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # Create a new symbol with a known constant value then swap
             # it with the argument. The argument then becomes xxx_dummy
             # and is unused within the kernel body.
-            # TODO: Temporarily use unsafe name change until the name
-            # space manager is introduced into the SymbolTable (Issue
-            # #321).
             orig_name = symbol.name
-            local_symbol = DataSymbol(orig_name+"_dummy", INTEGER_TYPE,
+            new_name = symbol_table.next_available_name(f"{orig_name}_dummy")
+            local_symbol = DataSymbol(new_name, INTEGER_TYPE,
                                       is_constant=True, initial_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
@@ -2206,7 +2205,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         this transformation.
 
         :param node: a dynamo 0.3 kernel node.
-        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the elements/cells.
@@ -2226,7 +2225,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             provided (as the former needs the latter).
 
         '''
-        if not isinstance(node, DynKern):
+        if not isinstance(node, LFRicKern):
             raise TransformationError(
                 f"Error in Dynamo0p3KernelConstTrans transformation. Supplied "
                 f"node must be a dynamo kernel but found '{type(node)}'.")
@@ -2426,6 +2425,7 @@ class ACCRoutineTrans(Transformation):
     >>> kern = schedule.children[0].children[0].children[0]
     >>> # Transform the kernel
     >>> rtrans.apply(kern)
+
     '''
     @property
     def name(self):
@@ -2471,19 +2471,23 @@ class ACCRoutineTrans(Transformation):
         Perform checks that the supplied kernel or routine can be transformed.
 
         :param node: the kernel which is the target of the transformation.
-        :type node: :py:class:`psyclone.psyGen.Kern` or \
+        :type node: :py:class:`psyclone.psyGen.Kern` |
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
-        :raises TransformationError: if it is a kernel but without an \
+        :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
-        :raises TransformationError: if any of the symbols in the kernel are \
+        :raises TransformationError: if any of the symbols in the kernel are
                                      accessed via a module use statement.
+        :raises TransformationError: if the kernel contains any calls to other
+                                     routines.
         '''
         super().validate(node, options)
+
+        force = options.get("force", False) if options else False
 
         if not isinstance(node, Kern) and not isinstance(node, Routine):
             raise TransformationError(
@@ -2491,13 +2495,13 @@ class ACCRoutineTrans(Transformation):
                 f"Kern or Routine but got '{type(node).__name__}'.")
 
         # If it is a kernel call it must have an accessible implementation
-        if isinstance(node, Kern):
-            if isinstance(node, BuiltIn):
-                raise TransformationError(
-                    f"Applying ACCRoutineTrans to a built-in kernel is not yet"
-                    f" supported and kernel '{node.name}' is of type "
-                    f"'{type(node).__name__}'")
+        if isinstance(node, BuiltIn):
+            raise TransformationError(
+                f"Applying ACCRoutineTrans to a built-in kernel is not yet"
+                f" supported and kernel '{node.name}' is of type "
+                f"'{type(node).__name__}'")
 
+        if isinstance(node, Kern):
             # Get the PSyIR routine from the associated kernel. If there is an
             # exception (this could mean that there is no associated tree
             # or that the frontend failed to convert it into PSyIR) reraise it
@@ -2508,20 +2512,74 @@ class ACCRoutineTrans(Transformation):
                 raise TransformationError(
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
+            k_or_r = "Kernel"
+        else:
+            # Supplied node is a PSyIR Routine which *is* a Schedule.
+            kernel_schedule = node
+            k_or_r = "routine"
 
-            # Check that the kernel does not access any data or routines via a
-            # module 'use' statement
-            imported_variables = kernel_schedule.symbol_table.imported_symbols
-            if imported_variables:
+        # Check that the routine does not access any data that is imported via
+        # a 'use' statement.
+        # TODO #2271 - this implementation will not catch symbols from literal
+        # precisions or intialisation expressions.
+        refs = kernel_schedule.walk(Reference)
+        for ref in refs:
+            if ref.symbol.is_import:
+                # resolve_deferred does nothing if the Symbol type is known.
+                try:
+                    ref.symbol.resolve_deferred()
+                except SymbolError:
+                    # TODO #11 - log that we failed to resolve this Symbol.
+                    pass
+                if (isinstance(ref.symbol, DataSymbol) and
+                        ref.symbol.is_constant):
+                    # An import of a compile-time constant is fine.
+                    continue
                 raise TransformationError(
-                    f"The Symbol Table for kernel '{node.name}' contains the "
-                    f"following symbol(s) with imported interface: "
-                    f"{[sym.name for sym in imported_variables]}. If these "
-                    f"symbols represent data then they must first be converted"
-                    f" to kernel arguments using the KernelImportsToArguments "
-                    f"transformation. If the symbols represent external "
-                    f"routines then PSyclone cannot currently transform this "
-                    f"kernel for execution on an OpenACC device (issue #342).")
+                    f"{k_or_r} '{node.name}' accesses the symbol "
+                    f"'{ref.symbol}' which is imported. If this symbol "
+                    f"represents data then it must first be converted to a "
+                    f"{k_or_r} argument using the KernelImportsToArguments "
+                    f"transformation.")
+
+        # We forbid CodeBlocks because we can't be certain that what they
+        # contain can be executed on a GPU. However, we do permit the user
+        # to override this check.
+        cblocks = kernel_schedule.walk(CodeBlock)
+        if not force:
+            if cblocks:
+                cblock_txt = ("\n  " + "\n  ".join(str(node) for node in
+                                                   cblocks[0].get_ast_nodes)
+                              + "\n")
+                option_txt = "options={'force': True}"
+                raise TransformationError(
+                    f"Cannot safely add 'ACC routine' to {k_or_r} "
+                    f"'{node.name}' because its PSyIR contains one or more "
+                    f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
+                    f"override this check.")
+        else:
+            # Check any accesses within CodeBlocks.
+            # TODO #2271 - this will be handled as part of the checking to be
+            # implemented using the dependence analysis.
+            for cblock in cblocks:
+                names = cblock.get_symbol_names()
+                for name in names:
+                    sym = kernel_schedule.symbol_table.lookup(name)
+                    if sym.is_import:
+                        raise TransformationError(
+                            f"{k_or_r} '{node.name}' accesses the symbol "
+                            f"'{sym.name}' within a CodeBlock and this symbol "
+                            f"is imported. 'ACC routine' cannot be added to "
+                            f"such a {k_or_r}.")
+
+        calls = kernel_schedule.walk(Call)
+        for call in calls:
+            if not isinstance(call, IntrinsicCall):
+                call_str = call.debug_string().rstrip("\n")
+                raise TransformationError(
+                    f"{k_or_r} '{node.name}' calls another routine "
+                    f"'{call_str}' and therefore cannot have "
+                    f"'ACC routine' added to it (TODO #342).")
 
 
 class ACCKernelsTrans(RegionTrans):

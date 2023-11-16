@@ -3,7 +3,7 @@
 
 	2) PR #2269 for #2268. Rename DynInvokes to LFRicInvokes and move
 	to own module.
-	
+
 	3) PR #2255 for #2237. The derived type intial values are not lost
 	anymore, and the "extends" or "abstract" keywords cause a
 	UnknownFortranType.
@@ -44,6 +44,33 @@
 
 	16) PR #2357 for #2353. Adds the ACC-loops NEMO transformation script
 	and includes its use in the integration testing.
+
+	17) PR #2380 and #2378 for #2369. Add PSyIR node.sibilings property.
+
+	18) PR #2375 for #2374. Bug fix for LFRic kernel-extraction driver
+	creation for netcdf.
+
+	19) PR #2385. Update tests to include python 3.12.
+
+	20) PR #2377 for #2368. Adds optional 'depth' argument to Node.walk().
+
+	21) PR #2362 for #2243 and #2312. Add support for Fortran save statements.
+
+	22) PR #2379 for #2370. Adds a Node.get_sibling_lists() method.
+	
+	23) PR #2366 towards #342. Improve symbols and tighten-up ACCRoutineTrans
+	validation.
+
+	24) PR #2383 towards #2256. Adds support for 'DO CONCURRENT' in the
+	fparser2 frontend.
+
+	25) PR #2100 for #2091. Renames DynKern to LFRicKern and moves its
+	implementation to domain/lfric.
+
+	26) PR #2391 for #2390. Fix bug in generator.py error message.
+
+	27) PR #2364 towards #1941. Moves map of LFRic precisions to
+	config. file.
 
 release 2.4.0 29th of September 2023
 

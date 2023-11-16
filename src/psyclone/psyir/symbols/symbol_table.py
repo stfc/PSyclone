@@ -958,7 +958,7 @@ class SymbolTable():
         :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if either old/new_symbol are not Symbols.
-        :raises SymbolError: if `old_symbol` and `new_symbol` don't have \
+        :raises SymbolError: if `old_symbol` and `new_symbol` don't have
                              the same name (after normalising).
         '''
         if not isinstance(old_symbol, Symbol):

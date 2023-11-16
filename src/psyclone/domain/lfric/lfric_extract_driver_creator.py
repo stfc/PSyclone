@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and O. Brunt, Met Office
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality for LFRic. It contains the class that creates a driver that
@@ -40,6 +40,7 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
+from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
@@ -438,7 +439,7 @@ class LFRicExtractDriverCreator:
                                            symbol_type=DataSymbol,
                                            datatype=sym.datatype)
         if index is not None:
-            post_tag = f"{name}_{index}_data{postfix}"
+            post_tag = f"{name}{postfix}%{index}"
         else:
             # If it is not indexed then `name` will already end in "_data"
             post_tag = f"{name}{postfix}"
@@ -466,7 +467,7 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     def _create_read_in_code(self, program, psy_data, original_symbol_table,
                              read_write_info, postfix):
-        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-arguments, too-many-locals
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
 
@@ -521,7 +522,6 @@ class LFRicExtractDriverCreator:
                 intrinsic_name = sym.datatype.intrinsic.name
             return intrinsic_name in self._all_field_types
 
-        # pylint: disable=too-many-locals
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
 
@@ -540,7 +540,7 @@ class LFRicExtractDriverCreator:
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}_data")
-                    name_lit = Literal(f"{sig_str}_{i}_data", CHARACTER_TYPE)
+                    name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
                     self._add_call(program, read_var, [name_lit,
                                                        Reference(sym)])
                 continue
@@ -637,7 +637,8 @@ class LFRicExtractDriverCreator:
         # r_quad is defined in constants_mod, but not exported. So
         # we have to remove it from the lists of precisions to import.
         # TODO #2018
-        all_precisions = [name for name in const.PRECISION_MAP
+        api_config = Config.get().api_conf("dynamo0.3")
+        all_precisions = [name for name in api_config.precision_map
                           if name != "r_quad"]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
