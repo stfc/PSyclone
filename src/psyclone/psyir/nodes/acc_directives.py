@@ -518,8 +518,9 @@ class ACCLoopDirective(ACCRegionDirective):
         Perform validation of those global constraints that can only be done
         at code-generation time.
 
-        :raises GenerationError: if this ACCLoopDirective is not enclosed \
-                            within some OpenACC parallel or kernels region.
+        :raises GenerationError: if this ACCLoopDirective is not enclosed
+            within some OpenACC parallel or kernels region and is not in a
+            Routine that has been marked up with an 'ACC Routine' directive.
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user can
@@ -530,9 +531,13 @@ class ACCLoopDirective(ACCRegionDirective):
         if not (self.ancestor((ACCParallelDirective, ACCKernelsDirective),
                               limit=parent_routine) or
                 (parent_routine and parent_routine.walk(ACCRoutineDirective))):
+            location = (f"in routine '{parent_routine.name}' " if
+                        parent_routine else "")
             raise GenerationError(
-                "ACCLoopDirective must have an ACCParallelDirective or "
-                "ACCKernelsDirective as an ancestor in the Schedule")
+                f"ACCLoopDirective {location}must either have an "
+                f"ACCParallelDirective or ACCKernelsDirective as an ancestor "
+                f"in the Schedule or the routine must contain an "
+                f"ACCRoutineDirective.")
 
         super().validate_global_constraints()
 
