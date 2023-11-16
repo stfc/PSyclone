@@ -143,8 +143,8 @@ def test_all_loop_trans_base_validate(monkeypatch):
                 "Error" not in name):
             trans = cls_type()
             if isinstance(trans, LoopTrans):
-                # Ensure we use a LFRicLoop for Dyn (LFRic) transformations.
-                target = lfricloop if name.beginswith("Dyn") else goloop
+                # Ensure we use an LFRicLoop for LFRic transformations.
+                target = lfricloop if name.beginswith("LFRic") else goloop
                 with pytest.raises(NotImplementedError) as err:
                     if isinstance(trans, LoopFuseTrans):
                         trans.validate(target, target)
