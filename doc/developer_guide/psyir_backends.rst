@@ -34,6 +34,7 @@
    Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 
+.. _psyir-backends:
 
 PSyIR Back-ends
 ###############
