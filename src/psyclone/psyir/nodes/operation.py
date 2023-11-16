@@ -267,52 +267,68 @@ class BinaryOperation(Operation):
         '''
         :returns: the datatype of the result of this BinaryOperation.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        :raises InternalError: if the types of the operands are not permitted
+                               for the given operator.
+        :raises NotImplementedError: if the operands are of the same intrinsic
+                                     type but different precisions.
+        :raises TypeError: if the operands are both arrays but are of different
+                           shapes.
         '''
         # Get the types of the operands.
         argtypes = []
         for child in self.children:
             # If the operand is itself an operation this will recurse.
             dtype = child.datatype
-            if (isinstance(dtype, UnknownFortranType) and
-                    dtype.partial_datatype):
-                # We are still OK provided we have partial type information.
-                dtype = dtype.partial_datatype
+            if isinstance(dtype, UnknownFortranType):
+                if dtype.partial_datatype:
+                    # We are still OK provided we have partial type information
+                    # since that means the intrinsic type can be handled in the
+                    # PSyIR.
+                    dtype = dtype.partial_datatype
+                else:
+                    return UnknownFortranType("")
+            if isinstance(dtype, DeferredType):
+                # If either operand is of DeferredType then we can't do
+                # any better.
+                return DeferredType()
+            if isinstance(dtype, ArrayType):
+                if isinstance(dtype.intrinsic, DeferredType):
+                    return DeferredType()
+                if isinstance(dtype.intrinsic, UnknownType):
+                    return UnknownFortranType("")
             argtypes.append(dtype)
 
         if self.operator not in self._numeric_ops:
-            # Must be a relational or logical operator.
-            # TODO what about precision?
-            return BOOLEAN_TYPE
-
-        # We have a numerical operation. Check that we have type information
-        # for both arguments.
-        for atype in argtypes:
-            if isinstance(atype, (DeferredType, UnknownType)):
-                # If we don't know the type of one or both of the arguments
-                # then the game is up.
-                return DeferredType()
-            if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
-                                       ScalarType.Intrinsic.REAL):
-                raise InternalError(
-                    f"Invalid argument of type '{atype.intrinsic}' to "
-                    f"numerical operation '{self.operator}'")
-
-        if argtypes[0].intrinsic == argtypes[1].intrinsic:
-            if argtypes[0].precision != argtypes[1].precision:
-                raise NotImplementedError(
-                    "Cannot determine the type of an expression involving "
-                    "arguments of the same intrinsic type but different "
-                    "precision.")
-            # Operands are of the same type so that is the type of the
-            # result.
-            base_type = argtypes[0]
-        elif argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
-            base_type = argtypes[0]
-        elif argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
-            base_type = argtypes[1]
+            # Must be a relational or logical operator. Intrinsic type of
+            # result will be boolean.
+            base_type = BOOLEAN_TYPE
         else:
-            # Should not be possible to get to here?
-            raise InternalError("Hmm")
+            # We have a numerical operation. Check that we have type
+            # information for both arguments.
+            for atype in argtypes:
+                if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
+                                           ScalarType.Intrinsic.REAL):
+                    raise InternalError(
+                        f"Invalid argument of type '{atype.intrinsic}' to "
+                        f"numerical operation '{self.operator}'")
+
+            if argtypes[0].intrinsic == argtypes[1].intrinsic:
+                if argtypes[0].precision != argtypes[1].precision:
+                    raise NotImplementedError(
+                        "Cannot determine the type of an expression involving "
+                        "arguments of the same intrinsic type but different "
+                        "precision.")
+                # Operands are of the same type so that is the type of the
+                # result.
+                base_type = argtypes[0]
+            elif argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
+                base_type = argtypes[0]
+            elif argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
+                base_type = argtypes[1]
+            else:
+                # Should not be possible to get to here?
+                raise InternalError("Hmm")
 
         if all(isinstance(atype, ScalarType) for atype in argtypes):
             # Both operands are of scalar type.

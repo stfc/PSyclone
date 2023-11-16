@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, colored,
     Literal, Range, Reference, Return, StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DeferredType, INTEGER_SINGLE_TYPE,
+    ArrayType, BOOLEAN_TYPE, DataSymbol, DeferredType, INTEGER_SINGLE_TYPE,
     REAL_SINGLE_TYPE, ScalarType, Symbol, StructureType, UnknownFortranType)
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -190,9 +190,12 @@ def test_binaryop_scalar_datatype():
         DataSymbol("trouble",
                    UnknownFortranType("real, volatile :: trouble")))
     binop4 = BinaryOperation.create(oper, iref1.copy(), uref1)
-    # It has to be of DeferredType because UnknownType represents a type for
-    # which we have a declaration but we don't understand it.
-    assert isinstance(binop4.datatype, DeferredType)
+    # It has to be of UnknownType as DeferredType implies we can look up
+    # the type.
+    assert isinstance(binop4.datatype, UnknownFortranType)
+    binop5 = BinaryOperation.create(BinaryOperation.Operator.EQ,
+                                    iref1.copy(), iref2.copy())
+    assert binop5.datatype == BOOLEAN_TYPE
 
 
 def test_binaryop_array_datatype():
