@@ -119,7 +119,7 @@ def test_all_loop_trans_base_validate(monkeypatch):
     goloop = invoke.schedule.walk(Loop)[0]
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0,
                            dist_mem=False)
-    LFRicLoop = invoke.schedule.walk(Loop)[0]
+    lfricloop = invoke.schedule.walk(Loop)[0]
 
     # Find all PSyIR transformations. There are currently two locations for
     # these. Eventually all general transformations will be in
