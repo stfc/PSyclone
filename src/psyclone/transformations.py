@@ -1855,7 +1855,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         of the field's halo.
 
         :param loop: the loop that we are transforming.
-        :type loop: :py:class:`psyclone.psyGen.DynLoop` <-should this be PSyLoop?
+        :type loop: :py:class:`psyclone.psyGen.LFRicLoop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param int options["depth"]: the depth of the stencil. Defaults \
