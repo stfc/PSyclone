@@ -500,7 +500,7 @@ def test_array_same_array():
     assert array.is_same_array(bare_array) is True
 
 
-def test_array_datatype(fortran_writer):
+def test_array_datatype():
     '''Test the datatype() method for an ArrayReference.'''
     test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
     one = Literal("1", INTEGER_TYPE)
@@ -521,8 +521,8 @@ def test_array_datatype(fortran_writer):
     assert bref.datatype.shape[0].lower == one
     upper = bref.datatype.shape[0].upper
     assert isinstance(upper, BinaryOperation)
-    # The easiest way to check the expression is to convert it to Fortran
-    code = fortran_writer(upper)
+    # The easiest way to check the expression is to use debug_string()
+    code = upper.debug_string()
     assert code == "(4 - 2) / 1 + 1"
     # Reference to a single element of an array of structures.
     stype = DataTypeSymbol("grid_type", DeferredType())
@@ -536,6 +536,18 @@ def test_array_datatype(fortran_writer):
         UnknownFortranType("real, dimension(5), pointer :: unknown"))
     aref = ArrayReference.create(unknown_sym, [two.copy()])
     assert isinstance(aref.datatype, UnknownFortranType)
+    assert aref.datatype.type_text == "TYPE(TODO_2137)"
+    # A sub-array of UnknownFortranType.
+    aref3 = ArrayReference.create(unknown_sym, [Range.create(two.copy(),
+                                                             four.copy())])
+    # We know the result is an ArrayType
+    assert isinstance(aref3.datatype, ArrayType)
+    assert aref3.datatype.shape[0].lower == one
+    upper = aref3.datatype.shape[0].upper
+    assert isinstance(upper, BinaryOperation)
+    # But we don't know the type of the array elements.
+    assert isinstance(aref3.datatype.intrinsic, UnknownFortranType)
+    assert aref3.datatype.precision is None
 
 
 def test_array_create_colon(fortran_writer):

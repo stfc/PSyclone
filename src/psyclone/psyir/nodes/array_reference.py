@@ -130,16 +130,27 @@ class ArrayReference(ArrayMixin, Reference):
         shape = self._get_effective_shape()
         if shape:
             if isinstance(self.symbol.datatype, UnknownType):
-                if (isinstance(self.symbol.datatype, UnknownFortranType) and
-                        self.symbol.datatype.partial_datatype):
-                    base_type = self.symbol.datatype.partial_datatype
-                else:
-                    base_type = UnknownType()
+                # Even if an Unknown(Fortran)Type has partial type
+                # information, we can't easily use it here because we'd need
+                # to re-write the original Fortran declaration stored in the
+                # type. We could manipulate the shape in the fparser2 parse
+                # tree if need be but, at this point, we wouldn't know what
+                # the variable name should be (TODO #2137).
+                base_type = UnknownFortranType("type(TODO_2137) :: some_var")
             else:
                 base_type = self.symbol.datatype
+            # TODO #1857 - passing base_type as an instance of ArrayType
+            # only works because the ArrayType constructor just pulls out
+            # the intrinsic and precision properties of the type.
             return ArrayType(base_type, shape)
         if isinstance(self.symbol.datatype, UnknownType):
-            return self.symbol.datatype
+            # Even if an Unknown(Fortran)Type has partial type
+            # information, we can't easily use it here because we'd need
+            # to re-write the original Fortran declaration stored in the
+            # type. We could remove the shape in the fparser2 parse
+            # tree if need be but, at this point, we wouldn't know what
+            # the variable name should be (TODO #2137).
+            return UnknownFortranType("type(TODO_2137) :: some_var")
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return
