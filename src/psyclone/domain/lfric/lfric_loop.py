@@ -48,7 +48,6 @@ from psyclone.core import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
-from psyclone.dynamo0p3 import LFRicHaloExchange, HaloWriteAccess
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
@@ -598,6 +597,7 @@ class LFRicLoop(PSyLoop):
             exchanges.
 
         '''
+        from psyclone.dynamo0p3 import LFRicHaloExchange
         exchange = LFRicHaloExchange(halo_field,
                                      parent=self.parent,
                                      vector_index=idx)
@@ -669,6 +669,7 @@ class LFRicLoop(PSyLoop):
         # loop where a field in this loop previously had a forward
         # dependence on a halo exchange but no longer does
         # pylint: disable=too-many-nested-blocks
+        from psyclone.dynamo0p3 import LFRicHaloExchange
         for call in self.kernels():
             for arg in call.arguments.args:
                 if arg.access in AccessType.all_write_accesses():
@@ -696,6 +697,7 @@ class LFRicLoop(PSyLoop):
         routine also removes the old one.
 
         '''
+        from psyclone.dynamo0p3 import LFRicHaloExchange
         for halo_field in self.unique_fields_with_halo_reads():
             # for each unique field in this loop that has its halo
             # read (including annexed dofs), find the previous update
@@ -890,6 +892,7 @@ class LFRicLoop(PSyLoop):
         # First set all of the halo dirty unless we are
         # subsequently going to set all of the halo clean
         for field in fields:
+            from psyclone.dynamo0p3 import HaloWriteAccess
             # The HaloWriteAccess class provides information about how the
             # supplied field is accessed within its parent loop
             hwa = HaloWriteAccess(field, sym_table)
