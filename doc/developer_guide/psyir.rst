@@ -534,6 +534,19 @@ result is real but if both arguments are integer then the result is
 integer. For unary operations, the type of the result is just that of
 the operand.
 
+For comparison operations (e.g. `<`, `==`), the intrinsic type of the
+result is always boolean. If either or both operands are arrays, then
+the result is a boolean array.
+
+The PSyIR type system includes support for those situations where
+PSyclone is not able to fully understand a variable declaration.
+In such cases, the type is an instance of `UnknownFortranType` which
+stores both the original declaration and, optionally, a `partial_datatype`
+holding the aspects of the type that can be represented in the PSyIR.
+The presence of a `partial_datatype` implies that we fully understand
+the intrinsic type. Given this and an array shape, it is always possible
+to determine the result of an operation involving such a type.
+
 
 IntrinsicCall Nodes
 -------------------
