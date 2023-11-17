@@ -42,9 +42,8 @@ sub-classes.
 '''
 import pytest
 
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    ArrayReference, BinaryOperation, colored,
+    ArrayReference, BinaryOperation, colored, IntrinsicCall,
     Literal, Range, Reference, Return, StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArrayType, BOOLEAN_TYPE, DataSymbol, DeferredType, INTEGER_SINGLE_TYPE,
@@ -431,6 +430,26 @@ def test_binaryop_partial_datatype():
     assert isinstance(dtype5, ArrayType)
     assert dtype5.intrinsic == REAL_SINGLE_TYPE.intrinsic
     assert len(dtype5.shape) == 1
+
+
+def test_binaryoperation_intrinsic_fn_datatype():
+    '''
+    Check that we can get the datatype of an operation involving the result
+    of an intrinsic function.
+
+    TODO #1799 - this needs implementing.
+
+    '''
+    arrtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    aref = Reference(DataSymbol("array", arrtype))
+    arg1 = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAXVAL, [aref])
+    arg2 = Reference(DataSymbol("scalar", INTEGER_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.ADD
+    binop = BinaryOperation.create(oper, arg1, arg2)
+    with pytest.raises(NotImplementedError) as err:
+        binop.datatype
+    assert ("datatype property not yet implemented for Call nodes"
+            in str(err.value))
 
 
 # Test UnaryOperation class

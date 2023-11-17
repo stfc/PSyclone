@@ -356,6 +356,14 @@ class Call(Statement, DataNode):
         return False
 
     @property
+    def datatype(self):
+        '''
+        :raises NotImplementedError: TODO #1799
+        '''
+        raise NotImplementedError("datatype property not yet implemented for "
+                                  "Call nodess")
+
+    @property
     def argument_names(self):
         '''
         :returns: a list with the name of each argument. If the entry is \
