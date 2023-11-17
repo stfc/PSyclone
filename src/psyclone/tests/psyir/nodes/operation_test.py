@@ -42,6 +42,7 @@ sub-classes.
 '''
 import pytest
 
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, colored,
     Literal, Range, Reference, Return, StructureReference, UnaryOperation)
@@ -196,6 +197,14 @@ def test_binaryop_scalar_datatype():
     binop5 = BinaryOperation.create(BinaryOperation.Operator.EQ,
                                     iref1.copy(), iref2.copy())
     assert binop5.datatype == BOOLEAN_TYPE
+    # Non-numeric type as operand of numerical operation.
+    binop6 = BinaryOperation.create(oper, iref1.copy(),
+                                    Reference(DataSymbol("switch",
+                                                         BOOLEAN_TYPE)))
+    with pytest.raises(InternalError) as err:
+        binop6.datatype
+    assert ("Invalid argument of type 'Intrinsic.BOOLEAN' to numerical "
+            "operation 'Operator.ADD' in 'itmp1 + switch'" in str(err.value))
 
 
 def test_binaryop_array_datatype():
@@ -328,6 +337,28 @@ def test_binaryop_structure_datatype():
     assert dtype2.intrinsic == REAL_SINGLE_TYPE.intrinsic
 
 
+def test_binaryop_deferred_datatype():
+    '''
+    Test that the BinaryOperation datatype always returns DeferredType if
+    either (or both) operand(s) is of DeferredType.
+
+    '''
+    wind = Reference(DataSymbol("wind", DeferredType()))
+    sea = Reference(DataSymbol("sea", INTEGER_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.ADD
+    binop1 = BinaryOperation.create(oper, wind, sea)
+    assert isinstance(binop1.datatype, DeferredType)
+    binop2 = BinaryOperation.create(oper, sea.copy(), wind.copy())
+    assert isinstance(binop2.datatype, DeferredType)
+    binop3 = BinaryOperation.create(oper, wind.copy(), wind.copy())
+    assert isinstance(binop3.datatype, DeferredType)
+    # An Array of deferred type.
+    arrtype = ArrayType(DeferredType(), [10])
+    air = Reference(DataSymbol("air", arrtype))
+    binop4 = BinaryOperation.create(oper, air, sea.copy())
+    assert isinstance(binop4.datatype, DeferredType)
+
+
 def test_binaryop_partial_datatype():
     '''
     Test the BinaryOperation datatype works when one or both arguments only
@@ -348,6 +379,9 @@ def test_binaryop_partial_datatype():
     arrtype3 = ArrayType(REAL_SINGLE_TYPE, [10, 10])
     utype3 = UnknownFortranType("real, dimension(10,10), pointer :: ref3",
                                 partial_datatype=arrtype3)
+    # We are unable to determine the type of a Reference to a
+    # subsection of an array of UnknownType (since that would require
+    # updating the original UnknownType with a new shape).
     ref3 = ArrayReference.create(
         DataSymbol("ref3", utype3),
         [":", Range.create(Literal("5", INTEGER_SINGLE_TYPE),
@@ -355,13 +389,30 @@ def test_binaryop_partial_datatype():
     # Create ref1(:,:) * ref3(:,5:10)
     binop3 = BinaryOperation.create(oper, ref1.copy(), ref3)
     dtype3 = binop3.datatype
-    assert isinstance(dtype3, ArrayType)
-    assert len(dtype3.shape) == 2
-    assert dtype3.shape[0].lower.value == "1"
-    assert dtype3.shape[0].upper.value == "10"
-    assert dtype3.shape[1].lower.value == "1"
-    assert dtype3.shape[1].upper.value == "5"
-    assert dtype3.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert isinstance(dtype3, UnknownFortranType)
+    # However, if a subsection is not involved then we are OK.
+    arrtype4 = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    utype4 = UnknownFortranType("real, dimension(10,5), pointer :: ref3",
+                                partial_datatype=arrtype4)
+    ref4 = Reference(DataSymbol("ref4", utype4))
+    binop4 = BinaryOperation.create(oper, ref1.copy(), ref4)
+    dtype4 = binop4.datatype
+    assert len(dtype4.shape) == 2
+    assert dtype4.shape[0].lower.value == "1"
+    assert dtype4.shape[0].upper.value == "10"
+    assert dtype4.shape[1].lower.value == "1"
+    assert dtype4.shape[1].upper.value == "5"
+    assert dtype4.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    # A reference to an array of unknown type but with partial type ino.
+    utype5 = UnknownFortranType("real, pointer :: ref5",
+                                partial_datatype=REAL_SINGLE_TYPE)
+    arrtype5 = ArrayType(utype5, [8])
+    ref5 = Reference(DataSymbol("ref5", arrtype5))
+    binop5 = BinaryOperation.create(oper, ref2.copy(), ref5)
+    dtype5 = binop5.datatype
+    assert isinstance(dtype5, ArrayType)
+    assert dtype5.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert len(dtype5.shape) == 1
 
 
 # Test UnaryOperation class

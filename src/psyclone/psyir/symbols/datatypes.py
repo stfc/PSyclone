@@ -433,7 +433,7 @@ class ArrayType(DataType):
                     "When creating an array of structures, the type of "
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
-            if not isinstance(datatype, UnknownType):
+            if not isinstance(datatype, (UnknownType, DeferredType)):
                 self._intrinsic = datatype.intrinsic
                 self._precision = datatype.precision
             else:

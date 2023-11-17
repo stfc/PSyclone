@@ -45,8 +45,8 @@ from enum import Enum
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols.datatypes import (
-    ArrayType, BOOLEAN_TYPE, DeferredType, ScalarType, UnknownFortranType,
-    UnknownType)
+    ArrayType, BOOLEAN_TYPE, DataTypeSymbol, DeferredType, ScalarType,
+    UnknownFortranType, UnknownType)
 
 
 class Operation(DataNode, metaclass=ABCMeta):
@@ -205,7 +205,7 @@ class BinaryOperation(Operation):
         # Logical Operators
         'AND', 'OR', 'EQV', 'NEQV',
         ])
-    # TODO have a BinaryNumericOperation subclass?
+    # The numeric operators.
     _numeric_ops = (Operator.ADD, Operator.SUB, Operator.MUL, Operator.DIV,
                     Operator.REM, Operator.POW)
     # Textual description of the node.
@@ -230,33 +230,32 @@ class BinaryOperation(Operation):
         child instances with optional names.
 
         :param operator: the operator used in the operation.
-        :type operator: \
+        :type operator:
             :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
-        :param lhs: the PSyIR node containing the left hand side of \
-            the assignment, or a tuple containing the name of the \
+        :param lhs: the PSyIR node containing the left hand side of
+            the assignment, or a tuple containing the name of the
             argument and the PSyIR node.
-        :type lhs: Union[:py:class:`psyclone.psyir.nodes.Node`, \
+        :type lhs: Union[:py:class:`psyclone.psyir.nodes.Node`,
             Tuple[str, :py:class:`psyclone.psyir.nodes.Node`]]
-        :param rhs: the PSyIR node containing the right hand side of \
-            the assignment, or a tuple containing the name of the \
+        :param rhs: the PSyIR node containing the right hand side of
+            the assignment, or a tuple containing the name of the
             argument and the PSyIR node.
-        :type rhs: Union[:py:class:`psyclone.psyir.nodes.Node`, \
+        :type rhs: Union[:py:class:`psyclone.psyir.nodes.Node`,
             Tuple[str, :py:class:`psyclone.psyir.nodes.Node`]]
 
         :returns: a BinaryOperator instance.
         :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
-        :raises GenerationError: if the arguments to the create method \
+        :raises GenerationError: if the arguments to the create method
             are not of the expected type.
 
         '''
-        if not isinstance(operator, Enum) or \
-           operator not in BinaryOperation.Operator:
+        if (not isinstance(operator, Enum) or
+                operator not in BinaryOperation.Operator):
             raise GenerationError(
                 f"operator argument in create method of BinaryOperation class "
                 f"should be a PSyIR BinaryOperation Operator but found "
                 f"'{type(operator).__name__}'.")
-
         binary_op = BinaryOperation(operator)
         binary_op.addchild(lhs)
         binary_op.addchild(rhs)
@@ -293,10 +292,17 @@ class BinaryOperation(Operation):
                 # any better.
                 return DeferredType()
             if isinstance(dtype, ArrayType):
+                # We know this is an array but do we know its intrinsic type?
                 if isinstance(dtype.intrinsic, DeferredType):
                     return DeferredType()
                 if isinstance(dtype.intrinsic, UnknownType):
-                    return UnknownFortranType("")
+                    if (isinstance(dtype.intrinsic, UnknownFortranType) and
+                            dtype.intrinsic.partial_datatype):
+                        dtype = ArrayType(dtype.intrinsic.partial_datatype,
+                                          shape=dtype.shape)
+                    else:
+                        return UnknownFortranType("")
+
             argtypes.append(dtype)
 
         if self.operator not in self._numeric_ops:
@@ -311,7 +317,8 @@ class BinaryOperation(Operation):
                                            ScalarType.Intrinsic.REAL):
                     raise InternalError(
                         f"Invalid argument of type '{atype.intrinsic}' to "
-                        f"numerical operation '{self.operator}'")
+                        f"numerical operation '{self.operator}' in "
+                        f"'{self.debug_string()}'")
 
             if argtypes[0].intrinsic == argtypes[1].intrinsic:
                 if argtypes[0].precision != argtypes[1].precision:
