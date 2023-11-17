@@ -36,12 +36,9 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' This module implements the PSyclone LFRic API by specialising the Loop
+    base class in psyGen.py
+     '''
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -597,6 +594,8 @@ class LFRicLoop(PSyLoop):
             exchanges.
 
         '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import LFRicHaloExchange
         exchange = LFRicHaloExchange(halo_field,
                                      parent=self.parent,
@@ -669,6 +668,8 @@ class LFRicLoop(PSyLoop):
         # loop where a field in this loop previously had a forward
         # dependence on a halo exchange but no longer does
         # pylint: disable=too-many-nested-blocks
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import LFRicHaloExchange
         for call in self.kernels():
             for arg in call.arguments.args:
@@ -697,7 +698,6 @@ class LFRicLoop(PSyLoop):
         routine also removes the old one.
 
         '''
-        from psyclone.dynamo0p3 import LFRicHaloExchange
         for halo_field in self.unique_fields_with_halo_reads():
             # for each unique field in this loop that has its halo
             # read (including annexed dofs), find the previous update
@@ -726,11 +726,17 @@ class LFRicLoop(PSyLoop):
                             f"dependencies is '{halo_field.vector_size}' and "
                             f"the vector size is '{len(prev_arg_list)}'.")
                     for arg in prev_arg_list:
+                        # Avoid circular import
+                        # pylint: disable=import-outside-toplevel
+                        from psyclone.dynamo0p3 import LFRicHaloExchange
                         if not isinstance(arg.call, LFRicHaloExchange):
                             raise GenerationError(
                                 "Error in create_halo_exchanges. Expecting "
                                 "all dependent nodes to be halo exchanges")
                 prev_node = prev_arg_list[0].call
+                # Avoid circular import
+                # pylint: disable=import-outside-toplevel
+                from psyclone.dynamo0p3 import LFRicHaloExchange
                 if not isinstance(prev_node, LFRicHaloExchange):
                     # previous dependence is not a halo exchange so
                     # call the add halo exchange logic which
@@ -776,12 +782,6 @@ class LFRicLoop(PSyLoop):
             colour_var = parent_loop.variable
 
             asym = self.kernel.last_cell_all_colours_symbol
-            if not asym:
-                # TODO #1618: once the symbols are all defined,
-                # this should not happen anymore.
-                raise InternalError(f"No symbol for last_cell_all_colours"
-                                    f"defined for kernel "
-                                    f"'{self.kernel.name}'.")
             const = LFRicConstants()
 
             if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
@@ -892,6 +892,8 @@ class LFRicLoop(PSyLoop):
         # First set all of the halo dirty unless we are
         # subsequently going to set all of the halo clean
         for field in fields:
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import HaloWriteAccess
             # The HaloWriteAccess class provides information about how the
             # supplied field is accessed within its parent loop
