@@ -143,14 +143,23 @@ class ArrayReference(ArrayMixin, Reference):
             # only works because the ArrayType constructor just pulls out
             # the intrinsic and precision properties of the type.
             return ArrayType(base_type, shape)
+
+        # Otherwise, we're accessing a single element of the array.
         if isinstance(self.symbol.datatype, UnknownType):
-            # Even if an Unknown(Fortran)Type has partial type
-            # information, we can't easily use it here because we'd need
-            # to re-write the original Fortran declaration stored in the
-            # type. We could remove the shape in the fparser2 parse
-            # tree if need be but, at this point, we wouldn't know what
-            # the variable name should be (TODO #2137).
-            return UnknownFortranType("type(TODO_2137) :: some_var")
+            if (isinstance(self.symbol.datatype, UnknownFortranType) and
+                    self.symbol.datatype.partial_datatype):
+                precision = self.symbol.datatype.partial_datatype.precision
+                intrinsic = self.symbol.datatype.partial_datatype.intrinsic
+                return ScalarType(intrinsic, precision)
+            else:
+                # Since we're accessing a single element of an array
+                # of UnknownType we have to create a new
+                # UnknownFortranType.  Ideally we would re-write the
+                # original Fortran declaration stored in the type. We
+                # could remove the shape in the fparser2 parse tree
+                # but, at this point, we wouldn't know what the
+                # variable name should be (TODO #2137).
+                return UnknownFortranType("type(TODO_2137) :: some_var")
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return

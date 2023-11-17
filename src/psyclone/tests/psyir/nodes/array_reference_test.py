@@ -537,6 +537,14 @@ def test_array_datatype():
     aref = ArrayReference.create(unknown_sym, [two.copy()])
     assert isinstance(aref.datatype, UnknownFortranType)
     assert aref.datatype.type_text == "TYPE(TODO_2137)"
+    # Reference to a single element of an array of UnknownType but with partial
+    # type information.
+    not_quite_unknown_sym = DataSymbol(
+        "unknown",
+        UnknownFortranType("real, dimension(5), pointer :: unknown",
+                           partial_datatype=ArrayType(REAL_SINGLE_TYPE, [5])))
+    bref = ArrayReference.create(not_quite_unknown_sym, [two.copy()])
+    assert bref.datatype == REAL_SINGLE_TYPE
     # A sub-array of UnknownFortranType.
     aref3 = ArrayReference.create(unknown_sym, [Range.create(two.copy(),
                                                              four.copy())])

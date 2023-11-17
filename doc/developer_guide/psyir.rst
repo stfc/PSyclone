@@ -545,7 +545,7 @@ stores both the original declaration and, optionally, a `partial_datatype`
 holding the aspects of the type that can be represented in the PSyIR.
 The presence of a `partial_datatype` implies that we fully understand
 the intrinsic type. Given this and an array shape, it is always possible
-to determine the result of an operation involving such a type.
+to determine the result of a numerical operation involving such a type.
 
 
 IntrinsicCall Nodes
