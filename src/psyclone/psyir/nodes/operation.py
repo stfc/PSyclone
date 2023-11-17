@@ -305,27 +305,22 @@ class BinaryOperation(Operation):
 
             argtypes.append(dtype)
 
+        base_type = None
+
         if self.operator not in self._numeric_ops:
             # Must be a relational or logical operator. Intrinsic type of
             # result will be boolean.
             base_type = BOOLEAN_TYPE
         else:
-            # We have a numerical operation. Check that we have type
-            # information for both arguments.
-            for atype in argtypes:
-                if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
-                                           ScalarType.Intrinsic.REAL):
-                    raise InternalError(
-                        f"Invalid argument of type '{atype.intrinsic}' to "
-                        f"numerical operation '{self.operator}' in "
-                        f"'{self.debug_string()}'")
-
+            # We have a numerical operation.
             if argtypes[0].intrinsic == argtypes[1].intrinsic:
                 if argtypes[0].precision != argtypes[1].precision:
                     raise NotImplementedError(
-                        "Cannot determine the type of an expression involving "
-                        "arguments of the same intrinsic type but different "
-                        "precision.")
+                        f"Cannot determine the type of expression "
+                        f"'{self.debug_string()}' involving arguments of the "
+                        f"same intrinsic type but different precision "
+                        f"('{argtypes[0].precision}' and "
+                        f"'{argtypes[1].precision}').")
                 # Operands are of the same type so that is the type of the
                 # result.
                 base_type = argtypes[0]
@@ -333,9 +328,19 @@ class BinaryOperation(Operation):
                 base_type = argtypes[0]
             elif argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
                 base_type = argtypes[1]
-            else:
-                # Should not be possible to get to here?
-                raise InternalError("Hmm")
+
+            # Check that the type of the result is consistent with a numerical
+            # operation.
+            if not base_type or base_type.intrinsic not in (
+                    ScalarType.Intrinsic.INTEGER,
+                    ScalarType.Intrinsic.REAL):
+                for atype in argtypes:
+                    if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
+                                               ScalarType.Intrinsic.REAL):
+                        raise TypeError(
+                            f"Invalid argument of type '{atype.intrinsic}' to "
+                            f"numerical operation '{self.operator}' in "
+                            f"'{self.debug_string()}'")
 
         if all(isinstance(atype, ScalarType) for atype in argtypes):
             # Both operands are of scalar type.
@@ -344,7 +349,6 @@ class BinaryOperation(Operation):
         if all(isinstance(atype, ArrayType) for atype in argtypes):
             # Both operands are of array type.
             if len(argtypes[0].shape) != len(argtypes[1].shape):
-                # TODO - not sure what type of error to raise here.
                 raise TypeError(
                     f"Binary operation '{self.debug_string()}' has operands "
                     f"of different shape: '{self.children[0].debug_string()}' "

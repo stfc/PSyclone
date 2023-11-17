@@ -48,7 +48,8 @@ from psyclone.psyir.nodes import (
     Literal, Range, Reference, Return, StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArrayType, BOOLEAN_TYPE, DataSymbol, DeferredType, INTEGER_SINGLE_TYPE,
-    REAL_SINGLE_TYPE, ScalarType, Symbol, StructureType, UnknownFortranType)
+    REAL_DOUBLE_TYPE, REAL_SINGLE_TYPE, ScalarType, Symbol, StructureType,
+    UnknownFortranType)
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -201,10 +202,19 @@ def test_binaryop_scalar_datatype():
     binop6 = BinaryOperation.create(oper, iref1.copy(),
                                     Reference(DataSymbol("switch",
                                                          BOOLEAN_TYPE)))
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(TypeError) as err:
         binop6.datatype
     assert ("Invalid argument of type 'Intrinsic.BOOLEAN' to numerical "
             "operation 'Operator.ADD' in 'itmp1 + switch'" in str(err.value))
+    # Two arguments of different precision.
+    binop7 = BinaryOperation.create(oper, ref1.copy(),
+                                    Reference(DataSymbol("dtmp1",
+                                                         REAL_DOUBLE_TYPE)))
+    with pytest.raises(NotImplementedError) as err:
+        binop7.datatype
+    assert ("Cannot determine the type of expression 'tmp1 + dtmp1' involving "
+            "arguments of the same intrinsic type but different precision "
+            "('Precision.SINGLE' and 'Precision.DOUBLE')." in str(err.value))
 
 
 def test_binaryop_array_datatype():
@@ -245,6 +255,14 @@ def test_binaryop_array_datatype():
     assert dtype5.shape[0].lower.value == "1"
     assert dtype5.shape[0].upper.value == "5"
     assert dtype5.intrinsic == ScalarType.Intrinsic.REAL
+    # Non-conforming shapes.
+    arr2dtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    ref6 = Reference(DataSymbol("tmp2d", arr2dtype))
+    binop6 = BinaryOperation.create(oper, ref1.copy(), ref6)
+    with pytest.raises(TypeError) as err:
+        binop6.datatype
+    assert ("Binary operation 'tmp1 + tmp2d' has operands of different shape: "
+            "'tmp1' has rank 1 and 'tmp2d' has rank 2" in str(err.value))
 
 
 def test_binaryop_array_section_datatype():
