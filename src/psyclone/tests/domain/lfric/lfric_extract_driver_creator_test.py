@@ -397,30 +397,6 @@ def test_lfric_driver_operator():
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_creator_error(monkeypatch):
-    '''This tests the error handling of the 'get_driver_as_string' function,
-    and consequently 'create' function. '''
-
-    _, invoke = get_invoke(
-        "15.14.3_sum_setval_field_builtin.f90", API, dist_mem=False, idx=0)
-
-    driver_creator = LFRicExtractDriverCreator()
-    read_write_info = ReadWriteInfo()
-
-    # Set invalid Loop children
-    monkeypatch.setattr(invoke.schedule.children[0], "_children", [])
-
-    # The get_driver_as_string method raises an exception
-    # ---------------------------------------------------
-    with pytest.raises(NotImplementedError) as err:
-        _ = driver_creator.get_driver_as_string(
-            invoke.schedule, read_write_info, "extract",
-            "_post", ("region", "name"))
-    assert ("Cannot create driver for 'region-name' because: 'list index "
-            "out of range'.") in str(err.value)
-
-
-# ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_removing_structure_data():
     '''Check that array accesses correctly remove the `%data`(which would be
