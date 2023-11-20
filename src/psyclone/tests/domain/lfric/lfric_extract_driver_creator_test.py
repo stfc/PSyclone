@@ -290,7 +290,7 @@ def test_lfric_driver_import_precision():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
     assert ("use constants_mod, only : i_def, l_def, r_bl, r_def, "
-            "r_double, r_ncdf, r_phys, r_second, r_single, r_solver, "
+            "r_double, r_ncdf, r_second, r_single, r_solver, "
             "r_tran, r_um" in driver)
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
@@ -471,7 +471,7 @@ def test_lfric_driver_removing_structure_data():
             in driver)
     assert "ALLOCATE(f2_data, mold=f2_data_post)" in driver
     assert "f2_data(df) = a + f1_data(df)" in driver
-    assert "if (ALL(f2_data - f2_data_post == 0.0)) then" in driver
+    assert "compare('f2_data', f2_data, f2_data_post" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod"]:
         assert f"module {mod}" in driver
@@ -558,7 +558,8 @@ def test_lfric_driver_field_array_write():
     for i in range(1, 4):
         assert (f"ReadVariable('coord_post%{i}', coord_{i}_data_post)"
                 in driver)
-        assert f"ALL(coord_{i}_data - coord_{i}_data_post == 0.0))" in driver
+        assert (f"compare('coord_{i}_data', coord_{i}_data, "
+                f"coord_{i}_data_post)" in driver)
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -643,7 +644,8 @@ def test_lfric_driver_external_symbols():
 
     assert ("call extract_psy_data%ReadVariable('module_var_a_post@"
             "module_with_var_mod', module_var_a_post)" in driver)
-    assert "if (module_var_a == module_var_a_post)" in driver
+    assert ("call compare('module_var_a', module_var_a, module_var_a_post)"
+            in driver)
 
 
 # ----------------------------------------------------------------------------
