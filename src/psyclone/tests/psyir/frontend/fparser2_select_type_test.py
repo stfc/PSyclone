@@ -45,9 +45,9 @@ from fparser.two.Fortran2003 import (
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Schedule, CodeBlock
+from psyclone.tests.utilities import Compile
 
-
-def test_type(fortran_reader, fortran_writer):
+def test_type(fortran_reader, fortran_writer, tmpdir):
     '''Check that the correct code is output with a basic select type
     construct. Also check that the appropriate annotation is added to
     the if nodes.
@@ -84,7 +84,8 @@ def test_type(fortran_reader, fortran_writer):
     assert "was_select_type" in ifnode1.annotations
     ifnode2 = ifnode1.children[2][0]
     assert "was_select_type" in ifnode1.annotations
-
+    print(tmpdir)
+    assert Compile(tmpdir).string_compiles(result)
 
 def test_default(fortran_reader, fortran_writer):
     '''Check that the correct code is output when select type has a
@@ -264,8 +265,40 @@ def test_kind(fortran_reader, fortran_writer):
     assert expected in result
 
 
+def test_derived(fortran_reader, fortran_writer):
+    '''Check that the code is not modified when the TYPE IS type is a
+    derived type. This is because there does not seem to be a way to
+    pass the type of a derived type via the argument list so it is not
+    possible to write a generic comparison function. Note, the generic
+    comparison functions are output in this implementation even though
+    they are not used.
+
+    '''
+    code = (
+        "module select_mod\n"
+        "contains\n"
+        "subroutine select_type()\n"
+        "  use field_mod, only : field_type\n"
+        "  class(*) :: type\n"
+        "  integer :: branch1\n"
+        "  SELECT TYPE (type)\n"
+        "    TYPE IS (field_type)\n"
+        "      branch1 = 1\n"
+        "  END SELECT\n"
+        "end subroutine\n"
+        "end module\n")
+    expected = (
+        "    SELECT TYPE(type)\n"
+        "  TYPE IS (field_type)\n"
+        "  branch1 = 1\n"
+        "END SELECT\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[7].children[0], CodeBlock)
+    result = fortran_writer(psyir)
+    assert expected in result
+
+
 # _find_or_create_psyclone_internal_cmp Working with program and
 # subroutine - separate PR I think - before this one
 
-# type is or class is - type-name [type-param-spec-list]
 # support char selector options

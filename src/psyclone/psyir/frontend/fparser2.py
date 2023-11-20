@@ -394,7 +394,7 @@ def _find_or_create_psyclone_internal_cmp(node):
                 logical pure function {name_f_class}(op1, op2)
                     class(*), intent(in) :: op1, op2
                 end function
-                !
+                ! not part of the interface
                 logical pure function {name_f_type}(op1, op2)
                   class(*), intent(in) :: op1
                   character(*), intent(in) :: op2
@@ -3543,28 +3543,39 @@ class Fparser2Reader():
                 guard_symbol = ifblock.scope.symbol_table.lookup(guard_type[idx].string)
                 clause = Call.create(routine, [psyir_selector, Reference(guard_symbol)])
             else:
-                intrinsic_type = guard_type[idx].children[0]
-                kind_selector = guard_type[idx].children[1]
-                if not kind_selector:
-                    # no precision
-                    my_routine = type_routine
-                    literal = Literal(intrinsic_type, CHARACTER_TYPE)
-                    clause = Call.create(my_routine, [psyir_selector, literal])
-                else:
-                    # kind selector
-                    precision_string = kind_selector.children[1].string
-                    if kind_selector.children[0] == '(':
-                        # kind
-                        my_routine = type_kind_routine
+                if isinstance(guard_type[idx], Fortran2003.Type_Name):
+                    raise NotImplementedError(
+                        "There is no way to pass the type of a derived type "
+                        "as a subroutine argument so it is not possible to "
+                        "make a generic comparison routine.")
+                    # This is a derived type
+                    #guard_symbol = ifblock.scope.symbol_table.lookup(
+                    #    guard_type[idx].string)
+                    #clause = Call.create(
+                    #    routine, [psyir_selector, Reference(guard_symbol)])
+                else:  # guard_type[idx] is Fortran2003.Intrinsic_Type_Spec
+                    intrinsic_type = guard_type[idx].children[0]
+                    kind_selector = guard_type[idx].children[1]
+                    if not kind_selector:
+                        # no precision
+                        my_routine = type_routine
                         literal = Literal(intrinsic_type, CHARACTER_TYPE)
-                        precision = Literal(precision_string, INTEGER_TYPE)
-                        clause = Call.create(my_routine, [psyir_selector, literal, precision])
-                    else: # '*'
-                        # starred
-                        my_routine = type_starred_routine
-                        print(str(guard_type[idx]))
-                        literal = Literal(str(guard_type[idx]), CHARACTER_TYPE)
                         clause = Call.create(my_routine, [psyir_selector, literal])
+                    else:
+                        # kind selector
+                        precision_string = kind_selector.children[1].string
+                        if kind_selector.children[0] == '(':
+                            # kind
+                            my_routine = type_kind_routine
+                            literal = Literal(intrinsic_type, CHARACTER_TYPE)
+                            precision = Literal(precision_string, INTEGER_TYPE)
+                            clause = Call.create(my_routine, [psyir_selector, literal, precision])
+                        else: # '*'
+                            # starred
+                            my_routine = type_starred_routine
+                            print(str(guard_type[idx]))
+                            literal = Literal(str(guard_type[idx]), CHARACTER_TYPE)
+                            clause = Call.create(my_routine, [psyir_selector, literal])
 
             ifblock.addchild(clause)
             # Add If_body
