@@ -375,12 +375,30 @@ def test_acc_routine_directive_constructor_and_strings():
     ''' Test the ACCRoutineDirective constructor and its output
     strings.'''
     target = ACCRoutineDirective()
-    assert target.begin_string() == "acc routine"
+    # Defaults to sequential.
+    assert target.begin_string() == "acc routine seq"
     assert str(target) == "ACCRoutineDirective[]"
 
     temporary_module = ModuleGen("test")
     target.gen_code(temporary_module)
-    assert "!$acc routine\n" in str(temporary_module.root)
+    assert "!$acc routine seq\n" in str(temporary_module.root)
+
+    target2 = ACCRoutineDirective(vector=True)
+    assert target2._parallelism_clause == "vector"
+    assert target2.begin_string() == "acc routine vector"
+    target3 = ACCRoutineDirective(gang=True)
+    assert target3._parallelism_clause == "gang"
+    target4 = ACCRoutineDirective(worker=True)
+    assert target4._parallelism_clause == "worker"
+
+    with pytest.raises(ValueError) as err:
+        ACCRoutineDirective(vector=True, gang=True)
+    assert ("ACCRoutineDirective: only one of 'gang', 'worker' or 'vector' "
+            "may be specified" in str(err.value))
+    with pytest.raises(ValueError) as err:
+        ACCRoutineDirective(worker=True, gang=True)
+    assert ("ACCRoutineDirective: only one of 'gang', 'worker' or 'vector' "
+            "may be specified" in str(err.value))
 
 
 # Class ACCUpdateDirective
