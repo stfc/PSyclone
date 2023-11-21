@@ -165,8 +165,8 @@ def test_load_meta_wrong_type():
         kernel.load_meta(metadata)
     const = LFRicConstants()
     assert (f"LFRicKern.load_meta() expected one of "
-            f"{const.VALID_ARG_TYPE_NAMES} but found 'gh_hedge'"
-            in str(excinfo.value))
+            f"{const.VALID_ARG_TYPE_NAMES} but found "
+            f"'gh_hedge'" in str(excinfo.value))
 
 
 def test_intent():
