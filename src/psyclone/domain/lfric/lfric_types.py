@@ -31,9 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-#          J. Henrichs, Bureau of Meteorology
-# Modified: O. Brunt, Met Office
+# Authors: J. Henrichs, Bureau of Meteorology
+#          A. R. Porter, STFC Daresbury Lab
+#          O. Brunt, Met Office
 
 '''This module contains a singleton class that manages LFRic types. '''
 
@@ -274,8 +274,8 @@ class LFRicTypes:
         # The actual class:
         class LFRicDimension(Literal):
             '''An LFRic-specific scalar integer that captures a literal array
-            dimension which can either have the value 1-3. This is used for
-            one of the dimensions in basis and differential basis
+            dimension which can have a value between 1 and 3, inclusive. This
+            is used for one of the dimensions in basis and differential basis
             functions and also for the vertical-boundary dofs mask.
 
             :param str value: the value of the scalar integer.
@@ -293,7 +293,6 @@ class LFRicTypes:
         # --------------------------------------------------------------------
 
         # Create the required entries in the dictionary
-        # TODO use `update` here?
         LFRicTypes._name_to_class.update({
             "LFRicDimension": LFRicDimension,
             "LFRIC_SCALAR_DIMENSION": LFRicDimension("1"),
@@ -414,12 +413,12 @@ class LFRicTypes:
             Holds the properties of an LFRic array type, used when generating
             DataSymbol and DataSymbolType classes.
 
-            :param: the base name to use for the datatype and datasymbol.
+            :param name: the base name to use for the datatype and datasymbol.
             :param scalar_type: the name of the LFRic scalar type that this is
                                 an array of.
             :param dims: textual description of each of the dimensions.
-            :param properties: Names of additional class properties that should
-                               be declared in the generated datasysmbol class.
+            :param properties: names of additional class properties that should
+                               be declared in the generated datasymbol class.
             '''
             name: str
             scalar_type: str

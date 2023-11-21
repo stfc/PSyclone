@@ -596,28 +596,29 @@ class KernelInterface(ArgOrdering):
             information about variable accesses.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
-        :raises InternalError: if the kernel does not have a field argument on
-                               the 'ANY_SPACE_1' function space.
+        :raises InternalError: if the kernel does not have a single field as
+                               argument.
+        :raises InternalError: if the field argument is not on the
+                               'ANY_SPACE_1' function space.
 
         '''
-        fspace = None
-        for fspace in self._kern.arguments.unique_fss:
-            if fspace.orig_name == "any_space_1":
-                break
-        else:
-            raise InternalError(
-                f"Kernel '{self._kern.name}' applies boundary conditions to a "
-                f"field but does not have an argument on the 'ANY_SPACE_1' "
-                f"function space.")
-        farg = self._kern.arguments.get_arg_on_space(fspace)
-        # Sanity check - expect the enforce_bc_code kernel to only have
-        # a field argument.
-        if not farg.is_field:
+        if (len(self._kern.arguments.args) != 1 or
+                not self._kern.arguments.args[0].is_field):
             const = LFRicConstants()
             raise InternalError(
-                f"Expected an argument of {const.VALID_FIELD_NAMES} type "
-                f"from which to look-up boundary dofs for kernel "
-                f"'{self._kern.name}' but got '{farg.argument_type}'")
+                f"Kernel '{self._kern.name}' applies boundary conditions to a "
+                f"field and therefore should have a single, field argument "
+                f"(one of {const.VALID_FIELD_NAMES}) but got "
+                f"{[arg.argument_type for arg in self._kern.arguments.args]}")
+        farg = self._kern.arguments.args[0]
+        fspace = farg.function_space
+        # Sanity check - expect the enforce_bc_code kernel to have an argument
+        # on the ANY_SPACE_1 space.
+        if fspace.orig_name != "any_space_1":
+            raise InternalError(
+                f"Kernel '{self._kern.name}' applies boundary conditions to a "
+                f"field but the supplied argument, '{farg.name}', is on "
+                f"'{fspace.orig_name}' rather than the required 'ANY_SPACE_1'")
 
         ndf_symbol = self._symtab.find_or_create_tag(
             f"ndf_{fspace.orig_name}", fs=fspace.orig_name,

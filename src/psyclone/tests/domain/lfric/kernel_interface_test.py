@@ -827,25 +827,25 @@ def test_field_bcs_kernel_errors(monkeypatch):
     with pytest.raises(InternalError) as err:
         kernel_interface.field_bcs_kernel(None)
     assert ("Kernel 'testkern_code' applies boundary conditions to a field "
-            "but does not have an argument on the 'ANY_SPACE_1' function "
-            "space" in str(err.value))
+            "and therefore should have a single, field argument (one of "
+            "['gh_field']) but got ['gh_scalar', 'gh_field'" in str(err.value))
     # Repeat for a kernel that *does* have an argument on ANY_SPACE_1.
     _, invoke_info = parse(os.path.join(
-        BASE_PATH, "11_any_space.f90"), api="dynamo0.3")
+        BASE_PATH, "12.2_enforce_bc_kernel.f90"), api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule[0].loop_body[0]
-    # Monkeypatch the argument so that it appears to be an operator rather than
-    # a field.
+    # Monkeypatch the argument so that it appears to be on the wrong space.
     monkeypatch.setattr(
-        kernel.arguments._args[0], "_argument_type", "gh_operator")
+        kernel.arguments._args[0]._function_spaces[0],
+        "_orig_name", "ANY_SPACE_2")
     kernel_interface = KernelInterface(kernel)
     with pytest.raises(InternalError) as err:
         kernel_interface.field_bcs_kernel(None)
-    assert ("Expected an argument of ['gh_field'] type from which to look-up "
-            "boundary dofs for kernel 'testkern_any_space_1_code' but got "
-            "'gh_operator'" in str(err.value))
+    assert ("Kernel 'enforce_bc_code' applies boundary conditions to a field "
+            "but the supplied argument, 'a', is on 'ANY_SPACE_2' rather than "
+            "the required 'ANY_SPACE_1'" in str(err.value))
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")
