@@ -204,7 +204,8 @@ def test_mesh_name():
 
 
 def test_mesh_name_intergrid():
-    ''' Tests for the '_mesh_name' property of LFRicLoop for an intergrid kernel.
+    ''' Tests for the '_mesh_name' property of LFRicLoop for an intergrid
+    kernel.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,

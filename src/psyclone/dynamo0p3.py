@@ -3279,7 +3279,6 @@ class DynCellIterators(LFRicCollection):
                 self._first_var.ref_name() + "%get_nlayers()"))
 
 
-
 class DynLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.

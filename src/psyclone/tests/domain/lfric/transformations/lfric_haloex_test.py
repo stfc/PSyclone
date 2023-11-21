@@ -43,7 +43,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicLoop
-from psyclone.dynamo0p3 import (LFRicHaloExchange, HaloDepth, 
+from psyclone.dynamo0p3 import (LFRicHaloExchange, HaloDepth,
                                 _create_depth_list)
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse

@@ -447,7 +447,7 @@ class LFRicKern(CodedKern):
         ubnd_name = self.ancestor(Loop).upper_bound_name
         const = LFRicConstants()
 
-        if (ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS):
+        if ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS:
             return self.scope.symbol_table.find_or_create_array(
                 "last_halo_cell_all_colours", 2,
                 ScalarType.Intrinsic.INTEGER,
@@ -869,7 +869,7 @@ class LFRicKern(CodedKern):
                 f"API expects '{expected_datatype}'.")
         # 2: precision. An LFRic kernel is only permitted to have a precision
         #    specified by a recognised type parameter or a no. of bytes.
-        actual_precision = kern_code_arg.datatype.precision        
+        actual_precision = kern_code_arg.datatype.precision
         api_config = Config.get().api_conf("dynamo0.3")
         if isinstance(actual_precision, DataSymbol):
             # Convert precision into number of bytes to support

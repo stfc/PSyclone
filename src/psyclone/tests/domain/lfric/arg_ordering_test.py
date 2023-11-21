@@ -246,8 +246,8 @@ def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    assert create_arg_list._arglist == []
-    assert create_arg_list._psyir_arglist == []
+    assert not create_arg_list._arglist
+    assert not create_arg_list._psyir_arglist
     create_arg_list.generate()
     assert create_arg_list._arglist == [
         'nlayers', 'ncell_2d_no_halos', 'b', 'f1_data', 'ndf_w3',
@@ -272,7 +272,7 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    assert create_arg_list._arglist == []
+    assert not create_arg_list._arglist
     create_arg_list.generate()
     assert create_arg_list._arglist == [
         'cell', 'nlayers', 'ncell_2d', 'lma_op1_proxy%ncell_3d',

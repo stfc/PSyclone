@@ -44,6 +44,7 @@
 # Imports
 from psyclone.domain.lfric import LFRicKern
 
+
 class LFRicKernCallFactory():
     ''' Create the necessary framework for an LFRic kernel call.
     This consists of a Loop over cells containing a call to the

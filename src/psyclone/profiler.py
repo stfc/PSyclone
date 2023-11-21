@@ -112,7 +112,8 @@ class Profiler():
 
         :param schedule: The schedule to instrument.
         :type schedule: :py:class:`psyclone.psyGen.InvokeSchedule` or subclass
-        :param loop_class: The loop class (e.g. GOLoop, LFRicLoop) to instrument.
+        :param loop_class: The loop class (e.g. GOLoop, LFRicLoop) to
+                            instrument.
         :type loop_class: :py:class:`psyclone.psyir.nodes.Loop` or subclass
 
         '''

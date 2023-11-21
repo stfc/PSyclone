@@ -53,6 +53,7 @@ from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   OMPRegionDirective, Routine)
 from psyclone.psyir.symbols import INTEGER_TYPE
 
+
 class LFRicLoop(PSyLoop):
     '''
     The LFRic-specific PSyLoop class. This passes the LFRic-specific
