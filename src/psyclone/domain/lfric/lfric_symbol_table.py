@@ -80,7 +80,7 @@ class LFRicSymbolTable(SymbolTable):
             const = LFRicConstants()
             mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
             LFRicSymbolTable._constants_mod = ContainerSymbol(mod_name)
-            
+
             api_config = Config.get().api_conf("dynamo0.3")
             for precision in api_config.precision_map:
                 LFRicSymbolTable._precision_map[precision] = \

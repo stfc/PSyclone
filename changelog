@@ -72,6 +72,11 @@
 	27) PR #2364 towards #1941. Moves map of LFRic precisions to
 	config. file.
 
+	28) PR #2376 for #1525. Add lowering methods to all LFRic Built-ins.
+
+	29) PR #2406 for #2404. Fixes bug in setop_random kernel (was only
+	filling the lowest vertical level).
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
