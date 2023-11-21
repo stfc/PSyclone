@@ -634,7 +634,7 @@ requires a check that any loop which includes a kernel that reads from
 an operator is limited to iterating in the halo up to
 depth-1. PSyclone will raise an exception if an optimisation attempts
 to increase the iteration space beyond this (see the ``gen_code()``
-method in the ``DynKern`` class).
+method in the ``LFRicKern`` class).
 
 To alleviate the above restriction one could add a configurable depth with
 which to compute operators e.g. operators are always computed up to
@@ -883,8 +883,8 @@ target spaces.
 When constructing a ``DynKernMetadata`` object from the parsed kernel
 metadata, the list of target function-space names (as they appear in
 the meta-data) is stored in ``DynKernMetadata._eval_targets``. This
-information is then used in the ``DynKern._setup()`` method which
-populates ``DynKern._eval_targets``. This is an ``OrderedDict`` which has
+information is then used in the ``LFRicKern._setup()`` method which
+populates ``LFRicKern._eval_targets``. This is an ``OrderedDict`` which has
 the (mangled) names of the target function spaces as keys and 2-tuples
 consisting of ``FunctionSpace`` and ``DynKernelArgument`` objects as
 values. The ``DynKernelArgument`` object provides the kernel argument
@@ -894,7 +894,7 @@ holds full information on the target function space.
 The ``DynInvokeBasisFunctions`` class is responsible for managing the
 evaluators required by all of the kernels called from an Invoke.
 ``DynInvokeBasisFunctions._eval_targets`` collects all of the unique target
-function spaces from the ``DynKern._eval_targets`` of each kernel.
+function spaces from the ``LFRicKern._eval_targets`` of each kernel.
 
 ``DynInvokeBasisFunctions._basis_fns`` is a list holding information on
 each basis/differential basis function required by a kernel within the

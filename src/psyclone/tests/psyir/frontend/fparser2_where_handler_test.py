@@ -59,18 +59,23 @@ def process_where(code, fparser_cls, symbols=None):
     PSyIR and fparser2 parse trees.
 
     :param str code: Fortran code to process.
-    :param type fparser_cls: the fparser2 class to instantiate to \
+    :param type fparser_cls: the fparser2 class to instantiate to
                              represent the supplied Fortran.
-    :param symbols: list of symbol names that must be added to the symbol \
+    :param symbols: list of symbol names that must be added to the symbol
                     table before constructing the PSyIR.
-    :type symbols: list of str
+    :type symbols: List[str]
 
-    :returns: 2-tuple of a parent PSyIR Schedule and the created instance of \
+    :returns: 2-tuple of a parent PSyIR Schedule and the created instance of
               the requested fparser2 class.
-    :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-             :py:class:`fparser.two.utils.Base`)
+    :rtype: Tuple[:py:class:`psyclone.psyir.nodes.Schedule`,
+                  :py:class:`fparser.two.utils.Base`]
     '''
     sched = Schedule()
+    # Always add the 'wp' kind parameter as this must have specific properties.
+    sched.symbol_table.new_symbol("wp", symbol_type=DataSymbol,
+                                  datatype=INTEGER_TYPE,
+                                  initial_value=Literal("8", INTEGER_TYPE),
+                                  is_constant=True)
     if symbols:
         for sym_name in symbols:
             sched.symbol_table.new_symbol(sym_name)
@@ -94,7 +99,7 @@ def test_where_broken_tree():
     fake_parent, fparser2spec = process_where(
         "WHERE (ptsu(:, :, :) /= 0._wp)\n"
         "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "wp", "z1_st"])
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
     processor = Fparser2Reader()
     # Test with unexpected clause by adding an extra end-where statement
     assert isinstance(fparser2spec.content[-1], Fortran2003.End_Where_Stmt)
@@ -128,7 +133,7 @@ def test_elsewhere_broken_tree():
         "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
         "ELSE WHERE\n"
         "  z1_st(:, :, :) = 0._wp\n"
-        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "wp", "z1_st"])
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
     processor = Fparser2Reader()
     # Insert an additional Elsewhere_Stmt
     assert isinstance(fparser2spec.content[-3], Fortran2003.Elsewhere_Stmt)
@@ -149,7 +154,7 @@ def test_missing_array_notation_expr(mask):
     fake_parent, _ = process_where(f"WHERE ({mask} /= 0._wp)\n"
                                    f"z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
                                    f"END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "wp", "z1_st"])
+                                   ["ptsu", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -161,7 +166,7 @@ def test_labelled_where():
     fake_parent, _ = process_where("100 WHERE (ptsu /= 0._wp)\n"
                                    "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "wp", "z1_st"])
+                                   ["ptsu", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -174,7 +179,7 @@ def test_missing_array_notation_lhs():
     fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
                                    "  z1_st = 1._wp / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "wp", "z1_st"])
+                                   ["ptsu", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -186,7 +191,7 @@ def test_missing_array_notation_in_assign():
     fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
                                    "  z1_st = 1._wp\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "wp", "z1_st"])
+                                   ["ptsu", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -420,7 +425,7 @@ def test_elsewhere():
                                    "ELSEWHERE\n"
                                    "  z1_st(:, :, :) = 0._wp\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "wp", "z1_st"])
+                                   ["ptsu", "z1_st"])
     # This should become:
     #
     # if ptsu(ji,jj,jk) > 10._wp)then
