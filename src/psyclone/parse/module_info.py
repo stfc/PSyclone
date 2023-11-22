@@ -52,6 +52,7 @@ from psyclone.errors import InternalError, PSycloneError
 from psyclone.psyir.nodes import Container, FileContainer, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.tools import CallTreeUtils
 
 
 # ============================================================================
@@ -384,7 +385,8 @@ class ModuleInfo:
             return non_locals
 
         # It's not a generic interface. Just query the Routine object:
-        return self._psyir_of_routines[routine_name].get_non_local_symbols()
+        ctu = CallTreeUtils()
+        return ctu.get_non_local_symbols(self._psyir_of_routines[routine_name])
 
     # ------------------------------------------------------------------------
     def get_symbol(self, name):
