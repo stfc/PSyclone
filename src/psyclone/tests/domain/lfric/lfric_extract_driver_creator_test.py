@@ -47,7 +47,7 @@ from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
+from psyclone.psyir.tools import DependencyTools
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
@@ -290,7 +290,7 @@ def test_lfric_driver_import_precision():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
     assert ("use constants_mod, only : i_def, l_def, r_bl, r_def, "
-            "r_double, r_ncdf, r_phys, r_second, r_single, r_solver, "
+            "r_double, r_ncdf, r_second, r_single, r_solver, "
             "r_tran, r_um" in driver)
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
