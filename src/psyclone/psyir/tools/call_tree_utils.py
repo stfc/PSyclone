@@ -38,7 +38,7 @@
 across different subroutines and modules.'''
 
 from psyclone.psyir.nodes.call import Call
-from psyclone.psyir.nodes import Reference, Routine
+from psyclone.psyir.nodes import Container, Reference, Routine
 from psyclone.psyir.symbols import (ArgumentInterface, ImportInterface)
 from psyclone.core import Signature, VariablesAccessInfo
 
@@ -73,9 +73,6 @@ class CallTreeUtils():
         :rtype: Union[None, Tuple[str, str, str]]
 
         '''
-        # Circular import:
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.container import Container
         node = reference
         while node:
             # A routine has its own name as a symbol in its symbol table.
