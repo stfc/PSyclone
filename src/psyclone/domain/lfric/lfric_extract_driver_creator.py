@@ -172,8 +172,8 @@ class LFRicExtractDriverCreator:
     def __init__(self):
         # TODO #2069: check if this list can be taken from LFRicConstants
         self._all_field_types = ["integer_field_type", "field_type",
-                                 "r_bl_field", "r_phys_field",
-                                 "r_solver_field_type", "r_tran_field_type"]
+                                 "r_bl_field", "r_solver_field_type",
+                                 "r_tran_field_type"]
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -634,12 +634,13 @@ class LFRicExtractDriverCreator:
         mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
         constant_mod = ContainerSymbol(mod_name)
         symbol_table.add(constant_mod)
-        # r_quad is defined in constants_mod, but not exported. So
-        # we have to remove it from the lists of precisions to import.
-        # TODO #2018
+
+        # r_quad is defined in constants_mod, but not exported. And r_phys
+        # does not exist at all in LFRic. So we have to remove them from the
+        # lists of precisions to import.  TODO #2018
         api_config = Config.get().api_conf("dynamo0.3")
         all_precisions = [name for name in api_config.precision_map
-                          if name != "r_quad"]
+                          if name not in ["r_quad", "r_phys"]]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
                                     symbol_type=DataSymbol,
