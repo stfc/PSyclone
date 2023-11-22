@@ -288,46 +288,6 @@ def test_apply_ranges(tmpdir):
     check_transformation(tmpdir, code, expected_result, index=2)
 
 
-def test_inlined_kern(tmpdir):
-    '''Check that the apply() method creates an InlinedKern node if
-    appropriate.
-
-    '''
-    input_code = (
-        "program test\n"
-        "  real :: a(10,10,10)\n"
-        "  integer :: jpi,jpj,jpk\n"
-        "  a(jpi,jpj,jpk) = 0.0e0\n"
-        "end program test\n")
-    expected_result = (
-        "program test\n"
-        "  real, dimension(10,10,10) :: a\n"
-        "  integer :: jpi\n  integer :: jpj\n  integer :: jpk\n"
-        "  integer :: jj\n  integer :: ji\n\n"
-        "  do jj = jpj, jpj, 1\n"
-        "    do ji = jpi, jpi, 1\n"
-        "      a(ji,jj,jpk) = 0.0e0\n"
-        "    enddo\n"
-        "  enddo\n\n"
-        "end program test\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(input_code)
-    # No InlinedKern
-    assert not psyir.walk(InlinedKern)
-    # Turn an array access to a loop
-    index_node = psyir.walk(Assignment)[0].lhs.children[1]
-    trans = NemoArrayAccess2LoopTrans()
-    trans.apply(index_node)
-    # InlinedKern has been added
-    assert len(psyir.walk(InlinedKern)) == 1
-    assert isinstance(psyir.children[0][0].loop_body[0], InlinedKern)
-    # Turn another array access to a loop
-    index_node = psyir.walk(Assignment)[0].lhs.children[0]
-    trans_write_check(psyir, index_node, expected_result, tmpdir)
-    # Still only one InlinedKern
-    assert len(psyir.walk(InlinedKern)) == 1
-
-
 def test_apply_calls_validate():
     '''Check that the apply() method calls the validate method.'''
     trans = NemoArrayAccess2LoopTrans()

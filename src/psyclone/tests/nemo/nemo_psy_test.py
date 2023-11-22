@@ -113,39 +113,7 @@ def test_complex_code():
     loops = sched.walk(nemo.NemoLoop)
     assert len(loops) == 4
     kerns = sched.coded_kernels()
-    assert len(kerns) == 1
-    # The last loop does not contain a kernel
-    assert loops[-1].kernel is None
-
-
-def test_io_not_kernel():
-    ''' Check that we reject a kernel candidate if a loop body contains
-    a write/read statement '''
-    _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
-    sched = invoke_info.schedule
-    # We should have only 1 actual kernel
-    kerns = sched.coded_kernels()
-    assert len(kerns) == 1
-
-
-def test_fn_call_no_kernel(parser):
-    ''' Check that we don't create a kernel if the loop body contains a
-    function call. '''
-    reader = FortranStringReader("program fn_call\n"
-                                 "integer, parameter :: wp = kind(1.0)\n"
-                                 "integer :: ji, jpj\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "sto_tmp(ji) = my_func()\n"
-                                 "end do\n"
-                                 "end program fn_call\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
-    assert isinstance(loop, nemo.NemoLoop)
-    # Child of loop should be an Assignment, not a Kernel.
-    assert isinstance(loop.loop_body[0], Assignment)
+    assert len(kerns) == 0
 
 
 def test_schedule_view():
@@ -160,7 +128,7 @@ def test_schedule_view():
 
     # Have to allow for colouring of output text
     loop_str = colored("Loop", Loop._colour)
-    kern_str = colored("InlinedKern", InlinedKern._colour)
+    assign_str = colored("Assignment", Assignment._colour)
     isched_str = colored("NemoInvokeSchedule", nemo.NemoInvokeSchedule._colour)
     sched_str = colored("Schedule", Schedule._colour)
     lit_str = colored("Literal", Literal._colour)
@@ -193,7 +161,7 @@ def test_schedule_view():
         6*indent + lit_str + "[value:'1', Scalar<INTEGER, "
         "UNDEFINED>]\n" +
         6*indent + sched_str + "[]\n" +
-        7*indent + "0: " + kern_str + "[]\n")
+        7*indent + "0: " + assign_str + "[]\n")
     assert expected_sched in output
 
 

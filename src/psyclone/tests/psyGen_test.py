@@ -2219,10 +2219,10 @@ def test_walk():
     binary_op_list = invoke.schedule.walk(BinaryOperation)
     assert len(binary_op_list) == 3
 
-    # Now the same tests, but stop at any Kern --> no assignment
+    # Now the same tests, but stop at any Loop --> no assignment
     # or binary operation should be found"
-    assignment_list = invoke.schedule.walk(Assignment, Kern)
+    assignment_list = invoke.schedule.walk(Assignment, Loop)
     assert not assignment_list
 
-    binary_op_list = invoke.schedule.walk(BinaryOperation, Kern)
+    binary_op_list = invoke.schedule.walk(BinaryOperation, Loop)
     assert not binary_op_list

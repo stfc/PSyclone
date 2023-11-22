@@ -39,9 +39,9 @@ transformation.'''
 import os
 import pytest
 
-from psyclone.domain.nemo.nodes import NemoLoop
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.errors import InternalError
+from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, CodeBlock, BinaryOperation, \
