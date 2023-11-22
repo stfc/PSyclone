@@ -41,12 +41,12 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 
-from psyclone.nemo import NemoKern
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    Schedule, Assignment, Node, BinaryOperation, UnaryOperation, Literal)
+    Assignment, BinaryOperation, IfBlock, Literal, Loop,
+    Node, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 
@@ -94,27 +94,6 @@ def get_schedule(parser, code):
     return psy.invokes.invoke_list[0].schedule
 
 
-def get_kernel(parser, code):
-    '''Utility function that returns the Kernel in code similar to that
-    specified in the CODE string.
-
-    :param parser: the parser class.
-    :type parser: :py:class:`fparser.two.Fortran2003.Program`
-    :param str code: the code as a string.
-
-    :returns: a kernel from the supplied code.
-    :rtype: :py:class:`psyclone.nemo.NemoKern`
-
-    '''
-    schedule = get_schedule(parser, code)
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    assert isinstance(kernel, NemoKern)
-    return kernel
-
-
 def get_assignment(parser, code):
     '''Utility function that returns the assignment (x=y) in code similar
     to that specified in the CODE string.
@@ -127,9 +106,8 @@ def get_assignment(parser, code):
     :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
     '''
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    assignment = kernel_schedule.children[0]
+    schedule = get_schedule(parser, code)
+    assignment = schedule.walk(Assignment)[0]
     assert isinstance(assignment, Assignment)
     return assignment
 
@@ -324,14 +302,9 @@ def test_sirwriter_nemoloop_node_2(parser, sir_writer):
     exception if the first child of a loop is not a loop.
     '''
     code = CODE.replace(
-        "      do j=1,n\n"
-        "        do k=1,n\n"
-        "          a(i,j,k) = 1.0\n"
-        "        end do\n"
-        "      end do\n",
+        "      do j=1,n\n",
         "      a(i,1,1) = 1.0\n"
-        "      do j=1,n\n"
-        "      end do\n")
+        "      do j=1,n\n")
     schedule = get_schedule(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
@@ -399,15 +372,13 @@ def test_sirwriter_nemoloop_node_5(parser, sir_writer):
     schedule = get_schedule(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
-    assert ("Child of child of loop should be a single loop"
-            in str(excinfo.value))
+    assert "Only triply-nested loops are supported" in str(excinfo.value)
 
 
 # (6/6) Method nemoloop_node
 def test_sirwriter_nemoloop_node_6(parser, sir_writer):
     '''Check the nemoloop_node method of the SIRWriter class raises an
-    exception if the content of the triply nested loop is not a
-    NemoKern.
+    exception if the content of the triply nested loop is another loop.
 
     '''
     code = CODE.replace("          a(i,j,k) = 1.0\n",
@@ -418,24 +389,21 @@ def test_sirwriter_nemoloop_node_6(parser, sir_writer):
     schedule = get_schedule(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
-    assert ("Child of child of child of loop should be a NemoKern."
+    assert ("Only triply-nested loops are supported."
             in str(excinfo.value))
 
 
-# (1/1) Method nemokern_node
-def test_sirwriter_nemokern_node(parser, sir_writer):
-    '''Check the nemokern_node method of the SIRWriter class correctly
-    calls the children of the schedule associated with the supplied
-    kernel.
+def test_sirwriter_nemoloop_node_not_parallel(parser, sir_writer):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if the content of the triply nested loop is not parallelisable.
 
     '''
-    kernel = get_kernel(parser, CODE)
-    result = sir_writer.nemokern_node(kernel)
-    assert (
-        "make_assignment_stmt(\n"
-        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
-        "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
-        "  \"=\")," in result)
+    code = CODE.replace("          a(i,j,k) = 1.0\n",
+                        "          a(i,j,k) = a(i,j,k-1)\n")
+    schedule = get_schedule(parser, code)
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert "Innermost loop should be parallelisable" in str(excinfo.value)
 
 
 # (1/2) Method nemoinvokeschedule_node
@@ -466,7 +434,8 @@ def test_sirwriter_nemoinvokeschedule_node_1(parser, sir_writer):
 
 
 # (2/2) Method nemoinvokeschedule_node
-def test_sirwriter_nemoinvokeschedule_node_2(parser, sir_writer):
+def test_sirwriter_nemoinvokeschedule_node_2(parser, sir_writer,
+                                             monkeypatch):
     '''Check the nemoinvokeschedule_node method of the SIRWriter class
     outputs the expected SIR code when there is a scalar variable.
 
@@ -474,6 +443,10 @@ def test_sirwriter_nemoinvokeschedule_node_2(parser, sir_writer):
     code = CODE.replace("\n    integer ::", "\n    real :: b\n    integer ::")
     code = code.replace("a(i,j,k) = 1.0", "b = a(i,j,k)")
     schedule = get_schedule(parser, code)
+    loops = schedule.walk(Loop)
+    # Writing to a shared scalar is not parallel so monkeypatch the check to
+    # allow it through.
+    monkeypatch.setattr(loops[2], "independent_iterations", lambda: True)
     result = sir_writer(schedule)
     assert (
         "# PSyclone autogenerated SIR Python\n"
@@ -548,9 +521,8 @@ def test_sirwriter_binaryoperation_node_2(parser, sir_writer, foper, soper):
                         "\n    real :: b, c\n    integer ::")
     code = code.replace(
         "a(i,j,k) = 1.0", f"if (b {foper} c) then\na(i,j,k) = 1.0\nend if")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_statement = sched.walk(IfBlock)[0]
     if_condition = if_statement.condition
     result = sir_writer.binaryoperation_node(if_condition)
     assert (
@@ -792,9 +764,8 @@ def test_sirwriter_ifblock_node_1(parser, sir_writer):
                         "\n    integer :: b, c\n    integer ::")
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_statement = sched.walk(IfBlock)[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
         "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
@@ -818,9 +789,8 @@ def test_sirwriter_ifblock_node_2(parser, sir_writer):
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nelse\n"
         "a(i,j,k) = 0.0\nend if")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_statement = sched.walk(IfBlock)[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
         "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
@@ -847,11 +817,11 @@ def test_sirwriter_ifblock_node_3(parser, sir_writer):
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if\n"
         "if (c .ge. 0.5) then\na(i,j,k) = -1.0\nend if\n")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement_0 = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_stmts = sched.walk(IfBlock)
+    if_statement_0 = if_stmts[0]
     result_0 = sir_writer.ifblock_node(if_statement_0)
-    if_statement_1 = kernel_schedule.children[1]
+    if_statement_1 = if_stmts[1]
     result_1 = sir_writer.ifblock_node(if_statement_1)
     assert (
         "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
@@ -894,9 +864,8 @@ def test_sirwriter_ifblock_node_4(parser, sir_writer):
         "    a(i,j,k) = -1.0\n"
         "  end if\n"
         "end if")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_statement = sched.walk(IfBlock)[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
         "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
@@ -935,9 +904,8 @@ def test_sirwriter_schedule_node_1(parser, sir_writer):
                         "\n    integer :: b, c\n    integer ::")
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_statement = sched.walk(IfBlock)[0]
     schedule = if_statement.if_body
     assert isinstance(schedule, Schedule)
     schedule_result = sir_writer.schedule_node(schedule)

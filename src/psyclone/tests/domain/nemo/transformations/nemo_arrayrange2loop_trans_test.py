@@ -39,9 +39,9 @@ transformation.'''
 import os
 import pytest
 
+from psyclone.domain.nemo.nodes import NemoLoop
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoKern
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, CodeBlock, BinaryOperation, \
@@ -69,8 +69,7 @@ def test_transform():
 
 def test_apply_bounds(tmpdir):
     '''Check that the apply method uses the range bounds if these are specified
-    or the LBOUND, UBOUND expressions if they are not. Also check that the body
-    of the loop is placed in a NemoKern.
+    or the LBOUND, UBOUND expressions if they are not.
 
     '''
     _, invoke_info = get_invoke("implicit_do_slice.f90", api=API, idx=0)
@@ -91,8 +90,9 @@ def test_apply_bounds(tmpdir):
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in result)
-    # Check that a NemoKern has been added
-    assert schedule[0].walk(NemoKern)
+    assigns = schedule[0].walk(Assignment)
+    assert len(assigns) == 1
+    assert isinstance(assigns[0].parent.parent, NemoLoop)
     assert Compile(tmpdir).string_compiles(result)
 
 

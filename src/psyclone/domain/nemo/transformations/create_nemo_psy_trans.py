@@ -44,7 +44,7 @@ from psyclone.transformations import Transformation, TransformationError
 from psyclone.psyir.nodes import Routine, Loop, Node
 from psyclone.domain.nemo.transformations import \
     CreateNemoInvokeScheduleTrans, \
-    CreateNemoKernelTrans, CreateNemoLoopTrans
+    CreateNemoLoopTrans
 
 
 class CreateNemoPSyTrans(Transformation):
@@ -143,30 +143,21 @@ class CreateNemoPSyTrans(Transformation):
         self.validate(psyir, options=options)
 
         invoke_trans = CreateNemoInvokeScheduleTrans()
-        kern_trans = CreateNemoKernelTrans()
         loop_trans = CreateNemoLoopTrans()
 
         # Since the transformations replace nodes in the tree, we apply
         # them 'depth first':
 
-        # First, transform suitable Loop bodies into Kernels
         loops = psyir.walk(Loop)
         # Reverse the list so that we transform the deepest loop bodies first
         # so as to try to reduce repeated walking of the tree.
         loops.reverse()
 
-        for loop in loops:
-            try:
-                kern_trans.apply(loop.loop_body)
-            except TransformationError:
-                # Not all loop bodies are valid kernels (e.g. if they do IO)
-                pass
-
-        # Second, transform generic Loops into NemoLoops
+        # First, transform generic Loops into NemoLoops
         for loop in loops:
             loop_trans.apply(loop)
 
-        # Third, transform any Routines into NemoInvokeSchedules. Have to
+        # Second, transform any Routines into NemoInvokeSchedules. Have to
         # allow for the supplied top-level node being a Routine and therefore
         # being replaced.
         for routine in psyir.walk(Routine):

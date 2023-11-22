@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,14 +36,11 @@
 '''Module containing tests for the NemoArrayAccess2LoopTrans
 transformation.'''
 
-from __future__ import absolute_import
-
 import os
 import pytest
 
 from psyclone.domain.nemo.transformations import NemoArrayAccess2LoopTrans, \
     CreateNemoPSyTrans
-from psyclone.nemo import NemoKern
 from psyclone.psyGen import Transformation, InlinedKern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -289,43 +286,6 @@ def test_apply_ranges(tmpdir):
         "    a(:,:,jk) = 0.0e0\n"
         "  enddo\n\n")
     check_transformation(tmpdir, code, expected_result, index=2)
-
-
-def test_apply_inline_kern(tmpdir):
-    '''Check that the transformation places a loop innermost where there
-    is a Nemo-specific inlined kern node. We create such a node by
-    using the CreateNemoPSyTrans() transformation. A subsequent
-    transformation would be needed to put the loops in ji,jj,jk form
-    if needed.
-
-    '''
-    input_code = (
-        "program test\n"
-        "  real :: a(10,10,10)\n"
-        "  integer :: ji,jj,jpk,n\n"
-        "  do jj=1,n\n"
-        "    do ji=1,n\n"
-        "      a(ji,jj,jpk) = 0.0e0\n"
-        "    end do\n"
-        "  end do\n"
-        "end program test\n")
-    expected_result = (
-        "  do jj = 1, n, 1\n"
-        "    do ji = 1, n, 1\n"
-        "      do jk = jpk, jpk, 1\n"
-        "        a(ji,jj,jk) = 0.0e0\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(input_code)
-    assert not psyir.walk(NemoKern)
-    nemo_trans = CreateNemoPSyTrans()
-    nemo_trans.apply(psyir)
-    assert len(psyir.walk(NemoKern)) == 1
-    index_node = psyir.walk(Assignment)[0].lhs.children[2]
-    trans_write_check(
-        psyir, index_node, expected_result, tmpdir, compiles=True)
 
 
 def test_inlined_kern(tmpdir):

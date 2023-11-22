@@ -40,7 +40,6 @@
 
 '''
 
-from __future__ import print_function, absolute_import
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
@@ -133,15 +132,6 @@ class NemoPSy(PSy):
         self._invokes = NemoInvokes(psyir, self)
         self._container = psyir
 
-    def inline(self, _):
-        '''
-        :raises NotImplementedError: since kernels in NEMO are, in general,
-                                     already in-lined.
-        '''
-        # Override base-class method because we don't yet support it
-        raise NotImplementedError("The NemoPSy.inline method has not yet "
-                                  "been implemented!")
-
     @property
     def gen(self):
         '''
@@ -185,69 +175,6 @@ class NemoInvokeSchedule(InvokeSchedule):
         :rtype: list of :py:class:`psyclone.psyGen.CodedKern`
         '''
         return self.walk(InlinedKern)
-
-
-class NemoKern(InlinedKern):
-    ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. As an inlined kernel it contains a Schedule as first child.
-
-    :param psyir_nodes: the list of PSyIR nodes that represent the body \
-                        of this kernel.
-    :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent of this Kernel node in the PSyIR or None (if \
-                   this kernel is being created in isolation).
-    :type parent: :py:class:`psyclone.nemo.NemoLoop` or NoneType.
-
-    '''
-    def __init__(self, psyir_nodes, parent=None):
-        super().__init__(psyir_nodes, parent=parent)
-        self._name = ""
-
-        # Whether this kernel performs a reduction. Not currently supported
-        # for the NEMO API.
-        self._reduction = False
-
-    def get_kernel_schedule(self):
-        '''
-        Returns a PSyIR Schedule representing the kernel code. The
-        kernel_schedule is created in the constructor and always exists.
-
-        :returns: the kernel schedule representing the inlined kernel code.
-        :rtype: :py:class:`psyclone.psyir.nodes.KernelSchedule`
-        '''
-        return self.children[0]
-
-    def local_vars(self):
-        '''
-        :returns: list of the variable (names) that are local to this loop \
-                  (and must therefore be e.g. threadprivate if doing OpenMP)
-        :rtype: list of str
-        '''
-        return []
-
-    def reference_accesses(self, var_accesses):
-        '''Get all variable access information. It calls the corresponding
-        kernel schedule function.
-
-        :param var_accesses: VariablesAccessInfo that stores the information\
-            about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
-        '''
-        self.children[0].reference_accesses(var_accesses)
-
-    def gen_code(self, parent):
-        '''This method must not be called for NEMO, since the actual
-        kernels are inlined.
-
-        :param parent: The parent of this kernel call in the f2pygen AST.
-        :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
-
-        :raises InternalError: if this function is called.
-        '''
-        raise InternalError("NEMO kernels are assumed to be in-lined by "
-                            "default therefore the gen_code method should not "
-                            "have been called.")
 
 
 class NemoLoop(PSyLoop):
@@ -308,27 +235,6 @@ class NemoLoop(PSyLoop):
                                         .get_loop_type_mapping()
         loop.loop_type = loop_type_mapping.get(variable.name, "unknown")
         return loop
-
-    @property
-    def kernel(self):
-        '''
-        :returns: the kernel object if one is associated with this loop, \
-                  None otherwise.
-        :rtype: :py:class:`psyclone.nemo.NemoKern` or None
-
-        :raises NotImplementedError: if the loop contains >1 kernel.
-        '''
-        kernels = self.walk(NemoKern)
-        if kernels:
-            # TODO cope with case where loop contains >1 kernel (e.g.
-            # following loop fusion)
-            if len(kernels) > 1:
-                raise NotImplementedError(
-                    f"Kernel getter method does not yet support a loop "
-                    f"containing more than one kernel but this loop contains "
-                    f"{len(kernels)}")
-            return kernels[0]
-        return None
 
 
 # TODO #1872: Avoid the duplication below and move to src/psyclone/domain/nemo.

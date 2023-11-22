@@ -41,8 +41,6 @@ to the equivalent explicit loop representation using a NemoLoop node.
 
 '''
 
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans import \
-    CreateNemoKernelTrans
 from psyclone.errors import LazyString, InternalError
 from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
@@ -154,12 +152,6 @@ class NemoArrayRange2LoopTrans(Transformation):
         loop = NemoLoop.create(loop_variable_symbol, start, stop, step,
                                [assignment.detach()])
         parent.children.insert(position, loop)
-
-        if not assignment.lhs.walk(Range):
-            # All valid array ranges have been replaced with explicit
-            # loops. We now need to take the content of the loop and
-            # place it within a NemoKern (inlined kernel) node.
-            CreateNemoKernelTrans().apply(assignment.parent)
 
     def __str__(self):
         return (
