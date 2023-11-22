@@ -46,7 +46,8 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, DeferredType, INTEGER_TYPE,
-    StaticInterface, Symbol, SymbolError, UnknownInterface, UnknownType)
+    StaticInterface, Symbol, SymbolError, UnknownInterface, UnknownFortranType,
+    UnknownType)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -632,10 +633,12 @@ class InlineTrans(Transformation):
 
         for sym in routine_table.datasymbols:
             # We don't inline symbols that have an UnknownType and are
-            # arguments since we don't know if a simple assingment if
+            # arguments since we don't know if a simple assignment is
             # enough (e.g. pointers)
             if isinstance(sym.interface, ArgumentInterface):
-                if isinstance(sym.datatype, UnknownType):
+                if (isinstance(sym.datatype, UnknownType) and not
+                        (isinstance(sym.datatype, UnknownFortranType) and
+                         sym.datatype.partial_datatype)):
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"it contains a Symbol '{sym.name}' which is an "
@@ -758,13 +761,17 @@ class InlineTrans(Transformation):
                             f"formal argument with array type but is not a "
                             f"Reference or a Literal."))
 
+            actual_datatype = actual_arg.datatype
+            if (isinstance(actual_datatype, UnknownFortranType) and
+                    actual_datatype.partial_datatype):
+                actual_datatype = actual_datatype.partial_datatype
             # We have an array argument. We are only able to check that the
             # argument is not re-shaped in the called routine if we have full
             # type information on the actual argument.
             # TODO #924. It would be useful if the `datatype` property was
             # a method that took an optional 'resolve' argument to indicate
             # that it should attempt to resolve any DeferredTypes.
-            if isinstance(actual_arg.datatype, (DeferredType, UnknownType)):
+            if isinstance(actual_datatype, (DeferredType, UnknownType)):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
                     f"the type of the actual argument "
@@ -775,8 +782,8 @@ class InlineTrans(Transformation):
             actual_rank = 0
             if isinstance(formal_arg.datatype, ArrayType):
                 formal_rank = len(formal_arg.datatype.shape)
-            if isinstance(actual_arg.datatype, ArrayType):
-                actual_rank = len(actual_arg.datatype.shape)
+            if isinstance(actual_datatype, ArrayType):
+                actual_rank = len(actual_datatype.shape)
             if formal_rank != actual_rank:
                 # It's OK to use the loop variable in the lambda definition
                 # because if we get to this point then we're going to quit
