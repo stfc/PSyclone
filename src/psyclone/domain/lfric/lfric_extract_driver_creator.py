@@ -721,6 +721,7 @@ class LFRicExtractDriverCreator:
         mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
         constant_mod = ContainerSymbol(mod_name)
         symbol_table.add(constant_mod)
+
         # r_quad is defined in constants_mod, but not exported. And r_phys
         # does not exist at all in LFRic. So we have to remove them from the
         # lists of precisions to import.  TODO #2018
