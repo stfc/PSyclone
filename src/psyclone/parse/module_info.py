@@ -383,8 +383,12 @@ class ModuleInfo:
                 non_locals.extend(self.get_non_local_symbols(name))
             return non_locals
 
-        # It's not a generic interface. Just query the Routine object:
-        return self._psyir_of_routines[routine_name].get_non_local_symbols()
+        # Circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import CallTreeUtils
+        # It's not a generic interface.
+        ctu = CallTreeUtils()
+        return ctu.get_non_local_symbols(self._psyir_of_routines[routine_name])
 
     # ------------------------------------------------------------------------
     def get_symbol(self, name):
