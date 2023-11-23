@@ -126,7 +126,7 @@ class KernelModuleInlineTrans(Transformation):
             if isinstance(node, CodedKern):
                 kernel_schedule = node.get_kernel_schedule()
             else:
-                kernel_schedule = node.routine.get_schedule(
+                kernel_schedule = node.routine.get_routine(
                     node.ancestor(Container))
         except Exception as error:
             raise TransformationError(
@@ -299,7 +299,7 @@ class KernelModuleInlineTrans(Transformation):
             code_to_inline = node.get_kernel_schedule()
             caller_name = node.name.lower()
         else:
-            code_to_inline = node.routine.get_schedule(node)
+            code_to_inline = node.routine.get_routine(node)
             caller_name = node.routine.name.lower()
 
         callee_name = code_to_inline.name

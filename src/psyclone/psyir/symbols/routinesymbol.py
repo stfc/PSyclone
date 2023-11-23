@@ -152,15 +152,16 @@ class RoutineSymbol(TypedSymbol):
                             f"'{type(value).__name__}'")
         self._is_elemental = value
 
-    def get_schedule(self, container=None):
+    def get_routine(self, container=None):
         '''
         Recursively searches for the implementation of this RoutineSymbol by
         following Container imports.
 
-        :param container: the Container containing the RoutineSymbol we are
-                          searching for.
+        :param container: optional Container containing the RoutineSymbol we
+                          are searching for.
+        :type container: Optional[:py:class:`psyclone.psyir.nodes.Container`]
 
-        :returns:
+        :returns: the PSyIR of the implementation of this Routine.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
         :raises NotImplementedError: if this symbol is unresolved.
@@ -171,7 +172,7 @@ class RoutineSymbol(TypedSymbol):
             raise NotImplementedError(
                 f"RoutineSymbol '{self.name}' is unresolved and searching for "
                 f"its implementation is not yet supported.")
-        elif self.is_import:
+        if self.is_import:
             csym = self.interface.container_symbol
             # If necessary, this will search for and process the source file
             # defining the container.
@@ -184,7 +185,7 @@ class RoutineSymbol(TypedSymbol):
             if rsym.is_import:
                 # This symbol is itself imported into the current Container so
                 # we recurse.
-                return rsym.get_schedule(container)
+                return rsym.get_routine(container)
         else:
             if not container:
                 raise ValueError(
@@ -192,6 +193,7 @@ class RoutineSymbol(TypedSymbol):
                     f"Container node must be provided in order to search for "
                     f"its Schedule.")
 
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine
         for routine in container.walk(Routine, stop_type=Routine):
             if routine.name.lower() == self.name.lower():
