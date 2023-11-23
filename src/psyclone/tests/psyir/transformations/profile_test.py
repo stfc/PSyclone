@@ -43,7 +43,8 @@ import re
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.generator import GenerationError
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
                                   Assignment, Return, Reference,
@@ -53,7 +54,6 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
-from psyclone.gocean1p0 import GOInvokeSchedule
 
 
 # -----------------------------------------------------------------------------
@@ -420,7 +420,40 @@ def test_profile_kernels_dynamo0p3():
     assert groups is not None
     # Check that the variables are different
     assert groups.group(1) != groups.group(2)
+
     Profiler._options = []
+
+
+# -----------------------------------------------------------------------------
+def test_profile_fused_kernels_dynamo0p3():
+    '''Check that kernels are instrumented correctly in an LFRic
+    (Dynamo 0.3) invoke which has had them fused (i.e. there is more than
+    one Kernel inside a loop).
+    '''
+    Profiler.set_options([Profiler.KERNELS], "dynamo0.3")
+    _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0,
+                           dist_mem=False)
+
+    fuse_trans = LFRicLoopFuseTrans()
+    loops = invoke.schedule.walk(Loop)
+    fuse_trans.apply(loops[0], loops[1])
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
+    code = str(invoke.gen())
+    expected = '''\
+      CALL profile_psy_data%PreStart("multi_invoke_psy", "invoke_0:r0", 0, 0)
+      DO cell=loop0_start,loop0_stop
+        !
+        CALL testkern_code(nlayers, a, f1_data, f2_data, m1_data, m2_data, \
+ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
+undf_w3, map_w3(:,cell))
+        !
+        CALL testkern_code(nlayers, a, f1_data, f3_data, m2_data, m1_data, \
+ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
+undf_w3, map_w3(:,cell))
+      END DO
+      CALL profile_psy_data%PostEnd
+'''
+    assert expected in code
 
 
 # -----------------------------------------------------------------------------
