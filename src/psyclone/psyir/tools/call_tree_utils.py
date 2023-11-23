@@ -37,8 +37,8 @@
 ''' This module provides tools analyse the sequence of calls
 across different subroutines and modules.'''
 
-from psyclone.psyir.nodes.call import Call
-from psyclone.psyir.nodes import Reference, Routine
+from psyclone.psyir.nodes import (Call, Container, IntrinsicCall, Reference,
+                                  Routine)
 from psyclone.psyir.symbols import (ArgumentInterface, ImportInterface)
 from psyclone.core import Signature, VariablesAccessInfo
 
@@ -73,9 +73,6 @@ class CallTreeUtils():
         :rtype: Union[None, Tuple[str, str, str]]
 
         '''
-        # Circular import:
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.container import Container
         node = reference
         while node:
             # A routine has its own name as a symbol in its symbol table.
@@ -136,6 +133,10 @@ class CallTreeUtils():
                 # A kernel is a subroutine call from a module:
                 non_locals.append(("routine", access.module_name,
                                    Signature(access.name)))
+                continue
+
+            if isinstance(access, IntrinsicCall):
+                # Intrinsic calls can be ignored
                 continue
 
             if isinstance(access, Call):
