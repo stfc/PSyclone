@@ -475,7 +475,8 @@ def main(args):
         help="Naming scheme to use when re-naming transformed kernels")
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
-        help="Add profiling hooks for either 'kernels' or 'invokes'")
+        help=("Add profiling hooks for either 'kernels' or 'invokes/routines'."
+              " The 'kernels' option is not permitted for the 'nemo' API."))
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
     parser.add_argument("--config", help="Config file with "
@@ -486,9 +487,6 @@ def main(args):
         help=f'Display version information ({__VERSION__})')
 
     args = parser.parse_args(args)
-
-    if args.profile:
-        Profiler.set_options(args.profile)
 
     # If an output directory has been specified for transformed kernels
     # then check that it is valid
@@ -525,6 +523,14 @@ def main(args):
         # as API in the config object as well.
         api = args.api
         Config.get().api = api
+
+    # Record any profiling options.
+    if args.profile:
+        try:
+            Profiler.set_options(args.profile, api)
+        except ValueError as err:
+            print(f"Invalid profiling option: {err}", file=sys.stderr)
+            sys.exit(1)
 
     # The Configuration manager checks that the supplied path(s) is/are
     # valid so protect with a try

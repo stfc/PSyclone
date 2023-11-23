@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,6 @@
 
 ''' Module containing tests for generating monitoring hooks'''
 
-from __future__ import absolute_import
-
 import re
 import pytest
 
@@ -64,14 +62,14 @@ def teardown_function():
     any automatic profiling set. This is necessary in case of a test failure
     to make sure any further tests will not be run with profiling enabled.
     '''
-    Profiler.set_options([])
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
 def test_profile_basic():
     '''Check basic functionality: node names, schedule view.
     '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], api="gocean1.0")
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -108,24 +106,28 @@ def test_profile_basic():
     assert invoke.schedule[0].psy_data_body[0].loop_body[0].children[0].\
         children[0] is node
 
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
 def test_profile_errors2():
     '''Test various error handling.'''
 
-    with pytest.raises(GenerationError) as gen_error:
-        Profiler.set_options(["invalid"])
-    assert ("options must be one of 'invokes', 'kernels'"
-            in str(gen_error.value))
+    with pytest.raises(ValueError) as err:
+        Profiler.set_options(["invalid"], "nemo")
+    assert ("Options for automatic profiling must be one of 'invokes', "
+            "'routines', 'kernels'" in str(err))
+    with pytest.raises(ValueError) as err:
+        Profiler.set_options(["kernels"], "nemo")
+    assert ("The 'kernels' automatic profiling option is not compatible with "
+            "the 'nemo' API." in str(err))
 
 
 # -----------------------------------------------------------------------------
 def test_profile_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], "gocean1.0")
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -184,7 +186,7 @@ def test_profile_invokes_gocean1p0():
                   "end.*"
                   r"call profile_psy_data%PostEnd")
     assert re.search(correct_re, code, re.I) is not None
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
@@ -192,7 +194,7 @@ def test_unique_region_names():
     '''Test that unique region names are created even when the kernel
     names are identical.'''
 
-    Profiler.set_options([Profiler.KERNELS])
+    Profiler.set_options([Profiler.KERNELS], "gocean1.0")
     _, invoke = get_invoke("single_invoke_two_identical_kernels.f90",
                            "gocean1.0", 0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -236,7 +238,7 @@ def test_unique_region_names():
 def test_profile_kernels_gocean1p0():
     '''Check that all kernels are instrumented correctly
     '''
-    Profiler.set_options([Profiler.KERNELS])
+    Profiler.set_options([Profiler.KERNELS], "gocean1.0")
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
@@ -278,7 +280,7 @@ def test_profile_kernels_gocean1p0():
     assert groups is not None
     assert groups.group(1) != groups.group(2)
 
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
@@ -303,7 +305,7 @@ def test_profile_named_gocean1p0():
 def test_profile_invokes_dynamo0p3():
     '''Check that a Dynamo 0.3 invoke is instrumented correctly
     '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], "dynamo0.3")
 
     # First test for a single invoke with a single kernel work as expected:
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
@@ -360,7 +362,7 @@ def test_profile_invokes_dynamo0p3():
            "\"invoke_0:x_plus_y:r0\", 0, 0)" in code
     assert "CALL profile_psy_data%PostEnd" in code
 
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
@@ -368,7 +370,7 @@ def test_profile_kernels_dynamo0p3():
     '''Check that all kernels are instrumented correctly in a
     Dynamo 0.3 invoke.
     '''
-    Profiler.set_options([Profiler.KERNELS])
+    Profiler.set_options([Profiler.KERNELS], "dynamo0.3")
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
@@ -418,7 +420,7 @@ def test_profile_kernels_dynamo0p3():
     assert groups is not None
     # Check that the variables are different
     assert groups.group(1) != groups.group(2)
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
@@ -688,7 +690,7 @@ def test_auto_invoke_return_last_stmt():
     # Double-check that the tree is as we expect
     assert isinstance(kschedule[-1], Return)
 
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], "nemo")
     Profiler.add_profile_nodes(kschedule, Loop)
     # The Return should be a sibling of the ProfileNode rather than a child
     assert isinstance(kschedule[0], ProfileNode)
@@ -700,7 +702,7 @@ def test_auto_invoke_no_return(capsys):
     ''' Check that using the auto-invoke profiling option does not add any
     profiling if the invoke contains a Return anywhere other than as the
     last statement. '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], "nemo")
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=REAL_TYPE)
@@ -744,7 +746,7 @@ def test_auto_invoke_no_return(capsys):
 def test_auto_invoke_empty_schedule(capsys):
     ''' Check the auto-invoke profiling option rejects an empty Schedule, i.e
     the routine has no statements. '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], "nemo")
     symbol_table = SymbolTable()
     # Create Schedule with Return at the start.
     kschedule = KernelSchedule.create(
