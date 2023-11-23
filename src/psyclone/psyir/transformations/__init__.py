@@ -88,6 +88,8 @@ from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
 from psyclone.psyir.transformations.omp_task_trans import OMPTaskTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
+from psyclone.psyir.transformations.intrinsics.product2loop_trans import \
+    Product2LoopTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
@@ -128,6 +130,7 @@ __all__ = ['ACCUpdateTrans',
            'OMPTaskTrans',
            'OMPTaskwaitTrans',
            'ParallelLoopTrans',
+           'Product2LoopTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',
