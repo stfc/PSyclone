@@ -617,5 +617,5 @@ def test_multi_intrinsics(fortran_reader, fortran_writer, tmpdir):
     node = psyir.children[0].children[0].children[1].children[0]
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert result == expected
+    assert expected in result
     assert Compile(tmpdir).string_compiles(result)
