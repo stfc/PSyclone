@@ -45,6 +45,8 @@ from psyclone.psyir.nodes import (
     IntrinsicCall, Node, UnaryOperation, BinaryOperation)
 from psyclone.psyir.symbols import ArrayType
 from psyclone.psyGen import Transformation
+from psyclone.psyir.transformations.reference2arrayrange_trans import \
+    Reference2ArrayRangeTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
@@ -56,7 +58,7 @@ class MMSBaseTrans(Transformation, ABC):
 
     '''
     _INTRINSIC_NAME = None
-    _CHILD_INTRINSIC = None
+    _INTRINSIC_TYPE = None
 
     @staticmethod
     def _get_args(node):
@@ -140,7 +142,7 @@ class MMSBaseTrans(Transformation, ABC):
         # pylint: disable=unidiomatic-typecheck
         for reference in array_ref.walk(Reference):
             if (isinstance(reference, ArrayReference) or
-                    type(reference) == Reference and
+                    type(reference) is Reference and
                     reference.symbol.is_array):
                 break
         else:
@@ -189,28 +191,27 @@ class MMSBaseTrans(Transformation, ABC):
 
         expr, _, mask_ref = self._get_args(node)
 
-        # Step 1 extract the expression within the intrinsic and put
-        # it on the rhs of an argument with one of the arrays within
-        # the expression being added to the lhs of the argument.
+        # Step 1: replace all references to arrays within the
+        # intrinsic expressions and mask argument (if it exists) to
+        # array ranges. For example, 'maxval(a+b, mask=mod(c,2.0)==1)'
+        # becomes 'maxval(a(:,:)+b(:,:), mask=mod(c(:,:),2.0)==1)' if
+        # 'a', 'b' and 'c' are 2 dimensional arrays.
         rhs = expr.copy()
-        if not rhs.parent:
-            # If the the reference is the only thing on the rhs it
-            # will not have a parent which is required by the
-            # replace_with() method. Add a fake parent (+)
-            _ = UnaryOperation.create(
-                UnaryOperation.Operator.PLUS, rhs)
-
-        # Convert references to arrays to array ranges where appropriate
-        # Add here to avoid circular imports
-        from psyclone.psyir.transformations import Reference2ArrayRangeTrans
+        _ = UnaryOperation.create(UnaryOperation.Operator.PLUS, rhs)
         reference2arrayrange = Reference2ArrayRangeTrans()
+        # The reference to rhs becomes invalid in the following
+        # transformation so we keep a copy of the parent here and
+        # reset rhs to rhs_parent.children[0] after the
+        # transformation.
         rhs_parent = rhs.parent
         for reference in rhs.walk(Reference):
             try:
                 reference2arrayrange.apply(reference)
             except TransformationError:
                 pass
-        # We know there is only one child
+        # Reset rhs from its parent as the previous transformation
+        # makes the value of rhs become invalid. We know there is only
+        # one child so can safely use children[0].
         rhs = rhs_parent.children[0]
         if mask_ref:
             mask_ref_parent = mask_ref.parent
@@ -222,7 +223,17 @@ class MMSBaseTrans(Transformation, ABC):
                     pass
             mask_ref = mask_ref_parent.children[mask_ref_index]
 
+        # Step 2: Put the intrinsic's extracted expression (stored in
+        # the 'rhs' variable) on the rhs of an argument with one of
+        # the arrays within the expression being added to the lhs of
+        # the argument. For example if:
+        # x = maxval(a(:,:)+b(:,:))
+        # then
+        # rhs = a(:,:)+b(:,:)
+        # resulting in the following code being created:
+        # a(:,:) = a(:,:)+b(:,:)
         orig_lhs = node.ancestor(Assignment).lhs.copy()
+        orig_rhs = node.ancestor(Assignment).rhs.copy()
         array_refs = rhs.walk(ArrayReference)
         lhs = array_refs[0].copy()
         assignment = Assignment.create(lhs, rhs.detach())
@@ -231,9 +242,17 @@ class MMSBaseTrans(Transformation, ABC):
         orig_assignment = node.ancestor(Assignment)
         orig_assignment.replace_with(assignment)
 
-        # Step 2 call nemoarrayrange2loop_trans to create loop bounds
-        # and array indexing (keeping track of where the new loop nest
-        # is created). Also deal with the mask if it exists.
+        # Step 3 call nemoarrayrange2loop_trans to create loop bounds
+        # and array indexing from the array ranges created in step 2
+        # (keeping track of where the new loop nest is created). Also
+        # extract the mask if it exists. For example:
+        # a(:,:) = a(:,:)+b(:,:)
+        # becomes
+        # do idx2 = LBOUND(a,2), UBOUND(a,2)
+        #   do idx = LBOUND(a,1), UBOUND(a,1)
+        #     a(idx,idx2) = a(idx,idx2) + b(idx,idx2)
+        #   enddo
+        # enddo
         if mask_ref:
             # add mask to the rhs of the assignment
             assignment_rhs = BinaryOperation.create(
@@ -256,9 +275,23 @@ class MMSBaseTrans(Transformation, ABC):
             indexed_mask_ref = assignment_rhs.children[1].copy()
             assignment_rhs.replace_with(orig_assignment)
 
-        # Step 3 convert the original assignment (now within a loop
+        # Step 4 convert the original assignment (now within a loop
         # and indexed) to its intrinsic form by replacing the
-        # assignment with orig_lhs=INTRINSIC(orig_lhs,<expr>)
+        # assignment with orig_lhs=INTRINSIC(orig_lhs,<expr>). Also
+        # add in the mask if one has been specified. For example:
+        # do idx2 = LBOUND(a,2), UBOUND(a,2)
+        #   do idx = LBOUND(a,1), UBOUND(a,1)
+        #     a(idx,idx2) = a(idx,idx2) + b(idx,idx2)
+        #   enddo
+        # enddo
+        # becomes
+        # do idx2 = LBOUND(a,2), UBOUND(a,2)
+        #   do idx = LBOUND(a,1), UBOUND(a,1)
+        #     if (mod(c(idx,idx2),2.0)==1) then
+        #       x = max(x, a(idx,idx2) + b(idx,idx2))
+        #     end ifx
+        #   enddo
+        # enddo
         new_assignment = Assignment.create(
             orig_lhs.copy(), self._loop_body(
                 orig_lhs.copy(), assignment.rhs.copy()))
@@ -270,11 +303,45 @@ class MMSBaseTrans(Transformation, ABC):
         assignment.replace_with(new_assignment)
 
         # Step 4 initialise the variable and place it before the newly
-        # created outer loop (in step 2).
+        # created outer loop (in step 2) and deal with any additional
+        # arguments on the rhs of the original expression. For
+        # example, if the original code looks like the following:
+        # x = value1 + maxval(a+b, mask=mod(c,2.0)==1) * value2
+        # and the newly created loop looks like the following:
+        # do idx2 = LBOUND(a,2), UBOUND(a,2)
+        #   do idx = LBOUND(a,1), UBOUND(a,1)
+        #     if (mod(c(idx,idx2),2.0)==1) then
+        #       x = max(x, a(idx,idx2) + b(idx,idx2))
+        #     end ifx
+        #   enddo
+        # enddo
+        # then the result becomes:
+        # x = tiny(x)
+        # do idx2 = LBOUND(a,2), UBOUND(a,2)
+        #   do idx = LBOUND(a,1), UBOUND(a,1)
+        #     if (mod(c(idx,idx2),2.0)==1) then
+        #       x = max(x, a(idx,idx2) + b(idx,idx2))
+        #     end if
+        #   enddo
+        # enddo
+        # x = value1 + x * value2
         lhs = orig_lhs.copy()
         rhs = self._init_var(lhs.symbol)
         assignment = Assignment.create(lhs, rhs)
         outer_loop.parent.children.insert(outer_loop.position, assignment)
+        if not (isinstance(orig_rhs, IntrinsicCall) and
+                orig_rhs.intrinsic is self._INTRINSIC_TYPE):
+            # The intrinsic call is not the only thing on the rhs of
+            # the expression, so we need to deal with the additional
+            # computation.
+            rhs = orig_rhs.copy()
+            for child in rhs.walk(IntrinsicCall):
+                if child.intrinsic is self._INTRINSIC_TYPE:
+                    child.replace_with(orig_lhs.copy())
+                    break
+            assignment = Assignment.create(orig_lhs.copy(), rhs)
+            outer_loop.parent.children.insert(
+                outer_loop.position+1, assignment)
 
     @abstractmethod
     def _loop_body(self, lhs, rhs):

@@ -34,22 +34,23 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR SUM intrinsic to
-PSyIR code. This could be useful if the SUM intrinsic is not supported
-by the back-end, the required parallelisation approach, or if the
-performance in the inline code is better than the intrinsic.
+'''Module providing a transformation from a PSyIR SUM intrinsic to an
+equivalent PSyIR loop structure. This could be useful if the SUM
+intrinsic is not supported by the back-end, the required
+parallelisation approach, or if the performance in the inline code is
+better than the intrinsic.
 
 '''
-from psyclone.psyir.nodes import BinaryOperation, Literal
+from psyclone.psyir.nodes import BinaryOperation, Literal, IntrinsicCall
 from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
     MMSBaseTrans)
 
 
 class Sum2CodeTrans(MMSBaseTrans):
-    '''Provides a transformation from a PSyIR SUM IntrinsicCall node to
-    equivalent code in a PSyIR tree. Validity checks are also
-    performed.
+    '''Provides a transformation from a PSyIR SUM IntrinsicCall node to an
+    equivalent PSyIR loop structure that is suitable for running in
+    parallel on CPUs and GPUs. Validity checks are also performed.
 
     If SUM contains a single positional argument which is an array,
     all elements of that array are summed and the result returned in
@@ -69,27 +70,6 @@ class Sum2CodeTrans(MMSBaseTrans):
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             R = R + ARRAY(I,J)
 
-    If the dimension argument is provided then only that dimension is
-    summed:
-
-    .. code-block:: fortran
-
-        R = SUM(ARRAY, dimension=2)
-
-    If the array is two dimensional, the equivalent code
-    for real data is:
-
-    .. code-block:: fortran
-
-        R(:) = 0.0
-        DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
-          DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            R(I) = R(I) + ARRAY(I,J)
-
-    A restriction is that the value of dimension must be able to be
-    determined by PSyclone, either being a literal or a reference to
-    something with a known value.
-
     If the mask argument is provided then the mask is used to
     determine whether the sum is applied:
 
@@ -108,17 +88,23 @@ class Sum2CodeTrans(MMSBaseTrans):
             IF (MOD(ARRAY(I,J), 2.0)==1) THEN
               R = R + ARRAY(I,J)
 
-    The array passed to SUM may use array syntax, array notation or
-    array sections (or a mixture of the two), but scalar bounds are
-    not allowed:
+    The dimension argument is currently not supported and will result
+    in a TransformationError exception being raised.
+
+    .. code-block:: fortran
+
+        R = SUM(ARRAY, dimension=2)
+
+    The array passed to MAXVAL may use any combination of array
+    syntax, array notation, array sections and scalar bounds:
 
     .. code-block:: fortran
 
         R = SUM(ARRAY) ! array syntax
         R = SUM(ARRAY(:,:)) ! array notation
         R = SUM(ARRAY(1:10,lo:hi)) ! array sections
-        R = SUM(ARRAY(1:10,:)) ! mix of array sections and array notation
-        R = SUM(ARRAY(1:10,2)) ! NOT SUPPORTED as 2 is a scalar bound
+        R = SUM(ARRAY(1:10,:)) ! mix of array section and array notation
+        R = SUM(ARRAY(1:10,2)) ! mix of array section and scalar bound
 
     For example:
 
@@ -155,10 +141,11 @@ class Sum2CodeTrans(MMSBaseTrans):
 
     '''
     _INTRINSIC_NAME = "SUM"
+    _INTRINSIC_TYPE = IntrinsicCall.Intrinsic.SUM
 
     def _loop_body(self, lhs, rhs):
         '''Provide the body of the nested loop that computes the sum
-        of the lhs and rhs
+        of the lhs and rhs.
 
         :param lhs: the lhs value for the sum operation.
         :type lhs: :py:class:`psyclone.psyir.nodes.Node`

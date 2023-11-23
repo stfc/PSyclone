@@ -34,9 +34,10 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR MINVAL intrinsic to
-PSyIR code. This could be useful if the MINVAL operator is not
-supported by the back-end, the required parallelisation approach, or
-if the performance in the inline code is better than the intrinsic.
+an equivalent PSyIR loop structure. This could be useful if the MINVAL
+operator is not supported by the back-end, the required
+parallelisation approach, or if the performance in the inline code is
+better than the intrinsic.
 
 '''
 from psyclone.psyir.nodes import Reference, IntrinsicCall
@@ -46,8 +47,8 @@ from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
 
 class Minval2CodeTrans(MMSBaseTrans):
     '''Provides a transformation from a PSyIR MINVAL IntrinsicCall node to
-    equivalent code in a PSyIR tree. Validity checks are also
-    performed.
+    an equivalent PSyIR loop structure that is suitable for running in
+    parallel on CPUs and GPUs. Validity checks are also performed.
 
     If MINVAL contains a single positional argument which is an array,
     the minimum value of all of the elements in the array is returned
@@ -65,30 +66,7 @@ class Minval2CodeTrans(MMSBaseTrans):
         R = HUGE(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            IF (R > ARRAY(I,J)) THEN
-              R = ARRAY(I,J)
-
-    If the dimension argument is provided then the minimum value is
-    returned along the row for each entry in that dimension:
-
-    .. code-block:: fortran
-
-        R = MINVAL(ARRAY, dimension=2)
-
-    If the array is two dimensional, the equivalent code
-    for real data is:
-
-    .. code-block:: fortran
-
-        R(:) = HUGE(R)
-        DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
-          DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            IF (R(I) > ARRAY(I,J)) THEN
-              R(I) = ARRAY(I,J)
-
-    A restriction is that the value of dimension must be able to be
-    determined by PSyclone, either being a literal or a reference to
-    something with a known value.
+            R = MIN(R, ARRAY(I,J))
 
     If the mask argument is provided then the mask is used to
     determine whether the minval is applied:
@@ -106,20 +84,25 @@ class Minval2CodeTrans(MMSBaseTrans):
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             IF (MOD(ARRAY(I,J), 2.0)==1) THEN
-              IF (R > ARRAY(I,J)) THEN
-                R = ARRAY(I,J)
+              R = MIN(R, ARRAY(I,J))
 
-    The array passed to MINVAL may use array syntax, array notation or
-    array sections (or a mixture of the two), but scalar bounds are
-    not allowed:
+    The dimension argument is currently not supported and will result
+    in a TransformationError exception being raised.
+
+    .. code-block:: fortran
+
+        R = MINVAL(ARRAY, dimension=2)
+
+    The array passed to MINVAL may use any combination of array
+    syntax, array notation, array sections and scalar bounds:
 
     .. code-block:: fortran
 
         R = MINVAL(ARRAY) ! array syntax
         R = MINVAL(ARRAY(:,:)) ! array notation
         R = MINVAL(ARRAY(1:10,lo:hi)) ! array sections
-        R = MINVAL(ARRAY(1:10,:)) ! mix of array sections and array notation
-        R = MINVAL(ARRAY(1:10,2)) ! NOT SUPPORTED as 2 is a scalar bound
+        R = MINVAL(ARRAY(1:10,:)) ! mix of array section and array notation
+        R = MINVAL(ARRAY(1:10,2)) ! mix of array section and scalar bound
 
     For example:
 
@@ -153,10 +136,11 @@ class Minval2CodeTrans(MMSBaseTrans):
 
     '''
     _INTRINSIC_NAME = "MINVAL"
+    _INTRINSIC_TYPE = IntrinsicCall.Intrinsic.MINVAL
 
     def _loop_body(self, lhs, rhs):
         '''Provide the body of the nested loop that computes the minimum value
-        of the lhs and rhs
+        of the lhs and rhs.
 
         :param lhs: the lhs value for the min operation.
         :type lhs: :py:class:`psyclone.psyir.nodes.Node`

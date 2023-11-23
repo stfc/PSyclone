@@ -37,6 +37,6 @@ program fixed_lhs
   real, dimension(:,:) :: tmask
   real :: ssh_ref
 
-  sshn(1:10,1:10) = sshn(1:10,1:10) + ssh_ref * tmask(:,:)
+  sshn(2:4,6:8) = sshn(2:4,6:8) + ssh_ref * tmask(2:4,6:8)
 
 end program fixed_lhs

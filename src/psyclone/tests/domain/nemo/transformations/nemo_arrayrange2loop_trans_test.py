@@ -299,9 +299,10 @@ def test_transform_apply_fixed():
     trans.apply(range_node)
     writer = FortranWriter()
     result = writer(schedule)
+    print(result)
     expected = (
-        "  do idx = 1, 10, 1\n"
-        "    sshn(:,idx) = sshn(:,idx) + ssh_ref * tmask(:,idx)\n"
+        "  do idx = 6, 8, 1\n"
+        "    sshn(2:4,idx) = sshn(2:4,idx) + ssh_ref * tmask(2:4,idx)\n"
         "  enddo\n")
     assert expected in result
 

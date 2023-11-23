@@ -321,15 +321,12 @@ def test_apply_dimension_1d(fortran_reader):
 
     '''
     code = (
-        "subroutine test(array,value1,value2)\n"
+        "subroutine test(array)\n"
         "  real :: array(:)\n"
-        "  real :: value1, value2\n"
         "  real :: result\n"
-        "  result = value1 + maxval(array,dim=1) * value2\n"
+        "  result = maxval(array,dim=1)\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/IntrinsicCall
     node = psyir.walk(IntrinsicCall)[0]
     trans = Maxval2CodeTrans()
     with pytest.raises(TransformationError) as info:
