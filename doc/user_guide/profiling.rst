@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -200,7 +200,7 @@ used (e.g. before or after a call to ``MPI_Finalize()``).
 
 Profiling Command-Line Options
 ------------------------------
-PSyclone offers two command line options to automatically instrument
+PSyclone offers two command-line options to automatically instrument
 code with profiling regions. It can create profile regions around
 a full invoke routine (including all kernel calls in this invoke), and/or
 around each individual kernel (for the PSyKAl APIs 'dynamo0.3' and
@@ -213,7 +213,8 @@ this invoke subroutine will be included in the profiled region.
 
 The option ``--profile routines`` is a synonym for 'invokes' but is
 provided as it is more intuitive for users who are transforming
-existing code.
+existing code. (In this case, PSyclone will put a profiling region
+around every routine that it processes.)
 
 The option ``--profile kernels`` will surround each outer loop
 created by PSyclone with start and end profiling calls. Note that this
