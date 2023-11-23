@@ -93,9 +93,9 @@ class ArrayReference(ArrayMixin, Reference):
                     f" found '{symbol.datatype}'.")
         elif len(symbol.shape) < len(indices):
             raise GenerationError(
-                f"the indices argument has '{len(indices)}' elements, but must"
-                f"have equal or less dimensions than the '{symbol.name}' shape,"
-                f" which has '{len(symbol.shape)}'.")
+                f"the indices argument has '{len(indices)}' elements, but it "
+                f"must have a less or equal number of dimensions than the "
+                f"'{symbol.name}' shape, which has '{len(symbol.shape)}'.")
 
         array = ArrayReference(symbol)
         for ind, child in enumerate(indices):

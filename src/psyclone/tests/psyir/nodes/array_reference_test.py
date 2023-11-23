@@ -138,9 +138,9 @@ def test_array_create_invalid2():
                 Literal("1", INTEGER_SINGLE_TYPE)]
     with pytest.raises(GenerationError) as excinfo:
         _ = ArrayReference.create(symbol_temp, children)
-    assert ("the symbol 'temp' should have the same number of dimensions as "
-            "indices (provided in the 'indices' argument). Expecting '3' but "
-            "found '1'." in str(excinfo.value))
+    assert ("the indices argument has '3' elements, but it must have a less "
+            "or equal number of dimensions than the 'temp' shape, which has "
+            "'1'." in str(excinfo.value))
 
 
 def test_array_create_invalid3():

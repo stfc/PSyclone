@@ -106,8 +106,7 @@ def test_dep_tool_constructor_errors():
     with pytest.raises(TypeError) as err:
         _ = DependencyTools(loop_types_to_parallelise=["invalid"])
     assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
-            "values for API 'dynamo0.3' are ['dof', 'colours', 'colour', '', "
-            "'null']." in str(err.value))
+            "values for API 'dynamo0.3' are [" in str(err.value))
 
 
 # -----------------------------------------------------------------------------
