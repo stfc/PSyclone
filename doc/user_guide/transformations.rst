@@ -282,7 +282,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.Maxval2CodeTrans
+.. autoclass:: psyclone.psyir.transformations.Maxval2LoopTrans
       :members: apply
       :noindex:
 
@@ -299,7 +299,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.Minval2CodeTrans
+.. autoclass:: psyclone.psyir.transformations.Minval2LoopTrans
       :members: apply
       :noindex:
 
@@ -449,7 +449,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.Sum2CodeTrans
+.. autoclass:: psyclone.psyir.transformations.Sum2LoopTrans
       :members: apply
       :noindex:
 

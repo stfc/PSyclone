@@ -66,16 +66,16 @@ from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     Matmul2CodeTrans
 from psyclone.psyir.transformations.intrinsics.max2code_trans import \
     Max2CodeTrans
-from psyclone.psyir.transformations.intrinsics.maxval2code_trans import \
-    Maxval2CodeTrans
+from psyclone.psyir.transformations.intrinsics.maxval2loop_trans import \
+    Maxval2LoopTrans
 from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
-from psyclone.psyir.transformations.intrinsics.minval2code_trans import \
-    Minval2CodeTrans
+from psyclone.psyir.transformations.intrinsics.minval2loop_trans import \
+    Minval2LoopTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
-from psyclone.psyir.transformations.intrinsics.sum2code_trans import \
-    Sum2CodeTrans
+from psyclone.psyir.transformations.intrinsics.sum2loop_trans import \
+    Sum2LoopTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
@@ -115,11 +115,13 @@ __all__ = ['ACCUpdateTrans',
            'Max2CodeTrans',
            'Min2CodeTrans',
            'Sign2CodeTrans',
-           'Sum2CodeTrans',
+           'Sum2LoopTrans',
            'LoopFuseTrans',
            'LoopSwapTrans',
            'LoopTiling2DTrans',
            'LoopTrans',
+           'Maxval2LoopTrans',
+           'Minval2LoopTrans',
            'NanTestTrans',
            'OMPLoopTrans',
            'OMPTargetTrans',

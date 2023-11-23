@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,139 +32,152 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR MINVAL intrinsic to
-an equivalent PSyIR loop structure. This could be useful if the MINVAL
-operator is not supported by the back-end, the required
+'''Module providing a transformation from a PSyIR SUM intrinsic to an
+equivalent PSyIR loop structure. This could be useful if the SUM
+intrinsic is not supported by the back-end, the required
 parallelisation approach, or if the performance in the inline code is
 better than the intrinsic.
 
 '''
-from psyclone.psyir.nodes import Reference, IntrinsicCall
-from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
-    MMSBaseTrans)
+from psyclone.psyir.nodes import BinaryOperation, Literal, IntrinsicCall
+from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
+    import ArrayReductionBaseTrans
 
 
-class Minval2CodeTrans(MMSBaseTrans):
-    '''Provides a transformation from a PSyIR MINVAL IntrinsicCall node to
-    an equivalent PSyIR loop structure that is suitable for running in
+class Sum2LoopTrans(ArrayReductionBaseTrans):
+    '''Provides a transformation from a PSyIR SUM IntrinsicCall node to an
+    equivalent PSyIR loop structure that is suitable for running in
     parallel on CPUs and GPUs. Validity checks are also performed.
 
-    If MINVAL contains a single positional argument which is an array,
-    the minimum value of all of the elements in the array is returned
-    in the the scalar R.
+    If SUM contains a single positional argument which is an array,
+    all elements of that array are summed and the result returned in
+    the scalar R.
 
     .. code-block:: fortran
 
-        R = MINVAL(ARRAY)
+        R = SUM(ARRAY)
 
     For example, if the array is two dimensional, the equivalent code
     for real data is:
 
     .. code-block:: fortran
 
-        R = HUGE(R)
+        R = 0.0
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            R = MIN(R, ARRAY(I,J))
+            R = R + ARRAY(I,J)
 
     If the mask argument is provided then the mask is used to
-    determine whether the minval is applied:
+    determine whether the sum is applied:
 
     .. code-block:: fortran
 
-        R = MINVAL(ARRAY, mask=MOD(ARRAY, 2.0)==1)
+        R = SUM(ARRAY, mask=MOD(ARRAY, 2.0)==1)
 
     If the array is two dimensional, the equivalent code
     for real data is:
 
     .. code-block:: fortran
 
-        R = HUGE(R)
+        R = 0.0
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             IF (MOD(ARRAY(I,J), 2.0)==1) THEN
-              R = MIN(R, ARRAY(I,J))
+              R = R + ARRAY(I,J)
 
     The dimension argument is currently not supported and will result
     in a TransformationError exception being raised.
 
     .. code-block:: fortran
 
-        R = MINVAL(ARRAY, dimension=2)
+        R = SUM(ARRAY, dimension=2)
 
-    The array passed to MINVAL may use any combination of array
+    The array passed to MAXVAL may use any combination of array
     syntax, array notation, array sections and scalar bounds:
 
     .. code-block:: fortran
 
-        R = MINVAL(ARRAY) ! array syntax
-        R = MINVAL(ARRAY(:,:)) ! array notation
-        R = MINVAL(ARRAY(1:10,lo:hi)) ! array sections
-        R = MINVAL(ARRAY(1:10,:)) ! mix of array section and array notation
-        R = MINVAL(ARRAY(1:10,2)) ! mix of array section and scalar bound
+        R = SUM(ARRAY) ! array syntax
+        R = SUM(ARRAY(:,:)) ! array notation
+        R = SUM(ARRAY(1:10,lo:hi)) ! array sections
+        R = SUM(ARRAY(1:10,:)) ! mix of array section and array notation
+        R = SUM(ARRAY(1:10,2)) ! mix of array section and scalar bound
 
     For example:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.transformations import Minval2CodeTrans
-    >>> code = ("subroutine minval_test(array)\\n"
+    >>> from psyclone.psyir.transformations import Sum2LoopTrans
+    >>> code = ("subroutine sum_test(array,n,m)\\n"
+    ...         "  integer :: n, m\\n"
     ...         "  real :: array(10,10)\\n"
     ...         "  real :: result\\n"
-    ...         "  result = minval(array)\\n"
+    ...         "  result = sum(array)\\n"
     ...         "end subroutine\\n")
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> sum_node = psyir.children[0].children[0].children[1]
-    >>> Minval2CodeTrans().apply(sum_node)
+    >>> Sum2LoopTrans().apply(sum_node)
     >>> print(FortranWriter()(psyir))
-    subroutine minval_test(array)
+    subroutine sum_test(array, n, m)
+      integer :: n
+      integer :: m
       real, dimension(10,10) :: array
       real :: result
       integer :: idx
       integer :: idx_1
     <BLANKLINE>
-      result = HUGE(result)
+      result = 0.0
       do idx = 1, 10, 1
         do idx_1 = 1, 10, 1
-          result = MIN(result, array(idx_1,idx))
+          result = result + array(idx_1,idx)
         enddo
       enddo
     <BLANKLINE>
-    end subroutine minval_test
+    end subroutine sum_test
     <BLANKLINE>
 
     '''
-    _INTRINSIC_NAME = "MINVAL"
-    _INTRINSIC_TYPE = IntrinsicCall.Intrinsic.MINVAL
+    _INTRINSIC_NAME = "SUM"
+    _INTRINSIC_TYPE = IntrinsicCall.Intrinsic.SUM
 
     def _loop_body(self, lhs, rhs):
-        '''Provide the body of the nested loop that computes the minimum value
+        '''Provide the body of the nested loop that computes the sum
         of the lhs and rhs.
 
-        :param lhs: the lhs value for the min operation.
+        :param lhs: the lhs value for the sum operation.
         :type lhs: :py:class:`psyclone.psyir.nodes.Node`
-        :param rhs: the rhs value for the min operation.
+        :param rhs: the rhs value for the sum operation.
         :type rhs: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: a MIN IntrinsicCall.
-        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :returns: the sum of the lhs and rhs.
+        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         '''
-        # return min(lhs,rhs)
-        return IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN, [lhs, rhs])
+        # return lhs + rhs
+        return BinaryOperation.create(BinaryOperation.Operator.ADD, lhs, rhs)
 
     def _init_var(self, var_symbol):
-        '''The initial value for the variable that computes the minimum value
+        '''The initial value for the variable that computes the sum
         of an array.
 
         :param var_symbol: the symbol used to store the final result.
         :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: PSyIR for the value to initialise the variable that
-            computes the minimum value.
-        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+            computes the sum.
+        :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
-        return IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.HUGE, [Reference(var_symbol)])
+        intrinsic = var_symbol.datatype.intrinsic
+        precision = var_symbol.datatype.precision
+        scalar_type = ScalarType(intrinsic, precision)
+        if intrinsic == ScalarType.Intrinsic.REAL:
+            value_str = "0.0"
+        elif intrinsic == ScalarType.Intrinsic.INTEGER:
+            value_str = "0"
+        # Note, the validate method guarantees that an else branch is
+        # not required.
+        return Literal(value_str, scalar_type)

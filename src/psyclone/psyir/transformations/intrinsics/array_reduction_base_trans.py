@@ -35,7 +35,7 @@
 # Modified: S. Siso, STFC Daresbury Lab
 
 '''Module providing common functionality to transformation from a
-PSyIR SUM, MINVAL or MAXVAL intrinsic to PSyIR code.
+PSyIR array-reduction intrinsic to PSyIR code.
 
 '''
 from abc import ABC, abstractmethod
@@ -51,10 +51,10 @@ from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
-class MMSBaseTrans(Transformation, ABC):
-    '''An abstract parent class providing common functionality to the
-    sum2code_trans, minval2code_trans and maxval2_code trans
-    transformations.
+class ArrayReductionBaseTrans(Transformation, ABC):
+    '''An abstract parent class providing common functionality to
+    array-reduction intrinsic transformations which translate the
+    intrinsics into an equivalent loop structure.
 
     '''
     _INTRINSIC_NAME = None
@@ -62,10 +62,10 @@ class MMSBaseTrans(Transformation, ABC):
 
     @staticmethod
     def _get_args(node):
-        '''Utility method that returns the minval, maxval or sum arguments,
+        '''Utility method that returns the array-reduction intrinsic arguments
         (array reference, dimension and mask).
 
-        :param node: a minval, maxval or sum intrinsic.
+        :param node: an array-reduction intrinsic.
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         returns: a tuple containing the 3 arguments.
@@ -97,15 +97,15 @@ class MMSBaseTrans(Transformation, ABC):
         '''Check that the input node is valid before applying the
         transformation.
 
-        :param node: a Sum, Minval or Maxval intrinsic.
+        :param node: an array-reduction intrinsic.
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not an
             intrinsic.
-        :raises TransformationError: if the supplied node is not a sum,
-            minval, or maxval intrinsic.
+        :raises TransformationError: if the supplied node is not an
+            array-reduction intrinsic.
         :raises TransformationError: if a valid value for the
             dimension argument can't be determined.
         :raises TransformationError: if the array argument is not an array.
@@ -176,12 +176,11 @@ class MMSBaseTrans(Transformation, ABC):
 
     # pylint: disable=too-many-locals
     def apply(self, node, options=None):
-        '''Apply the SUM, MINVAL or MAXVAL intrinsic conversion transformation
-        to the specified node. This node must be one of these
-        intrinsic operations which is converted to equivalent inline
-        code.
+        '''Apply the array-reduction intrinsic conversion transformation to
+        the specified node. This node must be one of these intrinsic
+        operations which is converted to an equivalent loop structure.
 
-        :param node: a Sum, Minval or Maxval intrinsic.
+        :param node: an array-reduction intrinsic.
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]

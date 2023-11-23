@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,152 +32,139 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR SUM intrinsic to an
-equivalent PSyIR loop structure. This could be useful if the SUM
-intrinsic is not supported by the back-end, the required
+'''Module providing a transformation from a PSyIR MAXVAL intrinsic to
+an equivalent PSyIR loop structure. This could be useful if the MAXVAL
+operator is not supported by the back-end, the required
 parallelisation approach, or if the performance in the inline code is
 better than the intrinsic.
 
 '''
-from psyclone.psyir.nodes import BinaryOperation, Literal, IntrinsicCall
-from psyclone.psyir.symbols import ScalarType
-from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
-    MMSBaseTrans)
+from psyclone.psyir.nodes import Reference, IntrinsicCall
+from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
+    import ArrayReductionBaseTrans
 
 
-class Sum2CodeTrans(MMSBaseTrans):
-    '''Provides a transformation from a PSyIR SUM IntrinsicCall node to an
-    equivalent PSyIR loop structure that is suitable for running in
+class Maxval2LoopTrans(ArrayReductionBaseTrans):
+    '''Provides a transformation from a PSyIR MAXVAL IntrinsicCall node to
+    an equivalent PSyIR loop structure that is suitable for running in
     parallel on CPUs and GPUs. Validity checks are also performed.
 
-    If SUM contains a single positional argument which is an array,
-    all elements of that array are summed and the result returned in
-    the scalar R.
+    If MAXVAL contains a single positional argument which is an array,
+    the maximum value of all of the elements in the array is returned
+    in the the scalar R.
 
     .. code-block:: fortran
 
-        R = SUM(ARRAY)
+        R = MAXVAL(ARRAY)
 
     For example, if the array is two dimensional, the equivalent code
     for real data is:
 
     .. code-block:: fortran
 
-        R = 0.0
+        R = TINY(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            R = R + ARRAY(I,J)
+            R = MAX(R, ARRAY(I,J))
 
     If the mask argument is provided then the mask is used to
-    determine whether the sum is applied:
+    determine whether the maxval is applied:
 
     .. code-block:: fortran
 
-        R = SUM(ARRAY, mask=MOD(ARRAY, 2.0)==1)
+        R = MAXVAL(ARRAY, mask=MOD(ARRAY, 2.0)==1)
 
     If the array is two dimensional, the equivalent code
     for real data is:
 
     .. code-block:: fortran
 
-        R = 0.0
+        R = TINY(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             IF (MOD(ARRAY(I,J), 2.0)==1) THEN
-              R = R + ARRAY(I,J)
+              R = MAX(R, ARRAY(I,J))
 
     The dimension argument is currently not supported and will result
     in a TransformationError exception being raised.
 
     .. code-block:: fortran
 
-        R = SUM(ARRAY, dimension=2)
+        R = MAXVAL(ARRAY, dimension=2)
 
     The array passed to MAXVAL may use any combination of array
     syntax, array notation, array sections and scalar bounds:
 
     .. code-block:: fortran
 
-        R = SUM(ARRAY) ! array syntax
-        R = SUM(ARRAY(:,:)) ! array notation
-        R = SUM(ARRAY(1:10,lo:hi)) ! array sections
-        R = SUM(ARRAY(1:10,:)) ! mix of array section and array notation
-        R = SUM(ARRAY(1:10,2)) ! mix of array section and scalar bound
+        R = MAXVAL(ARRAY) ! array syntax
+        R = MAXVAL(ARRAY(:,:)) ! array notation
+        R = MAXVAL(ARRAY(1:10,lo:hi)) ! array sections
+        R = MAXVAL(ARRAY(1:10,:)) ! mix of array section and array notation
+        R = MAXVAL(ARRAY(1:10,2)) ! mix of array section and scalar bound
 
-    For example:
+    An example use of this transformation is given below:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.transformations import Sum2CodeTrans
-    >>> code = ("subroutine sum_test(array,n,m)\\n"
-    ...         "  integer :: n, m\\n"
+    >>> from psyclone.psyir.transformations import Maxval2LoopTrans
+    >>> code = ("subroutine maxval_test(array)\\n"
     ...         "  real :: array(10,10)\\n"
     ...         "  real :: result\\n"
-    ...         "  result = sum(array)\\n"
+    ...         "  result = maxval(array)\\n"
     ...         "end subroutine\\n")
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> sum_node = psyir.children[0].children[0].children[1]
-    >>> Sum2CodeTrans().apply(sum_node)
+    >>> Maxval2LoopTrans().apply(sum_node)
     >>> print(FortranWriter()(psyir))
-    subroutine sum_test(array, n, m)
-      integer :: n
-      integer :: m
+    subroutine maxval_test(array)
       real, dimension(10,10) :: array
       real :: result
       integer :: idx
       integer :: idx_1
     <BLANKLINE>
-      result = 0.0
+      result = TINY(result)
       do idx = 1, 10, 1
         do idx_1 = 1, 10, 1
-          result = result + array(idx_1,idx)
+          result = MAX(result, array(idx_1,idx))
         enddo
       enddo
     <BLANKLINE>
-    end subroutine sum_test
+    end subroutine maxval_test
     <BLANKLINE>
 
     '''
-    _INTRINSIC_NAME = "SUM"
-    _INTRINSIC_TYPE = IntrinsicCall.Intrinsic.SUM
+    _INTRINSIC_NAME = "MAXVAL"
+    _INTRINSIC_TYPE = IntrinsicCall.Intrinsic.MAXVAL
 
     def _loop_body(self, lhs, rhs):
-        '''Provide the body of the nested loop that computes the sum
+        '''Provide the body of the nested loop that computes the maximum value
         of the lhs and rhs.
 
-        :param lhs: the lhs value for the sum operation.
+        :param lhs: the lhs value for the max operation.
         :type lhs: :py:class:`psyclone.psyir.nodes.Node`
-        :param rhs: the rhs value for the sum operation.
+        :param rhs: the rhs value for the max operation.
         :type rhs: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: the sum of the lhs and rhs.
-        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :returns: a MAX IntrinsicCall.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
-        # return lhs + rhs
-        return BinaryOperation.create(BinaryOperation.Operator.ADD, lhs, rhs)
+        # return max(lhs,rhs)
+        return IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX, [lhs, rhs])
 
     def _init_var(self, var_symbol):
-        '''The initial value for the variable that computes the sum
+        '''The initial value for the variable that computes the maximum value
         of an array.
 
         :param var_symbol: the symbol used to store the final result.
         :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: PSyIR for the value to initialise the variable that
-            computes the sum.
-        :rtype: :py:class:`psyclone.psyir.nodes.Literal`
+            computes the maximum value.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
-        intrinsic = var_symbol.datatype.intrinsic
-        precision = var_symbol.datatype.precision
-        scalar_type = ScalarType(intrinsic, precision)
-        if intrinsic == ScalarType.Intrinsic.REAL:
-            value_str = "0.0"
-        elif intrinsic == ScalarType.Intrinsic.INTEGER:
-            value_str = "0"
-        # Note, the validate method guarantees that an else branch is
-        # not required.
-        return Literal(value_str, scalar_type)
+        return IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.TINY, [Reference(var_symbol)])

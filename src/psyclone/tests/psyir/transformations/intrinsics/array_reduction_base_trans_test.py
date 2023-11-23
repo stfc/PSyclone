@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''Module containing tests for the mms_base_trans which is an abstract
-parent class for the sum2code_trans, minval2code_trans and
-maxval2code_trans transformations.
+'''Module containing tests for the array_reduction_base_trans which is
+an abstract parent class for the array-reduction intrinsic
+transformations.
 
 '''
 import pytest
@@ -44,9 +44,9 @@ from psyclone.psyir.nodes import IntrinsicCall, Reference, Literal
 from psyclone.psyir.symbols import (
     Symbol, BOOLEAN_TYPE, INTEGER_TYPE, DataSymbol, REAL_TYPE)
 from psyclone.psyir.transformations import (
-    TransformationError, Maxval2CodeTrans)
-from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
-    MMSBaseTrans)
+    TransformationError, Maxval2LoopTrans)
+from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
+    import ArrayReductionBaseTrans
 from psyclone.tests.utilities import Compile
 
 
@@ -54,11 +54,11 @@ def test_init_exception():
     '''Check that this class can't be created as it is abstract.'''
     # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as info:
-        _ = MMSBaseTrans()
+        _ = ArrayReductionBaseTrans()
     # Python >= 3.12 tweaks the error message to mention
     # the lack of an implementation and to quote the method names.
     # We split the check to accomodate for this.
-    assert ("Can't instantiate abstract class MMSBaseTrans with"
+    assert ("Can't instantiate abstract class ArrayReductionBaseTrans with"
             in str(info.value))
     assert "abstract methods" in str(info.value)
     assert "_init_var" in str(info.value)
@@ -70,7 +70,7 @@ def test_get_args():
     # array
     array_reference = Reference(Symbol("array"))
     node = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [array_reference])
-    result = MMSBaseTrans._get_args(node)
+    result = ArrayReductionBaseTrans._get_args(node)
     assert result == (array_reference, None, None)
 
     # array, mask, dim
@@ -79,13 +79,13 @@ def test_get_args():
     node = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [
         array_reference.copy(), ("mask", mask_reference),
         ("dim", dim_reference)])
-    result = MMSBaseTrans._get_args(node)
+    result = ArrayReductionBaseTrans._get_args(node)
     assert result == (array_reference, dim_reference, mask_reference)
 
 
 def test_str():
     ''' Check that the __str__ method behaves as expected. '''
-    assert str(Maxval2CodeTrans()) == ("Convert the PSyIR MAXVAL intrinsic to "
+    assert str(Maxval2LoopTrans()) == ("Convert the PSyIR MAXVAL intrinsic to "
                                        "equivalent PSyIR code.")
 
 
@@ -93,10 +93,10 @@ def test_str():
 
 def test_validate_node():
     '''Check that an incorrect node raises the expected exception.'''
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert ("Error in Maxval2CodeTrans transformation. The supplied node "
+    assert ("Error in Maxval2LoopTrans transformation. The supplied node "
             "argument is not an intrinsic, found 'NoneType'."
             in str(info.value))
 
@@ -128,7 +128,7 @@ def test_structure_error(fortran_reader):
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0].children[1]
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
     assert ("Error, no ArrayReference's found in the expression 'ref%array'."
@@ -136,10 +136,10 @@ def test_structure_error(fortran_reader):
 
 
 def test_lhs(fortran_reader):
-    '''Test that an exception is raised when the minval, maxval or
-    sum is on the LHS of an asssignment. Uses the Maxval2CodeTrans
-    transformation (a subclass of MMSBaseTrans), as it is easier to
-    test.
+    '''Test that an exception is raised when an array-reduction intrinsic
+    is on the LHS of an asssignment. Uses the Maxval2LoopTrans
+    transformation (a subclass of ArrayReductionBaseTrans), as it is
+    easier to test.
 
     '''
     code = (
@@ -149,7 +149,7 @@ def test_lhs(fortran_reader):
         "  result(maxval(array)) = 0.0\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[0].children[0]
     with pytest.raises(TransformationError) as info:
@@ -179,7 +179,7 @@ def test_array_shape(fortran_reader, monkeypatch):
     array_symbol = array_ref.symbol
     monkeypatch.setattr(array_symbol._datatype, "_shape", [None])
 
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     with pytest.raises(TypeError) as info:
         trans.validate(node)
     assert ("ArrayType shape-list elements can only be 'int', "
@@ -207,7 +207,7 @@ def test_unexpected_shape(fortran_reader, monkeypatch):
     # exception
     monkeypatch.setattr(array_ref.symbol._datatype, "_shape", [1])
 
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
     assert ("Unexpected shape for array. Expecting one of Deferred, Attribute "
@@ -228,10 +228,10 @@ def test_not_assignment(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Call/IntrinsicCall
     node = psyir.children[0].children[0].children[0]
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
-    assert ("Maxval2CodeTrans only works when the intrinsic is part "
+    assert ("Maxval2LoopTrans only works when the intrinsic is part "
             "of an Assignment" in str(info.value))
 
 
@@ -271,7 +271,7 @@ def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.walk(IntrinsicCall)[0]
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
     assert expected in result
@@ -305,7 +305,7 @@ def test_apply_multi(fortran_reader, fortran_writer, tmpdir):
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
     node = psyir.walk(IntrinsicCall)[0]
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
     assert expected in result
@@ -328,7 +328,7 @@ def test_apply_dimension_1d(fortran_reader):
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.walk(IntrinsicCall)[0]
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
     assert ("The dimension argument to MAXVAL is not yet supported."
@@ -359,7 +359,7 @@ def test_mask(fortran_reader, fortran_writer, tmpdir):
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.walk(IntrinsicCall)[0]
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
     assert expected in result
@@ -369,8 +369,8 @@ def test_mask(fortran_reader, fortran_writer, tmpdir):
 def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
     '''Test that the mask code works if the array iself it used as part of
     the mask. In this case it will already be indexed. Use the
-    Maxval2CodeTrans transformation (a subclass of MMSBaseTrans), as
-    it is easier to test.
+    Maxval2LoopTrans transformation (a subclass of
+    ArrayReductionBaseTrans), as it is easier to test.
 
     '''
     code = (
@@ -391,7 +391,7 @@ def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
         "    end if\n"
         "  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.walk(IntrinsicCall)[0]
     trans.apply(node)
@@ -403,8 +403,8 @@ def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
 def test_allocate(fortran_reader, fortran_writer, tmpdir):
     '''Test that a newly created array is allocated after the original
     array is allocated (if the original array is allocated). Use the
-    Maxval2CodeTrans transformations (a subclass of MMSBaseTrans), as
-    it is easier to test.
+    Maxval2LoopTrans transformations (a subclass of
+    ArrayReductionBaseTrans), as it is easier to test.
 
     '''
     code = (
@@ -427,7 +427,7 @@ def test_allocate(fortran_reader, fortran_writer, tmpdir):
         "  enddo\n"
         "  DEALLOCATE(a)\n")
     psyir = fortran_reader.psyir_from_source(code)
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.walk(IntrinsicCall)[1]
     trans.apply(node)
@@ -461,7 +461,7 @@ def test_references(fortran_reader, fortran_writer, tmpdir):
         "    enddo\n"
         "  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans.apply(node)
@@ -488,7 +488,7 @@ def test_nemo_example(fortran_reader, fortran_writer, tmpdir):
         "    enddo\n"
         "  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans.apply(node)
@@ -516,7 +516,7 @@ def test_constant_dims(fortran_reader, fortran_writer, tmpdir):
         "    end if\n"
         "  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans.apply(node)
@@ -548,7 +548,7 @@ def test_expression_1d(fortran_reader, fortran_writer, tmpdir):
         "  enddo\n\n"
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans.apply(node)
@@ -585,10 +585,12 @@ def test_expression_3d(fortran_reader, fortran_writer, tmpdir):
         "  enddo\n\n"
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
-    trans = Maxval2CodeTrans()
+    trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans.apply(node)
     result = fortran_writer(psyir)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
+
+# TODO MULTIPLE SAME INTRINSICS ON SAME LINE

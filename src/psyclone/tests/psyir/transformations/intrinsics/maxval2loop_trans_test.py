@@ -33,14 +33,14 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''Module containing tests for the minval2code transformation.'''
+'''Module containing tests for the maxval2loop transformation.'''
 
 import pytest
 
 from psyclone.psyir.nodes import Reference, Literal
 from psyclone.psyir.symbols import REAL_TYPE, DataSymbol
 from psyclone.psyir.transformations import (
-    Minval2CodeTrans, TransformationError)
+    Maxval2LoopTrans, TransformationError)
 from psyclone.tests.utilities import Compile
 
 
@@ -49,28 +49,28 @@ def test_initialise():
     _INTRINSIC_NAME is set up as expected.
 
     '''
-    trans = Minval2CodeTrans()
-    assert isinstance(trans, Minval2CodeTrans)
-    assert trans._INTRINSIC_NAME == "MINVAL"
+    trans = Maxval2LoopTrans()
+    assert isinstance(trans, Maxval2LoopTrans)
+    assert trans._INTRINSIC_NAME == "MAXVAL"
 
 
 def test_loop_body():
     '''Test that the _loop_body method works as expected.'''
-    trans = Minval2CodeTrans()
+    trans = Maxval2LoopTrans()
     lhs = Reference(DataSymbol("i", REAL_TYPE))
     rhs = Literal("1.0", REAL_TYPE)
     result = trans._loop_body(lhs, rhs)
-    assert "MIN(i, 1.0)" in result.debug_string()
+    assert "MAX(i, 1.0)" in result.debug_string()
 
 
 def test_init_var():
     '''Test that the _init_var method works as expected.'''
-    trans = Minval2CodeTrans()
+    trans = Maxval2LoopTrans()
     var_symbol = DataSymbol("var", REAL_TYPE)
     result = trans._init_var(var_symbol)
-    # As 'huge' is not yet part of an expression, the 'debug_string()'
+    # As 'tiny' is not yet part of an expression, the 'debug_string()'
     # method incorrectly assumes it is a call.
-    assert result.debug_string() == "call HUGE(var)\n"
+    assert result.debug_string() == "call TINY(var)\n"
 
 
 def test_str():
@@ -78,8 +78,8 @@ def test_str():
     as expected.
 
     '''
-    trans = Minval2CodeTrans()
-    assert str(trans) == ("Convert the PSyIR MINVAL intrinsic to equivalent "
+    trans = Maxval2LoopTrans()
+    assert str(trans) == ("Convert the PSyIR MAXVAL intrinsic to equivalent "
                           "PSyIR code.")
 
 
@@ -88,8 +88,8 @@ def test_name():
     as expected.
 
     '''
-    trans = Minval2CodeTrans()
-    assert trans.name == "Minval2CodeTrans"
+    trans = Maxval2LoopTrans()
+    assert trans.name == "Maxval2LoopTrans"
 
 
 def test_validate():
@@ -97,10 +97,10 @@ def test_validate():
     works as expected.
 
     '''
-    trans = Minval2CodeTrans()
+    trans = Maxval2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert ("Error in Minval2CodeTrans transformation. The supplied node "
+    assert ("Error in Maxval2LoopTrans transformation. The supplied node "
             "argument is not an intrinsic, found 'NoneType'."
             in str(info.value))
 
@@ -111,24 +111,32 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
 
     '''
     code = (
-        "subroutine minval_test(array,n,m)\n"
+        "subroutine maxval_test(array,n,m)\n"
         "  integer :: n, m\n"
         "  real :: array(10,20)\n"
         "  real :: result\n"
-        "  result = minval(array)\n"
+        "  result = maxval(array)\n"
         "end subroutine\n")
     expected = (
-        "  result = HUGE(result)\n"
+        "subroutine maxval_test(array, n, m)\n"
+        "  integer :: n\n"
+        "  integer :: m\n"
+        "  real, dimension(10,20) :: array\n"
+        "  real :: result\n"
+        "  integer :: idx\n"
+        "  integer :: idx_1\n\n"
+        "  result = TINY(result)\n"
         "  do idx = 1, 20, 1\n"
         "    do idx_1 = 1, 10, 1\n"
-        "      result = MIN(result, array(idx_1,idx))\n"
+        "      result = MAX(result, array(idx_1,idx))\n"
         "    enddo\n"
-        "  enddo\n")
+        "  enddo\n\n"
+        "end subroutine maxval_test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     intrinsic_node = psyir.children[0].children[0].children[1]
-    trans = Minval2CodeTrans()
+    trans = Maxval2LoopTrans()
     trans.apply(intrinsic_node)
     result = fortran_writer(psyir)
-    assert expected in result
+    assert result == expected
     assert Compile(tmpdir).string_compiles(result)

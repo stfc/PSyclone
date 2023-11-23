@@ -33,14 +33,14 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''Module containing tests for the sum2code transformation.'''
+'''Module containing tests for the sum2loop transformation.'''
 
 import pytest
 
 from psyclone.psyir.nodes import Reference, Literal
 from psyclone.psyir.symbols import (
     REAL_TYPE, DataSymbol, INTEGER_TYPE, ScalarType)
-from psyclone.psyir.transformations import Sum2CodeTrans, TransformationError
+from psyclone.psyir.transformations import Sum2LoopTrans, TransformationError
 from psyclone.tests.utilities import Compile
 
 
@@ -49,14 +49,14 @@ def test_initialise():
     _INTRINSIC_NAME is set up as expected.
 
     '''
-    trans = Sum2CodeTrans()
-    assert isinstance(trans, Sum2CodeTrans)
+    trans = Sum2LoopTrans()
+    assert isinstance(trans, Sum2LoopTrans)
     assert trans._INTRINSIC_NAME == "SUM"
 
 
 def test_loop_body():
     '''Test that the _loop_body method works as expected.'''
-    trans = Sum2CodeTrans()
+    trans = Sum2LoopTrans()
     lhs = Reference(DataSymbol("i", REAL_TYPE))
     rhs = Literal("1.0", REAL_TYPE)
     result = trans._loop_body(lhs, rhs)
@@ -73,7 +73,7 @@ def test_init_var(name, precision, zero):
     integer and with a specified precision.
 
     '''
-    trans = Sum2CodeTrans()
+    trans = Sum2LoopTrans()
     datatype = ScalarType(name, precision)
     var_symbol = DataSymbol("var", datatype)
     result = trans._init_var(var_symbol)
@@ -85,7 +85,7 @@ def test_str():
     as expected.
 
     '''
-    trans = Sum2CodeTrans()
+    trans = Sum2LoopTrans()
     assert str(trans) == ("Convert the PSyIR SUM intrinsic to equivalent "
                           "PSyIR code.")
 
@@ -95,8 +95,8 @@ def test_name():
     as expected.
 
     '''
-    trans = Sum2CodeTrans()
-    assert trans.name == "Sum2CodeTrans"
+    trans = Sum2LoopTrans()
+    assert trans.name == "Sum2LoopTrans"
 
 
 def test_validate():
@@ -104,10 +104,10 @@ def test_validate():
     works as expected.
 
     '''
-    trans = Sum2CodeTrans()
+    trans = Sum2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert ("Error in Sum2CodeTrans transformation. The supplied node "
+    assert ("Error in Sum2LoopTrans transformation. The supplied node "
             "argument is not an intrinsic, found 'NoneType'."
             in str(info.value))
 
@@ -134,7 +134,7 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     intrinsic_node = psyir.children[0].children[0].children[1]
-    trans = Sum2CodeTrans()
+    trans = Sum2LoopTrans()
     trans.apply(intrinsic_node)
     result = fortran_writer(psyir)
     assert expected in result
