@@ -223,23 +223,6 @@ class SIRWriter(PSyIRVisitor):
                   f"VerticalRegion.Forward))\n"
         return result
 
-    def nemokern_node(self, node):
-        '''NEMO kernels are a group of nodes collected into a schedule
-        so simply visit the nodes in the schedule.
-
-        :param node: a NemoKern PSyIR node.
-        :type node: :py:class:`psyclone.nemo.NemoKern`
-
-        :returns: the SIR Python code.
-        :rtype: str
-
-        '''
-        result = ""
-        schedule = node.get_kernel_schedule()
-        for child in schedule.children:
-            result += self._visit(child)
-        return result
-
     def nemoinvokeschedule_node(self, node):
         '''This method is called when a NemoInvokeSchedule instance is found
         in the PSyIR tree.

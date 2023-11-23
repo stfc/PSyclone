@@ -89,7 +89,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
     '''
     def apply(self, node, options=None):
-        ''' Apply the transformation that given an assignment with an
+        ''' Apply the transformation such that, given an assignment with an
         ArrayReference Range in the LHS (equivalent to an array assignment
         statement in Fortran), it converts it to an explicit loop doing each
         of the individual element assignments separately.
@@ -98,8 +98,8 @@ class NemoArrayRange2LoopTrans(Transformation):
         to indicate which array index should be transformed. This can only
         be applied to the outermost Range of the ArrayReference.
 
-        This is currently specific to NEMO. It will create NemoLoops and
-        put the loop body inside a NemoKern to conform to the NEMO API.
+        This is currently specific to the 'nemo' API in that it will create
+        NemoLoops.
 
         :param node: a Range node.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
