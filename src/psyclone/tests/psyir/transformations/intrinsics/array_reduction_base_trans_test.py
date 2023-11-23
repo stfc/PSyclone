@@ -593,4 +593,29 @@ def test_expression_3d(fortran_reader, fortran_writer, tmpdir):
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
 
-# TODO MULTIPLE SAME INTRINSICS ON SAME LINE
+
+def test_multi_intrinsics(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the expected code is produced when there is more than
+    one of the same intrinsic on the rhs of the assignment.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "real :: a(10), b(10)\n"
+        "real :: x\n"
+        "x = maxval(a(:)) + maxval(b(:))\n"
+        "end subroutine\n")
+    expected = (
+        "  x = TINY(x)\n"
+        "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
+        "    x = MAX(x, a(idx))\n"
+        "  enddo\n"
+        "  x = x + MAXVAL(b(:))\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Maxval2LoopTrans()
+    # FileContainer/Routine/Assignment/BinaryOp/IntrinsicCall
+    node = psyir.children[0].children[0].children[1].children[0]
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    assert result == expected
+    assert Compile(tmpdir).string_compiles(result)
