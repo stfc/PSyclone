@@ -163,9 +163,6 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                     "currently supported.")
 
         if len(array_ref.children) == 0:
-            if not array_ref.symbol.is_array:
-                raise TransformationError(
-                    f"Expected '{array_ref.name}' to be an array.")
             for shape in array_ref.symbol.shape:
                 if not (shape in [
                         ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]
