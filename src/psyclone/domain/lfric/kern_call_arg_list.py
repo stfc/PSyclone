@@ -938,29 +938,34 @@ class KernCallArgList(ArgOrdering):
                 "colour", tag="colours_loop_idx")
 
             from psyclone.dynamo0p3 import DynLoop
-            if self._kern.ancestor(DynLoop)._loop_type == "tile":
+            loop_type = self._kern.ancestor(DynLoop)._loop_type
+
+            # If there is only one colourmap we need to specify the tag
+            # to make sure we get the right symbol.
+            if self._kern.is_intergrid:
+                tag = None
+            elif loop_type == "tile":
+                tag = "tmap"
+            else:
+                tag = "cmap"
+
+            if loop_type == "tile":
                 tile_sym = self._symtab.find_or_create_integer_symbol(
                     "tile", tag="tile_loop_idx")
                 array_ref = self.get_array_reference(
-                    self._kern.colourtilemap,
+                    self._kern.tilecolourmap,
                     [Reference(colour_sym), Reference(tile_sym),
                      Reference(cell_sym)],
                     ScalarType.Intrinsic.INTEGER,
-                    tag="tmap")
-                return (self._kern.colourtilemap + "(colour,tile,cell)",
+                    tag=tag)
+                return (self._kern.tilecolourmap + "(colour,tile,cell)",
                         array_ref)
             else:
-                if self._kern.is_intergrid:
-                    tag = None
-                else:
-                    # If there is only one colourmap we need to specify the tag
-                    # to make sure we get the right symbol.
-                    tag = "cmap"
-                array_ref = self.get_array_reference(self._kern.colourmap,
-                                                     [Reference(colour_sym),
-                                                      Reference(cell_sym)],
-                                                     ScalarType.Intrinsic.INTEGER,
-                                                     tag=tag)
+                array_ref = self.get_array_reference(
+                                self._kern.colourmap,
+                                [Reference(colour_sym), Reference(cell_sym)],
+                                ScalarType.Intrinsic.INTEGER,
+                                tag=tag)
                 if var_accesses is not None:
                     var_accesses.add_access(Signature(colour_sym.name),
                                             AccessType.READ, self._kern)

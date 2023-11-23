@@ -678,10 +678,11 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         # colouring.
         const = LFRicConstants()
         if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
-            if node.loop_type != 'colour' and node.has_inc_arg():
+            if node.loop_type not in ('colour', 'colourtiles') and node.has_inc_arg():
                 raise TransformationError(
                     f"Error in {self.name} transformation. The kernel has an "
-                    f"argument with INC access. Colouring is required.")
+                    f"argument with INC access but the loop is of type "
+                    f"'{node.loop_type}'. Colouring is required.")
         # As this is a domain-specific loop, we don't perform general
         # dependence analysis because it is too conservative and doesn't
         # account for the special steps taken for such a loop at code-

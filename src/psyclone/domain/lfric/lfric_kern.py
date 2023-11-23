@@ -418,9 +418,9 @@ class LFRicKern(CodedKern):
         return cmap
 
     @property
-    def colourtilemap(self):
+    def tilecolourmap(self):
         '''
-        Getter for the name of the colourtilemap associated with this
+        Getter for the name of the tilecolourmap associated with this
         kernel call.
 
         :returns: name of the colourmap (Fortran array).
@@ -438,10 +438,10 @@ class LFRicKern(CodedKern):
             invoke = sched.invoke
             if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
-                    f"Colourtilemap information for kernel '{self.name}'"
+                    f"Tilecolourmap information for kernel '{self.name}'"
                     f" has not yet been initialised")
             tmap = invoke.meshes.intergrid_kernels[id(self)].\
-                colourmap_symbol.name
+                tilecolourmap_symbol.name
         else:
             try:
                 tmap = sched.symbol_table.lookup_with_tag("tmap").name
