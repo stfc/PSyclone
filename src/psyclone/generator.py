@@ -335,10 +335,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                         container_symbols += [
                             symbol.name for symbol in st_ref.containersymbols]
                     message = (
-                        f"Kernel functor '{kern.symbol.name}' in routine "
-                        f"'{kern.scope.name}' from algorithm file "
-                        f"'{filename}' must be named in a use "
-                        f"statement (found {container_symbols})")
+                        f"Kernel functor '{kern.name}' in routine "
+                        f"'{kern.ancestor(Routine).name}' from algorithm file "
+                        f"'{filename}' must be named in a use statement "
+                        f"(found {container_symbols})")
                     if api == "dynamo0.3":
                         message += (
                             f" or be a recognised built-in (one of "
@@ -369,7 +369,6 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                         kernel_psyir,
                         options={"metadata_name": kern.symbol.name})
 
-                # kernels[id(invoke)][id(kern)] = kernel_psyir
                 kernels[id(invoke)][id(kern)] = kernel_psyir
 
         # Transform 'invoke' calls into calls to PSy-layer subroutines

@@ -3277,11 +3277,11 @@ int_X
 **int_X** (**ifield2**, *field1*)
 
 Converts ``real``-valued field elements to ``integer``-valued field
-elements, e.g. in Fortran this would be: ``Y = int(X, i_def)``.
+elements, e.g. in Fortran this would be: ``Y = INT(X, kind=i_def)``.
 Here ``Y`` is an ``integer``-valued field and ``X`` is the
 ``real``-valued field being converted::
 
-  ifield2(:) = INT(field1(:), i_def)
+  ifield2(:) = INT(field1(:), kind=i_def)
 
 where **ifield2** is an ``integer_field_type`` of ``i_def`` precision
 and a ``real``-valued field *field1* can be of any :ref:`supported
@@ -3579,12 +3579,12 @@ real_X
 
 **real_X** (**field2**, *ifield1*)
 
-Converts ``integer``-valued field elements to ``real``-valued
-field elements, e.g. in Fortran this would be ``Y = real(X, r_def)``.
+Converts ``integer``-valued field elements to ``real``-valued field
+elements, e.g. in Fortran this would be ``Y = REAL(X, kind=r_def)``.
 Here ``Y`` is a ``real``-valued field and ``X`` is the
 ``integer``-valued field being converted::
 
-  field2(:) = REAL(ifield1(:), r_<prec>)
+  field2(:) = REAL(ifield1(:), kind=r_<prec>)
 
 where *ifield1* is an ``integer_field_type`` of ``i_def`` precision.
 The ``real``-valued **field1** can be of any :ref:`supported
@@ -3748,6 +3748,24 @@ values are defined in the LFRic infrastructure code.
           type is supported in the LFRic API for scalar arguments, it is
           not yet available for fields and operators. This will be added
           as required in future releases.
+
+.. _lfric-precision-map:
+
+Precision Map
++++++++++++++
+
+This gives the amount of storage (in bytes) associated with a
+particular LFRic precision. The values for 'r_tran', 'r_solver',
+'r_def', 'r_bl' and 'r_phys' are set within LFRic infrastructure
+according to CPP ifdefs. The values given in the configuration file
+are the defaults. 'l_def' is included in the dictionary so that it
+contains a complete record of the various precision symbols used in
+LFRic.
+
+.. note:: Storing the precision map in the LFRic API within PSyclone is a
+          temporary measure which will yield to the LFRic infrastructure
+          as the single source of precisions, as discussed in PSyclone
+          issue #1941.
 
 .. _lfric-num-any-spaces:
 

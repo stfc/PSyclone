@@ -1869,7 +1869,7 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1881,7 +1881,7 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
 
@@ -1910,7 +1910,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -1922,7 +1922,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n") in code
@@ -1956,7 +1956,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1969,7 +1969,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop1_start,loop1_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1983,7 +1983,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -1994,7 +1994,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop1_start,loop1_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
 
@@ -2229,7 +2229,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
@@ -2254,7 +2254,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
@@ -2311,7 +2311,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-            "f1_data(df)*f2_data(df)\n"
+            "f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2353,7 +2353,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-            "f1_data(df)*f2_data(df)\n"
+            "f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2460,7 +2460,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -2489,7 +2489,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -2542,7 +2542,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -2570,7 +2570,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
@@ -2624,7 +2624,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2657,7 +2657,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2714,7 +2714,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=loop0_start,loop0_stop\n"
-                "        asum = asum + f1_data(df)*f2_data(df)\n"
+                "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n"
@@ -2738,7 +2738,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=loop0_start,loop0_stop\n"
-                "        asum = asum + f1_data(df)*f2_data(df)\n"
+                "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n")
@@ -2792,7 +2792,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=loop0_start,loop0_stop\n"
-                "        asum = asum + f1_data(df)*f2_data(df)\n"
+                "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -2815,7 +2815,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=loop0_start,loop0_stop\n"
-                "        asum = asum + f1_data(df)*f2_data(df)\n"
+                "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3139,8 +3139,8 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)"
-            "*f2_data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "* f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -3164,8 +3164,8 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)"
-            "*f2_data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "* f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -3258,8 +3258,8 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)"
-            "*f2_data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "* f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -3298,8 +3298,8 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)"
-            "*f2_data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "* f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -3380,7 +3380,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp do schedule(static)\n"
                 "      DO df=loop0_start,loop0_stop\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-                "f1_data(df)*f2_data(df)\n"
+                "f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3414,7 +3414,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp do schedule(static)\n"
                 "      DO df=loop0_start,loop0_stop\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-                "f1_data(df)*f2_data(df)\n"
+                "f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3551,7 +3551,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
 
         for names in [
                 {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
-                 "rhs": "f1_data(df)*f2_data(df)"},
+                 "rhs": "f1_data(df) * f2_data(df)"},
                 {"var": "bsum", "lvar": "l_bsum", "loop_idx": "2",
                  "rhs": "f2_data(df)"}]:
             assert (
@@ -3587,7 +3587,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
 
         for names in [
                 {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
-                 "rhs": "f1_data(df)*f2_data(df)"},
+                 "rhs": "f1_data(df) * f2_data(df)"},
                 {"var": "bsum", "lvar": "l_bsum",
                  "loop_idx": "2", "rhs": "f2_data(df)"}]:
             assert (
@@ -4222,7 +4222,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
+
     for idx in range(1, 4):
         assert f"IF (f2_proxy({idx})%is_dirty(depth=3)) THEN" in result
         assert f"CALL f2_proxy({idx})%halo_exchange(depth=3)" in result

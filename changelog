@@ -61,6 +61,22 @@
 	23) PR #2366 towards #342. Improve symbols and tighten-up ACCRoutineTrans
 	validation.
 
+	24) PR #2383 towards #2256. Adds support for 'DO CONCURRENT' in the
+	fparser2 frontend.
+
+	25) PR #2100 for #2091. Renames DynKern to LFRicKern and moves its
+	implementation to domain/lfric.
+
+	26) PR #2391 for #2390. Fix bug in generator.py error message.
+
+	27) PR #2364 towards #1941. Moves map of LFRic precisions to
+	config. file.
+
+	28) PR #2376 for #1525. Add lowering methods to all LFRic Built-ins.
+
+	29) PR #2406 for #2404. Fixes bug in setop_random kernel (was only
+	filling the lowest vertical level).
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
