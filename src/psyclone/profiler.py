@@ -40,7 +40,8 @@
 
 import sys
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Return, Directive, ACCDirective
+from psyclone.psyir.nodes import (ACCDirective, Directive, OMPTargetDirective,
+                                  Return)
 from psyclone.psyir.transformations import ProfileTrans
 
 
@@ -143,10 +144,12 @@ class Profiler():
                 while parent_loop:
                     target = parent_loop
                     parent_loop = parent_loop.ancestor(loop_class)
-                # We only add profiling if we're not within some OpenACC
-                # region (as otherwise, the PSyData routines being called
-                # would have to be compiled for the GPU).
-                if target and not target.ancestor(ACCDirective):
+                if not target:
+                    # At the minute, every Kernel must have a parent loop (even
+                    # a DomainKernel) but that might not always be true in
+                    # future.
+                    target_nodes = klist
+                else:
                     # Have to take care that the target loop does not have
                     # a directive applied to it. We distinguish this case
                     # from that of a directive defining a region by checking
@@ -156,8 +159,17 @@ class Profiler():
                         # Parent is a Directive that has only the current
                         # loop as a child. Therefore, enclose the Directive
                         # within the profiling region too.
-                        target = target.parent.parent
-                    profile_trans.apply(target)
+                        target_nodes = [target.parent.parent]
+                    else:
+                        target_nodes = [target]
+                # We only add profiling if we're not within some OpenACC
+                # or OpenMP Target region (as otherwise, the PSyData routines
+                # being called would have to be compiled for the GPU).
+                if not target_nodes[0].ancestor((ACCDirective,
+                                                 OMPTargetDirective)):
+                    profile_trans.apply(target_nodes)
+                # TODO #11 - log that profiling couldn't be added here.
+
         if Profiler.profile_invokes():
             # We cannot include Return statements within profiling regions
             returns = schedule.walk(Return)

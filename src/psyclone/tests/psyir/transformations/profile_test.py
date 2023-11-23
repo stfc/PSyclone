@@ -43,17 +43,18 @@ import re
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
                                   Assignment, Return, Reference,
-                                  KernelSchedule, Schedule)
+                                  KernelSchedule, Routine, Schedule)
 from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
-from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.transformations import ProfileTrans
+from psyclone.psyir.transformations import ProfileTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
+from psyclone.transformations import (ACCKernelsTrans, GOceanOMPLoopTrans,
+                                      OMPParallelTrans)
 
 
 # -----------------------------------------------------------------------------
@@ -452,6 +453,50 @@ ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
       END DO
       CALL profile_psy_data%PostEnd
+'''
+    assert expected in code
+
+
+# -----------------------------------------------------------------------------
+def test_profile_kernels_without_loop_dynamo0p3():
+    '''Check that kernels are instrumented correctly in an LFRic
+    (Dynamo 0.3) invoke when there is no parent loop. This is currently
+    impossible so we construct an artificial Schedule to test.
+
+    '''
+    Profiler.set_options([Profiler.KERNELS], "dynamo0.3")
+    _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0,
+                           dist_mem=False)
+
+    # Create a new Routine and copy over the Kernels from the invoke schedule.
+    new_sched = Routine("test_routine")
+    for kern in invoke.schedule.walk(LFRicKern):
+        new_sched.addchild(kern.copy())
+    # Check that the profiling node is added as expected.
+    Profiler.add_profile_nodes(new_sched, Loop)
+    assert isinstance(new_sched[0], ProfileNode)
+    assert isinstance(new_sched[0].children[0].children[0], LFRicKern)
+    assert isinstance(new_sched[0].children[0].children[1], LFRicKern)
+
+
+# -----------------------------------------------------------------------------
+def test_profile_kernels_in_directive_dynamo0p3():
+    '''
+    Check that a kernel is instrumented correctly if it is within a directive.
+    '''
+    Profiler.set_options([Profiler.KERNELS], "dynamo0.3")
+    _, invoke = get_invoke("1_single_invoke_w3.f90", "dynamo0.3", idx=0,
+                           dist_mem=False)
+    ktrans = ACCKernelsTrans()
+    loop = invoke.schedule.walk(Loop)[0]
+    ktrans.apply(loop)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
+    code = str(invoke.gen())
+    expected = '''\
+      CALL profile_psy_data%PreStart("single_invoke_w3_psy", \
+"invoke_0_testkern_w3_type:testkern_w3_code:r0", 0, 0)
+      !$acc kernels
+      DO cell=loop0_start,loop0_stop
 '''
     assert expected in code
 
