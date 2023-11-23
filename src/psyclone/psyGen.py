@@ -1120,7 +1120,7 @@ class Kern(Statement):
     def reduction_arg(self):
         '''
         :returns: the reduction variable if this kernel/built-in
-        contains one and `None` otherwise.
+                  contains one and `None` otherwise.
         :rtype: :py:class:`psyclone.psyGen.KernelArgument` or `NoneType`
 
         '''
@@ -1130,9 +1130,9 @@ class Kern(Statement):
     def reprod_reduction(self):
         '''
         :returns: whether this kernel/built-in is enclosed within an OpenMP
-        do loop. If so report whether it has the reproducible flag
-        set. Note, this also catches OMPParallelDo Directives but they
-        have reprod set to False so it is OK.
+                  do loop. If so report whether it has the reproducible flag
+                  set. Note, this also catches OMPParallelDo Directives but they
+                  have reprod set to False so it is OK.
         :rtype: bool
 
         '''
