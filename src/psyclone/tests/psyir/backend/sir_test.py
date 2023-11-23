@@ -393,17 +393,18 @@ def test_sirwriter_nemoloop_node_6(parser, sir_writer):
             in str(excinfo.value))
 
 
-def test_sirwriter_nemoloop_node_not_parallel(parser, sir_writer):
+def test_sirwriter_nemoloop_node_not_compute(parser, sir_writer):
     '''Check the nemoloop_node method of the SIRWriter class raises an
-    exception if the content of the triply nested loop is not parallelisable.
+    exception if the content of the triply nested loop is not computation.
 
     '''
     code = CODE.replace("          a(i,j,k) = 1.0\n",
-                        "          a(i,j,k) = a(i,j,k-1)\n")
+                        "          write(*,*) a(i,j,k)\n")
     schedule = get_schedule(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
-    assert "Innermost loop should be parallelisable" in str(excinfo.value)
+    assert ("A loop nest containing a CodeBlock cannot be translated to SIR"
+            in str(excinfo.value))
 
 
 # (1/2) Method nemoinvokeschedule_node

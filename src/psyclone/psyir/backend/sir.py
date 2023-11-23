@@ -41,8 +41,9 @@ gen() method to generate Fortran.
 '''
 from psyclone.nemo import NemoLoop
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import ArrayReference, BinaryOperation, Literal, \
-    Reference, UnaryOperation, IntrinsicCall
+from psyclone.psyir.nodes import (
+    ArrayReference, BinaryOperation, CodeBlock, Literal,
+    Reference, UnaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import ScalarType
 
 # Mapping from PSyIR data types to SIR types.
@@ -163,7 +164,7 @@ class SIRWriter(PSyIRVisitor):
 
     def nemoloop_node(self, loop_node):
         '''Supported NEMO loops are triply nested with particular indices (not
-        yet checked) and should contain parallelisable code. If this is not the
+        yet checked) and should contain only computation. If this is not the
         case then it is not possible to translate so an exception is
         raised.
 
@@ -194,12 +195,13 @@ class SIRWriter(PSyIRVisitor):
             raise VisitorError(
                 "Child of child of loop should be a single loop.")
 
-        # Check third loop does not contain any more loops and is
-        # parallelisable.
+        # Check that the innermost loop does not contain any CodeBlocks.
         loop3 = loops[2]
-        if not loop3.independent_iterations():
+        if loop3.walk(CodeBlock):
             raise VisitorError(
-                "Innermost loop should be parallelisable.")
+                f"A loop nest containing a CodeBlock cannot be translated to "
+                f"SIR:\n"
+                f"{loop3.debug_string()}")
 
         # The interval values are hardcoded for the moment (see #470).
         result = f"{self._nindent}interval = "\
