@@ -346,7 +346,8 @@ class KernelModuleInlineTrans(Transformation):
             if existing_symbol.is_import:
                 # The RoutineSymbol is in the table but that is because it is
                 # imported. We must therefore update its interface and
-                # potentially remove the ContainerSymbol altogether.
+                # potentially remove the ContainerSymbol (from which it is
+                # imported) altogether.
                 csym = existing_symbol.interface.container_symbol
                 # The import of the routine symbol may be in an outer scope.
                 ctable = csym.find_symbol_table(node)

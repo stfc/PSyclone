@@ -148,11 +148,6 @@ def test_routinesymbol_str():
             "elemental=False>")
 
 
-def test_get_routine():
-    '''Test the get_routine() method.'''
-
-
-
 def test_get_routine_recursive(fortran_reader, fortran_writer, tmpdir,
                                monkeypatch):
     '''
