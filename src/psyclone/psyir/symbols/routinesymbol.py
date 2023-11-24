@@ -36,7 +36,7 @@
 
 ''' This module contains the RoutineSymbol.'''
 
-from psyclone.psyir.symbols.datatypes import NoType
+from psyclone.psyir.symbols.datatypes import NoType, UnknownFortranType
 from psyclone.psyir.symbols.symbol import SymbolError
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -164,7 +164,12 @@ class RoutineSymbol(TypedSymbol):
         :returns: the PSyIR of the implementation of this Routine.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
-        :raises NotImplementedError: if this symbol is unresolved.
+        :raises NotImplementedError: if this symbol is unresolved or is of
+            UnknownFortranType (which often means it is an Interface).
+        :raises ValueError: if this symbol is not imported and no `container`
+            has been supplied in which to search.
+        :raises SymbolError: if the RoutineSymbol is not imported or unresolved
+            but an associated Routine cannot be found in the Container.
 
         '''
         if self.is_unresolved:
@@ -172,6 +177,7 @@ class RoutineSymbol(TypedSymbol):
             raise NotImplementedError(
                 f"RoutineSymbol '{self.name}' is unresolved and searching for "
                 f"its implementation is not yet supported.")
+
         if self.is_import:
             csym = self.interface.container_symbol
             # If necessary, this will search for and process the source file
@@ -182,16 +188,22 @@ class RoutineSymbol(TypedSymbol):
                 # We now know that this is a RoutineSymbol so specialise it
                 # in place.
                 rsym.specialise(RoutineSymbol)
-            if rsym.is_import:
-                # This symbol is itself imported into the current Container so
-                # we recurse.
-                return rsym.get_routine(container)
-        else:
-            if not container:
-                raise ValueError(
-                    f"RoutineSymbol '{self.name}' is not imported so a "
-                    f"Container node must be provided in order to search for "
-                    f"its Schedule.")
+            # This symbol is itself imported into the current Container so
+            # we recurse.
+            return rsym.get_routine(container)
+
+        if not container:
+            raise ValueError(
+                f"RoutineSymbol '{self.name}' is not imported so a "
+                f"Container node must be provided in order to search for "
+                f"its Schedule.")
+
+        if isinstance(self.datatype, UnknownFortranType):
+            raise NotImplementedError(
+                f"RoutineSymbol '{self.name}' exists in Container "
+                f"'{container.name}' but is of UnknownFortranType:\n"
+                f"{self.datatype.declaration}\n"
+                f"Cannot currently module inline such a routine.")
 
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine

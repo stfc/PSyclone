@@ -712,11 +712,12 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     intrans = KernelModuleInlineTrans()
     code = '''\
     module a_mod
-      use my_mod, only: my_sub
+      use my_mod, only: my_sub, my_other_sub
     contains
       subroutine a_sub()
         real, dimension(10) :: a
         call my_sub(a)
+        call my_other_sub(a)
       end subroutine a_sub
     end module a_mod
     '''
@@ -733,12 +734,16 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
         real, dimension(10), intent(inout) :: arg
         arg(1:10) = 1.0
       end subroutine my_sub
+      subroutine my_other_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_other_sub
     end module my_mod
     ''')
     psyir = fortran_reader.psyir_from_source(code)
     container = psyir.children[0]
-    call = psyir.walk(Call)[0]
-    intrans.apply(call)
+    calls = psyir.walk(Call)
+    intrans.apply(calls[0])
 
     routines = container.walk(Routine)
     assert len(routines) == 2
@@ -747,8 +752,32 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     output = fortran_writer(psyir)
     assert "subroutine a_sub" in output
     assert "subroutine my_sub" in output
-    assert "use my_mod" not in output
+    assert "use my_mod, only : my_other_sub\n" in output
     assert Compile(tmpdir).string_compiles(output)
+
+    # Check that we raise the expected error if the name of the obtained
+    # subroutine doesn't match that of the caller. It is currently not
+    # possible to create this situation (because RoutineSymbol.get_routine()
+    # will raise an exception) so we monkeypatch.
+    # TODO #924 - ultimately we should be able to support this.
+    def fake_get_code(node):
+        '''
+        :param node: the routine for which to get PSyIR.
+        :type node: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        :returns: a fake routine name and the routine PSyIR.
+        :rtype: Tuple(str, :py:class:`psyclone.psyir.nodes.Routine`)
+        '''
+        code_to_inline = node.routine.get_routine(node)
+        return "broken", code_to_inline
+
+    monkeypatch.setattr(KernelModuleInlineTrans, "_get_psyir_to_inline",
+                        fake_get_code)
+    with pytest.raises(NotImplementedError) as err:
+        intrans.apply(calls[1])
+    assert ("Cannot module-inline call to 'broken' because its name does not "
+            "match that of the callee: 'my_other_sub'. TODO #924."
+            in str(err.value))
 
 
 def test_psyir_recursive_mod_inline(fortran_reader, fortran_writer, tmpdir,
@@ -812,6 +841,9 @@ def test_mod_inline_interface_name(tmpdir, monkeypatch, fortran_reader):
     '''
     Test module inlining a subroutine that is called via an interface with a
     different name.
+
+    TODO #924 - this is currently unsupported.
+
     '''
     path = str(tmpdir)
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
@@ -843,6 +875,8 @@ def test_mod_inline_interface_name(tmpdir, monkeypatch, fortran_reader):
     '''
     intrans = KernelModuleInlineTrans()
     psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.children[0]
     call = psyir.walk(Call)[0]
-    intrans.apply(call)
+    with pytest.raises(TransformationError) as err:
+        intrans.apply(call)
+    assert ("RoutineSymbol 'manna' exists in Container 'my_mod' but is of "
+            "UnknownFortranType:" in str(err.value))

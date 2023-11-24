@@ -275,33 +275,58 @@ class KernelModuleInlineTrans(Transformation):
                     symbol.interface.container_symbol = \
                         code_to_inline.symbol_table.lookup(module_symbol.name)
 
-    def apply(self, node, options=None):
+    @staticmethod
+    def _get_psyir_to_inline(node):
+        '''
+        Wrapper that gets the name and PSyIR of the routine or kernel
+        corresponding to the call described by `node`.
+
+        :param node: the Call or CodedKern to resolve.
+        :type node: :py:class:`psyclone.psyir.nodes.Call` |
+                    :py:class:`psyclone.psyGen.CodedKern`
+
+        :returns: the name of the routine as seen by the caller and the
+                  PSyIR of the routine implementation.
+        :rtype: Tuple(str, :py:class:`psyclone.psyir.nodes.Call`)
+
+        '''
+        if isinstance(node, CodedKern):
+            # We have a call to a Kernel in a PSyKAl API.
+            code_to_inline = node.get_kernel_schedule()
+            caller_name = node.name.lower()
+        else:
+            # We have a generic routine call.
+            code_to_inline = node.routine.get_routine(node)
+            caller_name = node.routine.name.lower()
+        return (caller_name, code_to_inline)
+
+    def apply(self, node, options=()):
         ''' Bring the kernel subroutine into this Container.
 
         :param node: the kernel to module-inline.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :type options: Optional[Iterable]
+
+        :raises TransformationError: if the called Routine cannot be brought
+            into this Container because of a name clash with another Routine.
+        :raises NotImplementedError: if node is a Call (rather than a
+            CodedKern) and the name of the called routine does not match that
+            of the caller.
 
         '''
         self.validate(node, options)
 
-        if not options:
-            options = {}
-
+        # Get the PSyIR of the routine to module inline as well as the name
+        # with which it is being called.
         # Note that we use the resolved callee subroutine name and not the
-        # caller one, this is important because if it is an interface it will
+        # caller one; this is important because if it is an interface it will
         # use the concrete implementation name. When this happens the new name
         # may already be in use, but the equality check below guarantees
         # that if it exists it is only valid when it references the exact same
         # implementation.
-        if isinstance(node, CodedKern):
-            code_to_inline = node.get_kernel_schedule()
-            caller_name = node.name.lower()
-        else:
-            code_to_inline = node.routine.get_routine(node)
-            caller_name = node.routine.name.lower()
-
+        caller_name, code_to_inline = (
+            KernelModuleInlineTrans._get_psyir_to_inline(node))
         callee_name = code_to_inline.name
 
         try:
@@ -360,7 +385,16 @@ class KernelModuleInlineTrans(Transformation):
             if isinstance(node, CodedKern):
                 node.name = callee_name
             else:
-                node.routine = container.symbol_table.lookup(callee_name)
+                # TODO #924 - we can't currently resolve a subroutine if its
+                # name doesn't match that in the caller (as will be the case
+                # if it's being called via an Interface in Fortran). Once
+                # we can, we will need to use the newly obtained RoutineSymbol
+                # to create a new Call here to replace node.
+                # sym = container.symbol_table.lookup(callee_name)
+                raise NotImplementedError(
+                    f"Cannot module-inline call to '{caller_name}' because its"
+                    f" name does not match that of the callee: "
+                    f"'{callee_name}'. TODO #924.")
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer
         # creation time, we could just remove it here instead of setting a
