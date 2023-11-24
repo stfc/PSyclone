@@ -813,8 +813,9 @@ def test_field_bcs_kernel(monkeypatch):
 
 def test_field_bcs_kernel_errors(monkeypatch):
     '''
-    Test that the field_bcs_kernel method raises the expected errors if there
-    is no argument on 'ANY_SPACE_1' or if that argument is not a field.
+    Test that the field_bcs_kernel method raises the expected errors if the
+    kernel does not have exactly one argument that is itself a field on the
+    'ANY_SPACE_1' function space.
 
     '''
     _, invoke_info = parse(os.path.join(
@@ -845,7 +846,7 @@ def test_field_bcs_kernel_errors(monkeypatch):
         kernel_interface.field_bcs_kernel(None)
     assert ("Kernel 'enforce_bc_code' applies boundary conditions to a field "
             "but the supplied argument, 'a', is on 'ANY_SPACE_2' rather than "
-            "the required 'ANY_SPACE_1'" in str(err.value))
+            "the expected 'ANY_SPACE_1'" in str(err.value))
 
 
 @pytest.mark.xfail(reason="Issue #928: this callback is not yet implemented")

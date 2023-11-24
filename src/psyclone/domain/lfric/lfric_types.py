@@ -280,7 +280,7 @@ class LFRicTypes:
 
             :param str value: the value of the scalar integer.
 
-            :raises ValueError: if the supplied value is not '1 or '3'.
+            :raises ValueError: if the supplied value is not '1', '2' or '3'.
 
             '''
             # pylint: disable=undefined-variable

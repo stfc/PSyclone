@@ -602,6 +602,8 @@ class KernelInterface(ArgOrdering):
                                'ANY_SPACE_1' function space.
 
         '''
+        # Sanity check - expect the enforce_bc_code to have a single argument
+        # that is a field.
         if (len(self._kern.arguments.args) != 1 or
                 not self._kern.arguments.args[0].is_field):
             const = LFRicConstants()
@@ -612,13 +614,13 @@ class KernelInterface(ArgOrdering):
                 f"{[arg.argument_type for arg in self._kern.arguments.args]}")
         farg = self._kern.arguments.args[0]
         fspace = farg.function_space
-        # Sanity check - expect the enforce_bc_code kernel to have an argument
-        # on the ANY_SPACE_1 space.
+        # Sanity check - expect the field argument to the enforce_bc_code
+        # kernel to be on the ANY_SPACE_1 space.
         if fspace.orig_name != "any_space_1":
             raise InternalError(
                 f"Kernel '{self._kern.name}' applies boundary conditions to a "
                 f"field but the supplied argument, '{farg.name}', is on "
-                f"'{fspace.orig_name}' rather than the required 'ANY_SPACE_1'")
+                f"'{fspace.orig_name}' rather than the expected 'ANY_SPACE_1'")
 
         ndf_symbol = self._symtab.find_or_create_tag(
             f"ndf_{fspace.orig_name}", fs=fspace.orig_name,
