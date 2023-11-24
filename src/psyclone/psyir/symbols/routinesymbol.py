@@ -166,17 +166,17 @@ class RoutineSymbol(TypedSymbol):
 
         :raises NotImplementedError: if this symbol is unresolved or is of
             UnknownFortranType (which often means it is an Interface).
-        :raises ValueError: if this symbol is not imported and no `container`
+        :raises SymbolError: if this symbol is not imported and no `container`
             has been supplied in which to search.
         :raises SymbolError: if the RoutineSymbol is not imported or unresolved
             but an associated Routine cannot be found in the Container.
 
         '''
         if self.is_unresolved:
-            # TODO Use ModuleManager here?
+            # TODO #924 - Use ModuleManager to search?
             raise NotImplementedError(
                 f"RoutineSymbol '{self.name}' is unresolved and searching for "
-                f"its implementation is not yet supported.")
+                f"its implementation is not yet supported - TODO #924")
 
         if self.is_import:
             csym = self.interface.container_symbol
@@ -193,7 +193,7 @@ class RoutineSymbol(TypedSymbol):
             return rsym.get_routine(container)
 
         if not container:
-            raise ValueError(
+            raise SymbolError(
                 f"RoutineSymbol '{self.name}' is not imported so a "
                 f"Container node must be provided in order to search for "
                 f"its Schedule.")
@@ -213,9 +213,8 @@ class RoutineSymbol(TypedSymbol):
                 return kernel_schedule
 
         raise SymbolError(
-            f"Routine '{self.name}' is imported from '{container.name}' "
-            f"but failed to find a matching routine in that "
-            f"container.")
+            f"Failed to find a Routine named '{self.name}' in Container "
+            f"'{container.name}'.")
 
 
 # For Sphinx AutoAPI documentation generation
