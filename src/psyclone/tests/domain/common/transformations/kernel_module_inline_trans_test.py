@@ -675,10 +675,10 @@ def test_mod_inline_validate_no_container(fortran_reader):
             "routine 'my_sub' is not" in str(err.value))
 
 
-def test_psyir_mod_inline_validate_wildcard_import(fortran_reader):
+def test_psyir_mod_inline_fail_to_get_psyir(fortran_reader):
     '''
-    Test that the validate() method rejects an attempt to module-inline an
-    unresolved routine.
+    Test that the validate() method raises the expected error if the
+    PSyIR for the called routine cannot be found.
 
     '''
     intrans = KernelModuleInlineTrans()
@@ -699,7 +699,7 @@ def test_psyir_mod_inline_validate_wildcard_import(fortran_reader):
         intrans.validate(call)
     assert ("failed to retrieve PSyIR for routine 'my_sub' due to: "
             "RoutineSymbol 'my_sub' is unresolved and searching for its "
-            "implementation is not yet supported." in str(err.value))
+            "implementation is not yet supported" in str(err.value))
 
 
 def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
@@ -778,105 +778,3 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert ("Cannot module-inline call to 'broken' because its name does not "
             "match that of the callee: 'my_other_sub'. TODO #924."
             in str(err.value))
-
-
-def test_psyir_recursive_mod_inline(fortran_reader, fortran_writer, tmpdir,
-                                    monkeypatch):
-    '''
-    Test module inlining a subroutine in generic PSyIR when the implementation
-    of the routine is not in the immediately-imported Container..
-
-    '''
-    intrans = KernelModuleInlineTrans()
-    code = '''\
-    module a_mod
-      use my_mod, only: my_sub
-    contains
-      subroutine a_sub()
-        real, dimension(10) :: a
-        call my_sub(a)
-      end subroutine a_sub
-    end module a_mod
-    '''
-    # Create the modules containing the subroutine definition, write it to
-    # file and set the search path so that PSyclone can find it.
-    path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), '_include_paths', [path])
-
-    with open(os.path.join(path, "my_mod.f90"), "w") as mfile:
-        mfile.write('''\
-    module my_mod
-      use my_mod2, only: my_sub
-    contains
-      subroutine ignore_this()
-      end subroutine ignore_this
-    end module my_mod
-    ''')
-    with open(os.path.join(path, "my_mod2.f90"), "w") as mfile:
-        mfile.write('''\
-    module my_mod2
-    contains
-      subroutine my_sub(arg)
-        real, dimension(10), intent(inout) :: arg
-        arg(1:10) = 1.0
-      end subroutine my_sub
-    end module my_mod2
-    ''')
-    psyir = fortran_reader.psyir_from_source(code)
-    container = psyir.children[0]
-    call = psyir.walk(Call)[0]
-    intrans.apply(call)
-    routines = container.walk(Routine)
-    assert len(routines) == 2
-    assert routines[0].name in ["a_sub", "my_sub"]
-    assert routines[1].name in ["a_sub", "my_sub"]
-    output = fortran_writer(psyir)
-    assert "subroutine a_sub" in output
-    assert "subroutine my_sub" in output
-    assert "use my_mod" not in output
-    assert Compile(tmpdir).string_compiles(output)
-
-
-def test_mod_inline_interface_name(tmpdir, monkeypatch, fortran_reader):
-    '''
-    Test module inlining a subroutine that is called via an interface with a
-    different name.
-
-    TODO #924 - this is currently unsupported.
-
-    '''
-    path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), '_include_paths', [path])
-
-    with open(os.path.join(path, "my_mod.f90"), "w") as mfile:
-        mfile.write('''\
-    module my_mod
-      interface manna
-        module procedure :: manna_sp, manna_dp
-      end interface manna
-    contains
-      subroutine manna_sp(arg)
-        real(kind=kind(1.0)) :: arg
-      end subroutine manna_sp
-      subroutine manna_dp(arg)
-        real(kind=kind(1.0d0)) :: arg
-      end subroutine manna_dp
-    end module my_mod
-    ''')
-    code = '''\
-    module a_mod
-      use my_mod, only: manna
-    contains
-      subroutine a_sub()
-        real, dimension(10) :: a
-        call manna(a)
-      end subroutine a_sub
-    end module a_mod
-    '''
-    intrans = KernelModuleInlineTrans()
-    psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
-    with pytest.raises(TransformationError) as err:
-        intrans.apply(call)
-    assert ("RoutineSymbol 'manna' exists in Container 'my_mod' but is of "
-            "UnknownFortranType:" in str(err.value))

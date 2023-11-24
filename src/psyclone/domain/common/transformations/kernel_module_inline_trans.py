@@ -123,11 +123,8 @@ class KernelModuleInlineTrans(Transformation):
         # If this kernel contains symbols that are not captured in the PSyIR
         # SymbolTable then this raises an exception.
         try:
-            if isinstance(node, CodedKern):
-                kernel_schedule = node.get_kernel_schedule()
-            else:
-                kernel_schedule = node.routine.get_routine(
-                    node.ancestor(Container))
+            _, kernel_schedule = (
+                KernelModuleInlineTrans._get_psyir_to_inline(node))
         except Exception as error:
             raise TransformationError(
                 f"{self.name} failed to retrieve PSyIR for {kern_or_call} "
