@@ -325,7 +325,6 @@ class KernelModuleInlineTrans(Transformation):
                 # The RoutineSymbol is in the table but that is because it is
                 # imported. We must therefore update its interface and
                 # potentially remove the ContainerSymbol altogether.
-                table = node.scope.symbol_table
                 csym = existing_symbol.interface.container_symbol
                 # The import of the routine symbol may be in an outer scope.
                 ctable = csym.find_symbol_table(node)
@@ -337,21 +336,22 @@ class KernelModuleInlineTrans(Transformation):
                 container.addchild(code_to_inline.detach())
             else:
                 # The routine symbol already exists, and we know from the
-                # validation
-                # that it's a Routine. Now check if they are exactly the same.
+                # validation that it's a Routine. Now check if they are
+                # exactly the same.
                 for routine in container.walk(Routine, stop_type=Routine):
                     if routine.name == caller_name:
                         # This TransformationError happens here and not in the
                         # validation because it needs the symbols_to_bring_in
-                        # applied to effectively compare both versions
+                        # applied to effectively compare both versions.
                         # This will be fixed when module-inlining versioning is
                         # implemented.
                         if routine != code_to_inline:
                             raise TransformationError(
-                                f"Cannot inline subroutine '{caller_name}' because "
-                                f"another, different, subroutine with the same "
-                                f"name already exists and versioning of module-"
-                                f"inlined subroutines is not implemented yet.")
+                                f"Cannot inline subroutine '{caller_name}' "
+                                f"because another, different, subroutine with "
+                                f"the same name already exists and versioning "
+                                f"of module-inlined subroutines is not "
+                                f"implemented yet.")
 
         # We only modify the kernel call name after the equality check to
         # ensure the apply will succeed and we don't leave with an inconsistent
