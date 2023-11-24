@@ -86,12 +86,14 @@ class KernelModuleInlineTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the target node is not a sub-class of
-            psyGen.CodedKern or psyir.nodes.Call.
+            psyGen.CodedKern or psyir.nodes.Call or is an IntrinsicCall.
         :raises TransformationError: if the target node is not within a
             Container (Fortran module).
-        :raises TransformationError: if the subroutine containing the
-            implementation of the kernel cannot be retrieved with
-            'get_kernel_schedule'.
+        :raises TransformationError: if there is no explicit import of the
+            called Routine and there is already a Routine of that name in the
+            parent Container.
+        :raises TransformationError: if the PSyIR of the implementation of the
+            called Routine/kernel cannot be retrieved.
         :raises TransformationError: if the name of the routine that
             implements the kernel is not the same as the kernel name. This
             will happen if the kernel is polymorphic (uses a Fortran
@@ -103,6 +105,10 @@ class KernelModuleInlineTrans(Transformation):
             kname = node.name
             kern_or_call = "Kernel"
         elif isinstance(node, Call):
+            if isinstance(node, IntrinsicCall):
+                raise TransformationError(
+                    f"Cannot module-inline a call to an intrinsic (got "
+                    f"'{node.debug_string()})'")
             kname = node.routine.name
             kern_or_call = "routine"
         else:
@@ -111,13 +117,30 @@ class KernelModuleInlineTrans(Transformation):
                 f"psyGen.CodedKern or psyir.nodes.Call but got "
                 f"'{type(node).__name__}'")
 
-        if isinstance(node.ancestor(Container), FileContainer):
+        parent_container = node.ancestor(Container)
+        if isinstance(parent_container, FileContainer):
             # We can't do 'module inlining' if there is no parent module.
             # (Although we could if we extended the PSyIR to know about
             # file scope.)
             raise TransformationError(
                 f"Target of a {self.name} must be within a Container (Fortran "
                 f"module) but {kern_or_call} '{kname}' is not.")
+
+        # Check that the associated Routine isn't already present in the
+        # Container. Strictly speaking, we should check that the interface of
+        # any existing Routine matches that required by the Call but for now
+        # we live with the possibility of a false positive resulting in a
+        # refusal to module inline.
+        routine_sym = node.scope.symbol_table.lookup(kname)
+        if not routine_sym.is_import:
+            for routine in parent_container.walk(Routine, stop_type=Routine):
+                if routine.name.lower() == kname.lower():
+                    raise TransformationError(
+                        f"{kern_or_call} '{kname}' cannot be module inlined "
+                        f"into Container '{parent_container.name}' because "
+                        f"there is no explicit import of it ('USE ..., ONLY: "
+                        f"{kname}' in Fortran) and a Routine with that name "
+                        f"is already present.")
 
         # Check that the PSyIR and associated Symbol table of the Kernel is OK.
         # If this kernel contains symbols that are not captured in the PSyIR
@@ -293,7 +316,7 @@ class KernelModuleInlineTrans(Transformation):
             caller_name = node.name.lower()
         else:
             # We have a generic routine call.
-            code_to_inline = node.routine.get_routine(node)
+            code_to_inline = node.routine.get_routine()
             caller_name = node.routine.name.lower()
         return (caller_name, code_to_inline)
 
