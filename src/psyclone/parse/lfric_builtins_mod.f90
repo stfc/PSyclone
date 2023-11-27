@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2022, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -989,7 +989,7 @@ use argument_mod,  only : arg_type,            &
 ! ------------------------------------------------------------------- !
 
   !> field2 = real(ifield1, r_def)
-  type, public, extends(kernel_type) :: real_X
+  type, public, extends(kernel_type) :: int_to_real_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_REAL,    GH_WRITE, ANY_SPACE_1),      &
@@ -997,8 +997,8 @@ use argument_mod,  only : arg_type,            &
           /)
      integer :: operates_on = DOF
    contains
-     procedure, nopass :: real_X_code
-  end type real_X
+     procedure, nopass :: int_to_real_X_code
+  end type int_to_real_X
 
 contains
 
@@ -1230,7 +1230,7 @@ contains
   end subroutine int_inc_min_aX_code
 
   ! Converting integer to real field elements
-  subroutine real_X_code()
-  end subroutine real_X_code
+  subroutine int_to_real_X_code()
+  end subroutine int_to_real_X_code
 
 end module lfric_builtins_mod

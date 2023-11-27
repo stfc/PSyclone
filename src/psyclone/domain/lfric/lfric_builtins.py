@@ -351,7 +351,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f"must be on the same space. However, found spaces "
                 f"{spaces_str} for arguments to '{self.name}'")
 
-        conversion_builtins = ["real_to_int_X", "real_X"]
+        conversion_builtins = ["real_to_int_X", "int_to_real_X"]
         conversion_builtins_lower = [x.lower() for x in conversion_builtins]
         if len(data_types) != 1 and self.name not in conversion_builtins_lower:
             data_types_str = [str(x) for x in sorted(data_types)]
@@ -3040,7 +3040,7 @@ class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
 # ============== Converting integer to real field elements ========== #
 # ------------------------------------------------------------------- #
 
-class LFRicRealXKern(LFRicBuiltIn):
+class LFRicIntToRealXKern(LFRicBuiltIn):
     ''' Converts integer-valued field elements to real-valued
     field elements using the Fortran intrinsic `REAL` function,
     `Y = REAL(X, kind=r_<prec>)`. Here `Y` is a real-valued
@@ -3049,7 +3049,7 @@ class LFRicRealXKern(LFRicBuiltIn):
 
     '''
     _datatype = "real"
-    _case_name = "real_X"
+    _case_name = "int_to_real_X"
 
     @classmethod
     def metadata(cls):
@@ -3080,7 +3080,7 @@ class LFRicRealXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = REAL(proxy0%data, kind=r_<prec>)
+        #      proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
         r_precision = arg_refs[0].datatype.partial_datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
@@ -3192,7 +3192,7 @@ INT_BUILTIN_MAP_CAPITALISED = {
     "int_min_aX": LFRicIntMinAXKern,
     "int_inc_min_aX": LFRicIntIncMinAXKern,
     # Converting integer to real field elements
-    "real_X": LFRicRealXKern}
+    "int_to_real_X": LFRicIntToRealXKern}
 
 # Built-in map dictionary for all built-ins
 BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
@@ -3273,4 +3273,4 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntIncMaxAXKern',
            'LFRicIntMinAXKern',
            'LFRicIntIncMinAXKern',
-           'LFRicRealXKern']
+           'LFRicIntToRealXKern']

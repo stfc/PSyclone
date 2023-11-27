@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic and A. Coughtrie, Met Office
+.. Modified by I. Kavcic, A. Coughtrie and O. Brunt Met Office
 
 .. highlight:: fortran
 
@@ -2510,7 +2510,7 @@ following rules:
 8) The only two exceptions from the rules 6) and 7) above regarding the
    same data type of "write" and "read" field arguments are Built-ins
    that convert field data from ``real`` to ``integer``, ``real_to_int_X``,
-   and from ``integer`` to ``real``, ``real_X``.
+   and from ``integer`` to ``real``, ``int_to_real_X``.
 
 The Built-ins supported for the LFRic API are listed in the related
 subsections, grouped first by the data type of fields they operate on
@@ -2682,7 +2682,7 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 
 7) As in the case of Built-in field argument rules, the names of the
    field data-type conversion Built-ins, ``real_to_int_X`` (converts field data
-   from ``real`` to ``integer``) and ``real_X`` (converts field data
+   from ``real`` to ``integer``) and ``int_to_real_X`` (converts field data
    from ``integer`` to ``real``), are the only exceptions for the
    naming of Built-ins in Fortran above.
 
@@ -3574,10 +3574,10 @@ Conversion of ``integer`` to ``real`` field elements
 A Built-in which takes an ``integer`` field and converts it to
 a ``real`` field is denoted with the keyword **real**.
 
-real_X
+int_to_real_X
 ^^^^^^
 
-**real_X** (**field2**, *ifield1*)
+**int_to_real_X** (**field2**, *ifield1*)
 
 Converts ``integer``-valued field elements to ``real``-valued field
 elements, e.g. in Fortran this would be ``Y = REAL(X, kind=r_def)``.
