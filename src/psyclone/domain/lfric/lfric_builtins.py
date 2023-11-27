@@ -351,7 +351,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f"must be on the same space. However, found spaces "
                 f"{spaces_str} for arguments to '{self.name}'")
 
-        conversion_builtins = ["int_X", "real_X"]
+        conversion_builtins = ["real_to_int_X", "real_X"]
         conversion_builtins_lower = [x.lower() for x in conversion_builtins]
         if len(data_types) != 1 and self.name not in conversion_builtins_lower:
             data_types_str = [str(x) for x in sorted(data_types)]
@@ -2706,7 +2706,7 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
 
     '''
     _datatype = "integer"
-    _case_name = "int_X"
+    _case_name = "real_to_int_X"
 
     @classmethod
     def metadata(cls):

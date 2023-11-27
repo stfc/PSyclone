@@ -77,14 +77,14 @@ def test_real_to_int_x(tmpdir, monkeypatch, annexed, dist_mem):
     # Test with and without annexed DoFs
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.10.3_int_X_builtin.f90"),
+                                        "15.10.3_real_to_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
 
     # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: int_X (convert a real-valued to an "
+    assert str(kern) == ("Built-in: real_to_int_X (convert a real-valued to an "
                          "integer-valued field)")
 
     # Test code generation
@@ -132,7 +132,7 @@ def test_real_to_int_x_precision(monkeypatch, kind_name):
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.10.3_int_X_builtin.f90"),
+                                        "15.10.3_real_to_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
@@ -158,7 +158,7 @@ def test_real_to_int_x_lowering(fortran_writer):
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.10.3_int_X_builtin.f90"),
+                                        "15.10.3_real_to_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API,
                      distributed_memory=False).create(invoke_info)
