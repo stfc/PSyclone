@@ -300,7 +300,8 @@ def test_apply_multi(fortran_reader, fortran_writer, tmpdir):
         "    do idx_1 = 1, n, 1\n"
         "      result = MAX(result, array(idx_1,idx))\n"
         "    enddo\n"
-        "  enddo\n")
+        "  enddo\n"
+        "  result = value1 + result * value2\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
@@ -615,6 +616,32 @@ def test_multi_intrinsics(fortran_reader, fortran_writer, tmpdir):
     trans = Maxval2LoopTrans()
     # FileContainer/Routine/Assignment/BinaryOp/IntrinsicCall
     node = psyir.children[0].children[0].children[1].children[0]
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    assert expected in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_increment(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the expected code is produced when the variable being
+    assigned to is an increment e.g. x = x + ...
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "real :: a(10)\n"
+        "real :: x\n"
+        "x = x + maxval(a)\n"
+        "end subroutine\n")
+    expected = (
+        "  tmp_var = TINY(tmp_var)\n"
+        "  do idx = 1, 10, 1\n"
+        "    tmp_var = MAX(tmp_var, a(idx))\n"
+        "  enddo\n"
+        "  x = x + tmp_var\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Maxval2LoopTrans()
+    node = psyir.walk(IntrinsicCall)[0]
     trans.apply(node)
     result = fortran_writer(psyir)
     assert expected in result

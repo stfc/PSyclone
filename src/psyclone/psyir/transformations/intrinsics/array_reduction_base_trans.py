@@ -43,7 +43,7 @@ from abc import ABC, abstractmethod
 from psyclone.psyir.nodes import (
     Assignment, Reference, ArrayReference, IfBlock,
     IntrinsicCall, Node, UnaryOperation, BinaryOperation)
-from psyclone.psyir.symbols import ArrayType
+from psyclone.psyir.symbols import ArrayType, DataSymbol
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
@@ -106,8 +106,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             intrinsic.
         :raises TransformationError: if the supplied node is not an
             array-reduction intrinsic.
-        :raises TransformationError: if a valid value for the
-            dimension argument can't be determined.
+        :raises TransformationError: if there is a dimension argument.
         :raises TransformationError: if the array argument is not an array.
         :raises TransformationError: if the shape of the array is not
             supported.
@@ -185,6 +184,26 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         '''
         self.validate(node)
 
+        orig_lhs = node.ancestor(Assignment).lhs.copy()
+        orig_rhs = node.ancestor(Assignment).rhs.copy()
+
+        # Determine whether the assignment is an increment (as we have
+        # to use a temporary if so) e.g. x = x + MAXVAL(a) and store a
+        # reference to the appropriate variable in new_lhs for future
+        # use.
+        lhs_symbol = orig_lhs.symbol
+        increment = False
+        for rhs_reference in orig_rhs.walk(Reference):
+            if rhs_reference.symbol is lhs_symbol:
+                increment = True
+        if increment:
+            new_lhs_symbol = node.scope.symbol_table.new_symbol(
+                root_name="tmp_var", symbol_type=DataSymbol,
+                datatype=lhs_symbol.datatype)
+            new_lhs = Reference(new_lhs_symbol)
+        else:
+            new_lhs = orig_lhs.copy()
+
         expr, _, mask_ref = self._get_args(node)
 
         # Step 1: replace all references to arrays within the
@@ -228,10 +247,13 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # rhs = a(:,:)+b(:,:)
         # resulting in the following code being created:
         # a(:,:) = a(:,:)+b(:,:)
-        orig_lhs = node.ancestor(Assignment).lhs.copy()
-        orig_rhs = node.ancestor(Assignment).rhs.copy()
         array_refs = rhs.walk(ArrayReference)
+        # The lhs of the created expression needs to be an array
+        # reference from the expression itself because the
+        # ArrayRange2Loop transformation uses it to obtain the loop
+        # bounds.
         lhs = array_refs[0].copy()
+
         assignment = Assignment.create(lhs, rhs.detach())
         # Replace existing code so the new code gets access to symbol
         # tables etc.
@@ -273,7 +295,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
 
         # Step 4 convert the original assignment (now within a loop
         # and indexed) to its intrinsic form by replacing the
-        # assignment with orig_lhs=INTRINSIC(orig_lhs,<expr>). Also
+        # assignment with new_lhs=INTRINSIC(orig_lhs,<expr>). Also
         # add in the mask if one has been specified. For example:
         # do idx2 = LBOUND(a,2), UBOUND(a,2)
         #   do idx = LBOUND(a,1), UBOUND(a,1)
@@ -285,12 +307,12 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         #   do idx = LBOUND(a,1), UBOUND(a,1)
         #     if (mod(c(idx,idx2),2.0)==1) then
         #       x = max(x, a(idx,idx2) + b(idx,idx2))
-        #     end ifx
+        #     end if
         #   enddo
         # enddo
         new_assignment = Assignment.create(
-            orig_lhs.copy(), self._loop_body(
-                orig_lhs.copy(), assignment.rhs.copy()))
+            new_lhs.copy(), self._loop_body(
+                new_lhs.copy(), assignment.rhs.copy()))
         if mask_ref:
             # Place the indexed mask around the statement.
             new_assignment = IfBlock.create(
@@ -298,7 +320,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
 
         assignment.replace_with(new_assignment)
 
-        # Step 4 initialise the variable and place it before the newly
+        # Step 5 initialise the variable and place it before the newly
         # created outer loop (in step 2) and deal with any additional
         # arguments on the rhs of the original expression. For
         # example, if the original code looks like the following:
@@ -321,7 +343,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         #   enddo
         # enddo
         # x = value1 + x * value2
-        lhs = orig_lhs.copy()
+        lhs = new_lhs.copy()
         rhs = self._init_var(lhs.symbol)
         assignment = Assignment.create(lhs, rhs)
         outer_loop.parent.children.insert(outer_loop.position, assignment)
@@ -333,7 +355,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             rhs = orig_rhs.copy()
             for child in rhs.walk(IntrinsicCall):
                 if child.intrinsic is self._INTRINSIC_TYPE:
-                    child.replace_with(orig_lhs.copy())
+                    child.replace_with(new_lhs.copy())
                     break
             assignment = Assignment.create(orig_lhs.copy(), rhs)
             outer_loop.parent.children.insert(
