@@ -136,7 +136,7 @@ class ArrayReference(ArrayMixin, Reference):
                 # type. We could manipulate the shape in the fparser2 parse
                 # tree if need be but, at this point, we wouldn't know what
                 # the variable name should be (TODO #2137).
-                base_type = UnknownFortranType("type(TODO_2137) :: some_var")
+                base_type = DeferredType()
             else:
                 base_type = self.symbol.datatype
             # TODO #1857 - passing base_type as an instance of ArrayType
@@ -159,7 +159,7 @@ class ArrayReference(ArrayMixin, Reference):
                 # could remove the shape in the fparser2 parse tree
                 # but, at this point, we wouldn't know what the
                 # variable name should be (TODO #2137).
-                return UnknownFortranType("type(TODO_2137) :: some_var")
+                return DeferredType()
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return

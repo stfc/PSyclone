@@ -528,7 +528,9 @@ Data Type of an Operation Node
 Table 7.2 of the Fortran2008 standard specifies the rules governing
 the types of operands and their results. The PSyIR follows these rules
 with the exception that there is no support for symbols of complex
-(imaginary) type.  For a numeric intrinsic binary operation, these
+(imaginary) type (see
+`#1590 <https://github.com/stfc/PSyclone/issues/1590>`_).  For a numeric,
+binary operation, these
 rules boil down to saying that if either argument is real then the
 result is real but if both arguments are integer then the result is
 integer. For unary operations, the type of the result is just that of

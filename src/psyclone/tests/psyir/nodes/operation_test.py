@@ -191,9 +191,8 @@ def test_binaryop_scalar_datatype():
         DataSymbol("trouble",
                    UnknownFortranType("real, volatile :: trouble")))
     binop4 = BinaryOperation.create(oper, iref1.copy(), uref1)
-    # It has to be of UnknownType as DeferredType implies we can look up
-    # the type.
-    assert isinstance(binop4.datatype, UnknownFortranType)
+    # TODO #2419 - DeferredType should probably be UnsupportedType really.
+    assert isinstance(binop4.datatype, DeferredType)
     binop5 = BinaryOperation.create(BinaryOperation.Operator.EQ,
                                     iref1.copy(), iref2.copy())
     assert binop5.datatype == BOOLEAN_TYPE
@@ -406,7 +405,7 @@ def test_binaryop_partial_datatype():
     # Create ref1(:,:) * ref3(:,5:10)
     binop3 = BinaryOperation.create(oper, ref1.copy(), ref3)
     dtype3 = binop3.datatype
-    assert isinstance(dtype3, UnknownFortranType)
+    assert isinstance(dtype3, DeferredType)
     # However, if a subsection is not involved then we are OK.
     arrtype4 = ArrayType(REAL_SINGLE_TYPE, [10, 5])
     utype4 = UnknownFortranType("real, dimension(10,5), pointer :: ref3",
@@ -437,7 +436,8 @@ def test_binaryoperation_intrinsic_fn_datatype():
     Check that we can get the datatype of an operation involving the result
     of an intrinsic function.
 
-    TODO #1799 - this needs implementing.
+    TODO #1799 - this just returns DeferredType at the minute and needs
+    implementing.
 
     '''
     arrtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
@@ -446,10 +446,7 @@ def test_binaryoperation_intrinsic_fn_datatype():
     arg2 = Reference(DataSymbol("scalar", INTEGER_SINGLE_TYPE))
     oper = BinaryOperation.Operator.ADD
     binop = BinaryOperation.create(oper, arg1, arg2)
-    with pytest.raises(NotImplementedError) as err:
-        binop.datatype
-    assert ("datatype property not yet implemented for Call nodes"
-            in str(err.value))
+    assert isinstance(binop.datatype, DeferredType)
 
 
 # Test UnaryOperation class

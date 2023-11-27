@@ -45,7 +45,7 @@ from enum import Enum
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols.datatypes import (
-    ArrayType, BOOLEAN_TYPE, DataTypeSymbol, DeferredType, ScalarType,
+    ArrayType, BOOLEAN_TYPE, DeferredType, ScalarType,
     UnknownFortranType, UnknownType)
 
 
@@ -147,6 +147,9 @@ class UnaryOperation(Operation):
         'NOT',
         ])
 
+    # The numeric operators.
+    _numeric_ops = (Operator.MINUS, Operator.PLUS)
+
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -189,6 +192,17 @@ class UnaryOperation(Operation):
         unary_op = UnaryOperation(operator)
         unary_op.addchild(operand)
         return unary_op
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of the result of this UnaryOperation.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+        if self.operator not in self._numeric_ops:
+            return BOOLEAN_TYPE
+        return self.children[0].datatype
 
 
 class BinaryOperation(Operation):
@@ -267,10 +281,10 @@ class BinaryOperation(Operation):
         :returns: the datatype of the result of this BinaryOperation.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
-        :raises InternalError: if the types of the operands are not permitted
-                               for the given operator.
         :raises NotImplementedError: if the operands are of the same intrinsic
                                      type but different precisions.
+        :raises TypeError: if an unexpected intrinsic type is found for
+                           either of the operands to a numeric operation.
         :raises TypeError: if the operands are both arrays but are of different
                            shapes.
         '''
@@ -286,7 +300,7 @@ class BinaryOperation(Operation):
                     # PSyIR.
                     dtype = dtype.partial_datatype
                 else:
-                    return UnknownFortranType("")
+                    return DeferredType()
             if isinstance(dtype, DeferredType):
                 # If either operand is of DeferredType then we can't do
                 # any better.
@@ -294,14 +308,14 @@ class BinaryOperation(Operation):
             if isinstance(dtype, ArrayType):
                 # We know this is an array but do we know its intrinsic type?
                 if isinstance(dtype.intrinsic, DeferredType):
-                    return DeferredType()
+                    dtype = ArrayType(DeferredType(), shape=dtype.shape)
                 if isinstance(dtype.intrinsic, UnknownType):
                     if (isinstance(dtype.intrinsic, UnknownFortranType) and
                             dtype.intrinsic.partial_datatype):
                         dtype = ArrayType(dtype.intrinsic.partial_datatype,
                                           shape=dtype.shape)
                     else:
-                        return UnknownFortranType("")
+                        dtype = ArrayType(DeferredType(), shape=dtype.shape)
 
             argtypes.append(dtype)
 
@@ -313,6 +327,11 @@ class BinaryOperation(Operation):
             base_type = BOOLEAN_TYPE
         else:
             # We have a numerical operation.
+            if any(isinstance(atype.intrinsic, DeferredType)
+                   for atype in argtypes):
+                # datatype of a numerical operation on a DeferredType is a
+                # DeferredType.
+                return DeferredType()
             if argtypes[0].intrinsic == argtypes[1].intrinsic:
                 if argtypes[0].precision != argtypes[1].precision:
                     raise NotImplementedError(
@@ -340,7 +359,9 @@ class BinaryOperation(Operation):
                         raise TypeError(
                             f"Invalid argument of type '{atype.intrinsic}' to "
                             f"numerical operation '{self.operator}' in "
-                            f"'{self.debug_string()}'")
+                            f"'{self.debug_string()}'. Currently only "
+                            f"ScalarType.Intrinsic.REAL/INTEGER are "
+                            f"supported (TODO #1590)")
 
         if all(isinstance(atype, ScalarType) for atype in argtypes):
             # Both operands are of scalar type.

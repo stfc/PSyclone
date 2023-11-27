@@ -535,8 +535,7 @@ def test_array_datatype():
         "unknown",
         UnknownFortranType("real, dimension(5), pointer :: unknown"))
     aref = ArrayReference.create(unknown_sym, [two.copy()])
-    assert isinstance(aref.datatype, UnknownFortranType)
-    assert aref.datatype.type_text == "TYPE(TODO_2137)"
+    assert isinstance(aref.datatype, DeferredType)
     # Reference to a single element of an array of UnknownType but with partial
     # type information.
     not_quite_unknown_sym = DataSymbol(
@@ -554,8 +553,7 @@ def test_array_datatype():
     upper = aref3.datatype.shape[0].upper
     assert isinstance(upper, BinaryOperation)
     # But we don't know the type of the array elements.
-    assert isinstance(aref3.datatype.intrinsic, UnknownFortranType)
-    assert aref3.datatype.precision is None
+    assert isinstance(aref3.datatype.intrinsic, DeferredType)
 
 
 def test_array_create_colon(fortran_writer):
