@@ -2509,7 +2509,7 @@ following rules:
 
 8) The only two exceptions from the rules 6) and 7) above regarding the
    same data type of "write" and "read" field arguments are Built-ins
-   that convert field data from ``real`` to ``integer``, ``int_X``,
+   that convert field data from ``real`` to ``integer``, ``real_to_int_X``,
    and from ``integer`` to ``real``, ``real_X``.
 
 The Built-ins supported for the LFRic API are listed in the related
@@ -2681,7 +2681,7 @@ scheme presented below. Any new Built-in needs to comply with these rules.
       data-type conversion Built-ins, see rule 7 below).
 
 7) As in the case of Built-in field argument rules, the names of the
-   field data-type conversion Built-ins, ``int_X`` (converts field data
+   field data-type conversion Built-ins, ``real_to_int_X`` (converts field data
    from ``real`` to ``integer``) and ``real_X`` (converts field data
    from ``integer`` to ``real``), are the only exceptions for the
    naming of Built-ins in Fortran above.
@@ -3271,10 +3271,10 @@ Conversion of ``real`` to ``integer`` field elements
 A Built-in which takes a ``real`` field and converts it to an
 ``integer`` field is denoted with the keyword **int**.
 
-int_X
+real_to_int_X
 ^^^^^
 
-**int_X** (**ifield2**, *field1*)
+**real_to_int_X** (**ifield2**, *field1*)
 
 Converts ``real``-valued field elements to ``integer``-valued field
 elements, e.g. in Fortran this would be: ``Y = INT(X, kind=i_def)``.

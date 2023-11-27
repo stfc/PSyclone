@@ -1079,8 +1079,8 @@ methods implemented except for the following:
 * ``LFRicXInnerproductYKern``,
 * ``LFRicXInnerproductXKern``,
 * ``LFRicSumXKern``,
-* ``LFRicIntXKern``,
-* ``LFRicRealXKern``.
+* ``LFRicRealToIntXKern``,
+* ``LFRicIntToRealXKern``.
 
 The sum and inner product BuiltIns require extending PSyIR to handle
 reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from

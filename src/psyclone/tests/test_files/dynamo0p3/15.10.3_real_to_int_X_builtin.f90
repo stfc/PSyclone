@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
+! Modified: O. Brunt, Met Office
 
 program single_invoke
 
@@ -45,6 +46,6 @@ program single_invoke
   type(integer_field_type) :: f2
   type(field_type)         :: f1
 
-  call invoke( int_X(f2, f1) )
+  call invoke( real_to_int_X(f2, f1) )
 
 end program single_invoke

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified by I. Kavcic, Met Office
+# Modified by I. Kavcic and O. Brunt, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
@@ -2697,7 +2697,7 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntXKern(LFRicBuiltIn):
+class LFRicRealToIntXKern(LFRicBuiltIn):
     ''' Converts real-valued field elements to integer-valued
     field elements using the Fortran intrinsic `INT` function,
     `Y = INT(X, kind=i_<prec>)`. Here `Y` is an integer-valued
@@ -2737,7 +2737,7 @@ class LFRicIntXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = INT(proxy0%data, kind=i_<prec>)
+        #      proxy0%data(df) = INT(proxy1%data, kind=i_<prec>)
         i_precision = arg_refs[0].datatype.partial_datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
@@ -3157,7 +3157,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "min_aX": LFRicMinAXKern,
     "inc_min_aX": LFRicIncMinAXKern,
     # Converting real to integer field elements
-    "int_X": LFRicIntXKern}
+    "real_to_int_X": LFRicRealToIntXKern}
 
 # Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
@@ -3251,7 +3251,7 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncMaxAXKern',
            'LFRicMinAXKern',
            'LFRicIncMinAXKern',
-           'LFRicIntXKern',
+           'LFRicRealToIntXKern',
            'LFRicIntXPlusYKern',
            'LFRicIntIncXPlusYKern',
            'LFRicIntAPlusXKern',

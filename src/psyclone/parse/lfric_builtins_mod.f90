@@ -32,7 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Modified: I. Kavcic and O. Brunt, Met Office
 !
 !> @brief Meta-data for the LFRic API built-in operations.
 !> @details This meta-data is purely to provide PSyclone with a
@@ -675,7 +675,7 @@ use argument_mod,  only : arg_type,            &
 ! ------------------------------------------------------------------- !
 
   !> ifield2 = int(field1, i_def)
-  type, public, extends(kernel_type) :: int_X
+  type, public, extends(kernel_type) :: real_to_int_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_INTEGER, GH_WRITE, ANY_SPACE_1),      &
@@ -683,8 +683,8 @@ use argument_mod,  only : arg_type,            &
           /)
      integer :: operates_on = DOF
    contains
-     procedure, nopass :: int_X_code
-  end type int_X
+     procedure, nopass :: real_to_int_X_code
+  end type real_to_int_X
 
 ! ******************************************************************* !
 ! ************** Built-ins for integer-valued fields **************** !
@@ -1152,8 +1152,8 @@ contains
   end subroutine inc_min_aX_code
 
   ! Converting real to integer field elements
-  subroutine int_X_code()
-  end subroutine int_X_code
+  subroutine real_to_int_X_code()
+  end subroutine real_to_int_X_code
 
   ! ***** Integer-valued fields ***** !
   ! Adding integer fields

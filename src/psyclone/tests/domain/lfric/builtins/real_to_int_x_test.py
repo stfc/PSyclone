@@ -32,11 +32,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and O. Brunt, Met Office
 # Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: by J. Henrichs, Bureau of Meteorology
 
-''' Module containing pytest tests of the LFRicIntXKern built-in
+''' Module containing pytest tests of the LFRicRealToIntXKern built-in
     (converting real-valued to integer-valued field elements).'''
 
 import os
@@ -44,7 +44,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata
-from psyclone.domain.lfric.lfric_builtins import LFRicIntXKern
+from psyclone.domain.lfric.lfric_builtins import LFRicRealToIntXKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, Loop
@@ -60,9 +60,9 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
-def test_int_x(tmpdir, monkeypatch, annexed, dist_mem):
+def test_real_to_int_x(tmpdir, monkeypatch, annexed, dist_mem):
     '''
-    Test that 1) the '__str__' method of 'LFRicIntXKern' returns the
+    Test that 1) the '__str__' method of 'LFRicRealToIntXKern' returns the
     expected string and 2) we generate correct code for the built-in
     operation 'Y = INT(X, kind=i_<prec>)' where 'Y' is an integer-valued
     field of kind 'i_<prec>' and 'X' is the real-valued field being
@@ -71,7 +71,7 @@ def test_int_x(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     # Test metadata
-    metadata = LFRicIntXKern.metadata()
+    metadata = LFRicRealToIntXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     # Test with and without annexed DoFs
@@ -121,7 +121,7 @@ def test_int_x(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 @pytest.mark.parametrize("kind_name", ["i_native", "i_ncdf"])
-def test_int_x_precision(monkeypatch, kind_name):
+def test_real_to_int_x_precision(monkeypatch, kind_name):
     '''
     Test that the built-in picks up and creates correct code for field
     data with precision that is not the default, i.e. not 'i_def'.
@@ -152,7 +152,7 @@ def test_int_x_precision(monkeypatch, kind_name):
     assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
 
 
-def test_int_x_lowering(fortran_writer):
+def test_real_to_int_x_lowering(fortran_writer):
     '''
     Test that the lower_to_language_level() method works as expected.
 
