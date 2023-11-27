@@ -102,14 +102,16 @@ class KernelModuleInlineTrans(Transformation):
 
         '''
         if isinstance(node, CodedKern):
+            routine_sym = None
             kname = node.name
             kern_or_call = "Kernel"
         elif isinstance(node, Call):
             if isinstance(node, IntrinsicCall):
                 raise TransformationError(
                     f"Cannot module-inline a call to an intrinsic (got "
-                    f"'{node.debug_string()})'")
-            kname = node.routine.name
+                    f"'{node.debug_string()}')")
+            routine_sym = node.routine
+            kname = routine_sym.name
             kern_or_call = "routine"
         else:
             raise TransformationError(
@@ -131,8 +133,7 @@ class KernelModuleInlineTrans(Transformation):
         # any existing Routine matches that required by the Call but for now
         # we live with the possibility of a false positive resulting in a
         # refusal to module inline.
-        routine_sym = node.scope.symbol_table.lookup(kname)
-        if not routine_sym.is_import:
+        if routine_sym and not routine_sym.is_import:
             for routine in parent_container.walk(Routine, stop_type=Routine):
                 if routine.name.lower() == kname.lower():
                     raise TransformationError(
@@ -140,7 +141,7 @@ class KernelModuleInlineTrans(Transformation):
                         f"into Container '{parent_container.name}' because "
                         f"there is no explicit import of it ('USE ..., ONLY: "
                         f"{kname}' in Fortran) and a Routine with that name "
-                        f"is already present.")
+                        f"is already present in the Container.")
 
         # Check that the PSyIR and associated Symbol table of the Kernel is OK.
         # If this kernel contains symbols that are not captured in the PSyIR

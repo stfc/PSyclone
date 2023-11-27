@@ -63,9 +63,9 @@ def test_module_inline_constructor_and_str():
         "Inline a kernel subroutine into the PSy module"
 
 
-def test_validate_inline_error_if_not_kernel():
-    ''' Test that the inline transformation fails if the object being
-    passed is not a kernel'''
+def test_validate_inline_error_if_not_kernel(fortran_reader):
+    '''Test that the inline transformation fails if the object being
+    passed is not a kernel or a Call or if it is an IntrinsicCall.'''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
@@ -76,6 +76,21 @@ def test_validate_inline_error_if_not_kernel():
     assert ("Target of a KernelModuleInlineTrans must be a sub-class of "
             "psyGen.CodedKern or psyir.nodes.Call but got 'GOLoop'" in
             str(err.value))
+    # Test when it is an IntrinsicCall.
+    psyir = fortran_reader.psyir_from_source('''\
+module my_mod
+  contains
+subroutine my_sub
+  real :: a, b
+  a = sin(b)
+end subroutine my_sub
+end module my_mod
+''')
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(call)
+    assert ("Cannot module-inline a call to an intrinsic (got 'SIN(b)')"
+            in str(err.value))
 
 
 def test_validate_with_imported_subroutine_call():
@@ -248,7 +263,6 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     monkeypatch.setattr(kern_call, "_kern_schedule", routine)
 
     # and try to apply the transformation
-    inline_trans = KernelModuleInlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kern_call)
     assert ("Kernel 'compute_cv_code' cannot be module-inlined because the "
@@ -271,6 +285,33 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     monkeypatch.setattr(kern_call, "_kern_schedule", routine)
 
     inline_trans.apply(kern_call)
+
+
+def test_validate_local_routine(fortran_reader):
+    '''Test that validate rejects a call to a routine that is already present
+    in the current Container.'''
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        integer, parameter :: r_def = kind(1.0d0)
+        contains
+        subroutine compute_cv_code()
+            real(kind=r_def) :: a
+            call do_something(a)
+        end subroutine compute_cv_code
+        subroutine do_something(arg)
+          real(kind=r_def), intent(inout) :: arg
+          arg = arg + 3.14592_r_def
+        end subroutine do_something
+    end module my_mod
+    ''')
+    call = psyir.walk(Call)[0]
+    inline_trans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("routine 'do_something' cannot be module inlined into Container "
+            "'my_mod' because there is no explicit import of it ('USE ..., "
+            "ONLY: do_something' in Fortran) and a Routine with that name is "
+            "already present in the Container." in str(err.value))
 
 
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
@@ -726,7 +767,8 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     path = str(tmpdir)
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
 
-    with open(os.path.join(path, "my_mod.f90"), "w") as mfile:
+    with open(os.path.join(path, "my_mod.f90"),
+              "w", encoding="utf-8") as mfile:
         mfile.write('''\
     module my_mod
     contains
