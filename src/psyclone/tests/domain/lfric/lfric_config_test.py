@@ -234,7 +234,7 @@ def test_invalid_precision_map(tmpdir):
 
     assert ("Wrong type supplied to mapping: '-8' is not a positive"
             " integer or contains special characters." in str(err.value))
-    
+
     # Test invalid datatype: letter string
     content = re.sub(r"r_double: 8,", "r_double: number 5,",
                      _CONFIG_CONTENT,
@@ -245,7 +245,7 @@ def test_invalid_precision_map(tmpdir):
 
     assert ("Wrong type supplied to mapping: 'number 5' is not a positive"
             " integer or contains special characters." in str(err.value))
-        
+
     # Test invalid datatype: float
     content = re.sub(r"r_double: 8,", "r_double: 8.5,",
                      _CONFIG_CONTENT,
@@ -267,7 +267,7 @@ def test_invalid_precision_map(tmpdir):
 
     assert ("Wrong type supplied to mapping: '\u00b2' is not a positive"
             " integer or contains special characters." in str(err.value))
-    
+
 
 def test_invalid_num_any_anyd_spaces(tmpdir):
     ''' Check that we raise an error if we supply an invalid number
@@ -336,11 +336,11 @@ def test_default_kind():
     assert api_config.default_kind["real"] == "r_def"
     assert api_config.default_kind["integer"] == "i_def"
     assert api_config.default_kind["logical"] == "l_def"
-    
+
 
 def test_precision_map():
     '''Check that we load correct precision values for all
-    datatypes. 
+    datatypes.
 
     '''
     api_config = Config().get().api_conf(TEST_API)
