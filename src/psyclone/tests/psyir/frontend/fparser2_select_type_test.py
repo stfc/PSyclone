@@ -96,7 +96,7 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
     code = (
         "module select_mod\n"
         "contains\n"
-        "subroutine select_type()\n"
+        "subroutine select_type(type_selector)\n"
         "  class(*) :: type_selector\n"
         "  integer :: branch1, branch2\n"
         "  SELECT TYPE (type_selector)\n"
@@ -109,7 +109,7 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected = (
-        "    character(*) :: type_string\n\n\n"
+        "    character(256) :: type_string\n\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
         "  TYPE IS (INTEGER)\n"
@@ -144,7 +144,7 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
     code = (
         "module select_mod\n"
         "contains\n"
-        "subroutine select_type()\n"
+        "subroutine select_type(type)\n"
         "  class(*) :: type\n"
         "  integer :: branch1, branch2, branch3\n"
         "  SELECT TYPE (type)\n"
@@ -159,7 +159,7 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected = (
-        "    character(*) :: type_string\n\n\n"
+        "    character(256) :: type_string\n\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
         "  TYPE IS (INTEGER)\n"
@@ -193,8 +193,14 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
     code = (
         "module select_mod\n"
         "contains\n"
-        "subroutine select_type()\n"
-        "  class(*) :: type, type2, type3\n"
+        "subroutine select_type(type)\n"
+        "  class(*) :: type\n"
+        "  type type2\n"
+        "    integer :: scalar\n"
+        "  end type\n"
+        "  type type3\n"
+        "    integer :: field\n"
+        "  end type\n"
         "  integer :: branch0, branch1, branch2, branch3\n"
         "  SELECT TYPE (type)\n"
         "    CLASS IS(type2)\n"
@@ -210,7 +216,7 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected = (
-        "    character(*) :: type_string\n\n\n"
+        "    character(256) :: type_string\n\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
         "  CLASS IS (type2)\n"
@@ -257,7 +263,7 @@ def test_select_rename(fortran_reader, fortran_writer, tmpdir):
     code = (
         "module select_mod\n"
         "contains\n"
-        "subroutine select_type()\n"
+        "subroutine select_type(type)\n"
         "  class(*) :: type\n"
         "  SELECT TYPE (newtype => type)\n"
         "    TYPE IS (INTEGER)\n"
@@ -277,36 +283,6 @@ def test_select_rename(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_select_expr(fortran_reader, fortran_writer, tmpdir):
-    '''Check that a code block is created when the type in select type is
-    an expression (i.e. the code is not modified). This is done as we
-    are not yet able to simply convert an fparser2 expression into a
-    PSyIR expression.
-
-    '''
-    code = (
-        "module select_mod\n"
-        "contains\n"
-        "subroutine select_type()\n"
-        "  class(*) :: type, type2\n"
-        "  integer :: branch1\n"
-        "  SELECT TYPE (type+type2)\n"
-        "    TYPE IS (INTEGER)\n"
-        "      branch1 = 1\n"
-        "  END SELECT\n"
-        "end subroutine\n"
-        "end module\n")
-    expected = (
-        "    SELECT TYPE(type + type2)\n"
-        "  TYPE IS (INTEGER)\n"
-        "  type_string = \"integer\"\n"
-        "END SELECT\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
-    assert expected in result
-    assert Compile(tmpdir).string_compiles(result)
-
-
 def test_kind(fortran_reader, fortran_writer, tmpdir):
     '''Check that the correct code is output when the TYPE IS intrinsic
     content includes precision.
@@ -315,30 +291,26 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
     code = (
         "module select_mod\n"
         "contains\n"
-        "subroutine select_type()\n"
+        "subroutine select_type(type)\n"
         "  class(*) :: type\n"
-        "  integer :: branch1, branch2, branch3, branch4\n"
+        "  integer :: branch1, branch2\n"
         "  SELECT TYPE (type)\n"
         "    TYPE IS (REAL(kind=8))\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
         "    TYPE IS (REAL(16))\n"
         "      branch2 = 1\n"
-        "    TYPE IS (REAL*4)\n"
-        "      branch3 = 1\n"
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
     expected = (
-        "    character(*) :: type_string\n\n\n"
+        "    character(256) :: type_string\n\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
         "  TYPE IS (REAL(KIND = 8))\n"
         "  type_string = \"real(kind=8)\"\n"
         "  TYPE IS (REAL(KIND = 16))\n"
         "  type_string = \"real(16)\"\n"
-        "  TYPE IS (REAL*4)\n"
-        "  type_string = \"real*4\"\n"
         "END SELECT\n"
         "    if (type_string == 'real(kind=8)') then\n"
         "      branch1 = 1\n"
@@ -346,10 +318,6 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "    else\n"
         "      if (type_string == 'real(16)') then\n"
         "        branch2 = 1\n"
-        "      else\n"
-        "        if (type_string == 'real*4') then\n"
-        "          branch3 = 1\n"
-        "        end if\n"
         "      end if\n"
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -366,9 +334,11 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
     code = (
         "module select_mod\n"
         "contains\n"
-        "subroutine select_type()\n"
-        "  use field_mod, only : field_type\n"
+        "subroutine select_type(type)\n"
         "  class(*) :: type\n"
+        "  type field_type\n"
+        "    integer :: x\n"
+        "  end type\n"
         "  integer :: branch1\n"
         "  SELECT TYPE (type)\n"
         "    TYPE IS (field_type)\n"
@@ -377,7 +347,7 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected = (
-        "    character(*) :: type_string\n\n\n"
+        "    character(256) :: type_string\n\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
         "  TYPE IS (field_type)\n"
@@ -391,5 +361,55 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
-# TODO character and logical examples?
-# TODO support char selector options
+
+def test_datatype(fortran_reader, fortran_writer, tmpdir):
+
+    '''Check that the correct code is output with different intrinsic
+    datatypes. REAL and INTEGER have already been tested so are not
+    included here. CHARACTER must be assumed size in a 'TYPE IS'
+    clause i.e. 'CHARACTER(*)' or 'CHARACTER(LEN=*)'.
+
+    '''
+    code = (
+        "module select_mod\n"
+        "contains\n"
+        "subroutine select_type(type_selector)\n"
+        "  class(*) :: type_selector\n"
+        "  integer :: branch1, branch2, branch3\n"
+        "  SELECT TYPE (type_selector)\n"
+        "    TYPE IS (LOGICAL)\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "    TYPE IS (CHARACTER(*))\n"
+        "      branch2 = 1\n"
+        "    TYPE IS (COMPLEX)\n"
+        "      branch3 = 1\n"
+        "  END SELECT\n"
+        "end subroutine\n"
+        "end module\n")
+    expected = (
+        "    type_string = ''\n"
+        "    SELECT TYPE(type_selector)\n"
+        "  TYPE IS (LOGICAL)\n"
+        "  type_string = \"logical\"\n"
+        "  TYPE IS (CHARACTER(LEN = *))\n"
+        "  type_string = \"character(*)\"\n"
+        "  TYPE IS (COMPLEX)\n"
+        "  type_string = \"complex\"\n"
+        "END SELECT\n"
+        "    if (type_string == 'logical') then\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "    else\n"
+        "      if (type_string == 'character(*)') then\n"
+        "        branch2 = 1\n"
+        "      else\n"
+        "        if (type_string == 'complex') then\n"
+        "          branch3 = 1\n"
+        "        end if\n"
+        "      end if\n"
+        "    end if\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir)
+    assert expected in result
+    assert Compile(tmpdir).string_compiles(result)

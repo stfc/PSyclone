@@ -340,9 +340,7 @@ def _find_or_create_psyclone_internal_cmp(node):
         on which to add the interface code into.
     '''
     try:
-        symbol = node.scope.symbol_table.lookup_with_tag(
-            "psyclone_internal_cmp")
-        return symbol
+        return node.scope.symbol_table.lookup_with_tag("psyclone_internal_cmp")
     except KeyError:
         container = node.ancestor(Container)
         if container and not isinstance(container, FileContainer):
@@ -3349,7 +3347,7 @@ class Fparser2Reader():
         type_string_name = parent.scope.symbol_table.next_available_name(
             "type_string")
         type_string_type = UnknownFortranType(
-            f"character(*) :: {type_string_name}\n")
+            f"character(256) :: {type_string_name}\n")
         type_string_symbol = DataSymbol(type_string_name, type_string_type)
         parent.scope.symbol_table.add(type_string_symbol)
 
