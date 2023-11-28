@@ -38,6 +38,7 @@
 
 '''
 from collections import OrderedDict
+import re
 
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
@@ -67,6 +68,12 @@ class MetadataToArgumentsRules():
     '''
     _metadata = None
     _info = None
+    # Regex used to identify the special 'enforce_bc_code' kernel that
+    # applies boundary conditions to a field. Allows for the renaming
+    # performed by PSyclone when performing kernel transformations.
+    # TODO #487 - this can be removed when we have metadata to specify
+    # that a kernel applies boundary conditinos.
+    bc_kern_regex = re.compile(r"enforce_bc_(\d+_)?code", flags=re.I)
 
     @classmethod
     def mapping(cls, metadata, info=None):
@@ -538,8 +545,8 @@ class MetadataToArgumentsRules():
 
         # The boundary condition kernel (enforce_bc_kernel) is a
         # special case.
-        if cls._metadata.procedure_name and \
-                cls._metadata.procedure_name.lower() == "enforce_bc_code":
+        if (cls._metadata.procedure_name and
+                cls.bc_kern_regex.match(cls._metadata.procedure_name)):
             cls._field_bcs_kernel()
 
         # The operator boundary condition kernel
