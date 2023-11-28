@@ -3426,8 +3426,6 @@ class Fparser2Reader():
             currentparent.addchild(elsebody)
             self.process_nodes(parent=elsebody, nodes=stmts[default_idx])
 
-        # TODO merge case and select type implementations where possible
-
         return stmt
 
     def _case_construct_handler(self, node, parent):

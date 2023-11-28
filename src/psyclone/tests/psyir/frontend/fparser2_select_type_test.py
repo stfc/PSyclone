@@ -37,11 +37,57 @@
 construction for the Fparser->PSyIR frontend.
 
 '''
+import pytest
+
+from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+from fparser.two.parser import ParserFactory
+
+from psyclone.errors import InternalError
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import CodeBlock, IfBlock
 from psyclone.tests.utilities import Compile
 
 
+def test_invalid_node():
+    '''Check that the expected exception is raised if the supplied node is
+    not an fparser2 Select_Type_Construct.
+
+    '''
+    reader = Fparser2Reader()
+    with pytest.raises(InternalError) as info:
+        reader._type_construct_handler(None, None)
+    assert ("Failed to find opening select type statement in: None"
+            in str(info.value))
+
+
+def test_no_end_select():
+    '''Check that the expected exception is raised if the supplied fparser
+    tree root node does not have End_Select_Type_Stmt as its last child.
+
+    '''
+    code = (
+        "  SELECT TYPE (type_selector)\n"
+        "    TYPE IS (INTEGER)\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "    TYPE IS (REAL)\n"
+        "      branch2 = 1\n"
+        "  END SELECT\n")
+    string_reader = FortranStringReader(code)
+    ParserFactory().create(std="f2008")
+    ast = Fortran2003.Select_Type_Construct(string_reader)
+    # Remove the end_select instance to force the exception
+    del ast.children[-1]
+    reader = Fparser2Reader()
+    with pytest.raises(InternalError) as info:
+        reader._type_construct_handler(ast, None)
+    assert("Failed to find closing select type statement in: "
+           "SELECT TYPE(type_selector)" in str(info.value))
+
+
 def test_type(fortran_reader, fortran_writer, tmpdir):
+
     '''Check that the correct code is output with a basic select type
     construct. Also check that the appropriate annotation is added to
     the if nodes.
@@ -138,24 +184,28 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
 
 
 def test_class(fortran_reader, fortran_writer, tmpdir):
-    '''Check that the correct code is output when select type has a
-    class is clause.
+    '''Check that the correct code is output when select type has a 'class
+    is' clause. Place one as the first clause and one later for
+    coverage. Also check that the appropriate annotation is added to
+    the if nodes related to the 'class is' clause.
 
     '''
     code = (
         "module select_mod\n"
         "contains\n"
         "subroutine select_type()\n"
-        "  class(*) :: type, type2\n"
-        "  integer :: branch1, branch2, branch3\n"
+        "  class(*) :: type, type2, type3\n"
+        "  integer :: branch0, branch1, branch2, branch3\n"
         "  SELECT TYPE (type)\n"
+        "    CLASS IS(type2)\n"
+        "        branch0 = 1\n"
         "    TYPE IS (INTEGER)\n"
         "        branch1 = 1\n"
         "        branch2 = 0\n"
-        "    CLASS IS(type2)\n"
-        "        branch3 = 1\n"
-        "    TYPE IS (REAL)\n"
+        "    CLASS IS(type3)\n"
         "        branch2 = 1\n"
+        "    TYPE IS (REAL)\n"
+        "        branch3 = 1\n"
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
@@ -163,28 +213,37 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "    character(*) :: type_string\n\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
-        "  TYPE IS (INTEGER)\n"
-        "  type_string = \"integer\"\n"
         "  CLASS IS (type2)\n"
         "  type_string = \"type2\"\n"
+        "  TYPE IS (INTEGER)\n"
+        "  type_string = \"integer\"\n"
+        "  CLASS IS (type3)\n"
+        "  type_string = \"type3\"\n"
         "  TYPE IS (REAL)\n"
         "  type_string = \"real\"\n"
         "END SELECT\n"
-        "    if (type_string == 'integer') then\n"
-        "      branch1 = 1\n"
-        "      branch2 = 0\n"
+        "    if (type_string == 'type2') then\n"
+        "      branch0 = 1\n"
         "    else\n"
-        "      if (type_string == 'type2') then\n"
-        "        branch3 = 1\n"
+        "      if (type_string == 'integer') then\n"
+        "        branch1 = 1\n"
+        "        branch2 = 0\n"
         "      else\n"
-        "        if (type_string == 'real') then\n"
+        "        if (type_string == 'type3') then\n"
         "          branch2 = 1\n"
+        "        else\n"
+        "          if (type_string == 'real') then\n"
+        "            branch3 = 1\n"
+        "          end if\n"
         "        end if\n"
         "      end if\n"
-        "    end if")
+        "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
     assert expected in result
+    if_blocks = psyir.walk(IfBlock)
+    assert "was_class_type" in if_blocks[0].annotations
+    assert "was_class_type" in if_blocks[2].annotations
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -299,7 +358,7 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_derived(fortran_reader, fortran_writer):
+def test_derived(fortran_reader, fortran_writer, tmpdir):
     '''Check that the expected code is prodiced when 'TYPE IS type' is a
     derived type.
 
@@ -330,9 +389,7 @@ def test_derived(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
     assert expected in result
-
-# TODO _find_or_create_psyclone_internal_cmp Working with program and
-# subroutine - separate PR I think - before this one
+    assert Compile(tmpdir).string_compiles(result)
 
 # TODO character and logical examples?
 # TODO support char selector options
