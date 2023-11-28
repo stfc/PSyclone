@@ -42,7 +42,7 @@ sub-classes.'''
 from abc import ABCMeta
 from enum import Enum
 
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols.datatypes import (
     ArrayType, BOOLEAN_TYPE, DeferredType, ScalarType,
@@ -200,8 +200,6 @@ class UnaryOperation(Operation):
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
         '''
-        if self.operator not in self._numeric_ops:
-            return BOOLEAN_TYPE
         return self.children[0].datatype
 
 

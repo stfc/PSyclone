@@ -201,7 +201,7 @@ def test_binaryop_scalar_datatype():
                                     Reference(DataSymbol("switch",
                                                          BOOLEAN_TYPE)))
     with pytest.raises(TypeError) as err:
-        binop6.datatype
+        _ = binop6.datatype
     assert ("Invalid argument of type 'Intrinsic.BOOLEAN' to numerical "
             "operation 'Operator.ADD' in 'itmp1 + switch'" in str(err.value))
     # Two arguments of different precision.
@@ -209,7 +209,7 @@ def test_binaryop_scalar_datatype():
                                     Reference(DataSymbol("dtmp1",
                                                          REAL_DOUBLE_TYPE)))
     with pytest.raises(NotImplementedError) as err:
-        binop7.datatype
+        _ = binop7.datatype
     assert ("Cannot determine the type of expression 'tmp1 + dtmp1' involving "
             "arguments of the same intrinsic type but different precision "
             "('Precision.SINGLE' and 'Precision.DOUBLE')." in str(err.value))
@@ -258,7 +258,7 @@ def test_binaryop_array_datatype():
     ref6 = Reference(DataSymbol("tmp2d", arr2dtype))
     binop6 = BinaryOperation.create(oper, ref1.copy(), ref6)
     with pytest.raises(TypeError) as err:
-        binop6.datatype
+        _ = binop6.datatype
     assert ("Binary operation 'tmp1 + tmp2d' has operands of different shape: "
             "'tmp1' has rank 1 and 'tmp2d' has rank 2" in str(err.value))
 
@@ -419,7 +419,7 @@ def test_binaryop_partial_datatype():
     assert dtype4.shape[1].lower.value == "1"
     assert dtype4.shape[1].upper.value == "5"
     assert dtype4.intrinsic == REAL_SINGLE_TYPE.intrinsic
-    # A reference to an array of unknown type but with partial type ino.
+    # A reference to an array of unknown type but with partial type info.
     utype5 = UnknownFortranType("real, pointer :: ref5",
                                 partial_datatype=REAL_SINGLE_TYPE)
     arrtype5 = ArrayType(utype5, [8])
@@ -429,6 +429,13 @@ def test_binaryop_partial_datatype():
     assert isinstance(dtype5, ArrayType)
     assert dtype5.intrinsic == REAL_SINGLE_TYPE.intrinsic
     assert len(dtype5.shape) == 1
+    # Reference to an array of unknown type without partialy type information.
+    utype6 = UnknownFortranType("real, dimension(10,5), pointer :: ref6")
+    arrtype6 = ArrayType(utype6, [10, 5])
+    ref6 = Reference(DataSymbol("ref6", arrtype6))
+    binop6 = BinaryOperation.create(oper, ref4.copy(), ref6)
+    dtype6 = binop6.datatype
+    assert isinstance(dtype6, DeferredType)
 
 
 def test_binaryoperation_intrinsic_fn_datatype():
@@ -545,6 +552,34 @@ def test_unaryoperation_children_validation():
         operation.addchild(literal2)
     assert ("Item 'Literal' can't be child 1 of 'UnaryOperation'. The valid "
             "format is: 'DataNode'.") in str(excinfo.value)
+
+
+def test_unaryop_datatype():
+    '''
+    Test the datatype property of UnaryOperation.
+    '''
+    # Numerical, scalar operation
+    oper = UnaryOperation.Operator.MINUS
+    uop = UnaryOperation.create(oper, Literal("1", INTEGER_SINGLE_TYPE))
+    assert uop.datatype == INTEGER_SINGLE_TYPE
+    # Numerical, array operation
+    ntype = ArrayType(REAL_DOUBLE_TYPE, [20])
+    nsym = DataSymbol("var", ntype)
+    uop1 = UnaryOperation.create(oper, Reference(nsym))
+    dtype = uop1.datatype
+    assert dtype == ntype
+    # Logical operation
+    oper = UnaryOperation.Operator.NOT
+    uop2 = UnaryOperation.create(oper, Literal("true", BOOLEAN_TYPE))
+    assert uop2.datatype == BOOLEAN_TYPE
+    # With logical array argument
+    atype = ArrayType(BOOLEAN_TYPE, [10, 10])
+    asym = DataSymbol("mask", atype)
+    uop3 = UnaryOperation.create(oper, Reference(asym))
+    dtype = uop3.datatype
+    assert isinstance(dtype, ArrayType)
+    assert dtype == atype
+    assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
 
 
 def test_operations_can_be_copied():
