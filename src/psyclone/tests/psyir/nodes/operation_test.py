@@ -208,11 +208,8 @@ def test_binaryop_scalar_datatype():
     binop7 = BinaryOperation.create(oper, ref1.copy(),
                                     Reference(DataSymbol("dtmp1",
                                                          REAL_DOUBLE_TYPE)))
-    with pytest.raises(NotImplementedError) as err:
-        _ = binop7.datatype
-    assert ("Cannot determine the type of expression 'tmp1 + dtmp1' involving "
-            "arguments of the same intrinsic type but different precision "
-            "('Precision.SINGLE' and 'Precision.DOUBLE')." in str(err.value))
+    dtype7 = binop7.datatype
+    assert isinstance(dtype7, DeferredType)
 
 
 def test_binaryop_array_datatype():

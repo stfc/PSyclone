@@ -276,11 +276,12 @@ class BinaryOperation(Operation):
     @property
     def datatype(self):
         '''
+        Determines the datatype of this operation. If it cannot be determined
+        for any reason then an instance of DeferredType is returned.
+
         :returns: the datatype of the result of this BinaryOperation.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
-        :raises NotImplementedError: if the operands are of the same intrinsic
-                                     type but different precisions.
         :raises TypeError: if an unexpected intrinsic type is found for
                            either of the operands to a numeric operation.
         :raises TypeError: if the operands are both arrays but are of different
@@ -332,12 +333,13 @@ class BinaryOperation(Operation):
                 return DeferredType()
             if argtypes[0].intrinsic == argtypes[1].intrinsic:
                 if argtypes[0].precision != argtypes[1].precision:
-                    raise NotImplementedError(
-                        f"Cannot determine the type of expression "
-                        f"'{self.debug_string()}' involving arguments of the "
-                        f"same intrinsic type but different precision "
-                        f"('{argtypes[0].precision}' and "
-                        f"'{argtypes[1].precision}').")
+                    # Cannot determine the type of an expression involving
+                    # arguments of the same intrinsic type but different
+                    # precisions. (The Fortran standard says that the precision
+                    # of the expression is determined by the destination of
+                    # its result.)
+                    # TODO #11 - this should be logged.
+                    return DeferredType()
                 # Operands are of the same type so that is the type of the
                 # result.
                 base_type = argtypes[0]
