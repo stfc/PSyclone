@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic and A. Coughtrie, Met Office,
+#         I. Kavcic, A. Coughtrie and L. Turner, Met Office,
 #         C. M. Maynard, Met Office/University of Reading,
 #         J. Henrichs, Bureau of Meteorology.
 # Modified by: L. Turner, Met Office
@@ -45,9 +45,8 @@ import pytest
 import fparser
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import LFRicKern, LFRicConstants
-from psyclone.dynamo0p3 import (DynKernelArguments,
-                                DynKernMetadata, DynStencils)
+from psyclone.domain.lfric import LFRicKern, LFRicConstants, LFRicStencils
+from psyclone.dynamo0p3 import DynKernelArguments, DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -1766,7 +1765,7 @@ def test_stencil_extent_specified():
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 1
-    stencils = DynStencils(psy.invokes.invoke_list[0])
+    stencils = LFRicStencils(psy.invokes.invoke_list[0])
     with pytest.raises(GenerationError) as err:
         stencils.stencil_unique_str(stencil_arg, "")
     assert ("Found a stencil with an extent specified in the metadata. "
@@ -1961,13 +1960,13 @@ def test_dynkernargs_unexpect_stencil_extent():
 
 
 def test_dynstencils_extent_vars_err(monkeypatch):
-    ''' Check that the _unique_extent_vars method of DynStencils raises
+    ''' Check that the _unique_extent_vars method of LFRicStencils raises
     the expected internal error. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    stencils = DynStencils(invoke)
+    stencils = LFRicStencils(invoke)
     # Monkeypatch it to break internal state
     monkeypatch.setattr(stencils, "_invoke", None)
     with pytest.raises(InternalError) as err:
@@ -1977,14 +1976,14 @@ def test_dynstencils_extent_vars_err(monkeypatch):
 
 
 def test_dynstencils_err():
-    ''' Check that DynStencils.initialise and DynStencils._declare_maps_invoke
+    ''' Check that LFRicStencils.initialise and LFRicStencils._declare_maps_invoke
     raises the expected InternalError if an unsupported stencil type is
     encountered. '''
     _, info = parse(os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    stencils = DynStencils(invoke)
+    stencils = LFRicStencils(invoke)
     # Break internal state
     stencils._kern_args[0].descriptor.stencil['type'] = "not-a-type"
     with pytest.raises(GenerationError) as err:

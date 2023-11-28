@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that manages all of the data references
@@ -44,6 +44,8 @@ first before any members.
 
 from psyclone import psyGen
 from psyclone.domain.lfric import KernCallArgList
+# Avoid circular import:
+from psyclone.domain.lfric.lfric_stencils import LFRicStencils
 from psyclone.errors import InternalError
 
 
@@ -107,10 +109,7 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_symbol(self._kern.root.symbol_table,
+        var_name = LFRicStencils.dofmap_symbol(self._kern.root.symbol_table,
                                              arg).name
         self.append(var_name, var_accesses)
 
@@ -145,10 +144,7 @@ class KernCallAccArgList(KernCallArgList):
 
         '''
         # The extent is not specified in the metadata so pass the value in
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_symbol(self._kern.root.symbol_table,
+        name = LFRicStencils.dofmap_size_symbol(self._kern.root.symbol_table,
                                               arg).name
         self.append(name, var_accesses)
 

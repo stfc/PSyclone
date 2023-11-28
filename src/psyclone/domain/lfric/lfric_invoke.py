@@ -43,6 +43,8 @@
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants
+# Avoid circular import:
+from psyclone.domain.lfric.lfric_stencils import LFRicStencils
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
                               UseGen)
@@ -93,8 +95,7 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import (DynStencils,
-                                        DynFunctionSpaces, DynDofmaps,
+        from psyclone.dynamo0p3 import (DynFunctionSpaces, DynDofmaps,
                                         LFRicFields, DynLMAOperators,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
@@ -108,7 +109,7 @@ class LFRicInvoke(Invoke):
         self.scalar_args = LFRicScalarArgs(self)
 
         # Initialise our Invoke stencil information
-        self.stencil = DynStencils(self)
+        self.stencil = LFRicStencils(self)
 
         # Initialise our information on the function spaces used by this Invoke
         self.function_spaces = DynFunctionSpaces(self)
