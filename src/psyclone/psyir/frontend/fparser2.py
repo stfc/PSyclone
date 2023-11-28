@@ -340,13 +340,9 @@ def _find_or_create_psyclone_internal_cmp(node):
         on which to add the interface code into.
     '''
     try:
-        arg1 = node.scope.symbol_table.lookup_with_tag("psyclone_internal_cmp")
-        arg2 = node.scope.symbol_table.lookup_with_tag("psyclone_cmp_type")
-        arg3 = node.scope.symbol_table.lookup_with_tag(
-            "psyclone_cmp_type_starred")
-        arg4 = node.scope.symbol_table.lookup_with_tag(
-            "psyclone_cmp_type_kind")
-        return (arg1, arg2, arg3, arg4)
+        symbol = node.scope.symbol_table.lookup_with_tag(
+            "psyclone_internal_cmp")
+        return symbol
     except KeyError:
         container = node.ancestor(Container)
         if container and not isinstance(container, FileContainer):
