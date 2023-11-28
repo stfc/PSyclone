@@ -44,7 +44,7 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
 from psyclone.psyir.symbols import DataSymbol, DeferredType, AutomaticInterface
-from psyclone.psyir.transformations import (InlineTrans,
+from psyclone.psyir.transformations import (InlineTrans, OMPLoopTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
 
@@ -271,6 +271,57 @@ def test_apply_gocean_kern(fortran_reader, fortran_writer, monkeypatch):
             "actual argument.")
     output = fortran_writer(psyir)
     assert ("    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+            "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
+            "        cu_fld%data(i,j) = 0.5d0 * (pf%data(i,j) + "
+            "pf%data(i - 1,j)) * u_fld%data(i,j)\n"
+            "      enddo\n"
+            "    enddo\n" in output)
+
+
+def test_apply_inside_omp_region(fortran_reader, fortran_writer, monkeypatch):
+    '''
+    Test the result of inlining a routine inside an OMP region.
+
+    '''
+    code = (
+        "module psy_single_invoke_test\n"
+        "  implicit none\n"
+        "  integer, parameter :: go_wp = kind(1.0d0)\n"
+        "  integer :: xstart, xstop, ystart, ystop\n"
+        "  contains\n"
+        "  subroutine invoke_0_compute_cu(cdata, pdata, udata)\n"
+        "    real(go_wp), dimension(:,:), intent(inout) :: cdata, pdata, udata\n"
+        "    integer j, i, a_clash\n"
+        "    do j = ystart, ystop, 1\n"
+        "      do i = xstart, xstop, 1\n"
+        "        a_clash = i\n"
+        "        call compute_cu_code(a_clash, j, cdata, pdata, "
+        "udata)\n"
+        "      end do\n"
+        "    end do\n"
+        "  end subroutine invoke_0_compute_cu\n"
+        "  subroutine compute_cu_code(i, j, cu, p, u)\n"
+        "    implicit none\n"
+        "    integer,  intent(in) :: i, j\n"
+        "    real(go_wp), intent(out), dimension(:,:) :: cu\n"
+        "    real(go_wp), intent(in),  dimension(:,:) :: p, u\n"
+        "    real(go_wp) :: a_clash\n"
+        "    a_clash = 3.0d0\n"
+        "    cu(i,j) = a_clash*0.5d0*(p(i,j)+p(i-1,j))*u(i,j)\n"
+        "  end subroutine compute_cu_code\n"
+        "end module psy_single_invoke_test\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    otrans = OMPLoopTrans(omp_directive="paralleldo")
+    inline_trans.apply(psyir.walk(Call)[0])
+    loops = psyir.walk(Loop)
+    otrans.apply(loops[0])
+    output = fortran_writer(psyir)
+    print(output)
+    assert ("    !$omp parallel do default(shared), private(a_clash,"
+            "a_clash_1,i,j), schedule(auto)\n"
+            "    do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
             "      do i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
             "        cu_fld%data(i,j) = 0.5d0 * (pf%data(i,j) + "
             "pf%data(i - 1,j)) * u_fld%data(i,j)\n"
