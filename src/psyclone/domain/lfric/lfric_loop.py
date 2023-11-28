@@ -36,9 +36,9 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone LFRic API by specialising the Loop
-    base class in psyGen.py
-     '''
+''' This module implements the PSyclone LFRic API by specialising the PSyLoop
+    base class from psyGen.py.
+    '''
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType

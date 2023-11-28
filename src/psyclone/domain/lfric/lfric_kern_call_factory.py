@@ -42,7 +42,7 @@
 '''
 
 # Imports
-from psyclone.domain.lfric import LFRicKern
+from psyclone.domain.lfric import LFRicKern, LFRicLoop
 
 
 class LFRicKernCallFactory():
@@ -73,9 +73,6 @@ class LFRicKernCallFactory():
         else:
             # Loop over cells, indicated by an empty string.
             loop_type = ""
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicLoop
         cloop = LFRicLoop(parent=parent, loop_type=loop_type)
 
         # The kernel itself
