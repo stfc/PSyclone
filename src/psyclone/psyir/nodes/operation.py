@@ -273,6 +273,83 @@ class BinaryOperation(Operation):
         binary_op.addchild(rhs)
         return binary_op
 
+    def _get_base_type(self, argtypes):
+        '''
+        Examines the two operand types to determine the base type of the
+        operation. If the type cannot be determined then an instance of
+        `DeferredType` is returned.
+
+        :param argtypes: the types of the two operands.
+        :type argtypes: list[:py:class:`psyclone.psyir.symbols.DataType`,
+                             :py:class:`psyclone.psyir.symbols.DataType`]
+
+        :returns: the base type of the result of the operation.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        :raises TypeError: if an unexpected intrinsic type is found for
+                           either of the operands to a numeric operation.
+
+        '''
+        if self.operator not in self._numeric_ops:
+            # Must be a relational or logical operator. Intrinsic type of
+            # result will be boolean.
+            return BOOLEAN_TYPE
+
+        # We have a numerical operation.
+        if any(isinstance(atype.intrinsic, DeferredType)
+               for atype in argtypes):
+            # datatype of a numerical operation on a DeferredType is a
+            # DeferredType.
+            return DeferredType()
+
+        base_type = None
+
+        if argtypes[0].intrinsic == argtypes[1].intrinsic:
+            precisions = [argtypes[0].precision, argtypes[1].precision]
+            if precisions[0] != precisions[1]:
+                # Operands are of same intrinsic type but different
+                # precisions. Section 7.1.9.3 of the Fortran standard says
+                # that in this case, the precision of the result is the
+                # greater of the two.
+                if all(isinstance(prec, int) for prec in precisions):
+                    # Both precisions are integer.
+                    precision = max(precisions)
+                elif all(isinstance(prec, ScalarType.Precision) for
+                         prec in precisions):
+                    if ScalarType.Precision.UNDEFINED in precisions:
+                        precision = ScalarType.Precision.UNDEFINED
+                    elif ScalarType.Precision.DOUBLE in precisions:
+                        precision = ScalarType.Precision.DOUBLE
+                    else:
+                        precision = ScalarType.Precision.SINGLE
+                else:
+                    precision = ScalarType.Precision.UNDEFINED
+                base_type = ScalarType(argtypes[0].intrinsic, precision)
+            else:
+                # Operands are of the same type so that is the type of the
+                # result.
+                base_type = argtypes[0]
+        elif argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
+            base_type = argtypes[0]
+        elif argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
+            base_type = argtypes[1]
+
+        # Check that the type of the result is consistent with a numerical
+        # operation.
+        if not base_type or base_type.intrinsic not in (
+                ScalarType.Intrinsic.INTEGER,
+                ScalarType.Intrinsic.REAL):
+            for atype in argtypes:
+                if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
+                                           ScalarType.Intrinsic.REAL):
+                    raise TypeError(
+                        f"Invalid argument of type '{atype.intrinsic}' to "
+                        f"numerical operation '{self.operator}' in "
+                        f"'{self.debug_string()}'. Currently only "
+                        f"ScalarType.Intrinsic.REAL/INTEGER are "
+                        f"supported (TODO #1590)")
+        return base_type
+
     @property
     def datatype(self):
         '''
@@ -282,8 +359,6 @@ class BinaryOperation(Operation):
         :returns: the datatype of the result of this BinaryOperation.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
-        :raises TypeError: if an unexpected intrinsic type is found for
-                           either of the operands to a numeric operation.
         :raises TypeError: if the operands are both arrays but are of different
                            shapes.
         '''
@@ -318,52 +393,9 @@ class BinaryOperation(Operation):
 
             argtypes.append(dtype)
 
-        base_type = None
-
-        if self.operator not in self._numeric_ops:
-            # Must be a relational or logical operator. Intrinsic type of
-            # result will be boolean.
-            base_type = BOOLEAN_TYPE
-        else:
-            # We have a numerical operation.
-            if any(isinstance(atype.intrinsic, DeferredType)
-                   for atype in argtypes):
-                # datatype of a numerical operation on a DeferredType is a
-                # DeferredType.
-                return DeferredType()
-            if argtypes[0].intrinsic == argtypes[1].intrinsic:
-                if argtypes[0].precision != argtypes[1].precision:
-                    # Cannot determine the type of an expression involving
-                    # arguments of the same intrinsic type but different
-                    # precisions. (The Fortran standard says that the precision
-                    # of the expression is determined by the destination of
-                    # its result.)
-                    # TODO #11 - this should be logged.
-                    return DeferredType()
-                # Operands are of the same type so that is the type of the
-                # result.
-                base_type = argtypes[0]
-            elif argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
-                base_type = argtypes[0]
-            elif argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
-                base_type = argtypes[1]
-
-            # Check that the type of the result is consistent with a numerical
-            # operation.
-            if not base_type or base_type.intrinsic not in (
-                    ScalarType.Intrinsic.INTEGER,
-                    ScalarType.Intrinsic.REAL):
-                for atype in argtypes:
-                    if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
-                                               ScalarType.Intrinsic.REAL):
-                        raise TypeError(
-                            f"Invalid argument of type '{atype.intrinsic}' to "
-                            f"numerical operation '{self.operator}' in "
-                            f"'{self.debug_string()}'. Currently only "
-                            f"ScalarType.Intrinsic.REAL/INTEGER are "
-                            f"supported (TODO #1590)")
-
-        if all(isinstance(atype, ScalarType) for atype in argtypes):
+        base_type = self._get_base_type(argtypes)
+        if (isinstance(base_type, DeferredType) or
+                all(isinstance(atype, ScalarType) for atype in argtypes)):
             # Both operands are of scalar type.
             return base_type
 
