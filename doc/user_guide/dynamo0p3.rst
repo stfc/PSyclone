@@ -2682,9 +2682,10 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 
 7) As in the case of Built-in field argument rules, the names of the
    field data-type conversion Built-ins, ``real_to_int_X`` (converts field data
-   from ``real`` to ``integer``) and ``int_to_real_X`` (converts field data
-   from ``integer`` to ``real``), are the only exceptions for the
-   naming of Built-ins in Fortran above.
+   from ``real`` to ``integer``), ``int_to_real_X`` (converts field data
+   from ``integer`` to ``real``), and ``real_to_real_X`` (convers field data
+   from ``real`` to ``real``) are the only exceptions for the naming of
+   Built-ins in Fortran above.
 
 .. _lfric-built-ins-real:
 
@@ -3272,7 +3273,7 @@ A Built-in which takes a ``real`` field and converts it to an
 ``integer`` field is denoted with the keyword **int**.
 
 real_to_int_X
-^^^^^
+^^^^^^^^^^^^^
 
 **real_to_int_X** (**ifield2**, *field1*)
 
@@ -3284,6 +3285,31 @@ Here ``Y`` is an ``integer``-valued field and ``X`` is the
   ifield2(:) = INT(field1(:), kind=i_def)
 
 where **ifield2** is an ``integer_field_type`` of ``i_def`` precision
+and a ``real``-valued field *field1* can be of any :ref:`supported
+precisions <lfric-mixed-precision>` for ``GH_REAL`` fields (e.g.
+``r_tran`` for ``r_tran_field_type``).
+
+Conversion of ``real`` to ``real`` field elements
+####################################################
+
+A Built-in which takes a ``real`` field of one precision type and
+converts it to a ``real`` field of a differing precision is denoted
+with the keyword **real**.
+
+real_to_real_X
+^^^^^^^^^^^^^^
+
+**real_to_real_X** (**field2**, *field1*)
+
+Converts ``real``-valued field elements from a precision ``r_<prec>``
+to ``real``-valued field elements of a differing precision ``r_<prec>``.
+For example, in Fortran this would be: ``Y = REAL(X, kind=r_solver)``.
+Here ``Y`` is a ``real``-valued field of precision ``r_solver`` and
+``X`` is the ``real``-valued field being converted from a detected type::
+
+  field2(:) = REAL(field1(:), kind=r_solver)
+
+where **field2** is a ``real_field_type`` of ``r_solver`` precision
 and a ``real``-valued field *field1* can be of any :ref:`supported
 precisions <lfric-mixed-precision>` for ``GH_REAL`` fields (e.g.
 ``r_tran`` for ``r_tran_field_type``).
@@ -3575,7 +3601,7 @@ A Built-in which takes an ``integer`` field and converts it to
 a ``real`` field is denoted with the keyword **real**.
 
 int_to_real_X
-^^^^^^
+^^^^^^^^^^^^^
 
 **int_to_real_X** (**field2**, *ifield1*)
 

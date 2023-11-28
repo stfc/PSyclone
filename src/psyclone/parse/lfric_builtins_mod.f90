@@ -686,6 +686,22 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: real_to_int_X_code
   end type real_to_int_X
 
+! ------------------------------------------------------------------- !
+! ============== Converting real to real field elements ============= !
+! ------------------------------------------------------------------- !
+
+  !> field2 = real(field1, r_def)
+  type, public, extends(kernel_type) :: real_to_real_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: real_to_real_X_code
+  end type real_to_real_X
+
 ! ******************************************************************* !
 ! ************** Built-ins for integer-valued fields **************** !
 ! ******************************************************************* !
@@ -1154,6 +1170,10 @@ contains
   ! Converting real to integer field elements
   subroutine real_to_int_X_code()
   end subroutine real_to_int_X_code
+
+  ! Converting real to real field elements
+  subroutine real_to_real_X_code()
+  end subroutine real_to_real_X_code
 
   ! ***** Integer-valued fields ***** !
   ! Adding integer fields
