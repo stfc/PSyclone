@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,22 +32,20 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: S. Siso and R. W. Ford, STFC Daresbury Lab
-#           I. Kavcic, Met Office
+# Modified: I. Kavcic, Met Office
+# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: by J. Henrichs, Bureau of Meteorology
 
-'''Module containing pytest tests of the LFRicSetvalRandomKern
-built-in.
-
-'''
+''' Module containing pytest tests of the LFRicXInnerproductXKern built-ins
+    (inner product of a real-valued field with itself).'''
 
 import os
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata
-from psyclone.domain.lfric.lfric_builtins import LFRicSetvalRandomKern
+from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductXKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import IntrinsicCall, Loop
+from psyclone.psyir.nodes import Assignment, Loop
 from psyclone.tests.lfric_build import LFRicBuild
-
 
 # Constants
 BASE_PATH = os.path.join(
@@ -59,47 +57,54 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
-def test_setval_random(tmpdir):
-    '''Test the 'str()' and 'metadata()' methods and generated code for
-    the 'LFRicSetvalRandomKern' built-in.
+def test_x_innerproduct_x(tmpdir, dist_mem):
+    '''
+    Test that 1) the '__str__' method of 'LFRicXInnerproductXKern'
+    returns the expected string and 2) we generate correct code
+    for the built-in operation which calculates inner product of
+    a real-valued field 'X' by itself as 'innprod = innprod +
+    X(:)*X(:)'. 3) Also test the 'metadata()' method.
 
     '''
-    metadata = LFRicSetvalRandomKern.metadata()
+    # Test metadata
+    metadata = LFRicXInnerproductXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.7.4_setval_random_builtin.f90"),
-                           api=API)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "15.9.2_X_innerproduct_X_builtin.f90"),
+        api=API)
     psy = PSyFactory(API,
-                     distributed_memory=True).create(invoke_info)
+                     distributed_memory=dist_mem).create(invoke_info)
 
-    # Test 'str()' method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert isinstance(kern, LFRicSetvalRandomKern)
-    assert (str(kern) ==
-            "Built-in: setval_random (fill a real-valued field with "
-            "pseudo-random numbers)")
+    assert str(kern) == "Built-in: X_innerproduct_X (real-valued field)"
 
     # Test code generation
     code = str(psy.gen)
     output = (
-        "      DO df=loop0_start,loop0_stop\n"
-        "        CALL RANDOM_NUMBER(f1_data(df))\n"
-        "      END DO\n")
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        asum = asum + f1_data(df) * f1_data(df)\n"
+            "      END DO")
     assert output in code
 
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_setval_random_lowering(fortran_writer):
-    '''Test that the 'lower_to_language_level()' method works as
-    expected.
+def test_x_innerproduct_x_lowering(fortran_writer):
+    '''
+    Test that the lower_to_language_level() method of X_innerproduct_X
+    built-in works as expected.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.7.4_setval_random_builtin.f90"),
-                           api=API)
+                           "15.9.2_X_innerproduct_X_builtin.f90"), api=API)
     psy = PSyFactory(API,
                      distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
@@ -107,11 +112,10 @@ def test_setval_random_lowering(fortran_writer):
     parent = kern.parent
     lowered = kern.lower_to_language_level()
     assert parent.children[0] is lowered
-    assert isinstance(parent.children[0], IntrinsicCall)
-    assert parent.children[0].routine.name == "RANDOM_NUMBER"
+    assert isinstance(parent.children[0], Assignment)
 
     loop = first_invoke.schedule.walk(Loop)[0]
     code = fortran_writer(loop)
     assert ("do df = loop0_start, loop0_stop, 1\n"
-            "  call RANDOM_NUMBER(f1_data(df))\n"
+            "  asum = asum + f1_data(df) * f1_data(df)\n"
             "enddo") in code

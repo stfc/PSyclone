@@ -3282,7 +3282,6 @@ class DynCellIterators(LFRicCollection):
                 self._first_var.ref_name() + "%get_nlayers()"))
 
 
-
 class DynLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.
@@ -5099,8 +5098,11 @@ class DynBoundaryConditions(LFRicCollection):
         # Check through all the kernel calls to see whether any of them
         # require boundary conditions. Currently this is done by recognising
         # the kernel name.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.metadata_to_arguments_rules import (
+            MetadataToArgumentsRules)
         for call in self._calls:
-            if call.name.lower() == "enforce_bc_code":
+            if MetadataToArgumentsRules.bc_kern_regex.match(call.name):
                 bc_fs = None
                 for fspace in call.arguments.unique_fss:
                     if fspace.orig_name == "any_space_1":
