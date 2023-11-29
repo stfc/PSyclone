@@ -42,7 +42,7 @@ sub-classes.'''
 from abc import ABCMeta
 from enum import Enum
 
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols.datatypes import (
     ArrayType, BOOLEAN_TYPE, DeferredType, ScalarType,
@@ -273,7 +273,55 @@ class BinaryOperation(Operation):
         binary_op.addchild(rhs)
         return binary_op
 
-    def _get_base_type(self, argtypes):
+    def _get_result_precision(self, precisions):
+        '''
+        Compares the two precisions to determine the precision of the result
+        of the operation.
+
+        If the two precisions are the same, then that value is returned.
+        Otherwise, Section 7.1.9.3 of the Fortran standard says that in this
+        case, the precision of the result is the greater of the two.
+        If the precision cannot be determined then
+        `ScalarType.Precision.UNDEFINED` is returned.
+
+        :param precisions: the precision of the two operands.
+        :type precisions: list[int |
+            :py:class:`psyclone.psyir.symbols.ScalarType.Precision |
+            :py:class:`psyclone.psyir.nodes.Reference`]
+
+        :returns: the precision of the result of the operation.
+        :rtype: int | :py:class:`psyclone.psyir.symbols.ScalarType.Precision
+
+        :raises InternalError: if an unsupported Precision value is encountered
+            (this is to defend against any future extension of
+            ScalarType.Precision).
+
+        '''
+        if precisions[0] == precisions[1]:
+            return precisions[0]
+
+        # Operands have different precisions.
+        if all(isinstance(prec, int) for prec in precisions):
+            # Both precisions are integer.
+            return max(precisions)
+
+        if all(isinstance(prec, ScalarType.Precision) for
+               prec in precisions):
+            # Both precisions are of ScalarType.Precision type.
+            if ScalarType.Precision.UNDEFINED in precisions:
+                return ScalarType.Precision.UNDEFINED
+            if ScalarType.Precision.DOUBLE in precisions:
+                return ScalarType.Precision.DOUBLE
+            raise InternalError(
+                f"Operation._get_result_precision: got unsupported Precision "
+                f"value(s) '{precisions[0]}' and '{precisions[1]}' for "
+                f"operands '{self.children[0].debug_string()}' and "
+                f"'{self.children[1].debug_string()}'")
+
+        # We can't reason about the precision of the result.
+        return ScalarType.Precision.UNDEFINED
+
+    def _get_result_scalar_type(self, argtypes):
         '''
         Examines the two operand types to determine the base type of the
         operation. If the type cannot be determined then an instance of
@@ -304,31 +352,13 @@ class BinaryOperation(Operation):
 
         base_type = None
 
+        # If either of the operands has REAL intrinsic type then the result
+        # must also be REAL.
         if argtypes[0].intrinsic == argtypes[1].intrinsic:
-            precisions = [argtypes[0].precision, argtypes[1].precision]
-            if precisions[0] != precisions[1]:
-                # Operands are of same intrinsic type but different
-                # precisions. Section 7.1.9.3 of the Fortran standard says
-                # that in this case, the precision of the result is the
-                # greater of the two.
-                if all(isinstance(prec, int) for prec in precisions):
-                    # Both precisions are integer.
-                    precision = max(precisions)
-                elif all(isinstance(prec, ScalarType.Precision) for
-                         prec in precisions):
-                    if ScalarType.Precision.UNDEFINED in precisions:
-                        precision = ScalarType.Precision.UNDEFINED
-                    elif ScalarType.Precision.DOUBLE in precisions:
-                        precision = ScalarType.Precision.DOUBLE
-                    else:
-                        precision = ScalarType.Precision.SINGLE
-                else:
-                    precision = ScalarType.Precision.UNDEFINED
-                base_type = ScalarType(argtypes[0].intrinsic, precision)
-            else:
-                # Operands are of the same type so that is the type of the
-                # result.
-                base_type = argtypes[0]
+            # Operands are of the same intrinsic type.
+            precision = self._get_result_precision([argtypes[0].precision,
+                                                    argtypes[1].precision])
+            base_type = ScalarType(argtypes[0].intrinsic, precision)
         elif argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
             base_type = argtypes[0]
         elif argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
@@ -393,7 +423,8 @@ class BinaryOperation(Operation):
 
             argtypes.append(dtype)
 
-        base_type = self._get_base_type(argtypes)
+        # Determine the base (scalar) type of the result.
+        base_type = self._get_result_scalar_type(argtypes)
         if (isinstance(base_type, DeferredType) or
                 all(isinstance(atype, ScalarType) for atype in argtypes)):
             # Both operands are of scalar type.
