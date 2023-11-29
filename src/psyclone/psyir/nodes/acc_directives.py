@@ -522,11 +522,6 @@ class ACCLoopDirective(ACCRegionDirective):
             within some OpenACC parallel or kernels region and is not in a
             Routine that has been marked up with an 'ACC Routine' directive.
         '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user can
-        # apply transformations to the code). As an orphaned loop directive,
-        # we must have an ACCParallelDirective or an ACCKernelsDirective as
-        # an ancestor somewhere back up the tree.
         parent_routine = self.ancestor(Routine)
         if not (self.ancestor((ACCParallelDirective, ACCKernelsDirective),
                               limit=parent_routine) or
