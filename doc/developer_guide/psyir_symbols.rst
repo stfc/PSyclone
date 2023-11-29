@@ -100,6 +100,9 @@ explicitly listed may be assumed to be unsupported):
 |                      |INTENT, PARAMETER,  |VOLATILE, VALUE,    |
 |                      |SAVE                |POINTER             |
 +----------------------+--------------------+--------------------+
+|                      |KIND=param, REAL*8  |                    |
+|                      |etc.                |                    |
++----------------------+--------------------+--------------------+
 |                      |PUBLIC, PRIVATE     |                    |
 +----------------------+--------------------+--------------------+
 |Imports/globals       |USE with ONLY and   |User-defined        |
