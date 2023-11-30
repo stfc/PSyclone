@@ -185,8 +185,8 @@ VALID_PSY_DATA_PREFIXES Which class prefixes are permitted in any               
                         for details.
 BACKEND_CHECKS_ENABLED  Optional (defaults to True). Whether or not the PSyIR   bool
                         backend should validate the tree that it is passed.
-			Can be overridden by the ``--backend`` command-line
-			flag (see :ref:`backend-options`).
+                        Can be overridden by the ``--backend`` command-line
+                        flag (see :ref:`backend-options`).
 ======================= ======================================================= ===========
 
 Common Sections
