@@ -63,19 +63,49 @@ class Signature:
     :type sub_sig: :py:class:`psyclone.core.Signature`
 
     '''
-    def __init__(self, ref_or_sym, sub_sig=None):
+    def new__init__(self, ref_or_sym, sub_sig=None):
         from psyclone.psyir import nodes
         if isinstance(ref_or_sym, (tuple, str)):
             import pdb; pdb.set_trace()
         sub_tuple = sub_sig._signature if sub_sig else ()
         sym = ref_or_sym.symbol if isinstance(ref_or_sym,
                                               nodes.Reference) else ref_or_sym
+        self._symbol = sym
         if isinstance(ref_or_sym, nodes.StructureReference):
-            parts = [sym]
-            parts += [mem.name for mem in ref_or_sym.walk(nodes.Member)]
+            parts = [mem.name for mem in ref_or_sym.walk(nodes.Member)]
             self._signature = tuple(parts) + sub_sig
         else:
-            self._signature = tuple([sym]) + sub_tuple
+            self._signature = sub_tuple
+
+    def __init__(self, variable, sub_sig=None):
+        from psyclone.psyir import nodes, symbols
+        if sub_sig:
+            sub_tuple = sub_sig._signature
+        else:
+            # null-tuple
+            sub_tuple = ()
+        if isinstance(variable, symbols.Symbol):
+            self._symbol = variable
+            self._signature = sub_tuple
+        elif isinstance(variable, nodes.Reference):
+            self._symbol = variable.symbol
+            if isinstance(variable, nodes.StructureReference):
+                # TODO the walk here is dangerous - need to exclude index expressions
+                self._signature = tuple(mem.name for mem in variable.walk(nodes.Member)) + sub_tuple
+            else:
+                self._signature = sub_tuple
+        elif isinstance(variable, str):
+            self._signature = tuple(variable.split("%")) + sub_tuple
+        elif isinstance(variable, tuple):
+            self._signature = variable + sub_tuple
+        elif isinstance(variable, list):
+            self._signature = tuple(variable) + sub_tuple
+        elif isinstance(variable, Signature):
+            self._signature = variable._signature + sub_tuple
+        else:
+            raise InternalError(f"Got unexpected type "
+                                f"'{type(variable).__name__}' in Signature "
+                                f"constructor")
 
     def old__init__(self, variable, sub_sig=None):
         if sub_sig:
@@ -108,20 +138,17 @@ class Signature:
     def __len__(self):
         ''':returns: the number of components of this signature.
         :rtype: int'''
-        return len(self._signature)
+        return len(self._signature) + 1  # Always has a Symbol at its root.
 
     # ------------------------------------------------------------------------
     def __getitem__(self, indx):
         if isinstance(indx, slice):
-            return Signature(self._signature[indx])
+            return Signature(self._symbol, self._signature[indx])
         return self._signature[indx]
 
     # ------------------------------------------------------------------------
     def __str__(self):
-        base = self._signature[0].name
-        if len(self._signature) == 1:
-            return base
-        return "%".join([base] + self._signature[1:])
+        return "%".join([self._symbol.name] + list(self._signature))
 
     # ------------------------------------------------------------------------
     def to_language(self, component_indices=None, language_writer=None):
@@ -216,7 +243,7 @@ class Signature:
         I.e. two instances with the same signature will have the same
         hash key.
         '''
-        return hash(self._signature)
+        return hash(self._signature) + hash(self._symbol)
 
     # ------------------------------------------------------------------------
     def __eq__(self, other):
@@ -224,7 +251,7 @@ class Signature:
         Compares two objects (one of which might not be a Signature).'''
         if not hasattr(other, "_signature"):
             return False
-        return self._signature == other._signature
+        return self._symbol is other._symbol and self._signature == other._signature
 
     # ------------------------------------------------------------------------
     def __lt__(self, other):
@@ -232,7 +259,7 @@ class Signature:
         if not isinstance(other, Signature):
             raise TypeError(f"'<' not supported between instances of "
                             f"'Signature' and '{type(other).__name__}'.")
-        return self._signature < other._signature
+        return (self._symbol, self._signature) < (other._symbol, other._signature)
 
     # ------------------------------------------------------------------------
     def __le__(self, other):

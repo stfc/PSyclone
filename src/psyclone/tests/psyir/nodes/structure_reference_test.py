@@ -197,15 +197,15 @@ def test_struc_ref_str():
 def test_reference_accesses():
     ''' Test the reference_accesses method.
     '''
+    gsym = symbols.DataSymbol(
+        "grid",
+        symbols.DataTypeSymbol("grid_type", symbols.DeferredType()))
     dref = nodes.StructureReference.create(
-        symbols.DataSymbol(
-            "grid",
-            symbols.DataTypeSymbol("grid_type", symbols.DeferredType())),
-        ["data"])
+        gsym, ["data"])
     var_access_info = VariablesAccessInfo()
     dref.reference_accesses(var_access_info)
 
-    assert var_access_info.all_signatures == [Signature(("grid", "data"))]
+    assert var_access_info.all_signatures == [Signature(dref)]
     # By default all accesses are marked as read
     assert str(var_access_info) == "grid%data: READ"
 

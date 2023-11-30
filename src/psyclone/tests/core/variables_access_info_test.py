@@ -53,25 +53,28 @@ def test_variables_access_info():
     '''
     var_accesses = VariablesAccessInfo()
     node1 = Node()
-    var_accesses.add_access(Signature(Symbol("read")), AccessType.READ, node1)
+    read_sym = Symbol("read")
+    var_accesses.add_access(Signature(read_sym), AccessType.READ, node1)
     node2 = Node()
-    var_accesses.add_access(Signature(Symbol("written")), AccessType.WRITE, node2)
+    written_sym = Symbol("written")
+    var_accesses.add_access(Signature(written_sym), AccessType.WRITE, node2)
     assert str(var_accesses) == "read: READ, written: WRITE"
 
     var_accesses.next_location()
     node = Node()
-    var_accesses.add_access(Signature(Symbol("written")), AccessType.WRITE, node)
+    var_accesses.add_access(Signature(written_sym), AccessType.WRITE, node)
     var_accesses.next_location()
-    var_accesses.add_access(Signature(Symbol("read_written")), AccessType.WRITE, node)
-    var_accesses.add_access(Signature(Symbol("read_written")), AccessType.READ, node)
+    rw_sym = Symbol("read_written")
+    var_accesses.add_access(Signature(rw_sym), AccessType.WRITE, node)
+    var_accesses.add_access(Signature(rw_sym), AccessType.READ, node)
     assert str(var_accesses) == "read: READ, read_written: READ+WRITE, "\
                                 "written: WRITE"
-    assert set(var_accesses.all_signatures) == set([Signature("read"),
-                                                    Signature("written"),
-                                                    Signature("read_written")])
-    all_accesses = var_accesses[Signature("read")].all_accesses
+    assert set(var_accesses.all_signatures) == set([Signature(read_sym),
+                                                    Signature(written_sym),
+                                                    Signature(rw_sym)])
+    all_accesses = var_accesses[Signature(read_sym)].all_accesses
     assert all_accesses[0].node == node1
-    written_accesses = var_accesses[Signature("written")].all_accesses
+    written_accesses = var_accesses[Signature(written_sym)].all_accesses
     assert written_accesses[0].location == 0
     assert written_accesses[1].location == 1
     # Check that the location pointer is pointing to the next statement:
@@ -79,8 +82,9 @@ def test_variables_access_info():
 
     # Create a new instance
     var_accesses2 = VariablesAccessInfo()
-    var_accesses2.add_access(Signature("new_var"), AccessType.READ, node)
-    var_accesses2.add_access(Signature("written"), AccessType.READ, node)
+    new_sym = Symbol("new_var")
+    var_accesses2.add_access(Signature(new_sym), AccessType.READ, node)
+    var_accesses2.add_access(Signature(written_sym), AccessType.READ, node)
 
     # Now merge the new instance with the previous instance:
     var_accesses.merge(var_accesses2)
@@ -93,16 +97,18 @@ def test_variables_access_info_errors():
     '''Tests if errors are handled correctly. '''
     var_accesses = VariablesAccessInfo()
     node = Node()
-    var_accesses.add_access(Signature("read"), AccessType.READ, node)
+    read_sym = Symbol("read")
+    var_accesses.add_access(Signature(read_sym), AccessType.READ, node)
     with pytest.raises(KeyError) as err:
-        _ = var_accesses[Signature("does_not_exist")]
+        _ = var_accesses[Signature(Symbol("does_not_exist"))]
     with pytest.raises(KeyError):
-        var_accesses.is_read(Signature("does_not_exist"))
+        var_accesses.is_read(Signature(Symbol("does_not_exist")))
     with pytest.raises(KeyError):
-        var_accesses.is_written(Signature("does_not_exist"))
+        var_accesses.is_written(Signature(Symbol("does_not_exist")))
 
     assert "READWRITE" not in str(var_accesses)
-    var_accesses.add_access(Signature("readwrite"), AccessType.READWRITE, node)
+    rw_sym = Symbol("readwrite")
+    var_accesses.add_access(Signature(rw_sym), AccessType.READWRITE, node)
     assert "READWRITE" in str(var_accesses)
 
     with pytest.raises(InternalError) as err:

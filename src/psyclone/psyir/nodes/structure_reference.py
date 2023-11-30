@@ -265,9 +265,9 @@ class StructureReference(Reference):
         # Get the signature of self:
         my_sig, my_index = super().get_signature_and_indices()
         # Then the sub-signature of the member, and indices used:
-        sub_sig, indices = self.children[0].get_signature_and_indices()
+        _, indices = self.children[0].get_signature_and_indices()
         # Combine signature and indices
-        return (Signature(my_sig, sub_sig), my_index + indices)
+        return (my_sig, my_index + indices)
 
     @property
     def datatype(self):
