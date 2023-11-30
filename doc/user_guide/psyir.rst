@@ -67,13 +67,12 @@ collectively as 'PSyIR nodes'.
 
 At the present time PSyIR classes can be essentially split into two
 types. PSy-layer classes and Kernel-layer classes. PSy-layer classes
-make use of a ``gen_code()`` or an ``update()`` method to create
-Fortran code whereas Kernel-layer classes make use of PSyIR backends
-to create code.
+make use of a ``gen_code()`` method to create Fortran code whereas
+Kernel-layer classes make use of PSyIR backends to create code.
 
 .. note:: This separation will be removed in the future and eventually
 	  all PSyIR classes will make use of backends with the
-	  expectation that ``gen_code()`` and ``update()`` methods
+	  expectation that ``gen_code()`` methods
 	  will be removed. Further this separation will be superseded
 	  by a separation between ``language-level PSyIR`` and
 	  ``domain-specific PSyIR``.
@@ -229,7 +228,7 @@ Following the `parent` and `children` terminology, we define a node's `siblings`
 as the children of its parent. Note that this definition implies that all nodes
 are their own siblings.
 
-.. automethod:: psyclone.psyir.nodes.Node.siblings
+.. autoproperty:: psyclone.psyir.nodes.Node.siblings
 
 We can check whether two nodes are siblings which immediately precede or follow
 one another using the following methods:

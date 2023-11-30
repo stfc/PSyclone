@@ -81,6 +81,11 @@
 	parsing kernels using kernel_interface.py. This is required when
 	validating LFRic kernel arguments.
 
+	31) PR #2388 for #2323. Rename the array reduction 2code transformations
+	to use the 2loop postfix and improve their implementation. 
+
+	32) PR #2400 for #1508. Add flag/config option to disable backend checks.
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
