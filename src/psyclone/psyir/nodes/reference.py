@@ -157,7 +157,7 @@ class Reference(DataNode):
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             list of indices)
         '''
-        return (Signature(self.name), [[]])
+        return (Signature(self), [[]])
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node, i.e.

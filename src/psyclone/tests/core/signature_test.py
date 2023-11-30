@@ -44,15 +44,15 @@ from psyclone.errors import InternalError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Reference
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, Symbol
 
 
 def test_signature():
     '''Test the Signature class.
     '''
 
-    assert str(Signature("a")) == "a"
-    assert str(Signature(("a",))) == "a"
+    assert str(Signature(Symbol("a"))) == "a"
+    assert str(Signature(Symbol("a"),))) == "a"
     assert str(Signature(("a", "b", "c"))) == "a%b%c"
     assert repr(Signature("a")) == "Signature(a)"
     assert repr(Signature(("a",))) == "Signature(a)"

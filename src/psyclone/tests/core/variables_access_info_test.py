@@ -42,6 +42,7 @@ from psyclone.core import ComponentIndices, Signature, VariablesAccessInfo
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Node
+from psyclone.psyir.symbols import Symbol
 from psyclone.tests.utilities import get_invoke
 
 
@@ -52,17 +53,17 @@ def test_variables_access_info():
     '''
     var_accesses = VariablesAccessInfo()
     node1 = Node()
-    var_accesses.add_access(Signature("read"), AccessType.READ, node1)
+    var_accesses.add_access(Signature(Symbol("read")), AccessType.READ, node1)
     node2 = Node()
-    var_accesses.add_access(Signature("written"), AccessType.WRITE, node2)
+    var_accesses.add_access(Signature(Symbol("written")), AccessType.WRITE, node2)
     assert str(var_accesses) == "read: READ, written: WRITE"
 
     var_accesses.next_location()
     node = Node()
-    var_accesses.add_access(Signature("written"), AccessType.WRITE, node)
+    var_accesses.add_access(Signature(Symbol("written")), AccessType.WRITE, node)
     var_accesses.next_location()
-    var_accesses.add_access(Signature("read_written"), AccessType.WRITE, node)
-    var_accesses.add_access(Signature("read_written"), AccessType.READ, node)
+    var_accesses.add_access(Signature(Symbol("read_written")), AccessType.WRITE, node)
+    var_accesses.add_access(Signature(Symbol("read_written")), AccessType.READ, node)
     assert str(var_accesses) == "read: READ, read_written: READ+WRITE, "\
                                 "written: WRITE"
     assert set(var_accesses.all_signatures) == set([Signature("read"),

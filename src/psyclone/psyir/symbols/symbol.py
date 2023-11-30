@@ -251,6 +251,13 @@ class Symbol():
                             initial_value=init_value)
         return self
 
+    def __lt__(self, other):
+        '''Required to sort signatures. It just compares the tuples.'''
+        if not isinstance(other, Symbol):
+            raise TypeError(f"'<' not supported between instances of "
+                            f"'Symbol' and '{type(other).__name__}'.")
+        return self.name < other.name
+
     @property
     def name(self):
         '''

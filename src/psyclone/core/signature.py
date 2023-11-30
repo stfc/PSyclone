@@ -63,7 +63,21 @@ class Signature:
     :type sub_sig: :py:class:`psyclone.core.Signature`
 
     '''
-    def __init__(self, variable, sub_sig=None):
+    def __init__(self, ref_or_sym, sub_sig=None):
+        from psyclone.psyir import nodes
+        if isinstance(ref_or_sym, (tuple, str)):
+            import pdb; pdb.set_trace()
+        sub_tuple = sub_sig._signature if sub_sig else ()
+        sym = ref_or_sym.symbol if isinstance(ref_or_sym,
+                                              nodes.Reference) else ref_or_sym
+        if isinstance(ref_or_sym, nodes.StructureReference):
+            parts = [sym]
+            parts += [mem.name for mem in ref_or_sym.walk(nodes.Member)]
+            self._signature = tuple(parts) + sub_sig
+        else:
+            self._signature = tuple([sym]) + sub_tuple
+
+    def old__init__(self, variable, sub_sig=None):
         if sub_sig:
             sub_tuple = sub_sig._signature
         else:
@@ -104,7 +118,10 @@ class Signature:
 
     # ------------------------------------------------------------------------
     def __str__(self):
-        return "%".join(self._signature)
+        base = self._signature[0].name
+        if len(self._signature) == 1:
+            return base
+        return "%".join([base] + self._signature[1:])
 
     # ------------------------------------------------------------------------
     def to_language(self, component_indices=None, language_writer=None):
@@ -208,14 +225,6 @@ class Signature:
         if not hasattr(other, "_signature"):
             return False
         return self._signature == other._signature
-
-    # ------------------------------------------------------------------------
-    def __ne__(self, other):
-        '''Required for != comparisons of Signatures with python2.
-        Compares two objects (one of which might not be a Signature).'''
-        if not hasattr(other, "_signature"):
-            return True
-        return self._signature != other._signature
 
     # ------------------------------------------------------------------------
     def __lt__(self, other):
