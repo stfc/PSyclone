@@ -187,7 +187,7 @@ class ChunkLoopTrans(LoopTrans):
         # the step size to be non-constant, so it is ignored.
 
         # Add the access pattern to the node variable name
-        bounds_ref.add_access(Signature(node.variable.name),
+        bounds_ref.add_access(Signature(node.variable),
                               AccessType.READWRITE, self)
 
         bounds_sigs = bounds_ref.all_signatures

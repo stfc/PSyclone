@@ -436,23 +436,24 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # get the parent Reference and keep a record of how deep this node
             # is within the structure access. e.g. if this node was the
             # StructureMember 'b' in a%c%b%d then its depth would be 2.
-            depth = 1
-            current = self
-            while current.parent and not isinstance(current.parent, Reference):
-                depth += 1
-                current = current.parent
-            parent_ref = current.parent
+            parent_ref = self.ancestor(Reference)
             if not parent_ref:
                 return False
+            index_list = self.path_from(parent_ref)
+            depth = len(index_list)
         else:
+            index_list = []
             depth = 0
             parent_ref = self
 
         # Now we have the parent Reference and the depth, we can construct the
         # Signatures and compare them to the required depth.
-        self_sig, self_indices = parent_ref.get_signature_and_indices()
+        #self_sig, self_indices = parent_ref.get_signature_and_indices()
+        from psyclone.core import Signature
+        self_sig = Signature(parent_ref, depth=depth)
+        self_indices = index_list
         node_sig, node_indices = node.get_signature_and_indices()
-        if self_sig[:depth+1] != node_sig[:]:
+        if self_sig != node_sig:
             return False
 
         # Examine the indices, ignoring any on the innermost accesses (hence

@@ -63,21 +63,7 @@ class Signature:
     :type sub_sig: :py:class:`psyclone.core.Signature`
 
     '''
-    def new__init__(self, ref_or_sym, sub_sig=None):
-        from psyclone.psyir import nodes
-        if isinstance(ref_or_sym, (tuple, str)):
-            import pdb; pdb.set_trace()
-        sub_tuple = sub_sig._signature if sub_sig else ()
-        sym = ref_or_sym.symbol if isinstance(ref_or_sym,
-                                              nodes.Reference) else ref_or_sym
-        self._symbol = sym
-        if isinstance(ref_or_sym, nodes.StructureReference):
-            parts = [mem.name for mem in ref_or_sym.walk(nodes.Member)]
-            self._signature = tuple(parts) + sub_sig
-        else:
-            self._signature = sub_tuple
-
-    def __init__(self, variable, sub_sig=None):
+    def __init__(self, variable, depth=None, sub_sig=None):
         from psyclone.psyir import nodes, symbols
         if sub_sig:
             sub_tuple = sub_sig._signature
@@ -91,10 +77,13 @@ class Signature:
             self._symbol = variable.symbol
             if isinstance(variable, nodes.StructureReference):
                 # TODO the walk here is dangerous - need to exclude index expressions
-                self._signature = tuple(mem.name for mem in variable.walk(nodes.Member)) + sub_tuple
+                self._signature = tuple(mem.name for mem in
+                                        variable.walk(nodes.Member,
+                                                      depth=depth)) + sub_tuple
             else:
                 self._signature = sub_tuple
         elif isinstance(variable, str):
+            import pdb; pdb.set_trace()
             self._signature = tuple(variable.split("%")) + sub_tuple
         elif isinstance(variable, tuple):
             self._signature = variable + sub_tuple
@@ -292,7 +281,7 @@ class Signature:
             the signature.
         :rtype: str
         '''
-        return self._signature[0]
+        return self._symbol.name
 
 
 # ---------- Documentation utils -------------------------------------------- #

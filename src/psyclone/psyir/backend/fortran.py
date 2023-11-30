@@ -821,12 +821,12 @@ class FortranWriter(LanguageWriter):
             for lit in symbol.initial_value.walk(Literal):
                 if isinstance(lit.datatype.precision, DataSymbol):
                     read_write_info.add_read(
-                        Signature(lit.datatype.precision.name))
+                        Signature(lit.datatype.precision))
             # If the precision of the Symbol being declared is itself defined
             # by a Symbol then include that as an 'input'.
             if isinstance(symbol.datatype.precision, DataSymbol):
                 read_write_info.add_read(
-                    Signature(symbol.datatype.precision.name))
+                    Signature(symbol.datatype.precision))
             # Remove any 'inputs' that are not local since these do not affect
             # the ordering of local declarations.
             for sig in read_write_info.signatures_read:
@@ -841,7 +841,7 @@ class FortranWriter(LanguageWriter):
                 inputs = decln_inputs[symbol.name]
                 if inputs.issubset(declared):
                     # All inputs are satisfied so this declaration can be added
-                    declared.add(Signature(symbol.name))
+                    declared.add(Signature(symbol))
                     local_constants.remove(symbol)
                     declarations += self.gen_vardecl(
                         symbol, include_visibility=is_module_scope)

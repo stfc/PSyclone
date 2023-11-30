@@ -52,7 +52,7 @@ def test_signature():
     '''
 
     assert str(Signature(Symbol("a"))) == "a"
-    assert str(Signature(Symbol("a"),))) == "a"
+    assert str(Signature(Symbol("a"),)) == "a"
     assert str(Signature(("a", "b", "c"))) == "a%b%c"
     assert repr(Signature("a")) == "Signature(a)"
     assert repr(Signature(("a",))) == "Signature(a)"

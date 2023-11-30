@@ -128,7 +128,7 @@ class StructureMember(Member):
             list of indices)
         '''
         sub_sig, indices = self.children[0].get_signature_and_indices()
-        return (Signature(self.name, sub_sig), [[]]+indices)
+        return (Signature(self), [[]]+indices)
 
 
 # For Sphinx AutoAPI documentation generation

@@ -376,9 +376,9 @@ class Loop(Statement):
             # the dependency analysis for declaring openmp private variables
             # will automatically declare the loop variables to be private
             # (write access before read)
-            var_accesses.add_access(Signature(self.variable.name),
+            var_accesses.add_access(Signature(self.variable),
                                     AccessType.WRITE, self)
-            var_accesses.add_access(Signature(self.variable.name),
+            var_accesses.add_access(Signature(self.variable),
                                     AccessType.READ, self)
 
             # Accesses of the start/stop/step expressions

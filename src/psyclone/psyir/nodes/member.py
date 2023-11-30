@@ -133,7 +133,23 @@ class Member(Node):
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
         '''
-        return (Signature(self.name), [[]])
+        from psyclone.psyir.nodes import Reference
+        parent_ref = self.ancestor(Reference)
+        if not parent_ref:
+            return False
+        index_list = self.path_from(parent_ref)
+        depth = len(index_list)
+        indices = []
+        #name_list = []
+        cursor = parent_ref
+        for idx in index_list:
+            cursor = cursor.children[idx]
+        #    name_list.append(cursor.name)
+            if cursor.is_array:
+                indices.append(cursor.indices)
+            else:
+                indices.append([])
+        return (Signature(parent_ref, depth=depth), indices)
 
 
 # For Sphinx AutoAPI documentation generation

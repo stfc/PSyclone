@@ -112,8 +112,8 @@ class ArrayOfStructuresMixin(ArrayMixin, metaclass=abc.ABCMeta):
 
         '''
         sub_sig, indices = self.children[0].get_signature_and_indices()
-        sig = Signature(self.name)
-        return (Signature(sig, sub_sig), [self.indices]+indices)
+        #sig = Signature(self.name)
+        return (Signature(self), [self.indices]+indices)
 
 
 # For AutoAPI documentation generation

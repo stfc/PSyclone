@@ -1162,7 +1162,7 @@ class GOKern(CodedKern):
             else:
                 var_name = arg.name
 
-            signature = Signature(var_name.split("%"))
+            signature = Signature(arg.psyir_expression()) #var_name.split("%"))
             if arg.is_scalar:
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
