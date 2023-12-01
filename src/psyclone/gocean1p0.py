@@ -74,7 +74,7 @@ from psyclone.psyir.nodes import Literal, Schedule, KernelSchedule, \
     ACCKernelsDirective, Container, ACCUpdateDirective, Routine
 from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE, \
     DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, DataTypeSymbol, \
-    UnresolvedInterface, BOOLEAN_TYPE, REAL_TYPE
+    UnresolvedInterface, BOOLEAN_TYPE, REAL_TYPE, Symbol
 
 
 class GOPSy(PSy):
@@ -2199,7 +2199,9 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
         # Add an ACCUpdateDirective inside the subroutine
-        subroutine.addchild(ACCUpdateDirective([Signature("to")], "host",
+        # TODO ARPDBG a node should accept Symbols, not Signatures.
+        subroutine.addchild(ACCUpdateDirective([Signature(Symbol("to"))],
+                                               "host",
                                                if_present=False))
 
         # Rename subroutine

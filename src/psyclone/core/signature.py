@@ -181,7 +181,7 @@ class Signature:
 
         # Check if number of components between self and component_indices
         # is consistent:
-        if len(self._signature) != len(component_indices):
+        if len(self) != len(component_indices):
             raise InternalError(f"Signature '{self}' has {len(self)} "
                                 f"components, but component_indices "
                                 f"{component_indices} has "
@@ -199,7 +199,7 @@ class Signature:
         # out_list collects the string representation of the components
         # including indices
         out_list = []
-        for i, component in enumerate(self._signature):
+        for i, component in enumerate((self._symbol.name,) + self._signature):
             indices = component_indices[i]
             if not indices:
                 out_list.append(component)

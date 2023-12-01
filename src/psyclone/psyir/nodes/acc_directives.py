@@ -123,6 +123,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.psyir.symbols import Symbol
         from psyclone.psyir.tools import DependencyTools
 
         if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
@@ -130,7 +131,11 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
             sig_set = set()
             for call in self.kernels():
                 for arg_str in call.arguments.acc_args:
-                    sig_set.add(Signature(arg_str))
+                    # TODO - this method should be replaced by the use of
+                    # References.
+                    parts = arg_str.split("%")
+                    sig_set.add(Signature(Symbol(parts[0]),
+                                          sub_sig=tuple(parts[1:])))
             return (sig_set, )
 
         rwi = DependencyTools().get_in_out_parameters(self.children)
