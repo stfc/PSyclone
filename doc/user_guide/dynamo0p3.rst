@@ -3274,7 +3274,7 @@ a different datatype are prefixed with the keyword **real** and
 are denoted by the datatype that the input ``real`` will be
 converted to. A Built-in that converts a ``real`` to an ``integer``
 field is denoted by the keyword **int**. Likewise, a Built-in that
-converts a ``real`` to a ``real`` is denoted by the keyword ``real``.
+converts a ``real`` to a ``real`` is denoted by the keyword **real**.
 
 .. _real-to-int-built-in:
 

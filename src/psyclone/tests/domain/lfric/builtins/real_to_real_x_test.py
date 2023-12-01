@@ -37,9 +37,7 @@
     (converting real-valued field element of precision r_<prec> to 
     real-valued field elements of r_<prec>).'''
 
-from itertools import permutations
 import os
-import re
 import pytest
 
 from psyclone.configuration import Config
@@ -47,7 +45,6 @@ from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_builtins import LFRicRealToRealXKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Assignment, Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
 # Constants

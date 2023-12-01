@@ -2755,11 +2755,11 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
 # ------------------------------------------------------------------- #
 
 class LFRicRealToRealXKern(LFRicBuiltIn):
-    ''' Converts real-valued field elements to real-valued
-    field elements using the Fortran intrinsic `REAL` function,
-    `Y = REAL(X, kind=r_<prec>)`. Here `Y` is a real-valued
-    field of precision `r_<prec>` and `X` is the integer-valued
-    field being converted.
+    ''' Converts real-valued field elements to real-valued field elements
+    of a different precision using the Fortran intrinsic `REAL` function,
+    `Y = REAL(X, kind=r_<prec>)`. Here `Y` is a real-valued field of
+    precision `kind=r_<prec>` and `X` is the real-valued field whose
+    values are to be converted from their defined precision.
 
     '''
     _datatype = "real"
