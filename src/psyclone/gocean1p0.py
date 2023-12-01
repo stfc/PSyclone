@@ -1168,7 +1168,7 @@ class GOKern(CodedKern):
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
                     sym = self.scope.symbol_table.lookup(base_name)
-                    signature = Signature(sym)
+                    signature = Signature(sym, sub_sig=tuple(parts[1:]))
                     var_accesses.add_access(signature, arg.access, self)
             else:
                 sym = self.scope.symbol_table.lookup(base_name)
