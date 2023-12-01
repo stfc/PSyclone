@@ -630,14 +630,16 @@ def test_reference_accesses(monkeypatch):
                                         "15.1.8_a_plus_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    loop = psy.invokes.invoke_list[0].schedule[0]
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule[0]
     kern = loop.loop_body[0]
     var_info = VariablesAccessInfo()
     kern.reference_accesses(var_info)
     # f2_data(df) = a + f1_data(df)
-    assert var_info.is_written(Signature("f2_data"))
-    assert var_info.is_read(Signature("f1_data"))
-    assert var_info.is_read(Signature("a"))
+    table = schedule.symbol_table
+    assert var_info.is_written(Signature(table.lookup("f2_data")))
+    assert var_info.is_read(Signature(table.lookup("f1_data")))
+    assert var_info.is_read(Signature(table.lookup("a")))
     # Check for the expected error if an unsupported type of argument
     # is encountered. Use monkeypatch to break one of the existing args.
     monkeypatch.setattr(kern.args[0], "_argument_type", "gh_wrong")
@@ -4600,7 +4602,7 @@ def test_field_access_info_for_arrays_in_builtins():
     schedule = invoke.schedule
     vai = VariablesAccessInfo(schedule)
 
-    assert Signature("f2_data") in vai
+    assert Signature(schedule.symbol_table.lookup("f2_data")) in vai
 
     assert ("a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
             "loop0_start: READ, loop0_stop: READ" == str(vai))

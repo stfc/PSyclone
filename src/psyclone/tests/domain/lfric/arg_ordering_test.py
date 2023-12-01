@@ -94,13 +94,15 @@ def test_argordering_append():
     assert arg_list._arg_index_to_metadata_index[1] == 3
     # Access info captured.
     vinfo = VariablesAccessInfo()
+    sym = schedule.symbol_table.new_symbol("beckfoot")
     arg_list.append("beckfoot", var_accesses=vinfo, mode=AccessType.WRITE)
     assert len(arg_list._arglist) == 3
-    assert vinfo.all_signatures == [Signature("beckfoot")]
+    assert vinfo.all_signatures == [Signature(sym)]
     # Alternate name supplied for the access.
+    jsym = schedule.symbol_table.new_symbol("john_walker")
     arg_list.append("john", var_access_name="john_walker",
                     var_accesses=vinfo, mode=AccessType.WRITE)
-    assert vinfo.is_written(Signature("john_walker"))
+    assert vinfo.is_written(Signature(jsym))
 
 
 def test_argordering_get_array_reference():
@@ -171,12 +173,16 @@ def test_argordering_extend():
     arg_list.extend(["peggy", "nancy"])
     assert len(arg_list._arglist) == 3
     vinfo = VariablesAccessInfo()
+    fsym = schedule.symbol_table.new_symbol("flint")
+    csym = schedule.symbol_table.new_symbol("captain")
     arg_list.extend(["flint", "captain"], var_accesses=vinfo,
                     mode=AccessType.WRITE)
     assert len(arg_list._arglist) == 5
-    assert Signature("flint") in vinfo.all_signatures
-    assert Signature("captain") in vinfo.all_signatures
-    assert vinfo.is_written(Signature("flint"))
+    assert Signature(fsym) in vinfo.all_signatures
+    assert Signature(csym) in vinfo.all_signatures
+    assert vinfo.is_written(Signature(fsym))
+    schedule.symbol_table.new_symbol("richard")
+    schedule.symbol_table.new_symbol("dorothea")
     arg_list.extend(["richard", "dorothea"], var_accesses=vinfo,
                     mode=AccessType.READ, list_metadata_posn=[5, 7])
     assert len(arg_list._arglist) == 7

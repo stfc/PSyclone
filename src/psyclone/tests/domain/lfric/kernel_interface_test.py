@@ -139,13 +139,14 @@ def test_generate(var_accesses):
         assert len(var_accesses.all_signatures) == 6
 
         # Test all read-only variables
-        for var in ["nlayers", "undf_w0", "f2", "ndf_w0", "dofmap_w0"]:
+        for var in [nlayers_symbol, undf_w0_symbol, f2_field_symbol,
+                    ndf_w0_symbol, dofmap_w0_symbol]:
             accesses = var_accesses[Signature(var)]
             assert len(accesses.all_accesses) == 1
             assert accesses[0].access_type == AccessType.READ
 
         # Test the read-write variable
-        accesses = var_accesses[Signature("f1")]
+        accesses = var_accesses[Signature(f1_field_symbol)]
         assert len(accesses.all_accesses) == 1
         assert accesses[0].access_type == AccessType.READWRITE
 

@@ -238,18 +238,19 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 if arg.is_field:
                     sym = table.lookup_with_tag(
                         f"{arg.name}:{suffix_map[arg.argument_type]}")
-                    name = sym.name
+                    #name = sym.name
                 elif arg.is_scalar:
-                    name = arg.declaration_name
+                    sym = table.lookup(arg.declaration_name)
+                    #name = arg.declaration_name
                 else:
                     raise InternalError(
                         f"LFRicBuiltin.reference_accesses only supports field "
                         f"and scalar arguments but got '{arg.name}' of type "
                         f"'{arg.argument_type}'")
                 if arg.access == AccessType.WRITE:
-                    written.add_access(Signature(name), arg.access, self)
+                    written.add_access(Signature(sym), arg.access, self)
                 else:
-                    var_accesses.add_access(Signature(name), arg.access, self)
+                    var_accesses.add_access(Signature(sym), arg.access, self)
         # Now merge the write access to the end of all other accesses:
         var_accesses.merge(written)
         # Forward location pointer to next index, since this built-in kernel

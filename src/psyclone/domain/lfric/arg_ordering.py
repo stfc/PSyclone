@@ -51,7 +51,7 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import ScalarType, Symbol
 
 
 class ArgOrdering:
@@ -142,12 +142,17 @@ class ArgOrdering:
         self._arglist.append(var_name)
 
         if var_accesses is not None:
-            if var_access_name:
-                var_accesses.add_access(Signature(var_access_name), mode,
-                                        self._kern)
-            else:
-                var_accesses.add_access(Signature(var_name), mode,
-                                        self._kern)
+            name = var_access_name if var_access_name else var_name
+            base_name = name.split("%")
+            try:
+                sym = self._symtab.lookup(base_name[0])
+            except KeyError:
+                # TODO - this is really horrible. If we try to add a basic
+                # symbol to the table here then it prevents the addition of the
+                # correct type of symbol later on.
+                sym = Symbol(name)
+                import pdb; pdb.set_trace()
+            var_accesses.add_access(Signature(sym, sub_sig=tuple(base_name[1:])), mode, self._kern)
 
     def extend(self, list_var_name, var_accesses=None,
                mode=AccessType.READ, list_metadata_posn=None):

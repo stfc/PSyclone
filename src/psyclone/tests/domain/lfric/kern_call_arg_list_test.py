@@ -104,7 +104,8 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
 
     # Verify that no array expression turns up in the access information
     assert "cell_map_field2(:,:,cell)" not in str(vai)
-    assert Signature("cell_map_field2") in vai
+    sym = schedule.symbol_table.lookup("cell_map_field2")
+    assert Signature(sym) in vai
 
     assert create_arg_list._arglist == [
         'nlayers', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
@@ -232,10 +233,11 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
                              "map_w1: READ, ndf_w1: READ, nfaces_re_h: "
                              "READ, nlayers: READ, undf_w1: READ")
     # Tests that multiple reads are reported as expected:
-    assert str(var_info[Signature("cell")]) == "cell:READ(0),READ(0)"
-    assert str(var_info[Signature("colour")]) == "colour:READ(0),READ(0)"
-    assert str(var_info[Signature("cmap")]) == "cmap:READ(0),READ(0)"
-    assert str(var_info[Signature("adjacent_face")]) == "adjacent_face:READ(0)"
+    table = schedule.symbol_table
+    assert str(var_info[Signature(table.lookup("cell"))]) == "cell:READ(0),READ(0)"
+    assert str(var_info[Signature(table.lookup("colour"))]) == "colour:READ(0),READ(0)"
+    assert str(var_info[Signature(table.lookup("cmap"))]) == "cmap:READ(0),READ(0)"
+    assert str(var_info[Signature(table.lookup("adjacent_face"))]) == "adjacent_face:READ(0)"
 
     assert create_arg_list._arglist == [
         'nlayers', 'a', 'f1_data', 'ndf_w1', 'undf_w1',
@@ -380,9 +382,11 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
     # Also check that the structure access is correctly converted
     # into a 2-component signature:
-    sig = Signature(("op_a_proxy", "ncell_3d"))
+    op_sym = schedule.symbol_table.lookup("op_a_proxy")
+    sig = Signature(op_sym, sub_sig=("ncell_3d",))
     assert str(access_info[sig]) == "op_a_proxy%ncell_3d:READ(0)"
-    assert (str(access_info[Signature("op_a_local_stencil")]) ==
+    stencil_sym = schedule.symbol_table.lookup("op_a_local_stencil")
+    assert (str(access_info[Signature(stencil_sym)]) ==
             "op_a_local_stencil:READWRITE(0)")
 
 

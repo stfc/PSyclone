@@ -91,7 +91,7 @@ class Signature:
                 names.append(cursor.name)
             self._signature = tuple(names) + sub_tuple
         elif isinstance(variable, str):
-            import pdb; pdb.set_trace()
+            assert 0, "Invalid call to Signature()"
             self._signature = tuple(variable.split("%")) + sub_tuple
         elif isinstance(variable, tuple):
             self._signature = variable + sub_tuple
@@ -140,6 +140,10 @@ class Signature:
     # ------------------------------------------------------------------------
     def __getitem__(self, indx):
         if isinstance(indx, slice):
+            if indx.start:
+                raise ValueError("A Signature slice must begin with the first entry")
+            if indx.step and indx.step != 1:
+                raise ValueError("A Signature slice must be contiguous")
             return Signature(self._symbol, self._signature[indx])
         return self._signature[indx]
 
@@ -291,6 +295,9 @@ class Signature:
         '''
         return self._symbol.name
 
+    @property
+    def symbol(self):
+        return self._symbol
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate

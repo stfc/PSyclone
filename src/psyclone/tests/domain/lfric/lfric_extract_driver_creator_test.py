@@ -46,8 +46,8 @@ from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
-from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
+from psyclone.psyir.symbols import INTEGER_TYPE, Symbol
+from psyclone.psyir.tools import DependencyTools
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
@@ -103,7 +103,8 @@ def test_lfric_driver_flatten_signature():
     '''Tests that a user-defined type access is correctly converted
     to a 'flattened' string.'''
 
-    new_name = LFRicExtractDriverCreator._flatten_signature(Signature("a%b%c"))
+    new_name = LFRicExtractDriverCreator._flatten_signature(
+        Signature(Symbol("a"), ("b", "c")))
     assert new_name == "a_b_c"
 
 

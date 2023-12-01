@@ -1803,14 +1803,13 @@ class LFRicMeshProperties(LFRicCollection):
                     if kern_call_arg_list:
                         sym = kern_call_arg_list.\
                             append_integer_reference("nfaces_re_h")
-                        name = sym.name
                     else:
-                        name = self._symbol_table.\
+                        sym = self._symbol_table.\
                             find_or_create_integer_symbol(
-                                "nfaces_re_h", tag="nfaces_re_h").name
-                    arg_list.append(name)
+                                "nfaces_re_h", tag="nfaces_re_h")
+                    arg_list.append(sym.name)
                     if var_accesses is not None:
-                        var_accesses.add_access(Signature(name),
+                        var_accesses.add_access(Signature(sym),
                                                 AccessType.READ, self._kernel)
 
                 adj_face = "adjacent_face"
@@ -1826,13 +1825,14 @@ class LFRicMeshProperties(LFRicCollection):
                     # Update the name in case there was a clash
                     adj_face = adj_face_sym.name
                     if var_accesses:
-                        var_accesses.add_access(Signature(adj_face),
+                        var_accesses.add_access(Signature(adj_face_sym),
                                                 AccessType.READ, self._kernel,
                                                 [":", cell_ref])
 
                 if not stub:
-                    adj_face = self._symbol_table.find_or_create_tag(
-                        "adjacent_face").name
+                    adj_face_sym = self._symbol_table.find_or_create_tag(
+                        "adjacent_face")
+                    adj_face = adj_face_sym.name
                     cell_name = "cell"
                     if self._kernel.is_coloured():
                         colour_name = "colour"
@@ -1848,7 +1848,7 @@ class LFRicMeshProperties(LFRicCollection):
                     # TODO #1320 Replace [1]
                     # The [1] just indicates that this variable is accessed
                     # as a rank 1 array. #1320 will improve this.
-                    var_accesses.add_access(Signature(adj_face),
+                    var_accesses.add_access(Signature(adj_face_sym),
                                             AccessType.READ, self._kernel,
                                             [1])
             else:

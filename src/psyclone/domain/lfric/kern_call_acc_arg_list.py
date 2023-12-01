@@ -185,7 +185,20 @@ class KernCallAccArgList(KernCallArgList):
         # In case of OpenACC we do not want to transfer the same
         # data to GPU twice.
         if arg.proxy_name_indexed not in self.arglist:
-            self.append(arg.proxy_name_indexed, var_accesses)
+            #from psyclone.domain.lfric import LFRicTypes
+            #fs_to = arg.function_space_to
+            #to_ndf = self._symtab.find_or_create_tag(
+            #    fs_to.ndf_name,
+            #    symbol_table=LFRicTypes(""))
+            #fs_from = arg.function_space_from
+            #self._symtab.find_or_create_tag(
+            #    arg.proxy_name_indexed,
+            #    symbol_type=LFRicTypes("OperatorDataSymbol")
+            #    dims=[])
+            #const = LFRicConstants()
+            #operator = const.DATA_TYPE_MAP[op_name]
+            #self.get_user_type(operator["module"], operator["proxy_type"])
+            #self.append(arg.proxy_name_indexed, var_accesses)
             # This adds ncell_3d and local_stencil after the derived type:
             super().operator(arg, var_accesses)
 
@@ -206,9 +219,16 @@ class KernCallAccArgList(KernCallArgList):
         '''
         if self._kern.iterates_over != "cell_column":
             return
+        from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+        undf_sym = self._symtab.find_or_create_tag(
+            function_space.undf_name,
+            symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE)
         self.append(function_space.undf_name, var_accesses)
         # The base class only adds one dimension to the list, while OpenACC
         # needs the whole field, so we cannot call the base class.
+        self._symtab.find_or_create_tag(
+            function_space.map_name)
         self.append(function_space.map_name, var_accesses)
 
     def fs_intergrid(self, function_space, var_accesses=None):

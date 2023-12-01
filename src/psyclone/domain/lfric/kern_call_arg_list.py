@@ -358,7 +358,8 @@ class KernCallArgList(ArgOrdering):
 
         if var_accesses is not None:
             # We add the whole field-vector, not the individual accesses.
-            var_accesses.add_access(Signature(argvect.name), argvect.access,
+            sym = self._symtab.lookup(argvect.name)
+            var_accesses.add_access(Signature(sym), argvect.access,
                                     self._kern)
 
     def field(self, arg, var_accesses=None):
@@ -816,22 +817,9 @@ class KernCallArgList(ArgOrdering):
                                "gh_quadrature_face"]
 
         for shape, rule in self._kern.qr_rules.items():
-            if shape == "gh_quadrature_xyoz":
-                # XYoZ quadrature requires the number of quadrature points in
-                # the horizontal and in the vertical.
-                self._nqp_positions.append(
-                    {"horizontal": self.num_args + 1,
-                     "vertical": self.num_args + 2})
-                self.extend(rule.kernel_args, var_accesses)
-            elif shape == "gh_quadrature_edge":
-                # TODO #705 support transformations supplying the number of
-                # quadrature points for edge quadrature.
-                self.extend(rule.kernel_args, var_accesses)
-            elif shape == "gh_quadrature_face":
-                # TODO #705 support transformations supplying the number of
-                # quadrature points for face quadrature.
-                self.extend(rule.kernel_args, var_accesses)
-            else:
+            if shape not in supported_qr_shapes:
+                # TODO, this was/is below but needs to be caught  before the
+                # PSyIR-related code now.
                 raise NotImplementedError(
                     f"quad_rule: no support implemented for quadrature with a "
                     f"shape of '{shape}'. Supported shapes are: "
@@ -860,6 +848,27 @@ class KernCallArgList(ArgOrdering):
                 else:
                     raise InternalError(f"Found invalid kernel argument "
                                         f"'{arg}'.")
+            # --------------------
+            if shape == "gh_quadrature_xyoz":
+                # XYoZ quadrature requires the number of quadrature points in
+                # the horizontal and in the vertical.
+                self._nqp_positions.append(
+                    {"horizontal": self.num_args + 1,
+                     "vertical": self.num_args + 2})
+                self.extend(rule.kernel_args, var_accesses)
+            elif shape == "gh_quadrature_edge":
+                # TODO #705 support transformations supplying the number of
+                # quadrature points for edge quadrature.
+                self.extend(rule.kernel_args, var_accesses)
+            elif shape == "gh_quadrature_face":
+                # TODO #705 support transformations supplying the number of
+                # quadrature points for face quadrature.
+                self.extend(rule.kernel_args, var_accesses)
+            else:
+                raise NotImplementedError(
+                    f"quad_rule: no support implemented for quadrature with a "
+                    f"shape of '{shape}'. Supported shapes are: "
+                    f"{supported_qr_shapes}.")
 
     @property
     def nlayers_positions(self):
@@ -948,11 +957,11 @@ class KernCallArgList(ArgOrdering):
                                                  ScalarType.Intrinsic.INTEGER,
                                                  tag=tag)
             if var_accesses is not None:
-                var_accesses.add_access(Signature(colour_sym.name),
+                var_accesses.add_access(Signature(colour_sym),
                                         AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(cell_sym.name),
+                var_accesses.add_access(Signature(cell_sym),
                                         AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(array_ref.name),
+                var_accesses.add_access(Signature(array_ref),
                                         AccessType.READ,
                                         self._kern, ["colour", "cell"])
 
@@ -960,7 +969,7 @@ class KernCallArgList(ArgOrdering):
                     array_ref)
 
         if var_accesses is not None:
-            var_accesses.add_access(Signature("cell"), AccessType.READ,
+            var_accesses.add_access(Signature(cell_sym), AccessType.READ,
                                     self._kern)
 
         return (cell_sym.name, Reference(cell_sym))
