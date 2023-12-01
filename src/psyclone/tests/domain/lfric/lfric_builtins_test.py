@@ -471,7 +471,7 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert (f"In the LFRic API only the data type conversion built-ins "
-            f"['real_to_int_X', 'int_to_real_X', 'real_to_real_X'] are "
+            f"['real_to_int_X', 'real_to_real_X', 'int_to_real_X'] are "
             f"allowed to have field arguments of different data types. "
             f"However, found different data types ['gh_integer', 'gh_real'] "
             f"for field arguments to '{test_builtin_name.lower()}'."
