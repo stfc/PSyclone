@@ -727,6 +727,26 @@ def test_main_directory_arg(capsys):
           "-d", NEMO_BASE_PATH])
 
 
+def test_main_disable_backend_validation_arg(capsys):
+    '''Test the --backend option in main().'''
+    filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
+    with pytest.raises(SystemExit):
+        main([filename, "--backend", "invalid"])
+    _, output = capsys.readouterr()
+    assert "--backend: invalid choice: 'invalid'" in output
+
+    # Make sure we get a default config instance
+    Config._instance = None
+    # Default is to have checks enabled.
+    assert Config.get().backend_checks_enabled is True
+    main([filename, "--backend", "disable-validation"])
+    assert Config.get().backend_checks_enabled is False
+    Config._instance = None
+    main([filename, "--backend", "enable-validation"])
+    assert Config.get().backend_checks_enabled is True
+    Config._instance = None
+
+
 def test_main_expected_fatal_error(capsys):
     '''Tests that we get the expected output and the code exits with an
     error when an expected fatal error is returned from the generate
