@@ -352,8 +352,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f"{spaces_str} for arguments to '{self.name}'")
 
         conversion_builtins = ["real_to_int_X",
-                               "int_to_real_X",
-                               "real_to_real_X"]
+                               "real_to_real_X",
+                               "int_to_real_X"]
         conversion_builtins_lower = [x.lower() for x in conversion_builtins]
         if len(data_types) != 1 and self.name not in conversion_builtins_lower:
             data_types_str = [str(x) for x in sorted(data_types)]

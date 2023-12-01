@@ -2681,11 +2681,11 @@ scheme presented below. Any new Built-in needs to comply with these rules.
       data-type conversion Built-ins, see rule 7 below).
 
 7) As in the case of Built-in field argument rules, the names of the
-   field data-type conversion Built-ins, ``real_to_int_X`` (converts field data
-   from ``real`` to ``integer``), ``int_to_real_X`` (converts field data
-   from ``integer`` to ``real``), and ``real_to_real_X`` (convers field data
-   from ``real`` to ``real``) are the only exceptions for the naming of
-   Built-ins in Fortran above.
+   field data-type conversion Built-ins,
+   :ref:`real_to_int_X <real-to-int-built-in>`,
+   :ref:`real_to_real_X <real-to-real-built-in>`, and
+   :ref:`int_to_real_X <int-to-real-built-in>`, are the only exceptions
+   for the naming of Built-ins in Fortran above.
 
 .. _lfric-built-ins-real:
 
@@ -3266,11 +3266,17 @@ the same field (``X = min(a, X)``)::
 
   field(:) = MIN(rscalar, field(:))
 
-Conversion of ``real`` to ``integer`` field elements
-####################################################
+Conversion of ``real`` field elements
+#####################################
 
-A Built-in which takes a ``real`` field and converts it to an
-``integer`` field is denoted with the keyword **int**.
+Built-ins which take a ``real`` field element for conversion to
+a different datatype are prefixed with the keyword **real** and
+are denoted by the datatype that the input ``real`` will be
+converted to. A Built-in that converts a ``real`` to an ``integer``
+field is denoted by the keyword **int**. Likewise, a Built-in that
+converts a ``real`` to a ``real`` is denoted by the keyword ``real``.
+
+.. _real-to-int-built-in:
 
 real_to_int_X
 ^^^^^^^^^^^^^
@@ -3289,12 +3295,11 @@ and a ``real``-valued field *field1* can be of any :ref:`supported
 precisions <lfric-mixed-precision>` for ``GH_REAL`` fields (e.g.
 ``r_tran`` for ``r_tran_field_type``).
 
-Conversion of ``real`` to ``real`` field elements
-####################################################
-
 A Built-in which takes a ``real`` field of one precision type and
 converts it to a ``real`` field of a differing precision is denoted
 with the keyword **real**.
+
+.. _real-to-real-built-in:
 
 real_to_real_X
 ^^^^^^^^^^^^^^
@@ -3303,7 +3308,7 @@ real_to_real_X
 
 Converts ``real``-valued field elements from a precision ``r_<prec>``
 to ``real``-valued field elements of a differing precision ``r_<prec>``.
-For example, in Fortran this would be: ``Y = REAL(X, kind=r_solver)``.
+For example, in Fortran this would be: ``Y = REAL(X, kind=r_<prec>)``.
 Here ``Y`` is a ``real``-valued field of precision ``r_solver`` and
 ``X`` is the ``real``-valued field being converted from a detected type::
 
@@ -3599,6 +3604,8 @@ Conversion of ``integer`` to ``real`` field elements
 
 A Built-in which takes an ``integer`` field and converts it to
 a ``real`` field is denoted with the keyword **real**.
+
+.. _int-to-real-built-in:
 
 int_to_real_X
 ^^^^^^^^^^^^^
