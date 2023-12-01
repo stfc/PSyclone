@@ -111,9 +111,26 @@ class ArrayOfStructuresMixin(ArrayMixin, metaclass=abc.ABCMeta):
             lists of indices)
 
         '''
-        sub_sig, indices = self.children[0].get_signature_and_indices()
+        #sub_sig, indices = self.children[0].get_signature_and_indices()
         #sig = Signature(self.name)
-        return (Signature(self), [self.indices]+indices)
+        from psyclone.psyir.nodes import Reference
+        parent_ref = self.ancestor(Reference, include_self=True)
+        child_indices = self.path_from(parent_ref)
+        if parent_ref.is_array:
+            indices = [parent_ref.indices]
+        else:
+            indices = [[]]
+        name_list = []
+        cursor = parent_ref
+        for idx in child_indices:
+            cursor = cursor.children[idx]
+            name_list.append(cursor.name)
+            if cursor.is_array:
+                indices.append(cursor.indices)
+            else:
+                indices.append([])
+        return (Signature(parent_ref.symbol, sub_sig=tuple(name_list)), indices)
+        #return (Signature(self), [self.indices]+indices)
 
 
 # For AutoAPI documentation generation

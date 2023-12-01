@@ -263,11 +263,22 @@ class StructureReference(Reference):
 
         '''
         # Get the signature of self:
-        my_sig, my_index = super().get_signature_and_indices()
+        #my_sig, my_index = super().get_signature_and_indices()
         # Then the sub-signature of the member, and indices used:
-        _, indices = self.children[0].get_signature_and_indices()
+        #_, indices = self.children[0].get_signature_and_indices()
         # Combine signature and indices
-        return (my_sig, my_index + indices)
+        #return (my_sig, my_index + indices)
+        indices = [[]]
+        name_list = []
+        cursor = self
+        while hasattr(cursor, "member"):
+            cursor = cursor.member
+            name_list.append(cursor.name)
+            if cursor.is_array:
+                indices.append(cursor.indices)
+            else:
+                indices.append([])
+        return Signature(self.symbol, sub_sig=tuple(name_list)), indices
 
     @property
     def datatype(self):

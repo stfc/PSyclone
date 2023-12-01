@@ -207,13 +207,13 @@ class NemoLoopFuseTrans(LoopFuseTrans):
                 # Raise the appropriate error message:
                 access1 = all_accesses[0].node.debug_string()
                 access2 = other_access.node.debug_string()
-                error = (f"Variable '{var_info1.signature[0]}' is written to "
+                error = (f"Variable '{var_info1.signature.var_name}' is written to "
                          f"and the loop variable '{loop_var_name}' is used "
                          f"in different index locations: {access1} and "
                          f"{access2}.")
                 raise TransformationError(error)
             if not var_found:
-                error = (f"Variable '{var_info1.signature[0]}' does not "
+                error = (f"Variable '{var_info1.signature.var_name}' does not "
                          f"depend on loop variable '{loop_var_name}', but is "
                          f"read and written")
                 raise TransformationError(error)

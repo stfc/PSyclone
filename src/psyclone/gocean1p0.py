@@ -1161,13 +1161,19 @@ class GOKern(CodedKern):
                 var_name = arg.dereference(field_for_grid_property.name)
             else:
                 var_name = arg.name
+            parts = var_name.split("%")
+            base_name = parts[0]
 
-            signature = Signature(arg.psyir_expression()) #var_name.split("%"))
             if arg.is_scalar:
                 # The argument is only a variable if it is not a constant:
                 if not arg.is_literal:
+                    sym = self.scope.symbol_table.lookup(base_name)
+                    signature = Signature(sym)
                     var_accesses.add_access(signature, arg.access, self)
             else:
+                sym = self.scope.symbol_table.lookup(base_name)
+                signature = Signature(sym, sub_sig=tuple(parts[1:]))
+
                 if arg.argument_type == "field":
                     # Now add 'artificial' accesses to this field depending
                     # on meta-data (access-mode and stencil information):

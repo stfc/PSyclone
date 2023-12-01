@@ -451,17 +451,49 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         #self_sig, self_indices = parent_ref.get_signature_and_indices()
         from psyclone.core import Signature
         self_sig = Signature(parent_ref, depth=depth)
-        self_indices = index_list
-        node_sig, node_indices = node.get_signature_and_indices()
+        cursor = parent_ref
+        if cursor.is_array:
+            self_indices = [cursor.indices]
+        else:
+            self_indices = [[]]
+        for idx in index_list:
+            cursor = cursor.children[idx]
+            if hasattr(cursor, "indices"):
+                self_indices.append(cursor.indices)
+            else:
+                self_indices.append([])
+
+        parent_ref = node.ancestor(Reference, include_self=True)
+        if not parent_ref:
+            return False
+        index_list = node.path_from(parent_ref)
+        depth = len(index_list)
+        node_sig = Signature(parent_ref, depth=depth)
+        cursor = parent_ref
+        if hasattr(cursor, "indices"):
+            node_indices = [cursor.indices]
+        else:
+            node_indices = [[]]
+        for idx in index_list:
+            cursor = cursor.children[idx]
+            # `is_array` looks at the Symbol type but we could have a
+            # whole-array reference.
+            if hasattr(cursor, "indices"):
+                node_indices.append(cursor.indices)
+            else:
+                node_indices.append([])
+
+        #node_sig, node_indices = node.get_signature_and_indices()
         if self_sig != node_sig:
             return False
 
         # Examine the indices, ignoring any on the innermost accesses (hence
         # the slice to `depth` rather than `depth + 1` below).
-        for idx1, idx2 in zip(self_indices[:depth], node_indices[:depth]):
-            if idx1 != idx2:
-                return False
-        return True
+        return self_indices[:depth] == node_indices[:depth]
+        #for idx1, idx2 in zip(self_indices[:depth], node_indices[:depth]):
+        #    if idx1 != idx2:
+        #        return False
+        #return True
 
     def is_full_range(self, index):
         '''Returns True if the specified array index is a Range Node that

@@ -63,13 +63,9 @@ class Signature:
     :type sub_sig: :py:class:`psyclone.core.Signature`
 
     '''
-    def __init__(self, variable, depth=None, sub_sig=None):
+    def __init__(self, variable, sub_sig=(), depth=None):
         from psyclone.psyir import nodes, symbols
-        if sub_sig:
-            sub_tuple = sub_sig._signature
-        else:
-            # null-tuple
-            sub_tuple = ()
+        sub_tuple = sub_sig
         if isinstance(variable, symbols.Symbol):
             self._symbol = variable
             self._signature = sub_tuple
@@ -82,6 +78,18 @@ class Signature:
                                                       depth=depth)) + sub_tuple
             else:
                 self._signature = sub_tuple
+        elif isinstance(variable, nodes.Member):
+            parent_ref = variable.ancestor(nodes.Reference, include_self=True)
+            self._symbol = parent_ref.symbol
+            node_index_list = variable.path_from(parent_ref)
+            depth = len(node_index_list)
+            node_indices = node_index_list
+            cursor = parent_ref
+            names = []
+            for idx in node_indices:
+                cursor = cursor.children[idx]
+                names.append(cursor.name)
+            self._signature = tuple(names) + sub_tuple
         elif isinstance(variable, str):
             import pdb; pdb.set_trace()
             self._signature = tuple(variable.split("%")) + sub_tuple
