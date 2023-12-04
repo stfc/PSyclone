@@ -48,14 +48,19 @@ from psyclone.domain.lfric.algorithm.psyir import (
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
-                                                        create_real_comparison,
                                                         find_container)
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     IntrinsicCall, Reference, ArrayReference, Assignment,
-    Literal, BinaryOperation, Routine)
-from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
-                                    ScalarType, ArrayType, RoutineSymbol,
-                                    DataTypeSymbol, DataSymbol, DeferredType)
+    Literal, BinaryOperation, Routine, IfBlock)
+from psyclone.psyir.symbols import (
+    ImportInterface, ContainerSymbol, ScalarType, ArrayType, RoutineSymbol,
+    DataTypeSymbol, DataSymbol, DeferredType)
+
+#: The tolerance applied to the comparison of the inner product values in
+#: the generated test-harness code.
+#: TODO #1346 this tolerance should be user configurable.
+INNER_PRODUCT_TOLERANCE = 1500.0
 
 
 def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
@@ -432,6 +437,85 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
             f"{descriptor.vector_size}.")
 
 
+def lfric_create_real_comparison(sym_table, kernel, var1, var2):
+    '''Creates PSyIR that checks the values held by Symbols var1 and var2
+    for equality, allowing for machine precision. This is an
+    LFRic-specific version as it includes LFRic logging. The common
+    version is in psyad/domain/common/adjoint_utils.py
+
+    :param sym_table: the SymbolTable in which to put new Symbols.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param kernel: the routine for which this adjoint test is being performed.
+    :type kernel: :py:class:`psyclone.psyir.nodes.Routine`
+    :param var1: the symbol holding the first value for the comparison.
+    :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param var2: the symbol holding the second value for the comparison.
+    :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: the PSyIR nodes that perform the check.
+    :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+
+    '''
+    freader = FortranReader()
+    statements = []
+    mtol = sym_table.new_symbol("MachineTol", symbol_type=DataSymbol,
+                                datatype=var1.datatype)
+    rel_diff = sym_table.new_symbol("relative_diff", symbol_type=DataSymbol,
+                                    datatype=var1.datatype)
+    overall_tol = sym_table.new_symbol("overall_tolerance",
+                                       symbol_type=DataSymbol,
+                                       datatype=var1.datatype,
+                                       is_constant=True,
+                                       initial_value=INNER_PRODUCT_TOLERANCE)
+    assign = freader.psyir_from_statement(
+        f"MachineTol = SPACING ( MAX( ABS({var1.name}), ABS({var2.name}) ) )",
+        sym_table)
+    statements.append(assign)
+    statements[-1].preceding_comment = (
+        "Test the inner-product values for equality, allowing for the "
+        "precision of the active variables")
+    sub_op = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                    Reference(var1), Reference(var2))
+    abs_op = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS, [sub_op])
+    div_op = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                    abs_op, Reference(mtol))
+    statements.append(Assignment.create(Reference(rel_diff), div_op))
+
+    log_mod = sym_table.find_or_create("log_mod", symbol_type=ContainerSymbol)
+    log_scratch = sym_table.find_or_create(
+        "log_scratch_space", symbol_type=DataSymbol, datatype=DeferredType(),
+        interface=ImportInterface(log_mod))
+    log_level_info = sym_table.new_symbol(
+        "log_level_info", symbol_type=DataSymbol, datatype=DeferredType(),
+        interface=ImportInterface(log_mod))
+    log_level_error = sym_table.new_symbol(
+        "log_level_error", symbol_type=DataSymbol, datatype=DeferredType(),
+        interface=ImportInterface(log_mod))
+    log_event = sym_table.new_symbol(
+        "log_event", symbol_type=RoutineSymbol,
+        interface=ImportInterface(log_mod))
+    write_pass = freader.psyir_from_statement(
+        f"WRITE({log_scratch.name}, *) \"PASSED {kernel.name}:\", "
+        f"{var1.name}, {var2.name}, {rel_diff.name}", sym_table)
+    write_fail = freader.psyir_from_statement(
+        f"WRITE({log_scratch.name}, *) \"FAILED {kernel.name}:\", "
+        f"{var1.name}, {var2.name}, {rel_diff.name}", sym_table)
+    log_pass = freader.psyir_from_statement(
+        f"call {log_event.name}( {log_scratch.name}, {log_level_info.name} )",
+        sym_table)
+    log_fail = freader.psyir_from_statement(
+        f"call {log_event.name}( {log_scratch.name}, {log_level_error.name} )",
+        sym_table)
+
+    statements.append(
+        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.LT,
+                                              Reference(rel_diff),
+                                              Reference(overall_tol)),
+                       [write_pass, log_pass], [write_fail, log_fail]))
+
+    return statements
+
+
 def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
                                    panel_id_arg_idx=None):
     '''
@@ -718,8 +802,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     _compute_lfric_inner_products(routine, scalars, field_ip_symbols,
                                   inner2_sym)
 
-    # Finally, compare the two inner products.
-    stmts = create_real_comparison(table, kern, inner1_sym, inner2_sym)
+    # Finally, compare the two inner products with an LFRic-specific routine.
+    stmts = lfric_create_real_comparison(table, kern, inner1_sym, inner2_sym)
     for stmt in stmts:
         routine.addchild(stmt)
 
