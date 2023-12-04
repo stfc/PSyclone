@@ -55,6 +55,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir import symbols
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -790,8 +791,14 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     # Monkeypatch the argument object so that it thinks it is a
     # field rather than an operator
     monkeypatch.setattr(arg, "_argument_type", value="gh_field")
-    # We have to add a tag to the Symbol table to get to the desired error.
+    # We have to add a couple of tags to the Symbol table to get to the desired
+    # error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
+    map_type = symbols.ArrayType(symbols.INTEGER_TYPE,
+                                 2*[symbols.ArrayType.Extent.DEFERRED])
+    schedule.symbol_table.find_or_create_tag("map_aspc1_op_a",
+                                             symbol_type=symbols.DataSymbol,
+                                             datatype=map_type)
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Expected an LMA operator from which to look-up boundary dofs "
@@ -821,8 +828,14 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
             "should only have 1 (an LMA operator)") in str(excinfo.value)
     # And again but make the second argument a field this time
     call.arguments.args[1]._argument_type = "gh_field"
-    # We have to add a tag to the Symbol table to get to the desired error.
+    # We have to add a couple of tags to the Symbol table to get to the
+    # desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
+    map_type = symbols.ArrayType(symbols.INTEGER_TYPE,
+                                 2*[symbols.ArrayType.Extent.DEFERRED])
+    schedule.symbol_table.find_or_create_tag("map_aspc1_op_a",
+                                             symbol_type=symbols.DataSymbol,
+                                             datatype=map_type)
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "

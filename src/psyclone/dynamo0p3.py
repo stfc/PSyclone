@@ -2424,6 +2424,8 @@ class DynDofmaps(LFRicCollection):
         self._unique_indirection_maps = OrderedDict()
         ncells = self._symbol_table.find_or_create(
             "ncell_3d", symbol_type=LFRicTypes("NumberOfCellsDataSymbol"))
+        nlevels = self._symbol_table.find_or_create(
+            "nlevels", symbol_type=LFRicTypes("MeshHeightDataSymbol"))
         for call in self._calls:
             # We only need a dofmap if the kernel operates on a cell_column
             # or the domain.
@@ -2469,12 +2471,32 @@ class DynDofmaps(LFRicCollection):
                         self._unique_cbanded_maps[map_name] = {
                             "argument": cma_args[0],
                             "direction": "to"}
+                        fs_name = cma_args[0].function_space_to.orig_name
+                        ndf_symbol = self._symbol_table.find_or_create_tag(
+                            f"ndf_{fs_name}", fs=fs_name,
+                            symbol_type=LFRicTypes("NumberOfDofsDataSymbol"))
+                        map_type = ArrayType(INTEGER_TYPE,
+                                             [Reference(ndf_symbol),
+                                              Reference(nlevels)])
+                        _ = self._symbol_table.find_or_create_tag(
+                                map_name, symbol_type=DataSymbol,
+                                datatype=map_type)
                     map_name = \
                         cma_args[0].function_space_from.cbanded_map_name
                     if map_name not in self._unique_cbanded_maps:
                         self._unique_cbanded_maps[map_name] = {
                             "argument": cma_args[0],
                             "direction": "from"}
+                        fs_name = cma_args[0].function_space_from.orig_name
+                        ndf_symbol = self._symbol_table.find_or_create_tag(
+                            f"ndf_{fs_name}", fs=fs_name,
+                            symbol_type=LFRicTypes("NumberOfDofsDataSymbol"))
+                        map_type = ArrayType(INTEGER_TYPE,
+                                             [Reference(ndf_symbol),
+                                              Reference(nlevels)])
+                        _ = self._symbol_table.find_or_create_tag(
+                                map_name, symbol_type=DataSymbol,
+                                datatype=map_type)
                 elif call.cma_operation == "apply":
                     # A kernel that applies (or applies the inverse of) a
                     # CMA operator requires the indirection dofmaps for the

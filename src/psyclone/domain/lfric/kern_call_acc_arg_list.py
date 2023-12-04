@@ -198,7 +198,7 @@ class KernCallAccArgList(KernCallArgList):
             #const = LFRicConstants()
             #operator = const.DATA_TYPE_MAP[op_name]
             #self.get_user_type(operator["module"], operator["proxy_type"])
-            #self.append(arg.proxy_name_indexed, var_accesses)
+            self.append(arg.proxy_name_indexed, var_accesses)
             # This adds ncell_3d and local_stencil after the derived type:
             super().operator(arg, var_accesses)
 
