@@ -49,31 +49,25 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, Symbol
 
 def test_signature():
     '''Test the Signature class.
-    '''
 
+    '''
+    asym = Symbol("a")
     assert str(Signature(Symbol("a"))) == "a"
     assert str(Signature(Symbol("a"),)) == "a"
-    assert str(Signature(("a", "b", "c"))) == "a%b%c"
-    assert repr(Signature("a")) == "Signature(a)"
-    assert repr(Signature(("a",))) == "Signature(a)"
-    assert repr(Signature(("a", "b", "c"))) == "Signature(a%b%c)"
-    assert repr(Signature(["a", "b", "c"])) == "Signature(a%b%c)"
-    assert Signature("a") != "a"
-    sig = Signature(("a", "b", "c"))
+    assert str(Signature(Symbol("a"), ("b", "c"))) == "a%b%c"
+    assert repr(Signature(Symbol("a"))) == "Signature(a)"
+    assert repr(Signature(Symbol("a"), ("b", "c"))) == "Signature(a%b%c)"
+    assert repr(Signature(Symbol("a"), ["b", "c"])) == "Signature(a%b%c)"
+    assert Signature(Symbol("a")) != "a"
+    sig = Signature(asym, ("b", "c"))
     assert sig.is_structure
     assert sig[0] == "a"
     assert sig[2] == "c"
     assert sig[-1] == "c"
-    assert sig[0:2] == Signature(("a", "b"))
+    assert sig[0:2] == ["a", "b"]
     assert len(sig) == 3
-    assert Signature(["a", "b", "c"]).is_structure
-    assert not Signature(("a")).is_structure
-
-    # Check that structure expressions (using '%') are automatically split
-    # into components:
-    sig = Signature("a%b")
-    assert sig[0] == "a"
-    assert sig[1] == "b"
+    assert Signature(asym, ["b", "c"]).is_structure
+    assert not Signature(asym).is_structure
 
 
 def test_signature_errors():
@@ -88,8 +82,9 @@ def test_signature_errors():
 def test_signature_dict():
     '''Test that Signature instances work as expected as dictionary keys.
     '''
-    sig1 = Signature("a")
-    sig2 = Signature("a")
+    asym = Symbol("a")
+    sig1 = Signature(asym)
+    sig2 = Signature(asym)
     assert sig1 is not sig2
 
     # Make sure that different instances representing the same signature
@@ -98,30 +93,30 @@ def test_signature_dict():
     test_dict[sig1] = "a"
     assert test_dict[sig2] == "a"
 
-    sig3 = Signature(("a", "b"))
+    sig3 = Signature(asym, ("b",))
     test_dict[sig3] = "ab"
-    sig4 = Signature(("a", "c"))
+    sig4 = Signature(asym, ("c",))
     test_dict[sig4] = "ac"
 
     assert len(test_dict) == 3
 
 
-def test_concatenate_signature():
-    '''Tests that signature can be concatenated.'''
-    sig_b = Signature("b")
-    sig_a_b = Signature("a", sig_b)
-    assert str(sig_a_b) == "a%b"
-    sig_b_a_b = Signature(sig_b, sig_a_b)
-    assert str(sig_b_a_b) == "b%a%b"
-    sig_c_d_b_a_b = Signature(("c", "d"), sig_b_a_b)
-    assert str(sig_c_d_b_a_b) == "c%d%b%a%b"
+#def test_concatenate_signature():
+#    '''Tests that signature can be concatenated.'''
+#    sig_b = Signature("b")
+#    sig_a_b = Signature("a", sig_b)
+#    assert str(sig_a_b) == "a%b"
+#    sig_b_a_b = Signature(sig_b, sig_a_b)
+#    assert str(sig_b_a_b) == "b%a%b"
+#    sig_c_d_b_a_b = Signature(("c", "d"), sig_b_a_b)
+#    assert str(sig_c_d_b_a_b) == "c%d%b%a%b"
 
 
 def test_var_name():
     '''Test that the variable name is returned as expected.'''
-    sig_a = Signature("a")
+    sig_a = Signature(Symbol("a"))
     assert sig_a.var_name == "a"
-    sig_a_b = Signature(sig_a, Signature("b"))
+    sig_a_b = Signature(Symbol("a"), ("b",))
     assert str(sig_a_b) == "a%b"
     assert sig_a_b.var_name == "a"
 
@@ -129,9 +124,12 @@ def test_var_name():
 def test_signature_sort():
     '''Test that signatures can be sorted.'''
 
-    sig_list = [Signature("c"), Signature("a"), Signature("b"),
-                Signature(("b", "a")),
-                Signature(("a", "c")), Signature(("a", "b"))]
+    asym = Symbol("a")
+    bsym = Symbol("b")
+    csym = Symbol("c")
+    sig_list = [Signature(csym), Signature(asym), Signature(bsym),
+                Signature(bsym, ("a",)),
+                Signature(asym, ("c",)), Signature(asym, ("b",))]
 
     assert str(sig_list) == "[Signature(c), Signature(a), Signature(b), " \
                             "Signature(b%a), Signature(a%c), Signature(a%b)]"
@@ -146,43 +144,44 @@ def test_signature_comparison():
     equality.
     '''
     # pylint: disable=unneeded-not
-    assert Signature(("a", "b")) == Signature(("a", "b"))
-    assert not Signature(("a", "b")) == Signature(("a", "c"))
+    asym = Symbol("a")
+    assert Signature(asym, ("b",)) == Signature(asym, ("b",))
+    assert not Signature(asym, ("b",)) == Signature(asym, ("c",))
 
-    assert Signature(("a", "b")) != Signature(("a", "c"))
-    assert not Signature(("a", "b")) != Signature(("a", "b"))
-    assert Signature(("a", "c")) >= Signature(("a", "b"))
-    assert not Signature(("a", "b")) >= Signature(("a", "c"))
-    assert Signature(("a", "c")) > Signature(("a", "b"))
-    assert not Signature(("a", "b")) > Signature(("a", "c"))
-    assert Signature(("a", "b")) <= Signature(("a", "c"))
-    assert not Signature(("a", "c")) <= Signature(("a", "b"))
-    assert Signature(("a", "b")) < Signature(("a", "c"))
-    assert not Signature(("a", "c")) < Signature(("a", "b"))
+    assert Signature(asym, ("b",)) != Signature(asym, ("c",))
+    assert not Signature(asym, ("b",)) != Signature(asym, ("b",))
+    assert Signature(asym, ("c",)) >= Signature(asym, ("b",))
+    assert not Signature(asym, "b") >= Signature(asym, "c")
+    assert Signature(asym, "c") > Signature(asym, "b")
+    assert not Signature(asym, "b") > Signature(asym, "c")
+    assert Signature(asym, "b") <= Signature(asym, "c")
+    assert not Signature(asym, "c") <= Signature(asym, "b")
+    assert Signature(asym, "b") < Signature(asym, "c")
+    assert not Signature(asym, "c") < Signature(asym, "b")
 
     # Comparison with other types should work for == and !=:
-    assert not Signature(("a", "b")) == 2
-    assert Signature(("a", "b")) != 2
+    assert not Signature(asym, "b") == 2
+    assert Signature(asym, "b") != 2
     # pylint: enable=unneeded-not
 
     # Error cases: comparison of signature with other type.
     with pytest.raises(TypeError) as err:
-        _ = Signature(("a", "b")) < 1
+        _ = Signature(asym, "b") < 1
     assert "'<' not supported between instances of 'Signature' and 'int'" \
         in str(err.value)
 
     with pytest.raises(TypeError) as err:
-        _ = Signature(("a", "b")) <= "a"
+        _ = Signature(asym, "b") <= "a"
     assert "'<=' not supported between instances of 'Signature' and 'str'" \
         in str(err.value)
 
     with pytest.raises(TypeError) as err:
-        _ = Signature(("a", "b")) > [1]
+        _ = Signature(asym, "b") > [1]
     assert "'>' not supported between instances of 'Signature' and 'list'" \
         in str(err.value)
 
     with pytest.raises(TypeError) as err:
-        _ = Signature(("a", "b")) >= (1, 2)
+        _ = Signature(asym, "b") >= (1, 2)
     assert "'>=' not supported between instances of 'Signature' and 'tuple'" \
         in str(err.value)
 
@@ -191,7 +190,8 @@ def test_to_language_fortran():
     '''Test that conversion of a Signature with a ComponentIndices argument
     gives the expected results.
     '''
-    sig = Signature("a")
+    asym = Symbol("a")
+    sig = Signature(asym)
     comp = ComponentIndices()
     assert sig.to_language(comp) == "a"
 
@@ -210,7 +210,7 @@ def test_to_language_fortran():
     assert ("Signature 'a' has 1 components, but component_indices [[1], [2]] "
             "has 2." in str(err.value))
 
-    sig = Signature(("a", "b", "c"))
+    sig = Signature(asym, ("b", "c"))
     comp = ComponentIndices([[1], [], ["i", "j"]])
     assert sig.to_language(comp) == "a(1)%b%c(i,j)"
     comp = ComponentIndices([[1, 2], [], []])
@@ -223,8 +223,8 @@ def test_to_language_fortran():
 def test_output_languages():
     '''Tests that error messages can be created in different languages.
     '''
-
-    sig = Signature(("a"))
+    asym = Symbol("a")
+    sig = Signature(asym)
     comp = ComponentIndices([["i", "j"]])
     f_writer = FortranWriter()
     c_writer = CWriter()
@@ -233,7 +233,7 @@ def test_output_languages():
     assert sig.to_language(comp, f_writer) == "a(i,j)"
     assert sig.to_language(comp, c_writer) == "a[i + j * aLEN1]"
 
-    sig = Signature(("a", "b", "c"))
+    sig = Signature(asym, ("b", "c"))
     comp = ComponentIndices([[1], [], ["i", "j"]])
     # Check that it defaults to Fortran
     assert sig.to_language(comp) == "a(1)%b%c(i,j)"

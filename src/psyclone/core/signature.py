@@ -65,7 +65,10 @@ class Signature:
     '''
     def __init__(self, variable, sub_sig=(), depth=None):
         from psyclone.psyir import nodes, symbols
-        sub_tuple = sub_sig
+        if isinstance(sub_sig, str):
+            sub_tuple = sub_sig.split("%")
+        else:
+            sub_tuple = sub_sig
         if isinstance(variable, symbols.Symbol):
             self._symbol = variable
             self._signature = sub_tuple
@@ -94,8 +97,10 @@ class Signature:
             assert 0, "Invalid call to Signature()"
             self._signature = tuple(variable.split("%")) + sub_tuple
         elif isinstance(variable, tuple):
+            assert 0, "Invalid call to Signature()"
             self._signature = variable + sub_tuple
         elif isinstance(variable, list):
+            assert 0, "Invalid call to Signature()"
             self._signature = tuple(variable) + sub_tuple
         elif isinstance(variable, Signature):
             self._signature = variable._signature + sub_tuple
@@ -129,7 +134,7 @@ class Signature:
         ''':returns: True if this signature represents a structure.
         :rtype: bool
         '''
-        return len(self._signature) > 1
+        return len(self._signature) > 0
 
     # ------------------------------------------------------------------------
     def __len__(self):
@@ -144,8 +149,14 @@ class Signature:
                 raise ValueError("A Signature slice must begin with the first entry")
             if indx.step and indx.step != 1:
                 raise ValueError("A Signature slice must be contiguous")
-            #return Signature(self._symbol, self._signature[indx])
-        return self._signature[indx]
+            if indx.stop < 0:
+                return [self._symbol.name] + list(self._signature[:indx.stop])
+            return [self._symbol.name] + list(self._signature[:indx.stop-1])
+        if indx == 0:
+            return self._symbol.name
+        if indx < 0:
+            return self._signature[indx]
+        return self._signature[indx-1]
 
     # ------------------------------------------------------------------------
     def __str__(self):
