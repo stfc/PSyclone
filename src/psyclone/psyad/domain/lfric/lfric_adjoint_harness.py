@@ -437,7 +437,7 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
             f"{descriptor.vector_size}.")
 
 
-def lfric_create_real_comparison(sym_table, kernel, var1, var2):
+def _lfric_create_real_comparison(sym_table, kernel, var1, var2):
     '''Creates PSyIR that checks the values held by Symbols var1 and var2
     for equality, allowing for machine precision. This is an
     LFRic-specific version as it includes LFRic logging. The common
@@ -803,7 +803,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
                                   inner2_sym)
 
     # Finally, compare the two inner products with an LFRic-specific routine.
-    stmts = lfric_create_real_comparison(table, kern, inner1_sym, inner2_sym)
+    stmts = _lfric_create_real_comparison(table, kern, inner1_sym, inner2_sym)
     for stmt in stmts:
         routine.addchild(stmt)
 
