@@ -1629,6 +1629,24 @@ class Node():
         from psyclone.psyir.backend.debug_writer import DebugWriter
         return DebugWriter()(self)
 
+    def origin_string(self):
+        ''' Generates a string with the available information about where
+        this node has been created.
+
+        :returns: a string specifing the origin of this node.
+        :rtype: str
+        '''
+        name = self.coloured_name(False)
+        if self._ast:
+            if hasattr(self._ast, 'item'):
+                if hasattr(self._ast.item, 'reader'):
+                    filename = self._ast.item.reader.file.name
+                    line_span = self._ast.item.span
+                    original_src = self._ast.item.line
+                    return (f"{name} from line {line_span} of file "
+                            f"'{filename}'.\n> {original_src}")
+        return f"{name} from line unknown"
+
     def update_signal(self):
         '''
         Called whenever there is a change in the PSyIR tree below this node.
