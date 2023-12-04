@@ -144,7 +144,7 @@ class Signature:
                 raise ValueError("A Signature slice must begin with the first entry")
             if indx.step and indx.step != 1:
                 raise ValueError("A Signature slice must be contiguous")
-            return Signature(self._symbol, self._signature[indx])
+            #return Signature(self._symbol, self._signature[indx])
         return self._signature[indx]
 
     # ------------------------------------------------------------------------

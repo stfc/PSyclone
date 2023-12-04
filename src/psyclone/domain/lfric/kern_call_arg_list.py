@@ -50,7 +50,7 @@ from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Reference, StructureReference
+from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, DeferredType,
     ContainerSymbol, ImportInterface, ScalarType)
@@ -612,17 +612,18 @@ class KernCallArgList(ArgOrdering):
         self.append(sym.name, var_accesses)
 
         map_name = function_space.map_name
+        sym = self._symtab.lookup_with_tag(map_name)
         if self._kern.iterates_over == 'domain':
             # This kernel takes responsibility for iterating over cells so
             # pass the whole dofmap.
-            sym = self.append_array_reference(map_name, [":", ":"],
-                                              ScalarType.Intrinsic.INTEGER)
+            aref = ArrayReference.create(sym, [":", ":"])
+            self.psyir_append(aref)
             self.append(sym.name, var_accesses, var_access_name=sym.name)
         else:
             # Pass the dofmap for the cell column
             cell_name, cell_ref = self.cell_ref_name(var_accesses)
-            sym = self.append_array_reference(map_name, [":", cell_ref],
-                                              ScalarType.Intrinsic.INTEGER)
+            aref = ArrayReference.create(sym, [":", cell_ref])
+            self.psyir_append(aref)
             self.append(f"{sym.name}(:,{cell_name})",
                         var_accesses, var_access_name=sym.name)
 
@@ -648,8 +649,9 @@ class KernCallArgList(ArgOrdering):
             sym = self.append_integer_reference(function_space.undf_name)
             self.append(sym.name, var_accesses)
             map_name = function_space.map_name
-            sym = self.append_array_reference(map_name, [":", ":"],
-                                              ScalarType.Intrinsic.INTEGER)
+            sym = self._symtab.lookup_with_tag(map_name)
+            aref = ArrayReference.create(sym, [":", ":"])
+            self.psyir_append(aref)
             self.append(sym.name, var_accesses)
         else:
             # For the coarse mesh we only need undf and the dofmap for

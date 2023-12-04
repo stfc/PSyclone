@@ -939,7 +939,8 @@ def _sig_set_to_string(sig_set):
     :rtype: str
 
     '''
-    names = {s[:i+1].to_language() for s in sig_set for i in range(len(s))}
+    names = {Signature(s.symbol, sub_sig=s[:i+1]).to_language() for
+             s in sig_set for i in range(len(s))}
     return ",".join(sorted(names))
 
 

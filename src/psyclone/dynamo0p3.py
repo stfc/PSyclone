@@ -2422,7 +2422,8 @@ class DynDofmaps(LFRicCollection):
         # column-banded dofmaps, each entry is itself a dictionary with
         # "argument" and "direction" entries.
         self._unique_indirection_maps = OrderedDict()
-
+        ncells = self._symbol_table.find_or_create(
+            "ncell_3d", symbol_type=LFRicTypes("NumberOfCellsDataSymbol"))
         for call in self._calls:
             # We only need a dofmap if the kernel operates on a cell_column
             # or the domain.
@@ -2432,10 +2433,21 @@ class DynDofmaps(LFRicCollection):
                     # function space. If there is then we use it to look
                     # up the dofmap.
                     fld_arg = unique_fs.field_on_space(call.arguments)
+                    fs_name = unique_fs.orig_name
+                    ndf_symbol = self._symbol_table.find_or_create_tag(
+                        f"ndf_{fs_name}", fs=fs_name,
+                        symbol_type=LFRicTypes("NumberOfDofsDataSymbol"))
                     if fld_arg:
                         map_name = unique_fs.map_name
                         if map_name not in self._unique_fs_maps:
                             self._unique_fs_maps[map_name] = fld_arg
+                            map_type = ArrayType(INTEGER_TYPE,
+                                                 [Reference(ndf_symbol),
+                                                  Reference(ncells)])
+                            _ = self._symbol_table.find_or_create_tag(
+                                map_name, symbol_type=DataSymbol,
+                                datatype=map_type)
+
                 if call.cma_operation == "assembly":
                     # A kernel that assembles a CMA operator requires
                     # column-banded dofmaps for its 'to' and 'from'
@@ -2664,9 +2676,17 @@ class DynFunctionSpaces(LFRicCollection):
             if self._invoke and self._invoke.field_on_space(function_space):
                 if not (self._dofs_only and Config.get().distributed_memory):
                     self._var_list.append(function_space.undf_name)
+                    self._symbol_table.find_or_create_tag(
+                        function_space.undf_name, fs=function_space.orig_name,
+                        symbol_type=LFRicTypes(
+                            "NumberOfUniqueDofsDataSymbol"))
             elif self._kernel and \
                     function_space.field_on_space(self._kernel.arguments):
                 self._var_list.append(function_space.undf_name)
+                self._symbol_table.find_or_create_tag(
+                    function_space.undf_name, fs=function_space.orig_name,
+                    symbol_type=LFRicTypes(
+                        "NumberOfUniqueDofsDataSymbol"))
 
     def _stub_declarations(self, parent):
         '''

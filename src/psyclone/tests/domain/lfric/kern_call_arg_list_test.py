@@ -49,14 +49,16 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
-from psyclone.psyir.symbols import ArrayType, ScalarType, UnknownFortranType
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, INTEGER_TYPE, ScalarType, UnknownFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
 TEST_API = "dynamo0.3"
 
 
-def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
+def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None,
+                        expected=None):
     '''Helper function to check if the PSyIR representation of the arguments
     is identical to the old style textual representation. It checks that each
     member of the psyir_arglist is a Reference, and that the textual
@@ -66,12 +68,13 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     :param create_arg_list: a KernCallArgList instance.
     :type create_arg_list: :py:class:`psyclone.domain.lfric.KernCallArgList`
     :param fortran_writer: a FortranWriter instance.
-    :type fortran_writer: \
+    :type fortran_writer:
         :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
-    :param valid_classes: a tuple of classes that are expected in the PSyIR \
+    :param valid_classes: a tuple of classes that are expected in the PSyIR
         argument list. Defaults to `(Reference)`.
     :type valid_classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
-
+    :param Optional[list[str]] expected: the expected arg list generated from
+        the PSyIR (if this differs from the old form).
     '''
 
     if not valid_classes:
@@ -83,7 +86,10 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
         assert isinstance(node, valid_classes)
         result.append(fortran_writer(node))
 
-    assert result == create_arg_list._arglist
+    if expected:
+        assert result == expected
+    else:
+        assert result == create_arg_list._arglist
 
 
 def test_cellmap_intergrid(dist_mem, fortran_writer):
@@ -113,7 +119,12 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
         'field2_data', 'ndf_w1', 'undf_w1', 'map_w1', 'undf_w2',
         'map_w2(:,cell)']
 
-    check_psyir_results(create_arg_list, fortran_writer)
+    check_psyir_results(
+        create_arg_list, fortran_writer,
+        expected=['nlayers', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
+        'ncpc_field1_field2_y', 'ncell_field1', 'field1_data',
+        'field2_data', 'ndf_w1', 'undf_w1', 'map_w1(:,:)', 'undf_w2',
+        'map_w2(:,cell)'])
     arg = create_arg_list.psyir_arglist[5]
     assert isinstance(arg.datatype, UnknownFortranType)
     assert isinstance(arg.datatype.partial_datatype, ArrayType)
@@ -591,10 +602,17 @@ def test_indirect_dofmap(fortran_writer):
         assert psyir_args[i].datatype == int_1d.datatype
 
     # Test all 2D integer arrays:
-    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                                ScalarType.Intrinsic.INTEGER)
-    for i in [14, 18]:
-        assert psyir_args[i].symbol.datatype == int_2d.datatype
+    ncell_3d = DataSymbol("ncell_3d", INTEGER_TYPE)
+    assert psyir_args[14].symbol.datatype == ArrayType(
+        INTEGER_TYPE,
+        [Reference(DataSymbol("ndf_any_discontinuous_space_1",
+                              INTEGER_TYPE)),
+         Reference(ncell_3d)])
+    assert psyir_args[18].symbol.datatype == ArrayType(
+        INTEGER_TYPE,
+        [Reference(DataSymbol("ndf_any_space_1",
+                              INTEGER_TYPE)),
+         Reference(ncell_3d)])
 
 
 def test_ref_element_handling(fortran_writer):
@@ -648,10 +666,11 @@ def test_ref_element_handling(fortran_writer):
     # standard LFRic types:
     dummy_sym_tab = LFRicSymbolTable()
     # Test all 2D integer arrays:
-    int_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dint", 2,
-                                                ScalarType.Intrinsic.INTEGER)
-    for i in [4]:
-        assert psyir_args[i].symbol.datatype == int_2d.datatype
+    ncell_3d = DataSymbol("ncell_3d", INTEGER_TYPE)
+
+    assert psyir_args[4].symbol.datatype == ArrayType(
+        INTEGER_TYPE, [Reference(DataSymbol("ndf_w1", INTEGER_TYPE)),
+                       Reference(ncell_3d)])
 
     int_arr_2d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 2,
                                                     ScalarType.Intrinsic.REAL)

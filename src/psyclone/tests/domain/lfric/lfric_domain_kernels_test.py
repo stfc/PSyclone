@@ -321,7 +321,7 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     # Now call the loop handling method directly.
     out = fortran_writer.loop_node(schedule.children[0])
     assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_data, ndf_w3, undf_w3, map_w3)" in out)
+            "f1_data, ndf_w3, undf_w3, map_w3(:,:))" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):

@@ -57,13 +57,19 @@ from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 TEST_API = "dynamo0.3"
 
 
-def check_psyir_results(create_arg_list, fortran_writer):
+def check_psyir_results(create_arg_list, fortran_writer, expected=()):
     '''Helper function to check if the PSyIR representation of the arguments
      is identical to the old style textual representation. It checks that each
      member of the psyir_arglist is a Reference, and that the textual
      representation matches the textual presentation (which was already
      verified).
 
+    :param create_arg_list: the object responsible for creating the argument
+        list.
+    :type create_arg_list: :py:class:`psyclone.domain.lfric.KernCallArgList`
+    :param fortran_writer: the PSyIR Fortran backend visitor.
+    :param Optional[Iterable[str]] expected: the expected argument list if this
+        differs from that produced by 'create_arg_list'.
      '''
     # Check the PSyIR representation
     result = []
@@ -71,7 +77,10 @@ def check_psyir_results(create_arg_list, fortran_writer):
         assert isinstance(node, Reference)
         result.append(fortran_writer(node))
 
-    assert result == create_arg_list._arglist
+    if expected:
+        assert result == expected
+    else:
+        assert result == create_arg_list._arglist
 
 
 def test_argordering_append():
@@ -259,7 +268,11 @@ def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
         'nlayers', 'ncell_2d_no_halos', 'b', 'f1_data', 'ndf_w3',
         'undf_w3', 'map_w3']
 
-    check_psyir_results(create_arg_list, fortran_writer)
+    # The PSyIR adds '(:,:)' to whole-array accesses.
+    check_psyir_results(
+        create_arg_list, fortran_writer,
+        expected=['nlayers', 'ncell_2d_no_halos', 'b',
+                  'f1_data', 'ndf_w3', 'undf_w3', 'map_w3(:,:)'])
 
 
 def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
