@@ -3308,11 +3308,12 @@ class Fparser2Reader():
         # Select_Type_Construct and extract the required
         # information. This makes for easier code generation later in
         # the routine.
-        select_idx = -1   # index of the current clause
-        default_idx = -1  # index of the default clause if it exists
-        guard_type = []   # type of guard (class is, type is default class)
-        clause_type = []  # name of the clause
-        stmts = []        # list of statements for each clause
+        select_idx = -1       # index of the current clause
+        default_idx = -1      # index of the default clause if it exists
+        guard_type = []       # type of guard (class is ...)
+        clause_type = []      # name of the clause
+        stmts = []            # list of statements for each clause
+        pointer_symbols = []  # list of pointers to the selector variable
 
         for idx, child in enumerate(node.children):
             if isinstance(child, Fortran2003.Select_Type_Stmt):
@@ -3358,10 +3359,23 @@ class Fparser2Reader():
         code += f"select type({selector})\n"
         for idx in range(select_idx+1):
             if idx == default_idx:
+                pointer_symbols.append(None)
                 continue
+            pointer_name = parent.scope.symbol_table.next_available_name(
+                f"ptr_{guard_type[idx]}")
+            tmp = f"{guard_type[idx]}"
+            intrinsic_types = ["integer", "real", "character", "complex"]
+            if str(guard_type[idx]).lower() not in intrinsic_types:
+                tmp = f"type({tmp})"
+            pointer_type = UnknownFortranType(
+                f"{tmp}, pointer :: {pointer_name}\n")
+            pointer_symbol = DataSymbol(pointer_name, pointer_type)
+            parent.scope.symbol_table.add(pointer_symbol)
+            pointer_symbols.append(pointer_symbol)
             code += f"  {clause_type[idx]} ({guard_type[idx]})\n"
             code += (f"    {type_string_name} = "
                      f"\"{guard_type[idx].string.lower()}\"\n")
+            code += (f"    {pointer_name} => {selector}\n")
         code += "end select\n"
         code += "end program\n"
         parser = ParserFactory().create(std="f2008")
@@ -3416,6 +3430,12 @@ class Fparser2Reader():
             # Add If_body
             ifbody = Schedule(parent=ifblock)
             self.process_nodes(parent=ifbody, nodes=stmts[idx])
+            # Replace references to the type selector variable with
+            # references to the appropriate pointer.
+            for reference in ifbody.walk(Reference):
+                symbol = reference.symbol
+                if symbol.name.lower() == selector.lower():
+                    reference.symbol = pointer_symbols[idx]
             ifblock.addchild(ifbody)
             currentparent = ifblock
 
