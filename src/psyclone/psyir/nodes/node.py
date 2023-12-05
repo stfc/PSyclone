@@ -1637,15 +1637,21 @@ class Node():
         :rtype: str
         '''
         name = self.coloured_name(False)
-        if self._ast:
-            if hasattr(self._ast, 'item'):
-                if hasattr(self._ast.item, 'reader'):
-                    filename = self._ast.item.reader.file.name
-                    line_span = self._ast.item.span
-                    original_src = self._ast.item.line
-                    return (f"{name} from line {line_span} of file "
-                            f"'{filename}'.\n> {original_src}")
-        return f"{name} from line unknown"
+        line_span = "<unknown>"
+        original_src = "<unknown>"
+        filename = "<unknown>"
+        from psyclone.psyir.nodes.statement import Statement
+        node = self if isinstance(self, Statement) else self.ancestor(Statement)
+        # Try to populate the line/src/filename
+        if node and node._ast:
+            if hasattr(node._ast, 'item') and node._ast.item:
+                if hasattr(node._ast.item, 'reader'):
+                    if hasattr(node._ast.item.reader, 'file'):
+                        filename = node._ast.item.reader.file.name
+                line_span = node._ast.item.span
+                original_src = node._ast.item.line
+        return (f"{name} from line {line_span} of file "
+                f"'{filename}'.\n> {original_src}")
 
     def update_signal(self):
         '''

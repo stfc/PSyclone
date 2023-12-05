@@ -4552,6 +4552,7 @@ class Fparser2Reader():
 
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
+        routine._ast = node
 
         # Deal with any arguments
         try:
@@ -4701,6 +4702,7 @@ class Fparser2Reader():
 
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent, is_program=True)
+        routine._ast = node
 
         try:
             prog_spec = _first_type_match(node.content,
