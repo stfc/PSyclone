@@ -37,6 +37,7 @@
 
 
 from psyclone.core import Signature
+from psyclone.psyir import symbols
 from psyclone.psyir.tools import ReadWriteInfo
 
 
@@ -56,7 +57,7 @@ def test_add_read():
     '''Test adding read variables with and without modules. '''
 
     rwi = ReadWriteInfo()
-    sig_b = Signature("b")
+    sig_b = Signature(symbols.Symbol("b"))
     rwi.add_read(sig_b)
     correct = set()
     correct.add(("", sig_b))
@@ -66,14 +67,14 @@ def test_add_read():
 
     # Check that the results are sorted as expected: even though
     # 'a' is added later, it must be first in the output list:
-    sig_a = Signature("a")
+    sig_a = Signature(symbols.Symbol("a"))
     rwi.add_read(sig_a)
     correct.add(("", sig_a))
     assert rwi.set_of_all_used_vars == correct
     assert rwi.read_list == [("", sig_a), ("", sig_b)]
     assert rwi.signatures_read == [sig_a, sig_b]
 
-    sig_c = Signature("c")
+    sig_c = Signature(symbols.Symbol("c"))
     rwi.add_read(sig_c, "c_mod")
     correct.add(("c_mod", sig_c))
     assert rwi.set_of_all_used_vars == correct
@@ -87,7 +88,7 @@ def test_add_write():
     '''Test adding written variables with and without modules. '''
 
     rwi = ReadWriteInfo()
-    sig_b = Signature("b")
+    sig_b = Signature(symbols.Symbol("b"))
     rwi.add_write(sig_b)
     correct = set()
     correct.add(("", sig_b))
@@ -97,14 +98,14 @@ def test_add_write():
 
     # Check that the results are sorted as expected: even though
     # 'a' is added later, it must be first in the output list:
-    sig_a = Signature("a")
+    sig_a = Signature(symbols.Symbol("a"))
     rwi.add_write(sig_a)
     correct.add(("", sig_a))
     assert rwi.set_of_all_used_vars == correct
     assert rwi.write_list == [("", sig_a), ("", sig_b)]
     assert rwi.signatures_written == [sig_a, sig_b]
 
-    sig_c = Signature("c")
+    sig_c = Signature(symbols.Symbol("c"))
     rwi.add_write(sig_c, "c_mod")
     correct.add(("c_mod", sig_c))
     assert rwi.set_of_all_used_vars == correct

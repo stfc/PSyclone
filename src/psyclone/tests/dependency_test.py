@@ -75,16 +75,19 @@ def test_assignment(parser):
     ast = parser(reader)
     psy = PSyFactory(API).create(ast)
     schedule = psy.invokes.get("test_prog").schedule
+    table = schedule.symbol_table
 
     # Simple scalar assignment:  a = b
     scalar_assignment = schedule.children[0]
     assert isinstance(scalar_assignment, Assignment)
     var_accesses = VariablesAccessInfo(scalar_assignment)
     # Test some test functions explicitly:
-    assert var_accesses.is_written(Signature("a"))
-    assert not var_accesses.is_read(Signature("a"))
-    assert not var_accesses.is_written(Signature("b"))
-    assert var_accesses.is_read(Signature("b"))
+    asym = table.lookup("a")
+    bsym = table.lookup("b")
+    assert var_accesses.is_written(Signature(asym))
+    assert not var_accesses.is_read(Signature(asym))
+    assert not var_accesses.is_written(Signature(bsym))
+    assert var_accesses.is_read(Signature(bsym))
 
     # Array element assignment: c(i,j) = d(i,j+1)+e+f(x,y)
     array_assignment = schedule.children[1]
@@ -167,7 +170,8 @@ def test_if_statement(parser):
     assert (str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "
                                  "q: READ+WRITE, r: READ")
     # Test that the two accesses to 'q' indeed show up as
-    q_accesses = var_accesses[Signature("q")].all_accesses
+    qsym = schedule.symbol_table.lookup("q")
+    q_accesses = var_accesses[Signature(qsym)].all_accesses
     assert len(q_accesses) == 2
     assert q_accesses[0].access_type == AccessType.READ
     assert q_accesses[1].access_type == AccessType.WRITE
@@ -293,8 +297,10 @@ def test_goloop_field_accesses():
     assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo(invoke.schedule)
 
+    table = invoke.schedule.symbol_table
+
     # cu_fld has a pointwise write access in the first loop:
-    cu_fld = var_accesses[Signature("cu_fld")]
+    cu_fld = var_accesses[Signature(table.lookup("cu_fld"))]
     assert len(cu_fld.all_accesses) == 1
     assert cu_fld.all_accesses[0].access_type == AccessType.WRITE
     assert (cu_fld.all_accesses[0].component_indices.indices_lists
@@ -302,7 +308,7 @@ def test_goloop_field_accesses():
 
     # The stencil is defined to be GO_STENCIL(123,110,100)) for
     # p_fld. Make sure that these 9 accesses are indeed reported:
-    p_fld = var_accesses[Signature("p_fld")]
+    p_fld = var_accesses[Signature(table.lookup("p_fld"))]
     all_indices = [access.component_indices.indices_lists
                    for access in p_fld.all_accesses]
 
@@ -365,24 +371,32 @@ def test_lfric_kern_cma_args():
     # pylint: disable=pointless-statement
     psy.gen
     invoke_read = psy.invokes.get('invoke_read')
+    table_read = invoke_read.schedule.symbol_table
     invoke_write = psy.invokes.get('invoke_write')
+    table_write = invoke_write.schedule.symbol_table
     var_accesses_read = VariablesAccessInfo(invoke_read.schedule)
     var_accesses_write = VariablesAccessInfo(invoke_write.schedule)
 
     # Check the parameters that will change access type according to read or
     # write declaration of the argument:
-    assert (var_accesses_read[Signature("cma_op1_matrix")][0].access_type
-            == AccessType.READ)
-    assert (var_accesses_write[Signature("cma_op1_matrix")][0].access_type
-            == AccessType.WRITE)
+    assert (
+        var_accesses_read[
+            Signature(table_read.lookup("cma_op1_matrix"))][0].access_type
+        == AccessType.READ)
+    assert (
+        var_accesses_write[
+            Signature(table_write.lookup("cma_op1_matrix"))][0].access_type
+        == AccessType.WRITE)
 
     # All other parameters are read-only (e.g. sizes, ... - they will not
     # be modified, even if the actual data is written):
     for name in ["nrow", "bandwidth", "alpha", "beta", "gamma_m",
                  "gamma_p"]:
-        assert (var_accesses_read[Signature(f"cma_op1_{name}")][0].access_type
+        assert (var_accesses_read[
+            Signature(table_read.lookup(f"cma_op1_{name}"))][0].access_type
                 == AccessType.READ)
-        assert (var_accesses_write[Signature(f"cma_op1_{name}")][0].access_type
+        assert (var_accesses_write[
+            Signature(table_write.lookup(f"cma_op1_{name}"))][0].access_type
                 == AccessType.READ)
 
 
@@ -413,41 +427,43 @@ def test_location(parser):
     ast = parser(reader)
     psy = PSyFactory(API).create(ast)
     schedule = psy.invokes.get("test_prog").schedule
+    table = schedule.symbol_table
 
     var_accesses = VariablesAccessInfo(schedule)
     # Test accesses for a:
-    a_accesses = var_accesses[Signature("a")].all_accesses
+    a_accesses = var_accesses[Signature(table.lookup("a"))].all_accesses
     assert a_accesses[0].location == 0
     assert a_accesses[1].location == 1
     assert a_accesses[2].location == 6
     assert a_accesses[3].location == 12
 
     # b should have the same locations as a:
-    b_accesses = var_accesses[Signature("b")].all_accesses
+    b_accesses = var_accesses[Signature(table.lookup("b"))].all_accesses
     assert len(a_accesses) == len(b_accesses)
     for (index, access) in enumerate(a_accesses):
         assert b_accesses[index].location == access.location
 
-    q_accesses = var_accesses[Signature("q")].all_accesses
+    q_accesses = var_accesses[Signature(table.lookup("q"))].all_accesses
     assert q_accesses[0].location == 2
     assert q_accesses[1].location == 4
 
     # Test jj for the loop statement. Note that 'jj' has one read and
     # one write access for the DO statement
-    jj_accesses = var_accesses[Signature("jj")].all_accesses
+    jj_accesses = var_accesses[Signature(table.lookup("jj"))].all_accesses
     assert jj_accesses[0].location == 7
     assert jj_accesses[1].location == 7
     assert jj_accesses[2].location == 9
     assert jj_accesses[3].location == 9
 
-    ji_accesses = var_accesses[Signature("ji")].all_accesses
+    ji_accesses = var_accesses[Signature(table.lookup("ji"))].all_accesses
     assert ji_accesses[0].location == 8
     assert ji_accesses[1].location == 8
     assert ji_accesses[2].location == 9
     assert ji_accesses[3].location == 9
 
     # Verify that x=x+1 shows the READ access before the write access
-    x_accesses = var_accesses[Signature("x")].all_accesses    # x=x+1
+    # x=x+1
+    x_accesses = var_accesses[Signature(table.lookup("x"))].all_accesses
     assert x_accesses[0].access_type == AccessType.READ
     assert x_accesses[1].access_type == AccessType.WRITE
     assert x_accesses[0].location == x_accesses[1].location
@@ -472,9 +488,10 @@ def test_user_defined_variables(parser):
     # `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
+    table = loops[0].scope.symbol_table
     var_accesses = VariablesAccessInfo(loops)
-    assert var_accesses[Signature(("a", "b", "c"))].is_written
-    assert var_accesses[Signature(("e", "f"))].is_written
+    assert var_accesses[Signature(table.lookup("a"), ("b", "c"))].is_written
+    assert var_accesses[Signature(table.lookup("e"), "f")].is_written
 
 
 def test_lfric_ref_element():
