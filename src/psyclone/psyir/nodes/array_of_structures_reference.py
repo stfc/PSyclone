@@ -134,6 +134,9 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
             ref.addchild(child)
         return ref
 
+    def get_signature_and_indices(self):
+        return StructureReference.get_signature_and_indices(self)
+
 
 # For AutoAPI documentation generation
 __all__ = ['ArrayOfStructuresReference']

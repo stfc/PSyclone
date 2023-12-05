@@ -180,7 +180,7 @@ class Reference(DataNode):
             # the interface and use it. The rest of the signature is
             # used from the original access, it does not change.
             #sig = Signature(self.symbol.interface.orig_name, sig[1:])
-            sig = Signature(self.symbol, sig[:])
+            sig = Signature(self.symbol, sig[1:])
         for indices in all_indices:
             for index in indices:
                 index.reference_accesses(var_accesses)

@@ -85,7 +85,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return True
 
-    def not_get_signature_and_indices(self):
+    def get_signature_and_indices(self):
         '''
         Constructs the Signature of this array access and a list of the
         indices used.
@@ -436,64 +436,31 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # get the parent Reference and keep a record of how deep this node
             # is within the structure access. e.g. if this node was the
             # StructureMember 'b' in a%c%b%d then its depth would be 2.
-            parent_ref = self.ancestor(Reference)
+            depth = 1
+            current = self
+            while current.parent and not isinstance(current.parent, Reference):
+                depth += 1
+                current = current.parent
+            parent_ref = current.parent
             if not parent_ref:
                 return False
-            index_list = self.path_from(parent_ref)
-            depth = len(index_list)
         else:
-            index_list = []
             depth = 0
             parent_ref = self
 
         # Now we have the parent Reference and the depth, we can construct the
         # Signatures and compare them to the required depth.
-        #self_sig, self_indices = parent_ref.get_signature_and_indices()
-        from psyclone.core import Signature
-        self_sig = Signature(parent_ref, depth=depth)
-        cursor = parent_ref
-        if cursor.is_array:
-            self_indices = [cursor.indices]
-        else:
-            self_indices = [[]]
-        for idx in index_list:
-            cursor = cursor.children[idx]
-            if hasattr(cursor, "indices"):
-                self_indices.append(cursor.indices)
-            else:
-                self_indices.append([])
-
-        parent_ref = node.ancestor(Reference, include_self=True)
-        if not parent_ref:
-            return False
-        index_list = node.path_from(parent_ref)
-        depth = len(index_list)
-        node_sig = Signature(parent_ref, depth=depth)
-        cursor = parent_ref
-        if hasattr(cursor, "indices"):
-            node_indices = [cursor.indices]
-        else:
-            node_indices = [[]]
-        for idx in index_list:
-            cursor = cursor.children[idx]
-            # `is_array` looks at the Symbol type but we could have a
-            # whole-array reference.
-            if hasattr(cursor, "indices"):
-                node_indices.append(cursor.indices)
-            else:
-                node_indices.append([])
-
-        #node_sig, node_indices = node.get_signature_and_indices()
-        if self_sig != node_sig:
+        self_sig, self_indices = parent_ref.get_signature_and_indices()
+        node_sig, node_indices = node.get_signature_and_indices()
+        if self_sig[:depth+1] != node_sig[:]:
             return False
 
         # Examine the indices, ignoring any on the innermost accesses (hence
         # the slice to `depth` rather than `depth + 1` below).
-        return self_indices[:depth] == node_indices[:depth]
-        #for idx1, idx2 in zip(self_indices[:depth], node_indices[:depth]):
-        #    if idx1 != idx2:
-        #        return False
-        #return True
+        for idx1, idx2 in zip(self_indices[:depth], node_indices[:depth]):
+            if idx1 != idx2:
+                return False
+        return True
 
     def is_full_range(self, index):
         '''Returns True if the specified array index is a Range Node that

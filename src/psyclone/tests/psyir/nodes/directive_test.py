@@ -125,6 +125,7 @@ program my_prog
 end program my_prog
 ''')
     sched = psyir.walk(nodes.Routine)[0]
+    table = sched.symbol_table
     # Use the ACCDataTrans transformation to insert the directive to test.
     data_trans = ACCDataTrans()
     # Flat array.
@@ -132,26 +133,29 @@ end program my_prog
     reads, writes, readwrites = sched[0].create_data_movement_deep_copy_refs()
     assert all(isinstance(obj, OrderedDict) for obj in
                [reads, writes, readwrites])
-    sig = Signature('a')
+    asym = table.lookup('a')
+    sig = Signature(asym)
     assert isinstance(writes[sig], nodes.Reference)
     assert writes[sig].symbol.name == "a"
     # Structure access.
     data_trans.apply(sched[1])
     reads, writes, readwrites = sched[1].create_data_movement_deep_copy_refs()
-    assert isinstance(reads[Signature("a")], nodes.Reference)
-    assert Signature("a_scalar") not in reads
-    assert isinstance(writes[Signature("b")], nodes.Reference)
-    assert isinstance(writes[Signature(("b", "grid"))],
+    assert isinstance(reads[Signature(asym)], nodes.Reference)
+    assert Signature(table.lookup("a_scalar")) not in reads
+    bsym = table.lookup('b')
+    assert isinstance(writes[Signature(bsym)], nodes.Reference)
+    assert isinstance(writes[Signature(bsym, "grid")],
                       nodes.StructureReference)
-    assert isinstance(writes[Signature(("b", "grid", "data"))],
+    assert isinstance(writes[Signature(bsym, ("grid", "data"))],
                       nodes.StructureReference)
     # Array of structures access.
     data_trans.apply(sched[2])
+    dsym = table.lookup('d')
     reads, writes, readwrites = sched[2].create_data_movement_deep_copy_refs()
-    assert isinstance(writes[Signature("d")], nodes.Reference)
-    assert isinstance(writes[Signature(("d", "grid"))],
+    assert isinstance(writes[Signature(dsym)], nodes.Reference)
+    assert isinstance(writes[Signature(dsym, "grid")],
                       nodes.StructureReference)
-    assert isinstance(writes[Signature(("d", "grid", "data"))],
+    assert isinstance(writes[Signature(dsym, ("grid", "data"))],
                       nodes.StructureReference)
     # Scalars are excluded.
     data_trans.apply(sched[3])
@@ -161,13 +165,13 @@ end program my_prog
     # Statement that reads and writes a variable.
     reads, writes, readwrites = sched[4].create_data_movement_deep_copy_refs()
     assert not reads and not writes
-    assert isinstance(readwrites[Signature("a")], nodes.Reference)
+    assert isinstance(readwrites[Signature(asym)], nodes.Reference)
     # Subroutine call - the arg. is conservatively assumed to be read-write.
     data_trans.apply(sched[5])
     reads, writes, readwrites = sched[5].create_data_movement_deep_copy_refs()
     assert not writes
     assert not reads
-    assert Signature("d") in readwrites
+    assert Signature(dsym) in readwrites
 
 
 def test_regiondirective_children_validation():

@@ -81,10 +81,14 @@ class Signature:
         elif isinstance(variable, nodes.Reference):
             self._symbol = variable.symbol
             if isinstance(variable, nodes.StructureReference):
-                # TODO the walk here is dangerous - need to exclude index expressions
-                self._signature = tuple(mem.name for mem in
-                                        variable.walk(nodes.Member,
-                                                      depth=depth)) + sub_tuple
+                cursor = variable
+                current_depth = 0
+                names = []
+                while hasattr(cursor, "member") and not (depth and current_depth >= depth):
+                    names.append(cursor.member.name)
+                    current_depth += 1
+                    cursor = cursor.member
+                self._signature = tuple(names) + sub_tuple
             else:
                 self._signature = sub_tuple
         elif isinstance(variable, nodes.Member):
@@ -154,14 +158,19 @@ class Signature:
     # ------------------------------------------------------------------------
     def __getitem__(self, indx):
         if isinstance(indx, slice):
-            if indx.stop is not None:
-                if indx.stop < 0:
-                    return ((self._symbol.name,) +
-                            self._signature[:indx.stop])
-                else:
-                    return ((self._symbol.name,) +
-                            self._signature[:indx.stop-1])
-            return (self._symbol.name,) + self._signature[indx]
+            if indx.stop and indx.stop > 0:
+                new_stop = indx.stop - 1
+            else:
+                new_stop = indx.stop
+            if indx.start and indx.start > 0:
+                new_start = indx.start - 1
+            else:
+                new_start = indx.start
+            if not indx.start or indx.start == 0:
+                return ((self._symbol.name,) +
+                        self._signature[:new_stop])
+            return self._signature[new_start:new_stop]
+
         if indx == 0:
             return self._symbol.name
         if indx < 0:

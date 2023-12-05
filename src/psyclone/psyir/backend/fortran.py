@@ -830,7 +830,8 @@ class FortranWriter(LanguageWriter):
             # Remove any 'inputs' that are not local since these do not affect
             # the ordering of local declarations.
             for sig in read_write_info.signatures_read:
-                if symbol_table.lookup(sig.var_name) in local_constants:
+                #if symbol_table.lookup(sig.var_name) in local_constants:
+                if sig.symbol in local_constants:
                     decln_inputs[symbol.name].add(sig)
         # We now iterate over the declarations, declaring those that have their
         # inputs satisfied. Creating a declaration for a given symbol removes

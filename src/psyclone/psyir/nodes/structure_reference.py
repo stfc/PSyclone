@@ -277,10 +277,11 @@ class StructureReference(Reference):
         while hasattr(cursor, "member"):
             cursor = cursor.member
             name_list.append(cursor.name)
-            if cursor.is_array:
+            if hasattr(cursor, "indices"):
                 indices.append(cursor.indices)
             else:
                 indices.append([])
+
         return Signature(self.symbol, sub_sig=tuple(name_list)), indices
 
     @property

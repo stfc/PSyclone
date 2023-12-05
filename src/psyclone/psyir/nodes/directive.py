@@ -148,7 +148,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
 
             # Then work our way down the various members.
             for depth in range(1, len(sig)):
-                if Signature(node.symbol, sub_sig=sig[:depth+1]) not in access_dict:
+                if Signature(node.symbol, sub_sig=sig[1:depth+1]) not in access_dict:
                     if node.is_array:
                         base_cls = ArrayOfStructuresReference
                         # Copy the indices so as not to modify the original
@@ -169,8 +169,9 @@ class Directive(Statement, metaclass=abc.ABCMeta):
                     members = list(zip(sig[1:depth], new_lists))
                     # The last member has no array indexing.
                     members.append(sig[depth])
-                    access_dict[sig[:depth+1]] = base_cls.create(
-                        *base_args, members)
+                    access_dict[Signature(node.symbol,
+                                          sig[1:depth+1])] = base_cls.create(
+                                              *base_args, members)
         return read_only, write_only, readwrites
 
 

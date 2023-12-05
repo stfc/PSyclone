@@ -136,16 +136,18 @@ class Member(Node):
         from psyclone.psyir.nodes import Reference
         parent_ref = self.ancestor(Reference)
         if not parent_ref:
-            return False
+            raise ValueError(f"Cannot construct the Signature of a Member "
+                             f"({self.name}) without a parent Reference.")
         index_list = self.path_from(parent_ref)
         depth = len(index_list)
-        indices = []
-        #name_list = []
+        if hasattr(parent_ref, "indices"):
+            indices = [parent_ref.indices]
+        else:
+            indices = [[]]
         cursor = parent_ref
         for idx in index_list:
             cursor = cursor.children[idx]
-        #    name_list.append(cursor.name)
-            if cursor.is_array:
+            if hasattr(cursor, "indices"):
                 indices.append(cursor.indices)
             else:
                 indices.append([])

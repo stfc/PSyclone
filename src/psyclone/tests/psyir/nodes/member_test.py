@@ -38,7 +38,7 @@
 ''' This module contains pytest tests for the Member class. '''
 
 import pytest
-from psyclone.psyir import nodes
+from psyclone.psyir import nodes, symbols
 
 
 def test_member_constructor():
@@ -83,9 +83,15 @@ def test_member_is_array():
 def test_member_get_signature():
     ''' Test that we get the expected signature from a member. '''
     mem = nodes.Member("fred")
-    signature, indices = mem.get_signature_and_indices()
-    assert str(signature) == "fred"
-    assert indices == [[]]
+    with pytest.raises(ValueError) as err:
+        _ = mem.get_signature_and_indices()
+    assert ("Cannot construct the Signature of a Member (fred) without a "
+            "parent Reference" in str(err))
+    asym = symbols.DataSymbol("a", symbols.DeferredType())
+    sref = nodes.StructureReference.create(asym, ["blogs"])
+    signature, indices = sref.member.get_signature_and_indices()
+    assert str(signature) == "a%blogs"
+    assert indices == [[], []]
 
 
 def test_member_equality():

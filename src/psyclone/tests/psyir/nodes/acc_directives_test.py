@@ -116,8 +116,8 @@ def test_accregiondir_signatures():
         Assignment.create(lhs=Reference(bob), rhs=Reference(richard)))
     # pylint: disable=unbalanced-tuple-unpacking
     reads, writes = accnode.signatures
-    assert Signature("richard") in reads
-    assert Signature("bob") in writes
+    assert Signature(richard) in reads
+    assert Signature(bob) in writes
 
 # Class ACCEnterDataDirective start
 
@@ -395,7 +395,7 @@ def test_accupdatedirective_init():
             "set of signatures but got {'str'}"
             in str(err.value))
 
-    sig = {Signature("x")}
+    sig = {Signature(DataSymbol("x", INTEGER_TYPE))}
     with pytest.raises(ValueError) as err:
         _ = ACCUpdateDirective(sig, "invalid")
     assert ("The ACCUpdateDirective direction argument must be a string with "
@@ -421,7 +421,7 @@ def test_accupdatedirective_init():
 def test_accupdatedirective_begin_string():
     ''' Test the begin_string method of ACCUpdateDirective. '''
 
-    sig = {Signature("x")}
+    sig = {Signature(DataSymbol("x", INTEGER_TYPE))}
     directive_host = ACCUpdateDirective(sig, "host", if_present=False)
     directive_device = ACCUpdateDirective(sig, "device")
     directive_empty = ACCUpdateDirective(set(), "host", if_present=False)
@@ -437,13 +437,14 @@ def test_accupdatedirective_begin_string():
 
 def test_accupdatedirective_equality():
     ''' Test the __eq__ method of ACCUpdateDirective node. '''
-    sig = {Signature("x")}
+    sig = {Signature(DataSymbol("x", INTEGER_TYPE))}
     directive1 = ACCUpdateDirective(sig, "device")
     directive2 = ACCUpdateDirective(sig, "device")
     assert directive1 == directive2
 
     # Check equality fails when different signatures
-    directive3 = ACCUpdateDirective({Signature("t")}, "device")
+    directive3 = ACCUpdateDirective(
+        {Signature(DataSymbol("t", INTEGER_TYPE))}, "device")
     assert directive1 != directive3
 
     # Check equality fails when different directions
