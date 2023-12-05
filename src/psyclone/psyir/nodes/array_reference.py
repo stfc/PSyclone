@@ -38,6 +38,7 @@
 
 ''' This module contains the implementation of the ArrayReference node. '''
 
+from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.literal import Literal
@@ -138,6 +139,15 @@ class ArrayReference(ArrayMixin, Reference):
         # handled in a different way to all other types of array.
         return ScalarType(self.symbol.datatype.intrinsic,
                           self.symbol.datatype.precision)
+
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this reference, and \
+            an empty list of lists as 'indices' since this reference does \
+            not represent an array access.
+        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
+            list of indices)
+        '''
+        return (Signature(self), [self.indices[:]])
 
 
 # For AutoAPI documentation generation

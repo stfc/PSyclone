@@ -298,7 +298,7 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     assign = psyir.children[0].children[0]
 
-    sig = Signature("a1")
+    sig = Signature(assign.scope.symbol_table.lookup("a1"))
     # Get all access info for the expression to 'a1'
     access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
     access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
@@ -360,7 +360,7 @@ def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     assign = psyir.children[0].children[0]
 
-    sig = Signature("a1")
+    sig = Signature(assign.scope.symbol_table.lookup("a1"))
     # Get all access info for the expression to 'a1'
     access_info_lhs = VariablesAccessInfo(assign.lhs)[sig][0]
     access_info_rhs = VariablesAccessInfo(assign.rhs)[sig][0]
@@ -606,9 +606,11 @@ def test_derived_type(fortran_reader):
     assert msg.var_names == ["b%b(ji,jj)", "b%b(ji,jj - 1)"]
 
     # Test that variables are ignored as expected.
-    parallel = dep_tools.\
-        can_loop_be_parallelised(loops[1],
-                                 signatures_to_ignore=[Signature(("a", "b"))])
+    asym = loops[0].scope.symbol_table.lookup("a")
+    bsym = loops[0].scope.symbol_table.lookup("b")
+    parallel = dep_tools.can_loop_be_parallelised(
+        loops[1],
+        signatures_to_ignore=[Signature(asym, ("b",))])
     assert parallel is False
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
@@ -621,8 +623,8 @@ def test_derived_type(fortran_reader):
     # to be parallelisable
     parallel = dep_tools.\
         can_loop_be_parallelised(loops[1],
-                                 signatures_to_ignore=[Signature(("a", "b")),
-                                                       Signature(("b", "b"))])
+                                 signatures_to_ignore=[Signature(asym, ("b",)),
+                                                       Signature(bsym, ("b",))])
     assert dep_tools.get_all_messages() == []
     assert parallel is True
 
@@ -642,6 +644,14 @@ def test_inout_parameters_nemo(fortran_reader):
                 end program test'''
     psyir = fortran_reader.psyir_from_source(source)
     loops = psyir.children[0].children
+    table = loops[0].scope.symbol_table
+    asym = table.lookup("a")
+    bsym = table.lookup("b")
+    csym = table.lookup("c")
+    jpjsym = table.lookup("jpj")
+    jisym = table.lookup("ji")
+    jjsym = table.lookup("jj")
+    sym_dummy = table.lookup("dummy")
 
     dep_tools = DependencyTools()
     read_write_info_read = ReadWriteInfo()
@@ -650,15 +660,15 @@ def test_inout_parameters_nemo(fortran_reader):
     input_set = set(read_write_info_read.signatures_read)
     # Note that by default the read access to `dummy` in lbound etc should
     # not be reported, since it does not really read the array values.
-    assert input_set == set([Signature("b"), Signature("c"),
-                             Signature("jpj")])
+    assert input_set == set([Signature(bsym), Signature(csym),
+                             Signature(jpjsym)])
 
     read_write_info_write = ReadWriteInfo()
     dep_tools.get_output_parameters(read_write_info_write, loops)
     # Use set to be order independent
     output_set = set(read_write_info_write.signatures_written)
-    assert output_set == set([Signature("jj"), Signature("ji"),
-                              Signature("a")])
+    assert output_set == set([Signature(jjsym), Signature(jisym),
+                              Signature(asym)])
 
     read_write_info_all = dep_tools.get_in_out_parameters(loops)
 
@@ -671,15 +681,15 @@ def test_inout_parameters_nemo(fortran_reader):
     dep_tools.get_input_parameters(read_write_info, loops,
                                    options={'COLLECT-ARRAY-SHAPE-READS': True})
     input_set = set(sig for _, sig in read_write_info.set_of_all_used_vars)
-    assert input_set == set([Signature("b"), Signature("c"),
-                             Signature("jpj"), Signature("dummy")])
+    assert input_set == set([Signature(bsym), Signature(csym),
+                             Signature(jpjsym), Signature(sym_dummy)])
 
     read_write_info = dep_tools.\
         get_in_out_parameters(loops,
                               options={'COLLECT-ARRAY-SHAPE-READS': True})
     output_set = set(read_write_info.signatures_read)
-    assert output_set == set([Signature("b"), Signature("c"),
-                              Signature("jpj"), Signature("dummy")])
+    assert output_set == set([Signature(bsym), Signature(csym),
+                              Signature(jpjsym), Signature(sym_dummy)])
 
 
 # -----------------------------------------------------------------------------
@@ -693,7 +703,6 @@ def test_const_argument():
     dep_tools.get_input_parameters(read_write_info, invoke.schedule)
     # Make sure the constant '0' is not listed
     assert "0" not in read_write_info.signatures_read
-    assert Signature("0") not in read_write_info.signatures_read
 
 
 # -----------------------------------------------------------------------------

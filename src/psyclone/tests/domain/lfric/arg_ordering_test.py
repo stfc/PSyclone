@@ -43,14 +43,14 @@ import pytest
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric import (KernCallArgList, LFRicKern,
                                    KernStubArgList, LFRicConstants,
-                                   LFRicSymbolTable)
+                                   LFRicSymbolTable, LFRicTypes)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.dynamo0p3 import DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ArrayReference, Literal, Reference
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, ScalarType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
@@ -304,12 +304,19 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
     psyir_arglist = create_arg_list.psyir_arglist
 
-    sym_tab = LFRicSymbolTable()
-    arr_2d = sym_tab.find_or_create_array("doesnt_matter", 2,
-                                          ScalarType.Intrinsic.INTEGER)
+    symtab = schedule.symbol_table
+
     # Check datatype of the cbanded_map parameters are indeed 2d int arrays
-    for i in [14, 16]:
-        assert psyir_arglist[i].datatype == arr_2d.datatype
+    dtype = ArrayType(
+        LFRicTypes("LFRicIntegerScalarDataType")(),
+        [Reference(symtab.lookup("ndf_any_discontinuous_space_1")),
+         Reference(symtab.lookup("nlevels"))])
+    assert psyir_arglist[14].datatype == dtype
+    dtype = ArrayType(
+        LFRicTypes("LFRicIntegerScalarDataType")(),
+        [Reference(symtab.lookup("ndf_any_discontinuous_space_2")),
+         Reference(symtab.lookup("nlevels"))])
+    assert psyir_arglist[16].datatype == dtype
 
 
 def test_arg_ordering_mdata_index():

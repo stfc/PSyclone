@@ -2443,7 +2443,7 @@ class DynDofmaps(LFRicCollection):
                         map_name = unique_fs.map_name
                         if map_name not in self._unique_fs_maps:
                             self._unique_fs_maps[map_name] = fld_arg
-                            map_type = ArrayType(INTEGER_TYPE,
+                            map_type = ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                                  [Reference(ndf_symbol),
                                                   Reference(ncells)])
                             _ = self._symbol_table.find_or_create_tag(
@@ -2475,7 +2475,7 @@ class DynDofmaps(LFRicCollection):
                         ndf_symbol = self._symbol_table.find_or_create_tag(
                             f"ndf_{fs_name}", fs=fs_name,
                             symbol_type=LFRicTypes("NumberOfDofsDataSymbol"))
-                        map_type = ArrayType(INTEGER_TYPE,
+                        map_type = ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                              [Reference(ndf_symbol),
                                               Reference(nlevels)])
                         _ = self._symbol_table.find_or_create_tag(
@@ -2491,7 +2491,7 @@ class DynDofmaps(LFRicCollection):
                         ndf_symbol = self._symbol_table.find_or_create_tag(
                             f"ndf_{fs_name}", fs=fs_name,
                             symbol_type=LFRicTypes("NumberOfDofsDataSymbol"))
-                        map_type = ArrayType(INTEGER_TYPE,
+                        map_type = ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                                              [Reference(ndf_symbol),
                                               Reference(nlevels)])
                         _ = self._symbol_table.find_or_create_tag(

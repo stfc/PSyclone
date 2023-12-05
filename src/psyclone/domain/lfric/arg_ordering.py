@@ -110,7 +110,7 @@ class ArgOrdering:
         self._psyir_arglist.append(node)
 
     def append(self, var_name, var_accesses=None, var_access_name=None,
-               mode=AccessType.READ, metadata_posn=None):
+               mode=AccessType.READ, metadata_posn=None, symbol=None):
         # pylint: disable=too-many-arguments
         '''Appends the specified variable name to the list of all arguments and
         stores the mapping between the position of this actual argument and
@@ -144,15 +144,18 @@ class ArgOrdering:
         if var_accesses is not None:
             name = var_access_name if var_access_name else var_name
             base_name = name.split("%")
-            try:
-                sym = self._symtab.lookup(base_name[0])
-            except KeyError:
-                # TODO - this is really horrible. If we try to add a basic
-                # symbol to the table here then it prevents the addition of the
-                # correct type of symbol later on.
-                sym = Symbol(name)
-                import pdb; pdb.set_trace()
-            var_accesses.add_access(Signature(sym, sub_sig=tuple(base_name[1:])), mode, self._kern)
+            sym = symbol
+            if not sym:
+                try:
+                    sym = self._symtab.lookup(base_name[0])
+                except KeyError:
+                    # TODO - this is really horrible. If we try to add a basic
+                    # symbol to the table here then it prevents the addition of the
+                    # correct type of symbol later on.
+                    raise InternalError(f"No symbol {base_name[0]}")
+            var_accesses.add_access(Signature(sym,
+                                              sub_sig=tuple(base_name[1:])),
+                                    mode, self._kern)
 
     def extend(self, list_var_name, var_accesses=None,
                mode=AccessType.READ, list_metadata_posn=None):
@@ -905,9 +908,11 @@ class ArgOrdering:
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        sym = self.append_array_reference(
-            function_space.cbanded_map_name, indices=[":", ":"],
-            intrinsic_type=ScalarType.Intrinsic.INTEGER)
+        #sym = self.append_array_reference(
+        #    function_space.cbanded_map_name, indices=[":", ":"],
+        #    intrinsic_type=ScalarType.Intrinsic.INTEGER)
+        sym = self._symtab.lookup_with_tag(function_space.cbanded_map_name)
+        self.psyir_append(Reference(sym))
         self.append(sym.name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,

@@ -45,6 +45,7 @@ first before any members.
 from psyclone import psyGen
 from psyclone.domain.lfric import KernCallArgList
 from psyclone.errors import InternalError
+from psyclone.psyir import symbols
 
 
 class KernCallAccArgList(KernCallArgList):
@@ -198,7 +199,11 @@ class KernCallAccArgList(KernCallArgList):
             #const = LFRicConstants()
             #operator = const.DATA_TYPE_MAP[op_name]
             #self.get_user_type(operator["module"], operator["proxy_type"])
-            self.append(arg.proxy_name_indexed, var_accesses)
+            name = arg.proxy_name_indexed
+            sym = self._symtab.find_or_create(name,
+                                              symbol_type=symbols.DataSymbol,
+                                              datatype=symbols.DeferredType())
+            self.append(arg.proxy_name_indexed, var_accesses, symbol=sym)
             # This adds ncell_3d and local_stencil after the derived type:
             super().operator(arg, var_accesses)
 

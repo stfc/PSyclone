@@ -745,10 +745,10 @@ class DependencyTools():
 
             # This returns the first component of the signature,
             # i.e. in case of "a%b" it will only return "a"
-            var_name = signature.var_name
+            #var_name = signature.var_name
             var_info = var_accesses[signature]
-            symbol_table = loop.scope.symbol_table
-            symbol = symbol_table.lookup(var_name)
+            #symbol_table = loop.scope.symbol_table
+            symbol = signature.symbol #symbol_table.lookup(var_name)
             # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)
             if is_array:

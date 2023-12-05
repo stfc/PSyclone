@@ -268,7 +268,10 @@ class StructureReference(Reference):
         #_, indices = self.children[0].get_signature_and_indices()
         # Combine signature and indices
         #return (my_sig, my_index + indices)
-        indices = [[]]
+        if self.is_array:
+            indices = [self.indices]
+        else:
+            indices = [[]]
         name_list = []
         cursor = self
         while hasattr(cursor, "member"):

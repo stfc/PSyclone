@@ -66,9 +66,15 @@ class Signature:
     def __init__(self, variable, sub_sig=(), depth=None):
         from psyclone.psyir import nodes, symbols
         if isinstance(sub_sig, str):
-            sub_tuple = sub_sig.split("%")
-        else:
+            sub_tuple = tuple(sub_sig.split("%"))
+        elif isinstance(sub_sig, list):
+            sub_tuple = tuple(sub_sig)
+        elif isinstance(sub_sig, tuple):
             sub_tuple = sub_sig
+        else:
+            raise TypeError(
+                f"Signature sub_sig must be a string, list or tuple but got "
+                f"'{type(sub_sig).__name__}'")
         if isinstance(variable, symbols.Symbol):
             self._symbol = variable
             self._signature = sub_tuple
@@ -94,12 +100,15 @@ class Signature:
                 names.append(cursor.name)
             self._signature = tuple(names) + sub_tuple
         elif isinstance(variable, str):
+            import pdb; pdb.set_trace()
             assert 0, "Invalid call to Signature()"
             self._signature = tuple(variable.split("%")) + sub_tuple
         elif isinstance(variable, tuple):
+            import pdb; pdb.set_trace()
             assert 0, "Invalid call to Signature()"
             self._signature = variable + sub_tuple
         elif isinstance(variable, list):
+            import pdb; pdb.set_trace()
             assert 0, "Invalid call to Signature()"
             self._signature = tuple(variable) + sub_tuple
         elif isinstance(variable, Signature):
@@ -145,13 +154,14 @@ class Signature:
     # ------------------------------------------------------------------------
     def __getitem__(self, indx):
         if isinstance(indx, slice):
-            if indx.start:
-                raise ValueError("A Signature slice must begin with the first entry")
-            if indx.step and indx.step != 1:
-                raise ValueError("A Signature slice must be contiguous")
-            if indx.stop < 0:
-                return [self._symbol.name] + list(self._signature[:indx.stop])
-            return [self._symbol.name] + list(self._signature[:indx.stop-1])
+            if indx.stop is not None:
+                if indx.stop < 0:
+                    return ((self._symbol.name,) +
+                            self._signature[:indx.stop])
+                else:
+                    return ((self._symbol.name,) +
+                            self._signature[:indx.stop-1])
+            return (self._symbol.name,) + self._signature[indx]
         if indx == 0:
             return self._symbol.name
         if indx < 0:
@@ -214,7 +224,7 @@ class Signature:
         # out_list collects the string representation of the components
         # including indices
         out_list = []
-        for i, component in enumerate((self._symbol.name,) + self._signature):
+        for i, component in enumerate(self[:]):
             indices = component_indices[i]
             if not indices:
                 out_list.append(component)

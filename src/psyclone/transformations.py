@@ -2805,7 +2805,7 @@ class ACCDataTrans(RegionTrans):
                 loop_vars = []
                 cursor = sref.ancestor(Loop, limit=node)
                 while cursor:
-                    loop_vars.append(Signature(cursor.variable.name))
+                    loop_vars.append(Signature(cursor.variable))
                     cursor = cursor.ancestor(Loop)
 
                 # Now check whether any of these loop variables appear within

@@ -85,7 +85,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return True
 
-    def get_signature_and_indices(self):
+    def not_get_signature_and_indices(self):
         '''
         Constructs the Signature of this array access and a list of the
         indices used.

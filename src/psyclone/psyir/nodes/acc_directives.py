@@ -807,7 +807,6 @@ class ACCUpdateDirective(ACCStandaloneDirective):
     def __init__(self, signatures, direction, children=None, parent=None,
                  if_present=True):
         super().__init__(children=children, parent=parent)
-
         self.sig_set = signatures
         self.direction = direction
         self.if_present = if_present
@@ -939,8 +938,14 @@ def _sig_set_to_string(sig_set):
     :rtype: str
 
     '''
-    names = {Signature(s.symbol, sub_sig=s[:i+1]).to_language() for
-             s in sig_set for i in range(len(s))}
+    names = []
+    for sig in sig_set:
+        names.append(sig.symbol.name)
+        for idx in range(1, len(sig)):
+            names.append(
+                Signature(sig.symbol, sub_sig=sig[1:idx+1]).to_language())
+    #names = {Signature(s.symbol, sub_sig=s[1:i+1]).to_language() for
+    #         s in sig_set for i in range(1, len(s))}
     return ",".join(sorted(names))
 
 

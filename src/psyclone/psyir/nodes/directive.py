@@ -103,7 +103,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
         for sig in var_info.all_signatures:
             vinfo = var_info[sig]
             node = vinfo.all_accesses[0].node
-            sym = table.lookup(sig.var_name)
+            sym = sig.symbol #table.lookup(sig.var_name)
 
             if isinstance(sym.datatype, ScalarType):
                 # We ignore scalars as these are typically copied by value.
@@ -142,13 +142,13 @@ class Directive(Statement, metaclass=abc.ABCMeta):
             _, index_lists = node.get_signature_and_indices()
 
             # First add the root access (`a` in the above example).
-            if Signature(node.symbol.name) not in access_dict:
-                access_dict[Signature(node.symbol.name)] = Reference(
+            if Signature(node.symbol) not in access_dict:
+                access_dict[Signature(node.symbol)] = Reference(
                     node.symbol)
 
             # Then work our way down the various members.
             for depth in range(1, len(sig)):
-                if sig[:depth+1] not in access_dict:
+                if Signature(node.symbol, sub_sig=sig[:depth+1]) not in access_dict:
                     if node.is_array:
                         base_cls = ArrayOfStructuresReference
                         # Copy the indices so as not to modify the original

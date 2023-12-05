@@ -260,11 +260,12 @@ class ACCUpdateTrans(Transformation):
         # TODO #1872: CodeBlock.get_symbol_names might include function names
         # mistaken for array names. However, as these do not correspond to any
         # arrays, the compiler should be able to ignore them in the directive.
+        table = node_list[0].scope.symbol_table
         for node in node_list:
             if isinstance(node, CodeBlock):
                 for symbol_name in node.get_symbol_names():
-                    inputs.add(Signature(symbol_name))
-                    outputs.add(Signature(symbol_name))
+                    inputs.add(Signature(table.lookup(symbol_name)))
+                    outputs.add(Signature(table.lookup(symbol_name)))
 
         # Copy any data that is accessed by this host region to the host
         # (resp. device) if it is on the device (resp. host).

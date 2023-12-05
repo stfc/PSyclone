@@ -164,6 +164,7 @@ def test_get_subscripts_of(expression, correct, fortran_reader):
     for sig in access_info:
         if str(sig) not in loop_vars:
             break
+
     # Get all accesses to the array variable. It has only one
     # access
     access = access_info[sig][0]

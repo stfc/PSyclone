@@ -119,7 +119,8 @@ def test_variables_access_info_errors():
 
     # Check for consistency between signature and component indices:
     with pytest.raises(InternalError) as err:
-        var_accesses.add_access(Signature(("a", "b")), AccessType.READ, node,
+        var_accesses.add_access(Signature(Symbol("a"), ("b",)),
+                                AccessType.READ, node,
                                 ComponentIndices([]))
     assert "Cannot add '[[]]' with length 1 as indices for 'a%b' which "\
            "requires 2 elements." in str(err.value)
@@ -140,7 +141,7 @@ def test_component_indices_auto_extension():
     '''
     var_accesses = VariablesAccessInfo()
     node = Node()
-    sig = Signature(("a", "b", "c"))
+    sig = Signature(Symbol("a"), ("b", "c"))
     # This should auto-extent the component indices,
     # since they are specified as a simple list:
     var_accesses.add_access(sig, AccessType.READ, node, ["i", "j"])
@@ -169,23 +170,27 @@ def test_variables_access_info_merge():
     # a=b; c=d
     var_accesses1 = VariablesAccessInfo()
     node = Node()
-    var_accesses1.add_access(Signature("b"), AccessType.READ, node)
-    var_accesses1.add_access(Signature("a"), AccessType.WRITE, node)
+    var_accesses1.add_access(Signature(Symbol("b")), AccessType.READ, node)
+    var_accesses1.add_access(Signature(Symbol("a")), AccessType.WRITE, node)
     var_accesses1.next_location()
-    var_accesses1.add_access(Signature("d"), AccessType.READ, node)
-    var_accesses1.add_access(Signature("c"), AccessType.WRITE, node)
-    c_accesses = var_accesses1[Signature("c")]
+    var_accesses1.add_access(Signature(Symbol("d")), AccessType.READ, node)
+    csym = Symbol("c")
+    var_accesses1.add_access(Signature(csym), AccessType.WRITE, node)
+    c_accesses = var_accesses1[Signature(csym)]
     assert len(c_accesses.all_accesses) == 1
     assert c_accesses[0].access_type == AccessType.WRITE
 
     # First create one instance representing for example:
     # e=f; g=h
     var_accesses2 = VariablesAccessInfo()
-    var_accesses2.add_access(Signature("f"), AccessType.READ, node)
-    var_accesses2.add_access(Signature("e"), AccessType.WRITE, node)
+    var_accesses2.add_access(Signature(Symbol("f")), AccessType.READ, node)
+    esym = Symbol("e")
+    var_accesses2.add_access(Signature(esym), AccessType.WRITE, node)
     var_accesses2.next_location()
-    var_accesses2.add_access(Signature("h"), AccessType.READ, node)
-    var_accesses2.add_access(Signature("g"), AccessType.WRITE, node)
+    hsym = Symbol("h")
+    var_accesses2.add_access(Signature(hsym), AccessType.READ, node)
+    gsym = Symbol("g")
+    var_accesses2.add_access(Signature(gsym), AccessType.WRITE, node)
 
     # Now merge the second instance into the first one
     var_accesses1.merge(var_accesses2)
@@ -193,8 +198,8 @@ def test_variables_access_info_merge():
     # The e=f access pattern should have the same location
     # as the c=d (since there is no next_location after
     # adding the b=a access):
-    c_accesses = var_accesses1[Signature("c")]
-    e_accesses = var_accesses1[Signature("e")]
+    c_accesses = var_accesses1[Signature(csym)]
+    e_accesses = var_accesses1[Signature(esym)]
     assert c_accesses[0].access_type == AccessType.WRITE
     assert e_accesses[0].access_type == AccessType.WRITE
     assert c_accesses[0].location == e_accesses[0].location
@@ -202,9 +207,9 @@ def test_variables_access_info_merge():
     # Test that the g=h part has a higher location than the
     # c=d data. This makes sure that merge() increases the
     # location number of accesses when merging.
-    c_accesses = var_accesses1[Signature("c")]
-    g_accesses = var_accesses1[Signature("g")]
-    h_accesses = var_accesses1[Signature("h")]
+    c_accesses = var_accesses1[Signature(csym)]
+    g_accesses = var_accesses1[Signature(gsym)]
+    h_accesses = var_accesses1[Signature(hsym)]
     assert c_accesses[0].location < g_accesses[0].location
     assert g_accesses[0].location == h_accesses[0].location
 
@@ -329,7 +334,8 @@ def test_derived_type_array(array, indices, fortran_writer, fortran_reader):
 
     # Verify that the index expression is correct. Convert the index
     # expression to a list of list of strings to make this easier:
-    sig = Signature(("a", "b", "c"))
+    asym = node1.scope.symbol_table.lookup("a")
+    sig = Signature(asym, ("b", "c"))
     access = vai1[sig][0]
     assert to_fortran(fortran_writer, access.component_indices) == indices
 
@@ -341,7 +347,7 @@ def test_symbol_array_detection(fortran_reader):
 
     code = '''program test_prog
               use some_mod
-              real, dimension(5,5) :: b, c
+              real, dimension(5) :: b, c
               integer :: i
               a = b(i) + c
               end program test_prog'''
@@ -358,26 +364,27 @@ def test_symbol_array_detection(fortran_reader):
     scalar_assignment.reference_accesses(vai)
 
     # For 'a' we don't have access information, nor symbol table information
-    access_info_a = vai[Signature("a")]
+    access_info_a = vai[Signature(sym_a)]
     assert not sym_a.is_array_access(access_info=access_info_a)
 
     # For the access to 'b' we will find array access information:
-    access_info_b = vai[Signature("b")]
     sym_b = symbol_table.lookup("b")
+    access_info_b = vai[Signature(sym_b)]
     b_is_array = sym_b.is_array_access(access_info=access_info_b)
     assert b_is_array
 
     # For the access to 'c' we don't have access information, but
     # have symbol table information.
-    access_info_c = vai[Signature("c")]
     sym_c = symbol_table.lookup("c")
+    access_info_c = vai[Signature(sym_c)]
     c_is_array = sym_c.is_array_access(access_info=access_info_c)
     assert c_is_array
 
     # Test specifying the index variable. The access to 'b' is
     # considered an array access when using the index variable 'i'.
-    access_info_b = vai[Signature("b")]
-    sym_b = symbol_table.lookup("b")
+    #access_info_b = vai[Signature(sym_b)]
+    #isym = symbol_table.lookup("i")
+    import pdb; pdb.set_trace()
     b_is_array = sym_b.is_array_access(access_info=access_info_b,
                                        index_variable="i")
     assert b_is_array

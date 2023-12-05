@@ -104,7 +104,7 @@ class ArrayOfStructuresMixin(ArrayMixin, metaclass=abc.ABCMeta):
                     f"psyir.nodes.DataNode or Range")
         return self._children[1:]
 
-    def get_signature_and_indices(self):
+    def broken_get_signature_and_indices(self):
         ''':returns: the Signature of this array of structure reference, \
             and a list of lists of the indices used for each component.
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
@@ -113,6 +113,7 @@ class ArrayOfStructuresMixin(ArrayMixin, metaclass=abc.ABCMeta):
         '''
         #sub_sig, indices = self.children[0].get_signature_and_indices()
         #sig = Signature(self.name)
+        import pdb; pdb.set_trace()
         from psyclone.psyir.nodes import Reference
         parent_ref = self.ancestor(Reference, include_self=True)
         child_indices = self.path_from(parent_ref)

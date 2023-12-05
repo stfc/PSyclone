@@ -45,6 +45,7 @@ from psyclone.core import (AccessInfo, ComponentIndices, Signature,
 from psyclone.core.access_type import AccessType
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Assignment, Node
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, Symbol
 
 
 def test_access_info():
@@ -118,9 +119,10 @@ def test_access_info_exceptions():
 def test_variable_access_info():
     '''Test the SingleVariableAccesInfo class, i.e. the class that manages a
     list of VariableInfo instances for one variable
-    '''
 
-    vai = SingleVariableAccessInfo(Signature("var_name"))
+    '''
+    sym = DataSymbol("var_name", INTEGER_TYPE)
+    vai = SingleVariableAccessInfo(Signature(sym))
     assert vai.var_name == "var_name"
     assert str(vai) == "var_name:"
     assert vai.is_written() is False
@@ -130,7 +132,7 @@ def test_variable_access_info():
     assert vai.all_accesses == []
     assert vai.all_read_accesses == []
     assert vai.all_write_accesses == []
-    assert vai.signature == Signature("var_name")
+    assert vai.signature == Signature(sym)
 
     vai.add_access_with_location(AccessType.READ, 2, Node(),
                                  component_indices=None)
@@ -182,7 +184,8 @@ def test_variable_access_info_is_array(fortran_reader):
     '''Test that the SingleVariableAccesInfo class handles arrays as expected.
 
     '''
-    vai = SingleVariableAccessInfo(Signature("var_name"))
+    sym = Symbol("var_name")
+    vai = SingleVariableAccessInfo(Signature(sym))
     # Add non array-like access:
     vai.add_access_with_location(AccessType.READ, 1, Node,
                                  component_indices=None)
@@ -203,8 +206,8 @@ def test_variable_access_info_is_array(fortran_reader):
     rhs = scalar_assignment.rhs
     # Get the reference to i
     ref_i = rhs.children[0]
-
-    vai = SingleVariableAccessInfo(Signature("b"))
+    bsym = scalar_assignment.scope.symbol_table.lookup("b")
+    vai = SingleVariableAccessInfo(Signature(bsym))
     vai.add_access_with_location(AccessType.READ, 1, rhs,
                                  ComponentIndices([ref_i]))
 
@@ -222,9 +225,10 @@ def test_variable_access_info_read_write():
     a read and a write access, but if a variable has a READ and a WRITE
     access, this is not one READWRITE access. A READWRITE access is only
     used in subroutine calls (depending on kernel metadata)
-    '''
 
-    vai = SingleVariableAccessInfo(Signature("var_name"))
+    '''
+    sym = Symbol("var_name")
+    vai = SingleVariableAccessInfo(Signature(sym))
     assert vai.has_read_write() is False
     assert vai.is_written_first() is False
 
@@ -248,7 +252,7 @@ def test_variable_access_info_read_write():
     assert vai.has_read_write()
 
     # Create a new instance, and add only one READWRITE access:
-    vai = SingleVariableAccessInfo(Signature("var_name"))
+    vai = SingleVariableAccessInfo(Signature(sym))
     vai.add_access_with_location(AccessType.READWRITE, 2, Node(),
                                  component_indices=None)
     assert vai.has_read_write()
@@ -261,7 +265,7 @@ def test_is_written_before():
     '''Tests that the 'is_written_before' function works as expected.
 
     '''
-    var_sig = Signature("a")
+    var_sig = Signature(Symbol("a"))
     accesses = SingleVariableAccessInfo(var_sig)
     node1 = Node()
     accesses.add_access_with_location(AccessType.READ, 1, node1, None)
@@ -285,7 +289,7 @@ def test_is_read_before():
     '''Tests that the 'is_read_before' function works as expected.
 
     '''
-    var_sig = Signature("a")
+    var_sig = Signature(Symbol("a"))
     accesses = SingleVariableAccessInfo(var_sig)
     node1 = Node()
     accesses.add_access_with_location(AccessType.WRITE, 1, node1, None)
@@ -309,9 +313,8 @@ def test_is_accessed_before():
     '''Tests that the 'is_accessed_before' function works as expected.
 
     '''
-
     # First check a write access before the specified node:
-    var_sig = Signature("a")
+    var_sig = Signature(Symbol("a"))
     accesses = SingleVariableAccessInfo(var_sig)
     node1 = Node()
     accesses.add_access_with_location(AccessType.WRITE, 1, node1, None)

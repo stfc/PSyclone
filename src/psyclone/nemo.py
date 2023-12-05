@@ -352,7 +352,15 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
 
         # Remove known loop variables from the set of variables to transfer
         loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
-        self._sig_set.difference_update({Signature(var) for var in loop_var})
+        loop_syms = []
+        table = self.scope.symbol_table
+        for var in loop_var:
+            try:
+                loop_syms.append(table.lookup(var))
+            except KeyError:
+                # Loop variable does not exist so not in use.
+                pass
+        self._sig_set.difference_update({Signature(sym) for sym in loop_syms})
         return lowered
 
 
@@ -374,5 +382,13 @@ class NemoACCUpdateDirective(ACCUpdateDirective):
 
         # Remove known loop variables from the set of variables to transfer
         loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
-        self._sig_set.difference_update({Signature(var) for var in loop_var})
+        new_sig_set = set()
+        for sig in self._sig_set:
+            if sig.symbol.name not in loop_var:
+                # We must use names here as the tree (and thus all Symbols)
+                # have been copied during lowering. This isn't great but, since
+                # we're already identifying loop names purely by name here,
+                # we live with it.
+                new_sig_set.add(sig)
+        self._sig_set = new_sig_set
         return lowered
