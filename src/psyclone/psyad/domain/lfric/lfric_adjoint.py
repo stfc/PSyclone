@@ -229,7 +229,7 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
     access = None
     if var_access == ArgumentInterface.Access.READWRITE:
         # pylint: disable=unidiomatic-typecheck
-        if type(meta_arg) == ScalarArgMetadata:
+        if type(meta_arg) is ScalarArgMetadata:
             # TODO #2333 - in LFRic only Builtin kernels are currently allowed
             # to write to a scalar argument (since this implies a reduction).
             # We therefore need to flag this case.

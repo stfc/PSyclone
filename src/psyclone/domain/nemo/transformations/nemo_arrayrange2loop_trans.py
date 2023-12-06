@@ -307,7 +307,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Is the Range node the outermost Range (as if not, the
         # transformation would be invalid)?
-        for child in node.parent.indices[node.parent.indices.index(node)+1:]:
+        for child in node.parent.indices[node.position+1:]:
             if isinstance(child, Range):
                 raise TransformationError(
                     "Error in NemoArrayRange2LoopTrans transformation. This "

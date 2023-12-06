@@ -727,6 +727,26 @@ def test_main_directory_arg(capsys):
           "-d", NEMO_BASE_PATH])
 
 
+def test_main_disable_backend_validation_arg(capsys):
+    '''Test the --backend option in main().'''
+    filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
+    with pytest.raises(SystemExit):
+        main([filename, "--backend", "invalid"])
+    _, output = capsys.readouterr()
+    assert "--backend: invalid choice: 'invalid'" in output
+
+    # Make sure we get a default config instance
+    Config._instance = None
+    # Default is to have checks enabled.
+    assert Config.get().backend_checks_enabled is True
+    main([filename, "--backend", "disable-validation"])
+    assert Config.get().backend_checks_enabled is False
+    Config._instance = None
+    main([filename, "--backend", "enable-validation"])
+    assert Config.get().backend_checks_enabled is True
+    Config._instance = None
+
+
 def test_main_expected_fatal_error(capsys):
     '''Tests that we get the expected output and the code exits with an
     error when an expected fatal error is returned from the generate
@@ -1279,14 +1299,17 @@ def test_no_invokes_lfric_new(monkeypatch):
             "empty PSy code" in str(info.value))
 
 
-def test_generate_unknown_container_lfric(tmpdir, monkeypatch):
+@pytest.mark.parametrize("invoke", ["call invoke", "if (.true.) call invoke"])
+def test_generate_unknown_container_lfric(invoke, tmpdir, monkeypatch):
     '''Test that a GenerationError exception in the generate function is
     raised for the LFRic DSL if one of the functors is not explicitly
     declared. This can happen in LFRic algorithm code as it is never
     compiled. The exception is only raised with the new PSyIR approach
     to modify the algorithm layer which is currently in development so
     is protected by a switch. This switch is turned on in this test by
-    monkeypatching.
+    monkeypatching. Test when the functor is at different levels of
+    PSyIR hierarchy to ensure that the name of the parent routine is
+    always found.
 
     At the moment this exception is only raised if the functor is
     declared in a different subroutine or function, as the original
@@ -1296,21 +1319,20 @@ def test_generate_unknown_container_lfric(tmpdir, monkeypatch):
     '''
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     code = (
-        "module some_kernel_mod\n"
-        "use module_mod, only : module_type\n"
-        "contains\n"
-        "subroutine dummy_kernel()\n"
-        " use testkern_mod, only: testkern_type\n"
-        "end subroutine dummy_kernel\n"
-        "subroutine some_kernel()\n"
-        "  use constants_mod, only: r_def\n"
-        "  use field_mod, only : field_type\n"
-        "  type(field_type) :: field1, field2, field3, field4\n"
-        "  real(kind=r_def) :: scalar\n"
-        "  call invoke(testkern_type(scalar, field1, field2, field3, "
-        "field4))\n"
-        "end subroutine some_kernel\n"
-        "end module some_kernel_mod\n")
+        f"module some_kernel_mod\n"
+        f"use module_mod, only : module_type\n"
+        f"contains\n"
+        f"subroutine dummy_kernel()\n"
+        f" use testkern_mod, only: testkern_type\n"
+        f"end subroutine dummy_kernel\n"
+        f"subroutine some_kernel()\n"
+        f"  use constants_mod, only: r_def\n"
+        f"  use field_mod, only : field_type\n"
+        f"  type(field_type) :: field1, field2, field3, field4\n"
+        f"  real(kind=r_def) :: scalar\n"
+        f"  {invoke}(testkern_type(scalar, field1, field2, field3, field4))\n"
+        f"end subroutine some_kernel\n"
+        f"end module some_kernel_mod\n")
     alg_filename = str(tmpdir.join("alg.f90"))
     with open(alg_filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)

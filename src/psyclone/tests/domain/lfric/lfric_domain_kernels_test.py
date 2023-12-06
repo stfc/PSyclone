@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 
 
@@ -42,7 +42,8 @@
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.domain.lfric import LFRicKern
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -299,7 +300,7 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     assert (expected + "      !\n"
             "      !\n"
             "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in gen_code)
+            "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -314,13 +315,13 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     # `lower_to_language_level` method in DynLoop can (likely) be removed,
     # and then we can just call `fortran_writer(schedule)` here.
     schedule = psy.invokes.invoke_list[0].schedule
-    # Lower the DynKern:
-    for kern in schedule.walk(DynKern):
+    # Lower the LFRicKern:
+    for kern in schedule.walk(LFRicKern):
         kern.lower_to_language_level()
     # Now call the loop handling method directly.
     out = fortran_writer.loop_node(schedule.children[0])
     assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in out)
+            "f1_data, ndf_w3, undf_w3, map_w3)" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
@@ -348,7 +349,7 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
             "      !\n")
     expected += (
         "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-        "f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
+        "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
         assert ("      ! set halos dirty/clean for fields modified in the "
@@ -375,7 +376,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     expected = ("      !\n"
                 "      !\n"
                 "      call testkern_domain_code(nlayers, ncell_2d_no_halos, "
-                "b, f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
+                "b, f1_data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
         assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in gen_code
         expected += ("      !\n"
@@ -416,7 +417,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
             "      !\n")
     expected += (
         "      call testkern_domain_code(nlayers, ncell_2d_no_halos, c, "
-        "f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
+        "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
         assert ("      ! set halos dirty/clean for fields modified in the "
@@ -447,7 +448,7 @@ def test_domain_plus_cma_kernels(dist_mem, tmpdir):
     assert "ncell_2d = mesh%get_ncells_2d()" in gen_code
     assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
     assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in gen_code)
+            "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
     assert ("call columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
             "lma_op1_proxy%ncell_3d," in gen_code)
 

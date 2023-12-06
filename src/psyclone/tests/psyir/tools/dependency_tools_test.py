@@ -162,10 +162,10 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(jk,jk)' causes a write-write race "
-            "condition" in str(msg))
+    assert ("The write access to 'mask' in 'mask(jk,jk)' causes a write-write "
+            "race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
-    assert msg.var_names == ["mask(jk,jk)"]
+    assert msg.var_names == ["mask"]
 
     # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
@@ -762,10 +762,10 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(jk,jk)' causes a write-write race "
-            "condition" in str(msg))
+    assert ("The write access to 'mask' in 'mask(jk,jk)' causes a write-write "
+            "race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
-    assert msg.var_names == ["mask(jk,jk)"]
+    assert msg.var_names == ["mask"]
 
     # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])

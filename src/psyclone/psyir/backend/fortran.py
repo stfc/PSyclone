@@ -51,7 +51,9 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DeferredType, RoutineSymbol, ScalarType, Symbol, IntrinsicSymbol,
-    SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface)
+    SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface,
+    StructureType)
+
 
 # Mapping from PSyIR types to Fortran data types. Simply reverse the
 # map from the frontend, removing the special case of "double
@@ -544,11 +546,17 @@ class FortranWriter(LanguageWriter):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                if include_visibility and not isinstance(symbol,
-                                                         RoutineSymbol):
+
+                if (include_visibility and
+                        not isinstance(symbol, RoutineSymbol) and
+                        not symbol.name.startswith("_PSYCLONE_INTERNAL")):
+                    # We don't attempt to add accessibility to RoutineSymbols
+                    # or to those created by PSyclone to handle named common
+                    # blocks appearing in SAVE statements.
                     decln = add_accessibility_to_unknown_declaration(symbol)
-                else:
-                    decln = symbol.datatype.declaration
+                    return f"{self._nindent}{decln}\n"
+
+                decln = symbol.datatype.declaration
                 return f"{self._nindent}{decln}\n"
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(
@@ -595,7 +603,10 @@ class FortranWriter(LanguageWriter):
         result += f" :: {symbol.name}"
 
         # Specify initialisation expression
-        if isinstance(symbol, DataSymbol) and symbol.initial_value:
+        if (isinstance(symbol, StructureType.ComponentType) and
+                symbol.initial_value):
+            result += " = " + self._visit(symbol.initial_value)
+        elif isinstance(symbol, DataSymbol) and symbol.initial_value:
             if not symbol.is_static:
                 raise VisitorError(
                     f"{type(symbol).__name__} '{symbol.name}' has an initial "

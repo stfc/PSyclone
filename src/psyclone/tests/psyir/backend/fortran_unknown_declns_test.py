@@ -266,3 +266,22 @@ def test_generating_unknowntype_routine_imports(
     code = fortran_writer(psyir)
     assert "use a_mod, only : unknown_type_symbol" in code
     assert "interface" not in code.lower()
+
+
+def test_fw_save_common(fortran_reader, fortran_writer):
+    '''
+    Check that a SAVE statement involving a named Common Block is correctly
+    re-generated.
+    '''
+    code = '''
+      module my_mod
+        save :: var3, /my_common/
+        common /my_common/ a, b
+        integer :: var1
+        integer :: a, b
+        integer :: var3
+      end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "SAVE :: /my_common/\n" in output
+    assert "integer, save, public :: var3\n" in output

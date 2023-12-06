@@ -48,7 +48,8 @@ from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
 from psyclone.psyir.nodes import KernelSchedule
 from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
                                     RoutineSymbol, SymbolTable, Symbol,
-                                    DeferredType, ContainerSymbol)
+                                    DeferredType, ContainerSymbol,
+                                    UnresolvedInterface)
 
 
 def process_declarations(code):
@@ -161,7 +162,7 @@ def test_kind_param_deferredtype():
     ''' Check that the _kind_find_or_create() routine changes the type of
     a Symbol representing a kind parameter if it is of DeferredType. '''
     symbol_table = SymbolTable()
-    wp_sym = DataSymbol("wp", DeferredType())
+    wp_sym = DataSymbol("wp", DeferredType(), interface=UnresolvedInterface())
     symbol_table.add(wp_sym)
     kind_sym = _kind_find_or_create("wp", symbol_table)
     assert kind_sym is wp_sym
@@ -175,7 +176,7 @@ def test_wrong_type_kind_param():
     type.
 
     '''
-    fake_parent, _ = process_declarations("integer :: r_def\n"
+    fake_parent, _ = process_declarations("integer, parameter :: r_def=4\n"
                                           "real(kind=r_def) :: var2")
     r_def = fake_parent.symbol_table.lookup("r_def")
     # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol

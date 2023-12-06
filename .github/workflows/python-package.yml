@@ -35,7 +35,7 @@
 # Modified by R. W. Ford, STFC Daresbury Lab
 # Modified by A. J. Voysey, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by N. M. Nobre, STFC Daresbury Lab
+# Modified by N. Nobre, STFC Daresbury Lab
 
 # This workflow will install Python dependencies, run tests and lint with a
 # variety of Python versions.
@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.11]
+        python-version: [3.7, 3.8, 3.12]
     steps:
     - uses: actions/checkout@v3
       with:
@@ -130,10 +130,7 @@ jobs:
         # Some of the examples use Jupyter. We need to keep IPython to
         # below 8.0 as we still run the test suite with Python 3.7.
         pip install "ipython>=7.0,<8.0" jupyter
-        # If you wish to install the version of fparser pointed to by the
-        # submodule instead of the released version (from PyPI) then
-        # uncomment the following line:
-        # pip install external/fparser
+        pip install external/fparser
         pip install .[test]
     - name: Lint with flake8
       run: |

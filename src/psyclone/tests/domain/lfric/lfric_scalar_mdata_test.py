@@ -45,8 +45,10 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicArgDescriptor, LFRicScalarArgs
-from psyclone.dynamo0p3 import (DynKern, DynKernMetadata, LFRicConstants)
+
+from psyclone.domain.lfric import (LFRicKern, LFRicArgDescriptor,
+                                   LFRicScalarArgs, LFRicConstants)
+from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -388,8 +390,8 @@ def test_lfricscalarargs_mp():
                      "1.6.4_scalar_mixed_prec.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    code = str(psy.gen)
-    assert "USE constants_mod, ONLY: roo_def, i_def" in code
+    code = str(psy.gen).lower()
+    assert "use constants_mod, only: roo_def, r_def, i_def" in code
 
 
 def test_lfricinvoke_uniq_declns_intent_scalar():
@@ -467,7 +469,7 @@ def test_scalar_arg_lfricconst_properties(monkeypatch):
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
 
     # Test 'real' scalars

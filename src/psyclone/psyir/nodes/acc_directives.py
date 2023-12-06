@@ -49,12 +49,16 @@ from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
                                               ACCCopyOutClause)
+from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import (StandaloneDirective,
                                             RegionDirective)
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.symbols import ScalarType
 
 
 class ACCDirective(metaclass=abc.ABCMeta):
@@ -280,7 +284,14 @@ class ACCParallelDirective(ACCRegionDirective):
     means this node must either come after an EnterDataDirective or within
     a DataDirective.
 
+    :param bool default_present: whether this directive includes the
+        'DEFAULT(PRESENT)' clause.
+
     '''
+    def __init__(self, default_present=True, **kwargs):
+        super().__init__(**kwargs)
+        self.default_present = default_present
+
     def gen_code(self, parent):
         '''
         Generate the elements of the f2pygen AST for this Node in the Schedule.
@@ -291,8 +302,8 @@ class ACCParallelDirective(ACCRegionDirective):
         '''
         self.validate_global_constraints()
 
-        parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
-                                "default(present)"))
+        parent.add(DirectiveGen(parent, "acc", "begin",
+                                *self.begin_string().split()[1:]))
 
         for child in self.children:
             child.gen_code(parent)
@@ -311,11 +322,13 @@ class ACCParallelDirective(ACCRegionDirective):
         :rtype: str
 
         '''
-        # "default(present)" means that the compiler is to assume that
-        # all data required by the parallel region is already present
-        # on the device. If we've made a mistake and it isn't present
-        # then we'll get a run-time error.
-        return "acc parallel default(present)"
+        if self._default_present:
+            # "default(present)" means that the compiler is to assume that
+            # all data required by the parallel region is already present
+            # on the device. If we've made a mistake and it isn't present
+            # then we'll get a run-time error.
+            return "acc parallel default(present)"
+        return "acc parallel"
 
     def end_string(self):
         '''
@@ -323,6 +336,29 @@ class ACCParallelDirective(ACCRegionDirective):
         :rtype: str
         '''
         return "acc end parallel"
+
+    @property
+    def default_present(self):
+        '''
+        :returns: whether the directive includes the 'default(present)' clause.
+        :rtype: bool
+        '''
+        return self._default_present
+
+    @default_present.setter
+    def default_present(self, value):
+        '''
+        :param bool value: whether the directive should include the
+            'default(present)' clause.
+
+        :raises TypeError: if the given value is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"The ACCParallelDirective default_present property must be "
+                f"a boolean but value '{value}' has been given.")
+        self._default_present = value
 
     @property
     def fields(self):
@@ -482,18 +518,21 @@ class ACCLoopDirective(ACCRegionDirective):
         Perform validation of those global constraints that can only be done
         at code-generation time.
 
-        :raises GenerationError: if this ACCLoopDirective is not enclosed \
-                            within some OpenACC parallel or kernels region.
+        :raises GenerationError: if this ACCLoopDirective is not enclosed
+            within some OpenACC parallel or kernels region and is not in a
+            Routine that has been marked up with an 'ACC Routine' directive.
         '''
-        # It is only at the point of code generation that we can check for
-        # correctness (given that we don't mandate the order that a user can
-        # apply transformations to the code). As an orphaned loop directive,
-        # we must have an ACCParallelDirective or an ACCKernelsDirective as
-        # an ancestor somewhere back up the tree.
-        if not self.ancestor((ACCParallelDirective, ACCKernelsDirective)):
+        parent_routine = self.ancestor(Routine)
+        if not (self.ancestor((ACCParallelDirective, ACCKernelsDirective),
+                              limit=parent_routine) or
+                (parent_routine and parent_routine.walk(ACCRoutineDirective))):
+            location = (f"in routine '{parent_routine.name}' " if
+                        parent_routine else "")
             raise GenerationError(
-                "ACCLoopDirective must have an ACCParallelDirective or "
-                "ACCKernelsDirective as an ancestor in the Schedule")
+                f"ACCLoopDirective {location}must either have an "
+                f"ACCParallelDirective or ACCKernelsDirective as an ancestor "
+                f"in the Schedule or the routine must contain an "
+                f"ACCRoutineDirective.")
 
         super().validate_global_constraints()
 
@@ -825,7 +864,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
             raise TypeError(
                 f"The ACCUpdateDirective signatures argument must be a "
                 f"set of signatures but got "
-                f"{ {type(sig).__name__ for sig in signatures} }")
+                f"{set(type(sig).__name__ for sig in signatures)}")
 
         self._sig_set = signatures
 
@@ -902,8 +941,96 @@ def _sig_set_to_string(sig_set):
     return ",".join(sorted(names))
 
 
+class ACCAtomicDirective(ACCRegionDirective):
+    '''
+    OpenACC directive to represent that the memory accesses in the associated
+    assignment must be performed atomically.
+    Note that the standard supports blocks with 2 assignments but this is
+    currently unsupported in the PSyIR.
+
+    '''
+    def begin_string(self):
+        '''
+        :returns: the opening string statement of this directive.
+        :rtype: str
+
+        '''
+        return "acc atomic"
+
+    def end_string(self):
+        '''
+        :returns: the ending string statement of this directive.
+        :rtype: str
+
+        '''
+        return "acc end atomic"
+
+    @staticmethod
+    def is_valid_atomic_statement(stmt):
+        ''' Check if a given statement is a valid OpenACC atomic expression.
+
+        :param stmt: a node to be validated.
+        :type stmt: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether a given statement is compliant with the OpenACC
+            atomic expression.
+        :rtype: bool
+
+        '''
+        if not isinstance(stmt, Assignment):
+            return False
+
+        # Not all rules are checked, just that:
+        # - operands are of a scalar intrinsic type
+        if not isinstance(stmt.lhs.datatype, ScalarType):
+            return False
+
+        # - the top-level operator is one of: +, *, -, /, AND, OR, EQV, NEQV
+        if isinstance(stmt.rhs, BinaryOperation):
+            if stmt.rhs.operator not in (BinaryOperation.Operator.ADD,
+                                         BinaryOperation.Operator.SUB,
+                                         BinaryOperation.Operator.MUL,
+                                         BinaryOperation.Operator.DIV,
+                                         BinaryOperation.Operator.AND,
+                                         BinaryOperation.Operator.OR,
+                                         BinaryOperation.Operator.EQV,
+                                         BinaryOperation.Operator.NEQV):
+                return False
+        # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
+        if isinstance(stmt.rhs, IntrinsicCall):
+            if stmt.rhs.intrinsic not in (IntrinsicCall.Intrinsic.MAX,
+                                          IntrinsicCall.Intrinsic.MIN,
+                                          IntrinsicCall.Intrinsic.IAND,
+                                          IntrinsicCall.Intrinsic.IOR,
+                                          IntrinsicCall.Intrinsic.IEOR):
+                return False
+
+        # - one of the operands should be the same as the lhs
+        if stmt.lhs not in stmt.rhs.children:
+            return False
+
+        return True
+
+    def validate_global_constraints(self):
+        ''' Perform validation of those global constraints that can only be
+        done at code-generation time.
+
+        :raises GenerationError: if the ACCAtomicDirective associated
+            statement does not conform to a valid OpenACC atomic operation.
+        '''
+        if not self.children or len(self.dir_body.children) != 1:
+            raise GenerationError(
+                f"Atomic directives must always have one and only one"
+                f" associated statement, but found '{self.debug_string()}'")
+        stmt = self.dir_body[0]
+        if not self.is_valid_atomic_statement(stmt):
+            raise GenerationError(
+                f"Statement '{self.children[0].debug_string()}' is not a "
+                f"valid OpenACC Atomic statement.")
+
+
 # For automatic API documentation generation
 __all__ = ["ACCRegionDirective", "ACCEnterDataDirective",
            "ACCParallelDirective", "ACCLoopDirective", "ACCKernelsDirective",
            "ACCDataDirective", "ACCUpdateDirective", "ACCStandaloneDirective",
-           "ACCDirective", "ACCRoutineDirective"]
+           "ACCDirective", "ACCRoutineDirective", "ACCAtomicDirective"]

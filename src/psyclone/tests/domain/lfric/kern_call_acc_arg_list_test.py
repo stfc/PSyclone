@@ -31,9 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: J. Henrichs, Bureau of Meteorology
-#          R. W. Ford and A. R. Porter, STFC Daresbury Lab
-#          I. Kavcic, Met Office
+# Authors:  J. Henrichs, Bureau of Meteorology
+#           R. W. Ford and A. R. Porter, STFC Daresbury Lab
+#           I. Kavcic, Met Office
+# Modified: L. Turner, Met Office
 
 ''' This module tests the LFric KernCallAccArgList class.'''
 
@@ -42,8 +43,8 @@ import os
 import pytest
 
 from psyclone.core import VariablesAccessInfo
-from psyclone.domain.lfric import FunctionSpace, KernCallAccArgList
-from psyclone.dynamo0p3 import DynKern
+from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
+                                   LFRicKern)
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
@@ -57,14 +58,15 @@ BASE_PATH = get_base_path(TEST_API)
 
 def test_acc_arg_list_cell_map(dist_mem, monkeypatch):
     '''Test the cell_map() method.'''
-    # We need a DynKern in order to construct an instance of KernCallAccArgList
+    # We need a LFRicKern in order to construct an instance of
+    # KernCallAccArgList
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.0_intergrid_prolong.f90"),
                            api=TEST_API)
     psy = psyGen.PSyFactory(TEST_API,
                             distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.walk(DynKern)[0]
+    kern = schedule.walk(LFRicKern)[0]
     arg_list = KernCallAccArgList(kern)
     # Check that the cell_map method works as expected.
     arg_list.cell_map()
@@ -85,7 +87,7 @@ def test_stencil_2d():
                            name="invoke_0_testkern_stencil_multi_type",
                            dist_mem=False)
     sched = invoke.schedule
-    kern = sched.walk(DynKern)[0]
+    kern = sched.walk(LFRicKern)[0]
     arg_list = KernCallAccArgList(kern)
     arg_list.stencil_2d(kern.arguments._args[1])
     # This should result in the whole stencil dofmap being added as an arg.
@@ -102,7 +104,7 @@ def test_fs_compulsory_field_no_cell_column():
                            name="invoke_0_testkern_domain_type",
                            dist_mem=False)
     sched = invoke.schedule
-    kern = sched.walk(DynKern)[0]
+    kern = sched.walk(LFRicKern)[0]
     arg_list = KernCallAccArgList(kern)
     fspace = FunctionSpace("w3", kern.arguments)
     arg_list.fs_compulsory_field(fspace)
@@ -114,7 +116,7 @@ def test_fs_intergrid():
     _, invoke = get_invoke("22.2_intergrid_3levels.f90", TEST_API,
                            name="invoke_0", dist_mem=False)
     sched = invoke.schedule
-    kernels = sched.walk(DynKern)
+    kernels = sched.walk(LFRicKern)
     prolong_kern = kernels[0]
     restrict_kern = kernels[2]
     fspace = FunctionSpace("any_space_1", restrict_kern.arguments)
@@ -149,10 +151,10 @@ def test_lfric_acc():
     var_accesses = VariablesAccessInfo()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "f1: READ+WRITE" in var_info
-    assert "f2: READ" in var_info
-    assert "m1: READ" in var_info
-    assert "m2: READ" in var_info
+    assert "f1_data: READ+WRITE" in var_info
+    assert "f2_data: READ" in var_info
+    assert "m1_data: READ" in var_info
+    assert "m2_data: READ" in var_info
     assert "undf_w1: READ" in var_info
     assert "map_w1: READ" in var_info
     assert "undf_w2: READ" in var_info
@@ -183,7 +185,7 @@ def test_lfric_acc_operator():
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
-    assert "lma_op1_proxy%local_stencil: READ" in var_info
+    assert "lma_op1_local_stencil: READ" in var_info
     assert "cma_op1_matrix: WRITE" in var_info
 
 

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: S. Siso and R. W. Ford, STFC Daresbury Lab
+#           I. Kavcic, Met Office
 
 '''Module containing pytest tests of the LFRicSetvalRandomKern
 built-in.
@@ -44,7 +45,7 @@ from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_builtins import LFRicSetvalRandomKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import IntrinsicCall
+from psyclone.psyir.nodes import IntrinsicCall, Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
 
@@ -70,6 +71,7 @@ def test_setval_random(tmpdir):
                            api=API)
     psy = PSyFactory(API,
                      distributed_memory=True).create(invoke_info)
+
     # Test 'str()' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
@@ -79,17 +81,18 @@ def test_setval_random(tmpdir):
             "pseudo-random numbers)")
 
     # Test code generation
-    code = str(psy.gen).lower()
-
+    code = str(psy.gen)
     output = (
-        "      do df=loop0_start,loop0_stop\n"
-        "        call random_number(f1_proxy%data(df))\n"
-        "      end do\n")
+        "      DO df=loop0_start,loop0_stop\n"
+        "        CALL RANDOM_NUMBER(f1_data(df))\n"
+        "      END DO\n")
     assert output in code
+
+    # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_setval_random_lowering():
+def test_setval_random_lowering(fortran_writer):
     '''Test that the 'lower_to_language_level()' method works as
     expected.
 
@@ -98,7 +101,7 @@ def test_setval_random_lowering():
                                         "15.7.4_setval_random_builtin.f90"),
                            api=API)
     psy = PSyFactory(API,
-                     distributed_memory=False).create(invoke_info)
+                     distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     parent = kern.parent
@@ -106,3 +109,9 @@ def test_setval_random_lowering():
     assert parent.children[0] is lowered
     assert isinstance(parent.children[0], IntrinsicCall)
     assert parent.children[0].routine.name == "RANDOM_NUMBER"
+
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    assert ("do df = loop0_start, loop0_stop, 1\n"
+            "  call RANDOM_NUMBER(f1_data(df))\n"
+            "enddo") in code
