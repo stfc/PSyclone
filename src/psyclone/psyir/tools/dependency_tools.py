@@ -46,9 +46,9 @@ from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
-from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 

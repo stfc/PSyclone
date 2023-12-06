@@ -62,7 +62,8 @@ contains
   subroutine local_subroutine()
   end subroutine local_subroutine
 
-  integer function local_func()
+  integer function local_func(arg)
+  integer :: arg
   local_func = 1
   end function
 
@@ -94,7 +95,7 @@ contains
 
     tmp = fld2(1)*fld3(1)*fld4(1)
     fld1(1) = eps * nlayers + tmp
-    dummy_module_variable = 1 + dummy_constant + local_func()
+    dummy_module_variable = 1 + dummy_constant + local_func(1)
     fld1(1) = module_function()
     call module_subroutine()
     call local_subroutine()
