@@ -151,7 +151,6 @@ class CallTreeUtils():
                     sym.name == routine.return_symbol.name:
                 continue
 
-            print("What is this", sym)
         return non_locals
 
     # -------------------------------------------------------------------------
