@@ -46,11 +46,10 @@ from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
-from psyclone.parse import ModuleManager
-from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Loop
+from psyclone.psyir.tools import CallTreeUtils
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
@@ -881,126 +880,9 @@ class DependencyTools():
         read_write_info = ReadWriteInfo()
         self.get_input_parameters(read_write_info, node_list, variables_info)
         self.get_output_parameters(read_write_info, node_list, variables_info)
-        if not collect_non_local_symbols:
-            return read_write_info
-
-        # Now collect non-local accesses:
-        # Find all kernels called from the currently processed PSyIR.
-        mod_manager = ModuleManager.get()
-
-        # First collect all non-local symbols from the kernels called. They
-        # are collected in the todo list. This list will initially contain
-        # unknown accesses, since at this stage we cannot always differentiate
-        # between function calls and array accesses. In the resolve step
-        # that is following the corresponding modules will be queried and
-        # the right accesses (functions or variables) will be used.
-        todo = []
-        for node in node_list:
-            for kernel in node.walk(Kern):
-                if isinstance(kernel, BuiltIn):
-                    # Builtins don't have non-local accesses
-                    continue
-
-                # Get the non-local access information from the kernel
-                # by querying the module that contains the kernel:
-                try:
-                    mod_info = mod_manager.get_module_info(kernel.module_name)
-                except FileNotFoundError:
-                    print(f"Could not find module '{kernel.module_name}' - "
-                          f"ignored.")
-                    continue
-                todo.extend(mod_info.get_non_local_symbols(kernel.name))
-
-        # Resolve routine calls and unknown accesses:
-        self._resolve_calls_and_unknowns(todo, read_write_info)
+        if collect_non_local_symbols:
+            # Use the call tree utils to add all non-local read-write info
+            ctu = CallTreeUtils()
+            ctu.get_non_local_read_write_info(node_list, read_write_info)
 
         return read_write_info
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _resolve_calls_and_unknowns(todo, read_write_info):
-        '''This function updates the list of non-local symbols by:
-        1. replacing all subroutine calls with the list of their corresponding
-            non-local symbols.
-        2. Resolving unknown types to be either function calls (which then
-            get resolved as above), or variables.
-        This is done recursively until only variable accesses remain.
-
-        The actual non-local accesses will then be added to the ReadWriteInfo
-        object.
-
-        :param todo: the information about symbol type, module_name, \
-            symbol_name and access information
-        :type todo: List[Tuple[str,str, str,\
-                              :py:class:`psyclone.core.Signature`,str]]
-
-        :param read_write_info: information about all input and output \
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-
-        '''
-        # pylint: disable=too-many-branches
-        mod_manager = ModuleManager.get()
-        done = set()
-        # Using a set here means that duplicated entries will automatically
-        # be filtered out.
-        in_vars = set()
-        out_vars = set()
-        while todo:
-            info = todo.pop()
-            if info in done:
-                continue
-            done.add(info)
-            external_type, module_name, signature, access_info = info
-            if module_name in mod_manager.ignores():
-                continue
-            if external_type == "routine":
-                if module_name is None:
-                    # We don't know where the subroutine comes from.
-                    # For now ignore this
-                    print(f"Unknown routine '{signature[0]} - ignored.")
-                    continue
-                try:
-                    mod_info = mod_manager.get_module_info(module_name)
-                except FileNotFoundError:
-                    print(f"Cannot find module '{module_name}' - ignored.")
-                    continue
-                try:
-                    # Add the list of non-locals to our todo list:
-                    todo.extend(mod_info.get_non_local_symbols(signature[0]))
-                except KeyError:
-                    print(f"Cannot find symbol '{signature[0]}' in module "
-                          f"'{module_name}' - ignored.")
-                continue
-
-            if external_type == "unknown":
-                # It could be a function (TODO #1314) or a variable. Check if
-                # there is a routine with that name in the module information:
-                try:
-                    mod_info = mod_manager.get_module_info(module_name)
-                except FileNotFoundError:
-                    print(f"Cannot find module '{module_name}' - ignoring "
-                          f"unknown symbol '{signature}'.")
-                    continue
-
-                if mod_info.contains_routine(str(signature)):
-                    # It is a routine, which we need to analyse for the use
-                    # of non-local symbols:
-                    todo.append(("routine", module_name, signature,
-                                 access_info))
-                    continue
-                # Otherwise fall through to the code that adds a reference:
-
-            # Now it must be a reference, so add it to the list of input-
-            # and output-variables as appropriate:
-            if access_info.is_written():
-                out_vars.add((module_name, signature))
-            if not access_info.is_written_first():
-                in_vars.add((module_name, signature))
-
-        # Now add all accesses to the access. Note that in_vars and out_vars
-        # are sets, so there will be no duplicate entry.
-        for module_name, signature in in_vars:
-            read_write_info.add_read(signature, module_name)
-        for module_name, signature in out_vars:
-            read_write_info.add_write(signature, module_name)
