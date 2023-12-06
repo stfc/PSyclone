@@ -719,7 +719,6 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
     for call in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
-    print(output)
     assert ("    do i = 1, 10, 1\n"
             "      do i_1 = 1, 10, 1\n"
             "        a(1,i_1,i) = 2.0 * i_1\n"
