@@ -210,10 +210,11 @@ class InlineTrans(Transformation):
                 idx += 1
                 parent.addchild(child, idx)
 
-        ancestor_table.merge(scope.symbol_table)
-        replacement = type(scope.symbol_table)()
-        scope.symbol_table.detach()
-        replacement.attach(scope)
+        if(ancestor_table is not scope.symbol_table):
+            ancestor_table.merge(scope.symbol_table)
+            replacement = type(scope.symbol_table)()
+            scope.symbol_table.detach()
+            replacement.attach(scope)
 
     def _replace_formal_arg(self, ref, call_node, formal_args):
         '''
@@ -601,7 +602,6 @@ class InlineTrans(Transformation):
             raise TransformationError(
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
-        return
         # Check that we can find the source of the routine being inlined.
         routine = self._find_routine(node)
 

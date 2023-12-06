@@ -323,21 +323,22 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         inline_trans.apply(routine)
 
     output = fortran_writer(psyir)
+    print(output)
     assert ("    do i = 1, 5, 1\n"
-            "      do i_3 = 1, 10, 1\n"
-            "        var%data(i_3) = 2.0 * i\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        var%data(i_1) = 2.0 * i\n"
             "      enddo\n"
             "      var%data(:) = -1.0\n"
             "      var%data = -5.0\n"
             "      var%data(1:2) = 0.0\n"
-            "      do i_1 = 1, 10, 1\n"
-            "        var_list(i)%data(i_1) = 2.0 * i\n"
+            "      do i_2 = 1, 10, 1\n"
+            "        var_list(i)%data(i_2) = 2.0 * i\n"
             "      enddo\n"
             "      var_list(i)%data(:) = -1.0\n"
             "      var_list(i)%data = -5.0\n"
             "      var_list(i)%data(1:2) = 0.0\n"
-            "      do i_2 = 1, 10, 1\n"
-            "        var2(i)%region%data(i_2) = 2.0 * i\n"
+            "      do i_3 = 1, 10, 1\n"
+            "        var2(i)%region%data(i_3) = 2.0 * i\n"
             "      enddo\n"
             "      var2(i)%region%data(:) = -1.0\n"
             "      var2(i)%region%data = -5.0\n"
@@ -718,16 +719,17 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
     for call in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
+    print(output)
     assert ("    do i = 1, 10, 1\n"
-            "      do i_4 = 1, 10, 1\n"
-            "        a(1,i_4,i) = 2.0 * i_4\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        a(1,i_1,i) = 2.0 * i_1\n"
             "      enddo\n"
             "    enddo\n"
             "    a(1,1,:) = 3.0 * a(1,1,:)\n"
             "    a(:,1,:) = 2.0 * a(:,1,:)\n"
             "    b(:,:) = 2.0 * b(:,:)\n"
-            "    do i_3 = 1, 10, 1\n"
-            "      b(i_3,:5) = 2.0 * b(i_3,:5)\n" in output)
+            "    do i_4 = 1, 10, 1\n"
+            "      b(i_4,:5) = 2.0 * b(i_4,:5)\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
 
