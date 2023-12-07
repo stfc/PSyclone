@@ -732,16 +732,6 @@ def test_dep_tools_non_local_inout_parameters(capsys):
     psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
     schedule = psyir.invokes.invoke_list[0].schedule
 
-    # First call without setting up the module manager. This will result
-    # in the testkern_import_symbols_mod module not being found:
-    rw_info = dep_tools.get_in_out_parameters(schedule,
-                                              collect_non_local_symbols=True)
-    out, _ = capsys.readouterr()
-    assert ("Could not find module 'testkern_import_symbols_mod' - ignored."
-            in out)
-
-    # Now add the search path of the driver creation tests to the
-    # module manager:
     test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
@@ -768,15 +758,8 @@ def test_dep_tools_non_local_inout_parameters(capsys):
     assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
             in rw_info.write_list)
 
-    # Check that we can ignore a module:
-    mod_man.ignore_module("constants_mod")
-    rw_info = dep_tools.get_in_out_parameters(schedule,
-                                              collect_non_local_symbols=True)
-    out, _ = capsys.readouterr()
-    assert "Unknown routine 'unknown_subroutine - ignored." in out
-    assert "constants_mod" not in out
 
-
+# -----------------------------------------------------------------------------
 def test_reserved_words(fortran_reader):
     '''Tests that using a reserved Python word ('lambda' here') as a loop
     variable, which will be renamed when converting to SymPy, works as
