@@ -41,6 +41,7 @@
 import os
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
@@ -48,7 +49,11 @@ from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Reference, Schedule)
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.tests.utilities import get_base_path, get_invoke
+
+# pylint: disable=unused-import
+# This is used in a fixture
 from psyclone.tests.parse.conftest import mod_man_test_setup_directories
+# pylint: enable=unused-import
 
 
 # -----------------------------------------------------------------------------
@@ -216,44 +221,59 @@ def test_call_tree_get_used_symbols_from_modules_renamed():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_call_trees_non_locals_invokes():
-    '''Tests that kernels and builtins are handled correctly. We need to get
-    the PSyIR after being processed by PSyclone, so that the invoke-call has
-    been replaced with the builtin/kernel.
+def test_get_non_local_read_write_info(capsys):
+    '''Tests the collection of non-local input and output parameters.
     '''
+    Config.get().api = "dynamo0.3"
+    ctu = CallTreeUtils()
 
-    # Get the PSyclone-processed PSyIR
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    mod_psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    schedule = psyir.invokes.invoke_list[0].schedule
 
-    # Now create the module and routine info
+    # First call without setting up the module manager. This will result
+    # in the testkern_import_symbols_mod module not being found:
+    read_write_info = ReadWriteInfo()
+    rw_info = ctu.get_non_local_read_write_info(schedule, read_write_info)
+    out, _ = capsys.readouterr()
+    assert ("Could not find module 'testkern_import_symbols_mod' - ignored."
+            in out)
+
+    # Now add the search path of the driver creation tests to the
+    # module manager:
     test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
-    mod_info = mod_man.get_module_info("module_with_builtin_mod")
 
-    # Replace the generic PSyir with the PSyclone processed PSyIR, which
-    # has a builtin
-    psyir = mod_psyir.invokes.invoke_list[0].schedule
+    # The example does contain an unknown subroutine (by design), and the
+    # infrastructure directory has not been added, so constants_mod cannot
+    # be found:
+    rw_info = ReadWriteInfo()
+    ctu.get_non_local_read_write_info(schedule, rw_info)
+    out, _ = capsys.readouterr()
+    assert "Unknown routine 'unknown_subroutine - ignored." in out
+    assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
+            "'eps'." in out)
 
-    # This will return three schedule - the DynInvokeSchedule, and two
-    # schedules for the kernel and builtin:
-    schedules = psyir.walk(Schedule)
-    assert isinstance(schedules[1].children[0], LFRicKern)
-    assert isinstance(schedules[2].children[0], BuiltIn)
+    # We don't test the 14 local variables here, this was tested earlier.
+    # Focus on the remote symbols that are read:
+    assert (('module_with_var_mod', Signature("module_var_b"))
+            in rw_info.read_list)
+    # And check the remote symbols that are written:
+    assert (('module_with_var_mod', Signature("module_var_a"))
+            in rw_info.write_list)
+    assert (('module_with_var_mod', Signature("module_var_b"))
+            in rw_info.write_list)
+    assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
+            in rw_info.write_list)
 
-    ctu = CallTreeUtils()
-    non_locals = ctu._compute_all_non_locals(psyir)
-    # There should be exactly one entry - the kernel, but not the builtin:
-    assert len(non_locals) == 1
-    assert non_locals[0] == ("routine", "testkern_import_symbols_mod",
-                             Signature("testkern_import_symbols_code"))
-
-    # Test that the assignment of the result of a function is not reported
-    # as an access:
-    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
-    non_locals = ctu._compute_all_non_locals(mod_info.get_psyir("local_func"))
-    assert len(non_locals) == 0
+    # Check that we can ignore a module:
+    mod_man.ignore_module("constants_mod")
+    rw_info = ReadWriteInfo()
+    ctu.get_non_local_read_write_info(schedule, rw_info)
+    out, _ = capsys.readouterr()
+    assert "Unknown routine 'unknown_subroutine - ignored." in out
+    assert "constants_mod" not in out
 
 
 # -----------------------------------------------------------------------------
