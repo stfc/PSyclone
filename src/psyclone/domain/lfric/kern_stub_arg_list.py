@@ -39,8 +39,10 @@
 for a kernel subroutine.
 '''
 
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants, LFRicSymbolTable
+from psyclone.domain.lfric import (
+    ArgOrdering, LFRicConstants, LFRicSymbolTable, LFRicTypes)
 from psyclone.errors import InternalError
+from psyclone.psyir import nodes
 
 
 class KernStubArgList(ArgOrdering):
@@ -63,11 +65,11 @@ class KernStubArgList(ArgOrdering):
             raise NotImplementedError(
                 f"Kernel '{kern.name}' is an inter-grid kernel and stub "
                 f"generation is not yet supported for inter-grid kernels")
-        ArgOrdering.__init__(self, kern)
+        super().__init__(kern)
         # TODO 719 The stub_symtab is not connected to other parts of the
         # Stub generation. Also the symboltable already has an
         # argument_list that may be able to replace the argument list below.
-        self._stub_symtab = LFRicSymbolTable()
+        #self._stub_symtab = LFRicSymbolTable()
 
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores
@@ -91,7 +93,10 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        self.append("nlayers", var_accesses)
+        nlayers_name = self._symtab.find_or_create_tag(
+            "nlayers", symbol_type=LFRicTypes("MeshHeightDataSymbol")).name
+
+        self.append(nlayers_name, var_accesses)
 
     def _mesh_ncell2d(self, var_accesses=None):
         '''Add the number of columns in the mesh to the argument list and if
@@ -173,6 +178,12 @@ class KernStubArgList(ArgOrdering):
 
         '''
         text = arg.name + "_" + arg.function_space.mangled_name
+        ndofs = self._symtab.find_or_create_tag(
+            arg.function_space.undf_name,
+            symbol_type=LFRicTypes("NumberOfUniqueDofsDataSymbol"))
+        self._symtab.find_or_create_tag(
+            text, symbol_type=LFRicTypes("RealFieldDataSymbol"),
+            dims=[nodes.Reference(ndofs)])
         self.append(text, var_accesses, mode=arg.access)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
@@ -191,7 +202,7 @@ class KernStubArgList(ArgOrdering):
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_symbol(self._stub_symtab, arg).name
+        name = DynStencils.dofmap_size_symbol(self._symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -210,7 +221,7 @@ class KernStubArgList(ArgOrdering):
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.direction_name(self._stub_symtab, arg)
+        name = DynStencils.direction_name(self._symtab, arg)
         self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
@@ -230,7 +241,7 @@ class KernStubArgList(ArgOrdering):
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_symbol(self._stub_symtab, arg).name
+        var_name = DynStencils.dofmap_symbol(self._symtab, arg).name
         self.append(var_name, var_accesses)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
@@ -251,7 +262,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.max_branch_length_name(self._stub_symtab, arg)
+        name = DynStencils.max_branch_length_name(self._symtab, arg)
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -270,7 +281,7 @@ class KernStubArgList(ArgOrdering):
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_symbol(self._stub_symtab, arg).name
+        name = DynStencils.dofmap_size_symbol(self._symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -297,7 +308,7 @@ class KernStubArgList(ArgOrdering):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_symbol(self._stub_symtab, arg).name
+        var_name = DynStencils.dofmap_symbol(self._symtab, arg).name
         self.append(var_name, var_accesses)
 
     def operator(self, arg, var_accesses=None):
@@ -330,8 +341,16 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        self.append(function_space.undf_name, var_accesses)
-        self.append(function_space.map_name, var_accesses)
+        ndofs = self._symtab.find_or_create_tag(
+            function_space.undf_name,
+            fs=function_space.orig_name,
+            symbol_type=LFRicTypes("NumberOfUniqueDofsDataSymbol"))
+        self.append(ndofs.name, var_accesses)
+        map_sym = self._symtab.find_or_create_tag(
+            function_space.map_name,
+            symbol_type=LFRicTypes("DofMapDataSymbol"),
+            dims=[nodes.Reference(ndofs)])
+        self.append(map_sym.name, var_accesses)
 
     def basis(self, function_space, var_accesses=None):
         '''Add basis function information for this function space to the
@@ -351,15 +370,34 @@ class KernStubArgList(ArgOrdering):
         :raises InternalError: if the evaluator shape is not recognised.
 
         '''
+        ndofs = self._symtab.find_or_create_tag(
+            function_space.undf_name,
+            fs=function_space.orig_name,
+            symbol_type=LFRicTypes("NumberOfUniqueDofsDataSymbol"))
         const = LFRicConstants()
         for shape in self._kern.eval_shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
+                if shape == "gh_quadrature_face":
+                    num_pts = self._symtab.find_or_create_tag(
+                        f"num_qr_pts_face_{function_space.orig_name}",
+                        symbol_type=LFRicTypes("NumberOfQrPointsInFacesDataSymbol"))
+                    num_faces = self._symtab.find_or_create_tag(
+                        "num_qr_faces",
+                        symbol_type=LFRicTypes("NumberOfFacesDataSymbol"))
+                    sym_type = LFRicTypes("BasisFunctionQrFaceDataSymbol")
+                    dims = [nodes.Reference(ndofs), nodes.Reference(num_pts),
+                            nodes.Reference(num_faces)]
+                else:
+                    raise NotImplementedError("here")
                 # A kernel stub won't have a name for the corresponding
                 # quadrature argument so we create one by appending the last
                 # part of the shape name to "qr_".
                 basis_name = function_space.get_basis_name(
                     qr_var="qr_"+shape.split("_")[-1])
-                self.append(basis_name, var_accesses)
+                sym = self._symtab.find_or_create_tag(
+                    basis_name, fs=function_space.orig_name,
+                    symbol_type=sym_type, dims=dims)
+                self.append(sym.name, var_accesses)
 
             elif shape in const.VALID_EVALUATOR_SHAPES:
                 # Need a basis array for each target space upon which the basis

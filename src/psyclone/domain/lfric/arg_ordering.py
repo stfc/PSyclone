@@ -49,9 +49,10 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import ScalarType, Symbol
+from psyclone.psyir.symbols import ScalarType
 
 
 class ArgOrdering:
@@ -759,7 +760,16 @@ class ArgOrdering:
             self.append(scalar_arg.name, None, mode=scalar_arg.access,
                         metadata_posn=scalar_arg.metadata_index)
         else:
-            self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+            if scalar_arg.intrinsic_type == "real":
+                sym_type = LFRicTypes("LFRicRealScalarDataSymbol")
+            elif scalar_arg.intrinsic_type == "integer":
+                sym_type = LFRicTypes("LFRicIntegerScalarDataSymbol")
+            else:
+                raise InternalError(f"Invalid scalar intrinsic type: "
+                                    f"'{scalar_arg.intrinsic_type}'")
+            sym = self._symtab.find_or_create_tag(
+                scalar_arg.name, symbol_type=sym_type)
+            self.append(sym.name, var_accesses, mode=scalar_arg.access,
                         metadata_posn=scalar_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
@@ -908,9 +918,6 @@ class ArgOrdering:
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        #sym = self.append_array_reference(
-        #    function_space.cbanded_map_name, indices=[":", ":"],
-        #    intrinsic_type=ScalarType.Intrinsic.INTEGER)
         sym = self._symtab.lookup_with_tag(function_space.cbanded_map_name)
         self.psyir_append(Reference(sym))
         self.append(sym.name, var_accesses)
