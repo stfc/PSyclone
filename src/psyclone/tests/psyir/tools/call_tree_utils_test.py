@@ -121,6 +121,36 @@ def test_call_tree_compute_all_non_locals_non_kernel():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
+def test_call_tree_compute_all_non_locals_kernel():
+    '''This tests the handling of (LFRic-specific) kernels and builtins. This
+    example contains an explicit kernel and a builtin, so both will be tested.
+
+    '''
+    # We need to get the PSyIR after being processed by PSyclone, so that the
+    # invoke-call and builtin has been replaced with the builtin/kernel
+    # objects.
+    test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
+    mod_psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    psyir = mod_psyir.invokes.invoke_list[0].schedule
+
+    # This will return three schedule - the DynInvokeSchedule, and two
+    # schedules for the kernel and builtin. Just make sure we have
+    # the right parts before doing the actual test:
+    schedules = psyir.walk(Schedule)
+    assert isinstance(schedules[1].children[0], LFRicKern)
+    assert isinstance(schedules[2].children[0], BuiltIn)
+
+    ctu = CallTreeUtils()
+    non_locals = ctu._compute_all_non_locals(psyir)
+
+    # There should be exactly one entry - the kernel, but not the builtin:
+    assert len(non_locals) == 1
+    assert non_locals[0] == ("routine", "testkern_import_symbols_mod",
+                             Signature("testkern_import_symbols_code"))
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_call_tree_get_used_symbols_from_modules():
     '''Tests that we get the used symbols from a routine reported correctly.
     '''
