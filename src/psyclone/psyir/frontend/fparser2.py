@@ -3444,6 +3444,45 @@ class Fparser2Reader():
             currentparent.addchild(elsebody)
             self.process_nodes(parent=elsebody, nodes=stmts[default_idx])
 
+        # Ensure that the type selector variable declaration has the
+        # pointer or a target attribute. The difficulty is that it
+        # will be in an UnknownFortranType
+        type_selector_name = selector
+        symbol_table = stmt.scope.symbol_table
+        symbol = symbol_table.lookup(type_selector_name)
+        datatype = symbol.datatype
+        if not isinstance(datatype, UnknownFortranType):
+            raise InternalError(
+                f"Expected the datatype of the select type selector to be an "
+                f"UnknownFortranType, but found '{type(datatype).__name__}'.")
+        # Re-create the datatype as an fparser ast
+        dummy_code = (
+            f"subroutine dummy()\n"
+            f"  {datatype.declaration}\n"
+            f"end subroutine\n")
+        parser = ParserFactory().create(std="f2008")
+        reader = FortranStringReader(dummy_code)
+        fp2_ast = parser(reader)
+        type_decl_stmt = fp2_ast.children[0].children[1].children[0]
+        attr_spec_list = type_decl_stmt.children[1]
+        found = False
+        if attr_spec_list:
+            for attr_spec in attr_spec_list.children:
+                attr_spec_str = attr_spec.string
+                if attr_spec_str.upper() in ["TARGET", "POINTER"]:
+                    found = True
+                    break
+        if not found:
+            # TARGET needs to be added as an attribute
+            if attr_spec_list:
+                attr_spec_list.append(Fortran2003.Attr_Spec("TARGET"))
+            else:
+                attr_spec_list = Fortran2003.Attr_Spec_List("TARGET")
+            type_decl_stmt.items = (
+                type_decl_stmt.items[0], attr_spec_list,
+                type_decl_stmt.items[2])
+            attr_spec_list.parent = type_decl_stmt
+            datatype._declaration = str(type_decl_stmt)
         return stmt
 
     def _case_construct_handler(self, node, parent):

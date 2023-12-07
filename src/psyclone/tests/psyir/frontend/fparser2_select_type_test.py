@@ -242,7 +242,8 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
-    expected = (
+    expected1 = "CLASS(*), TARGET :: type"
+    expected2 = (
         "    character(256) :: type_string\n\n"
         "    type(type2), pointer :: ptr_type2\n\n"
         "    INTEGER, pointer :: ptr_INTEGER\n\n"
@@ -284,9 +285,8 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
-    print(result)
-    exit(1)
-    assert expected in result
+    assert expected1 in result
+    assert expected2 in result
     if_blocks = psyir.walk(IfBlock)
     assert "was_class_type" in if_blocks[0].annotations
     assert "was_class_type" in if_blocks[2].annotations
