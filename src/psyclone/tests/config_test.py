@@ -75,6 +75,7 @@ REPROD_PAD_SIZE = 8
 VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
 IGNORE_MODULES = netcdf, mpi
+BACKEND_CHECKS_ENABLED = false
 [dynamo0.3]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
@@ -119,15 +120,14 @@ def clear_config_instance():
     Config._instance = None
 
 
-# Disable this pylint warning because otherwise it gets upset about the
-# use of these fixtures in the test code.
-# pylint:disable=redefined-outer-name
-@pytest.fixture(scope="module",
+@pytest.fixture(name="bool_entry",
+                scope="module",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
                         "COMPUTE_ANNEXED_DOFS",
-                        "RUN_TIME_CHECKS"])
-def bool_entry(request):
+                        "RUN_TIME_CHECKS",
+                        "BACKEND_CHECKS_ENABLED"])
+def bool_entry_fixture(request):
     '''
     Parameterised fixture that will cause a test that has it as an
     argument to be run for each boolean member of the configuration file
@@ -140,9 +140,10 @@ def bool_entry(request):
     return request.param
 
 
-@pytest.fixture(scope="module",
+@pytest.fixture(name="int_entry",
+                scope="module",
                 params=["REPROD_PAD_SIZE", "OCL_DEVICES_PER_NODE"])
-def int_entry(request):
+def int_entry_fixture(request):
     '''
     Parameterised fixture that returns the names of integer members of the
     configuration file.
@@ -154,7 +155,7 @@ def int_entry(request):
     return request.param
 
 
-def config(config_file, content):
+def get_config(config_file, content):
     ''' A utility function that creates and populates a temporary
     PSyclone configuration file for testing purposes.
 
@@ -367,7 +368,7 @@ def test_api_not_in_list(tmpdir):
     config_file = tmpdir.join("config")
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content)
+        get_config(config_file, content)
 
     assert ("The API (invalid) is not in the list of "
             "supported APIs" in str(err.value))
@@ -385,7 +386,7 @@ def test_default_stubapi_invalid(tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content)
+        get_config(config_file, content)
 
     assert ("The default stub API (invalid) is not in the list of "
             "supported stub APIs" in str(err.value))
@@ -402,7 +403,7 @@ def test_default_stubapi_missing(tmpdir):
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
 
-    test_config = config(config_file, content)
+    test_config = get_config(config_file, content)
 
     assert test_config.default_stub_api == test_config.default_api
 
@@ -419,7 +420,7 @@ def test_not_bool(bool_entry, tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content)
+        get_config(config_file, content)
 
     assert "configuration error (file=" in str(err.value)
     assert f": Error while parsing {bool_entry}" in str(err.value)
@@ -438,11 +439,38 @@ def test_not_int(int_entry, tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content)
+        get_config(config_file, content)
 
     assert "configuration error (file=" in str(err.value)
     assert (f": error while parsing {int_entry}: invalid literal"
             in str(err.value))
+
+
+def test_backend_checks_from_file(tmpdir):
+    '''
+    Check that the value for BACKEND_CHECKS_ENABLED is correctly read from
+    the config. file and defaults to True.
+
+    '''
+    config_file = tmpdir.join("config")
+    cfg = get_config(config_file, _CONFIG_CONTENT)
+    assert cfg.backend_checks_enabled is False
+    content = re.sub(r"^BACKEND_CHECKS_ENABLED = false$",
+                     "BACKEND_CHECKS_ENABLED = true",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    config_file2 = tmpdir.join("config2")
+    cfg2 = get_config(config_file2, content)
+    assert cfg2.backend_checks_enabled is True
+    # Remove it from the config file.
+    content = re.sub(r"^BACKEND_CHECKS_ENABLED = false$",
+                     "",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    config_file3 = tmpdir.join("config3")
+    cfg3 = get_config(config_file3, content)
+    # Defaults to True if not specified in the file.
+    assert cfg3.backend_checks_enabled is True
 
 
 def test_broken_fmt(tmpdir):
@@ -456,7 +484,7 @@ def test_broken_fmt(tmpdir):
     content = "COMPUTE_ANNEXED_DOFS = false\n"
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content)
+        get_config(config_file, content)
     assert ("ConfigParser failed to read the configuration file. Is it "
             "formatted correctly? (Error was: File contains no section "
             "headers" in str(err.value))
@@ -468,7 +496,7 @@ def test_broken_fmt(tmpdir):
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content)
+        get_config(config_file, content)
     assert "Error was: Source contains parsing errors" in str(err.value)
 
 
@@ -484,7 +512,7 @@ COMPUTE_ANNEXED_DOFS = false
 '''
 
     with pytest.raises(ConfigurationError) as err:
-        config(config_file, content)
+        get_config(config_file, content)
 
     assert "configuration error (file=" in str(err.value)
     assert "Configuration file has no [DEFAULT] section" in str(err.value)
@@ -525,7 +553,7 @@ def test_api_unimplemented(tmpdir, monkeypatch):
                      flags=re.MULTILINE)
 
     with pytest.raises(NotImplementedError) as err:
-        config(config_file, content)
+        get_config(config_file, content)
     assert ("file contains a UNIMPLEMENTED section but no Config "
             "sub-class has been implemented for this API" in str(err.value))
 
@@ -542,7 +570,7 @@ def test_default_api(tmpdir):
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
 
-    default_config = config(config_file, content)
+    default_config = get_config(config_file, content)
     assert default_config.api == "dynamo0.3"
 
 
@@ -568,10 +596,23 @@ def test_root_name_load(tmpdir, content, result):
     '''
     config_file = tmpdir.join("config")
 
-    test_config = config(config_file, content)
+    test_config = get_config(config_file, content)
 
     assert test_config._psyir_root_name == result
     assert test_config.psyir_root_name == result
+
+
+def test_enable_backend_checks_setter_getter():
+    '''
+    Test the setter/getter for the 'backend_checks_enabled' property.
+    '''
+    config = Config()
+    with pytest.raises(TypeError) as err:
+        config.backend_checks_enabled = "hllo"
+    assert ("backend_checks_enabled must be a boolean but got 'str'" in
+            str(err.value))
+    config.backend_checks_enabled = True
+    assert config.backend_checks_enabled is True
 
 
 def test_kernel_naming_setter():
@@ -633,7 +674,7 @@ def test_invalid_access_mapping(tmpdir):
     content = re.sub(r"gh_read: read", "gh_read: invalid", _CONFIG_CONTENT)
 
     with pytest.raises(ConfigurationError) as cerr:
-        config(config_file, content)
+        get_config(config_file, content)
     assert "Unknown access type 'invalid' found for key 'gh_read'" \
         in str(cerr.value)
 
@@ -650,7 +691,7 @@ def test_default_access_mapping(tmpdir):
     '''
     config_file = tmpdir.join("config")
 
-    test_config = config(config_file, _CONFIG_CONTENT)
+    test_config = get_config(config_file, _CONFIG_CONTENT)
 
     api_config = test_config.api_conf("dynamo0.3")
     for access_mode in api_config.get_access_mapping().values():
@@ -669,7 +710,7 @@ def test_access_mapping_order(tmpdir):
     content = re.sub(r"gh_inc: inc, gh_sum: sum",
                      "gh_sum: sum, gh_inc: inc", content)
 
-    api_config = config(config_file, content).get().api_conf("dynamo0.3")
+    api_config = get_config(config_file, content).get().api_conf("dynamo0.3")
 
     for access_mode in api_config.get_access_mapping().values():
         assert isinstance(access_mode, AccessType)
@@ -679,7 +720,7 @@ def test_psy_data_prefix(tmpdir):
     ''' Check the handling of PSyData class prefixes. '''
     config_file = tmpdir.join("config.correct")
 
-    test_config = config(config_file, _CONFIG_CONTENT)
+    test_config = get_config(config_file, _CONFIG_CONTENT)
 
     assert "profile" in test_config.valid_psy_data_prefixes
     assert "extract" in test_config.valid_psy_data_prefixes
@@ -691,7 +732,7 @@ def test_psy_data_prefix(tmpdir):
     content = re.sub(r"VALID_PSY_DATA_PREFIXES", "NO-PSY-DATA",
                      _CONFIG_CONTENT)
 
-    test_config = config(config_file, content)
+    test_config = get_config(config_file, content)
 
     assert not test_config.valid_psy_data_prefixes
 
@@ -708,7 +749,7 @@ def test_invalid_prefix(tmpdir):
                          _CONFIG_CONTENT, flags=re.MULTILINE)
 
         with pytest.raises(ConfigurationError) as err:
-            config(config_file, content)
+            get_config(config_file, content)
         # When there is a '"' in the invalid prefix, the "'" in the
         # error message is escaped with a '\'. So in order to test the
         # invalid 'cd"' prefix, we need to have two tests in the assert:
@@ -751,7 +792,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
     mod_manager = ModuleManager.get()
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     config_file = tmpdir.join("config")
-    config(config_file, _CONFIG_CONTENT)
+    get_config(config_file, _CONFIG_CONTENT)
 
     assert mod_manager.ignores() == {'mpi', 'netcdf'}
 
@@ -761,7 +802,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
                      "",
                      _CONFIG_CONTENT, flags=re.MULTILINE)
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
-    config(config_file, content)
+    get_config(config_file, content)
     assert mod_manager.ignores() == set()
 
     # Make sure an empty entry works as expected (i.e. it does not get
@@ -770,5 +811,5 @@ def test_ignore_modules(tmpdir, monkeypatch):
                      "IGNORE_MODULES= ",
                      _CONFIG_CONTENT, flags=re.MULTILINE)
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
-    config(config_file, content)
+    get_config(config_file, content)
     assert mod_manager.ignores() == set()

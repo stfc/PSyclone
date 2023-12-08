@@ -1277,9 +1277,10 @@ def test_accloop(tmpdir, fortran_writer):
     # enclosing parallel region
     with pytest.raises(GenerationError) as err:
         _ = fortran_writer(psy.container)
-    assert ("ACCLoopDirective must have an ACCParallelDirective or "
-            "ACCKernelsDirective as an ancestor in the Schedule" in
-            str(err.value))
+    assert ("ACCLoopDirective in routine 'invoke_0' must either have an "
+            "ACCParallelDirective or ACCKernelsDirective as an ancestor in "
+            "the Schedule or the routine must contain an ACCRoutineDirective"
+            in str(err.value))
 
     # Add an enclosing parallel region
     accpara.apply(schedule.children)
