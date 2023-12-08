@@ -40,7 +40,7 @@ parallelisation approach, or if the performance in the inline code is
 better than the intrinsic.
 
 '''
-from psyclone.psyir.nodes import Reference, IntrinsicCall
+from psyclone.psyir.nodes import Reference, IntrinsicCall, UnaryOperation
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
     import ArrayReductionBaseTrans
 
@@ -63,7 +63,7 @@ class Maxval2LoopTrans(ArrayReductionBaseTrans):
 
     .. code-block:: fortran
 
-        R = TINY(R)
+        R = -HUGE(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             R = MAX(R, ARRAY(I,J))
@@ -80,7 +80,7 @@ class Maxval2LoopTrans(ArrayReductionBaseTrans):
 
     .. code-block:: fortran
 
-        R = TINY(R)
+        R = -HUGE(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             IF (MOD(ARRAY(I,J), 2.0)==1) THEN
@@ -124,7 +124,7 @@ class Maxval2LoopTrans(ArrayReductionBaseTrans):
       integer :: idx
       integer :: idx_1
     <BLANKLINE>
-      result = TINY(result)
+      result = -HUGE(result)
       do idx = 1, 10, 1
         do idx_1 = 1, 10, 1
           result = MAX(result, array(idx_1,idx))
@@ -166,5 +166,7 @@ class Maxval2LoopTrans(ArrayReductionBaseTrans):
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
-        return IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.TINY, [Reference(var_symbol)])
+        # Return -HUGE()
+        huge = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.HUGE, [Reference(var_symbol)])
+        return UnaryOperation.create(UnaryOperation.Operator.MINUS, huge)
