@@ -223,6 +223,11 @@ class Config:
         # Number of OpenCL devices per node
         self._ocl_devices_per_node = 1
 
+        # By default, a PSyIR backend performs validation checks as it
+        # traverses the tree. Setting this option to False disables those
+        # checks which can be useful in the case of unimplemented features.
+        self._backend_checks_enabled = True
+
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
@@ -358,6 +363,17 @@ class Config:
                     f"Invalid PsyData-prefix '{prefix}' in config file. The "
                     f"prefix must be valid for use as the start of a Fortran "
                     f"variable name.", config=self)
+
+        # Whether validation is performed in the PSyIR backends.
+        if 'BACKEND_CHECKS_ENABLED' in self._config['DEFAULT']:
+            try:
+                self._backend_checks_enabled = (
+                    self._config['DEFAULT'].getboolean(
+                        'BACKEND_CHECKS_ENABLED'))
+            except ValueError as err:
+                raise ConfigurationError(
+                    f"Error while parsing BACKEND_CHECKS_ENABLED: {err}",
+                    config=self) from err
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specific Config objects.
@@ -555,6 +571,31 @@ class Config:
         :rtype: str
         '''
         return self._default_stub_api
+
+    @property
+    def backend_checks_enabled(self):
+        '''
+        :returns: whether the validity checks in the PSyIR backend should be
+                  disabled.
+        :rtype: bool
+        '''
+        return self._backend_checks_enabled
+
+    @backend_checks_enabled.setter
+    def backend_checks_enabled(self, value):
+        '''
+        Setter for whether or not the PSyIR backend is to perform validation
+        checks.
+
+        :param bool value: whether or not to perform validation.
+
+        :raises TypeError: if `value` is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(f"Config.backend_checks_enabled must be a boolean "
+                            f"but got '{type(value).__name__}'")
+        self._backend_checks_enabled = value
 
     @property
     def supported_stub_apis(self):
