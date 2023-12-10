@@ -3311,8 +3311,8 @@ class Fparser2Reader():
         select_idx = -1           # index of the current clause
         default_idx = -1          # index of the default clause if it exists
         guard_type = []           # original guard type specification
-        guard_type_repr = []      # string representation of the guard_type
-        intrinsic_type_name = []  # string representation of base intrinsic name
+        guard_type_repr = []      # str representation of the guard_type
+        intrinsic_type_name = []  # str representation of base intrinsic name
         clause_type = []          # name of the clause
         stmts = []                # list of statements for each clause
         pointer_symbols = []      # list of pointers to the selector variable
@@ -3339,13 +3339,20 @@ class Fparser2Reader():
                     # An intrinsic type
                     type_name = type_spec.children[0]
                     base_type_name = type_name
-                    if isinstance(type_spec.children[1], Fortran2003.Kind_Selector):
-                        # A non-character intrinsic type with a kind specification
-                        type_name = f"{type_name}_{type_spec.children[1].children[1]}"
-                    elif isinstance(type_spec.children[1], Fortran2003.Length_Selector):
+                    if isinstance(
+                            type_spec.children[1], Fortran2003.Kind_Selector):
+                        # A non-character intrinsic type with a kind
+                        # specification
+                        kind_spec_value = type_spec.children[1].children[1]
+                        type_name = f"{type_name}_{kind_spec_value}"
+                    elif isinstance(
+                            type_spec.children[1],
+                            Fortran2003.Length_Selector):
                         # This is a character type
                         value = type_spec.children[1].children[1]
-                        if not isinstance(value, (Fortran2003.Type_Param_Value, Fortran2003.Int_Literal_Constant)):
+                        if not isinstance(
+                                value, (Fortran2003.Type_Param_Value,
+                                        Fortran2003.Int_Literal_Constant)):
                             raise NotImplementedError(
                                 f"Only character strings of type '*' for the "
                                 f"the selector variable are currently "
@@ -3402,8 +3409,10 @@ class Fparser2Reader():
             pointer_symbol = DataSymbol(pointer_name, pointer_type)
             parent.scope.symbol_table.add(pointer_symbol)
             pointer_symbols.append(pointer_symbol)
-            if intrinsic_type_name[idx] and intrinsic_type_name[idx].lower() == "character":
-                # The type spec for a character intrinsic must always be assumed
+            if (intrinsic_type_name[idx] and
+                    intrinsic_type_name[idx].lower() == "character"):
+                # The type spec for a character intrinsic must always
+                # be assumed
                 type_spec = "CHARACTER(LEN = *)"
             else:
                 # Use the variable declaration
@@ -3518,6 +3527,7 @@ class Fparser2Reader():
                 type_decl_stmt.items[0], attr_spec_list,
                 type_decl_stmt.items[2])
             attr_spec_list.parent = type_decl_stmt
+            # pylint: disable=protected-access
             datatype._declaration = str(type_decl_stmt)
         return stmt
 
