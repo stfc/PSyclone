@@ -37,53 +37,8 @@
 construction for the Fparser->PSyIR frontend.
 
 '''
-import pytest
-
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
-
-from psyclone.errors import InternalError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import CodeBlock, IfBlock
 from psyclone.tests.utilities import Compile
-
-
-def test_invalid_node():
-    '''Check that the expected exception is raised if the supplied node is
-    not an fparser2 Select_Type_Construct.
-
-    '''
-    reader = Fparser2Reader()
-    with pytest.raises(InternalError) as info:
-        reader._type_construct_handler(None, None)
-    assert ("Failed to find opening select type statement in: None"
-            in str(info.value))
-
-
-def test_no_end_select():
-    '''Check that the expected exception is raised if the supplied fparser
-    tree root node does not have End_Select_Type_Stmt as its last child.
-
-    '''
-    code = (
-        "  SELECT TYPE (type_selector)\n"
-        "    TYPE IS (INTEGER)\n"
-        "      branch1 = 1\n"
-        "      branch2 = 0\n"
-        "    TYPE IS (REAL)\n"
-        "      branch2 = 1\n"
-        "  END SELECT\n")
-    string_reader = FortranStringReader(code)
-    ParserFactory().create(std="f2008")
-    ast = Fortran2003.Select_Type_Construct(string_reader)
-    # Remove the end_select instance to force the exception
-    del ast.children[-1]
-    reader = Fparser2Reader()
-    with pytest.raises(InternalError) as info:
-        reader._type_construct_handler(ast, None)
-    assert("Failed to find closing select type statement in: "
-           "SELECT TYPE(type_selector)" in str(info.value))
 
 
 def test_type(fortran_reader, fortran_writer, tmpdir):
@@ -141,8 +96,8 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
     assert expected1 in result
     assert expected2 in result
     if_blocks = psyir.walk(IfBlock)
-    assert "was_select_type" in if_blocks[0].annotations
-    assert "was_select_type" in if_blocks[1].annotations
+    assert "was_type_is" in if_blocks[0].annotations
+    assert "was_type_is" in if_blocks[1].annotations
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -290,8 +245,8 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
     assert expected1 in result
     assert expected2 in result
     if_blocks = psyir.walk(IfBlock)
-    assert "was_class_type" in if_blocks[0].annotations
-    assert "was_class_type" in if_blocks[2].annotations
+    assert "was_class_is" in if_blocks[0].annotations
+    assert "was_class_is" in if_blocks[2].annotations
     assert Compile(tmpdir).string_compiles(result)
 
 

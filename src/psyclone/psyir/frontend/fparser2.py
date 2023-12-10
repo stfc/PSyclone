@@ -1079,7 +1079,8 @@ class Fparser2Reader():
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
             Fortran2003.If_Construct: self._if_construct_handler,
             Fortran2003.Case_Construct: self._case_construct_handler,
-            Fortran2003.Select_Type_Construct: self._type_construct_handler,
+            Fortran2003.Select_Type_Construct:
+                self._select_type_construct_handler,
             Fortran2003.Return_Stmt: self._return_handler,
             Fortran2003.UnaryOpBase: self._unary_op_handler,
             Fortran2003.Block_Nonlabel_Do_Construct:
@@ -3277,35 +3278,27 @@ class Fparser2Reader():
         self.process_nodes(parent=ifbody, nodes=[node.items[1]])
         return ifblock
 
-    def _type_construct_handler(self, node, parent):
+    def _select_type_construct_handler(self, node, parent):
         '''
         Transforms an fparser2 Select_Type_Construct to the PSyIR
         representation.
 
         :param node: node in fparser2 tree.
         :type node: :py:class:`fparser.two.Fortran2003.Select_Type_Construct`
-        :param parent: Parent node of the PSyIR node we are constructing.
+        :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
-        :raises InternalError: If the fparser2 tree has an unexpected \
+        :raises InternalError: If the fparser2 tree has an unexpected
             structure.
-        :raises NotImplementedError: If the fparser2 tree contains an \
+        :raises NotImplementedError: If the fparser2 tree contains an
             unsupported structure and should be placed in a CodeBlock.
 
         '''
-        # Check that the fparser2 parsetree has the expected structure
-        if not isinstance(node, Fortran2003.Select_Type_Construct):
-            raise InternalError(
-                f"Failed to find opening select type statement in: {node}")
-        if not isinstance(node.children[-1], Fortran2003.End_Select_Type_Stmt):
-            raise InternalError(
-                f"Failed to find closing select type statement in: {node}")
-
-        # Search for all the TYPE IS and CLASS IS clauses in the
-        # Select_Type_Construct and extract the required
+        # Step1: Search for all the TYPE IS and CLASS IS clauses in
+        # the Select_Type_Construct and extract the required
         # information. This makes for easier code generation later in
         # the routine.
         select_idx = -1           # index of the current clause
@@ -3333,7 +3326,7 @@ class Fparser2Reader():
                 type_spec = child.children[1]
                 base_type_name = None
                 if type_spec is None:
-                    # No type as this is the default clause
+                    # No type so this is the default clause
                     type_name = ""
                 elif isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
                     # An intrinsic type
@@ -3341,8 +3334,8 @@ class Fparser2Reader():
                     base_type_name = type_name
                     if isinstance(
                             type_spec.children[1], Fortran2003.Kind_Selector):
-                        # A non-character intrinsic type with a kind
-                        # specification
+                        # This is a non-character intrinsic type with
+                        # a kind specification
                         kind_spec_value = type_spec.children[1].children[1]
                         type_name = f"{type_name}_{kind_spec_value}"
                     elif isinstance(
@@ -3354,9 +3347,9 @@ class Fparser2Reader():
                                 value, (Fortran2003.Type_Param_Value,
                                         Fortran2003.Int_Literal_Constant)):
                             raise NotImplementedError(
-                                f"Only character strings of type '*' for the "
-                                f"the selector variable are currently "
-                                f"supported in the PSyIR, but found "
+                                f"Only character strings of type '*' or "
+                                f"'literal' for the selector variable are "
+                                f"currently supported in the PSyIR, but found "
                                 f"'{child.children[1]}' in the select "
                                 f"clause '{str(node)}'.")
                         type_name = f"{type_name}_{value}"
@@ -3380,19 +3373,22 @@ class Fparser2Reader():
                     stmts.append([])
                     stmts[select_idx].append(child)
 
-        # Create the type_string variable that will hold a string
-        # representation of the type or class in the select type
-        # construct or be an empty string if it is the default option.
+        # Step2: Create the type_string variable that will hold a
+        # string representation of the type or class in the select
+        # type construct or be an empty string if it is the default
+        # option.
         type_string_name = parent.scope.symbol_table.next_available_name(
             "type_string")
+        # Length is hardcoded here so could potentially be too short.
         type_string_type = UnknownFortranType(
             f"character(256) :: {type_string_name}\n")
         type_string_symbol = DataSymbol(type_string_name, type_string_type)
         parent.scope.symbol_table.add(type_string_symbol)
 
-        # Recreate the select type clause within a CodeBlock with
-        # the content of the clauses being replaced by a string
-        # capturing the name of the type or class clauses.
+        # Step3: Recreate the select type clause within a CodeBlock
+        # with the content of the clauses being replaced by a string
+        # capturing the name of the type or class clauses (created in
+        # step2).
         code = "program dummy\n"
         code += f"select type({selector})\n"
         for idx in range(select_idx+1):
@@ -3426,6 +3422,7 @@ class Fparser2Reader():
         parser = ParserFactory().create(std="f2008")
         reader = FortranStringReader(code)
         fp2_program = parser(reader)
+        # Only use the select type clause within the fparser2 program
         fp2_select_type = fp2_program.children[0].children[1]
         code_block = CodeBlock(
             [fp2_select_type], CodeBlock.Structure.STATEMENT, parent=parent)
@@ -3438,9 +3435,10 @@ class Fparser2Reader():
             Reference(type_string_symbol), Literal("", CHARACTER_TYPE)))
         parent.addchild(code_block)
 
-        # Create the (potentially nested) if statement that replicates
-        # the functionality of the select type options (as select type
-        # is not supported directly in the PSyIR).
+        # Step4: Create the (potentially nested) if statement that
+        # replicates the functionality of the select type options (as
+        # select type is not supported directly in the PSyIR).
+        outer_ifblock = None
         ifblock = None
         currentparent = parent
         for idx in range(select_idx+1):
@@ -3450,18 +3448,18 @@ class Fparser2Reader():
                 # We already have an if so this is an else if
                 elsebody = Schedule(parent=currentparent)
                 currentparent.addchild(elsebody)
-                annotation = "was_select_type"
+                annotation = "was_type_is"
                 if clause_type[idx] == "CLASS IS":
-                    annotation = "was_class_type"
+                    annotation = "was_class_is"
                 ifblock = IfBlock(annotations=[annotation])
                 elsebody.addchild(ifblock)
             else:
-                annotation = "was_select_type"
+                annotation = "was_type_is"
                 if clause_type[idx] == "CLASS IS":
-                    annotation = "was_class_type"
+                    annotation = "was_class_is"
                 ifblock = IfBlock(parent=currentparent,
                                   annotations=[annotation])
-                stmt = ifblock
+                outer_ifblock = ifblock
 
             # Create an if hierarchy that uses the string (stored in
             # type_string_symbol) set in the previous select type
@@ -3489,11 +3487,11 @@ class Fparser2Reader():
             currentparent.addchild(elsebody)
             self.process_nodes(parent=elsebody, nodes=stmts[default_idx])
 
-        # Ensure that the type selector variable declaration has the
+        # Step5: Ensure that the type selector variable declaration has the
         # pointer or a target attribute. The difficulty is that it
         # will be in an UnknownFortranType
         type_selector_name = selector
-        symbol_table = stmt.scope.symbol_table
+        symbol_table = outer_ifblock.scope.symbol_table
         symbol = symbol_table.lookup(type_selector_name)
         datatype = symbol.datatype
         if not isinstance(datatype, UnknownFortranType):
@@ -3515,6 +3513,7 @@ class Fparser2Reader():
             for attr_spec in attr_spec_list.children:
                 attr_spec_str = attr_spec.string
                 if attr_spec_str.upper() in ["TARGET", "POINTER"]:
+                    # There is already a target or pointer attribute
                     found = True
                     break
         if not found:
@@ -3529,7 +3528,7 @@ class Fparser2Reader():
             attr_spec_list.parent = type_decl_stmt
             # pylint: disable=protected-access
             datatype._declaration = str(type_decl_stmt)
-        return stmt
+        return outer_ifblock
 
     def _case_construct_handler(self, node, parent):
         '''
@@ -3537,15 +3536,15 @@ class Fparser2Reader():
 
         :param node: node in fparser2 tree.
         :type node: :py:class:`fparser.two.Fortran2003.Case_Construct`
-        :param parent: Parent node of the PSyIR node we are constructing.
+        :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
-        :raises InternalError: If the fparser2 tree has an unexpected \
+        :raises InternalError: If the fparser2 tree has an unexpected
             structure.
-        :raises NotImplementedError: If the fparser2 tree contains an \
+        :raises NotImplementedError: If the fparser2 tree contains an
             unsupported structure and should be placed in a CodeBlock.
 
         '''
