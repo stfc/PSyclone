@@ -262,7 +262,7 @@ def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
         f"  result = maxval(array)\n"
         f"end subroutine\n")
     expected = (
-        f"  result = TINY(result)\n"
+        f"  result = -HUGE(result)\n"
         f"  do idx = {rdim21}, {rdim22}, 1\n"
         f"    do idx_1 = {rdim11}, {rdim12}, 1\n"
         f"      result = MAX(result, array(idx_1,idx))\n"
@@ -295,7 +295,7 @@ def test_apply_multi(fortran_reader, fortran_writer, tmpdir):
         "  result = value1 + maxval(array) * value2\n"
         "end subroutine\n")
     expected = (
-        "  result = TINY(result)\n"
+        "  result = -HUGE(result)\n"
         "  do idx = 1, m, 1\n"
         "    do idx_1 = 1, n, 1\n"
         "      result = MAX(result, array(idx_1,idx))\n"
@@ -349,7 +349,7 @@ def test_mask(fortran_reader, fortran_writer, tmpdir):
         "  result = maxval(array, mask=MOD(array, 2.0)==1)\n"
         "end program\n")
     expected = (
-        "  result = TINY(result)\n"
+        "  result = -HUGE(result)\n"
         "  do idx = 1, 10, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      if (MOD(array(idx_1,idx), 2.0) == 1) then\n"
@@ -385,7 +385,7 @@ def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
         "  result = maxval(a, mask=a(1)>a)\n"
         "end program\n")
     expected = (
-        "  result = TINY(result)\n"
+        "  result = -HUGE(result)\n"
         "  do idx = 1, 4, 1\n"
         "    if (a(1) > a(idx)) then\n"
         "      result = MAX(result, a(idx))\n"
@@ -418,7 +418,7 @@ def test_allocate(fortran_reader, fortran_writer, tmpdir):
         "end program\n")
     expected = (
         "  ALLOCATE(a(1:4,1:4,1:4))\n"
-        "  result = TINY(result)\n"
+        "  result = -HUGE(result)\n"
         "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
         "    do idx_1 = LBOUND(a, dim=2), UBOUND(a, dim=2), 1\n"
         "      do idx_2 = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
@@ -452,7 +452,7 @@ def test_references(fortran_reader, fortran_writer, tmpdir):
         "zmax(1) = MAXVAL(ABS(sshn + ssh_ref * tmask), mask=tmask==1.0)\n"
         "end subroutine\n")
     expected = (
-        "  zmax(1) = TINY(zmax)\n"
+        "  zmax(1) = -HUGE(zmax)\n"
         "  do idx = 1, 10, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      if (tmask(idx_1,idx) == 1.0) then\n"
@@ -481,7 +481,7 @@ def test_nemo_example(fortran_reader, fortran_writer, tmpdir):
         "zmax(1) = MAXVAL(ABS(sshn(:,:) + ssh_ref * tmask(:,:,1)))\n"
         "end subroutine\n")
     expected = (
-        "  zmax(1) = TINY(zmax)\n"
+        "  zmax(1) = -HUGE(zmax)\n"
         "  do idx = LBOUND(sshn, dim=2), UBOUND(sshn, dim=2), 1\n"
         "    do idx_1 = LBOUND(sshn, dim=1), UBOUND(sshn, dim=1), 1\n"
         "      zmax(1) = MAX(zmax(1), ABS(sshn(idx_1,idx) + ssh_ref * "
@@ -510,7 +510,7 @@ def test_constant_dims(fortran_reader, fortran_writer, tmpdir):
         "x = maxval(a(:,1)+b(10,:), mask=c(:)==1.0)\n"
         "end subroutine\n")
     expected = (
-        "  x = TINY(x)\n"
+        "  x = -HUGE(x)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "    if (c(idx) == 1.0) then\n"
         "      x = MAX(x, a(idx,1) + b(10,idx))\n"
@@ -543,7 +543,7 @@ def test_expression_1d(fortran_reader, fortran_writer, tmpdir):
         "  real, dimension(10) :: b\n"
         "  real :: x\n"
         "  integer :: idx\n\n"
-        "  x = TINY(x)\n"
+        "  x = -HUGE(x)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "    x = MAX(x, a(idx) + b(idx))\n"
         "  enddo\n\n"
@@ -576,7 +576,7 @@ def test_expression_3d(fortran_reader, fortran_writer, tmpdir):
         "  integer :: idx\n"
         "  integer :: idx_1\n"
         "  integer :: idx_2\n\n"
-        "  x = TINY(x)\n"
+        "  x = -HUGE(x)\n"
         "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
         "    do idx_1 = LBOUND(a, dim=2), UBOUND(a, dim=2), 1\n"
         "      do idx_2 = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
@@ -607,7 +607,7 @@ def test_multi_intrinsics(fortran_reader, fortran_writer, tmpdir):
         "x = maxval(a(:)) + maxval(b(:))\n"
         "end subroutine\n")
     expected = (
-        "  x = TINY(x)\n"
+        "  x = -HUGE(x)\n"
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "    x = MAX(x, a(idx))\n"
         "  enddo\n"
@@ -634,7 +634,7 @@ def test_increment(fortran_reader, fortran_writer, tmpdir):
         "x = x + maxval(a)\n"
         "end subroutine\n")
     expected = (
-        "  tmp_var = TINY(tmp_var)\n"
+        "  tmp_var = -HUGE(tmp_var)\n"
         "  do idx = 1, 10, 1\n"
         "    tmp_var = MAX(tmp_var, a(idx))\n"
         "  enddo\n"
