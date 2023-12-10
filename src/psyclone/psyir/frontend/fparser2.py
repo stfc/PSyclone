@@ -3308,12 +3308,14 @@ class Fparser2Reader():
         # Select_Type_Construct and extract the required
         # information. This makes for easier code generation later in
         # the routine.
-        select_idx = -1       # index of the current clause
-        default_idx = -1      # index of the default clause if it exists
-        guard_type = []       # type of guard (class is ...)
-        clause_type = []      # name of the clause
-        stmts = []            # list of statements for each clause
-        pointer_symbols = []  # list of pointers to the selector variable
+        select_idx = -1           # index of the current clause
+        default_idx = -1          # index of the default clause if it exists
+        guard_type = []           # original guard type specification
+        guard_type_repr = []      # string representation of the guard_type
+        intrinsic_type_name = []  # string representation of base intrinsic name
+        clause_type = []          # name of the clause
+        stmts = []                # list of statements for each clause
+        pointer_symbols = []      # list of pointers to the selector variable
 
         for idx, child in enumerate(node.children):
             if isinstance(child, Fortran2003.Select_Type_Stmt):
@@ -3328,7 +3330,36 @@ class Fparser2Reader():
                 selector = child.children[1].string
             elif isinstance(child, Fortran2003.Type_Guard_Stmt):
                 select_idx += 1
-                guard_type.append(child.children[1])
+                type_spec = child.children[1]
+                base_type_name = None
+                if type_spec is None:
+                    # No type as this is the default clause
+                    type_name = ""
+                elif isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+                    # An intrinsic type
+                    type_name = type_spec.children[0]
+                    base_type_name = type_name
+                    if isinstance(type_spec.children[1], Fortran2003.Kind_Selector):
+                        # A non-character intrinsic type with a kind specification
+                        type_name = f"{type_name}_{type_spec.children[1].children[1]}"
+                    elif isinstance(type_spec.children[1], Fortran2003.Length_Selector):
+                        # This is a character type
+                        value = type_spec.children[1].children[1]
+                        if not isinstance(value, (Fortran2003.Type_Param_Value, Fortran2003.Int_Literal_Constant)):
+                            raise NotImplementedError(
+                                f"Only character strings of type '*' for the "
+                                f"the selector variable are currently "
+                                f"supported in the PSyIR, but found "
+                                f"'{child.children[1]}' in the select "
+                                f"clause '{str(node)}'.")
+                        type_name = f"{type_name}_{value}"
+                else:
+                    # type or Class type
+                    type_name = str(type_spec)
+                guard_type_repr.append(type_name)
+                guard_type.append(str(type_spec))
+                intrinsic_type_name.append(base_type_name)
+
                 clause_type.append(child.children[0])
                 if child.children[0].lower() == "class default":
                     default_idx = select_idx
@@ -3362,19 +3393,24 @@ class Fparser2Reader():
                 pointer_symbols.append(None)
                 continue
             pointer_name = parent.scope.symbol_table.next_available_name(
-                f"ptr_{guard_type[idx]}")
+                f"ptr_{guard_type_repr[idx]}")
             tmp = f"{guard_type[idx]}"
-            intrinsic_types = ["integer", "real", "character", "complex"]
-            if str(guard_type[idx]).lower() not in intrinsic_types:
+            if not intrinsic_type_name[idx]:
                 tmp = f"type({tmp})"
             pointer_type = UnknownFortranType(
                 f"{tmp}, pointer :: {pointer_name}\n")
             pointer_symbol = DataSymbol(pointer_name, pointer_type)
             parent.scope.symbol_table.add(pointer_symbol)
             pointer_symbols.append(pointer_symbol)
-            code += f"  {clause_type[idx]} ({guard_type[idx]})\n"
+            if intrinsic_type_name[idx] and intrinsic_type_name[idx].lower() == "character":
+                # The type spec for a character intrinsic must always be assumed
+                type_spec = "CHARACTER(LEN = *)"
+            else:
+                # Use the variable declaration
+                type_spec = guard_type[idx]
+            code += f"  {clause_type[idx]} ({type_spec})\n"
             code += (f"    {type_string_name} = "
-                     f"\"{guard_type[idx].string.lower()}\"\n")
+                     f"\"{guard_type_repr[idx].lower()}\"\n")
             code += (f"    {pointer_name} => {selector}\n")
         code += "end select\n"
         code += "end program\n"
@@ -3424,7 +3460,7 @@ class Fparser2Reader():
             # original select type clauses.
             clause = BinaryOperation.create(
                 BinaryOperation.Operator.EQ, Reference(type_string_symbol),
-                Literal(guard_type[idx].string.lower(), CHARACTER_TYPE))
+                Literal(guard_type_repr[idx].lower(), CHARACTER_TYPE))
 
             ifblock.addchild(clause)
             # Add If_body

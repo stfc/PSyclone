@@ -112,7 +112,8 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
-    expected = (
+    expected1 = "CLASS(*), TARGET :: type_selector"
+    expected2 = (
         "    character(256) :: type_string\n\n"
         "    INTEGER, pointer :: ptr_INTEGER\n\n"
         "    REAL, pointer :: ptr_REAL\n\n\n"
@@ -137,7 +138,8 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
-    assert expected in result
+    assert expected1 in result
+    assert expected2 in result
     if_blocks = psyir.walk(IfBlock)
     assert "was_select_type" in if_blocks[0].annotations
     assert "was_select_type" in if_blocks[1].annotations
@@ -334,35 +336,52 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "subroutine select_type(type)\n"
         "  class(*) :: type\n"
         "  integer :: branch1, branch2\n"
+        "  real(kind=8) :: rinfo1\n"
+        "  real(kind=16) :: rinfo2\n"
         "  SELECT TYPE (type)\n"
         "    TYPE IS (REAL(kind=8))\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
+        "      rinfo1 = type\n"
         "    TYPE IS (REAL(16))\n"
         "      branch2 = 1\n"
+        "      rinfo2 = type\n"
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
-    expected = (
-        "    character(256) :: type_string\n\n\n"
+    expected1 = (
+        "    CLASS(*), TARGET :: type\n"
+        "    integer :: branch1\n"
+        "    integer :: branch2\n"
+        "    REAL(KIND = 8) :: rinfo1\n"
+        "    REAL(KIND = 16) :: rinfo2\n"
+        "    character(256) :: type_string\n\n"
+        "    REAL(KIND = 8), pointer :: ptr_REAL_8\n\n"
+        "    REAL(KIND = 16), pointer :: ptr_REAL_16\n")
+    expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
         "  TYPE IS (REAL(KIND = 8))\n"
-        "  type_string = \"real(kind=8)\"\n"
+        "  type_string = \"real_8\"\n"
+        "  ptr_REAL_8 => type\n"
         "  TYPE IS (REAL(KIND = 16))\n"
-        "  type_string = \"real(16)\"\n"
+        "  type_string = \"real_16\"\n"
+        "  ptr_REAL_16 => type\n"
         "END SELECT\n"
-        "    if (type_string == 'real(kind=8)') then\n"
+        "    if (type_string == 'real_8') then\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
+        "      rinfo1 = ptr_REAL_8\n"
         "    else\n"
-        "      if (type_string == 'real(16)') then\n"
+        "      if (type_string == 'real_16') then\n"
         "        branch2 = 1\n"
+        "        rinfo2 = ptr_REAL_16\n"
         "      end if\n"
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
-    assert expected in result
+    assert expected1 in result
+    assert expected2 in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -379,26 +398,40 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "  type field_type\n"
         "    integer :: x\n"
         "  end type\n"
+        "  type(field_type) :: field_type_info\n"
         "  integer :: branch1\n"
         "  SELECT TYPE (type)\n"
         "    TYPE IS (field_type)\n"
         "      branch1 = 1\n"
+        "      field_type_info = type\n"
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
-    expected = (
-        "    character(256) :: type_string\n\n\n"
+    expected1 = (
+        "    CLASS(*), TARGET :: type\n"
+        "    type :: field_type\n"
+        "      integer :: x\n"
+        "    end type field_type\n"
+        "    type(field_type) :: field_type_info\n"
+        "    integer :: branch1\n"
+        "    character(256) :: type_string\n\n"
+        "    type(field_type), pointer :: ptr_field_type\n")
+    expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
         "  TYPE IS (field_type)\n"
         "  type_string = \"field_type\"\n"
+        "  ptr_field_type => type\n"
         "END SELECT\n"
         "    if (type_string == 'field_type') then\n"
         "      branch1 = 1\n"
+        "      field_type_info = ptr_field_type\n"
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
-    assert expected in result
+    print(result)
+    assert expected1 in result
+    assert expected2 in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -416,40 +449,66 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "subroutine select_type(type_selector)\n"
         "  class(*) :: type_selector\n"
         "  integer :: branch1, branch2, branch3\n"
+        "  logical :: logical_type\n"
+        "  character(len = 256) :: character_type\n"
+        "  complex :: complex_type\n"
         "  SELECT TYPE (type_selector)\n"
         "    TYPE IS (LOGICAL)\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
-        "    TYPE IS (CHARACTER(*))\n"
+        "      logical_type = type_selector\n"
+        "    TYPE IS (CHARACTER(len = 256))\n"
         "      branch2 = 1\n"
+        "      character_type = type_selector\n"
         "    TYPE IS (COMPLEX)\n"
         "      branch3 = 1\n"
+        "      complex_type = type_selector\n"
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
-    expected = (
+    expected1 = (
+        "    CLASS(*), TARGET :: type_selector\n"
+        "    integer :: branch1\n"
+        "    integer :: branch2\n"
+        "    integer :: branch3\n"
+        "    logical :: logical_type\n"
+        "    CHARACTER(LEN = 256) :: character_type\n"
+        "    COMPLEX :: complex_type\n"
+        "    character(256) :: type_string\n\n"
+        "    LOGICAL, pointer :: ptr_LOGICAL\n\n"
+        "    CHARACTER(LEN = 256), pointer :: ptr_CHARACTER_256\n\n"
+        "    COMPLEX, pointer :: ptr_COMPLEX\n")
+    expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
         "  TYPE IS (LOGICAL)\n"
         "  type_string = \"logical\"\n"
+        "  ptr_LOGICAL => type_selector\n"
         "  TYPE IS (CHARACTER(LEN = *))\n"
-        "  type_string = \"character(*)\"\n"
+        "  type_string = \"character_256\"\n"
+        "  ptr_CHARACTER_256 => type_selector\n"
         "  TYPE IS (COMPLEX)\n"
         "  type_string = \"complex\"\n"
+        "  ptr_COMPLEX => type_selector\n"
         "END SELECT\n"
         "    if (type_string == 'logical') then\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
+        "      logical_type = ptr_LOGICAL\n"
         "    else\n"
-        "      if (type_string == 'character(*)') then\n"
+        "      if (type_string == 'character_256') then\n"
         "        branch2 = 1\n"
+        "        character_type = ptr_CHARACTER_256\n"
         "      else\n"
         "        if (type_string == 'complex') then\n"
         "          branch3 = 1\n"
+        "          complex_type = ptr_COMPLEX\n"
         "        end if\n"
         "      end if\n"
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
-    assert expected in result
+    print(result)
+    assert expected1 in result
+    assert expected2 in result
     assert Compile(tmpdir).string_compiles(result)
