@@ -2406,3 +2406,35 @@ def test_find_routine_in_container(fortran_reader):
             call_node, call_node.routine.interface.container_symbol)
     assert isinstance(result, Routine)
     assert result.name == "sub"
+
+
+def test_apply_merges_symbol_table_with_routine(fortran_reader):
+    '''
+    Check that the apply method merges the inlined function's symbol table to
+    the containing Routine when the call node is inside a child ScopingNode.
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    real :: a(10)\n"
+        "    do i=1,10\n"
+        "      call sub(a, i)\n"
+        "    end do\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(x, ivar)\n"
+        "    real, intent(inout), dimension(10) :: x\n"
+        "    integer, intent(in) :: ivar\n"
+        "    integer :: i\n"
+        "    do i = 1, 10\n"
+        "      x(i) = 2.0*ivar\n"
+        "    end do\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    # The i_1 symbol is the renamed i from the inlined call.
+    assert psyir.walk(Routine)[0].symbol_table.get_symbols()['i_1'] is not None

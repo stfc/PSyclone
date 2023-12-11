@@ -179,6 +179,8 @@ class InlineTrans(Transformation):
         for ref in refs[:]:
             self._replace_formal_arg(ref, node, formal_args)
 
+        # Store the Routine level symbol table and node's current scope
+        # so we can merge symbol tables later if required.
         ancestor_table = node.ancestor(Routine).scope.symbol_table
         scope = node.scope
         # Copy the nodes from the Routine into the call site.
@@ -210,7 +212,11 @@ class InlineTrans(Transformation):
                 idx += 1
                 parent.addchild(child, idx)
 
-        if(ancestor_table is not scope.symbol_table):
+        # If the scope we merged the inlined functions symbol table into
+        # is not a Routine scope then we now merge that symbol table into
+        # the ancestor Routine. This avoids issues like #2424 when
+        # applying ParallelLoopTrans to loops containing inlined calls.
+        if ancestor_table is not scope.symbol_table:
             ancestor_table.merge(scope.symbol_table)
             replacement = type(scope.symbol_table)()
             scope.symbol_table.detach()
