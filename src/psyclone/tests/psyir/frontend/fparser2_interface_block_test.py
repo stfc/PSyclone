@@ -42,18 +42,20 @@ import pytest
 
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
-    RoutineSymbol, Symbol, UnknownFortranType, DataTypeSymbol)
+    DataTypeSymbol, GenericInterfaceSymbol, NoType, RoutineSymbol, Symbol,
+    UnknownFortranType)
 
 
-def test_named_interface(fortran_reader):
+@pytest.mark.parametrize("mod_txt", ["", "module "])
+def test_named_interface(fortran_reader, mod_txt):
     ''' Test that the frontend creates a RoutineSymbol of UnknownFortranType
     for a named interface block.'''
-    dummy_module = '''
+    dummy_module = f'''
     module dummy_mod
       private
       public eos
       interface eos
-        module procedure eos_insitu, eos_insitu_2d
+        {mod_txt}procedure eos_insitu, eos_insitu_2d
       end interface
     contains
       subroutine eos_insitu(f1, f2)
@@ -71,26 +73,28 @@ def test_named_interface(fortran_reader):
     file_container = fortran_reader.psyir_from_source(dummy_module)
     container = file_container.children[0]
     assert isinstance(container, Container)
-    assert container.symbol_table.lookup("eos_insitu")
+    insitu_sym = container.symbol_table.lookup("eos_insitu")
+    insitu2d_sym = container.symbol_table.lookup("eos_insitu_2d")
     eos = container.symbol_table.lookup("eos")
-    assert isinstance(eos, RoutineSymbol)
-    assert isinstance(eos.datatype, UnknownFortranType)
-    assert (eos.datatype.declaration == "interface eos\n"
-            "  module procedure eos_insitu, eos_insitu_2d\n"
-            "end interface")
+    assert isinstance(eos, GenericInterfaceSymbol)
+    assert isinstance(eos.datatype, NoType)
     assert eos.visibility == Symbol.Visibility.PUBLIC
+    assert insitu_sym in eos.maps_to
+    assert insitu2d_sym in eos.maps_to
 
 
-def test_named_interface_declared(fortran_reader):
+@pytest.mark.parametrize("mod_txt", ["", "module "])
+def test_named_interface_declared(fortran_reader, mod_txt):
     ''' Test that the frontend creates a RoutineSymbol of
     UnknownFortranType for a named interface block when the symbol
-    name has already been declared. '''
-    test_module = '''
+    name has already been declared (as will be the case for a structure
+    constructor). '''
+    test_module = f'''
     module test_mod
       type test
       end type test
       interface test
-        module procedure test_code
+        {mod_txt}procedure test_code
       end interface test
     contains
       real function test_code()
@@ -109,10 +113,51 @@ def test_named_interface_declared(fortran_reader):
     test_symbol = container.symbol_table.lookup("_psyclone_internal_test")
     assert isinstance(test_symbol, RoutineSymbol)
     assert isinstance(test_symbol.datatype, UnknownFortranType)
-    assert (test_symbol.datatype.declaration == "interface test\n"
-            "  module procedure test_code\n"
-            "end interface test")
+    assert test_symbol.datatype.declaration == (
+        f"interface test\n"
+        f"  {mod_txt}procedure test_code\n"
+        f"end interface test")
     assert test_symbol.visibility == Symbol.Visibility.PUBLIC
+
+
+def test_named_interface_with_body(fortran_reader):
+    '''
+    Test that an INTERFACE that does not use [MODULE] PROCEDURE :: name-list
+    is captured as a RoutineSymbol of UnknownFortranType.
+    '''
+    test_module = '''
+    module test_mod
+      implicit none
+      interface test
+         subroutine test_code(arg)
+           real, intent(in) :: arg
+         end subroutine test_code
+         subroutine test_code2d(arg)
+           real, dimension(:,:), intent(in) :: arg
+         end subroutine test_code2d
+      end interface test
+    contains
+      subroutine some_sub()
+        call test_code(1.0)
+      end subroutine some_sub
+    end module test_mod
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    container = file_container.children[0]
+    assert isinstance(container, Container)
+    table = container.symbol_table
+    test_symbol = table.lookup("test")
+    assert isinstance(test_symbol, RoutineSymbol)
+    assert isinstance(test_symbol.datatype, UnknownFortranType)
+    assert test_symbol.datatype.declaration == (
+        "interface test\n"
+        "  subroutine test_code(arg)\n"
+        "    real, intent(in) :: arg\n"
+        "  end subroutine test_code\n"
+        "  subroutine test_code2d(arg)\n"
+        "    real, dimension(:, :), intent(in) :: arg\n"
+        "  end subroutine test_code2d\n"
+        "end interface test")
 
 
 GENERIC_INTERFACE_CODE = '''

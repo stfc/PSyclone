@@ -40,23 +40,25 @@
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
-from psyclone.psyir.symbols.interfaces import AutomaticInterface, \
-    ImportInterface, ArgumentInterface, UnresolvedInterface, StaticInterface, \
-    DefaultModuleInterface, UnknownInterface, CommonBlockInterface
+from psyclone.psyir.symbols.generic_interface_symbol import (
+    GenericInterfaceSymbol)
+from psyclone.psyir.symbols.interfaces import (
+    AutomaticInterface, ImportInterface, ArgumentInterface,
+    UnresolvedInterface, StaticInterface, DefaultModuleInterface,
+    UnknownInterface, CommonBlockInterface)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
-from psyclone.psyir.symbols.datatypes import DataType, ScalarType, \
-    ArrayType, TYPE_MAP_TO_PYTHON, REAL_TYPE, REAL_SINGLE_TYPE, \
-    REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, \
-    INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType, NoType
+from psyclone.psyir.symbols.datatypes import (
+    DataType, ScalarType, ArrayType, TYPE_MAP_TO_PYTHON, REAL_TYPE,
+    REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE,
+    INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE,
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, UnknownType,
+    UnknownFortranType, StructureType, NoType)
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.symbols import DataSymbol'
+# For auto documentation generation.
 __all__ = ['ArgumentInterface',
            'ArrayType',
            'BOOLEAN_TYPE',
@@ -68,6 +70,7 @@ __all__ = ['ArgumentInterface',
            'DataTypeSymbol',
            'DefaultModuleInterface',
            'DeferredType',
+           'GenericInterfaceSymbol',
            'ImportInterface',
            'INTEGER_TYPE',
            'INTEGER_SINGLE_TYPE',

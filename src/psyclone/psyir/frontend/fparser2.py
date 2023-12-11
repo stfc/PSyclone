@@ -59,10 +59,10 @@ from psyclone.psyir.nodes.array_of_structures_mixin import (
     ArrayOfStructuresMixin)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, ImportInterface, AutomaticInterface, NoType,
-    RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
-    UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE,
-    StaticInterface, DefaultModuleInterface, UnknownInterface,
+    DeferredType, GenericInterfaceSymbol, ImportInterface, AutomaticInterface,
+    NoType, RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError,
+    SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface,
+    INTEGER_TYPE, StaticInterface, DefaultModuleInterface, UnknownInterface,
     CommonBlockInterface)
 
 # fparser dynamically generates classes which confuses pylint membership checks
@@ -2328,6 +2328,80 @@ class Fparser2Reader():
                     # Ensure the interface to this Symbol is static
                     symbol.interface = StaticInterface()
 
+    def _process_interface_block(self, node, symbol_table, visibility_map):
+        '''
+        :param node:
+        :type node:
+        :param symbol_table:
+        :type symbol_table:
+        :param visibility_map:
+        :type visibility_map: dict[]
+
+        '''
+        # Fortran 2003 standard R1203 says that:
+        #    interface-stmt is INTERFACE [ generic-spec ]
+        #                   or ABSTRACT INTERFACE
+        # where generic-spec is either (R1207) a generic-name or one
+        # of OPERATOR, ASSIGNMENT or dtio-spec.
+        proc_stmts = walk(node, Fortran2003.Procedure_Stmt)
+        if not isinstance(node.children[0].children[0],
+                          Fortran2003.Name):
+            # This interface does not have a name. Therefore we store it as a
+            # RoutineSymbol with an
+            # internal name and with the content of the interface being kept
+            # within an UnknownFortranType. As a result the visibility and
+            # interface details of the RoutineSymbol do not matter.
+            symbol_table.new_symbol(
+                root_name="_psyclone_internal_interface",
+                symbol_type=RoutineSymbol,
+                datatype=UnknownFortranType(str(node).lower()))
+        else:
+            # This interface has a name.
+            name = node.children[0].children[0].string.lower()
+            vis = visibility_map.get(
+                name, symbol_table.default_visibility)
+            # Attempt to work out which routines this interface includes. We
+            # only support those interfaces which use PROCEDURE :: <name-list>
+            # to specify these.
+            rsymbols = []
+            if len(proc_stmts) == 1:
+                for routine_name in proc_stmts[0].children[0].children:
+                    rsymbols.append(symbol_table.find_or_create(
+                        routine_name.string,
+                        symbol_type=RoutineSymbol))
+            try:
+                if rsymbols:
+                    # A named interface block corresponds to a
+                    # GenericInterfaceSymbol. (There will be calls to it
+                    # although there will be no corresponding implementation
+                    # with that name.)
+                    symbol_table.add(GenericInterfaceSymbol(
+                        name, rsymbols,
+                        interface=UnknownInterface(),
+                        visibility=vis))
+                else:
+                    # We've not been able to determine the list of
+                    # RoutineSymbols that this interface maps to so we just
+                    # create a RoutineSymbol of UnknownFortranType.
+                    symbol_table.add(RoutineSymbol(
+                        name,
+                        interface=UnknownInterface(),
+                        datatype=UnknownFortranType(str(node).lower()),
+                        visibility=vis))
+            except KeyError:
+                # This symbol has already been declared. This can happen when
+                # an interface overloads a constructor for a type (as the
+                # interface name is then the name of the type). However we
+                # still want to capture the interface so we store it in the
+                # PSyIR as an UnknownFortranType with an internal name as we do
+                # for unnamed interfaces.
+                symbol_table.new_symbol(
+                    root_name=f"_psyclone_internal_{name}",
+                    symbol_type=RoutineSymbol,
+                    interface=UnknownInterface(),
+                    datatype=UnknownFortranType(str(node).lower()),
+                    visibility=vis)
+
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
         '''
@@ -2391,54 +2465,8 @@ class Fparser2Reader():
 
             if isinstance(node, Fortran2003.Interface_Block):
 
-                # Fortran 2003 standard R1203 says that:
-                #    interface-stmt is INTERFACE [ generic-spec ]
-                #                   or ABSTRACT INTERFACE
-                # where generic-spec is either (R1207) a generic-name or one
-                # of OPERATOR, ASSIGNMENT or dtio-spec.
-                if not isinstance(node.children[0].children[0],
-                                  Fortran2003.Name):
-                    # This interface does not have a name so we store
-                    # it as a RoutineSymbol with an internal name and
-                    # with the content of the interface being kept
-                    # within an UnknownFortranType. As a result the
-                    # visibility and interface details of the
-                    # RoutineSymbol do not matter.
-                    parent.symbol_table.new_symbol(
-                        root_name="_psyclone_internal_interface",
-                        symbol_type=RoutineSymbol,
-                        datatype=UnknownFortranType(str(node).lower()))
-                else:
-                    # This interface has a name.
-                    name = node.children[0].children[0].string.lower()
-                    vis = visibility_map.get(
-                        name, parent.symbol_table.default_visibility)
-                    # A named interface block corresponds to a
-                    # RoutineSymbol. (There will be calls to it
-                    # although there will be no corresponding
-                    # implementation with that name.) We store its
-                    # definition using an UnknownFortranType.
-                    try:
-                        parent.symbol_table.add(
-                            RoutineSymbol(
-                                name, UnknownFortranType(str(node).lower()),
-                                interface=UnknownInterface(),
-                                visibility=vis))
-                    except KeyError:
-                        # This symbol has already been declared. This
-                        # can happen when an interface overloads a
-                        # constructor for a type (as the interface
-                        # name is then the name of the type). However
-                        # we still want to capture the interface so we
-                        # store it in the PSyIR as an
-                        # UnknownFortranType with an internal name as
-                        # we do for unnamed interfaces.
-                        parent.symbol_table.new_symbol(
-                            root_name=f"_psyclone_internal_{name}",
-                            symbol_type=RoutineSymbol,
-                            interface=UnknownInterface(),
-                            datatype=UnknownFortranType(str(node).lower()),
-                            visibility=vis)
+                self._process_interface_block(node, parent.symbol_table,
+                                              visibility_map)
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
