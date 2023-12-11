@@ -37,12 +37,13 @@
 ''' This module provides tools analyse the sequence of calls
 across different subroutines and modules.'''
 
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import (Call, Container, IntrinsicCall, Reference)
 from psyclone.psyir.symbols import (ArgumentInterface, DefaultModuleInterface,
                                     ImportInterface)
-from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
 # pylint: disable=too-few-public-methods
@@ -152,6 +153,105 @@ class CallTreeUtils():
                 continue
 
         return non_locals
+
+    # -------------------------------------------------------------------------
+    def get_input_parameters(self, read_write_info, node_list,
+                             variables_info=None, options=None):
+        '''Adds all variables that are input parameters (i.e. are read before
+        potentially being written) to the read_write_info object.
+
+        :param read_write_info: this object stores the information about \
+            all input parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
+        :param node_list: list of PSyIR nodes to be analysed.
+        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param variables_info: optional variable usage information, \
+            can be used to avoid repeatedly collecting this information.
+        :type variables_info: \
+            :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
+        :param options: a dictionary with options for the dependency tools \
+            which will also be used when creating the VariablesAccessInfo \
+            instance if required.
+        :type param: Optional[Dict[str, Any]]
+        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
+            set to a True value, arrays used as first parameter to the \
+            PSyIR operators lbound, ubound, or size will be reported as \
+            'read'. Otherwise, these accesses will be ignored.
+
+        '''
+        # Collect the information about all variables used:
+        if not variables_info:
+            variables_info = VariablesAccessInfo(node_list, options=options)
+
+        for signature in variables_info.all_signatures:
+            # If the first access is a write, the variable is not an input
+            # parameter and does not need to be saved. Note that loop variables
+            # have a WRITE before a READ access, so they will be ignored
+            # automatically.
+            if not variables_info[signature].is_written_first():
+                read_write_info.add_read(signature)
+
+    # -------------------------------------------------------------------------
+    def get_output_parameters(self, read_write_info, node_list,
+                              variables_info=None, options=None):
+        '''Adds all variables that are output parameters (i.e. are written)
+        to the read_write_info object.
+
+        :param read_write_info: this object stores the information about \
+            output parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
+        :param node_list: list of PSyIR nodes to be analysed.
+        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param variables_info: optional variable usage information, \
+            can be used to avoid repeatedly collecting this information.
+        :type variables_info: \
+        Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
+        :param options: a dictionary with options for the dependency tools \
+            which will also be used when creating the VariablesAccessInfo \
+            instance if required.
+        :type param: Optional[Dict[str, Any]]
+        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
+            set to a True value, arrays used as first parameter to the \
+            PSyIR operators lbound, ubound, or size will be reported as \
+            'read'. Otherwise, these accesses will be ignored.
+
+        '''
+        # Collect the information about all variables used:
+        if not variables_info:
+            variables_info = VariablesAccessInfo(node_list, options=options)
+
+        for signature in variables_info.all_signatures:
+            if variables_info.is_written(signature):
+                read_write_info.add_write(signature)
+
+    # -------------------------------------------------------------------------
+    def get_in_out_parameters(self, node_list, options=None):
+        '''Returns a ReadWriteInfo object that contains all variables that are
+        input and output parameters to the specified node list. This function
+        calls `get_input_parameter` and `get_output_parameter`, but avoids the
+        repeated computation of the variable usage.
+
+        :param node_list: list of PSyIR nodes to be analysed.
+        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for the dependency tools \
+            which will also be used when creating the VariablesAccessInfo \
+            instance if required.
+        :type options: Optional[Dict[str, Any]]
+        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
+            set to a True value, arrays used as first parameter to the \
+            PSyIR operators lbound, ubound, or size will be reported as \
+            'read'. Otherwise, these accesses will be ignored.
+
+        :returns: a ReadWriteInfo object with the information about input- \
+            and output parameters.
+        :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
+
+        '''
+        variables_info = VariablesAccessInfo(node_list, options=options)
+        read_write_info = ReadWriteInfo()
+        self.get_input_parameters(read_write_info, node_list, variables_info)
+        self.get_output_parameters(read_write_info, node_list, variables_info)
+        return read_write_info
 
     # -------------------------------------------------------------------------
     def get_non_local_read_write_info(self, node_list, read_write_info):
