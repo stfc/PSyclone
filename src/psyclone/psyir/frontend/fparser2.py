@@ -2377,7 +2377,6 @@ class Fparser2Reader():
                     # with that name.)
                     symbol_table.add(GenericInterfaceSymbol(
                         name, rsymbols,
-                        interface=UnknownInterface(),
                         visibility=vis))
                 else:
                     # We've not been able to determine the list of
@@ -2385,7 +2384,6 @@ class Fparser2Reader():
                     # create a RoutineSymbol of UnknownFortranType.
                     symbol_table.add(RoutineSymbol(
                         name,
-                        interface=UnknownInterface(),
                         datatype=UnknownFortranType(str(node).lower()),
                         visibility=vis))
             except KeyError:
@@ -2398,7 +2396,7 @@ class Fparser2Reader():
                 symbol_table.new_symbol(
                     root_name=f"_psyclone_internal_{name}",
                     symbol_type=RoutineSymbol,
-                    interface=UnknownInterface(),
+                    #interface=UnknownInterface(),
                     datatype=UnknownFortranType(str(node).lower()),
                     visibility=vis)
 

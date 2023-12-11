@@ -41,12 +41,12 @@ import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation,
                                   Container, Routine, Return)
-from psyclone.psyir.symbols import (Symbol, DataSymbol, DataTypeSymbol,
-                                    SymbolTable, ContainerSymbol, ScalarType,
-                                    DeferredType, StructureType, RoutineSymbol,
-                                    ImportInterface, UnresolvedInterface,
-                                    ArgumentInterface, INTEGER_TYPE, REAL_TYPE,
-                                    StaticInterface)
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    DeferredType, GenericInterfaceSymbol, ImportInterface,
+    INTEGER_TYPE, REAL_TYPE,
+    RoutineSymbol, Symbol, SymbolTable, ScalarType, StaticInterface,
+    StructureType, UnresolvedInterface)
 
 
 def test_gen_param_decls_dependencies(fortran_writer):
@@ -283,7 +283,8 @@ def test_gen_decls_static_variables(fortran_writer):
 
 
 @pytest.mark.parametrize("visibility", ["public", "private"])
-def test_visibility_interface(fortran_reader, fortran_writer, visibility):
+def test_visibility_abstract_interface(fortran_reader, fortran_writer,
+                                       visibility):
     '''Test that PSyclone's Fortran backend successfully writes out
     public/private clauses and symbols when the symbol's declaration
     is hidden in an abstract interface.
@@ -311,3 +312,20 @@ def test_visibility_interface(fortran_reader, fortran_writer, visibility):
         assert "public :: update_interface" not in result
     if visibility == "private":
         assert "private :: update_interface" in result
+
+
+def test_procedure_interface(fortran_reader, fortran_writer):
+    '''Test that the Fortran backend correctly recreates an interface
+    declaration from a GenericInterfaceSymbol.
+    '''
+    symbol_table = SymbolTable()
+    sub1 = RoutineSymbol("sub1")
+    symbol_table.add(sub1)
+    sub2 = RoutineSymbol("sub2")
+    symbol_table.add(sub2)
+    isub = GenericInterfaceSymbol("subx", [sub1, sub2])
+    symbol_table.add(isub)
+    out = fortran_writer.gen_decls(symbol_table)
+    assert "interface subx" in out
+    assert "procedure :: sub1, sub2" in out
+    assert "end interface subx" in out
