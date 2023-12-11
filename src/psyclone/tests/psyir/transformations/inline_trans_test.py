@@ -323,7 +323,6 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         inline_trans.apply(routine)
 
     output = fortran_writer(psyir)
-    print(output)
     assert ("    do i = 1, 5, 1\n"
             "      do i_1 = 1, 10, 1\n"
             "        var%data(i_1) = 2.0 * i\n"
