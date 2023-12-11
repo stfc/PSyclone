@@ -41,7 +41,7 @@
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.symbols import REAL8_TYPE, INTEGER_TYPE
-from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.tools import CallTreeUtils
 from psyclone.domain.common import ExtractDriverCreator
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
@@ -155,13 +155,13 @@ class GOceanExtractTrans(ExtractTrans):
 
         my_options = self.merge_in_default_options(options)
 
-        dep = DependencyTools()
+        ctu = CallTreeUtils()
         nodes = self.get_node_list(nodes)
         region_name = self.get_unique_region_name(nodes, my_options)
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
 
-        read_write_info = dep.get_in_out_parameters(nodes, options=my_options)
+        read_write_info = ctu.get_in_out_parameters(nodes, options=my_options)
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,

@@ -47,7 +47,7 @@ from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.tools import CallTreeUtils
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
@@ -411,8 +411,8 @@ def test_lfric_driver_removing_structure_data():
 
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
                            API, dist_mem=False, idx=0)
-    dep = DependencyTools()
-    read_write_info = dep.get_in_out_parameters(invoke.schedule)
+    ctu = CallTreeUtils()
+    read_write_info = ctu.get_in_out_parameters(invoke.schedule)
     driver_creator = LFRicExtractDriverCreator()
 
     driver = driver_creator.\
