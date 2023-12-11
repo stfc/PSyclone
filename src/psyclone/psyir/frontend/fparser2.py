@@ -3338,20 +3338,24 @@ class Fparser2Reader():
                         # a kind specification
                         kind_spec_value = type_spec.children[1].children[1]
                         type_name = f"{type_name}_{kind_spec_value}"
-                    elif isinstance(
-                            type_spec.children[1],
-                            Fortran2003.Length_Selector):
-                        # This is a character type
-                        value = type_spec.children[1].children[1]
-                        if not isinstance(
-                                value, (Fortran2003.Type_Param_Value,
-                                        Fortran2003.Int_Literal_Constant)):
+                    elif walk(type_spec, Fortran2003.Length_Selector):
+                        # This is a character intrinsic spec
+                        length_selector = walk(type_spec, Fortran2003.Length_Selector)[0]
+                        if isinstance(length_selector.children[1], Fortran2003.Int_Literal_Constant):
+                            value = length_selector.children[1]
+                        elif isinstance(length_selector.children[1], Fortran2003.Type_Param_Value):
+                            value = length_selector.children[1]
+                        else:
                             raise NotImplementedError(
                                 f"Only character strings of type '*' or "
                                 f"'literal' for the selector variable are "
                                 f"currently supported in the PSyIR, but found "
                                 f"'{child.children[1]}' in the select "
                                 f"clause '{str(node)}'.")
+                        if str(value) == "*":
+                            value = "star"
+                        elif str(value) == ":":
+                            value = "colon"
                         type_name = f"{type_name}_{value}"
                 else:
                     # type or Class type
@@ -3402,8 +3406,17 @@ class Fparser2Reader():
                 tmp = f"type({tmp})"
             pointer_type = UnknownFortranType(
                 f"{tmp}, pointer :: {pointer_name}\n")
-            pointer_symbol = DataSymbol(pointer_name, pointer_type)
+            if guard_type[idx] in ["CHARACTER(LEN = *)", "CHARACTER*(*)"]:
+                pointer_symbol = DataSymbol(
+                    pointer_name, pointer_type,
+                    interface=ArgumentInterface(
+                        ArgumentInterface.Access.WRITE))
+            else:
+                pointer_symbol = DataSymbol(pointer_name, pointer_type)
+
             parent.scope.symbol_table.add(pointer_symbol)
+            if guard_type[idx] in ["CHARACTER(LEN = *)", "CHARACTER*(*)"]:
+                parent.scope.symbol_table._argument_list.append(pointer_symbol)
             pointer_symbols.append(pointer_symbol)
             if (intrinsic_type_name[idx] and
                     intrinsic_type_name[idx].lower() == "character"):
