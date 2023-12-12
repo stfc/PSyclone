@@ -41,6 +41,7 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+import os
 from collections import OrderedDict
 import abc
 
@@ -1089,10 +1090,8 @@ class Kern(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        if self.name:
-            return (self.coloured_name(colour) + " " + self.name +
-                    "(" + self.arguments.names + ")")
-        return self.coloured_name(colour) + "[]"
+        return (self.coloured_name(colour) + " " + self.name +
+                "(" + self.arguments.names + ")")
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The API specific classes
@@ -1120,7 +1119,7 @@ class Kern(Statement):
     def reduction_arg(self):
         '''
         :returns: the reduction variable if this kernel/built-in
-        contains one and `None` otherwise.
+                  contains one and `None` otherwise.
         :rtype: :py:class:`psyclone.psyGen.KernelArgument` or `NoneType`
 
         '''
@@ -1130,9 +1129,9 @@ class Kern(Statement):
     def reprod_reduction(self):
         '''
         :returns: whether this kernel/built-in is enclosed within an OpenMP
-        do loop. If so report whether it has the reproducible flag
-        set. Note, this also catches OMPParallelDo Directives but they
-        have reprod set to False so it is OK.
+                  do loop. If so report whether it has the reproducible flag
+                  set. Note, this also catches OMPParallelDo Directives but
+                  they have reprod set to False so it is OK.
         :rtype: bool
 
         '''
@@ -1662,8 +1661,9 @@ class CodedKern(Kern):
                                      is also flagged for module-inlining.
 
         '''
-        import os
         from psyclone.line_length import FortLineLength
+
+        config = Config.get()
 
         # If this kernel has not been transformed we do nothing, also if the
         # kernel has been module-inlined, the routine already exist in the
@@ -1696,12 +1696,12 @@ class CodedKern(Kern):
                 # Atomically attempt to open the new kernel file (in case
                 # this is part of a parallel build)
                 fdesc = os.open(
-                    os.path.join(Config.get().kernel_output_dir, new_name),
+                    os.path.join(config.kernel_output_dir, new_name),
                     os.O_CREAT | os.O_WRONLY | os.O_EXCL)
             except (OSError, IOError):
                 # The os.O_CREATE and os.O_EXCL flags in combination mean
                 # that open() raises an error if the file exists
-                if Config.get().kernel_naming == "single":
+                if config.kernel_naming == "single":
                     # If the kernel-renaming scheme is such that we only ever
                     # create one copy of a transformed kernel then we're done
                     break
@@ -1718,7 +1718,8 @@ class CodedKern(Kern):
         # file using a PSyIR back-end. At the moment there is no way to choose
         # which back-end to use, so simply use the Fortran one (and limit the
         # line length).
-        fortran_writer = FortranWriter()
+        fortran_writer = FortranWriter(
+            check_global_constraints=config.backend_checks_enabled)
         # Start from the root of the schedule as we want to output
         # any module information surrounding the kernel subroutine
         # as well as the subroutine itself.
@@ -1731,7 +1732,7 @@ class CodedKern(Kern):
             # because the file already exists and the kernel-naming scheme
             # ("single") means we're not creating a new one.
             # Check that what we've got is the same as what's in the file
-            with open(os.path.join(Config.get().kernel_output_dir,
+            with open(os.path.join(config.kernel_output_dir,
                                    new_name), "r") as ffile:
                 kern_code = ffile.read()
                 if kern_code != new_kern_code:
@@ -1739,10 +1740,10 @@ class CodedKern(Kern):
                         f"A transformed version of this Kernel "
                         f"'{self._module_name + '''.f90'''}' already exists "
                         f"in the kernel-output directory "
-                        f"({Config.get().kernel_output_dir}) but is not the "
+                        f"({config.kernel_output_dir}) but is not the "
                         f"same as the current, transformed kernel and the "
                         f"kernel-renaming scheme is set to "
-                        f"'{Config.get().kernel_naming}'. (If you wish to"
+                        f"'{config.kernel_naming}'. (If you wish to"
                         f" generate a new, unique kernel for every kernel "
                         f"that is transformed then use "
                         f"'--kernel-renaming multiple'.)")
@@ -1827,11 +1828,10 @@ class CodedKern(Kern):
 
 
 class InlinedKern(Kern):
-    '''A class representing a kernel that is inlined. This is used by
-    the NEMO API, since the NEMO API has no function to call or parameters.
+    '''A class representing a kernel that is inlined.
     It has one child which stores the Schedule for the child nodes.
 
-    :param psyir_nodes: the list of PSyIR nodes that represent the body \
+    :param psyir_nodes: the list of PSyIR nodes that represent the body
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR.
@@ -1869,6 +1869,17 @@ class InlinedKern(Kern):
                   (and must therefore be e.g. threadprivate if doing OpenMP)
         :rtype: list of str
         '''
+
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[]"
 
 
 class BuiltIn(Kern):

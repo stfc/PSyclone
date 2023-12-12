@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,12 +36,11 @@
 
 '''Module containing tests for the CreateNemoPSyTrans transformation.'''
 
-from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes import Assignment, CodeBlock
 from psyclone.transformations import Transformation, TransformationError
 from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
-from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
+from psyclone.nemo import NemoInvokeSchedule, NemoLoop
 
 
 @pytest.fixture(scope="session", name="psy_trans")
@@ -100,7 +99,7 @@ end subroutine basic_loop
     assert isinstance(sched, NemoInvokeSchedule)
     assert isinstance(sched[0], NemoLoop)
     assert isinstance(sched[0].loop_body[0], NemoLoop)
-    assert isinstance(sched[0].loop_body[0].loop_body[0], NemoKern)
+    assert isinstance(sched[0].loop_body[0].loop_body[0], Assignment)
 
 
 def test_module_psy(psy_trans, fortran_reader):
