@@ -39,6 +39,7 @@
 
 ''' Tests of the KernelModuleInlineTrans PSyIR transformation. '''
 
+import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
@@ -52,7 +53,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import count_lines, get_invoke
+from psyclone.tests.utilities import count_lines, get_invoke, Compile
 
 
 def test_module_inline_constructor_and_str():
@@ -62,9 +63,9 @@ def test_module_inline_constructor_and_str():
         "Inline a kernel subroutine into the PSy module"
 
 
-def test_validate_inline_error_if_not_kernel():
-    ''' Test that the inline transformation fails if the object being
-    passed is not a kernel'''
+def test_validate_inline_error_if_not_kernel(fortran_reader):
+    '''Test that the inline transformation fails if the object being
+    passed is not a kernel or a Call or if it is an IntrinsicCall.'''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
@@ -73,12 +74,28 @@ def test_validate_inline_error_if_not_kernel():
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kern_call)
     assert ("Target of a KernelModuleInlineTrans must be a sub-class of "
-            "psyGen.CodedKern but got 'GOLoop'" in str(err.value))
+            "psyGen.CodedKern or psyir.nodes.Call but got 'GOLoop'" in
+            str(err.value))
+    # Test when it is an IntrinsicCall.
+    psyir = fortran_reader.psyir_from_source('''\
+module my_mod
+  contains
+subroutine my_sub
+  real :: a, b
+  a = sin(b)
+end subroutine my_sub
+end module my_mod
+''')
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        inline_trans.apply(call)
+    assert ("Cannot module-inline a call to an intrinsic (got 'SIN(b)')"
+            in str(err.value))
 
 
 def test_validate_with_imported_subroutine_call():
     ''' Test that the module inline transformation supports kernels with
-    call nodes that reference and imported symbol. '''
+    call nodes that reference an imported symbol. '''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
@@ -117,9 +134,8 @@ def test_validate_invalid_get_kernel_schedule(monkeypatch):
     monkeypatch.setattr(kernel, "get_kernel_schedule", raise_symbol_error)
     with pytest.raises(TransformationError) as err:
         kernel_trans.apply(kernel)
-    assert ("KernelModuleInlineTrans failed to retrieve PSyIR for kernel "
-            "'kernel_with_global_code' using the 'get_kernel_schedule' "
-            "method due to" in str(err.value))
+    assert ("KernelModuleInlineTrans failed to retrieve PSyIR for Kernel "
+            "'kernel_with_global_code' due to: " in str(err.value))
 
 
 def test_validate_no_inline_global_var(parser):
@@ -132,9 +148,9 @@ def test_validate_no_inline_global_var(parser):
     kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(kernels[0])
-    assert ("'kernel_with_global_code' contains accesses to 'alpha' which is "
-            "declared in the same module scope. Cannot inline such a kernel."
-            in str(err.value))
+    assert ("Kernel 'kernel_with_global_code' contains accesses to 'alpha' "
+            "which is declared in the same module scope. Cannot inline such a "
+            "Kernel." in str(err.value))
 
     # Check that the issue is also reported if the symbol is inside a
     # Codeblock
@@ -151,7 +167,7 @@ def test_validate_no_inline_global_var(parser):
         inline_trans.validate(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to 'alpha' in a "
             "CodeBlock that is declared in the same module scope. Cannot "
-            "inline such a kernel." in str(err.value))
+            "inline such a Kernel." in str(err.value))
 
     # But make sure that an IntrinsicCall routine name is not considered
     # a global symbol, as they are implicitly declared everywhere
@@ -175,7 +191,7 @@ def test_validate_name_clashes():
     schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(coded_kern)
-    assert ("Cannot module-inline subroutine 'ru_code' because symbol "
+    assert ("Cannot module-inline Kernel 'ru_code' because symbol "
             "'ru_code: DataSymbol<Scalar<REAL, UNDEFINED>, Automatic>' with "
             "the same name already exists and changing the name of "
             "module-inlined subroutines is not supported yet."
@@ -247,7 +263,6 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     monkeypatch.setattr(kern_call, "_kern_schedule", routine)
 
     # and try to apply the transformation
-    inline_trans = KernelModuleInlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.apply(kern_call)
     assert ("Kernel 'compute_cv_code' cannot be module-inlined because the "
@@ -270,6 +285,33 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     monkeypatch.setattr(kern_call, "_kern_schedule", routine)
 
     inline_trans.apply(kern_call)
+
+
+def test_validate_local_routine(fortran_reader):
+    '''Test that validate rejects a call to a routine that is already present
+    in the current Container.'''
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        integer, parameter :: r_def = kind(1.0d0)
+        contains
+        subroutine compute_cv_code()
+            real(kind=r_def) :: a
+            call do_something(a)
+        end subroutine compute_cv_code
+        subroutine do_something(arg)
+          real(kind=r_def), intent(inout) :: arg
+          arg = arg + 3.14592_r_def
+        end subroutine do_something
+    end module my_mod
+    ''')
+    call = psyir.walk(Call)[0]
+    inline_trans = KernelModuleInlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(call)
+    assert ("routine 'do_something' cannot be module inlined into Container "
+            "'my_mod' because there is no explicit import of it ('USE ..., "
+            "ONLY: do_something' in Fortran) and a Routine with that name is "
+            "already present in the Container." in str(err.value))
 
 
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
@@ -650,3 +692,131 @@ def test_module_inline_with_interfaces(tmpdir):
 
     # And it is valid code
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_mod_inline_validate_no_container(fortran_reader):
+    '''
+    Test that validation fails when the Call is within a Program (i.e.
+    without an enclosing module).
+
+    '''
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    program my_prog
+      use my_mod, only: my_sub
+      real, dimension(10) :: a
+      call my_sub(a)
+    end program my_prog
+    '''
+    prog_psyir = fortran_reader.psyir_from_source(code)
+    call = prog_psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        intrans.validate(call)
+    assert ("must be within a Container (Fortran module) but "
+            "routine 'my_sub' is not" in str(err.value))
+
+
+def test_psyir_mod_inline_fail_to_get_psyir(fortran_reader):
+    '''
+    Test that the validate() method raises the expected error if the
+    PSyIR for the called routine cannot be found.
+
+    '''
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    module a_mod
+      use my_mod
+      use other_mod
+    contains
+      subroutine a_sub()
+        real, dimension(10) :: a
+        call my_sub(a)
+      end subroutine a_sub
+    end module a_mod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    with pytest.raises(TransformationError) as err:
+        intrans.validate(call)
+    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: "
+            "RoutineSymbol 'my_sub' is unresolved and searching for its "
+            "implementation is not yet supported" in str(err.value))
+
+
+def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
+                          monkeypatch):
+    '''
+    Test module inlining a subroutine in generic PSyIR when the Call is
+    within a Routine in a Container.
+
+    '''
+    intrans = KernelModuleInlineTrans()
+    code = '''\
+    module a_mod
+      use my_mod, only: my_sub, my_other_sub
+    contains
+      subroutine a_sub()
+        real, dimension(10) :: a
+        call my_sub(a)
+        call my_other_sub(a)
+      end subroutine a_sub
+    end module a_mod
+    '''
+    # Create the module containing the subroutine definition, write it to
+    # file and set the search path so that PSyclone can find it.
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "my_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
+    module my_mod
+    contains
+      subroutine my_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_sub
+      subroutine my_other_sub(arg)
+        real, dimension(10), intent(inout) :: arg
+        arg(1:10) = 1.0
+      end subroutine my_other_sub
+    end module my_mod
+    ''')
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    calls = psyir.walk(Call)
+    intrans.apply(calls[0])
+
+    routines = container.walk(Routine)
+    assert len(routines) == 2
+    assert routines[0].name in ["a_sub", "my_sub"]
+    assert routines[1].name in ["a_sub", "my_sub"]
+    output = fortran_writer(psyir)
+    assert "subroutine a_sub" in output
+    assert "subroutine my_sub" in output
+    assert "use my_mod, only : my_other_sub\n" in output
+    assert Compile(tmpdir).string_compiles(output)
+
+    # Check that we raise the expected error if the name of the obtained
+    # subroutine doesn't match that of the caller. It is currently not
+    # possible to create this situation (because RoutineSymbol.get_routine()
+    # will raise an exception) so we monkeypatch.
+    # TODO #924 - ultimately we should be able to support this.
+    def fake_get_code(node):
+        '''
+        :param node: the routine for which to get PSyIR.
+        :type node: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        :returns: a fake routine name and the routine PSyIR.
+        :rtype: Tuple(str, :py:class:`psyclone.psyir.nodes.Routine`)
+        '''
+        code_to_inline = node.routine.get_routine(node)
+        return "broken", code_to_inline
+
+    monkeypatch.setattr(KernelModuleInlineTrans, "_get_psyir_to_inline",
+                        fake_get_code)
+    with pytest.raises(NotImplementedError) as err:
+        intrans.apply(calls[1])
+    assert ("Cannot module-inline call to 'broken' because its name does not "
+            "match that of the callee: 'my_other_sub'. TODO #924."
+            in str(err.value))
