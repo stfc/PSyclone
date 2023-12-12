@@ -468,8 +468,6 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
-    print(expected2)
-    print(result)
     assert expected1 in result
     assert expected2 in result
     assert Compile(tmpdir).string_compiles(code)
@@ -487,7 +485,10 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
 def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
                    char_type_out, args):
     '''Check that the correct code is output with literal and implicit
-    character formats of which there are many.
+    character formats. An implicit format requires the character to be
+    passed by argument or specified as a pointer. Here we pass it by
+    argument. This also has the effect of reordering the arguments,
+    hence the large number of expected* strings.
 
     '''
     code = (
@@ -533,12 +534,10 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
 
 
 @pytest.mark.parametrize(
-    "char_type_in, char_type_out, extension",
-    (["(:)", "(LEN = :)", "star"],
-     ["(LEN = :)", "(LEN = :)", "colon"],
-     ["*(:)", "*(:)", "colon"]))
+    "char_type_in, char_type_out",
+    (["(:)", "(LEN = :)"], ["(LEN = :)", "(LEN = :)"], ["*(:)", "*(:)"]))
 def test_character_colon(fortran_reader, fortran_writer, tmpdir, char_type_in,
-                   char_type_out, extension):
+                         char_type_out):
     '''Check that the correct code is output with different ':' formats
     for intrinsic character formats.
 
@@ -562,19 +561,17 @@ def test_character_colon(fortran_reader, fortran_writer, tmpdir, char_type_in,
         f"    CHARACTER{char_type_out}, POINTER :: character_type\n"
         f"    character(256) :: type_string\n")
     expected2 = (
-        f"    type_string = ''\n"
-        f"    SELECT TYPE(type_selector)\n"
-        f"  TYPE IS (CHARACTER(LEN = *))\n"
-        f"  type_string = \"character_star\"\n"
-        f"  ptr_CHARACTER_star => type_selector\n"
-        f"END SELECT\n"
-        f"    if (type_string == 'character_star') then\n"
-        f"      character_type = ptr_CHARACTER_star\n"
-        f"    end if\n")
+        "    type_string = ''\n"
+        "    SELECT TYPE(type_selector)\n"
+        "  TYPE IS (CHARACTER(LEN = *))\n"
+        "  type_string = \"character_star\"\n"
+        "  ptr_CHARACTER_star => type_selector\n"
+        "END SELECT\n"
+        "    if (type_string == 'character_star') then\n"
+        "      character_type = ptr_CHARACTER_star\n"
+        "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
-    print(expected1)
-    print(result)
     assert expected1 in result
     assert expected2 in result
     assert Compile(tmpdir).string_compiles(code)
@@ -582,24 +579,20 @@ def test_character_colon(fortran_reader, fortran_writer, tmpdir, char_type_in,
 
 
 def test_character_expression(fortran_reader, fortran_writer, tmpdir):
-    '''Characters with expressions e.g. character*(128*2) must be declared
-    with an unknown extent in the type is clause. Therefore this
-    example differs from the previous one in that the type is clause
-    is hardcoded to type is (character(len = *).
+    '''Test characters with an expressions.'''
 
-    '''
     code = (
-        f"module select_mod\n"
-        f"  contains\n"
-        f"  subroutine select_type(type_selector)\n"
-        f"    class(*) :: type_selector\n"
-        f"    character*(128 * 2) :: character_type\n"
-        f"    select type(type_selector)\n"
-        f"      type is (character(len = *))\n"
-        f"        character_type = type_selector\n"
-        f"    end select\n"
-        f"  end subroutine select_type\n"
-        f"end module select_mod\n")
+        "module select_mod\n"
+        "  contains\n"
+        "  subroutine select_type(type_selector)\n"
+        "    class(*) :: type_selector\n"
+        "    character*(128 * 2) :: character_type\n"
+        "    select type(type_selector)\n"
+        "      type is (character(len = *))\n"
+        "        character_type = type_selector\n"
+        "    end select\n"
+        "  end subroutine select_type\n"
+        "end module select_mod\n")
     expected = (
         "module select_mod\n"
         "  implicit none\n"
@@ -644,8 +637,11 @@ def test_character_expression(fortran_reader, fortran_writer, tmpdir):
      ["(:, KIND=1*1)", "(LEN = :, KIND = 1 * 1)", ", POINTER"],
      ["(:, 1*1)", "(LEN = :, KIND = 1 * 1)", ", POINTER"],
      ["(KIND=1*1, LEN=:)", "(LEN = :, KIND = 1 * 1)", ", POINTER"]))
-def test_character_kind(fortran_reader, fortran_writer, tmpdir, char_type_in, char_type_out, pointer):
-    '''Test that characters with kind clauses in various formats are supported.
+def test_character_kind(
+        fortran_reader, fortran_writer, tmpdir, char_type_in, char_type_out,
+        pointer):
+    '''Test that characters with kind clauses in various formats are
+    supported.
 
     '''
     code = (
@@ -665,7 +661,8 @@ def test_character_kind(fortran_reader, fortran_writer, tmpdir, char_type_in, ch
         f"  implicit none\n"
         f"  public\n\n"
         f"  contains\n"
-        f"  subroutine select_type(type_selector, character_type, ptr_CHARACTER_star)\n"
+        f"  subroutine select_type(type_selector, character_type, "
+        "ptr_CHARACTER_star)\n"
         f"    CLASS(*), TARGET :: type_selector\n"
         f"    CHARACTER{char_type_out}{pointer} :: character_type\n"
         f"    CHARACTER(LEN = *), pointer :: ptr_CHARACTER_star\n\n"
@@ -683,35 +680,59 @@ def test_character_kind(fortran_reader, fortran_writer, tmpdir, char_type_in, ch
         f"end module select_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
-    print(result)
     assert result == expected
     assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
-# Exception if LEN and KIND selected as we don't know what to do with these.
-# CHARACTER(LEN=*, KIND=1*1) :: char7 !
-#Type_Declaration_Stmt(
-#    Intrinsic_Type_Spec(
-#        'CHARACTER',
-#        Char_Selector(
-#            Type_Param_Value('*'),
-#            Add_Operand(Int_Literal_Constant('1', None), '*', Int_Literal_Constant('1', None))
-#        )
-#    ),
-#    None,
-#    Entity_Decl_List(',', (Entity_Decl(Name('char7'), None, None, None),))
-#)
-# CHARACTER(LEN=*) :: char42 !
-#Type_Declaration_Stmt(
-#    Intrinsic_Type_Spec(
-#        'CHARACTER',
-#        Length_Selector(
-#            '(',
-#            Type_Param_Value('*'),
-#            ')'
-#        )
-#    ),
-#    None,
-#    Entity_Decl_List(',', (Entity_Decl(Name('char42'), None, None, None),))
-#)
+@pytest.mark.parametrize(
+    "pre_attribute, post_attribute",
+    (["TARGET", "TARGET"],
+     ["POINTER", "POINTER"],
+     ["ALLOCATABLE", "ALLOCATABLE, TARGET"]))
+def test_class_target(
+        fortran_reader, fortran_writer, tmpdir, pre_attribute, post_attribute):
+    '''Test that the type_selector remains unchanged if it already has the
+    target or pointer attribute and that target is added if there is a
+    pre-existing unrelated atttribute.
+
+    '''
+    code = (
+        f"module select_mod\n"
+        f"  contains\n"
+        f"  subroutine select_type(type_selector, character_type)\n"
+        f"    class(*), {pre_attribute} :: type_selector\n"
+        f"    character(len=*) :: character_type\n"
+        f"    select type(type_selector)\n"
+        f"      type is (character(len = *))\n"
+        f"        character_type = type_selector\n"
+        f"    end select\n"
+        f"  end subroutine select_type\n"
+        f"end module select_mod\n")
+    expected = (
+        f"module select_mod\n"
+        f"  implicit none\n"
+        f"  public\n\n"
+        f"  contains\n"
+        f"  subroutine select_type(type_selector, character_type, "
+        "ptr_CHARACTER_star)\n"
+        f"    CLASS(*), {post_attribute} :: type_selector\n"
+        f"    CHARACTER(LEN = *) :: character_type\n"
+        f"    CHARACTER(LEN = *), pointer :: ptr_CHARACTER_star\n\n"
+        f"    character(256) :: type_string\n\n\n"
+        f"    type_string = ''\n"
+        f"    SELECT TYPE(type_selector)\n"
+        f"  TYPE IS (CHARACTER(LEN = *))\n"
+        f"  type_string = \"character_star\"\n"
+        f"  ptr_CHARACTER_star => type_selector\n"
+        f"END SELECT\n"
+        f"    if (type_string == 'character_star') then\n"
+        f"      character_type = ptr_CHARACTER_star\n"
+        f"    end if\n\n"
+        f"  end subroutine select_type\n\n"
+        f"end module select_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir)
+    assert result == expected
+    assert Compile(tmpdir).string_compiles(code)
+    assert Compile(tmpdir).string_compiles(result)

@@ -3340,10 +3340,15 @@ class Fparser2Reader():
                         type_name = f"{type_name}_{kind_spec_value}"
                     elif walk(type_spec, Fortran2003.Length_Selector):
                         # This is a character intrinsic spec
-                        length_selector = walk(type_spec, Fortran2003.Length_Selector)[0]
-                        if isinstance(length_selector.children[1], Fortran2003.Int_Literal_Constant):
+                        length_selector = walk(
+                            type_spec, Fortran2003.Length_Selector)[0]
+                        if isinstance(
+                                length_selector.children[1],
+                                Fortran2003.Int_Literal_Constant):
                             value = length_selector.children[1]
-                        elif isinstance(length_selector.children[1], Fortran2003.Type_Param_Value):
+                        elif isinstance(
+                                length_selector.children[1],
+                                Fortran2003.Type_Param_Value):
                             value = length_selector.children[1]
                         else:
                             raise NotImplementedError(
@@ -3416,6 +3421,7 @@ class Fparser2Reader():
 
             parent.scope.symbol_table.add(pointer_symbol)
             if guard_type[idx] in ["CHARACTER(LEN = *)", "CHARACTER*(*)"]:
+                # pylint: disable=protected-access
                 parent.scope.symbol_table._argument_list.append(pointer_symbol)
             pointer_symbols.append(pointer_symbol)
             if (intrinsic_type_name[idx] and
@@ -3521,19 +3527,25 @@ class Fparser2Reader():
         fp2_ast = parser(reader)
         type_decl_stmt = fp2_ast.children[0].children[1].children[0]
         attr_spec_list = type_decl_stmt.children[1]
+        attr_spec_str_list = []
         found = False
         if attr_spec_list:
             for attr_spec in attr_spec_list.children:
                 attr_spec_str = attr_spec.string
+                attr_spec_str_list.append(attr_spec_str)
                 if attr_spec_str.upper() in ["TARGET", "POINTER"]:
                     # There is already a target or pointer attribute
                     found = True
                     break
         if not found:
             # TARGET needs to be added as an attribute
-            if attr_spec_list:
-                attr_spec_list.append(Fortran2003.Attr_Spec("TARGET"))
+            if attr_spec_str_list:
+                # At least one attribute already exists
+                attr_spec_str_list.append("TARGET")
+                attr_spec_list = Fortran2003.Attr_Spec_List(
+                    ", ".join(attr_spec_str_list))
             else:
+                # There are no pre-existing attributes
                 attr_spec_list = Fortran2003.Attr_Spec_List("TARGET")
             type_decl_stmt.items = (
                 type_decl_stmt.items[0], attr_spec_list,
