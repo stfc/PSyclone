@@ -2442,10 +2442,13 @@ class ACCRoutineTrans(Transformation):
         in the supplied Routine.
 
         :param node: the kernel call or routine implementation to transform.
-        :type node: :py:class:`psyclone.psyGen.Kern` or \
+        :type node: :py:class:`psyclone.psyGen.Kern` or
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["recursive"]: whether or not to apply this
+            transformation recursively to any routines called by the target
+            routine.
 
         '''
         # Check that we can safely apply this transformation
@@ -2458,9 +2461,21 @@ class ACCRoutineTrans(Transformation):
             # Get the schedule representing the kernel subroutine
             routine = node.get_kernel_schedule()
         else:
+            # This is language-level PSyIR.
             routine = node
 
-        # Insert the directive to the routine if it doesn't already exist
+        # If 'recursive' is not True then validate() will already have raised
+        # an exception if the routine body contains any Calls.
+        call_nodes = routine.walk(Call)
+        for cnode in call_nodes:
+            if isinstance(cnode, IntrinsicCall):
+                continue
+            called_routine = cnode.routine.get_routine()
+            self.apply(called_routine)
+            # TODO - we need to rename the Container holding called_routine and
+            # write it to a new file.
+
+        # Insert the directive into the routine if it doesn't already exist
         for child in routine.children:
             if isinstance(child, ACCRoutineDirective):
                 return  # The routine is already marked with ACCRoutine
@@ -2488,6 +2503,7 @@ class ACCRoutineTrans(Transformation):
         super().validate(node, options)
 
         force = options.get("force", False) if options else False
+        recursive = options.get("recursive", False) if options else False
 
         if not isinstance(node, Kern) and not isinstance(node, Routine):
             raise TransformationError(
@@ -2572,6 +2588,8 @@ class ACCRoutineTrans(Transformation):
                             f"is imported. 'ACC routine' cannot be added to "
                             f"such a {k_or_r}.")
 
+        if recursive:
+            return
         calls = kernel_schedule.walk(Call)
         for call in calls:
             if not isinstance(call, IntrinsicCall):

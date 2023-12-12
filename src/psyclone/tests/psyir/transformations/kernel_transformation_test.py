@@ -390,6 +390,27 @@ def test_accroutinetrans_validate_no_call():
             in str(err.value))
 
 
+def test_accroutinetrans_recursion(monkeypatch):
+    '''
+    Test that ACCRoutineTrans works recursively if the target routine itself
+    calls other routines.
+
+    '''
+    psy, invoke = get_invoke("1.15_invoke_kern_with_call.f90", api="dynamo0.3",
+                             idx=0)
+    sched = invoke.schedule
+    kernel = sched.coded_kernels()[0]
+    rtrans = ACCRoutineTrans()
+    # Setup the include path to find the module containing the routine called
+    # by the kernel.
+    util_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))),
+        "test_files", "dynamo0p3", "infrastructure", "utilities")
+    monkeypatch.setattr(Config.get(), '_include_paths', [util_dir])
+    rtrans.apply(kernel, options={"recursive": True})
+
+
 def test_1kern_trans(kernel_outputdir):
     ''' Check that we generate the correct code when an invoke contains
     the same kernel more than once but only one of them is transformed. '''

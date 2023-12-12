@@ -60,6 +60,7 @@ contains
   subroutine testkern_with_call_code(nlayers, phi, chi_1, chi_2, chi_3, &
        gravity, planet_radius, ndf_w3, undf_w3, map_w3, &
        ndf_chi, undf_chi, map_chi, chi_basis)
+    use coord_transform_mod, only: xyz2llr
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w3
