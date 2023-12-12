@@ -1130,8 +1130,8 @@ class Kern(Statement):
         '''
         :returns: whether this kernel/built-in is enclosed within an OpenMP
                   do loop. If so report whether it has the reproducible flag
-                  set. Note, this also catches OMPParallelDo Directives but they
-                  have reprod set to False so it is OK.
+                  set. Note, this also catches OMPParallelDo Directives but
+                  they have reprod set to False so it is OK.
         :rtype: bool
 
         '''
