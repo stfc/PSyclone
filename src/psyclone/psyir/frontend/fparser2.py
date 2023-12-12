@@ -2330,12 +2330,19 @@ class Fparser2Reader():
 
     def _process_interface_block(self, node, symbol_table, visibility_map):
         '''
-        :param node:
-        :type node:
-        :param symbol_table:
-        :type symbol_table:
-        :param visibility_map:
-        :type visibility_map: dict[]
+        Processes a Fortran2003.Interface_Block. If the interface is named
+        and consists only of [module] procedure :: <procedure-list> then a
+        GenericInterfaceSymbol is created. Otherwise, a RoutineSymbol of
+        UnknownFortranType is created.
+
+        :param node: the parse tree for the interface block.
+        :type node: :py:class:`fparser.two.Fortran2003.Interface_Block`
+        :param symbol_table: the table to which to add new symbols.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param visibility_map: information on any explicit symbol visibilities
+            in the current scope.
+        :type visibility_map: dict[
+            str, :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
         '''
         # Fortran 2003 standard R1203 says that:
@@ -2347,10 +2354,10 @@ class Fparser2Reader():
         if not isinstance(node.children[0].children[0],
                           Fortran2003.Name):
             # This interface does not have a name. Therefore we store it as a
-            # RoutineSymbol with an
-            # internal name and with the content of the interface being kept
-            # within an UnknownFortranType. As a result the visibility and
-            # interface details of the RoutineSymbol do not matter.
+            # RoutineSymbol with an internal name and with the content of the
+            # interface being kept within an UnknownFortranType. As a result
+            # the visibility and interface details of the RoutineSymbol do not
+            # matter.
             symbol_table.new_symbol(
                 root_name="_psyclone_internal_interface",
                 symbol_type=RoutineSymbol,
@@ -2367,8 +2374,7 @@ class Fparser2Reader():
             if len(proc_stmts) == 1:
                 for routine_name in proc_stmts[0].children[0].children:
                     rsymbols.append(symbol_table.find_or_create(
-                        routine_name.string,
-                        symbol_type=RoutineSymbol))
+                        routine_name.string, symbol_type=RoutineSymbol))
             try:
                 if rsymbols:
                     # A named interface block corresponds to a
@@ -2376,15 +2382,13 @@ class Fparser2Reader():
                     # although there will be no corresponding implementation
                     # with that name.)
                     symbol_table.add(GenericInterfaceSymbol(
-                        name, rsymbols,
-                        visibility=vis))
+                        name, rsymbols, visibility=vis))
                 else:
                     # We've not been able to determine the list of
                     # RoutineSymbols that this interface maps to so we just
                     # create a RoutineSymbol of UnknownFortranType.
                     symbol_table.add(RoutineSymbol(
-                        name,
-                        datatype=UnknownFortranType(str(node).lower()),
+                        name, datatype=UnknownFortranType(str(node).lower()),
                         visibility=vis))
             except KeyError:
                 # This symbol has already been declared. This can happen when
@@ -2396,7 +2400,6 @@ class Fparser2Reader():
                 symbol_table.new_symbol(
                     root_name=f"_psyclone_internal_{name}",
                     symbol_type=RoutineSymbol,
-                    #interface=UnknownInterface(),
                     datatype=UnknownFortranType(str(node).lower()),
                     visibility=vis)
 

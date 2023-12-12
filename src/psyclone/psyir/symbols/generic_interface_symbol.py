@@ -84,4 +84,4 @@ class GenericInterfaceSymbol(RoutineSymbol):
 
 
 # For Sphinx AutoAPI documentation generation
-__all__ = ["RoutineSymbol"]
+__all__ = ["GenericInterfaceSymbol"]
