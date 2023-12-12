@@ -160,22 +160,22 @@ class CallTreeUtils():
         '''Adds all variables that are input parameters (i.e. are read before
         potentially being written) to the read_write_info object.
 
-        :param read_write_info: this object stores the information about \
+        :param read_write_info: this object stores the information about
             all input parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param variables_info: optional variable usage information, \
+        :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
-        :type variables_info: \
+        :type variables_info:
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
-        :param options: a dictionary with options for the CallTreeUtils \
-            which will also be used when creating the VariablesAccessInfo \
+        :param options: a dictionary with options for the CallTreeUtils
+            which will also be used when creating the VariablesAccessInfo
             instance if required.
         :type param: Optional[Dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
-            set to a True value, arrays used as first parameter to the \
-            PSyIR operators lbound, ubound, or size will be reported as \
+        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
+            set to a True value, arrays used as first parameter to the
+            PSyIR operators lbound, ubound, or size will be reported as
             'read'. Otherwise, these accesses will be ignored.
 
         '''
@@ -197,22 +197,22 @@ class CallTreeUtils():
         '''Adds all variables that are output parameters (i.e. are written)
         to the read_write_info object.
 
-        :param read_write_info: this object stores the information about \
+        :param read_write_info: this object stores the information about
             output parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param variables_info: optional variable usage information, \
+        :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
         Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
-        :param options: a dictionary with options for the CallTreeUtils \
-            which will also be used when creating the VariablesAccessInfo \
+        :param options: a dictionary with options for the CallTreeUtils
+            which will also be used when creating the VariablesAccessInfo
             instance if required.
         :type param: Optional[Dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
-            set to a True value, arrays used as first parameter to the \
-            PSyIR operators lbound, ubound, or size will be reported as \
+        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
+            set to a True value, arrays used as first parameter to the
+            PSyIR operators lbound, ubound, or size will be reported as
             'read'. Otherwise, these accesses will be ignored.
 
         '''
@@ -242,19 +242,19 @@ class CallTreeUtils():
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param bool collect_non_local_symbols: whether non-local symbols \
-            (i.e. symbols used in other modules either directly or \
+        :param bool collect_non_local_symbols: whether non-local symbols
+            (i.e. symbols used in other modules either directly or
             indirectly) should be included in the in/out information.
-        :param options: a dictionary with options for the CallTreeUtils \
-            which will also be used when creating the VariablesAccessInfo \
+        :param options: a dictionary with options for the CallTreeUtils
+            which will also be used when creating the VariablesAccessInfo
             instance if required.
         :type options: Optional[Dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
-            set to a True value, arrays used as first parameter to the \
-            PSyIR operators lbound, ubound, or size will be reported as \
+        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
+            set to a True value, arrays used as first parameter to the
+            PSyIR operators lbound, ubound, or size will be reported as
             'read'. Otherwise, these accesses will be ignored.
 
-        :returns: a ReadWriteInfo object with the information about input- \
+        :returns: a ReadWriteInfo object with the information about input-
             and output parameters.
         :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
@@ -316,12 +316,11 @@ class CallTreeUtils():
         The actual non-local accesses will then be added to the ReadWriteInfo
         object.
 
-        :param todo: the information about symbol type, module_name, \
+        :param todo: the information about symbol type, module_name,
             symbol_name and access information
         :type todo: List[Tuple[str,str, str,\
                               :py:class:`psyclone.core.Signature`,str]]
-
-        :param read_write_info: information about all input and output \
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
