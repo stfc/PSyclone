@@ -1504,23 +1504,6 @@ class FortranWriter(LanguageWriter):
                 f"Unsupported CodeBlock Structure '{node.structure}' found.")
         return result
 
-    def nemokern_node(self, node):
-        '''NEMO kernels are a group of nodes collected into a schedule
-        so simply call the nodes in the schedule.
-
-        :param node: a NemoKern PSyIR node.
-        :type node: :py:class:`psyclone.nemo.NemoKern`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        '''
-        result = ""
-        schedule = node.get_kernel_schedule()
-        for child in schedule.children:
-            result += self._visit(child)
-        return result
-
     def operandclause_node(self, node):
         '''This method is called when a OperandClause is
         found in the PSyIR tree. It returns the clause and its children
