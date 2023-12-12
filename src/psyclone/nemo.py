@@ -142,7 +142,8 @@ class NemoPSy(PSy):
         :rtype: str
 
         '''
-        fwriter = FortranWriter()
+        enable_checks = Config.get().backend_checks_enabled
+        fwriter = FortranWriter(check_global_constraints=enable_checks)
         return fwriter(self._container)
 
 

@@ -477,6 +477,12 @@ def main(args):
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help=("Add profiling hooks for either 'kernels' or 'invokes/routines'."
               " The 'kernels' option is not permitted for the 'nemo' API."))
+    parser.add_argument(
+        '--backend', dest='backend',
+        choices=['enable-validation', 'disable-validation'],
+        help=("Options to control the PSyIR backend used for code generation. "
+              "Use 'disable-validation' to disable the validation checks that "
+              "are performed by default."))
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
     parser.add_argument("--config", help="Config file with "
@@ -531,6 +537,11 @@ def main(args):
         except ValueError as err:
             print(f"Invalid profiling option: {err}", file=sys.stderr)
             sys.exit(1)
+    if args.backend:
+        # A command-line flag overrides the setting in the Config file (if
+        # any).
+        Config.get().backend_checks_enabled = (
+            str(args.backend) == "enable-validation")
 
     # The Configuration manager checks that the supplied path(s) is/are
     # valid so protect with a try

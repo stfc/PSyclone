@@ -283,6 +283,30 @@ def test_apply_structure_of_arrays_multiple_arrays(fortran_reader,
         "  enddo\n" in result)
 
 
+def test_transform_apply_fixed():
+    '''Check that the PSyIR is transformed as expected for a lat,lon loop
+    when the lhs of the loop has known fixed bounds with the same
+    values for each index. There used to be a bug where the first
+    index was picked up in error instead of the second in the
+    arrayrange2loop validate method but this should now be fixed.
+
+    '''
+    _, invoke_info = get_invoke("fixed_lhs.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    range_node = assignment.lhs.children[1]
+    trans = NemoArrayRange2LoopTrans()
+    trans.apply(range_node)
+    writer = FortranWriter()
+    result = writer(schedule)
+    print(result)
+    expected = (
+        "  do idx = 6, 8, 1\n"
+        "    sshn(2:4,idx) = sshn(2:4,idx) + ssh_ref * tmask(2:4,idx)\n"
+        "  enddo\n")
+    assert expected in result
+
+
 def test_validate_unsupported_structure_of_arrays(fortran_reader):
     '''Check that nested structure_of_arrays are not supported. '''
     trans = NemoArrayRange2LoopTrans()
