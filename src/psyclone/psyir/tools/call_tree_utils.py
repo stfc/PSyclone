@@ -169,7 +169,7 @@ class CallTreeUtils():
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
-        :param options: a dictionary with options for the dependency tools \
+        :param options: a dictionary with options for the CallTreeUtils \
             which will also be used when creating the VariablesAccessInfo \
             instance if required.
         :type param: Optional[Dict[str, Any]]
@@ -206,7 +206,7 @@ class CallTreeUtils():
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
         Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
-        :param options: a dictionary with options for the dependency tools \
+        :param options: a dictionary with options for the CallTreeUtils \
             which will also be used when creating the VariablesAccessInfo \
             instance if required.
         :type param: Optional[Dict[str, Any]]
@@ -233,7 +233,7 @@ class CallTreeUtils():
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param options: a dictionary with options for the dependency tools \
+        :param options: a dictionary with options for the CallTreeUtils \
             which will also be used when creating the VariablesAccessInfo \
             instance if required.
         :type options: Optional[Dict[str, Any]]
