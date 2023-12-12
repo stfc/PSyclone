@@ -105,7 +105,7 @@ if __name__ == "__main__":
                         help="Add profiling instrumentation to any files that "
                         "are not being transformed (i.e. appear in the "
                         "NOT_PERFORMANT list)")
-    PARSER.add_argument('-I', dest='include_path')
+    PARSER.add_argument('-I', action='append', dest='include_path', default=[])
     ARGS = PARSER.parse_args()
 
     # Check whether the PSyclone command has been specified in an environment
@@ -144,8 +144,9 @@ if __name__ == "__main__":
             else:
                 print(f"Processing {file_name} (passthrough only)...")
 
-            if ARGS.include_path:
-                extra_args += ["-I", ARGS.include_path]
+            if ARGS.include_path != []:
+                for ipath in ARGS.include_path:
+                    extra_args += ["-I", ipath]
             extra_args += ["-oalg", "/dev/null",
                            "-opsy", out_file, ffile]
         # Since we're in Python we could call psyclone.generator.main()
