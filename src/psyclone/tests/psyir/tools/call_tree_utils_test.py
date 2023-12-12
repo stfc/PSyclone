@@ -278,7 +278,7 @@ def test_get_non_local_read_write_info(capsys):
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def testcall_tree_utils_resolve_calls_and_unknowns(capsys):
+def test_call_tree_utils_resolve_calls_and_unknowns(capsys):
     '''Tests resolving symbols in case of missing modules, subroutines, and
     unknown type (e.g. function call or array access).
     '''
