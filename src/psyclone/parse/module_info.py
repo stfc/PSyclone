@@ -351,44 +351,29 @@ class ModuleInfo:
         return self._psyir
 
     # ------------------------------------------------------------------------
-    def get_non_local_symbols(self, routine_name):
-        '''This function returns a list of non-local accesses in this
-        routine. It returns a list of triplets, each one containing:
+    def resolve_routine(self, routine_name):
+        '''This function returns a list of function names that might be
+        actually called when the routine `name` is called. In most cases
+        this is exactly name, but in case of a generic subroutine the
+        name might change. For now (since we cannot resolve generic
+        interfaces yet), we return the list of all possible functions that
+        might be called.
 
-        - the type ('routine', 'function', 'reference', 'unknown').
-          The latter is used for array references or function calls,
-          which we cannot distinguish till #1314 is done.
-        - the name of the module (lowercase). This can be 'None' if no
-          module information is available.
-        - the Signature of the symbol
-        - the access information for the given variable
+        :param str routine_name: the name of the routine to resolve
 
-        :param str routine_name: name of the routine for which to return
-            the non-local symbol information.
-
-        :returns: the non-local accesses in this routine.
-        :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`, \
-                          :py:class:`psyclone.core.SingleVariableAccessInfo`]]
+        :returns: list of routine name(s) that could be called.
+        :rtype: List[str]
 
         '''
         if self._psyir_of_routines is None:
             self.get_psyir()
         routine_name = routine_name.lower()
-        if routine_name in self._generic_interfaces:
-            # If a generic interface name is queried, return the union
-            # of all routines listed. Use a better variable name:
-            generic_name = routine_name
-            non_locals = []
-            for name in self._generic_interfaces[generic_name]:
-                non_locals.extend(self.get_non_local_symbols(name))
-            return non_locals
+        if routine_name not in self._generic_interfaces:
+            return [routine_name]
 
-        # Circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import CallTreeUtils
-        # It's not a generic interface.
-        ctu = CallTreeUtils()
-        return ctu.get_non_local_symbols(self._psyir_of_routines[routine_name])
+        # If a generic interface name is queried, return a copy
+        # of all possible routine names that might be called:
+        return self._generic_interfaces[routine_name][:]
 
     # ------------------------------------------------------------------------
     def get_symbol(self, name):

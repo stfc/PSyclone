@@ -46,12 +46,9 @@ from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
-from psyclone.parse import ModuleManager
-from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
 # pylint: disable=too-many-lines
@@ -130,11 +127,11 @@ class DependencyTools():
     a messaging system where functions can store messages that might be
     useful for the user to see.
 
-    :param loop_types_to_parallelise: A list of loop types that will be \
-        considered for parallelisation. An example loop type might be\
-        'lat', indicating that only loops over latitudes should be\
-        parallelised. The actually supported list of loop types is\
-        specified in the PSyclone config file. This can be used to\
+    :param loop_types_to_parallelise: A list of loop types that will be
+        considered for parallelisation. An example loop type might be
+        'lat', indicating that only loops over latitudes should be
+        parallelised. The actually supported list of loop types is
+        specified in the PSyclone config file. This can be used to
         exclude for example 1-dimensional loops.
     :type loop_types_to_parallelise: Optional[List[str]]
 
@@ -211,10 +208,10 @@ class DependencyTools():
         variables used, and the list of subscript indices.
 
         :param comp_ind1: component_indices of the first array access.
-        :type comp_ind1:  \
+        :type comp_ind1: 
             :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param comp_ind2: component_indices of the first array access.
-        :type comp_ind2:  \
+        :type comp_ind2:
             :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param loop_variables: list with name of all loop variables.
         :type loop_variables: List[str]
@@ -322,12 +319,12 @@ class DependencyTools():
         be observed in code handled with PSyclone, so they will also
         return None.
 
-        :param str var_name: name of the one variable used in the two \
+        :param str var_name: name of the one variable used in the two
             index expressions.
-        :param index_read: the index expression of the variable read that \
+        :param index_read: the index expression of the variable read that
             is to be compare.
         :type index_read: :py:class:`psyclone.psyir.nodes.Node`
-        :param index_written: the index expression of the variable written \
+        :param index_written: the index expression of the variable written
             that is to be compare.
         :type index_written: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -432,15 +429,15 @@ class DependencyTools():
         the fact that the first subscript is independent makes the access
         parallelisable.
 
-        :param str var_name: the name of the loop variable of the loop to be \
+        :param str var_name: the name of the loop variable of the loop to be
             parallelised.
         :param write_access: access information a single write access.
         :type write_access: :py:class:`psyclone.core.AccessInfo`
-        :param other_access: access information the other (read or write) \
+        :param other_access: access information the other (read or write)
             access.
         :type other_access: :py:class:`psyclone.core.AccessInfo`
-        :param subscripts: the subscript indices (as a tuple, see \
-            ComponentIndices class) which are all handled together because \
+        :param subscripts: the subscript indices (as a tuple, see
+            ComponentIndices class) which are all handled together because
             of shared loop variables.
         :type subscripts: List[Tuple(int,int)]
 
@@ -475,18 +472,18 @@ class DependencyTools():
         is a dependency, then the access to this array cannot be parallelised,
         it would create a race condition.
 
-        :param loop_variables: the list of all loop variables in the code to \
-            be parallelised. The first one must be the loop to be \
-            parallelised (a possible outer loop does not matter, the value of \
+        :param loop_variables: the list of all loop variables in the code to
+            be parallelised. The first one must be the loop to be
+            parallelised (a possible outer loop does not matter, the value of
             the loop variable is a constant within the loop to be parallelised.
         :type loop_variables: List[str]
         :param write_access: access information of a single array write access.
         :type write_access: :py:class:`psyclone.core.AccessInfo`
-        :param other_access: access information of the second single array \
+        :param other_access: access information of the second single array
             access (for the same variable).
         :type other_access: :py:class:`psyclone.core.AccessInfo`
 
-        :returns: whether there is a loop carried dependency between the \
+        :returns: whether there is a loop carried dependency between the
             pair of accesses, which prevents parallelisation.
         :rtype: bool
 
@@ -579,13 +576,13 @@ class DependencyTools():
         that is guaranteed to be independent, which is all that is needed
         for parallelisation.
 
-        :param loop_variables: the list of all loop variables in the code to \
-            be parallelised. The first one must be the loop to be \
-            parallelised (a possible outer loop does not matter, the value of \
+        :param loop_variables: the list of all loop variables in the code to
+            be parallelised. The first one must be the loop to be
+            parallelised (a possible outer loop does not matter, the value of
             the loop variable is a constant within the loop to be parallelised.
         :type loop_variables: List[str]
         :param var_info: access information for this variable.
-        :type var_info: \
+        :type var_info:
             :py:class:`psyclone.core.SingleVariableAccessInfo`
 
         :return: whether the variable can be used in parallel.
@@ -653,7 +650,7 @@ class DependencyTools():
 
         :param var_info: the access information for the variable to test.
         :type var_info: :py:class:`psyclone.core.var_info.VariableInfo`
-        :return: True if the scalar variable is not a reduction, i.e. it \
+        :return: True if the scalar variable is not a reduction, i.e. it
             can be parallelised.
         :rtype: bool
         '''
@@ -771,236 +768,3 @@ class DependencyTools():
                 result = False
 
         return result
-
-    # -------------------------------------------------------------------------
-    def get_input_parameters(self, read_write_info, node_list,
-                             variables_info=None, options=None):
-        '''Adds all variables that are input parameters (i.e. are read before
-        potentially being written) to the read_write_info object.
-
-        :param read_write_info: this object stores the information about \
-            all input parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param variables_info: optional variable usage information, \
-            can be used to avoid repeatedly collecting this information.
-        :type variables_info: \
-            :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
-        :param options: a dictionary with options for the dependency tools \
-            which will also be used when creating the VariablesAccessInfo \
-            instance if required.
-        :type param: Optional[Dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
-            set to a True value, arrays used as first parameter to the \
-            PSyIR operators lbound, ubound, or size will be reported as \
-            'read'. Otherwise, these accesses will be ignored.
-
-        '''
-        # Collect the information about all variables used:
-        if not variables_info:
-            variables_info = VariablesAccessInfo(node_list, options=options)
-
-        for signature in variables_info.all_signatures:
-            # If the first access is a write, the variable is not an input
-            # parameter and does not need to be saved. Note that loop variables
-            # have a WRITE before a READ access, so they will be ignored
-            # automatically.
-            if not variables_info[signature].is_written_first():
-                read_write_info.add_read(signature)
-
-    # -------------------------------------------------------------------------
-    def get_output_parameters(self, read_write_info, node_list,
-                              variables_info=None, options=None):
-        '''Adds all variables that are output parameters (i.e. are written)
-        to the read_write_info object.
-
-        :param read_write_info: this object stores the information about \
-            output parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param variables_info: optional variable usage information, \
-            can be used to avoid repeatedly collecting this information.
-        :type variables_info: \
-        Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
-        :param options: a dictionary with options for the dependency tools \
-            which will also be used when creating the VariablesAccessInfo \
-            instance if required.
-        :type param: Optional[Dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
-            set to a True value, arrays used as first parameter to the \
-            PSyIR operators lbound, ubound, or size will be reported as \
-            'read'. Otherwise, these accesses will be ignored.
-
-        '''
-        # Collect the information about all variables used:
-        if not variables_info:
-            variables_info = VariablesAccessInfo(node_list, options=options)
-
-        for signature in variables_info.all_signatures:
-            if variables_info.is_written(signature):
-                read_write_info.add_write(signature)
-
-    # -------------------------------------------------------------------------
-    def get_in_out_parameters(self, node_list, collect_non_local_symbols=False,
-                              options=None):
-        '''Returns a ReadWriteInfo object that contains all variables that are
-        input and output parameters to the specified node list. This function
-        calls `get_input_parameter` and `get_output_parameter`, but avoids the
-        repeated computation of the variable usage. If
-        `collect_non_local_symbols` is set to True, the code will also include
-        non-local symbols directly or indirectly, i.e. it will follow the call
-        tree as much as possible (e.g. it cannot resolve a procedure pointer,
-        since then it is not known which function is actually called)
-        and collect any other variables that will be read or written when
-        executing the nodes specified in the node list. The corresponding
-        module name for these variables will be included in the ReadWriteInfo
-        result object.
-
-        :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param options: a dictionary with options for the dependency tools \
-            which will also be used when creating the VariablesAccessInfo \
-            instance if required.
-        :param bool collect_non_local_symbols: whether non-local symbols \
-            (i.e. symbols used in other modules either directly or \
-            indirectly) should be included in the in/out information.
-        :type options: Optional[Dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
-            set to a True value, arrays used as first parameter to the \
-            PSyIR operators lbound, ubound, or size will be reported as \
-            'read'. Otherwise, these accesses will be ignored.
-
-        :returns: a ReadWriteInfo object with the information about input- \
-            and output parameters.
-        :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-
-        '''
-        variables_info = VariablesAccessInfo(node_list, options=options)
-        read_write_info = ReadWriteInfo()
-        self.get_input_parameters(read_write_info, node_list, variables_info)
-        self.get_output_parameters(read_write_info, node_list, variables_info)
-        if not collect_non_local_symbols:
-            return read_write_info
-
-        # Now collect non-local accesses:
-        # Find all kernels called from the currently processed PSyIR.
-        mod_manager = ModuleManager.get()
-
-        # First collect all non-local symbols from the kernels called. They
-        # are collected in the todo list. This list will initially contain
-        # unknown accesses, since at this stage we cannot always differentiate
-        # between function calls and array accesses. In the resolve step
-        # that is following the corresponding modules will be queried and
-        # the right accesses (functions or variables) will be used.
-        todo = []
-        for node in node_list:
-            for kernel in node.walk(Kern):
-                if isinstance(kernel, BuiltIn):
-                    # Builtins don't have non-local accesses
-                    continue
-
-                # Get the non-local access information from the kernel
-                # by querying the module that contains the kernel:
-                try:
-                    mod_info = mod_manager.get_module_info(kernel.module_name)
-                except FileNotFoundError:
-                    print(f"Could not find module '{kernel.module_name}' - "
-                          f"ignored.")
-                    continue
-                todo.extend(mod_info.get_non_local_symbols(kernel.name))
-
-        # Resolve routine calls and unknown accesses:
-        self._resolve_calls_and_unknowns(todo, read_write_info)
-
-        return read_write_info
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _resolve_calls_and_unknowns(todo, read_write_info):
-        '''This function updates the list of non-local symbols by:
-        1. replacing all subroutine calls with the list of their corresponding
-            non-local symbols.
-        2. Resolving unknown types to be either function calls (which then
-            get resolved as above), or variables.
-        This is done recursively until only variable accesses remain.
-
-        The actual non-local accesses will then be added to the ReadWriteInfo
-        object.
-
-        :param todo: the information about symbol type, module_name, \
-            symbol_name and access information
-        :type todo: List[Tuple[str,str, str,\
-                              :py:class:`psyclone.core.Signature`,str]]
-
-        :param read_write_info: information about all input and output \
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-
-        '''
-        # pylint: disable=too-many-branches
-        mod_manager = ModuleManager.get()
-        done = set()
-        # Using a set here means that duplicated entries will automatically
-        # be filtered out.
-        in_vars = set()
-        out_vars = set()
-        while todo:
-            info = todo.pop()
-            if info in done:
-                continue
-            done.add(info)
-            external_type, module_name, signature, access_info = info
-            if module_name in mod_manager.ignores():
-                continue
-            if external_type == "routine":
-                if module_name is None:
-                    # We don't know where the subroutine comes from.
-                    # For now ignore this
-                    print(f"Unknown routine '{signature[0]} - ignored.")
-                    continue
-                try:
-                    mod_info = mod_manager.get_module_info(module_name)
-                except FileNotFoundError:
-                    print(f"Cannot find module '{module_name}' - ignored.")
-                    continue
-                try:
-                    # Add the list of non-locals to our todo list:
-                    todo.extend(mod_info.get_non_local_symbols(signature[0]))
-                except KeyError:
-                    print(f"Cannot find symbol '{signature[0]}' in module "
-                          f"'{module_name}' - ignored.")
-                continue
-
-            if external_type == "unknown":
-                # It could be a function (TODO #1314) or a variable. Check if
-                # there is a routine with that name in the module information:
-                try:
-                    mod_info = mod_manager.get_module_info(module_name)
-                except FileNotFoundError:
-                    print(f"Cannot find module '{module_name}' - ignoring "
-                          f"unknown symbol '{signature}'.")
-                    continue
-
-                if mod_info.contains_routine(str(signature)):
-                    # It is a routine, which we need to analyse for the use
-                    # of non-local symbols:
-                    todo.append(("routine", module_name, signature,
-                                 access_info))
-                    continue
-                # Otherwise fall through to the code that adds a reference:
-
-            # Now it must be a reference, so add it to the list of input-
-            # and output-variables as appropriate:
-            if access_info.is_written():
-                out_vars.add((module_name, signature))
-            if not access_info.is_written_first():
-                in_vars.add((module_name, signature))
-
-        # Now add all accesses to the access. Note that in_vars and out_vars
-        # are sets, so there will be no duplicate entry.
-        for module_name, signature in in_vars:
-            read_write_info.add_read(signature, module_name)
-        for module_name, signature in out_vars:
-            read_write_info.add_write(signature, module_name)

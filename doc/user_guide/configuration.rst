@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2022, Science and Technology Facilities Council
+.. Copyright (c) 2018-2023, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ is in the ``PSyclone/config`` directory of the PSyclone
 distribution.
 
 At execution-time, the user can specify a custom configuration file to
-be used. This can either be done with the ``--config`` command line
+be used. This can either be done with the ``--config`` command-line
 option, or by specifying the (full path to the) configuration file
 to use via the ``PSYCLONE_CONFIG`` environment variable. If the specified
 configuration file is not found then PSyclone will fall back to
@@ -141,18 +141,20 @@ including "true/false", "yes/no" and "1/0". See
 https://docs.python.org/3/library/configparser.html#supported-datatypes
 for more details.
 
+.. _config-default-section:
+
 ``DEFAULT`` Section
 ^^^^^^^^^^^^^^^^^^^
 
 This section contains entries that are, in principle, applicable to all APIs
 supported by PSyclone.
 
-.. tabularcolumns:: |l|L|
+.. tabularcolumns:: |l|L|l|
 
-======================= =======================================================
-Entry                   Description
-======================= =======================================================
-DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel
+======================= ======================================================= ===========
+Entry                   Description                                             Type
+======================= ======================================================= ===========
+DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel       str
                         conforms to if no API is specified. Must be one of the
                         APIs supported by PSyclone ("dynamo0.3", "gocean1.0"
                         and "nemo"). If there is no
@@ -162,26 +164,30 @@ DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel
                         line option '-api'. If there is no API entry in the
                         config file, and '-api' is not specified on the 
                         command line, "dynamo0.3" is used as default.
-DEFAULTSTUBAPI          The API that the kernel-stub generator assumes by
+DEFAULTSTUBAPI          The API that the kernel-stub generator assumes by       str
                         default. Must be one of the stub-APIs supported by
                         PSyclone ("dynamo0.3" only at this stage).
-DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory
+DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory  bool
                         parallelism by default.  Note that this is currently
                         only supported for the LFRic (Dynamo 0.3) API.
-REPRODUCIBLE_REDUCTIONS Whether or not to generate code for reproducible OpenMP
+REPRODUCIBLE_REDUCTIONS Whether or not to generate code for reproducible OpenMP bool
                         reductions (see :ref:`openmp-reductions`) by default.
-REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
+REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,  int
                         this setting controls the amount of padding used
                         between elements of the array in which each thread
                         accumulates its local reduction. (This prevents false
                         sharing of cache lines by different threads.)
-PSYIR_ROOT_NAME         The root for generated PSyIR symbol names if one is not
+PSYIR_ROOT_NAME         The root for generated PSyIR symbol names if one is not str
                         supplied when creating a symbol. Defaults to
                         "psyir_tmp".
-VALID_PSY_DATA_PREFIXES Which class prefixes are permitted in any
+VALID_PSY_DATA_PREFIXES Which class prefixes are permitted in any               list of str
                         PSyData-related transformations. See :ref:`psy_data`
                         for details.
-======================= =======================================================
+BACKEND_CHECKS_ENABLED  Optional (defaults to True). Whether or not the PSyIR   bool
+                        backend should validate the tree that it is passed.
+                        Can be overridden by the ``--backend`` command-line
+                        flag (see :ref:`backend-options`).
+======================= ======================================================= ===========
 
 Common Sections
 ^^^^^^^^^^^^^^^
