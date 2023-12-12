@@ -701,8 +701,8 @@ def test_lfric_driver_rename_externals():
     _, invoke = get_invoke("driver_creation/invoke_kernel_rename_symbols.f90",
                            API, dist_mem=False, idx=0)
 
-    dep = DependencyTools()
-    read_write_info = dep.get_in_out_parameters(invoke.schedule,
+    ctu = CallTreeUtils()
+    read_write_info = ctu.get_in_out_parameters(invoke.schedule,
                                                 collect_non_local_symbols=True)
     driver_creator = LFRicExtractDriverCreator()
     code = driver_creator.get_driver_as_string(invoke.schedule,
