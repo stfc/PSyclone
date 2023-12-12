@@ -169,7 +169,7 @@ class CallTreeUtils():
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
             :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
-        :param options: a dictionary with options for the dependency tools \
+        :param options: a dictionary with options for the CallTreeUtils \
             which will also be used when creating the VariablesAccessInfo \
             instance if required.
         :type param: Optional[Dict[str, Any]]
@@ -206,7 +206,7 @@ class CallTreeUtils():
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
         Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
-        :param options: a dictionary with options for the dependency tools \
+        :param options: a dictionary with options for the CallTreeUtils \
             which will also be used when creating the VariablesAccessInfo \
             instance if required.
         :type param: Optional[Dict[str, Any]]
@@ -245,7 +245,7 @@ class CallTreeUtils():
         :param bool collect_non_local_symbols: whether non-local symbols \
             (i.e. symbols used in other modules either directly or \
             indirectly) should be included in the in/out information.
-        :param options: a dictionary with options for the dependency tools \
+        :param options: a dictionary with options for the CallTreeUtils \
             which will also be used when creating the VariablesAccessInfo \
             instance if required.
         :type options: Optional[Dict[str, Any]]

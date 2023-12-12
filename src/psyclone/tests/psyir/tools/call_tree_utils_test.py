@@ -278,7 +278,7 @@ def test_get_non_local_read_write_info(capsys):
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_dep_tools_resolve_calls_and_unknowns(capsys):
+def testcall_tree_utils_resolve_calls_and_unknowns(capsys):
     '''Tests resolving symbols in case of missing modules, subroutines, and
     unknown type (e.g. function call or array access).
     '''
@@ -440,7 +440,7 @@ def test_call_tree_utils_const_argument():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_dep_tools_non_local_inout_parameters(capsys):
+def testcall_tree_utils_non_local_inout_parameters(capsys):
     '''Tests the collection of non-local input and output parameters.
     '''
     Config.get().api = "dynamo0.3"
