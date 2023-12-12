@@ -181,18 +181,18 @@ class ExtractNode(PSyDataNode):
         if self._read_write_info is None:
             # Typically. _read_write_info should be set at the constructor,
             # but some tests do not provide the required information. To
-            # support these, tests, allow creation of the read_write info
+            # support these tests, allow creation of the read_write info
             # here (it can't be done in the constructor, since this node
             # is not yet integrated into the PSyIR, so the dependency tool
             # cannot determine variable usage at that time):
 
             # Avoid circular dependency
             # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.tools.dependency_tools import DependencyTools
+            from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
             # Determine the variables to write:
-            dep = DependencyTools()
+            ctu = CallTreeUtils()
             self._read_write_info = \
-                dep.get_in_out_parameters(self, options=self.options)
+                ctu.get_in_out_parameters(self, options=self.options)
 
         options = {'pre_var_list': self._read_write_info.read_list,
                    'post_var_list': self._read_write_info.write_list,

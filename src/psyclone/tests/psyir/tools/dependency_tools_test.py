@@ -36,15 +36,12 @@
 
 ''' Module containing tests for the dependency tools.'''
 
-import os
 import pytest
 
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
-from psyclone.parse import ModuleManager
-from psyclone.psyir.tools import DependencyTools, DTCode, ReadWriteInfo
-from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.psyir.tools import DependencyTools, DTCode
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -630,75 +627,6 @@ def test_derived_type(fortran_reader):
 
 
 # -----------------------------------------------------------------------------
-def test_inout_parameters_nemo(fortran_reader):
-    '''Test detection of input and output parameters in NEMO.
-    '''
-    source = '''program test
-                integer :: ji, jj, jpj
-                real :: a(5,5), c(5,5), b, dummy(5,5)
-                do jj = lbound(dummy,1), jpj   ! loop 0
-                   do ji = lbound(dummy,2), ubound(dummy,2)
-                      a(ji, jj) = b+c(ji, jj)
-                    end do
-                end do
-                end program test'''
-    psyir = fortran_reader.psyir_from_source(source)
-    loops = psyir.children[0].children
-
-    dep_tools = DependencyTools()
-    read_write_info_read = ReadWriteInfo()
-    dep_tools.get_input_parameters(read_write_info_read, loops)
-    # Use set to be order independent
-    input_set = set(read_write_info_read.signatures_read)
-    # Note that by default the read access to `dummy` in lbound etc should
-    # not be reported, since it does not really read the array values.
-    assert input_set == set([Signature("b"), Signature("c"),
-                             Signature("jpj")])
-
-    read_write_info_write = ReadWriteInfo()
-    dep_tools.get_output_parameters(read_write_info_write, loops)
-    # Use set to be order independent
-    output_set = set(read_write_info_write.signatures_written)
-    assert output_set == set([Signature("jj"), Signature("ji"),
-                              Signature("a")])
-
-    read_write_info_all = dep_tools.get_in_out_parameters(loops)
-
-    assert read_write_info_read.read_list == read_write_info_all.read_list
-    assert read_write_info_write.write_list == read_write_info_all.write_list
-
-    # Check that we can also request to get the access to 'dummy'
-    # inside the ubound/lbound function calls.
-    read_write_info = ReadWriteInfo()
-    dep_tools.get_input_parameters(read_write_info, loops,
-                                   options={'COLLECT-ARRAY-SHAPE-READS': True})
-    input_set = set(sig for _, sig in read_write_info.set_of_all_used_vars)
-    assert input_set == set([Signature("b"), Signature("c"),
-                             Signature("jpj"), Signature("dummy")])
-
-    read_write_info = dep_tools.\
-        get_in_out_parameters(loops,
-                              options={'COLLECT-ARRAY-SHAPE-READS': True})
-    output_set = set(read_write_info.signatures_read)
-    assert output_set == set([Signature("b"), Signature("c"),
-                              Signature("jpj"), Signature("dummy")])
-
-
-# -----------------------------------------------------------------------------
-def test_const_argument():
-    '''Check that using a const scalar as parameter works, i.e. is not
-    listed as input variable.'''
-    _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
-                           api="gocean1.0", idx=0)
-    dep_tools = DependencyTools()
-    read_write_info = ReadWriteInfo()
-    dep_tools.get_input_parameters(read_write_info, invoke.schedule)
-    # Make sure the constant '0' is not listed
-    assert "0" not in read_write_info.signatures_read
-    assert Signature("0") not in read_write_info.signatures_read
-
-
-# -----------------------------------------------------------------------------
 def test_da_array_expression(fortran_reader):
     '''Test that a mixture of using the same array with and without indices
     does not cause a crash and correctly disables parallelisation.
@@ -718,45 +646,6 @@ def test_da_array_expression(fortran_reader):
     dep_tools = DependencyTools()
     result = dep_tools.can_loop_be_parallelised(loops[0])
     assert result is False
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("clear_module_manager_instance")
-def test_dep_tools_non_local_inout_parameters(capsys):
-    '''Tests the collection of non-local input and output parameters.
-    '''
-    Config.get().api = "dynamo0.3"
-    dep_tools = DependencyTools()
-
-    test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
-    schedule = psyir.invokes.invoke_list[0].schedule
-
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path(test_dir)
-
-    # The example does contain an unknown subroutine (by design), and the
-    # infrastructure directory has not been added, so constants_mod cannot
-    # be found:
-    rw_info = dep_tools.get_in_out_parameters(schedule,
-                                              collect_non_local_symbols=True)
-    out, _ = capsys.readouterr()
-    assert "Unknown routine 'unknown_subroutine - ignored." in out
-    assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
-            "'eps'." in out)
-
-    # We don't test the 14 local variables here, this was tested earlier.
-    # Focus on the remote symbols that are read:
-    assert (('module_with_var_mod', Signature("module_var_b"))
-            in rw_info.read_list)
-    # And check the remote symbols that are written:
-    assert (('module_with_var_mod', Signature("module_var_a"))
-            in rw_info.write_list)
-    assert (('module_with_var_mod', Signature("module_var_b"))
-            in rw_info.write_list)
-    assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
-            in rw_info.write_list)
 
 
 # -----------------------------------------------------------------------------
