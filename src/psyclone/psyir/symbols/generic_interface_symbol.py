@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,9 +57,13 @@ class GenericInterfaceSymbol(RoutineSymbol):
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
         if not routines:
-            raise ValueError()
+            raise ValueError("A GenericInterfaceSymbol requires a list of "
+                             "RoutineSymbols but none were provided.")
         if not all(isinstance(item, RoutineSymbol) for item in routines):
-            raise TypeError()
+            raise TypeError(
+                f"A GenericInterfaceSymbol must be provided with a list of "
+                f"RoutineSymbols but got: "
+                f"{[type(rt).__name__ for rt in routines]}")
         self._routines = routines
 
     @property
@@ -76,7 +80,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
                         else f"{self.is_elemental}")
         return (f"{self.name}: {type(self).__name__}<{self.datatype}, "
                 f"pure={is_pure}, elemental={is_elemental}, "
-                f"maps_to={rt.name for rt in self._routines}>")
+                f"routines={[rt.name for rt in self.routines]}>")
 
 
 # For Sphinx AutoAPI documentation generation
