@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the GenericInterfaceSymbol.'''
@@ -44,21 +44,30 @@ class GenericInterfaceSymbol(RoutineSymbol):
     different callable routines.
 
     :param str name: name of the interface.
-    :param routines: data type of the symbol. Default to NoType().
+    :param routines: the routines that this interface provides access to.
     :type routines: list[:py:class:`psyclone.psyir.symbols.RoutineSymbol`]
     :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
 
+    :raises ValueError: if no routines are provided.
+    :raises TypeError: if `routines` is not a list of RoutineSymbols.
+
     '''
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
+        if not routines:
+            raise ValueError()
         if not all(isinstance(item, RoutineSymbol) for item in routines):
             raise TypeError()
         self._routines = routines
 
     @property
-    def maps_to(self):
+    def routines(self):
+        '''
+        :returns: the routines to which this interface provides access.
+        :rtype: list[:py:class:`psyclone.psyir.symbols.RoutineSymbol`]
+        '''
         return self._routines
 
     def __str__(self):

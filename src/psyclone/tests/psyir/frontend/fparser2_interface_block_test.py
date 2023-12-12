@@ -79,8 +79,8 @@ def test_named_interface(fortran_reader, mod_txt):
     assert isinstance(eos, GenericInterfaceSymbol)
     assert isinstance(eos.datatype, NoType)
     assert eos.visibility == Symbol.Visibility.PUBLIC
-    assert insitu_sym in eos.maps_to
-    assert insitu2d_sym in eos.maps_to
+    assert insitu_sym in eos.routines
+    assert insitu2d_sym in eos.routines
 
 
 @pytest.mark.parametrize("mod_txt", ["", "module "])
