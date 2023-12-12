@@ -3339,29 +3339,9 @@ class Fparser2Reader():
                         kind_spec_value = type_spec.children[1].children[1]
                         type_name = f"{type_name}_{kind_spec_value}"
                     elif walk(type_spec, Fortran2003.Length_Selector):
-                        # This is a character intrinsic spec
-                        length_selector = walk(
-                            type_spec, Fortran2003.Length_Selector)[0]
-                        if isinstance(
-                                length_selector.children[1],
-                                Fortran2003.Int_Literal_Constant):
-                            value = length_selector.children[1]
-                        elif isinstance(
-                                length_selector.children[1],
-                                Fortran2003.Type_Param_Value):
-                            value = length_selector.children[1]
-                        else:
-                            raise NotImplementedError(
-                                f"Only character strings of type '*' or "
-                                f"'literal' for the selector variable are "
-                                f"currently supported in the PSyIR, but found "
-                                f"'{child.children[1]}' in the select "
-                                f"clause '{str(node)}'.")
-                        if str(value) == "*":
-                            value = "star"
-                        elif str(value) == ":":
-                            value = "colon"
-                        type_name = f"{type_name}_{value}"
+                        # This is a character intrinsic type so must
+                        # have an assumed length ('*')
+                        type_name = f"{type_name}_star"
                 else:
                     # type or Class type
                     type_name = str(type_spec)
@@ -3513,10 +3493,6 @@ class Fparser2Reader():
         symbol_table = outer_ifblock.scope.symbol_table
         symbol = symbol_table.lookup(type_selector_name)
         datatype = symbol.datatype
-        if not isinstance(datatype, UnknownFortranType):
-            raise InternalError(
-                f"Expected the datatype of the select type selector to be an "
-                f"UnknownFortranType, but found '{type(datatype).__name__}'.")
         # Re-create the datatype as an fparser ast
         dummy_code = (
             f"subroutine dummy()\n"
