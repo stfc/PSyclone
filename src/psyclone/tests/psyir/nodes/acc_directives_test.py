@@ -63,8 +63,9 @@ from psyclone.psyir.nodes import (ACCKernelsDirective,
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
-from psyclone.transformations import (ACCDataTrans, ACCEnterDataTrans,
-                                      ACCParallelTrans, ACCKernelsTrans)
+from psyclone.transformations import (
+    ACCDataTrans, ACCEnterDataTrans, ACCKernelsTrans, ACCLoopTrans,
+    ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -306,6 +307,50 @@ def test_accloopdirective_equality():
     directive2._gang = directive1.gang
     directive2._vector = not directive1._vector
     assert directive1 != directive2
+
+
+def test_accloopdirective_validate(fortran_reader):
+    '''
+    Check the validate_global_constraints method of ACCLoopDirective. For
+    an ACC loop to validate, it must either be within an 'ACC parallel/kernels'
+    region or in a routine with an 'ACC routine' directive.
+
+    '''
+    code = '''\
+subroutine my_sub()
+  implicit none
+  real, dimension(10,10) :: var
+  integer :: ji, jj
+  do jj = 1, 10
+    do ji = 1, 10
+      var(ji,jj) = ji + jj
+    end do
+  end do
+end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Add an orphan ACC loop directive.
+    acclooptrans = ACCLoopTrans()
+    acclooptrans.apply(routine[0])
+    # This should be rejected.
+    with pytest.raises(GenerationError) as err:
+        routine[0].validate_global_constraints()
+    assert ("ACCLoopDirective in routine 'my_sub' must either have an "
+            "ACCParallelDirective or ACCKernelsDirective as an ancestor in "
+            "the Schedule or the routine must contain an ACCRoutineDirective."
+            in str(err.value))
+    # Add an ACCRoutineDirective.
+    accrtrans = ACCRoutineTrans()
+    accrtrans.apply(routine)
+    routine[0].validate_global_constraints()
+    # Remove the ACCRoutineDirective.
+    routine.children.pop(index=0)
+    with pytest.raises(GenerationError) as err:
+        routine[0].validate_global_constraints()
+    # Add an ACC Parallel region
+    accptrans = ACCParallelTrans()
+    accptrans.apply(routine.children)
+    routine[0].validate_global_constraints()
 
 # Class ACCLoopDirective end
 

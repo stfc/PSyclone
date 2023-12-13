@@ -401,12 +401,13 @@ def test_profile_gocean():
     information if this has been specified.
 
     '''
-    Profiler.set_options(['invokes'])
+    Profiler.set_options(['invokes'], "gocean1.0")
     _, psy = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
         api="gocean1.0")
     assert "CALL profile_psy_data" in str(psy)
-    Profiler.set_options([])
+    # Reset the stored options.
+    Profiler._options = []
 
 
 def test_script_attr_error():
@@ -614,9 +615,9 @@ def test_main_profile(capsys):
     assert Profiler.profile_kernels()
     assert not Profiler.profile_invokes()
 
-    # Check for invokes + kernels
+    # Check for routines (aka invokes) + kernels
     main(options+["--profile", "kernels",
-                  '--profile', 'invokes', filename])
+                  '--profile', 'routines', filename])
     assert Profiler.profile_kernels()
     assert Profiler.profile_invokes()
 
@@ -626,7 +627,7 @@ def test_main_profile(capsys):
         main(options+["--profile", filename])
     _, outerr = capsys.readouterr()
 
-    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    correct_re = "invalid choice.*choose from 'invokes', 'routines', 'kernels'"
     assert re.search(correct_re, outerr) is not None
 
     # Check for invalid parameter
@@ -636,8 +637,16 @@ def test_main_profile(capsys):
 
     assert re.search(correct_re, outerr) is not None
 
+    # Check that 'kernels' is rejected for the 'nemo' API.
+    Profiler._options = []
+    with pytest.raises(SystemExit):
+        main(["-api", "nemo", "--profile", "kernels", filename])
+    _, outerr = capsys.readouterr()
+    assert ("The 'kernels' automatic profiling option is not compatible with "
+            "the 'nemo' API." in outerr)
+
     # Reset profile flags to avoid further failures in other tests
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 def test_main_invalid_api(capsys):
@@ -725,6 +734,26 @@ def test_main_directory_arg(capsys):
     # Multiple -d paths supplied
     main([filename, "-api", "dynamo0.3", "-d", DYN03_BASE_PATH,
           "-d", NEMO_BASE_PATH])
+
+
+def test_main_disable_backend_validation_arg(capsys):
+    '''Test the --backend option in main().'''
+    filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
+    with pytest.raises(SystemExit):
+        main([filename, "--backend", "invalid"])
+    _, output = capsys.readouterr()
+    assert "--backend: invalid choice: 'invalid'" in output
+
+    # Make sure we get a default config instance
+    Config._instance = None
+    # Default is to have checks enabled.
+    assert Config.get().backend_checks_enabled is True
+    main([filename, "--backend", "disable-validation"])
+    assert Config.get().backend_checks_enabled is False
+    Config._instance = None
+    main([filename, "--backend", "enable-validation"])
+    assert Config.get().backend_checks_enabled is True
+    Config._instance = None
 
 
 def test_main_expected_fatal_error(capsys):

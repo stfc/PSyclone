@@ -60,7 +60,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 import logging
 from utils import add_profiling
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
+from psyclone.nemo import NemoInvokeSchedule,  NemoLoop
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, Loop, WhileLoop, \
@@ -265,12 +265,6 @@ def valid_acc_kernel(node):
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.
     refs = node.walk(ArrayReference)
-    # Since kernels are leaves in the PSyIR, we need to separately check
-    # their schedules for array references too.
-    kernels = node.walk(NemoKern)
-    for kern in kernels:
-        sched = kern.get_kernel_schedule()
-        refs += sched.walk(ArrayReference)
     for ref in refs:
         # Check if this reference has the name of a known function and if that
         # reference appears outside said known function.

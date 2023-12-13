@@ -631,10 +631,9 @@ returns a string and only executes the function if the ``str`` method
 is called for the class. This will not be the case for the above code
 as the exception string is not used.
 
-This approach is currently used in the ``CreateNemoKernelTrans``
-transformation and internally in the ``TransformationError`` exception
-(so that this transformation does not accidentally cause the string to
-be evaluated).
+This approach is currently used internally in the ``TransformationError``
+exception (so that this transformation does not accidentally cause the
+string to be evaluated).
 
 If a transformation is used in the way described above and PSyclone
 subsequently runs more slowly it is recommended that the ``LazyString``

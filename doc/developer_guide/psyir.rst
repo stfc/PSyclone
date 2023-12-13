@@ -905,7 +905,7 @@ PSy-layer concepts
   sub-classed in all of the domains supported by PSyclone. This then allows
   the class to be configured with a list of valid loop 'types'. For instance,
   the GOcean sub-class, `GOLoop`, has "inner" and "outer" while the LFRic
-  (dynamo0.3) sub-class, `DynLoop`, has "dofs", "colours", "colour", ""
+  (dynamo0.3) sub-class, `LFRicLoop`, has "dofs", "colours", "colour", ""
   and "null". The default loop type (iterating over cells) is here
   indicated by the empty string. The concept of a "null" loop type is
   currently required because the dependency analysis that determines the
@@ -913,7 +913,7 @@ PSy-layer concepts
   result, every `Kernel` call must be associated with a `Loop` node.
   However, the LFRic domain has support for kernels which operate on the
   'domain' and thus do not require a loop over cells or dofs in the
-  generated PSy layer. Supporting a `DynLoop` of "null" type allows us
+  generated PSy layer. Supporting an `LFRicLoop` of "null" type allows us
   to retain the dependence-analysis functionality within the `Loop`
   while not actually producing a loop in the generated code. When
   `#1148 <https://github.com/stfc/PSyclone/issues/1148>`_ is tackled,
