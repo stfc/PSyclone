@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by A. R. Porter, R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified by L. Turner, Met Office
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for adding profiling to code
@@ -124,7 +125,8 @@ class Profiler():
 
         :param schedule: The schedule to instrument.
         :type schedule: :py:class:`psyclone.psyGen.InvokeSchedule` or subclass
-        :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
+        :param loop_class: The loop class (e.g. GOLoop, LFRicLoop) to
+                            instrument.
         :type loop_class: :py:class:`psyclone.psyir.nodes.Loop` or subclass
 
         '''

@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified by L. Turner, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Loop PSyIR node. '''
@@ -224,7 +225,7 @@ def test_loop_gen_code():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
 
-    # By default DynLoop has step = 1 and it is not printed in the Fortran DO
+    # By default LFRicLoop has step = 1 and it is not printed in the Fortran DO
     gen = str(psy.gen)
     assert "loop0_start = 1" in gen
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
