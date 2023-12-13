@@ -73,14 +73,12 @@ def test_named_interface(fortran_reader, mod_txt):
     file_container = fortran_reader.psyir_from_source(dummy_module)
     container = file_container.children[0]
     assert isinstance(container, Container)
-    insitu_sym = container.symbol_table.lookup("eos_insitu")
-    insitu2d_sym = container.symbol_table.lookup("eos_insitu_2d")
     eos = container.symbol_table.lookup("eos")
     assert isinstance(eos, GenericInterfaceSymbol)
     assert isinstance(eos.datatype, NoType)
     assert eos.visibility == Symbol.Visibility.PUBLIC
-    assert insitu_sym in eos.routines
-    assert insitu2d_sym in eos.routines
+    assert "eos_insitu" in eos.routines
+    assert "eos_insitu_2d" in eos.routines
 
 
 @pytest.mark.parametrize("mod_txt", ["", "module "])

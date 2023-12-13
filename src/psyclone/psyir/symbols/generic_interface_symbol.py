@@ -44,25 +44,29 @@ class GenericInterfaceSymbol(RoutineSymbol):
     different callable routines.
 
     :param str name: name of the interface.
-    :param routines: the routines that this interface provides access to.
-    :type routines: list[:py:class:`psyclone.psyir.symbols.RoutineSymbol`]
+    :param routines: the names of the routines that this interface provides
+                     access to.
+    :type routines: list[str]
     :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
 
-    :raises ValueError: if no routines are provided.
-    :raises TypeError: if `routines` is not a list of RoutineSymbols.
+    :raises ValueError: if no routine names are provided.
+    :raises TypeError: if `routines` is not a list that consists only of str.
 
     '''
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
         if not routines:
             raise ValueError("A GenericInterfaceSymbol requires a list of "
-                             "RoutineSymbols but none were provided.")
-        if not all(isinstance(item, RoutineSymbol) for item in routines):
+                             "Routine names but none were provided.")
+        if not isinstance(routines, list):
+            raise TypeError(f"A GenericInterfaceSymbol requires a list of "
+                            f"Routine names but got: {routines}")
+        if not all(isinstance(item, str) for item in routines):
             raise TypeError(
                 f"A GenericInterfaceSymbol must be provided with a list of "
-                f"RoutineSymbols but got: "
+                f"Routine names as strings but got: "
                 f"{[type(rt).__name__ for rt in routines]}")
         self._routines = routines
 
@@ -80,7 +84,23 @@ class GenericInterfaceSymbol(RoutineSymbol):
                         else f"{self.is_elemental}")
         return (f"{self.name}: {type(self).__name__}<{self.datatype}, "
                 f"pure={is_pure}, elemental={is_elemental}, "
-                f"routines={[rt.name for rt in self.routines]}>")
+                f"routines={[rt for rt in self.routines]}>")
+
+    def copy(self):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :returns: A symbol object with the same properties as this
+                  symbol object.
+        :rtype: :py:class:`psyclone.psyir.symbols.GenericInterfaceSymbol`
+
+        '''
+        # The constructors for all Symbol-based classes have 'name' as the
+        # first positional argument.
+        return type(self)(self.name, self.routines, datatype=self.datatype,
+                          visibility=self.visibility,
+                          interface=self.interface)
 
 
 # For Sphinx AutoAPI documentation generation
