@@ -51,6 +51,10 @@ def test_gis_constructor():
         _ = GenericInterfaceSymbol("beech", [])
     assert ("A GenericInterfaceSymbol requires a list of Routine names but "
             "none were provided." in str(err.value))
+    with pytest.raises(TypeError) as err:
+        _ = GenericInterfaceSymbol("oak", "sycamore")
+    assert ("requires a list of Routine names but got: 'sycamore'"
+            in str(err.value))
     acorn = RoutineSymbol("acorn")
     with pytest.raises(TypeError) as err:
         _ = GenericInterfaceSymbol("oak", [acorn, "sycamore"])

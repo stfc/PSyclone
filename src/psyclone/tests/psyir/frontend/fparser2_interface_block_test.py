@@ -56,6 +56,7 @@ def test_named_interface(fortran_reader, mod_txt):
       public eos
       interface eos
         {mod_txt}procedure eos_insitu, eos_insitu_2d
+        {mod_txt}procedure eos_insitu_3d
       end interface
     contains
       subroutine eos_insitu(f1, f2)
@@ -68,6 +69,11 @@ def test_named_interface(fortran_reader, mod_txt):
           real, dimension(:,:), intent(out) :: f2
           f2(:,:) = f1(:,:) + 1
       end subroutine eos_insitu_2d
+      subroutine eos_insitu_3d(f1, f2)
+          real, dimension(:,:,:), intent(in)  :: f1
+          real, dimension(:,:,:), intent(out) :: f2
+          f2(:,:,:) = f1(:,:,:) + 1
+      end subroutine eos_insitu_3d
     end module dummy_mod
     '''
     file_container = fortran_reader.psyir_from_source(dummy_module)
@@ -79,6 +85,7 @@ def test_named_interface(fortran_reader, mod_txt):
     assert eos.visibility == Symbol.Visibility.PUBLIC
     assert "eos_insitu" in eos.routines
     assert "eos_insitu_2d" in eos.routines
+    assert "eos_insitu_3d" in eos.routines
 
 
 @pytest.mark.parametrize("mod_txt", ["", "module "])

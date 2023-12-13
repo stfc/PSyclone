@@ -2368,11 +2368,12 @@ class Fparser2Reader():
             vis = visibility_map.get(
                 name, symbol_table.default_visibility)
             # Attempt to work out which routines this interface includes. We
-            # only support those interfaces which use PROCEDURE :: <name-list>
+            # only support those interfaces which use:
+            #     [MODULE] PROCEDURE :: <name-list>
             # to specify these.
             rsymbols = []
-            if len(proc_stmts) == 1:
-                for routine_name in proc_stmts[0].children[0].children:
+            for proc_stmt in proc_stmts:
+                for routine_name in proc_stmt.children[0].children:
                     rsymbols.append(routine_name.string)
             try:
                 if rsymbols:

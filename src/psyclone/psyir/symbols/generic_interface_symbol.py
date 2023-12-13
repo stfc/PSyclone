@@ -62,7 +62,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
                              "Routine names but none were provided.")
         if not isinstance(routines, list):
             raise TypeError(f"A GenericInterfaceSymbol requires a list of "
-                            f"Routine names but got: {routines}")
+                            f"Routine names but got: '{routines}'")
         if not all(isinstance(item, str) for item in routines):
             raise TypeError(
                 f"A GenericInterfaceSymbol must be provided with a list of "
@@ -84,7 +84,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
                         else f"{self.is_elemental}")
         return (f"{self.name}: {type(self).__name__}<{self.datatype}, "
                 f"pure={is_pure}, elemental={is_elemental}, "
-                f"routines={[rt for rt in self.routines]}>")
+                f"routines={self.routines}>")
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the
