@@ -287,7 +287,9 @@ def test_select_rename(fortran_reader, fortran_writer, tmpdir):
 
 def test_kind(fortran_reader, fortran_writer, tmpdir):
     '''Check that the correct code is output when the TYPE IS intrinsic
-    content includes precision.
+    content includes precision. REAL*16 (quad precision) is not
+    supported by the nvidia compiler at the moment so we limit the
+    test to 4 and 8 here
 
     '''
     code = (
@@ -296,14 +298,14 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "subroutine select_type(type)\n"
         "  class(*) :: type\n"
         "  integer :: branch1, branch2\n"
-        "  real(kind=8) :: rinfo1\n"
-        "  real(kind=16) :: rinfo2\n"
+        "  real(kind=4) :: rinfo1\n"
+        "  real(kind=8) :: rinfo2\n"
         "  SELECT TYPE (type)\n"
-        "    TYPE IS (REAL(kind=8))\n"
+        "    TYPE IS (REAL(kind=4))\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
         "      rinfo1 = type\n"
-        "    TYPE IS (REAL(16))\n"
+        "    TYPE IS (REAL(8))\n"
         "      branch2 = 1\n"
         "      rinfo2 = type\n"
         "  END SELECT\n"
@@ -313,29 +315,29 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "    CLASS(*), TARGET :: type\n"
         "    integer :: branch1\n"
         "    integer :: branch2\n"
-        "    REAL(KIND = 8) :: rinfo1\n"
-        "    REAL(KIND = 16) :: rinfo2\n"
+        "    REAL(KIND = 4) :: rinfo1\n"
+        "    REAL(KIND = 8) :: rinfo2\n"
         "    character(256) :: type_string\n\n"
-        "    REAL(KIND = 8), pointer :: ptr_REAL_8\n\n"
-        "    REAL(KIND = 16), pointer :: ptr_REAL_16\n")
+        "    REAL(KIND = 4), pointer :: ptr_REAL_4\n\n"
+        "    REAL(KIND = 8), pointer :: ptr_REAL_8\n")
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
+        "  TYPE IS (REAL(KIND = 4))\n"
+        "  type_string = \"real_4\"\n"
+        "  ptr_REAL_4 => type\n"
         "  TYPE IS (REAL(KIND = 8))\n"
         "  type_string = \"real_8\"\n"
         "  ptr_REAL_8 => type\n"
-        "  TYPE IS (REAL(KIND = 16))\n"
-        "  type_string = \"real_16\"\n"
-        "  ptr_REAL_16 => type\n"
         "END SELECT\n"
-        "    if (type_string == 'real_8') then\n"
+        "    if (type_string == 'real_4') then\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
-        "      rinfo1 = ptr_REAL_8\n"
+        "      rinfo1 = ptr_REAL_4\n"
         "    else\n"
-        "      if (type_string == 'real_16') then\n"
+        "      if (type_string == 'real_8') then\n"
         "        branch2 = 1\n"
-        "        rinfo2 = ptr_REAL_16\n"
+        "        rinfo2 = ptr_REAL_8\n"
         "      end if\n"
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
