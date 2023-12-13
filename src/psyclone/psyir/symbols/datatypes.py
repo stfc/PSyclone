@@ -740,14 +740,14 @@ class StructureType(DataType):
         '''
         Creates a StructureType from the supplied list of properties.
 
-        :param components: the name, type, visibility and initial value (if
-                           any) of each component.
+        :param components: the name, type, visibility (whether public or
+            private) and initial value (if any) of each component.
         :type components: List[tuple[
             str,
             :py:class:`psyclone.psyir.symbols.DataType` |
                  :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
-            :py:class:`psyclone.psyir.symbols.xxx`,
-            Optional[:py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
+            Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
             ]]
 
         :returns: the new type object.

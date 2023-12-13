@@ -279,8 +279,8 @@ class BinaryOperation(Operation):
         of the operation.
 
         If the two precisions are the same, then that value is returned.
-        Otherwise, Section 7.1.9.3 of the Fortran standard says that in this
-        case, the precision of the result is the greater of the two.
+        Otherwise, Section 7.1.9.3 of the Fortran2008 standard says that in
+        this case, the precision of the result is the greater of the two.
         If the precision cannot be determined then
         `ScalarType.Precision.UNDEFINED` is returned.
 
@@ -324,8 +324,9 @@ class BinaryOperation(Operation):
     def _get_result_scalar_type(self, argtypes):
         '''
         Examines the two operand types to determine the base type of the
-        operation. If the type cannot be determined then an instance of
-        `DeferredType` is returned.
+        operation using the rules in Section 7.2 of the Fortran2008 standard.
+        If the type cannot be determined then an instance of `DeferredType` is
+        returned.
 
         :param argtypes: the types of the two operands.
         :type argtypes: list[:py:class:`psyclone.psyir.symbols.DataType`,
@@ -389,8 +390,8 @@ class BinaryOperation(Operation):
         :returns: the datatype of the result of this BinaryOperation.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
 
-        :raises TypeError: if the operands are both arrays but are of different
-                           shapes.
+        :raises InternalError: if the operands are both arrays but are of
+                               different shapes.
         '''
         # Get the types of the operands.
         argtypes = []
@@ -433,7 +434,7 @@ class BinaryOperation(Operation):
         if all(isinstance(atype, ArrayType) for atype in argtypes):
             # Both operands are of array type.
             if len(argtypes[0].shape) != len(argtypes[1].shape):
-                raise TypeError(
+                raise InternalError(
                     f"Binary operation '{self.debug_string()}' has operands "
                     f"of different shape: '{self.children[0].debug_string()}' "
                     f"has rank {len(argtypes[0].shape)} and "

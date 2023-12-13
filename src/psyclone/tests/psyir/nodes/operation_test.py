@@ -307,7 +307,7 @@ def test_binaryop_array_datatype():
     arr2dtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
     ref6 = Reference(DataSymbol("tmp2d", arr2dtype))
     binop6 = BinaryOperation.create(oper, ref1.copy(), ref6)
-    with pytest.raises(TypeError) as err:
+    with pytest.raises(InternalError) as err:
         _ = binop6.datatype
     assert ("Binary operation 'tmp1 + tmp2d' has operands of different shape: "
             "'tmp1' has rank 1 and 'tmp2d' has rank 2" in str(err.value))
