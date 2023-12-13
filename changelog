@@ -86,6 +86,17 @@
 
 	32) PR #2400 for #1508. Add flag/config option to disable backend checks.
 
+	33) PR #2428 for #2427. Fixes bug in MaxVal2LoopTrans.
+
+	34) PR #2430 towards #2421. Ensures local symbol table is merged into
+	routine scope following an inline transformation. (Works around
+	#2424.)
+
+	35) PR #2412 for #2411. Remove NemoKern and add the 'routine' profiling
+	option to the psyclone command.
+
+	36) PR #2401 for #2261. Split DynLoop out of dynamo0p3 and rename.
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
