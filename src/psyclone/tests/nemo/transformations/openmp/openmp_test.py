@@ -59,8 +59,7 @@ def test_omp_explicit_gen():
     omp_trans = TransInfo().get_trans_name('OMPParallelLoopTrans')
 
     for loop in schedule.loops():
-        kernel = loop.kernel
-        if kernel and loop.loop_type == "levels":
+        if loop.loop_type == "levels":
             omp_trans.apply(loop)
     gen_code = str(psy.gen).lower()
 
