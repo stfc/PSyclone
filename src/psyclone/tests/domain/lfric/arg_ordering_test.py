@@ -43,9 +43,9 @@ import pytest
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric import (KernCallArgList, LFRicKern,
                                    KernStubArgList, LFRicConstants,
-                                   LFRicSymbolTable)
+                                   LFRicSymbolTable, LFRicLoop)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
-from psyclone.dynamo0p3 import DynKernMetadata, DynLoop
+from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -246,8 +246,8 @@ def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    assert create_arg_list._arglist == []
-    assert create_arg_list._psyir_arglist == []
+    assert not create_arg_list._arglist
+    assert not create_arg_list._psyir_arglist
     create_arg_list.generate()
     assert create_arg_list._arglist == [
         'nlayers', 'ncell_2d_no_halos', 'b', 'f1_data', 'ndf_w3',
@@ -272,7 +272,7 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     kernel = schedule.kernels()[0]
 
     create_arg_list = KernCallArgList(kernel)
-    assert create_arg_list._arglist == []
+    assert not create_arg_list._arglist
     create_arg_list.generate()
     assert create_arg_list._arglist == [
         'cell', 'nlayers', 'ncell_2d', 'lma_op1_proxy%ncell_3d',
@@ -397,7 +397,7 @@ def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.walk(DynLoop)[0]
+    loop = schedule.walk(LFRicLoop)[0]
     create_arg_list = KernCallArgList(loop.loop_body[0])
     # Add an invalid shape to the dict of qr rules
     create_arg_list._kern.qr_rules["broken"] = None
