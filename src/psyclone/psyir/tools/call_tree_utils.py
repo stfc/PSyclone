@@ -352,9 +352,12 @@ class CallTreeUtils():
                     print(f"Cannot find module '{module_name}' - ignored.")
                     continue
                 try:
-                    # Add the list of non-locals to our todo list:
-                    todo.extend(self.get_non_local_symbols(
-                        mod_info.get_psyir(signature[0])))
+                    # Add the list of non-locals to our todo list. Handle
+                    # generic interfaces:
+                    all_routines = mod_info.resolve_routine(signature[0])
+                    for routine_name in all_routines:
+                        todo.extend(self.get_non_local_symbols(
+                            mod_info.get_psyir(routine_name)))
                 except KeyError:
                     print(f"Cannot find symbol '{signature[0]}' in module "
                           f"'{module_name}' - ignored.")
