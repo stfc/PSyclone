@@ -146,7 +146,7 @@ class LFRicKern(CodedKern):
         :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
         :param parent: The parent node of the kernel call in the AST
                        we are constructing. This will be a loop.
-        :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type parent: :py:class:`psyclone.domain.lfric.LFRicLoop`
         '''
         self._setup_basis(call.ktype)
         self._setup(call.ktype, call.module_name, call.args, parent)
@@ -245,7 +245,7 @@ class LFRicKern(CodedKern):
         :type args: List[:py:class:`psyclone.parse.algorithm.Arg`]
         :param parent: the parent of this kernel call in the generated \
                        AST (will be a loop object).
-        :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type parent: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param bool check: whether to check for consistency between the \
             kernel metadata and the algorithm layer. Defaults to True.
 
@@ -674,8 +674,8 @@ class LFRicKern(CodedKern):
                            entity_decls=["cell"]))
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynLoop
-        parent_loop = self.ancestor(DynLoop)
+        from psyclone.domain.lfric import LFRicLoop
+        parent_loop = self.ancestor(LFRicLoop)
 
         # Check whether this kernel reads from an operator
         op_args = parent_loop.args_filter(

@@ -1090,10 +1090,8 @@ class Kern(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        if self.name:
-            return (self.coloured_name(colour) + " " + self.name +
-                    "(" + self.arguments.names + ")")
-        return self.coloured_name(colour) + "[]"
+        return (self.coloured_name(colour) + " " + self.name +
+                "(" + self.arguments.names + ")")
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The API specific classes
@@ -1121,7 +1119,7 @@ class Kern(Statement):
     def reduction_arg(self):
         '''
         :returns: the reduction variable if this kernel/built-in
-        contains one and `None` otherwise.
+                  contains one and `None` otherwise.
         :rtype: :py:class:`psyclone.psyGen.KernelArgument` or `NoneType`
 
         '''
@@ -1131,9 +1129,9 @@ class Kern(Statement):
     def reprod_reduction(self):
         '''
         :returns: whether this kernel/built-in is enclosed within an OpenMP
-        do loop. If so report whether it has the reproducible flag
-        set. Note, this also catches OMPParallelDo Directives but they
-        have reprod set to False so it is OK.
+                  do loop. If so report whether it has the reproducible flag
+                  set. Note, this also catches OMPParallelDo Directives but
+                  they have reprod set to False so it is OK.
         :rtype: bool
 
         '''
@@ -1830,11 +1828,10 @@ class CodedKern(Kern):
 
 
 class InlinedKern(Kern):
-    '''A class representing a kernel that is inlined. This is used by
-    the NEMO API, since the NEMO API has no function to call or parameters.
+    '''A class representing a kernel that is inlined.
     It has one child which stores the Schedule for the child nodes.
 
-    :param psyir_nodes: the list of PSyIR nodes that represent the body \
+    :param psyir_nodes: the list of PSyIR nodes that represent the body
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR.
@@ -1872,6 +1869,17 @@ class InlinedKern(Kern):
                   (and must therefore be e.g. threadprivate if doing OpenMP)
         :rtype: list of str
         '''
+
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[]"
 
 
 class BuiltIn(Kern):

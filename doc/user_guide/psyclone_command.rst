@@ -65,9 +65,9 @@ by the command:
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
                   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                  [--profile {invokes,kernels}]
-		  [--backend {enable-validation,disable-validation}]
-		  [--config CONFIG] [--version]
+                  [--profile {invokes,routines,kernels}] [--config CONFIG]
+        		  [--backend {enable-validation,disable-validation}]
+        		  [--config CONFIG] [--version]
                   filename
 
   Run the PSyclone code generator on a particular file
@@ -101,8 +101,10 @@ by the command:
     --kernel-renaming {multiple,single}
                           Naming scheme to use when re-naming transformed
                           kernels
-    --profile {invokes,kernels}, -p {invokes,kernels}
-                          Add profiling hooks for either 'kernels' or 'invokes'
+    --profile {invokes,routines,kernels}, -p {invokes,routines,kernels}
+                          Add profiling hooks for either 'kernels' or
+            			  'invokes/routines'. The 'kernels' option is not
+            			  permitted for the 'nemo' API.
     --backend {dis,en}able-validation
                           Options to control the PSyIR backend used for code
                           generation. Use 'disable-validation' to disable the
@@ -307,16 +309,18 @@ Automatic Profiling Instrumentation
 
 The ``--profile`` option allows the user to instruct PSyclone to
 automatically insert profiling calls within the generated PSy
-code. Two options are provided, ``invokes`` and ``kernels``. The first of
-these causes PSyclone to insert profiling-start and -stop calls at the
-beginning and end of every generated invoke routine. The second puts
-profiling calls around every kernel call (including the associated
-loops). The generated code must be linked against the PSyclone
-profiling interface and the profiling tool itself. The application
-that calls the PSyclone-generated code is responsible for initialising
-and finalising the profiling library that is being used.  For full
-details on the use of this profiling functionality please see the
-:ref:`profiling` section.
+code. Two options are provided, ``invokes`` (or ``routines``) and
+``kernels``. The first of these causes PSyclone to insert
+profiling-start and -stop calls at the beginning and end of every
+generated invoke routine (or processed subroutine). The second puts
+profiling calls around every Kernel call, including the associated
+loops. (Since the 'nemo' API does not have the concept of Kernels,
+this option is not valid for that API.) The generated code must be
+linked against the PSyclone profiling interface and the profiling tool
+itself. The application that calls the PSyclone-generated code is
+responsible for initialising and finalising the profiling library that
+is being used (if necessary).  For full details on the use of this
+profiling functionality please see the :ref:`profiling` section.
 
 Outputting of Transformed Kernels
 ---------------------------------

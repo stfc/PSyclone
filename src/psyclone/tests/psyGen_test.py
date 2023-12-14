@@ -66,6 +66,7 @@ from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
                              GlobalSum, InvokeSchedule, BuiltIn)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
                                   Literal, Node, KernelSchedule, Call, colored)
+
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
                                     ImportInterface, ContainerSymbol, Symbol,
                                     INTEGER_TYPE, DeferredType, SymbolTable)
@@ -701,8 +702,9 @@ def test_kern_children_validation():
 
 
 def test_inlinedkern_children_validation():
-    '''Test that children added to Kern are validated. A Kern node does not
-    accept any children.
+    '''Test that children added to InlinedKern are validated. An InlinedKern
+    must have one child that is a Schedule (which is created by its
+    constructor).
 
     '''
     ikern = InlinedKern(None)
@@ -711,6 +713,13 @@ def test_inlinedkern_children_validation():
         ikern.addchild(Literal("2", INTEGER_TYPE))
     assert ("Item 'Literal' can't be child 1 of 'InlinedKern'. The valid "
             "format is: 'Schedule'.") in str(excinfo.value)
+
+
+def test_inlinedkern_node_str():
+    '''Test the node_str() method of InlinedKern.'''
+    ikern = InlinedKern(Schedule())
+    text = ikern.node_str(colour=False)
+    assert text == "InlinedKern[]"
 
 
 def test_call_abstract_methods():
@@ -2220,10 +2229,10 @@ def test_walk():
     binary_op_list = invoke.schedule.walk(BinaryOperation)
     assert len(binary_op_list) == 3
 
-    # Now the same tests, but stop at any Kern --> no assignment
+    # Now the same tests, but stop at any Loop --> no assignment
     # or binary operation should be found"
-    assignment_list = invoke.schedule.walk(Assignment, Kern)
+    assignment_list = invoke.schedule.walk(Assignment, Loop)
     assert not assignment_list
 
-    binary_op_list = invoke.schedule.walk(BinaryOperation, Kern)
+    binary_op_list = invoke.schedule.walk(BinaryOperation, Loop)
     assert not binary_op_list
