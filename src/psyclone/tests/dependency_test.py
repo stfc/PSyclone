@@ -44,8 +44,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import (KernCallAccArgList, KernStubArgList,
-                                   LFRicKern, LFRicKernMetadata)
+from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
