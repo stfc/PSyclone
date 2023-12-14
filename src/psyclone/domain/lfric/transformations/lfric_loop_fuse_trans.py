@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
-# Modified by I. Kavcic, Met Office
+# Modified by I. Kavcic and L.Turner, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module provides the LFRic-specific loop fusion transformation.
@@ -82,9 +82,9 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         the LFRicLoopFuseTrans transformation to the supplied loops.
 
         :param node1: the first Loop to fuse.
-        :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type node1: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param node2: the second Loop to fuse.
-        :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type node2: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param bool options["same_space"]: this optional flag, set to `True`, \

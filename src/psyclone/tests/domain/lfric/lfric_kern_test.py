@@ -48,8 +48,9 @@ from fparser import api as fpapi
 import psyclone
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes, LFRicKern
-from psyclone.dynamo0p3 import DynKernMetadata, DynLoop
+from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
+                                   LFRicLoop)
+from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -403,7 +404,7 @@ def test_kern_last_cell_all_colours():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loop = sched.walk(DynLoop)[0]
+    loop = sched.walk(LFRicLoop)[0]
     # Apply a colouring transformation to the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loop)
@@ -424,7 +425,7 @@ def test_kern_last_cell_all_colours_intergrid():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loop = sched.walk(DynLoop)[0]
+    loop = sched.walk(LFRicLoop)[0]
     # Apply a colouring transformation to the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loop)
@@ -441,7 +442,7 @@ def test_kern_all_updates_are_writes():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loop = sched.walk(DynLoop)[0]
+    loop = sched.walk(LFRicLoop)[0]
     # The only argument updated by this kernel has GH_INC access.
     assert not loop.kernel.all_updates_are_writes
     # Patch the kernel so that a different argument has GH_WRITE access.

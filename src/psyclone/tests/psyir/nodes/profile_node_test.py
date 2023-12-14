@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 ''' Module containing pytest tests for the ProfileNode. '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import (ProfileNode, Literal, Assignment, CodeBlock,
@@ -54,7 +53,7 @@ def teardown_function():
     any automatic profiling set. This is necessary in case of a test failure
     to make sure any further tests will not be run with profiling enabled.
     '''
-    Profiler.set_options([])
+    Profiler._options = []
 
 
 def test_profile_node_constructor():
@@ -117,7 +116,7 @@ def test_lower_to_lang_level_single_node():
     a single ProfileNode.
 
     '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], api="nemo")
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=REAL_TYPE)
@@ -155,7 +154,7 @@ def test_lower_named_profile_node():
     a ProfileNode has pre-set names for the module and region.
 
     '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], api="nemo")
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=REAL_TYPE)
@@ -179,7 +178,7 @@ def test_lower_to_lang_level_multi_node():
 
     '''
     # We use a GOcean example containing multiple kernel calls
-    Profiler.set_options([Profiler.KERNELS])
+    Profiler.set_options([Profiler.KERNELS], api="gocean1.0")
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
                            idx=0)
     sched = invoke.schedule

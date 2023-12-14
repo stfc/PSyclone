@@ -292,9 +292,9 @@ def test_extract_node_representation():
 
     # Test __str__ method
 
-    assert "End DynLoop\nExtractStart[var=extract_psy_data]\nDynLoop[" \
+    assert "End LFRicLoop\nExtractStart[var=extract_psy_data]\nLFRicLoop[" \
         in str(schedule)
-    assert "End DynLoop\nExtractEnd[var=extract_psy_data]\nDynLoop[" in \
+    assert "End LFRicLoop\nExtractEnd[var=extract_psy_data]\nLFRicLoop[" in \
         str(schedule)
     # Count the loops inside and outside the extract to check it is in
     # the right place

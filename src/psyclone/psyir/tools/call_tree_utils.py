@@ -325,7 +325,7 @@ class CallTreeUtils():
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
-        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-branches, too-many-locals
         mod_manager = ModuleManager.get()
         done = set()
         # Using a set here means that duplicated entries will automatically
@@ -352,9 +352,12 @@ class CallTreeUtils():
                     print(f"Cannot find module '{module_name}' - ignored.")
                     continue
                 try:
-                    # Add the list of non-locals to our todo list:
-                    todo.extend(self.get_non_local_symbols(
-                        mod_info.get_psyir(signature[0])))
+                    # Add the list of non-locals to our todo list. Handle
+                    # generic interfaces:
+                    all_routines = mod_info.resolve_routine(signature[0])
+                    for routine_name in all_routines:
+                        todo.extend(self.get_non_local_symbols(
+                            mod_info.get_psyir(routine_name)))
                 except KeyError:
                     print(f"Cannot find symbol '{signature[0]}' in module "
                           f"'{module_name}' - ignored.")
@@ -375,6 +378,12 @@ class CallTreeUtils():
                     # of non-local symbols:
                     todo.append(("routine", module_name, signature,
                                  access_info))
+                    continue
+                # Check if it is a constant (the symbol should always be found,
+                # but if a module cannot be parsed and get_symbol it will
+                # return None)
+                sym = mod_info.get_symbol(signature[0])
+                if sym and sym.is_constant:
                     continue
                 # Otherwise fall through to the code that adds a reference:
 

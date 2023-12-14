@@ -46,7 +46,7 @@ from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn
-from psyclone.psyir.nodes import (Reference, Schedule)
+from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -171,9 +171,11 @@ def test_call_tree_get_used_symbols_from_modules():
 
     non_locals_without_access = set((i[0], i[1], str(i[2]))
                                     for i in non_locals)
-    # Check that the expected symbols, modules and internal type are correct:
+    # Check that the expected symbols, modules and internal type are correct.
+    # Note that a constant variable from another module is still reported here
     expected = set([
             ("unknown", "constants_mod", "eps"),
+            ("unknown", "module_with_var_mod", "module_const"),
             ("reference", "testkern_import_symbols_mod",
              "dummy_module_variable"),
             ('routine', 'testkern_import_symbols_mod', "local_func"),
@@ -183,15 +185,6 @@ def test_call_tree_get_used_symbols_from_modules():
             ("routine", None, "unknown_subroutine")]
             )
     assert non_locals_without_access == expected
-
-    # Check the handling of a symbol that is not found: _compute_non_locals
-    # should return None:
-    ref = psyir.walk(Reference)[0]
-    # Change the name of the symbol so that it is not in the symbol table:
-    ref.symbol._name = "not-in-any-symbol-table"
-    psyir = mod_info.get_psyir("testkern_import_symbols_code")
-    info = ctu._compute_all_non_locals(psyir)
-    print("INFO", info)
 
 
 # -----------------------------------------------------------------------------
@@ -266,6 +259,11 @@ def test_get_non_local_read_write_info(capsys):
             in rw_info.write_list)
     assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
             in rw_info.write_list)
+
+    # Make sure that accessing a constant from a different module is
+    # not included:
+    assert (('module_with_var_mod', Signature("module_const"))
+            not in rw_info.read_list)
 
     # Check that we can ignore a module:
     mod_man.ignore_module("constants_mod")
