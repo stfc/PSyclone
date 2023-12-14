@@ -60,7 +60,7 @@ class LFRicKernMetadata(KernelType):
 
     :param ast: fparser1 AST for the kernel.
     :type ast: :py:class:`fparser.block_statements.BeginSource`
-    :param str name: The name of this kernel.
+    :param str name: the name of this kernel.
 
     :raises ParseError: if the metadata does not conform to the 
                         rules for the LFRic API.
@@ -75,12 +75,12 @@ class LFRicKernMetadata(KernelType):
         # no CMA operators are involved)
         self._cma_operation = None
 
-        # Query the meta-data for the evaluator shape(s) (only required if
+        # Query the metadata for the evaluator shape(s) (only required if
         # kernel uses quadrature or an evaluator). If it is not
-        # present then eval_shapes will be an empty list.
+        # present then 'eval_shapes' will be an empty list.
         shape = self.get_integer_variable('gh_shape')
         if not shape:
-            # There's no scalar gh_shape - is it present as an array?
+            # There's no scalar 'gh_shape' - is it present as an array?
             self._eval_shapes = self.get_integer_array('gh_shape')
         else:
             self._eval_shapes = [shape]
@@ -92,10 +92,10 @@ class LFRicKernMetadata(KernelType):
 
         # Whether or not this is an inter-grid kernel (i.e. has a mesh
         # specified for each [field] argument). This property is
-        # set to True if all the checks in _validate_inter_grid() pass.
+        # set to True if all the checks in '_validate_inter_grid()' pass.
         self._is_intergrid = False
 
-        # parse the arg_type metadata
+        # Parse the 'arg_type' metadata
         self._arg_descriptors = []
         for idx, arg_type in enumerate(self._inits):
             self._arg_descriptors.append(
@@ -105,7 +105,7 @@ class LFRicKernMetadata(KernelType):
         type_declns = [cline for cline in self._ktype.content if
                        isinstance(cline, fparser.one.typedecl_statements.Type)]
 
-        # Parse the func_type metadata if it exists
+        # Parse the 'func_type' metadata if it exists
         func_types = []
         for line in type_declns:
             for entry in line.selector:
@@ -116,8 +116,8 @@ class LFRicKernMetadata(KernelType):
                     break
 
         self._func_descriptors = []
-        # populate a list of function descriptor objects which we
-        # return via the func_descriptors method.
+        # Populate a list of function descriptor objects which we
+        # return via the 'func_descriptors' method.
         arg_fs_names = []
         for descriptor in self._arg_descriptors:
             arg_fs_names.extend(descriptor.function_spaces)
@@ -126,19 +126,19 @@ class LFRicKernMetadata(KernelType):
         for func_type in func_types:
             descriptor = DynFuncDescriptor03(func_type)
             fs_name = descriptor.function_space_name
-            # check that function space names in meta_funcs are specified in
-            # meta_args
+            # Check that function space names in 'meta_funcs' are specified in
+            # 'meta_args'
             if fs_name not in arg_fs_names:
                 raise ParseError(
                     f"In the dynamo0.3 API all function spaces specified in "
-                    f"meta_funcs must exist in meta_args, but '{fs_name}' "
+                    f"'meta_funcs' must exist in 'meta_args', but '{fs_name}' "
                     f"breaks this rule in ...\n'{self._ktype.content}'.")
             if fs_name not in used_fs_names:
                 used_fs_names.append(fs_name)
             else:
                 raise ParseError(
                     f"In the dynamo0.3 API function spaces specified in "
-                    f"meta_funcs must be unique, but '{fs_name}' is "
+                    f"'meta_funcs' must be unique, but '{fs_name}' is "
                     f"replicated.")
 
             const = LFRicConstants()
@@ -161,7 +161,7 @@ class LFRicKernMetadata(KernelType):
                         raise ParseError(
                             f"In the Dynamo0.3 API a kernel requiring either "
                             f"quadrature or an evaluator must request one or "
-                            f"more valid gh_shapes (one of "
+                            f"more valid 'gh_shapes' (one of "
                             f"{const.VALID_EVALUATOR_SHAPES}) but got "
                             f"'{self._eval_shapes}' for kernel '{self.name}'")
 
@@ -180,7 +180,7 @@ class LFRicKernMetadata(KernelType):
             # We want the 'to' space of any operator arguments so get
             # the first FS associated with the kernel argument.
             _targets = [arg.function_spaces[0] for arg in write_args]
-        # Ensure that _eval_targets entries are not duplicated
+        # Ensure that '_eval_targets' entries are not duplicated
         for target in _targets:
             if target not in self._eval_targets:
                 self._eval_targets.append(target)
@@ -197,30 +197,30 @@ class LFRicKernMetadata(KernelType):
 
     def _validate(self, need_evaluator):
         '''
-        Check that the meta-data conforms to Dynamo 0.3 rules for a
-        user-provided kernel or a built-in
+        Check that the metadata conforms to LFRic rules for a user-provided
+        kernel or a built-in.
 
-        :param bool need_evaluator: whether this kernel requires an \
+        :param bool need_evaluator: whether this kernel requires an
                                     evaluator/quadrature.
-        :raises ParseError: if the kernel metadata specifies writing to the \
+        :raises ParseError: if the kernel metadata specifies writing to the
                             read-only function space.
-        :raises ParseError: if a user-supplied LFRic kernel updates/writes \
+        :raises ParseError: if a user-supplied LFRic kernel updates/writes
                             to a scalar argument.
-        :raises ParseError: if a kernel does not have at least one argument \
+        :raises ParseError: if a kernel does not have at least one argument
                             that is updated/written to.
-        :raises ParseError: if a kernel does not require basis or \
-                            differential basis functions but specifies one \
+        :raises ParseError: if a kernel does not require basis or
+                            differential basis functions but specifies one
                             or more gh_shapes.
-        :raises ParseError: if a kernel does not require basis or \
-                            differential basis functions but specifies \
+        :raises ParseError: if a kernel does not require basis or
+                            differential basis functions but specifies
                             gh_evaluator_targets.
-        :raises ParseError: if a kernel specifies gh_evaluator_targets \
+        :raises ParseError: if a kernel specifies gh_evaluator_targets
                             but does not need an evaluator.
-        :raises ParseError: if a kernel requires an evaluator on a \
-                            specific function space but does not have an \
+        :raises ParseError: if a kernel requires an evaluator on a
+                            specific function space but does not have an
                             argument on that space.
-        :raises ParseError: if a kernel that has LMA operator arguments \
-                            also has a field argument with an invalid \
+        :raises ParseError: if a kernel that has LMA operator arguments
+                            also has a field argument with an invalid
                             data type (other than 'gh_real').
 
         '''
@@ -258,20 +258,20 @@ class LFRicKernMetadata(KernelType):
         # differential basis functions are required for the kernel
         if not need_evaluator and self._eval_shapes:
             raise ParseError(
-                f"Kernel '{self.name}' specifies one or more gh_shapes "
+                f"Kernel '{self.name}' specifies one or more 'gh_shapes' "
                 f"({self._eval_shapes}) but does not need an evaluator because"
                 f" no basis or differential basis functions are required")
-        # Check that gh_evaluator_targets is only present if required
+        # Check that 'gh_evaluator_targets' is only present if required
         if self._eval_targets:
             if not need_evaluator:
                 raise ParseError(
-                    f"Kernel '{self.name}' specifies gh_evaluator_targets "
+                    f"Kernel '{self.name}' specifies 'gh_evaluator_targets' "
                     f"({self._eval_targets}) but does not need an evaluator "
                     f"because no basis or differential basis functions are "
                     f"required")
             if "gh_evaluator" not in self._eval_shapes:
                 raise ParseError(
-                    f"Kernel '{self.name}' specifies gh_evaluator_targets "
+                    f"Kernel '{self.name}' specifies 'gh_evaluator_targets' "
                     f"({self._eval_targets}) but does not need an evaluator "
                     f"because gh_shape={self._eval_shapes}")
             # Check that there is a kernel argument on each of the
@@ -319,19 +319,18 @@ class LFRicKernMetadata(KernelType):
 
     def _validate_inter_grid(self):
         '''
-        Checks that the kernel meta-data obeys the rules for Dynamo 0.3
-        inter-grid kernels. If none of the kernel arguments has a mesh
-        associated with it then it is not an inter-grid kernel and this
-        routine silently returns.
+        Checks that the kernel meta-data obeys the rules for LFRic inter-grid
+        kernels. If none of the kernel arguments has a mesh associated with it
+        then it is not an inter-grid kernel and this routine silently returns.
 
-        :raises: ParseError: if meta-data breaks inter-grid rules
+        :raises: ParseError: if meta-data breaks inter-grid rules.
         '''
         # pylint: disable=too-many-branches
         # Dictionary of meshes associated with arguments (for inter-grid
         # kernels). Keys are the meshes, values are lists of function spaces
         # of the corresponding field arguments.
         mesh_dict = OrderedDict()
-        # Whether or not any field args are missing the mesh_arg specifier
+        # Whether or not any field args are missing the 'mesh_arg' specifier
         missing_mesh = False
         # If this is an inter-grid kernel then it must only have field
         # arguments. Keep a record of any non-field arguments for the benefit
@@ -419,11 +418,11 @@ class LFRicKernMetadata(KernelType):
         :param cwise_ops: all column-wise operator arguments in a kernel.
         :type cwise_ops: list of str
 
-        :returns: the type of CMA-operator-related operation that this \
+        :returns: the type of CMA-operator-related operation that this
                   kernel performs.
         :rtype: str
 
-        :raises ParseError: if the kernel metadata does not conform to the \
+        :raises ParseError: if the kernel metadata does not conform to the
                             LFRic rules for a kernel with a CMA operator.
 
         '''
@@ -573,7 +572,7 @@ class LFRicKernMetadata(KernelType):
         Check whether a kernel that has operates_on == domain obeys
         the rules for the LFRic API.
 
-        :raises ParseError: if the kernel metadata does not obey the rules \
+        :raises ParseError: if the kernel metadata does not obey the rules
                             for an LFRic kernel with operates_on = domain.
         '''
         if self.iterates_over != "domain":
@@ -619,7 +618,8 @@ class LFRicKernMetadata(KernelType):
 
     @property
     def func_descriptors(self):
-        ''' Returns metadata about the function spaces within a
+        '''
+        Returns metadata about the function spaces within a
         Kernel. This metadata is provided within Kernel code via the
         meta_funcs variable. Information is returned as a list of
         DynFuncDescriptor03 objects, one for each function space. '''
@@ -627,7 +627,8 @@ class LFRicKernMetadata(KernelType):
 
     @property
     def cma_operation(self):
-        ''' Returns the type of CMA operation identified from the kernel
+        '''
+        Returns the type of CMA operation identified from the kernel
         meta-data (one of 'assembly', 'apply' or 'matrix-matrix') or
         None if the kernel does not involve CMA operators '''
         return self._cma_operation
@@ -654,7 +655,7 @@ class LFRicKernMetadata(KernelType):
         we default to providing evaluators on all of the function spaces
         associated with the arguments which this kernel updates.
 
-        :return: list of the names of the function spaces (as they appear in \
+        :return: list of the names of the function spaces (as they appear in
                  kernel metadata) upon which any evaluator must be provided.
         :rtype: list of str
         '''
