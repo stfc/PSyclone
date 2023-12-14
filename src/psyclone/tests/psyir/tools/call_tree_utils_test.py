@@ -46,7 +46,7 @@ from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn
-from psyclone.psyir.nodes import (Reference, Schedule)
+from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -185,15 +185,6 @@ def test_call_tree_get_used_symbols_from_modules():
             ("routine", None, "unknown_subroutine")]
             )
     assert non_locals_without_access == expected
-
-    # Check the handling of a symbol that is not found: _compute_non_locals
-    # should return None:
-    ref = psyir.walk(Reference)[0]
-    # Change the name of the symbol so that it is not in the symbol table:
-    ref.symbol._name = "not-in-any-symbol-table"
-    psyir = mod_info.get_psyir("testkern_import_symbols_code")
-    info = ctu._compute_all_non_locals(psyir)
-    print("INFO", info)
 
 
 # -----------------------------------------------------------------------------
