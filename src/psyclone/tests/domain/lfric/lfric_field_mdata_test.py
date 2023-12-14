@@ -32,11 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#         I. Kavcic, A. Coughtrie and L. Turner, Met Office;
+#         I. Kavcic, A. Coughtrie and L. Turner and O. Brunt, Met Office;
 #         C. M. Maynard, Met Office/University of Reading;
 #         J. Henrichs, Bureau of Meteorology.
-#
-# Modified: O. Brunt, Met Office
 
 '''
 Module containing pytest tests for the general LFRic field arguments
@@ -48,7 +46,8 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants, LFRicFields
+from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
+                                   LFRicFields)
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse

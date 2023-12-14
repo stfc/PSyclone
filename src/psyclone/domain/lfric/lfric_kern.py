@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -447,7 +447,7 @@ class LFRicKern(CodedKern):
         ubnd_name = self.ancestor(Loop).upper_bound_name
         const = LFRicConstants()
 
-        if (ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS):
+        if ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS:
             return self.scope.symbol_table.find_or_create_array(
                 "last_halo_cell_all_colours", 2,
                 ScalarType.Intrinsic.INTEGER,
@@ -712,7 +712,7 @@ class LFRicKern(CodedKern):
 
         parent.add(CommentGen(parent, ""))
 
-        super(LFRicKern, self).gen_code(parent)
+        super().gen_code(parent)
 
     def get_kernel_schedule(self):
         '''Returns a PSyIR Schedule representing the kernel code. The base

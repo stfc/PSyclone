@@ -36,7 +36,7 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' 
+'''
 This module contains the LFRicFields class which manages the
 declarations for field arguments required by an Invoke or
 Kernel stub.
@@ -65,15 +65,12 @@ class LFRicFields(LFRicCollection):
         is only pointed to from the field object and is thus not a part of
         the object).
 
-        :param parent: the node in the f2pygen AST representing the PSy-layer \
+        :param parent: the node in the f2pygen AST representing the PSy-layer
                        routine to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises InternalError: for unsupported intrinsic types of field \
+        :raises InternalError: for unsupported intrinsic types of field
                                argument data.
-        :raises GenerationError: if the same field has different data \
-                                 types in different kernel calls within \
-                                 the same Invoke.
 
         '''
         # Create dict of all field arguments for checks
@@ -129,11 +126,11 @@ class LFRicFields(LFRicCollection):
         '''
         Add field-related declarations to a Kernel stub.
 
-        :param parent: the node in the f2pygen AST representing the Kernel \
+        :param parent: the node in the f2pygen AST representing the Kernel
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises InternalError: for an unsupported data type of field \
+        :raises InternalError: for an unsupported data type of field
                                argument data.
 
         '''
@@ -175,5 +172,5 @@ class LFRicFields(LFRicCollection):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for. (see [https://psyclone-ref.readthedocs.io])
 __all__ = ['LFRicFields']
