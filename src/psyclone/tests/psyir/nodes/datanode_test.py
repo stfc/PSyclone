@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,27 +31,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the DataNode abstract node implementation.'''
+'''Performs pytest tests on the PSyIR DataNode.
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols.datatypes import DeferredType
+'''
+from psyclone.psyir.nodes import DataNode
+from psyclone.psyir.symbols import DeferredType
 
 
-class DataNode(Node):
+def test_datanode_datatype():
     '''
-    Abstract node representing a general PSyIR expression that represents a
-    value, which has a datatype.
+    Test that the base implementation of datatype just returns DeferredType.
 
     '''
-    @property
-    def datatype(self):
-        '''
-        :returns: the data-type of this Node. Currently this base
-            implementation just returns DeferredType(). If a sub-class can do
-            better then it must override this method.
-        :rtype: :py:class:`psyclone.psyir.symbols.DeferredType`
-        '''
-        return DeferredType()
+    dnode = DataNode()
+    assert isinstance(dnode.datatype, DeferredType)
