@@ -41,8 +41,6 @@ to the equivalent explicit loop representation using a NemoLoop node.
 
 '''
 
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans import \
-    CreateNemoKernelTrans
 from psyclone.errors import LazyString, InternalError
 from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
@@ -91,7 +89,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
     '''
     def apply(self, node, options=None):
-        ''' Apply the transformation that given an assignment with an
+        ''' Apply the transformation such that, given an assignment with an
         ArrayReference Range in the LHS (equivalent to an array assignment
         statement in Fortran), it converts it to an explicit loop doing each
         of the individual element assignments separately.
@@ -100,8 +98,8 @@ class NemoArrayRange2LoopTrans(Transformation):
         to indicate which array index should be transformed. This can only
         be applied to the outermost Range of the ArrayReference.
 
-        This is currently specific to NEMO. It will create NemoLoops and
-        put the loop body inside a NemoKern to conform to the NEMO API.
+        This is currently specific to the 'nemo' API in that it will create
+        NemoLoops.
 
         :param node: a Range node.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
@@ -154,12 +152,6 @@ class NemoArrayRange2LoopTrans(Transformation):
         loop = NemoLoop.create(loop_variable_symbol, start, stop, step,
                                [assignment.detach()])
         parent.children.insert(position, loop)
-
-        if not assignment.lhs.walk(Range):
-            # All valid array ranges have been replaced with explicit
-            # loops. We now need to take the content of the loop and
-            # place it within a NemoKern (inlined kernel) node.
-            CreateNemoKernelTrans().apply(assignment.parent)
 
     def __str__(self):
         return (
