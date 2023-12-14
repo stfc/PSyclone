@@ -127,17 +127,17 @@ class LFRicKernMetadata(KernelType):
             descriptor = DynFuncDescriptor03(func_type)
             fs_name = descriptor.function_space_name
             # Check that function space names in 'meta_funcs' are specified in
-            # 'meta_args'
+            # 'meta_args'.
             if fs_name not in arg_fs_names:
                 raise ParseError(
-                    f"In the dynamo0.3 API all function spaces specified in "
+                    f"In the LFRic API all function spaces specified in "
                     f"'meta_funcs' must exist in 'meta_args', but '{fs_name}' "
                     f"breaks this rule in ...\n'{self._ktype.content}'.")
             if fs_name not in used_fs_names:
                 used_fs_names.append(fs_name)
             else:
                 raise ParseError(
-                    f"In the dynamo0.3 API function spaces specified in "
+                    f"In the LFRic API function spaces specified in "
                     f"'meta_funcs' must be unique, but '{fs_name}' is "
                     f"replicated.")
 
@@ -149,7 +149,7 @@ class LFRicKernMetadata(KernelType):
                     need_evaluator = True
                     if not self._eval_shapes:
                         raise ParseError(
-                            f"In the Dynamo0.3 API any kernel requiring "
+                            f"In the LFRic API any kernel requiring "
                             f"quadrature or an evaluator "
                             f"({const.VALID_EVALUATOR_NAMES}) must also "
                             f"supply the shape of that evaluator by setting "
@@ -159,7 +159,7 @@ class LFRicKernMetadata(KernelType):
                     if not shape_set.issubset(
                             set(const.VALID_EVALUATOR_SHAPES)):
                         raise ParseError(
-                            f"In the Dynamo0.3 API a kernel requiring either "
+                            f"In the LFRic API a kernel requiring either "
                             f"quadrature or an evaluator must request one or "
                             f"more valid 'gh_shapes' (one of "
                             f"{const.VALID_EVALUATOR_SHAPES}) but got "
@@ -374,21 +374,21 @@ class LFRicKernMetadata(KernelType):
                 f"{len(const.VALID_MESH_TYPES)}: {const.VALID_MESH_TYPES}")
         if len(mesh_list) != len(const.VALID_MESH_TYPES):
             raise ParseError(
-                f"Inter-grid kernels in the Dynamo 0.3 API must have at least "
+                f"Inter-grid kernels in the LFRic API must have at least "
                 f"one field argument on each of the mesh types "
                 f"({const.VALID_MESH_TYPES}). However, kernel {self.name} has "
                 f"arguments only on {[str(name) for name in mesh_list]}")
         # Inter-grid kernels must only have field arguments
         if non_field_arg_types:
             raise ParseError(
-                f"Inter-grid kernels in the Dynamo 0.3 API are only permitted "
+                f"Inter-grid kernels in the LFRic API are only permitted "
                 f"to have field arguments but kernel {self.name} also has "
                 f"arguments of type "
                 f"{[str(name) for name in non_field_arg_types]}")
         # Check that all arguments have a mesh specified
         if missing_mesh:
             raise ParseError(
-                f"Inter-grid kernels in the Dynamo 0.3 API must specify which"
+                f"Inter-grid kernels in the LFRic API must specify which"
                 f" mesh each field argument is on but kernel {self.name} has "
                 f"at least one field argument for which mesh_arg is missing.")
         # Check that arguments on different meshes are on different
@@ -402,7 +402,7 @@ class LFRicKernMetadata(KernelType):
         fs_common = fs_sets[0] & fs_sets[1]
         if fs_common:
             raise ParseError(
-                f"In the Dynamo 0.3 API field arguments to inter-grid kernels "
+                f"In the LFRic API field arguments to inter-grid kernels "
                 f"must be on different function spaces if they are on "
                 f"different meshes. However kernel {self.name} has a field on "
                 f"function space(s) {[str(name) for name in fs_common]} on "
