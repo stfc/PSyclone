@@ -144,9 +144,8 @@ if __name__ == "__main__":
             else:
                 print(f"Processing {file_name} (passthrough only)...")
 
-            if ARGS.include_path != []:
-                for ipath in ARGS.include_path:
-                    extra_args += ["-I", ipath]
+            for ipath in ARGS.include_path:
+                extra_args += ["-I", ipath]
             extra_args += ["-oalg", "/dev/null",
                            "-opsy", out_file, ffile]
         # Since we're in Python we could call psyclone.generator.main()
