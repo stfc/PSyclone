@@ -388,9 +388,9 @@ class LFRicKernMetadata(KernelType):
         # Check that all arguments have a mesh specified
         if missing_mesh:
             raise ParseError(
-                f"Inter-grid kernels in the LFRic API must specify which"
-                f" mesh each field argument is on but kernel {self.name} has "
-                f"at least one field argument for which mesh_arg is missing.")
+                f"Inter-grid kernels in the LFRic API must specify which mesh "
+                f"each field argument is on but kernel {self.name} has at "
+                f"least one field argument for which 'mesh_arg' is missing.")
         # Check that arguments on different meshes are on different
         # function spaces. We do this by checking that no function space
         # is listed as being associated with (arguments on) both meshes.

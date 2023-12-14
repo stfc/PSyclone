@@ -278,14 +278,14 @@ def test_invalid_shape():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("request one or more valid gh_shapes (one of ['gh_quadrature_xyoz'"
+    assert ("request one or more valid 'gh_shapes' (one of ['gh_quadrature_xyoz'"
             ", 'gh_quadrature_face', 'gh_quadrature_edge', 'gh_evaluator']) "
             "but got '['quadrature_wrong']' for kernel 'testkern_qr_type'"
             in str(excinfo.value))
 
 
 def test_unnecessary_shape():
-    ''' Check that we raise the correct error if a kernel meta-data specifies
+    ''' Check that we raise the correct error if a kernel metadata specifies
     an evaluator shape but does not require quadrature or an evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Remove the need for basis or diff-basis functions
@@ -300,7 +300,7 @@ def test_unnecessary_shape():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_qr_type' specifies one or more gh_shapes "
+    assert ("Kernel 'testkern_qr_type' specifies one or more 'gh_shapes' "
             "(['gh_quadrature_xyoz']) but does not need an evaluator because "
             "no basis or differential basis functions are required"
             in str(excinfo.value))

@@ -119,21 +119,21 @@ def test_multi_updated_arg():
 
 def test_eval_targets():
     ''' Check that we can specify multiple evaluator targets using
-    the gh_evaluator_targets meta-data entry. '''
+    the 'gh_evaluator_targets' metadata entry. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert dkm._eval_targets == ["w0", "w1"]
 
 
 def test_eval_targets_err():
-    ''' Check that needlessly specifying gh_evaluator_targets raises the
+    ''' Check that needlessly specifying 'gh_evaluator_targets' raises the
     expected errors. '''
     # When the shape is gh_quadrature_* instead of gh_evaluator
     code = CODE.replace("gh_evaluator\n", "gh_quadrature_xyoz\n")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
         _ = LFRicKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
+    assert ("specifies 'gh_evaluator_targets' (['w0', 'w1']) but does not need "
             "an evaluator because gh_shape=['gh_quadrature_xyoz']"
             in str(err.value))
     # When there are no basis/diff-basis functions required
