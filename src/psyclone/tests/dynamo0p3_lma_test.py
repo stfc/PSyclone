@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic and L.Turner, Met Office
+# Modified I. Kavcic and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for LMA operators in the LFRic (Dynamo 0.3)
@@ -48,8 +48,8 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import (LFRicKern, LFRicArgDescriptor,
-                                   LFRicConstants, LFRicKernMetadata)
+from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
+                                   LFRicKern, LFRicKernMetadata)
 from psyclone.dynamo0p3 import DynFuncDescriptor03, FunctionSpace
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse

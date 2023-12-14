@@ -472,4 +472,4 @@ def test_kern_not_coloured_inc(monkeypatch):
         _ = psy.gen
     assert ("Kernel 'testkern_code' has an argument with INC access and "
             "therefore must be coloured in order to be parallelised with "
-            "OpenMP.")
+            "OpenMP." in str(err.value))

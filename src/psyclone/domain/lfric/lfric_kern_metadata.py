@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council
+# Copyright (c) 2017-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,23 +46,24 @@ from psyclone import psyGen
 from psyclone.core import AccessType
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import (DynFuncDescriptor03, RefElementMetaData,
-                                MeshPropertiesMetaData)
+from psyclone.dynamo0p3 import (DynFuncDescriptor03, MeshPropertiesMetaData,
+                                RefElementMetaData)
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 
 
 class LFRicKernMetadata(KernelType):
-    ''' Captures the Kernel subroutine code and metadata describing
+    '''
+    Captures the Kernel subroutine code and metadata describing
     the subroutine for the LFRic API.
 
     :param ast: fparser1 AST for the kernel.
     :type ast: :py:class:`fparser.block_statements.BeginSource`
     :param str name: The name of this kernel.
 
-    :raises ParseError: if the meta-data does not conform to the \
-                        rules for the Dynamo 0.3 API.
+    :raises ParseError: if the metadata does not conform to the 
+                        rules for the LFRic API.
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, ast, name=None):

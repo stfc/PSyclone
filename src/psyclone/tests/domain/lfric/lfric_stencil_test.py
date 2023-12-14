@@ -32,10 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic and A. Coughtrie, Met Office,
+#         I. Kavcic, A. Coughtrie and L. Turner, Met Office,
 #         C. M. Maynard, Met Office/University of Reading,
 #         J. Henrichs, Bureau of Meteorology.
-# Modified by: L. Turner, Met Office
 
 ''' Module containing tests of LFRic stencils through the LFRic API '''
 
@@ -45,7 +44,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import (LFRicKern, LFRicConstants,
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
                                    LFRicKernMetadata)
 from psyclone.dynamo0p3 import DynKernelArguments, DynStencils
 from psyclone.errors import GenerationError, InternalError

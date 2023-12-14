@@ -42,7 +42,7 @@ import pytest
 
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
-                                   LFRicConstants, LFRicKern
+                                   LFRicKern, LFRicConstants,
                                    LFRicKernMetadata, LFRicSymbolTable)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.dynamo0p3 import DynLoop

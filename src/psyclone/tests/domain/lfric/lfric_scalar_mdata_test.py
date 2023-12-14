@@ -46,9 +46,9 @@ import pytest
 import fparser
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import (LFRicKern, LFRicArgDescriptor,
-                                   LFRicScalarArgs, LFRicConstants,
-                                   LFRicKernMetadata)
+from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
+                                   LFRicKern, LFRicKernMetadata,
+                                   LFRicScalarArgs)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
