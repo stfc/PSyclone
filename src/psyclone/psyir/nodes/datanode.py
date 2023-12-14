@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the DataNode abstract node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.symbols.datatypes import DeferredType
 
 
 class DataNode(Node):
     '''
     Abstract node representing a general PSyIR expression that represents a
     value, which has a datatype.
+
     '''
+    @property
+    def datatype(self):
+        '''
+        :returns: the data-type of this Node. Currently this base
+            implementation just returns DeferredType(). If a sub-class can do
+            better then it must override this method.
+        :rtype: :py:class:`psyclone.psyir.symbols.DeferredType`
+        '''
+        return DeferredType()
