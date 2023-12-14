@@ -47,6 +47,7 @@ jobs:
     runs-on: self-hosted
     env:
       NVFORTRAN_VERSION: 23.7
+      ONEAPI_VERSION: 2023.2.0
       PERL_VERSION: 5.38.0
       PYTHON_VERSION: 3.12.0
 
@@ -183,8 +184,7 @@ jobs:
     - name: NEMO ECMWF OpenMP for CPU
       run: |
         . .runner_venv/bin/activate
-        module rm nvidia-hpcsdk
-        module load intel/oneapi compiler mpi
+        module load intel/oneapi/${ONEAPI_VERSION} compiler mpi
         module load perl/${PERL_VERSION}
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMOGCM_V40
