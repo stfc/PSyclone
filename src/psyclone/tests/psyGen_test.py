@@ -65,8 +65,8 @@ from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
                              GlobalSum, InvokeSchedule, BuiltIn)
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
-                                  Literal, Node, KernelSchedule, Call, colored)
-
+                                  Literal, Loop, Node, KernelSchedule, Call,
+                                  colored, Schedule)
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
                                     ImportInterface, ContainerSymbol, Symbol,
                                     INTEGER_TYPE, DeferredType, SymbolTable)

@@ -42,7 +42,7 @@ import pytest
 
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
-                                   LFRicConstants, LFRicKern
+                                   LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop,
                                    LFRicSymbolTable)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
