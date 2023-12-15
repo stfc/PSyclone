@@ -147,7 +147,7 @@ def test_eval_targets_err():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
         _ = LFRicKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
+    assert ("specifies 'gh_evaluator_targets' (['w0', 'w1']) but does not need "
             "an evaluator because no basis or differential basis functions "
             "are required" in str(err.value))
 

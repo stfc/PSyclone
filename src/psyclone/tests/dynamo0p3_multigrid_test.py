@@ -136,7 +136,7 @@ def test_all_args_same_mesh_error():
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     const = LFRicConstants()
-    assert (f"Inter-grid kernels in the Dynamo 0.3 API must have at least "
+    assert (f"Inter-grid kernels in the LFRic API must have at least "
             f"one field argument on each of the mesh types "
             f"({const.VALID_MESH_TYPES}). However, "
             f"kernel restrict_kernel_type has arguments only on ['gh_fine']"
@@ -146,7 +146,7 @@ def test_all_args_same_mesh_error():
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert (f"Inter-grid kernels in the Dynamo 0.3 API must have at least "
+    assert (f"Inter-grid kernels in the LFRic API must have at least "
             f"one field argument on each of the mesh types "
             f"({const.VALID_MESH_TYPES}). However, kernel "
             f"restrict_kernel_type has arguments only on ['gh_coarse']"
@@ -168,10 +168,10 @@ def test_all_fields_have_mesh():
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels in the Dynamo 0.3 API must specify which "
-            "mesh each field argument "
-            "is on but kernel restrict_kernel_type has at least one field "
-            "argument for which mesh_arg is missing." in str(excinfo.value))
+    assert ("Inter-grid kernels in the LFRic API must specify which mesh "
+            "each field argument is on but kernel restrict_kernel_type has "
+            "at least one field argument for which 'mesh_arg' is missing." in
+            str(excinfo.value))
 
 
 def test_args_same_space_error():
@@ -209,7 +209,7 @@ def test_only_field_args():
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels in the Dynamo 0.3 API are only permitted to "
+    assert ("Inter-grid kernels in the LFRic API are only permitted to "
             "have field arguments but kernel restrict_kernel_type also has "
             "arguments of type ['gh_scalar']" in str(excinfo.value))
 

@@ -385,7 +385,7 @@ def test_fsdesc_fs_not_in_argdesc():
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert "function spaces specified in 'meta_funcs' must exist in " + \
-        "meta_args" in str(excinfo.value)
+        "'meta_args'" in str(excinfo.value)
 
 
 def test_invoke_uniq_declns_valid_access_op():
