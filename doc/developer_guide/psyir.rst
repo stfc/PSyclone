@@ -521,7 +521,40 @@ sections of the reference guide.
         datatype of the operands (e.g. in the select-case canonicalisation).
         A solution to this is to create an abstract interface with appropriate
         implementations for each possible datatype.
-            
+
+Data Type of an Operation Node
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Table 7.2 of the Fortran2008 standard specifies the rules governing
+the types of operands and their results. The PSyIR follows these rules
+with the exception that there is no support for symbols of complex
+(imaginary) type (see
+`#1590 <https://github.com/stfc/PSyclone/issues/1590>`_). For unary operations,
+the type of the result is just that of the operand.  For a numeric,
+binary operation, these rules boil down to saying that if either argument
+is real then the result is real but if both arguments are integer then the
+result is integer. 
+
+If the precisions of the operands are the same, then the result must
+also be of that precision. Otherwise, Section 7.1.9.3 of the Fortran2008
+standard says that the precision of the result is the greater of the two.
+In the PSyIR, if both precisions are instances of `ScalarType.Precision` or
+`int` then this permits the precision of the result to be determined.
+Otherwise, the result is given a precision of `ScalarType.Precision.UNDEFINED`.
+
+For comparison operations (e.g. `<`, `==`), the intrinsic type of the
+result is always boolean. If either or both operands are arrays, then
+the result is a boolean array.
+
+The PSyIR type system includes support for those situations where
+PSyclone is not able to fully understand a variable declaration.
+In such cases, the type is an instance of `UnknownFortranType` which
+stores both the original declaration and, optionally, a `partial_datatype`
+holding the aspects of the type that can be represented in the PSyIR.
+The presence of a `partial_datatype` implies that we fully understand
+the intrinsic type. Given this and an array shape, it is always possible
+to determine the result of a numerical operation involving such a type.
+
 
 IntrinsicCall Nodes
 -------------------
