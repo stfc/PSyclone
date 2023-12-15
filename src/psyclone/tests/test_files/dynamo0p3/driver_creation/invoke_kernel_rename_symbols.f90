@@ -43,8 +43,8 @@ program invoke_kernel_with_imported_symbols
   implicit none
 
   type(field_type) :: f1, f2, m1, m2
-  real(r_def)      :: a
+  real(r_def)      :: module_var_a
 
-  call invoke(testkern_rename_symbols_type(a, f1, f2, m1, m2))
+  call invoke(testkern_rename_symbols_type(module_var_a, f1, f2, m1, m2))
 
 end program invoke_kernel_with_imported_symbols

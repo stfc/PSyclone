@@ -396,13 +396,19 @@ class LFRicExtractDriverCreator:
                 # a module: the psyir does not have the full tree structure.
                 continue
 
-            symbol_table.find_or_create_tag(tag=f"{signature[0]}@"
-                                                f"{module_name}",
-                                            root_name=signature[0],
-                                            symbol_type=DataSymbol,
-                                            interface=ImportInterface(
-                                                container),
-                                            datatype=container_symbol.datatype)
+            # It is possible that external symbol name (signature[0]) already
+            # exist in the symbol table (the same name is used in the local
+            # subroutine and in a module). In this case, the imported symbol
+            # must be renamed:
+            if signature[0] in symbol_table:
+                interface = ImportInterface(container, orig_name=signature[0])
+            else:
+                interface = ImportInterface(container)
+
+            symbol_table.find_or_create_tag(
+                tag=f"{signature[0]}@{module_name}", root_name=signature[0],
+                symbol_type=DataSymbol, interface=interface,
+                datatype=container_symbol.datatype)
 
     # -------------------------------------------------------------------------
     @staticmethod
