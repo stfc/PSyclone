@@ -691,7 +691,10 @@ def test_lfric_driver_external_symbols_error(capsys):
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_rename_externals():
     '''Tests that we get the used non-local symbols from a routine that
-    renames a symbol reported correctly.
+    renames a symbol reported correctly. Additionally, this also tests
+    a potential name clash, if the renamed symbol should already exist
+    in the PSy layer: in this case, the symbol also needs to be renamed
+    on import
 
     '''
     # This example calls a subroutine that renames a symbol used from
@@ -708,5 +711,10 @@ def test_lfric_driver_rename_externals():
     code = driver_creator.get_driver_as_string(invoke.schedule,
                                                read_write_info, "extract",
                                                "_post", ("region", "name"))
+    # The invoking program also contains a variable `module_var_a`. So
+    # the `module_var_a` from the module must be renamed on import and it
+    # becomes `module_var_a_1`.
+    assert ("use module_with_var_mod, only : module_var_a_1=>module_var_a"
+            in code)
     assert ("call extract_psy_data%ReadVariable("
-            "'module_var_a@module_with_var_mod', module_var_a)" in code)
+            "'module_var_a@module_with_var_mod', module_var_a_1)" in code)
