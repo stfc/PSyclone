@@ -712,7 +712,7 @@ class LFRicKern(CodedKern):
 
         parent.add(CommentGen(parent, ""))
 
-        super(LFRicKern, self).gen_code(parent)
+        super().gen_code(parent)
 
     def get_kernel_schedule(self):
         '''Returns a PSyIR Schedule representing the kernel code. The base
