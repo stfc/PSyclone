@@ -94,6 +94,8 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
+    #print(result)
+    #exit(1)
     assert expected1 in result
     assert expected2 in result
     if_blocks = psyir.walk(IfBlock)
@@ -155,9 +157,11 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
         "      else\n"
         "        branch3 = 1\n"
         "      end if\n"
-        "    end if")
+        "    end if\n\n"
+        "  end subroutine select_type\n")
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir)
+    print(result)
     assert expected in result
     assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)

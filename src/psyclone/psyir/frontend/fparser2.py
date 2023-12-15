@@ -3328,8 +3328,8 @@ class Fparser2Reader():
         return ifblock
 
     def _create_ifblock(
-            self, parent, select_idx, default_idx, type_string_symbol,
-            guard_type_repr, stmts, pointer_symbols, clause_type, selector):
+            self, parent, select_type, select_idx, default_idx, type_string_symbol,
+            stmts, pointer_symbols, selector):
         ''' xxx '''
         outer_ifblock = None
         ifblock = None
@@ -3342,13 +3342,13 @@ class Fparser2Reader():
                 elsebody = Schedule(parent=currentparent)
                 currentparent.addchild(elsebody)
                 annotation = "was_type_is"
-                if clause_type[idx] == "CLASS IS":
+                if select_type.clause_type[idx] == "CLASS IS":
                     annotation = "was_class_is"
                 ifblock = IfBlock(annotations=[annotation])
                 elsebody.addchild(ifblock)
             else:
                 annotation = "was_type_is"
-                if clause_type[idx] == "CLASS IS":
+                if select_type.clause_type[idx] == "CLASS IS":
                     annotation = "was_class_is"
                 ifblock = IfBlock(parent=currentparent,
                                   annotations=[annotation])
@@ -3360,7 +3360,7 @@ class Fparser2Reader():
             # original select type clauses.
             clause = BinaryOperation.create(
                 BinaryOperation.Operator.EQ, Reference(type_string_symbol),
-                Literal(guard_type_repr[idx].lower(), CHARACTER_TYPE))
+                Literal(select_type.guard_type_repr[idx].lower(), CHARACTER_TYPE))
 
             ifblock.addchild(clause)
             # Add If_body
@@ -3384,22 +3384,22 @@ class Fparser2Reader():
 
 
     @staticmethod
-    def _create_select_type(parent, selector, select_idx, default_idx, pointer_symbols, guard_type_repr, guard_type, intrinsic_type_name, clause_type, type_string_name, type_string_symbol):
+    def _create_select_type(parent, select_type, pointer_symbols, type_string_name, type_string_symbol):
         ''' xxx '''
         code = "program dummy\n"
-        code += f"select type({selector})\n"
-        for idx in range(select_idx+1):
-            if idx == default_idx:
+        code += f"select type({select_type.selector})\n"
+        for idx in range(select_type.num_clauses+1):
+            if idx == select_type.default_idx:
                 pointer_symbols.append(None)
                 continue
             pointer_name = parent.scope.symbol_table.next_available_name(
-                f"ptr_{guard_type_repr[idx]}")
-            tmp = f"{guard_type[idx]}"
-            if not intrinsic_type_name[idx]:
+                f"ptr_{select_type.guard_type_repr[idx]}")
+            tmp = f"{select_type.guard_type[idx]}"
+            if not select_type.intrinsic_type_name[idx]:
                 tmp = f"type({tmp})"
             pointer_type = UnknownFortranType(
                 f"{tmp}, pointer :: {pointer_name}\n")
-            if guard_type[idx] in ["CHARACTER(LEN = *)", "CHARACTER*(*)"]:
+            if select_type.guard_type[idx] in ["CHARACTER(LEN = *)", "CHARACTER*(*)"]:
                 pointer_symbol = DataSymbol(
                     pointer_name, pointer_type,
                     interface=ArgumentInterface(
@@ -3408,25 +3408,25 @@ class Fparser2Reader():
                 pointer_symbol = DataSymbol(pointer_name, pointer_type)
 
             parent.scope.symbol_table.add(pointer_symbol)
-            if guard_type[idx] in ["CHARACTER(LEN = *)", "CHARACTER*(*)"]:
+            if select_type.guard_type[idx] in ["CHARACTER(LEN = *)", "CHARACTER*(*)"]:
                 # pylint: disable=protected-access
                 parent.scope.symbol_table._argument_list.append(pointer_symbol)
             pointer_symbols.append(pointer_symbol)
-            if (intrinsic_type_name[idx] and
-                    intrinsic_type_name[idx].lower() == "character"):
+            if (select_type.intrinsic_type_name[idx] and
+                    select_type.intrinsic_type_name[idx].lower() == "character"):
                 # The type spec for a character intrinsic must always
                 # be assumed
                 type_spec = "CHARACTER(LEN = *)"
             else:
                 # Use the variable declaration
-                type_spec = guard_type[idx]
+                type_spec = select_type.guard_type[idx]
             if type_spec == "None":
-                code += f"  {clause_type[idx]}\n"                
+                code += f"  {select_typeclause_type[idx]}\n"                
             else:
-                code += f"  {clause_type[idx]} ({type_spec})\n"
+                code += f"  {select_type.clause_type[idx]} ({type_spec})\n"
             code += (f"    {type_string_name} = "
-                     f"\"{guard_type_repr[idx].lower()}\"\n")
-            code += (f"    {pointer_name} => {selector}\n")
+                     f"\"{select_type.guard_type_repr[idx].lower()}\"\n")
+            code += (f"    {pointer_name} => {select_type.selector}\n")
         code += "end select\n"
         code += "end program\n"
         parser = ParserFactory().create(std="f2008")
@@ -3447,9 +3447,7 @@ class Fparser2Reader():
 
 
     @staticmethod
-    def _create_select_type_info(
-            node, select_type, guard_type_repr, guard_type,
-            intrinsic_type_name, clause_type, stmts):
+    def _create_select_type_info(node, select_type):
         ''' xxx '''
         select_idx = -1
         for idx, child in enumerate(node.children):
@@ -3487,11 +3485,11 @@ class Fparser2Reader():
                 else:
                     # type or Class type
                     type_name = str(type_spec)
-                guard_type_repr.append(type_name)
-                guard_type.append(str(type_spec))
-                intrinsic_type_name.append(base_type_name)
+                select_type.guard_type_repr.append(type_name)
+                select_type.guard_type.append(str(type_spec))
+                select_type.intrinsic_type_name.append(base_type_name)
 
-                clause_type.append(child.children[0])
+                select_type.clause_type.append(child.children[0])
                 if child.children[0].lower() == "class default":
                     select_type.default_idx = select_idx
             elif isinstance(child, Fortran2003.End_Select_Type_Stmt):
@@ -3499,10 +3497,10 @@ class Fparser2Reader():
             else:
                 # This must be a statement
                 try:
-                    stmts[select_idx].append(child)
+                    select_type.stmts[select_idx].append(child)
                 except IndexError:
-                    stmts.append([])
-                    stmts[select_idx].append(child)
+                    select_type.stmts.append([])
+                    select_type.stmts[select_idx].append(child)
         select_type.num_clauses = select_idx
 
     def _select_type_construct_handler(self, node, parent):
@@ -3528,45 +3526,51 @@ class Fparser2Reader():
         # the Select_Type_Construct and extract the required
         # information. This makes for easier code generation later in
         # the routine.
-        
+
+        print("In _select_type_construct_handler")
+
         # the number of clauses in the select type construct
         select_idx = -1
-        # index of the default clause if it exists
-        #rf default_idx = -1
-        # original guard type specification
-        guard_type = []
-        # str representation of the guard_type
-        guard_type_repr = []
-        # str representation of base intrinsic name
-        intrinsic_type_name = []
-        # name of the clause
-        clause_type = []
-        # list of statements for each clause
-        stmts = []
         # list of pointers to the selector variable
         pointer_symbols = []
         
         from dataclasses import dataclass
-
         @dataclass
         class SelectTypeClass:
             """Class for storing required information from an fparser2
             Select_Type_Construct.
 
             """
-            # the name of the select_type_construct selector
-            # e.g. select type(selector)
+            # the guard types used by 'type is' and 'class is' select
+            # type clauses e.g. 'REAL' or 'mytype' in 'type_is(REAL)'
+            # and 'class is(mytype)' respectively. These are stored as
+            # a list of strings, ordered as found within the select
+            # type construct 'type is, 'class is' and 'class default'
+            # clauses with the empty string indicating the 'class
+            # default' clause
+            guard_type = []
+            # str representation of the guard_type
+            guard_type_repr = []
+            # str representation of base intrinsic name
+            intrinsic_type_name = []
+            # name of the clause
+            clause_type = []
+            # name of the clause
+            stmts = []
+            # the name of the select type construct selector
+            # e.g. 'select type(selector)'
             selector: str = ""
-            # the number of type is, class is or default clauses in
-            # the select type construct
+            # the number of 'type is', 'class is' and 'class default'
+            # clauses in the select type construct
             num_clauses: int = -1
+            # index of the default clause, ordered as found within the
+            # select type construct 'type is, 'class is' and 'class
+            # default' clauses, or -1 if no default clause is found
             default_idx: int = -1
 
         select_type = SelectTypeClass()
 
-        self._create_select_type_info(
-            node, select_type, guard_type_repr, guard_type,
-            intrinsic_type_name, clause_type, stmts)
+        self._create_select_type_info(node, select_type)
 
         # Step2: Create the type_string variable that will hold a
         # string representation of the type or class in the select
@@ -3586,8 +3590,7 @@ class Fparser2Reader():
         # step2). The string will be used in a loop nest created in
         # step4 to replicate the content of the clauses.
         self._create_select_type(
-            parent, select_type.selector, select_type.num_clauses, select_type.default_idx, pointer_symbols,
-            guard_type_repr, guard_type, intrinsic_type_name, clause_type,
+            parent, select_type, pointer_symbols,
             type_string_name, type_string_symbol)
 
         # Step4: Create the (potentially nested) if statement that
@@ -3595,8 +3598,8 @@ class Fparser2Reader():
         # type is not supported directly in the PSyIR) allowing the
         # PSyIR to 'see' the select type content.
         outer_ifblock = self._create_ifblock(
-            parent, select_type.num_clauses, select_type.default_idx, type_string_symbol,
-            guard_type_repr, stmts, pointer_symbols, clause_type, select_type.selector)
+            parent, select_type, select_type.num_clauses, select_type.default_idx, type_string_symbol,
+            select_type.stmts, pointer_symbols, select_type.selector)
 
         # Step5. Ensure that the type selector variable declaration
         # has the pointer or target attribute as we need to create
