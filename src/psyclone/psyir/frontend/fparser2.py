@@ -3377,16 +3377,15 @@ class Fparser2Reader():
             if ifblock:
                 # We already have an if so this is an else if
                 elsebody = Schedule(parent=currentparent)
-                currentparent.addchild(elsebody)
-                annotation = "was_type_is"
-                if select_type.clause_type[idx] == "CLASS IS":
-                    annotation = "was_class_is"
+                annotation = "was_class_is" \
+                    if select_type.clause_type[idx].upper() == \
+                    "CLASS IS" else "was_type_is"
                 ifblock = IfBlock(annotations=[annotation])
                 elsebody.addchild(ifblock)
             else:
-                annotation = "was_type_is"
-                if select_type.clause_type[idx] == "CLASS IS":
-                    annotation = "was_class_is"
+                annotation = "was_class_is" \
+                    if select_type.clause_type[idx].upper() == \
+                    "CLASS IS" else "was_type_is"
                 ifblock = IfBlock(parent=currentparent,
                                   annotations=[annotation])
                 outer_ifblock = ifblock
@@ -3456,7 +3455,7 @@ class Fparser2Reader():
             type_string_name)
         # Length is hardcoded here so could potentially be too short.
         type_string_type = UnknownFortranType(
-            f"character(256) :: {type_string_name}\n")
+            f"character(256) :: {type_string_name}")
         type_string_symbol = DataSymbol(type_string_name, type_string_type)
         parent.scope.symbol_table.add(type_string_symbol)
 
@@ -3500,13 +3499,17 @@ class Fparser2Reader():
                 # the type is and class is clauses
                 type_spec = select_type.guard_type[idx]
 
+            # Create a pointer that points to the specific type from
+            # the approprriate select type clause so that the specific
+            # type can be used in a subsequent if block hierarchy
+            # (otherwise Fortran complains that the type is generic).
             pointer_type = UnknownFortranType(
-                f"{tmp_type}, pointer :: {pointer_name}\n")
+                f"{tmp_type}, pointer :: {pointer_name}")
             pointer_symbol = DataSymbol(pointer_name, pointer_type)
             parent.scope.symbol_table.add(pointer_symbol)
             pointer_symbols.append(pointer_symbol)
 
-            if type_spec is None:
+            if type_spec == 'None':
                 code += f"  {select_type.clause_type[idx]}\n"
             else:
                 code += f"  {select_type.clause_type[idx]} ({type_spec})\n"
@@ -3715,10 +3718,6 @@ class Fparser2Reader():
         pointer_symbols = []
         # Create the require type informaion in a dataclass instance.
         select_type = self._create_select_type_info(node)
-        print(f"guard_type = {select_type.guard_type}")
-        print(f"guard_type_repr = {select_type.guard_type_repr}")
-        print(f"clause_type = {select_type.clause_type}")
-        print(f"intrinsic_type_name = {select_type.intrinsic_type_name}")
 
         # Step2: Recreate the select type clause within a CodeBlock
         # with the content of the clauses being replaced by a string
