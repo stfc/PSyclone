@@ -1020,55 +1020,6 @@ def _get_arg_names(node_list):
     return arg_nodes, arg_names
 
 
-def _add_target_attribute(datatype):
-    '''Ensure that the supplied datatype has the pointer or a target
-    attribute and if not, add the target attribute. The datatype is
-    stored as text within an UnknownFortranType. We therefore
-    re-create the datatype as an fparser2 ast, add the attribute if
-    required and update the UnknownFortranType with the new text.
-
-    :param datatype: the supplied datatype.
-    :type datatype: :py:class:`psyclone.psyir.symbols.UnknownFortranType`
-
-    '''
-    dummy_code = (
-        f"subroutine dummy()\n"
-        f"  {datatype.declaration}\n"
-        f"end subroutine\n")
-    parser = ParserFactory().create(std="f2008")
-    reader = FortranStringReader(dummy_code)
-    fp2_ast = parser(reader)
-    type_decl_stmt = fp2_ast.children[0].children[1].children[0]
-
-    attr_spec_list = type_decl_stmt.children[1]
-    attr_spec_str_list = []
-    found = False
-    if attr_spec_list:
-        for attr_spec in attr_spec_list.children:
-            attr_spec_str = attr_spec.string
-            attr_spec_str_list.append(attr_spec_str)
-            if attr_spec_str.upper() in ["TARGET", "POINTER"]:
-                # There is already a target or pointer attribute
-                found = True
-                break
-    if not found:
-        # TARGET needs to be added as an additional attribute
-        if attr_spec_str_list:
-            # At least one attribute already exists
-            attr_spec_str_list.append("TARGET")
-            attr_spec_list = Fortran2003.Attr_Spec_List(
-                ", ".join(attr_spec_str_list))
-        else:
-            # There are no pre-existing attributes
-            attr_spec_list = Fortran2003.Attr_Spec_List("TARGET")
-        type_decl_stmt.items = (
-            type_decl_stmt.items[0], attr_spec_list,
-            type_decl_stmt.items[2])
-        attr_spec_list.parent = type_decl_stmt
-        # pylint: disable=protected-access
-        datatype._declaration = str(type_decl_stmt)
-
-
 class Fparser2Reader():
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -3328,14 +3279,13 @@ class Fparser2Reader():
         return ifblock
 
     def _create_ifblock(
-            self, parent, select_type, select_idx, default_idx, type_string_symbol,
-            stmts, pointer_symbols, selector):
+            self, parent, select_type, type_string_symbol, pointer_symbols):
         ''' xxx '''
         outer_ifblock = None
         ifblock = None
         currentparent = parent
-        for idx in range(select_idx+1):
-            if idx == default_idx:
+        for idx in range(select_type.num_clauses+1):
+            if idx == select_type.default_idx:
                 continue
             if ifblock:
                 # We already have an if so this is an else if
@@ -3365,27 +3315,36 @@ class Fparser2Reader():
             ifblock.addchild(clause)
             # Add If_body
             ifbody = Schedule(parent=ifblock)
-            self.process_nodes(parent=ifbody, nodes=stmts[idx])
+            self.process_nodes(parent=ifbody, nodes=select_type.stmts[idx])
             # Replace references to the type selector variable with
             # references to the appropriate pointer.
             for reference in ifbody.walk(Reference):
                 symbol = reference.symbol
-                if symbol.name.lower() == selector.lower():
+                if symbol.name.lower() == select_type.selector.lower():
                     reference.symbol = pointer_symbols[idx]
             ifblock.addchild(ifbody)
             currentparent = ifblock
 
-        if default_idx >= 0:
+        if select_type.default_idx >= 0:
             elsebody = Schedule(parent=currentparent)
             currentparent.addchild(elsebody)
-            self.process_nodes(parent=elsebody, nodes=stmts[default_idx])
+            self.process_nodes(parent=elsebody, nodes=select_type.stmts[select_type.default_idx])
 
         return outer_ifblock
 
 
     @staticmethod
-    def _create_select_type(parent, select_type, pointer_symbols, type_string_name, type_string_symbol):
+    def _create_select_type(parent, select_type, pointer_symbols, type_string_name=None):
         ''' xxx '''
+
+        type_string_name = parent.scope.symbol_table.next_available_name(
+            type_string_name)
+        # Length is hardcoded here so could potentially be too short.
+        type_string_type = UnknownFortranType(
+            f"character(256) :: {type_string_name}\n")
+        type_string_symbol = DataSymbol(type_string_name, type_string_type)
+        parent.scope.symbol_table.add(type_string_symbol)
+
         code = "program dummy\n"
         code += f"select type({select_type.selector})\n"
         for idx in range(select_type.num_clauses+1):
@@ -3445,10 +3404,48 @@ class Fparser2Reader():
             Reference(type_string_symbol), Literal("", CHARACTER_TYPE)))
         parent.addchild(code_block)
 
+        return type_string_symbol
 
     @staticmethod
-    def _create_select_type_info(node, select_type):
+    def _create_select_type_info(node):
         ''' xxx '''
+
+        from dataclasses import dataclass
+        @dataclass
+        class SelectTypeClass:
+            """Class for storing required information from an fparser2
+            Select_Type_Construct.
+
+            """
+            # the guard types used by 'type is' and 'class is' select
+            # type clauses e.g. 'REAL' or 'mytype' in 'type_is(REAL)'
+            # and 'class is(mytype)' respectively. These are stored as
+            # a list of strings, ordered as found within the select
+            # type construct 'type is, 'class is' and 'class default'
+            # clauses with the empty string indicating the 'class
+            # default' clause
+            guard_type = []
+            # str representation of the guard_type
+            guard_type_repr = []
+            # str representation of base intrinsic name
+            intrinsic_type_name = []
+            # name of the clause
+            clause_type = []
+            # name of the clause
+            stmts = []
+            # the name of the select type construct selector
+            # e.g. 'select type(selector)'
+            selector: str = ""
+            # the number of 'type is', 'class is' and 'class default'
+            # clauses in the select type construct
+            num_clauses: int = -1
+            # index of the default clause, ordered as found within the
+            # select type construct 'type is, 'class is' and 'class
+            # default' clauses, or -1 if no default clause is found
+            default_idx: int = -1
+
+        select_type = SelectTypeClass()
+        
         select_idx = -1
         for idx, child in enumerate(node.children):
             if isinstance(child, Fortran2003.Select_Type_Stmt):
@@ -3503,6 +3500,57 @@ class Fparser2Reader():
                     select_type.stmts[select_idx].append(child)
         select_type.num_clauses = select_idx
 
+        return select_type
+
+    @staticmethod
+    def _add_target_attribute(datatype):
+        '''Ensure that the supplied datatype has the pointer or a target
+        attribute and if not, add the target attribute. The datatype is
+        stored as text within an UnknownFortranType. We therefore
+        re-create the datatype as an fparser2 ast, add the attribute if
+        required and update the UnknownFortranType with the new text.
+
+        :param datatype: the supplied datatype.
+        :type datatype: :py:class:`psyclone.psyir.symbols.UnknownFortranType`
+
+        '''
+        dummy_code = (
+            f"subroutine dummy()\n"
+            f"  {datatype.declaration}\n"
+            f"end subroutine\n")
+        parser = ParserFactory().create(std="f2008")
+        reader = FortranStringReader(dummy_code)
+        fp2_ast = parser(reader)
+        type_decl_stmt = fp2_ast.children[0].children[1].children[0]
+
+        attr_spec_list = type_decl_stmt.children[1]
+        attr_spec_str_list = []
+        found = False
+        if attr_spec_list:
+            for attr_spec in attr_spec_list.children:
+                attr_spec_str = attr_spec.string
+                attr_spec_str_list.append(attr_spec_str)
+                if attr_spec_str.upper() in ["TARGET", "POINTER"]:
+                    # There is already a target or pointer attribute
+                    found = True
+                    break
+        if not found:
+            # TARGET needs to be added as an additional attribute
+            if attr_spec_str_list:
+                # At least one attribute already exists
+                attr_spec_str_list.append("TARGET")
+                attr_spec_list = Fortran2003.Attr_Spec_List(
+                    ", ".join(attr_spec_str_list))
+            else:
+                # There are no pre-existing attributes
+                attr_spec_list = Fortran2003.Attr_Spec_List("TARGET")
+            type_decl_stmt.items = (
+                type_decl_stmt.items[0], attr_spec_list,
+                type_decl_stmt.items[2])
+            attr_spec_list.parent = type_decl_stmt
+            # pylint: disable=protected-access
+            datatype._declaration = str(type_decl_stmt)
+
     def _select_type_construct_handler(self, node, parent):
         '''
         Transforms an fparser2 Select_Type_Construct to the PSyIR
@@ -3526,88 +3574,39 @@ class Fparser2Reader():
         # the Select_Type_Construct and extract the required
         # information. This makes for easier code generation later in
         # the routine.
-
-        print("In _select_type_construct_handler")
-
-        # the number of clauses in the select type construct
-        select_idx = -1
         # list of pointers to the selector variable
         pointer_symbols = []
-        
-        from dataclasses import dataclass
-        @dataclass
-        class SelectTypeClass:
-            """Class for storing required information from an fparser2
-            Select_Type_Construct.
+        # Create the require type informaion in a dataclass instance.
+        select_type = self._create_select_type_info(node)
 
-            """
-            # the guard types used by 'type is' and 'class is' select
-            # type clauses e.g. 'REAL' or 'mytype' in 'type_is(REAL)'
-            # and 'class is(mytype)' respectively. These are stored as
-            # a list of strings, ordered as found within the select
-            # type construct 'type is, 'class is' and 'class default'
-            # clauses with the empty string indicating the 'class
-            # default' clause
-            guard_type = []
-            # str representation of the guard_type
-            guard_type_repr = []
-            # str representation of base intrinsic name
-            intrinsic_type_name = []
-            # name of the clause
-            clause_type = []
-            # name of the clause
-            stmts = []
-            # the name of the select type construct selector
-            # e.g. 'select type(selector)'
-            selector: str = ""
-            # the number of 'type is', 'class is' and 'class default'
-            # clauses in the select type construct
-            num_clauses: int = -1
-            # index of the default clause, ordered as found within the
-            # select type construct 'type is, 'class is' and 'class
-            # default' clauses, or -1 if no default clause is found
-            default_idx: int = -1
-
-        select_type = SelectTypeClass()
-
-        self._create_select_type_info(node, select_type)
-
-        # Step2: Create the type_string variable that will hold a
-        # string representation of the type or class in the select
-        # type construct or be an empty string if it is the default
-        # option.
-        type_string_name = parent.scope.symbol_table.next_available_name(
-            "type_string")
-        # Length is hardcoded here so could potentially be too short.
-        type_string_type = UnknownFortranType(
-            f"character(256) :: {type_string_name}\n")
-        type_string_symbol = DataSymbol(type_string_name, type_string_type)
-        parent.scope.symbol_table.add(type_string_symbol)
-
-        # Step3: Recreate the select type clause within a CodeBlock
+        # Step2: Recreate the select type clause within a CodeBlock
         # with the content of the clauses being replaced by a string
-        # capturing the name of the type or class clauses (created in
-        # step2). The string will be used in a loop nest created in
-        # step4 to replicate the content of the clauses.
-        self._create_select_type(
-            parent, select_type, pointer_symbols,
-            type_string_name, type_string_symbol)
+        # capturing the name of the type or class clauses
+        # ('type_string'). The string symbol is returned for use in
+        # step3. Also add any required pointer symbols.
 
-        # Step4: Create the (potentially nested) if statement that
+        type_string_symbol = self._create_select_type(
+            parent, select_type, pointer_symbols,
+            type_string_name="type_string")
+
+        # Step3: Create the (potentially nested) if statement that
         # replicates the content of the select type options (as select
         # type is not supported directly in the PSyIR) allowing the
         # PSyIR to 'see' the select type content.
-        outer_ifblock = self._create_ifblock(
-            parent, select_type, select_type.num_clauses, select_type.default_idx, type_string_symbol,
-            select_type.stmts, pointer_symbols, select_type.selector)
 
-        # Step5. Ensure that the type selector variable declaration
+        # The string will be used in a loop nest created in step4 to
+        # allow the content of the clauses to be replicated, or be an
+        # empty string if it contains the 'class default' clause.
+        outer_ifblock = self._create_ifblock(
+            parent, select_type, type_string_symbol, pointer_symbols)
+
+        # Step4. Ensure that the type selector variable declaration
         # has the pointer or target attribute as we need to create
         # pointers that point to it to get the specific type.
         symbol_table = outer_ifblock.scope.symbol_table
         symbol = symbol_table.lookup(select_type.selector)
         datatype = symbol.datatype
-        _add_target_attribute(datatype)
+        self._add_target_attribute(datatype)
 
         return outer_ifblock
 
