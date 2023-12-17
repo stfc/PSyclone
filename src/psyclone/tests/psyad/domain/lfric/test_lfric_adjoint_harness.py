@@ -475,6 +475,44 @@ def test_lfric_create_real_comparison(fortran_writer):
         "  end if\n")
     assert expected in result
 
+# _lfric_log_write
+
+
+def test_lfric_log_write(fortran_writer):
+    '''Test for the _lfric_log_write method.'''
+    symbol_table = SymbolTable()
+    var1_symbol = symbol_table.new_symbol(
+        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+    var2_symbol = symbol_table.new_symbol(
+        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+    routine = nodes.Routine.create("test", symbol_table, [])
+    stmt_list = _lfric_create_real_comparison(
+        symbol_table, routine, var1_symbol, var2_symbol)
+    routine.children = stmt_list
+    result = fortran_writer(routine)
+    expected = (
+        "  use log_mod, only : log_event, log_level_error, log_level_info, "
+        "log_scratch_space\n"
+        "  real, parameter :: overall_tolerance = 1500.0\n"
+        "  real :: var1\n"
+        "  real :: var2\n"
+        "  real :: MachineTol\n"
+        "  real :: relative_diff\n\n"
+        "  ! Test the inner-product values for equality, allowing for the "
+        "precision of the active variables\n"
+        "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
+        "  relative_diff = ABS(var1 - var2) / MachineTol\n"
+        "  if (relative_diff < overall_tolerance) then\n"
+        "    WRITE(log_scratch_space, *) \"PASSED test:\", var1, var2, "
+        "relative_diff\n"
+        "    call log_event(log_scratch_space, log_level_info)\n"
+        "  else\n"
+        "    WRITE(log_scratch_space, *) \"FAILED test:\", var1, var2, "
+        "relative_diff\n"
+        "    call log_event(log_scratch_space, log_level_error)\n"
+        "  end if\n")
+    assert expected in result
+
 # generate_lfric_adjoint_harness
 
 

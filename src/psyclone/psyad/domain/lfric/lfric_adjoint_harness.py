@@ -47,8 +47,8 @@ from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
-                                                        find_container)
+from psyclone.psyad.domain.common.adjoint_utils import (
+    create_adjoint_name, find_container, common_real_comparison)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     IntrinsicCall, Reference, ArrayReference, Assignment,
@@ -439,9 +439,10 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
 
 def _lfric_create_real_comparison(sym_table, kernel, var1, var2):
     '''Creates PSyIR that checks the values held by Symbols var1 and var2
-    for equality, allowing for machine precision. This is an
-    LFRic-specific version as it includes LFRic logging. The common
-    version is in psyad/domain/common/adjoint_utils.py
+    for equality, allowing for machine precision and writes the
+    success or failure of the checks to the LFRic-specific logging
+    API.  The generic version that writes to stdout can be found in
+    psyad/domain/common/adjoint_utils.py
 
     :param sym_table: the SymbolTable in which to put new Symbols.
     :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -452,35 +453,39 @@ def _lfric_create_real_comparison(sym_table, kernel, var1, var2):
     :param var2: the symbol holding the second value for the comparison.
     :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-    :returns: the PSyIR nodes that perform the check.
-    :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+    :returns: the PSyIR nodes that perform the check and write its
+        success or failure to the LFRic-specific logging API.
+    :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+
+    '''
+    statements = []
+    statements.extend(common_real_comparison(sym_table, var1, var2))
+    statements.extend(_lfric_log_write(sym_table, kernel, var1, var2))
+    return statements
+
+
+def _lfric_log_write(sym_table, kernel, var1, var2):
+    '''Creates PSyIR that writes whether the precision test passed or
+    failed to the LFRic-specific logging API.
+
+    :param sym_table: the SymbolTable in which to read existing Symbols.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param kernel: the routine for which this adjoint test is being performed.
+    :type kernel: :py:class:`psyclone.psyir.nodes.Routine`
+    :param var1: the symbol holding the first value for the comparison.
+    :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param var2: the symbol holding the second value for the comparison.
+    :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: PSyIR nodes that write out test success or failure to
+        the LFRic logging API.
+    :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     freader = FortranReader()
     statements = []
-    mtol = sym_table.new_symbol("MachineTol", symbol_type=DataSymbol,
-                                datatype=var1.datatype)
-    rel_diff = sym_table.new_symbol("relative_diff", symbol_type=DataSymbol,
-                                    datatype=var1.datatype)
-    overall_tol = sym_table.new_symbol("overall_tolerance",
-                                       symbol_type=DataSymbol,
-                                       datatype=var1.datatype,
-                                       is_constant=True,
-                                       initial_value=INNER_PRODUCT_TOLERANCE)
-    assign = freader.psyir_from_statement(
-        f"MachineTol = SPACING ( MAX( ABS({var1.name}), ABS({var2.name}) ) )",
-        sym_table)
-    statements.append(assign)
-    statements[-1].preceding_comment = (
-        "Test the inner-product values for equality, allowing for the "
-        "precision of the active variables")
-    sub_op = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                    Reference(var1), Reference(var2))
-    abs_op = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS, [sub_op])
-    div_op = BinaryOperation.create(BinaryOperation.Operator.DIV,
-                                    abs_op, Reference(mtol))
-    statements.append(Assignment.create(Reference(rel_diff), div_op))
-
+    rel_diff = sym_table.lookup_with_tag("relative_diff")
+    overall_tol = sym_table.lookup_with_tag("overall_tolerance")
     log_mod = sym_table.find_or_create("log_mod", symbol_type=ContainerSymbol)
     log_scratch = sym_table.find_or_create(
         "log_scratch_space", symbol_type=DataSymbol, datatype=DeferredType(),
