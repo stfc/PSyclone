@@ -745,7 +745,7 @@ class StructureType(DataType):
         :type components: List[tuple[
             str,
             :py:class:`psyclone.psyir.symbols.DataType` |
-                 :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
             Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
             ]]
