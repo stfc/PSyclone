@@ -3341,11 +3341,11 @@ class Fparser2Reader():
             self, parent, select_type, type_string_symbol, pointer_symbols):
         '''Use the contents from the supplied dataclass instance (select_type)
         to create an if nest to capture the content of the associated
-        select type contrstruct. This allows the PSyIR to 'see' the
-        content of the select type despite not supporting thhe select
+        select type construct. This allows the PSyIR to 'see' the
+        content of the select type despite not supporting the select
         type clause directly in PSyIR. Note, a codeblock to capture
-        the logic of the select type without capturing its contentis
-        create before this if nest to capture the logic of the select
+        the logic of the select type without capturing its content is
+        created before this if nest to capture the logic of the select
         type via the 'type_string_symbol'.
 
         :param parent: the PSyIR parent to which we are going to add
@@ -3380,8 +3380,9 @@ class Fparser2Reader():
                 annotation = "was_class_is" \
                     if select_type.clause_type[idx].upper() == \
                     "CLASS IS" else "was_type_is"
-                ifblock = IfBlock(annotations=[annotation])
+                ifblock = IfBlock(annotations=[annotation], parent=elsebody)
                 elsebody.addchild(ifblock)
+                currentparent.addchild(elsebody)
             else:
                 annotation = "was_class_is" \
                     if select_type.clause_type[idx].upper() == \
