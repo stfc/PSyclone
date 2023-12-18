@@ -3431,19 +3431,22 @@ class DynCMAOperators(LFRicCollection):
                               " Look-up information for each CMA operator"))
         parent.add(CommentGen(parent, ""))
 
+        const = LFRicConstants()
+        suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
+
         for op_name in self._cma_ops:
             # First create a pointer to the array containing the actual
-            # matrix
-            cma_name = self._symbol_table.find_or_create_array(
-                op_name+"_matrix", 3, ScalarType.Intrinsic.REAL,
-                tag=op_name+"_matrix").name
+            # matrix. The Symbol itself was created in DynProxies - TODO,
+            # it should be done in this class really.
+            cma_name = self._symbol_table.lookup_with_tag(
+                f"{op_name}:{suffix}").name
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
                                  rhs=self._cma_ops[op_name]["arg"].
                                  proxy_name_indexed+"%columnwise_matrix"))
             # Then make copies of the related integer parameters
             for param in self._cma_ops[op_name]["params"]:
                 param_name = self._symbol_table.find_or_create_tag(
-                    op_name+"_"+param).name
+                    f"{op_name}:{param}:{suffix}").name
                 parent.add(AssignGen(parent, lhs=param_name,
                                      rhs=self._cma_ops[op_name]["arg"].
                                      proxy_name_indexed+"%"+param))
@@ -3483,11 +3486,13 @@ class DynCMAOperators(LFRicCollection):
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(op_type))
 
+        const = LFRicConstants()
+        suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
         for op_name in self._cma_ops:
-            # Declare the operator matrix itself
-            cma_name = self._symbol_table.find_or_create_array(
-                op_name+"_matrix", 3, ScalarType.Intrinsic.REAL,
-                tag=op_name+"_matrix").name
+            # Declare the operator matrix itself. The Symbol is created in
+            # DynProxies.
+            tag_name = f"{op_name}:{suffix}"
+            cma_name = self._symbol_table.lookup_with_tag(tag_name).name
             cma_dtype = self._cma_ops[op_name]["datatype"]
             cma_kind = self._cma_ops[op_name]["kind"]
             parent.add(DeclGen(parent, datatype=cma_dtype,
@@ -3505,9 +3510,10 @@ class DynCMAOperators(LFRicCollection):
             # Declare the associated integer parameters
             param_names = []
             for param in self._cma_ops[op_name]["params"]:
-                name = op_name + "_" + param
+                name = f"{op_name}_{param}"
+                tag = f"{op_name}:{param}:{suffix}"
                 sym = self._symbol_table.find_or_create_integer_symbol(
-                    name, tag=name)
+                    name, tag=tag)
                 param_names.append(sym.name)
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
@@ -3536,20 +3542,26 @@ class DynCMAOperators(LFRicCollection):
                            kind=api_config.default_kind["integer"],
                            intent="in", entity_decls=["cell", "ncell_2d"]))
 
+        const = LFRicConstants()
+        suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
+
         for op_name in self._cma_ops:
             # Declare the associated scalar arguments before the array because
             # some of them are used to dimension the latter (and some compilers
             # get upset if this ordering is not followed)
             _local_args = []
             for param in self._cma_ops[op_name]["params"]:
-                param_name = symtab.find_or_create_tag(op_name+"_"+param).name
+                param_name = symtab.find_or_create_tag(
+                    f"{op_name}:{param}:{suffix}").name
                 _local_args.append(param_name)
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=_local_args))
             # Declare the array that holds the CMA operator
-            bandwidth = op_name + "_bandwidth"
-            nrow = op_name + "_nrow"
+            bandwidth = symtab.find_or_create_tag(
+                    f"{op_name}:bandwidth:{suffix}").name
+            nrow = symtab.find_or_create_tag(
+                    f"{op_name}:nrow:{suffix}").name
             intent = self._cma_ops[op_name]["intent"]
             op_dtype = self._cma_ops[op_name]["datatype"]
             op_kind = self._cma_ops[op_name]["kind"]
