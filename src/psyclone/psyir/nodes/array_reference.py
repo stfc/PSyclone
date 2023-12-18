@@ -129,6 +129,20 @@ class ArrayReference(ArrayMixin, Reference):
         '''
         shape = self._get_effective_shape()
         if shape:
+            if isinstance(self.symbol.datatype, ArrayType):
+                orig_shape = self.symbol.datatype.shape
+            elif hasattr(self.symbol.datatype, "partial_datatype"):
+                orig_shape = self.symbol.datatype.partial_datatype.shape
+            else:
+                orig_shape = []
+            if (len(shape) == len(orig_shape) and
+                    all(self.is_full_range(idx) for idx in range(len(shape)))):
+                # Although this access has a shape, it is in fact for the
+                # whole array and therefore the type of the result is just
+                # that of the base symbol. (This wouldn't be true for a
+                # StructureReference but they have their own implementation
+                # of this method.)
+                return self.symbol.datatype
             if isinstance(self.symbol.datatype, UnknownType):
                 # Even if an Unknown(Fortran)Type has partial type
                 # information, we can't easily use it here because we'd need

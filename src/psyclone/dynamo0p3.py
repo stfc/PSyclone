@@ -2907,6 +2907,7 @@ class DynProxies(LFRicCollection):
         for arg in real_field_args + int_field_args + op_args:
             # Create symbols that we will associate with the internal
             # data arrays of fields, field vectors and (LMA and CMA) operators.
+            # TODO move the CMA-related stuff to the CMA collection.
             ctable.add_lfric_precision_symbol(arg.precision)
             intrinsic_type = "integer" if arg in int_field_args else "real"
             suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
@@ -3412,6 +3413,16 @@ class DynCMAOperators(LFRicCollection):
                         if not self._first_cma_arg:
                             self._first_cma_arg = arg
 
+        # Create all the necessary Symbols here so that they are available
+        # without the need to do a 'gen'.
+        symtab = self._symbol_table
+        const = LFRicConstants()
+        suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
+        for op_name in self._cma_ops:
+            for param in self._cma_ops[op_name]["params"]:
+                symtab.find_or_create_integer_symbol(
+                    f"{op_name}_{param}", tag=f"{op_name}:{param}:{suffix}")
+
     def initialise(self, parent):
         '''
         Generates the calls to the LFRic infrastructure that look-up
@@ -3552,16 +3563,19 @@ class DynCMAOperators(LFRicCollection):
             _local_args = []
             for param in self._cma_ops[op_name]["params"]:
                 param_name = symtab.find_or_create_tag(
-                    f"{op_name}:{param}:{suffix}").name
+                    f"{op_name}:{param}:{suffix}",
+                    root_name=f"{op_name}_{param}").name
                 _local_args.append(param_name)
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=_local_args))
             # Declare the array that holds the CMA operator
             bandwidth = symtab.find_or_create_tag(
-                    f"{op_name}:bandwidth:{suffix}").name
+                f"{op_name}:bandwidth:{suffix}",
+                root_name=f"{op_name}_bandwidth").name
             nrow = symtab.find_or_create_tag(
-                    f"{op_name}:nrow:{suffix}").name
+                f"{op_name}:nrow:{suffix}",
+                root_name=f"{op_name}_nrow").name
             intent = self._cma_ops[op_name]["intent"]
             op_dtype = self._cma_ops[op_name]["datatype"]
             op_kind = self._cma_ops[op_name]["kind"]
