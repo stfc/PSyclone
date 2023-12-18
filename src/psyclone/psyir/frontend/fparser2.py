@@ -3283,7 +3283,7 @@ class Fparser2Reader():
 
     @staticmethod
     def _add_target_attribute(datatype):
-        '''Ensure that the supplied datatype has the pointer or a target
+        '''Ensure that the supplied datatype has a pointer or target
         attribute and if not, add the target attribute. The datatype is
         stored as text within an UnknownFortranType. We therefore
         re-create the datatype as an fparser2 ast, add the attribute if
@@ -3306,9 +3306,9 @@ class Fparser2Reader():
         fp2_ast = parser(reader)
         type_decl_stmt = fp2_ast.children[0].children[1].children[0]
 
-        # Look for a preexisting target or pointer arrtribute and if
+        # Look for a preexisting target or pointer attribute and if
         # one does not exist add a target attribute as this allows the
-        # create pointers to point to the supplied datatype.
+        # created pointers to point at the supplied datatype.
         attr_spec_list = type_decl_stmt.children[1]
         attr_spec_str_list = []
         found = False
@@ -3323,7 +3323,8 @@ class Fparser2Reader():
         if not found:
             # TARGET needs to be added as an additional attribute
             if attr_spec_str_list:
-                # At least one attribute already exists
+                # At least one attribute already exists but it is not
+                # or they are not the target or pointer attributes.
                 attr_spec_str_list.append("TARGET")
                 attr_spec_list = Fortran2003.Attr_Spec_List(
                     ", ".join(attr_spec_str_list))
@@ -3384,6 +3385,8 @@ class Fparser2Reader():
                 elsebody.addchild(ifblock)
                 currentparent.addchild(elsebody)
             else:
+                # We do not yet have an if so this is the 'outer'
+                # if block
                 annotation = "was_class_is" \
                     if select_type.clause_type[idx].upper() == \
                     "CLASS IS" else "was_type_is"
@@ -3463,7 +3466,7 @@ class Fparser2Reader():
         # Create text for a select type construct using the
         # information captured in the select_type dataclass
         # instance. Also add any required pointer symbols to the
-        # symbol table as UnknownFortranType as pointers are not
+        # symbol table as UnknownFortranType, as pointers are not
         # natively supported in the PSyIR at the moment.
         code = "program dummy\n"
         code += f"select type({select_type.selector})\n"
@@ -3484,7 +3487,9 @@ class Fparser2Reader():
                 # This is a character string pointer which we always
                 # declare with a fixed length to allow it to be
                 # declared locally (otherwise it must be a parameter
-                # or passed by argument)
+                # or passed by argument). As length is hardcoded here,
+                # the string could potentially be too short.
+
                 tmp_type = "CHARACTER(LEN=256)"
                 # The type spec for a character intrinsic within the
                 # type is and class is clauses must always be assumed
@@ -3509,11 +3514,11 @@ class Fparser2Reader():
             pointer_symbol = DataSymbol(pointer_name, pointer_type)
             parent.scope.symbol_table.add(pointer_symbol)
             pointer_symbols.append(pointer_symbol)
-
-            if type_spec == 'None':
-                code += f"  {select_type.clause_type[idx]}\n"
-            else:
-                code += f"  {select_type.clause_type[idx]} ({type_spec})\n"
+            # The situation where 'clause_type' is 'class default' is
+            # handled separately, so we can assume 'clause_type' is
+            # either 'type is' or 'class is' which means it will
+            # always have a valid 'type_spec' value.
+            code += f"  {select_type.clause_type[idx]} ({type_spec})\n"
             code += (f"    {type_string_name} = "
                      f"\"{select_type.guard_type_repr[idx].lower()}\"\n")
             code += (f"    {pointer_name} => {select_type.selector}\n")
@@ -3525,7 +3530,7 @@ class Fparser2Reader():
         parser = ParserFactory().create(std="f2008")
         reader = FortranStringReader(code)
         fp2_program = parser(reader)
-        # Only use the select type clause within the fparser2 program
+        # Ignore the program part of the fparser2 tree
         fp2_select_type = fp2_program.children[0].children[1]
         code_block = CodeBlock(
             [fp2_select_type], CodeBlock.Structure.STATEMENT, parent=parent)
@@ -3569,7 +3574,7 @@ class Fparser2Reader():
             # is(mytype)' respectively. These are stored as a list of
             # strings, ordered as found within the select type
             # construct 'type is, 'class is' and 'class default'
-            # clauses with None indicating the 'class default' clause
+            # clauses with None indicating the 'class default' clause.
             guard_type = []
 
             # a string representation of the guard types used by 'type
@@ -3577,38 +3582,45 @@ class Fparser2Reader():
             # 'REAL(KIND = 4), or 'mytype' in 'REAL' are stored as
             # 'REAL', 'REAL_4' and 'mytype' respectively. These are
             # designed to be able to be used as base variable names in
-            # the code. They are stored with None representing the
-            # 'class default'
+            # the code. These are ordered as they are found in the
+            # the select type construct 'type is, 'class is'
+            # and 'class default' clauses with None representing the
+            # 'class default'.
             guard_type_repr = []
 
             # the base intrinsic string name for the particular clause
             # or None if there is no intrinsic. For example 'type
             # is(REAL*4)', ' type is(mytype)' becomes ['REAL', None]
+            # These are ordered as they are found in the the select
+            # type construct 'type is, 'class is' and 'class default'
+            # clauses.
             intrinsic_type_name = []
 
             # the name of the clause in the select type construct
             # i.e. one of 'type is', 'class is' and 'class
             # default'. These are ordered as they are found in the
             # within the select type construct 'type is, 'class is'
-            # and 'class default' clauses
+            # and 'class default' clauses.
             clause_type = []
 
             # a list of fparser2 statements for the content of each of
             # the select type construct 'type is, 'class is' and
-            # 'class default' clauses
+            # 'class default' clauses. These are ordered as they are
+            # found in the within the select type construct 'type is,
+            # 'class is' and 'class default' clauses.
             stmts = []
 
             # the name of the select type construct selector
-            # e.g. 'selector' in 'select type(selector)'
+            # e.g. 'selector' in 'select type(selector)'.
             selector: str = ""
 
             # the number of 'type is', 'class is' and 'class default'
-            # clauses in the select type construct
+            # clauses in the select type construct.
             num_clauses: int = -1
 
             # index of the default clause, ordered as found within the
             # select type construct 'type is, 'class is' and 'class
-            # default' clauses, or -1 if no default clause is found
+            # default' clauses, or -1 if no default clause is found.
             default_idx: int = -1
 
         select_type = SelectTypeClass()
@@ -3636,7 +3648,7 @@ class Fparser2Reader():
                 # Extract the fparser2 Type_Specification
                 # e.g. 'real(kind=4)'
                 type_spec = child.children[1]
-                # Default intrinsic base name to None
+                # Default the intrinsic base name to None
                 intrinsic_base_name = None
                 if type_spec is None:
                     # There is no type information so this is the
@@ -3644,12 +3656,12 @@ class Fparser2Reader():
                     type_name = None
                 elif isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
                     # The guard type selector is an intrinsic type
-                    # e.g. 'type is(REAL)' Set intrinsic base name as
-                    # there is a base intrinsic type.
+                    # e.g. 'type is(REAL)' Set the intrinsic base name
+                    # as there is a base intrinsic type.
                     intrinsic_base_name = type_spec.children[0]
                     # Determine type_name for all the different cases
                     # (must return a string that can be used as a
-                    # variable name.
+                    # variable name).
                     type_name = intrinsic_base_name
                     if isinstance(
                             type_spec.children[1], Fortran2003.Kind_Selector):
@@ -3668,7 +3680,10 @@ class Fparser2Reader():
                     # is (mytype)')
                     type_name = str(type_spec)
                 select_type.guard_type_repr.append(type_name)
-                select_type.guard_type.append(str(type_spec))
+                if type_spec:
+                    select_type.guard_type.append(str(type_spec))
+                else:
+                    select_type.guard_type.append(None)
                 select_type.intrinsic_type_name.append(intrinsic_base_name)
 
                 # Store the index of the class default information
@@ -3702,7 +3717,7 @@ class Fparser2Reader():
         :param parent: parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: PSyIR representation of node
+        :returns: PSyIR representation of the node.
         :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         :raises InternalError: If the fparser2 tree has an unexpected
@@ -3717,7 +3732,7 @@ class Fparser2Reader():
         # the routine.
         # list of pointers to the selector variable
         pointer_symbols = []
-        # Create the require type informaion in a dataclass instance.
+        # Create the required type information in a dataclass instance.
         select_type = self._create_select_type_info(node)
 
         # Step2: Recreate the select type clause within a CodeBlock
@@ -3725,7 +3740,6 @@ class Fparser2Reader():
         # capturing the name of the type or class clauses
         # ('type_string'). The string symbol is returned for use in
         # step3. Also add any required pointer symbols.
-
         type_string_symbol = self._create_select_type(
             parent, select_type, pointer_symbols,
             type_string_name="type_string")
