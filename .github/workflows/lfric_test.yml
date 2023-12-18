@@ -105,6 +105,11 @@ jobs:
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_passthrough_performance_history
+        mongosh "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" --quiet --apiVersion 1 \
+          --username ${{ secrets.MONGODB_USERNAME }} --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.Github_CI_LFRic.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA" \
+          '", lfric_version: "'"$LFRIC_REV"'", psyclone-transformation: "Passthrough with DM", system: "GlaDos", compiler:"spack-gfortran' \
+          '", elapsed_time: "'"$VAR_TIME}"'")'
 
     - name: Upload LFRic passthrough results
       uses: exuanbo/actions-deploy-gist@v1
@@ -149,6 +154,12 @@ jobs:
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_optimised_performance_history
+        mongosh "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" --quiet --apiVersion 1 \
+          --username ${{ secrets.MONGODB_USERNAME }} --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.Github_CI_LFRic.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA" \
+          '", lfric_version: "'"$LFRIC_REV"'", psyclone-transformation: "All", omp_threads: "'"$OMP_NUM_THREADS" \
+          '", system: "GlaDos", compiler:"spack-gfortran' \
+          '", elapsed_time: "'"$VAR_TIME}"'")'
 
     - name: Upload LFRic optimised results
       uses: exuanbo/actions-deploy-gist@v1
