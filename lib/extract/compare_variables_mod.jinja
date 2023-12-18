@@ -145,7 +145,10 @@ contains
         enddo
 
         write(out_format, "('(A',I0)" ) max_name_len
-        out_format = trim(out_format)//",10F8.3)"
+        write(*,out_format//",8A13)") "Variable", "max_abs", "max_rel",&
+            "l2_diff", "l2_cos", "count0", "count-3", "count-6", "count-9"
+
+        out_format = trim(out_format)//"' ',8(E12.7,' '))"
 
         ! Then write out the results for each variable:
         do i=1, current_index
@@ -285,8 +288,8 @@ contains
                 / sqrt(real(sum(double_correct*double_correct)))
 
 
-            where(double_values /= 0)
-                tmp = abs(tmp/double_values)
+            where(double_correct /= 0)
+                tmp = abs(tmp/double_correct)
             elsewhere
                 tmp = -1
             endwhere
