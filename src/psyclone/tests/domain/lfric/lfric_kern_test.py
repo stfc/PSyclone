@@ -49,8 +49,7 @@ import psyclone
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
-                                   LFRicLoop)
-from psyclone.dynamo0p3 import DynKernMetadata
+                                   LFRicKernMetadata, LFRicLoop)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -100,7 +99,7 @@ def test_scalar_kernel_load_meta_err():
     '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     kernel = LFRicKern()
     # Get a scalar argument descriptor and set an invalid data type
     scalar_arg = metadata.arg_descriptors[5]
@@ -472,4 +471,4 @@ def test_kern_not_coloured_inc(monkeypatch):
         _ = psy.gen
     assert ("Kernel 'testkern_code' has an argument with INC access and "
             "therefore must be coloured in order to be parallelised with "
-            "OpenMP.")
+            "OpenMP." in str(err.value))

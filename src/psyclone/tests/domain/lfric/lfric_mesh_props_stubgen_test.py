@@ -42,8 +42,7 @@ generation functionality with the LFRic (Dynamo0.3) API.
 
 import os
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata
-from psyclone.domain.lfric import LFRicKern
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 
 
 # Constants
@@ -86,7 +85,7 @@ def test_mesh_prop_stub_gen():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_mesh_prop_mod.F90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub).lower()
@@ -119,7 +118,7 @@ def test_mesh_props_quad_stub_gen():
     specifies both mesh and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
     ast = fpapi.parse(MESH_PROP_MDATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
