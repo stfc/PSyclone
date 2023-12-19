@@ -232,7 +232,7 @@ jobs:
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} --password ${{ secrets.MONGODB_PASSWORD }} \
           --eval 'db.Github_CI_NEMO.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
           nemo_version: "ECMWF 4.0 V40 with mpp", psyclone_transformation: "OpenMP for CPU", system: "GlaDos",
-          compiler:"intel-", date: new Date(), num_omp_threads: '"$OMP_NUM_THREADS"', elapsed_time: '"$VAR_TIME}"'})'
+          compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(), num_omp_threads: '"$OMP_NUM_THREADS"', elapsed_time: '"$VAR_TIME}"'})'
 
     - name: Upload NEMO OpenMP CPU results
       uses: exuanbo/actions-deploy-gist@v1
