@@ -318,7 +318,7 @@ def test_psy_data_node_invokes_gocean1p0():
                   "use psy_data_mod, only: PSyDataType.*"
                   r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"psy_single_invoke_different"
-                  r"_iterates_over\", \"invoke_0:compute_cv_code:r0\","
+                  r"_iterates_over\", \"invoke_0-compute_cv_code-r0\","
                   r" 0, 0\).*"
                   "do j.*"
                   "do i.*"

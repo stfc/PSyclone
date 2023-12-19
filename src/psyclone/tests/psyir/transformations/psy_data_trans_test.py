@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,8 +35,6 @@
 # Modified: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
-
-from __future__ import absolute_import
 
 import pytest
 
@@ -168,12 +166,12 @@ def test_psy_data_get_unique_region_names():
                            "gocean1.0", idx=0)
     region_name = data_trans.get_unique_region_name(invoke.schedule, {})
     assert region_name == ('psy_single_invoke_different_iterates_over',
-                           'invoke_0:r0')
+                           'invoke_0-r0')
 
     region_name = data_trans.\
         get_unique_region_name([invoke.schedule[0]], {})
     assert region_name == ('psy_single_invoke_different_iterates_over',
-                           'invoke_0:compute_cv_code:r0')
+                           'invoke_0-compute_cv_code-r0')
 
 
 # -----------------------------------------------------------------------------
