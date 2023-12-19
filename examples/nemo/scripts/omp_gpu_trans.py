@@ -37,14 +37,14 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
-from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information, add_profiling
-
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
-    Call, Loop, Directive, Assignment, Schedule, OMPAtomicDirective)
+    Call, Loop, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans
+
+from utils import insert_explicit_loop_parallelism, normalise_loops, \
+    enhance_tree_information, add_profiling
 
 PROFILING_ENABLED = True
 
@@ -116,6 +116,9 @@ def trans(psy):
 
         # For now this is a special case for stpctl.f90 because it forces
         # loops to parallelise without many safety checks
+        # TODO #2446: This needs to be generalised and probably be done
+        # from inside the loop transformation when the race condition data
+        # dependency is found.
         if psy.name == "psy_stpctl_psy":
             for loop in invoke.schedule.walk(Loop):
                 # Skip if an outer loop is already parallelised
