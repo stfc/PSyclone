@@ -76,6 +76,7 @@ from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sum2loop_trans import \
     Sum2LoopTrans
+from psyclone.psyir.transformations.llm_trans import LLMTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
@@ -118,6 +119,7 @@ __all__ = ['ACCUpdateTrans',
            'Min2CodeTrans',
            'Sign2CodeTrans',
            'Sum2LoopTrans',
+           'LLMTrans',
            'LoopFuseTrans',
            'LoopSwapTrans',
            'LoopTiling2DTrans',
