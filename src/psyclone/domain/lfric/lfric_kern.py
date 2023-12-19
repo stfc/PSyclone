@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -609,13 +609,13 @@ class LFRicKern(CodedKern):
         # Add all the declarations
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicScalarArgs
+        from psyclone.domain.lfric import LFRicScalarArgs, LFRicFields
         from psyclone.dynamo0p3 import (DynCellIterators, DynDofmaps,
                                         DynFunctionSpaces, DynCMAOperators,
                                         DynBoundaryConditions,
                                         DynLMAOperators, LFRicMeshProperties,
-                                        DynBasisFunctions, LFRicFields,
-                                        DynReferenceElement, DynStencils)
+                                        DynBasisFunctions, DynStencils,
+                                        DynReferenceElement)
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,

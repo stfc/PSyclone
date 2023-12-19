@@ -34,7 +34,7 @@
 # Author: I. Kavcic, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 # Modified: R. W. Ford, STFC Daresbury Lab
-# Modified: L. Turner, Met Office
+# Modified: O. Brunt and L. Turner, Met Office
 
 '''
 Module containing pytest tests for kernel stub code generation and the related
@@ -47,8 +47,8 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
-from psyclone.dynamo0p3 import LFRicFields
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
+                                   LFRicFields, LFRicKernMetadata)
 from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.errors import InternalError
 
