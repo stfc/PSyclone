@@ -84,7 +84,7 @@ jobs:
         export CXX="g++"
         export FPP="cpp -traditional-cpp"
         export LDMPI="mpif90"
-        export FFLAGS="-I$(spack location -e lfric-gnu)/.spack-env/view/include"
+        export FFLAGS="-Werror -I$(spack location -e lfric-gnu)/.spack-env/view/include"
         export LDFLAGS="-L$(spack location -e lfric-gnu)/.spack-env/view/lib"
         export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib"
         export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib64"
