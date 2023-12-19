@@ -49,7 +49,7 @@ from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
 from psyclone.dynamo0p3 import (DynFuncDescriptor03, MeshPropertiesMetaData,
                                 RefElementMetaData)
 from psyclone.errors import InternalError
-from psyclone.parse.kernel import KernelType, getkerneldescriptors
+from psyclone.parse.kernel import getkerneldescriptors, KernelType
 from psyclone.parse.utils import ParseError
 
 
@@ -62,7 +62,7 @@ class LFRicKernMetadata(KernelType):
     :type ast: :py:class:`fparser.block_statements.BeginSource`
     :param str name: the name of this kernel.
 
-    :raises ParseError: if the metadata does not conform to the 
+    :raises ParseError: if the metadata does not conform to the
                         rules for the LFRic API.
     '''
     # pylint: disable=too-many-instance-attributes
@@ -153,7 +153,7 @@ class LFRicKernMetadata(KernelType):
                             f"quadrature or an evaluator "
                             f"({const.VALID_EVALUATOR_NAMES}) must also "
                             f"supply the shape of that evaluator by setting "
-                            f"'gh_shape' in the kernel meta-data but "
+                            f"'gh_shape' in the kernel metadata but "
                             f"this is missing for kernel '{self.name}'")
                     shape_set = set(self._eval_shapes)
                     if not shape_set.issubset(
@@ -191,7 +191,7 @@ class LFRicKernMetadata(KernelType):
         # Does this kernel require any properties of the mesh?
         self.mesh = MeshPropertiesMetaData(self.name, type_declns)
 
-        # Perform further checks that the meta-data we've parsed
+        # Perform further checks that the metadata we've parsed
         # conforms to the rules for this API
         self._validate(need_evaluator)
 
@@ -319,11 +319,11 @@ class LFRicKernMetadata(KernelType):
 
     def _validate_inter_grid(self):
         '''
-        Checks that the kernel meta-data obeys the rules for LFRic inter-grid
+        Checks that the kernel metadata obeys the rules for LFRic inter-grid
         kernels. If none of the kernel arguments has a mesh associated with it
         then it is not an inter-grid kernel and this routine silently returns.
 
-        :raises: ParseError: if meta-data breaks inter-grid rules.
+        :raises: ParseError: if metadata breaks inter-grid rules.
         '''
         # pylint: disable=too-many-branches
         # Dictionary of meshes associated with arguments (for inter-grid
@@ -629,7 +629,7 @@ class LFRicKernMetadata(KernelType):
     def cma_operation(self):
         '''
         Returns the type of CMA operation identified from the kernel
-        meta-data (one of 'assembly', 'apply' or 'matrix-matrix') or
+        metadata (one of 'assembly', 'apply' or 'matrix-matrix') or
         None if the kernel does not involve CMA operators '''
         return self._cma_operation
 
@@ -650,8 +650,8 @@ class LFRicKernMetadata(KernelType):
     def eval_targets(self):
         '''
         Returns the list of function spaces upon which any evaluator must be
-        provided. This list is obtained from the GH_EVALUATOR_TARGETS meta-data
-        entry (if present). If this is not specified in the meta-data then
+        provided. This list is obtained from the GH_EVALUATOR_TARGETS metadata
+        entry (if present). If this is not specified in the metadata then
         we default to providing evaluators on all of the function spaces
         associated with the arguments which this kernel updates.
 

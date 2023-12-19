@@ -157,7 +157,7 @@ class LFRicKern(CodedKern):
         which is created by the parser. The object includes the
         metadata describing the kernel code.
 
-        :param ktype: the kernel meta-data object produced by the parser
+        :param ktype: the kernel metadata object produced by the parser
         :type ktype: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
 
         :raises InternalError: for an invalid data type of a scalar argument.
@@ -222,7 +222,7 @@ class LFRicKern(CodedKern):
         Initialisation of the basis/diff basis information. This may be
         needed before general setup so is computed in a separate method.
 
-        :param kmetadata: The kernel meta-data object produced by the parser.
+        :param kmetadata: The kernel metadata object produced by the parser.
         :type kmetadata: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
         '''
         for descriptor in kmetadata.func_descriptors:
@@ -268,11 +268,11 @@ class LFRicKern(CodedKern):
             self._base_name = self.name
         self._func_descriptors = ktype.func_descriptors
         # Keep a record of the type of CMA kernel identified when
-        # parsing the kernel meta-data
+        # parsing the kernel metadata
         self._cma_operation = ktype.cma_operation
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
 
-        # Record whether or not the kernel meta-data specifies that this
+        # Record whether or not the kernel metadata specifies that this
         # is an inter-grid kernel
         self._is_intergrid = ktype.is_intergrid
 
