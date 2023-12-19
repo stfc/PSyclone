@@ -131,7 +131,8 @@ class ArrayReference(ArrayMixin, Reference):
         if shape:
             if isinstance(self.symbol.datatype, ArrayType):
                 orig_shape = self.symbol.datatype.shape
-            elif hasattr(self.symbol.datatype, "partial_datatype"):
+            elif (isinstance(self.symbol.datatype, UnknownFortranType) and
+                  self.symbol.datatype.partial_datatype):
                 orig_shape = self.symbol.datatype.partial_datatype.shape
             else:
                 orig_shape = []
