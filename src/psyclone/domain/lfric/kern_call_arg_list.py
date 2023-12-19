@@ -50,7 +50,7 @@ from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import Reference, StructureReference
+from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
 from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, DeferredType,
     ContainerSymbol, ImportInterface, ScalarType)
@@ -316,14 +316,11 @@ class KernCallArgList(ArgOrdering):
             # Matrix takes the access from the declaration of the argument
             # (i.e. read, write, ...), the rest are always read-only parameters
             if component == "matrix":
-                name = self._symtab.lookup_with_tag(
-                    f"{arg.name}:{suffix}").name
                 # Matrix is a pointer to a 3d array
                 # REAL(KIND=r_solver), pointer:: cma_op1_matrix(:,:,:)
                 #    = > null()
                 mode = arg.access
                 sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
-                from psyclone.psyir.nodes import ArrayReference
                 self.psyir_append(ArrayReference.create(sym, [":", ":", ":"]))
             else:
                 # All other variables are scalar integers
