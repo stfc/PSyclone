@@ -65,10 +65,12 @@ from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
+from psyclone.domain.lfric.lfric_fields import LFRicFields
 from psyclone.domain.lfric.lfric_run_time_checks import LFRicRunTimeChecks
 from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
+from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
 
 
 __all__ = [
@@ -82,10 +84,12 @@ __all__ = [
     'LFRicCollection',
     'LFRicConstants',
     'LFRicExtractDriverCreator',
+    'LFRicFields',
     'LFRicInvoke',
     'LFRicInvokes',
     'LFRicKern',
     'LFRicKernCallFactory',
+    'LFRicKernMetadata',
     'LFRicLoop',
     'LFRicLoopBounds',
     'LFRicRunTimeChecks',

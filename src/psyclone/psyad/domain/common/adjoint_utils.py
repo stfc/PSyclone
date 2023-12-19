@@ -74,9 +74,9 @@ def create_adjoint_name(tl_name):
 
 
 def create_real_comparison(sym_table, kernel, var1, var2):
-    '''
-    Creates PSyIR that checks the values held by Symbols var1 and var2 for
-    equality, allowing for machine precision.
+    '''Creates PSyIR that checks the values held by Symbols var1 and var2
+    for equality, allowing for machine precision and writes the
+    success or failure of the checks to stdout.
 
     :param sym_table: the SymbolTable in which to put new Symbols.
     :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -87,21 +87,49 @@ def create_real_comparison(sym_table, kernel, var1, var2):
     :param var2: the symbol holding the second value for the comparison.
     :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
+    :returns: the PSyIR nodes that perform the check and write its
+        success or failure to stdout.
+    :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+
+    '''
+    statements = []
+    statements.extend(common_real_comparison(sym_table, var1, var2))
+    statements.extend(_common_write(sym_table, kernel, var1, var2))
+    return statements
+
+
+def common_real_comparison(sym_table, var1, var2):
+    '''
+    Creates PSyIR that checks the values held by Symbols var1 and var2 for
+    equality, allowing for machine precision.
+
+    :param sym_table: the SymbolTable in which to put new Symbols.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param var1: the symbol holding the first value for the comparison.
+    :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param var2: the symbol holding the second value for the comparison.
+    :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
     :returns: the PSyIR nodes that perform the check.
-    :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+    :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     freader = FortranReader()
     statements = []
     mtol = sym_table.new_symbol("MachineTol", symbol_type=DataSymbol,
                                 datatype=var1.datatype)
-    rel_diff = sym_table.new_symbol("relative_diff", symbol_type=DataSymbol,
-                                    datatype=var1.datatype)
-    overall_tol = sym_table.new_symbol("overall_tolerance",
-                                       symbol_type=DataSymbol,
-                                       datatype=var1.datatype,
-                                       is_constant=True,
-                                       initial_value=INNER_PRODUCT_TOLERANCE)
+    rel_diff = sym_table.new_symbol(
+        "relative_diff", symbol_type=DataSymbol, datatype=var1.datatype,
+        tag="relative_diff")
+    # The "overall_tolerance" tag is used to get the symbol from the
+    # symbol table in subsequent routines even though the symbol
+    # itself is not used in this routine.
+    _ = sym_table.new_symbol("overall_tolerance",
+                             tag="overall_tolerance",
+                             symbol_type=DataSymbol,
+                             datatype=var1.datatype,
+                             is_constant=True,
+                             initial_value=INNER_PRODUCT_TOLERANCE)
     assign = freader.psyir_from_statement(
         f"MachineTol = SPACING ( MAX( ABS({var1.name}), ABS({var2.name}) ) )",
         sym_table)
@@ -116,7 +144,31 @@ def create_real_comparison(sym_table, kernel, var1, var2):
                                     abs_op, Reference(mtol))
     statements.append(Assignment.create(Reference(rel_diff), div_op))
 
+    return statements
+
+
+def _common_write(sym_table, kernel, var1, var2):
+    '''Creates PSyIR that writes whether the precision test passed or
+    failed to stdout.
+
+    :param sym_table: the SymbolTable in which to read existing Symbols.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param kernel: the routine for which this adjoint test is being performed.
+    :type kernel: :py:class:`psyclone.psyir.nodes.Routine`
+    :param var1: the symbol holding the first value for the comparison.
+    :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param var2: the symbol holding the second value for the comparison.
+    :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: PSyIR nodes that write out test success or failure to stdout.
+    :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+
+    '''
     # TODO #1345 make this code language agnostic.
+    freader = FortranReader()
+    statements = []
+    rel_diff = sym_table.lookup_with_tag("relative_diff")
+    overall_tol = sym_table.lookup_with_tag("overall_tolerance")
     write1 = freader.psyir_from_statement(
         f"write(*,*) 'Test of adjoint of ''{kernel.name}'' PASSED: ', "
         f"{var1.name}, {var2.name}, {rel_diff.name}", sym_table)
@@ -180,4 +232,5 @@ def find_container(psyir):
                               "Containers. This is not supported.")
 
 
-__all__ = ["create_adjoint_name", "create_real_comparison", "find_container"]
+__all__ = ["create_adjoint_name", "create_real_comparison", "_common_write",
+           "find_container"]

@@ -41,11 +41,11 @@ import os
 import pytest
 
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
-from psyclone.domain.lfric import (KernCallArgList, LFRicKern,
-                                   KernStubArgList, LFRicConstants,
-                                   LFRicSymbolTable, LFRicLoop)
+from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
+                                   LFRicConstants, LFRicKern,
+                                   LFRicKernMetadata, LFRicLoop,
+                                   LFRicSymbolTable)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
-from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -215,7 +215,7 @@ def test_kernel_stub_invalid_scalar_argument():
     when using the KernStubArgList scalar method. '''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid type.
@@ -318,7 +318,7 @@ def test_kernel_stub_ind_dofmap_errors():
     '''Check that we raise the expected exceptions if the wrong arguments
     are supplied to KernelStubArgList.indirection_dofmap() '''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
@@ -439,7 +439,7 @@ def test_kernstubarglist_arglist_error():
     kernstubarglist without first calling the generate method'''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
@@ -457,7 +457,7 @@ def test_kernstubarglist_eval_shape_error():
     diff_basis() methods and one of the kernel's evaluator shapes is
     invalid. '''
     ast = get_ast(TEST_API, "testkern_qr_faces_mod.F90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     create_arg_list = KernStubArgList(kernel)
@@ -478,7 +478,7 @@ def test_refelem_stub_arglist_err():
     the expected error if it encounters an unsupported property. '''
     # Create the Kernel object
     ast = get_ast(TEST_API, "testkern_ref_elem_all_faces_mod.F90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Break the list of ref-element properties required by the Kernel
