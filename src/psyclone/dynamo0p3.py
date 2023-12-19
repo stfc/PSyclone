@@ -2906,8 +2906,10 @@ class DynProxies(LFRicCollection):
 
         for arg in real_field_args + int_field_args + op_args:
             # Create symbols that we will associate with the internal
-            # data arrays of fields, field vectors and (LMA and CMA) operators.
-            # TODO move the CMA-related stuff to the CMA collection.
+            # data arrays of fields, field vectors and LMA operators.
+            if arg.argument_type == "gh_columnwise_operator":
+                # CMA operators are handled by DynCMAOperators
+                continue
             ctable.add_lfric_precision_symbol(arg.precision)
             intrinsic_type = "integer" if arg in int_field_args else "real"
             suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
@@ -3106,20 +3108,6 @@ class DynProxies(LFRicCollection):
                                    entity_decls=cma_op_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(op_type))
-
-        # Declarations of pointers to the internal CMA matrices.
-        for arg in cma_op_args:
-            suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
-            ttext = f"{arg.name}:{suffix}"
-            sym = table.lookup_with_tag(ttext)
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=arg.precision,
-                               dimension=":,:,:",
-                               entity_decls=[f"{sym.name} => null()"],
-                               pointer=True))
-            # Ensure the appropriate kind parameter will be imported.
-            (self._invoke.invokes.psy.infrastructure_modules[const_mod].
-             add(arg.precision))
 
     def initialise(self, parent):
         '''
@@ -3419,6 +3407,23 @@ class DynCMAOperators(LFRicCollection):
         const = LFRicConstants()
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
         for op_name in self._cma_ops:
+            new_name = self._symbol_table.next_available_name(
+                f"{op_name}_{suffix}")
+            tag = f"{op_name}:{suffix}"
+            precision = LFRicConstants().precision_for_type(arg.data_type)
+            array_type = ArrayType(
+                LFRicTypes("LFRicRealScalarDataType")(precision),
+                [ArrayType.Extent.DEFERRED]*3)
+            index_str = ",".join(3*[":"])
+            dtype = UnknownFortranType(
+                f"real(kind={arg.precision}), pointer, "
+                f"dimension({index_str}) :: {new_name} => null()",
+                partial_datatype=array_type)
+            symtab.new_symbol(new_name,
+                              symbol_type=DataSymbol,
+                              datatype=dtype,
+                              tag=tag)
+            # Now the various integer parameters of the operator.
             for param in self._cma_ops[op_name]["params"]:
                 symtab.find_or_create_integer_symbol(
                     f"{op_name}_{param}", tag=f"{op_name}:{param}:{suffix}")
@@ -3446,9 +3451,8 @@ class DynCMAOperators(LFRicCollection):
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
 
         for op_name in self._cma_ops:
-            # First create a pointer to the array containing the actual
-            # matrix. The Symbol itself was created in DynProxies - TODO,
-            # it should be done in this class really.
+            # First, assign a pointer to the array containing the actual
+            # matrix.
             cma_name = self._symbol_table.lookup_with_tag(
                 f"{op_name}:{suffix}").name
             parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
@@ -3500,15 +3504,15 @@ class DynCMAOperators(LFRicCollection):
         const = LFRicConstants()
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
         for op_name in self._cma_ops:
-            # Declare the operator matrix itself. The Symbol is created in
-            # DynProxies.
+            # Declare the operator matrix itself.
             tag_name = f"{op_name}:{suffix}"
             cma_name = self._symbol_table.lookup_with_tag(tag_name).name
             cma_dtype = self._cma_ops[op_name]["datatype"]
             cma_kind = self._cma_ops[op_name]["kind"]
             parent.add(DeclGen(parent, datatype=cma_dtype,
                                kind=cma_kind, pointer=True,
-                               entity_decls=[cma_name+"(:,:,:) => null()"]))
+                               dimension=":,:,:",
+                               entity_decls=[f"{cma_name} => null()"]))
             const = LFRicConstants()
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
             const_mod_uses = self._invoke.invokes.psy. \
