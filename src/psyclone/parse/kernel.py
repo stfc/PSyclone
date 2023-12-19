@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Authors: L. Mitchell Imperial College
 #          R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified: C.M. Maynard, Met Office / University of Reading,
-#           I. Kavcic, Met Office
+#           I. Kavcic and L. Turner, Met Office
 #           J. Henrichs, Bureau of Meteorology
 
 '''Module that uses the Fortran parser fparser1 to parse
@@ -242,8 +242,8 @@ class KernelTypeFactory():
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         if self._type == "dynamo0.3":
-            from psyclone.dynamo0p3 import DynKernMetadata
-            return DynKernMetadata(parse_tree, name=name)
+            from psyclone.domain.lfric import LFRicKernMetadata
+            return LFRicKernMetadata(parse_tree, name=name)
         if self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOKernelType1p0
             return GOKernelType1p0(parse_tree, name=name)
@@ -827,7 +827,7 @@ class KernelType():
         self._ktype = get_kernel_metadata(name, ast)
         # TODO #1204 since the valid form of the metadata beyond this point
         # depends on the API, the code beyond this point should be refactored
-        # into DynKernMetadata and GOKernelType1p0.
+        # into LFRicKernMetadata and GOKernelType1p0.
         operates_on = self.get_integer_variable("operates_on")
         # The GOcean API still uses the 'iterates_over' metadata entry
         # although this is deprecated in the LFRic API.
