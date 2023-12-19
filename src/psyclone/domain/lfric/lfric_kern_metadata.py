@@ -86,8 +86,8 @@ class LFRicKernMetadata(KernelType):
             self._eval_shapes = [shape]
 
         # The list of function space names for which an evaluator is
-        # required. We set this up below once we've processed the meta-
-        # -data describing the kernel arguments.
+        # required. We set this up below once we have processed the
+        # metadata describing the kernel arguments.
         self._eval_targets = []
 
         # Whether or not this is an inter-grid kernel (i.e. has a mesh
