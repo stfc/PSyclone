@@ -785,8 +785,8 @@ def test_incremented_arg():
     # Change the kernel metadata so that the the incremented kernel
     # argument has read access
     logging.disable(logging.CRITICAL)
-    # If we change the meta-data then we trip the check in the parser.
-    # Therefore, we change the object produced by parsing the meta-data
+    # If we change the metadata then we trip the check in the parser.
+    # Therefore, we change the object produced by parsing the metadata
     # instead
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = LFRicKernMetadata(ast)

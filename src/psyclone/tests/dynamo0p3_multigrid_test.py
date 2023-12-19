@@ -773,7 +773,7 @@ def test_prolong_vector(tmpdir):
 
 def test_no_stub_gen():
     ''' Check that the kernel-stub generator refuses to attempt to create
-    a kernel stub if the meta-data contains mesh information. '''
+    a kernel stub if the metadata contains mesh information. '''
     with pytest.raises(NotImplementedError) as excinfo:
         generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.f90"),
                  api="dynamo0.3")

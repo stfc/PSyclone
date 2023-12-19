@@ -212,7 +212,7 @@ def test_missing_shape_both():
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'gh_shape' in the kernel meta-data but this is missing "
+            "'gh_shape' in the kernel metadata but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo.value))
 
 
@@ -220,7 +220,7 @@ def test_missing_shape_basis_only():
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    # Alter meta-data so only requires gh_basis
+    # Alter metadata so only requires gh_basis
     code1 = CODE.replace(
         "     type(func_type), dimension(3) :: meta_funcs =  &\n"
         "          (/ func_type(w1, gh_basis),               &\n"
@@ -237,7 +237,7 @@ def test_missing_shape_basis_only():
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'gh_shape' in the kernel meta-data but this is missing "
+            "'gh_shape' in the kernel metadata but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo.value))
 
 
@@ -245,7 +245,7 @@ def test_missing_eval_shape_diff_basis_only():
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_diff_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    # Alter meta-data so only requires gh_diff_basis
+    # Alter metadata so only requires gh_diff_basis
     code1 = CODE.replace(
         "     type(func_type), dimension(3) :: meta_funcs =  &\n"
         "          (/ func_type(w1, gh_basis),               &\n"
@@ -262,7 +262,7 @@ def test_missing_eval_shape_diff_basis_only():
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'gh_shape' in the kernel meta-data but this is missing "
+            "'gh_shape' in the kernel metadata but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo.value))
 
 
@@ -2088,7 +2088,7 @@ def test_no_arg_on_space(monkeypatch):
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     kernel_args = first_kernel.arguments
-    # Test getting the argument by the meta-data name for the function space
+    # Test getting the argument by the metadata name for the function space
     arg, fspace = kernel_args.get_arg_on_space_name("w2")
     assert arg.name == "f2"
     assert fspace.orig_name == "w2"

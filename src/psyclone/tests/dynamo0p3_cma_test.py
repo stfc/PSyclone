@@ -96,7 +96,7 @@ def setup():
 
 
 def test_cma_mdata_assembly():
-    ''' Check that we can parse meta-data entries relating to Column-Matrix
+    ''' Check that we can parse metadata entries relating to Column-Matrix
     Assembly. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_ASSEMBLE
@@ -185,7 +185,7 @@ def test_cma_mdata_init_wrong_data_type():
 
 
 def test_cma_mdata_assembly_missing_op():
-    ''' Check that we raise the expected error if the supplied meta-data
+    ''' Check that we raise the expected error if the supplied metadata
     is assembling a gh_columnwise_operator but doesn't have a read-only
     gh_operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -204,7 +204,7 @@ def test_cma_mdata_assembly_missing_op():
 
 
 def test_cma_mdata_multi_writes():
-    ''' Check that we raise the expected error if the supplied meta-data
+    ''' Check that we raise the expected error if the supplied metadata
     specifies more than one CMA operator that is written to '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Replace the field arg with another CMA operator that is written to
@@ -236,7 +236,7 @@ def test_cma_mdata_multi_writes():
 
 
 def test_cma_mdata_mutable_op():
-    ''' Check that we raise the expected error if the supplied meta-data
+    ''' Check that we raise the expected error if the supplied metadata
     is assembling a gh_columnwise_operator but doesn't have a read-only
     gh_operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -257,7 +257,7 @@ def test_cma_mdata_mutable_op():
 
 
 def test_cma_mdata_writes_lma_op():
-    ''' Check that we raise the expected error if the supplied meta-data
+    ''' Check that we raise the expected error if the supplied metadata
     is assembling a gh_columnwise_operator but also writes to a
     gh_operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -279,7 +279,7 @@ def test_cma_mdata_writes_lma_op():
 
 
 def test_cma_mdata_assembly_diff_spaces():
-    ''' Check that we successfully parse the supplied meta-data if it
+    ''' Check that we successfully parse the supplied metadata if it
     is assembling a gh_columnwise_operator but the to/from spaces don't
     match those of the supplied 'gh_operator'.
 
@@ -445,7 +445,7 @@ end module testkern_cma_apply
 
 
 def test_cma_mdata_apply():
-    ''' Check that we can parse meta-data entries relating to the
+    ''' Check that we can parse metadata entries relating to the
     application of Column-Matrix operators. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_APPLY
@@ -661,7 +661,7 @@ end module testkern_cma_matrix_matrix
 
 
 def test_cma_mdata_matrix_prod():
-    ''' Check that we can parse meta-data entries relating to a kernel
+    ''' Check that we can parse metadata entries relating to a kernel
     that performs a product of two CMA operators. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX
@@ -683,7 +683,7 @@ def test_cma_mdata_matrix_prod():
 
 def test_cma_mdata_matrix_too_few_args():
     ''' Check that we raise the expected error when there are too few
-    arguments specified in meta-data '''
+    arguments specified in metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.split("\n")
     # Remove read-only cma operators
@@ -718,7 +718,7 @@ def test_cma_mdata_matrix_field_arg():
 
 
 def test_cma_mdata_matrix_no_scalar_arg():
-    ''' Check that we successfully parse meta-data for a matrix-matrix kernel
+    ''' Check that we successfully parse metadata for a matrix-matrix kernel
     that has no scalar arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
@@ -732,7 +732,7 @@ def test_cma_mdata_matrix_no_scalar_arg():
 
 
 def test_cma_mdata_matrix_2_scalar_args():
-    ''' Check that we successfully parse meta-data for a matrix-matrix kernel
+    ''' Check that we successfully parse metadata for a matrix-matrix kernel
     that has 2 scalar arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(

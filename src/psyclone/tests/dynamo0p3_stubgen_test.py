@@ -154,12 +154,12 @@ end module dummy_mod
 
 def test_load_meta_wrong_type():
     ''' Test that the load_meta function raises an appropriate error
-    if the meta-data contains an un-recognised type. '''
+    if the metadata contains an un-recognised type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(INTENT, ignore_comments=False)
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
-    # Break the meta-data
+    # Break the metadata
     metadata.arg_descriptors[0]._argument_type = "gh_hedge"
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)

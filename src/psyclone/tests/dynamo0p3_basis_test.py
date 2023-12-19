@@ -153,7 +153,7 @@ def test_eval_targets_err():
 
 
 def test_eval_targets_wrong_space():
-    ''' Check that we reject meta-data where there is no argument for one of
+    ''' Check that we reject metadata where there is no argument for one of
     the function spaces listed in gh_evaluator_targets. '''
     code = CODE.replace("[W0, W1]", "[W0, W3]")
     ast = fpapi.parse(code, ignore_comments=False)
@@ -1777,7 +1777,7 @@ def test_diff_basis():
     assert output in generated_code
 
 
-# Meta-data for a kernel that requires differential basis functions
+# Metadata for a kernel that requires differential basis functions
 # evaluated only on W2 (the to-space of the operator that this kernel
 # writes to).
 DIFF_BASIS_EVAL = '''
@@ -1942,7 +1942,7 @@ def test_2eval_stubgen():
     required on more than one space.
 
     '''
-    # Modify the meta-data so that it specifies that evaluators be provided
+    # Modify the metadata so that it specifies that evaluators be provided
     # on two function spaces
     twoeval_meta = DIFF_BASIS_EVAL.replace(
         "     integer :: gh_shape = gh_evaluator\n",

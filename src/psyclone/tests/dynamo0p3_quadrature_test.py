@@ -897,7 +897,7 @@ def test_qr_basis_stub():
 
 def test_stub_basis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring basis functions
-    for quadrature raises the correct errors if the kernel meta-data is
+    for quadrature raises the correct errors if the kernel metadata is
     broken '''
     ast = fpapi.parse(BASIS, ignore_comments=False)
     metadata = LFRicKernMetadata(ast)
@@ -924,9 +924,9 @@ def test_stub_basis_wrong_shape(monkeypatch):
 
 def test_stub_dbasis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring differential basis
-    functions for quadrature raises the correct errors if the kernel meta-data
+    functions for quadrature raises the correct errors if the kernel metadata
     is broken '''
-    # Change meta-data to specify differential basis functions
+    # Change metadata to specify differential basis functions
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
 
     ast = fpapi.parse(diff_basis, ignore_comments=False)
