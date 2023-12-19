@@ -47,11 +47,11 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import FunctionSpace, LFRicArgDescriptor, \
-    LFRicConstants, LFRicKern
+from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
+                                   LFRicConstants, LFRicKern, LFRicLoop)
 from psyclone.dynamo0p3 import DynACCEnterDataDirective, \
     DynBoundaryConditions, DynCellIterators, DynGlobalSum, \
-    DynKernelArguments, DynKernMetadata, DynLoop, DynProxies, \
+    DynKernelArguments, DynKernMetadata, DynProxies, \
     HaloReadAccess, KernCallArgList
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
@@ -3078,7 +3078,7 @@ def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.walk(DynLoop)[0]
+    loop = schedule.walk(LFRicLoop)[0]
     create_arg_list = KernCallArgList(loop.loop_body[0])
     # Add an invalid shape to the dict of qr rules
     create_arg_list._kern.qr_rules["broken"] = None

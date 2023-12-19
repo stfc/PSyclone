@@ -588,8 +588,8 @@ def test_get_indexed_field_argument_refs():
         assert isinstance(ref.symbol.datatype.partial_datatype, ArrayType)
         assert len(ref.symbol.datatype.partial_datatype.shape) == 1
         # The reference in a built-in will have a data type hard coded
-        assert isinstance(ref.datatype.partial_datatype, ArrayType)
-        assert ref.datatype.partial_datatype.precision.name == "r_def"
+        assert isinstance(ref.datatype, ScalarType)
+        assert ref.datatype.precision.name == "r_def"
 
 
 def test_get_scalar_argument_references():

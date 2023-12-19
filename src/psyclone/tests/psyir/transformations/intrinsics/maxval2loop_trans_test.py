@@ -68,9 +68,7 @@ def test_init_var():
     trans = Maxval2LoopTrans()
     var_symbol = DataSymbol("var", REAL_TYPE)
     result = trans._init_var(var_symbol)
-    # As 'tiny' is not yet part of an expression, the 'debug_string()'
-    # method incorrectly assumes it is a call.
-    assert result.debug_string() == "call TINY(var)\n"
+    assert result.debug_string() == "-HUGE(var)"
 
 
 def test_str():
@@ -125,7 +123,7 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
         "  real :: result\n"
         "  integer :: idx\n"
         "  integer :: idx_1\n\n"
-        "  result = TINY(result)\n"
+        "  result = -HUGE(result)\n"
         "  do idx = 1, 20, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      result = MAX(result, array(idx_1,idx))\n"
