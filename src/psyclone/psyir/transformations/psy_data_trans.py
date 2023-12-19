@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -190,14 +190,14 @@ class PSyDataTrans(RegionTrans):
         if len(kerns) == 1:
             # This PSyData region only has one kernel within it,
             # so append the kernel name.
-            region_name += f":{kerns[0].name}"
+            region_name += f"-{kerns[0].name}"
 
         # Add a region index to ensure uniqueness when there are
         # multiple regions in an invoke.
         key = module_name + "|" + region_name
         idx = PSyDataTrans._used_kernel_names.get(key, 0)
         PSyDataTrans._used_kernel_names[key] = idx + 1
-        region_name += f":r{idx}"
+        region_name += f"-r{idx}"
         return (module_name, region_name)
 
     # ------------------------------------------------------------------------

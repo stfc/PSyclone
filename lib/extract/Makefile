@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,34 @@
 # offers is only meant for testing, each library should compile its own version
 # of the base class (with therefore consistent compiler settings).
 
-.PHONY: all
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?=
+# Path to the PSyclone wrapper libraries. It defaults to the relative path to
+# the top-level 'lib' directory. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./..
+
+PROCESS_ARGS = -prefix=extract_ -types=char,int,long,logical,real,double \
+               -dims=2
+               #-dims=1,2,3,4
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
+F90FLAGS += -DNO_MPI
+
+.PHONY: all compare
 	
-all:
+compare: compare_variables_mod.o
+
+%.o: %.F90
+	$(F90) -c $(F90FLAGS) $<
+
+# ------------------------------------------------
+compare_variables_mod.F90:      compare_variables_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > compare_variables_mod.F90
+
+all: compare
 	$(MAKE) -C netcdf all
+
+clean:
+	rm -f compare_variables_mod.mod compare_variables_mod.o \
+		  compare_variables_mod.F90

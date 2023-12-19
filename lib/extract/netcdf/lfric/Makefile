@@ -75,7 +75,8 @@ PROCESS_ARGS = -prefix=extract_ -types=char,int,logical,real,double \
                        -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
+OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o \
+	   compare_variables_mod.o
 
 default: $(PSYDATA_LIB)
 
@@ -100,6 +101,9 @@ psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 extract_netcdf_base.F90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.F90
 
+compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > compare_variables_mod.F90
+
 %.o: %.f90
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
@@ -107,7 +111,8 @@ extract_netcdf_base.F90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.f90 \
+	   compare_variables_mod.f90
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean

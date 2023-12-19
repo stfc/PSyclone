@@ -170,7 +170,7 @@ linking the verification library. The application which uses the
 read-only-verification library needs to link in the infrastructure
 library anyway.
 
-.. note:
+.. note::
     It is the responsibility of the user to make sure that the infrastructure
     files used during compilation of the read-only-verification library are
     also used when linking the application. Otherwise strange and
@@ -255,3 +255,37 @@ An executable example for using the LFRic read-only-verification library is
 included in ``tutorial/practicals/LFRic/building_code/4_psydata`` directory,
 see `this link for more information
 <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals/LFRic/building_code/4_psydata>`_.
+
+
+.. _integrating_psy_data_lfric:
+
+Integrating PSyData Libraries into the LFRic Build Environment
+--------------------------------------------------------------
+The easiest way of integrating any PSyData-based library into the LFRic
+build environment is:
+
+- In the LFRic source tree create a new directory under ``infrastructure/source``, 
+  e.g. ``infrastructure/source/psydata``.
+- Build the PSyData wrapper stand-alone in the PSyclone source tree. The compiled
+  files will actually not be used, but this step will create all source
+  files (some of which are created by jinja). It is not recommended to copy
+  the compiled files into your LFRic build tree, since these files might be
+  compiled with an outdated version of the infrastructure files and be
+  incompatible with files in a current LFRic version.
+- Copy all processed source files into ``infrastructure/source/psydata``
+- Start the LFRic build process as normal. The LFRic build environment will
+  copy the PSyData source files into the working directory and compile
+  them.
+- If the PSyData library needs additional include paths (e.g. when using an
+  external profiling tool), add the required paths to ``$FFLAGS``.
+- If additional libraries are required at link time, add the paths
+  and libraries to ``$LDFLAGS``. Alternatively, when a compiler wrapper
+  script is provided by a third-party tool (e.g. the profiling tool
+  TAU provides a script ``tau_f90.sh``), either set the environment variable
+  ``$FC``, or if this is only required at link time, the variable ``$LDMPI``
+  to this compiler wrapper.
+
+.. warning::
+    Only one PSyData library can be integrated at a time. Otherwise there
+    will be potentially several modules with the same name (e.g.
+    ``psy_data_base``), resulting in errors at compile time.

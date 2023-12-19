@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ include Makefile.inc
 
 time_evolution_alg_mod_psy.f90: time_evolution_alg_mod.x90 solutions/extract_all_transform.py
 	psyclone $(PSYCLONE_CMD)                                                        \
+	-d . -d ../gungho_lib                                                           \
 	-s ./solutions/extract_all_transform.py -opsy time_evolution_alg_mod_psy.f90    \
 	-oalg time_evolution_alg_mod.f90 time_evolution_alg_mod.x90
 

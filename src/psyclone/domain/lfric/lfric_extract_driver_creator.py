@@ -40,6 +40,12 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
+# TODO #1382: refactoring common functionality between the various driver
+# creation implementation should make this file much smaller.
+# pylint: disable=too-many-lines
+
+import re
+
 from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
@@ -49,7 +55,6 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import HaloExchange
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference,
                                   Routine, StructureReference)
@@ -172,9 +177,11 @@ class LFRicExtractDriverCreator:
     '''
     def __init__(self):
         # TODO #2069: check if this list can be taken from LFRicConstants
+        # TODO #2018: once r_field is defined in the LFRic infrastructure,
+        #             it should be added to this list.
         self._all_field_types = ["integer_field_type", "field_type",
-                                 "r_bl_field", "r_phys_field",
-                                 "r_solver_field_type", "r_tran_field_type"]
+                                 "r_bl_field", "r_solver_field_type",
+                                 "r_tran_field_type"]
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -294,7 +301,8 @@ class LFRicExtractDriverCreator:
         old_reference.replace_with(new_ref)
 
     # -------------------------------------------------------------------------
-    def _add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping):
+    def _add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping,
+                                read_write_info):
         '''This function adds all symbols used in ``sched`` to the symbol
         table. It uses LFRic-specific knowledge to declare fields and flatten
         their name.
@@ -310,6 +318,7 @@ class LFRicExtractDriverCreator:
 
 
         '''
+        # pylint: disable=too-many-locals
         all_references = sched.walk(Reference)
 
         # First we add all non-structure names to the symbol table. This way
@@ -361,6 +370,47 @@ class LFRicExtractDriverCreator:
             self._flatten_reference(reference, symbol_table,
                                     proxy_name_mapping)
 
+        # Now add all non-local symbols, which need to be
+        # imported from the appropriate module:
+        # -----------------------------------------------
+        mod_man = ModuleManager.get()
+        for module_name, signature in read_write_info.set_of_all_used_vars:
+            if not module_name:
+                # Ignore local symbols, which will have been added above
+                continue
+            try:
+                container = symbol_table.lookup(module_name)
+            except KeyError:
+                container = ContainerSymbol(module_name)
+                symbol_table.add(container)
+
+            # Now look up the original symbol. While the variable could
+            # be declared Deferred here (i.e. just imported), we need the
+            # type information for # the output variables (VAR_post), which
+            # are created later and which will query the original symbol for
+            # its type. And since they are not imported, they need to be
+            # explicitly declared.
+            mod_info = mod_man.get_module_info(module_name)
+            container_symbol = mod_info.get_symbol(signature[0])
+            if not container_symbol:
+                # TODO #2120: This typically indicates a problem with parsing
+                # a module: the psyir does not have the full tree structure.
+                continue
+
+            # It is possible that external symbol name (signature[0]) already
+            # exist in the symbol table (the same name is used in the local
+            # subroutine and in a module). In this case, the imported symbol
+            # must be renamed:
+            if signature[0] in symbol_table:
+                interface = ImportInterface(container, orig_name=signature[0])
+            else:
+                interface = ImportInterface(container)
+
+            symbol_table.find_or_create_tag(
+                tag=f"{signature[0]}@{module_name}", root_name=signature[0],
+                symbol_type=DataSymbol, interface=interface,
+                datatype=container_symbol.datatype)
+
     # -------------------------------------------------------------------------
     @staticmethod
     def _add_call(program, name, args):
@@ -394,7 +444,7 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     @staticmethod
     def _create_output_var_code(name, program, is_input, read_var,
-                                postfix, index=None):
+                                postfix, index=None, module_name=None):
         # pylint: disable=too-many-arguments
         '''
         This function creates all code required for an output variable.
@@ -427,23 +477,31 @@ class LFRicExtractDriverCreator:
                       :py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''
+        # Look up the corresponding non-written variable to get the required
+        # type information for declaring the _POST/output variable:
         symbol_table = program.symbol_table
-        if index is not None:
-            sym = symbol_table.lookup_with_tag(f"{name}_{index}_data")
+        if module_name:
+            sym = symbol_table.lookup_with_tag(f"{name}@{module_name}")
         else:
-            # If it is not indexed then `name` will already end in "_data"
-            sym = symbol_table.lookup_with_tag(name)
+            if index is not None:
+                sym = symbol_table.lookup_with_tag(f"{name}_{index}_data")
+            else:
+                # If it is not indexed then `name` will already end in "_data"
+                sym = symbol_table.lookup_with_tag(name)
 
         # Declare a 'post' variable of the same type and read in its value.
         post_name = sym.name + postfix
         post_sym = symbol_table.new_symbol(post_name,
                                            symbol_type=DataSymbol,
                                            datatype=sym.datatype)
-        if index is not None:
-            post_tag = f"{name}{postfix}%{index}"
+        if module_name:
+            post_tag = f"{name}{postfix}@{module_name}"
         else:
-            # If it is not indexed then `name` will already end in "_data"
-            post_tag = f"{name}{postfix}"
+            if index is not None:
+                post_tag = f"{name}{postfix}%{index}"
+            else:
+                # If it is not indexed then `name` will already end in "_data"
+                post_tag = f"{name}{postfix}"
         name_lit = Literal(post_tag, CHARACTER_TYPE)
         LFRicExtractDriverCreator._add_call(program, read_var,
                                             [name_lit,
@@ -468,7 +526,8 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     def _create_read_in_code(self, program, psy_data, original_symbol_table,
                              read_write_info, postfix):
-        # pylint: disable=too-many-arguments, too-many-locals
+        # pylint: disable=too-many-arguments, too-many-branches
+        # pylint: disable=too-many-locals, too-many-statements
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
 
@@ -525,18 +584,32 @@ class LFRicExtractDriverCreator:
 
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
+        mod_man = ModuleManager.get()
 
         # First handle variables that are read:
         # -------------------------------------
-        for signature in read_write_info.signatures_read:
+        for module_name, signature in read_write_info.read_list:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             sig_str = self._flatten_signature(signature)
-            orig_sym = original_symbol_table.lookup(signature[0])
-            if orig_sym.is_array and _sym_is_field(orig_sym):
+            if module_name:
+                mod_info = mod_man.get_module_info(module_name)
+                orig_sym = mod_info.get_symbol(signature[0])
+                if not orig_sym:
+                    # TODO 2120: We likely couldn't parse the module.
+                    print(f"Index error finding '{sig_str}' in "
+                          f"'{module_name}'.")
+            else:
+                orig_sym = original_symbol_table.lookup(signature[0])
+
+            # If the symbol is a constant, it cannot and does not need
+            # to be read in:
+            if orig_sym and orig_sym.is_constant:
+                continue
+            if orig_sym and orig_sym.is_array and _sym_is_field(orig_sym):
                 # This is a field vector, so add all individual fields
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
@@ -546,8 +619,22 @@ class LFRicExtractDriverCreator:
                                                        Reference(sym)])
                 continue
 
-            sym = symbol_table.lookup_with_tag(str(signature))
-            name_lit = Literal(str(signature), CHARACTER_TYPE)
+            if module_name:
+                tag = f"{signature[0]}@{module_name}"
+                try:
+                    sym = symbol_table.lookup_with_tag(tag)
+                except KeyError:
+                    print(f"Cannot find variable with tag '{tag}' - likely "
+                          f"a symptom of an earlier parsing problem.")
+                    # TODO #2120: Better error handling, at this stage
+                    # we likely could not find a module variable (e.g.
+                    # because we couldn't successfully parse the module)
+                    # and will have inconsistent/missing declarations.
+                    continue
+                name_lit = Literal(tag, CHARACTER_TYPE)
+            else:
+                sym = symbol_table.lookup_with_tag(str(signature))
+                name_lit = Literal(str(signature), CHARACTER_TYPE)
             self._add_call(program, read_var, [name_lit, Reference(sym)])
 
         # Then handle all variables that are written (note that some
@@ -560,13 +647,18 @@ class LFRicExtractDriverCreator:
         # file. The content of these two variables should be identical
         # at the end.
         output_symbols = []
-        for signature in read_write_info.signatures_written:
+
+        for module_name, signature in read_write_info.write_list:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
-            orig_sym = original_symbol_table.lookup(signature[0])
+            if module_name:
+                mod_info = mod_man.get_module_info(module_name)
+                orig_sym = mod_info.get_symbol(signature[0])
+            else:
+                orig_sym = original_symbol_table.lookup(signature[0])
             is_input = read_write_info.is_read(signature)
             if orig_sym.is_array and _sym_is_field(orig_sym):
                 # This is a field vector, so handle each individual field
@@ -581,9 +673,10 @@ class LFRicExtractDriverCreator:
                     output_symbols.append(sym_tuple)
             else:
                 sig_str = str(signature)
-                sym_tuple = self._create_output_var_code(str(signature),
-                                                         program, is_input,
-                                                         read_var, postfix)
+                sym_tuple = \
+                    self._create_output_var_code(str(signature), program,
+                                                 is_input, read_var, postfix,
+                                                 module_name=module_name)
                 output_symbols.append(sym_tuple)
 
         return output_symbols
@@ -635,14 +728,16 @@ class LFRicExtractDriverCreator:
         mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
         constant_mod = ContainerSymbol(mod_name)
         symbol_table.add(constant_mod)
-        # r_quad is defined in constants_mod, but not exported. So
-        # we have to remove it from the lists of precisions to import.
-        # TODO #2018
+
+        # r_quad is defined in constants_mod, but not exported. And r_phys
+        # does not exist at all in LFRic. So we have to remove them from the
+        # lists of precisions to import.  TODO #2018
         api_config = Config.get().api_conf("dynamo0.3")
         all_precisions = [name for name in api_config.precision_map
-                          if name != "r_quad"]
+                          if name not in ["r_quad", "r_phys"]]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
+                                    tag=f"{prec_name}@{mod_name}",
                                     symbol_type=DataSymbol,
                                     datatype=INTEGER_TYPE,
                                     interface=ImportInterface(constant_mod))
@@ -665,36 +760,29 @@ class LFRicExtractDriverCreator:
                        :py:class:`psyclone.psyir.symbols.Symbol`]]
 
         '''
+
+        module = ContainerSymbol("compare_variables_mod")
+        program.symbol_table.add(module)
+        for compare_func in ["compare", "compare_init", "compare_summary"]:
+            compare_sym = RoutineSymbol(compare_func, DeferredType(),
+                                        interface=ImportInterface(module))
+            program.symbol_table.add(compare_sym)
+
+        LFRicExtractDriverCreator.\
+            _add_call(program, "compare_init",
+                      [Literal(f"{len(output_symbols)}", INTEGER_TYPE)])
+
         # TODO #2083: check if this can be combined with psyad result
         # comparison.
         for (sym_computed, sym_read) in output_symbols:
-            if (isinstance(sym_computed.datatype, ArrayType) or
-                    (isinstance(sym_computed.datatype, UnknownFortranType) and
-                     isinstance(sym_computed.datatype.partial_datatype,
-                                ArrayType))):
-                cond = f"all({sym_computed.name} - {sym_read.name} == 0.0)"
-            else:
-                cond = f"{sym_computed.name} == {sym_read.name}"
-            # The PSyIR has no support for output functions, so we parse
-            # Fortran code to create a code block which stores the output
-            # statements.
-            code = f'''
-                subroutine tmp()
-                  integer :: {sym_computed.name}, {sym_read.name}
-                  if ({cond}) then
-                     print *,"{sym_computed.name} correct"
-                  else
-                     print *,"{sym_computed.name} incorrect. Values are:"
-                     print *,{sym_computed.name}
-                     print *,"{sym_computed.name} values should be:"
-                     print *,{sym_read.name}
-                  endif
-                end subroutine tmp'''
+            lit_name = Literal(sym_computed.name, CHARACTER_TYPE)
+            LFRicExtractDriverCreator._add_call(program, "compare",
+                                                [lit_name,
+                                                 Reference(sym_computed),
+                                                 Reference(sym_read)])
 
-            fortran_reader = FortranReader()
-            container = fortran_reader.psyir_from_source(code)
-            if_block = container.children[0].children[0]
-            program.addchild(if_block.detach())
+        LFRicExtractDriverCreator.\
+            _add_call(program, "compare_summary", [])
 
     # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
@@ -817,7 +905,7 @@ class LFRicExtractDriverCreator:
         self._import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
         self._add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                     proxy_name_mapping)
+                                     proxy_name_mapping, read_write_info)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
@@ -874,7 +962,7 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     def get_driver_as_string(self, nodes, read_write_info, prefix, postfix,
                              region_name, writer=FortranWriter()):
-        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-arguments, too-many-locals
         '''This function uses the `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
@@ -930,17 +1018,31 @@ class LFRicExtractDriverCreator:
         # that have no dependency. This is required for compilation, the
         # compiler must have found any dependent modules before it can
         # compile a module.
-        sorted_modules = ModuleManager.sort_modules(module_dependencies)
+        mod_manager = ModuleManager.get()
+        sorted_modules = mod_manager.sort_modules(module_dependencies)
 
         # Inline all required modules into the driver source file so that
-        # it is stand-alone:
+        # it is stand-alone. Additionally, we need to remove all private
+        # declarations (since then they default to be public, which is
+        # required in order to potentially initialise an otherwise protected
+        # module variable from the data file). And similarly remove all
+        # 'protected' attributes.
+        # TODO #2142: if the LFRic build system pre-processes all files,
+        # we can modify the fparser tree or PSyIR information to do this
+        # without risking an issue if the program contains a symbol named
+        # 'protected' or 'private'.
         out = []
-        mod_manager = ModuleManager.get()
+        # An optional comma and spaces, followed by either protected
+        # or private as word:
+        remove_regex = re.compile(r"(, *)?(\b(protected|private)\b)")
+
         for module in sorted_modules:
             # Note that all modules in `sorted_modules` are known to be in
             # the module manager, so we can always get the module info here.
             mod_info = mod_manager.get_module_info(module)
-            out.append(mod_info.get_source_code())
+            # Remove protected and private:
+            source = remove_regex.sub("", mod_info.get_source_code())
+            out.append(source)
 
         out.append(writer(file_container))
 
