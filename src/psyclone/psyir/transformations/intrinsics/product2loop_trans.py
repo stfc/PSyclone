@@ -155,20 +155,20 @@ class Product2LoopTrans(ArrayReductionBaseTrans):
         # return lhs * rhs
         return BinaryOperation.create(BinaryOperation.Operator.MUL, lhs, rhs)
 
-    def _init_var(self, var_symbol):
+    def _init_var(self, reference):
         '''The initial value for the variable that computes the product
         of an array.
 
-        :param var_symbol: the symbol used to store the final result.
-        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param reference: the reference used to store the final result.
+        :type reference: :py:class:`psyclone.psyir.node.Reference`
 
         :returns: PSyIR for the value to initialise the variable that
             computes the product.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
-        intrinsic = var_symbol.datatype.intrinsic
-        precision = var_symbol.datatype.precision
+        intrinsic = reference.datatype.intrinsic
+        precision = reference.datatype.precision
         scalar_type = ScalarType(intrinsic, precision)
         if intrinsic == ScalarType.Intrinsic.REAL:
             value_str = "1.0"

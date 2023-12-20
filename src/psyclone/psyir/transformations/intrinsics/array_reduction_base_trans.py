@@ -41,7 +41,7 @@ PSyIR array-reduction intrinsic to PSyIR code.
 from abc import ABC, abstractmethod
 
 from psyclone.psyir.nodes import (
-    Assignment, Reference, ArrayReference, IfBlock,
+    Assignment, Reference, ArrayReference, IfBlock, Loop,
     IntrinsicCall, Node, UnaryOperation, BinaryOperation)
 from psyclone.psyir.symbols import ArrayType, DataSymbol
 from psyclone.psyGen import Transformation
@@ -287,6 +287,17 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         array_range = NemoAllArrayRange2LoopTrans()
         array_range.apply(assignment)
         outer_loop = assignment_parent.children[assignment_position]
+        if not isinstance(outer_loop, Loop):
+            # The NemoAllArrayRange2LoopTrans could fail to convert the
+            # ranges without raising a TransformationError, unfortunately
+            # this can not be tested before previous modifications to the
+            # tree (e.g. in the validate), so the best we can do is reverting
+            # to the orginal statement (with maybe some leftover tmp variable)
+            # and produce the error here.
+            assignment.replace_with(orig_assignment)
+            raise TransformationError(
+                f"NemoAllArrayRange2LoopTrans could not convert the "
+                f"expression '{assignment.debug_string()}' into a loop.")
         if mask_ref:
             # remove mask from the rhs of the assignment
             orig_assignment = assignment_rhs.children[0].copy()
@@ -344,7 +355,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # enddo
         # x = value1 + x * value2
         lhs = new_lhs.copy()
-        rhs = self._init_var(lhs.symbol)
+        rhs = self._init_var(lhs)
         assignment = Assignment.create(lhs, rhs)
         outer_loop.parent.children.insert(outer_loop.position, assignment)
         if not (isinstance(orig_rhs, IntrinsicCall) and
@@ -366,7 +377,10 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         '''The intrinsic-specific content of the created loop body.'''
 
     @abstractmethod
-    def _init_var(self, var_symbol):
+    def _init_var(self, reference):
         '''The intrinsic-specific initial value for the temporary variable.
+
+        :param reference: the reference used to store the final result.
+        :type reference: :py:class:`psyclone.psyir.node.Reference`
 
         '''
