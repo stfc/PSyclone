@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 # Modified: R. W. Ford, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 
@@ -47,7 +47,8 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, RefElementMetaData
+from psyclone.domain.lfric import LFRicKernMetadata
+from psyclone.dynamo0p3 import RefElementMetaData
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import Kern
@@ -96,7 +97,7 @@ def test_mdata_parse():
     code = REF_ELEM_MDATA
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     assert dkm.reference_element.properties == \
         [RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES,
          RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES,
@@ -111,7 +112,7 @@ def test_mdata_invalid_property():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("property: 'not_a_property'. Supported values are: "
             "['NORMALS_TO_FACES', 'NORMALS_TO_HORIZONTAL_FACES'"
             in str(err.value))
@@ -125,7 +126,7 @@ def test_mdata_wrong_arg_count():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("'meta_reference_element' metadata, the number of items in" in
             str(err.value))
 
@@ -138,7 +139,7 @@ def test_mdata_wrong_name():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("No variable named 'meta_reference_element' found"
             in str(err.value))
 
@@ -152,7 +153,7 @@ def test_mdata_wrong_type_var():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("'meta_reference_element' metadata must consist of an array of "
             "structure constructors, all of type 'reference_element_data_type'"
             " but found: ['ref_element_data_type'," in str(err.value))
@@ -168,7 +169,7 @@ def test_mdata_duplicate_var():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("Duplicate reference-element property found: "
             "'Property.NORMALS_TO_VERTICAL_FACES'." in str(err.value))
 
