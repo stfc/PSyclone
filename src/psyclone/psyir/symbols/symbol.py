@@ -424,21 +424,13 @@ class Symbol():
 
     @property
     def is_array(self):
-        '''This is the basic implementation for the method that checks
-        if a symbol is declared to be an array. In this base class it
-        will just raise an exception, indicating that no information
-        is available. The function will be overwritten, e.g. in
-        DataSymbol.
-
-        :returns: True if this symbol is an array and False otherwise.
+        '''
+        :returns: True if this symbol is an array and False if it is not or
+            there is not enough symbol information to determine it.
         :rtype: bool
 
-        :raises ValueError: if this function is called for the base class \
-            since there is no information available.
-
         '''
-        raise ValueError(f"No array information is available for the "
-                         f"symbol '{self.name}'.")
+        return False
 
     def is_array_access(self, index_variable=None, access_info=None):
         '''This method detects if a variable is used as an array or not.

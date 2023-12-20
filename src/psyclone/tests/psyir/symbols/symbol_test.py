@@ -390,15 +390,10 @@ def test_symbol_array_handling():
     '''Verifies the handling of arrays together with access information.
 
     '''
-    # Make sure that a normal `Symbol` raises an exception if it is tested
-    # if it is an array. A `Symbol` is only used if there is no type
-    # information is available, e.g. because it is imported from another
-    # module:
+    # Make sure that a generic `Symbol` (no datatype) does not claim to
+    # be an array
     asym = Symbol("a")
-    with pytest.raises(ValueError) as error:
-        _ = asym.is_array
-    assert "No array information is available for the symbol 'a'." \
-        in str(error.value)
+    assert asym.is_array is False
 
     # A generic symbol (no datatype) without an explicit array access
     # expression is not considered to have array access.
