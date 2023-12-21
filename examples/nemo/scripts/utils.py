@@ -125,6 +125,22 @@ def enhance_tree_information(schedule):
             reference.replace_with(call)
 
 
+def inline_calls(schedule):
+    '''
+    '''
+    from psyclone.domain.common.transformations import KernelModuleInlineTrans
+    mod_inline_trans = KernelModuleInlineTrans()
+    all_calls = schedule.walk(Call)
+    for call in all_calls:
+        rsym = call.routine
+        if rsym.is_import:
+            try:
+                mod_inline_trans.apply(call)
+            except TransformationError as err:
+                print(f"Module inline of '{rsym.name}' failed:\n{err}")
+                continue
+
+
 def normalise_loops(
         schedule,
         hoist_local_arrays: bool = True,
