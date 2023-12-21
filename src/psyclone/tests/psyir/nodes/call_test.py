@@ -39,10 +39,11 @@
 import pytest
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.psyir.nodes import (
-    BinaryOperation, Call, Reference, ArrayReference, Schedule, Literal)
+    ArrayReference, BinaryOperation, Call, Literal, Reference, Routine,
+    Schedule)
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
-    RoutineSymbol, NoType, REAL_TYPE
+from psyclone.psyir.symbols import (
+    ArrayType, INTEGER_TYPE, DataSymbol, RoutineSymbol, NoType, REAL_TYPE)
 from psyclone.errors import GenerationError
 
 
@@ -583,3 +584,53 @@ def test_copy():
     assert call_copy._argument_names[0] == (id(call_copy.children[0]), "name2")
     assert call_copy._argument_names[1] == (id(call_copy.children[1]), "name1")
     assert call._argument_names != call_copy._argument_names
+
+
+def test_call_get_callees_local(fortran_reader):
+    '''
+    Check that get_callees() works as expected when the target of the Call
+    exists in the same Container as the call site.
+    '''
+    code = '''
+module some_mod
+  implicit none
+  integer :: luggage
+contains
+  subroutine top()
+    luggage = 0
+    call bottom()
+  end subroutine top
+
+  subroutine bottom()
+    luggage = luggage + 1
+  end subroutine bottom
+end module some_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    result = call.get_callees()
+    assert result == [psyir.walk(Routine)[1]]
+
+
+def test_fn_call_get_callees(fortran_reader):
+    '''
+    '''
+    code = '''
+module some_mod
+  implicit none
+  integer :: luggage
+contains
+  subroutine top()
+    luggage = 0
+    luggage = luggage + my_func(1)
+  end subroutine top
+
+  function my_func(val)
+    integer, intent(in) :: val
+    integer :: my_func
+    my_func = 1 + val
+  end function my_func
+end module some_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    result = call.get_callees()
+    assert result == [psyir.walk(Routine)[1]]

@@ -38,11 +38,12 @@
 
 
 from psyclone.core import AccessType
+from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (
-    RoutineSymbol, SymbolError, UnknownFortranType)
+    RoutineSymbol, Symbol, SymbolError, UnknownFortranType)
 from psyclone.errors import GenerationError
 
 
@@ -426,9 +427,11 @@ class Call(Statement, DataNode):
         Searches for the implementation(s) of the routine that this Call
         is to.
 
-        :returns:
+        :returns: the Routine(s) that this call targets.
         :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
+        :raises NotImplementedError: if the routine is not local and is not
+                                     explicitly imported.
         '''
         rsym = self.routine
         if rsym.is_unresolved:
@@ -437,6 +440,7 @@ class Call(Statement, DataNode):
                 f"RoutineSymbol '{rsym.name}' is unresolved and searching for "
                 f"its implementation is not yet supported - TODO #924")
 
+        container = self.ancestor(Container)
         if rsym.is_import:
             cursor = rsym
             while cursor.is_import:
@@ -445,6 +449,18 @@ class Call(Statement, DataNode):
                 # file defining the container.
                 container = csym.container
                 imported_sym = container.symbol_table.lookup(cursor.name)
+                if imported_sym.visibility != Symbol.Visibility.PUBLIC:
+                    # The required Symbol must be shadowed with a PRIVATE
+                    # Symbol in this Container. This means that the one we
+                    # actually want is brought into scope via a wildcard
+                    # import.
+                    # TODO #924 - Use ModuleManager to search?
+                    raise NotImplementedError(
+                        f"RoutineSymbol '{rsym.name}' is imported from "
+                        f"Container '{csym.name}' but that Container defines "
+                        f"a private Symbol of the same name. Searching for the"
+                        f" Container defining a public Routine with that name "
+                        f"is not yet supported - TODO #924")
                 if not isinstance(imported_sym, RoutineSymbol):
                     # We now know that this is a RoutineSymbol so specialise it
                     # in place.

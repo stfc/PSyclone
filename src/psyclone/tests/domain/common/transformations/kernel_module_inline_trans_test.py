@@ -44,12 +44,13 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.errors import InternalError
 from psyclone.psyGen import CodedKern, Kern
 from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, RoutineSymbol, REAL_TYPE, SymbolError, ContainerSymbol,
-    ImportInterface)
+    ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, REAL_TYPE,
+    SymbolError, SymbolTable)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -743,6 +744,25 @@ def test_psyir_mod_inline_fail_to_get_psyir(fortran_reader):
             "implementation is not yet supported" in str(err.value))
 
 
+def test_get_psyir_to_inline(monkeypatch):
+    '''
+    Test that _get_psyir_to_inline() raises the expected error if more than
+    one potential routine implementation is found.
+
+    '''
+    sym = RoutineSymbol("my_sym")
+    rout = Routine.create("my_sym", SymbolTable(), [])
+    node = Call(sym)
+    # For simplicity we just monkeypatch Call.get_callees() so that it appears
+    # to return more than one Routine.
+    monkeypatch.setattr(node, "get_callees", lambda: [rout, rout])
+    with pytest.raises(TransformationError) as err:
+        KernelModuleInlineTrans._get_psyir_to_inline(node)
+    assert ("The target of the call to 'my_sym' cannot be inserted because "
+            "multiple implementations were found: ['my_sym', 'my_sym']." in
+            str(err.value))
+
+
 def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
                           monkeypatch):
     '''
@@ -798,8 +818,8 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert Compile(tmpdir).string_compiles(output)
 
     # Check that we raise the expected error if the name of the obtained
-    # subroutine doesn't match that of the caller. It is currently not
-    # possible to create this situation (because RoutineSymbol.get_routine()
+    # subroutine doesn't match that of the caller. It is not
+    # possible to create this situation (because _get_psyir_to_inline
     # will raise an exception) so we monkeypatch.
     # TODO #924 - ultimately we should be able to support this.
     def fake_get_code(node):
@@ -815,7 +835,7 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
 
     monkeypatch.setattr(KernelModuleInlineTrans, "_get_psyir_to_inline",
                         fake_get_code)
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(InternalError) as err:
         intrans.apply(calls[1])
     assert ("Cannot module-inline call to 'broken' because its name does not "
             "match that of the callee: 'my_other_sub'. TODO #924."

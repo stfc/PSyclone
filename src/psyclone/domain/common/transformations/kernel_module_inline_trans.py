@@ -39,6 +39,7 @@
 ''' This module provides the KernelModuleInlineTrans transformation. '''
 
 
+from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
@@ -120,7 +121,7 @@ class KernelModuleInlineTrans(Transformation):
                 f"'{type(node).__name__}'")
 
         parent_container = node.ancestor(Container)
-        if isinstance(parent_container, FileContainer):
+        if not parent_container or isinstance(parent_container, FileContainer):
             # We can't do 'module inlining' if there is no parent module.
             # (Although we could if we extended the PSyIR to know about
             # file scope.)
@@ -310,32 +311,41 @@ class KernelModuleInlineTrans(Transformation):
                   PSyIR of the routine implementation.
         :rtype: Tuple(str, :py:class:`psyclone.psyir.nodes.Call`)
 
+        :raises TransformationError: if we have a call to a language-level
+            Routine that maps to an Interface block as this is not yet
+            supported (TODO #924).
         '''
         # TODO - once CodedKern has been migrated so that it subclasses
-        # Call then this if/else can be removed.
+        # Call then this if/else (and thus this whole routine) can be removed.
         if isinstance(node, CodedKern):
             # We have a call to a Kernel in a PSyKAl API.
-            # Currently get_kernel_schedule does not support kernels with
-            # multiple implementations (e.g. mixed precision).
+            # Where mixed-precision kernels are supported (e.g. in LFRic) the
+            # call to get_kernel_schedule() will return the one which has an
+            # interface matching the arguments in the call.
             routines = [node.get_kernel_schedule()]
             caller_name = node.name.lower()
         else:
             # We have a generic routine call.
             routines = node.get_callees()
             caller_name = node.routine.name.lower()
-        # TODO - at this point we may have found (an interface to) multiple
-        # implementations. We can try to work out which one this call will
-        # map to. Failing that, we'll have to inline all of them plus the
-        # interface definition.
+            # TODO #924 - at this point we may have found (an interface to)
+            # multiple implementations. We can try to work out which one this
+            # call will map to. Failing that, we'll have to insert all of them
+            # plus the interface definition.
+            if len(routines) > 1:
+                raise TransformationError(
+                    f"The target of the call to '{caller_name}' cannot be "
+                    f"inserted because multiple implementations were found: "
+                    f"{[rout.name for rout in routines]}. TODO #924")
         return (caller_name, routines[0])
 
-    def apply(self, node, options=()):
+    def apply(self, node, options=None):
         ''' Bring the kernel subroutine into this Container.
 
         :param node: the kernel to module-inline.
         :type node: :py:class:`psyclone.psyGen.CodedKern`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Iterable]
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the called Routine cannot be brought
             into this Container because of a name clash with another Routine.
@@ -344,6 +354,9 @@ class KernelModuleInlineTrans(Transformation):
             of the caller.
 
         '''
+        if not options:
+            options = {}
+
         self.validate(node, options)
 
         # Get the PSyIR of the routine to module inline as well as the name
@@ -417,11 +430,10 @@ class KernelModuleInlineTrans(Transformation):
             else:
                 # TODO #924 - we can't currently resolve a subroutine if its
                 # name doesn't match that in the caller (as will be the case
-                # if it's being called via an Interface in Fortran). Once
-                # we can, we will need to use the newly obtained RoutineSymbol
-                # to create a new Call here to replace node.
-                # sym = container.symbol_table.lookup(callee_name)
-                raise NotImplementedError(
+                # if it's being called via an Interface in Fortran). This
+                # should have been picked-up in validate() so this is just a
+                # safety check.
+                raise InternalError(
                     f"Cannot module-inline call to '{caller_name}' because its"
                     f" name does not match that of the callee: "
                     f"'{callee_name}'. TODO #924.")
