@@ -52,30 +52,32 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import LFRicKern, lfric_builtins
+from psyclone.domain.lfric import lfric_builtins, LFRicKern, LFRicKernMetadata
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynKernMetadata, DynInvokeSchedule, \
-    DynKernelArguments, DynGlobalSum
-from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
+from psyclone.dynamo0p3 import (DynInvokeSchedule, DynGlobalSum,
+                                DynKernelArguments)
+from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse.algorithm import parse, InvokeCall
-from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
-    InlinedKern, object_index, HaloExchange, Invoke, \
-    DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
-    InvokeSchedule, BuiltIn
-from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
-    Literal, Loop, Node, KernelSchedule, Call, colored
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
-    SymbolTable
+from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
+                             InlinedKern, object_index, HaloExchange, Invoke,
+                             DataAccess, Kern, Arguments, CodedKern, Argument,
+                             GlobalSum, InvokeSchedule, BuiltIn)
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
+                                  Literal, Loop, Node, KernelSchedule, Call,
+                                  colored, Schedule)
+from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
+                                    ImportInterface, ContainerSymbol, Symbol,
+                                    INTEGER_TYPE, DeferredType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
-    Dynamo0p3KernelConstTrans, Dynamo0p3OMPLoopTrans, Dynamo0p3ColourTrans, \
-    OMPParallelTrans
+from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
+                                      Dynamo0p3KernelConstTrans,
+                                      Dynamo0p3OMPLoopTrans,
+                                      Dynamo0p3ColourTrans, OMPParallelTrans)
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -474,7 +476,7 @@ def test_codedkern_node_str():
 
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     out = my_kern.node_str()
@@ -689,7 +691,7 @@ def test_kern_children_validation():
     '''
     # We use a subclass (CodedKern->LFRicKern) to test this functionality.
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kern = LFRicKern()
     kern.load_meta(metadata)
 
@@ -700,8 +702,9 @@ def test_kern_children_validation():
 
 
 def test_inlinedkern_children_validation():
-    '''Test that children added to Kern are validated. A Kern node does not
-    accept any children.
+    '''Test that children added to InlinedKern are validated. An InlinedKern
+    must have one child that is a Schedule (which is created by its
+    constructor).
 
     '''
     ikern = InlinedKern(None)
@@ -710,6 +713,13 @@ def test_inlinedkern_children_validation():
         ikern.addchild(Literal("2", INTEGER_TYPE))
     assert ("Item 'Literal' can't be child 1 of 'InlinedKern'. The valid "
             "format is: 'Schedule'.") in str(excinfo.value)
+
+
+def test_inlinedkern_node_str():
+    '''Test the node_str() method of InlinedKern.'''
+    ikern = InlinedKern(Schedule())
+    text = ikern.node_str(colour=False)
+    assert text == "InlinedKern[]"
 
 
 def test_call_abstract_methods():
@@ -775,11 +785,11 @@ def test_incremented_arg():
     # Change the kernel metadata so that the the incremented kernel
     # argument has read access
     logging.disable(logging.CRITICAL)
-    # If we change the meta-data then we trip the check in the parser.
-    # Therefore, we change the object produced by parsing the meta-data
+    # If we change the metadata then we trip the check in the parser.
+    # Therefore, we change the object produced by parsing the metadata
     # instead
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     for descriptor in metadata.arg_descriptors:
         if descriptor.access == AccessType.INC:
             descriptor._access = AccessType.READ
@@ -2219,10 +2229,10 @@ def test_walk():
     binary_op_list = invoke.schedule.walk(BinaryOperation)
     assert len(binary_op_list) == 3
 
-    # Now the same tests, but stop at any Kern --> no assignment
+    # Now the same tests, but stop at any Loop --> no assignment
     # or binary operation should be found"
-    assignment_list = invoke.schedule.walk(Assignment, Kern)
+    assignment_list = invoke.schedule.walk(Assignment, Loop)
     assert not assignment_list
 
-    binary_op_list = invoke.schedule.walk(BinaryOperation, Kern)
+    binary_op_list = invoke.schedule.walk(BinaryOperation, Loop)
     assert not binary_op_list

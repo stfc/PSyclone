@@ -62,12 +62,15 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import \
 from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
 from psyclone.domain.lfric.lfric_kern import LFRicKern
+from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
+from psyclone.domain.lfric.lfric_fields import LFRicFields
 from psyclone.domain.lfric.lfric_run_time_checks import LFRicRunTimeChecks
 from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
+from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
 from psyclone.domain.lfric.lfric_stencils import LFRicStencils
 
 
@@ -82,10 +85,13 @@ __all__ = [
     'LFRicCollection',
     'LFRicConstants',
     'LFRicExtractDriverCreator',
+    'LFRicFields',
     'LFRicInvoke',
     'LFRicInvokes',
     'LFRicKern',
     'LFRicKernCallFactory',
+    'LFRicKernMetadata',
+    'LFRicLoop',
     'LFRicLoopBounds',
     'LFRicRunTimeChecks',
     'LFRicScalarArgs',

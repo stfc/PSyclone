@@ -70,8 +70,10 @@ def test_missing_enclosing_region(parser):
     acc_trans.apply(schedule[0])
     with pytest.raises(GenerationError) as err:
         str(psy.gen)
-    assert ("ACCLoopDirective must have an ACCParallelDirective or "
-            "ACCKernelsDirective as an ancestor" in str(err.value))
+    assert ("ACCLoopDirective in routine 'do_loop' must either have an "
+            "ACCParallelDirective or ACCKernelsDirective as an ancestor in "
+            "the Schedule or the routine must contain an ACCRoutineDirective"
+            in str(err.value))
 
 
 def test_explicit_loop(parser):

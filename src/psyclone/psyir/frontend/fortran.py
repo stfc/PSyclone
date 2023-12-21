@@ -149,7 +149,7 @@ class FortranReader():
         :param str source_code: text of the statement to be parsed.
         :param symbol_table: the SymbolTable in which to search for any
             symbols that are encountered.
-        :type symbol_table: :py.class:`psyclone.psyir.symbols.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: PSyIR representing the provided Fortran statement.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`

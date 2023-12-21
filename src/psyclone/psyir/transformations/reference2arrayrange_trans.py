@@ -182,6 +182,5 @@ class Reference2ArrayRangeTrans(Transformation):
             lbound, ubound, step = \
                 Reference2ArrayRangeTrans._get_array_bound(symbol, idx)
             indices.append(Range.create(lbound, ubound, step))
-
         array_ref = ArrayReference.create(symbol, indices)
         node.replace_with(array_ref)

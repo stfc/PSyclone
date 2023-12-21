@@ -46,9 +46,13 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
+      HDF5_VERSION: 1.14.3
+      NETCDF_C_VERSION: 4.9.2
+      NETCDF_FORTRAN_VERSION: 4.6.1
       NVFORTRAN_VERSION: 23.7
-      PERL_VERSION: 5.38.0
-      PYTHON_VERSION: 3.12.0
+      ONEAPI_VERSION: 2024.0.0
+      PERL_VERSION: 5.38.2
+      PYTHON_VERSION: 3.12.1
 
     steps:
     - uses: actions/checkout@v3
@@ -84,7 +88,8 @@ jobs:
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
         make -j 4 passthrough
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         make -j 4 compile-passthrough
 
@@ -96,7 +101,8 @@ jobs:
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
         make -j 4 openmp_gpu
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         make -j 4 compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75
@@ -125,7 +131,8 @@ jobs:
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
         make -j 4 openacc_kernels
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_kernels
         export NV_ACC_POOL_THRESHOLD=75
@@ -155,7 +162,8 @@ jobs:
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
         make -j 4 openacc_loops
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_loops
         export NV_ACC_POOL_THRESHOLD=75
@@ -183,8 +191,8 @@ jobs:
     - name: NEMO ECMWF OpenMP for CPU
       run: |
         . .runner_venv/bin/activate
-        module rm nvidia-hpcsdk
-        module load intel/oneapi compiler mpi
+        module load oneapi/${ONEAPI_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMOGCM_V40
@@ -196,9 +204,6 @@ jobs:
         export MPI_INC_DIR=${I_MPI_ROOT}/include
         cd $PSYCLONE_NEMO_DIR
         make -j 4 openmp_cpu
-        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-c-4.9.0/lib/:$LD_LIBRARY_PATH
-        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-fortran-4.5.4/lib:$LD_LIBRARY_PATH
-        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/hdf5-1.12.2/lib/:$LD_LIBRARY_PATH
         make -j 4 compile-openmp_cpu
         export OMP_NUM_THREADS=4
         make run-openmp_cpu |& tee output.txt
