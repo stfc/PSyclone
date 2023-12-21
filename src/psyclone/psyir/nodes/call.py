@@ -41,7 +41,8 @@ from psyclone.core import AccessType
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.psyir.symbols import (
+    RoutineSymbol, SymbolError, UnknownFortranType)
 from psyclone.errors import GenerationError
 
 
@@ -419,3 +420,53 @@ class Call(Statement, DataNode):
         new_copy._argument_names = new_list
 
         return new_copy
+
+    def get_callees(self):
+        '''
+        Searches for the implementation(s) of the routine that this Call
+        is to.
+
+        :returns:
+        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
+
+        '''
+        rsym = self.routine
+        if rsym.is_unresolved:
+            # TODO #924 - Use ModuleManager to search?
+            raise NotImplementedError(
+                f"RoutineSymbol '{rsym.name}' is unresolved and searching for "
+                f"its implementation is not yet supported - TODO #924")
+
+        if rsym.is_import:
+            cursor = rsym
+            while cursor.is_import:
+                csym = cursor.interface.container_symbol
+                # If necessary, this will search for and process the source
+                # file defining the container.
+                container = csym.container
+                imported_sym = container.symbol_table.lookup(cursor.name)
+                if not isinstance(imported_sym, RoutineSymbol):
+                    # We now know that this is a RoutineSymbol so specialise it
+                    # in place.
+                    imported_sym.specialise(RoutineSymbol)
+                cursor = imported_sym
+            rsym = cursor
+
+        if isinstance(rsym.datatype, UnknownFortranType):
+            raise NotImplementedError(
+                f"RoutineSymbol '{rsym.name}' exists in Container "
+                f"'{container.name}' but is of UnknownFortranType:\n"
+                f"{self.datatype.declaration}\n"
+                f"Cannot currently module inline such a routine.")
+
+        # TODO - need to allow for interface to multiple routines here.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        for routine in container.walk(Routine, stop_type=Routine):
+            if routine.name.lower() == rsym.name.lower():
+                kernel_schedule = routine
+                return [kernel_schedule]
+
+        raise SymbolError(
+            f"Failed to find a Routine named '{self.name}' in Container "
+            f"'{container.name}'.")

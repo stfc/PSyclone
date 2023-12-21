@@ -311,15 +311,23 @@ class KernelModuleInlineTrans(Transformation):
         :rtype: Tuple(str, :py:class:`psyclone.psyir.nodes.Call`)
 
         '''
+        # TODO - once CodedKern has been migrated so that it subclasses
+        # Call then this if/else can be removed.
         if isinstance(node, CodedKern):
             # We have a call to a Kernel in a PSyKAl API.
-            code_to_inline = node.get_kernel_schedule()
+            # Currently get_kernel_schedule does not support kernels with
+            # multiple implementations (e.g. mixed precision).
+            routines = [node.get_kernel_schedule()]
             caller_name = node.name.lower()
         else:
             # We have a generic routine call.
-            code_to_inline = node.routine.get_routine()
+            routines = node.get_callees()
             caller_name = node.routine.name.lower()
-        return (caller_name, code_to_inline)
+        # TODO - at this point we may have found (an interface to) multiple
+        # implementations. We can try to work out which one this call will
+        # map to. Failing that, we'll have to inline all of them plus the
+        # interface definition.
+        return (caller_name, routines[0])
 
     def apply(self, node, options=()):
         ''' Bring the kernel subroutine into this Container.
