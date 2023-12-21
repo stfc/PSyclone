@@ -44,8 +44,6 @@ first before any members.
 
 from psyclone import psyGen
 from psyclone.domain.lfric import KernCallArgList
-# Avoid circular import:
-from psyclone.domain.lfric.lfric_stencils import LFRicStencils
 from psyclone.errors import InternalError
 
 
@@ -109,6 +107,9 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_name = LFRicStencils.dofmap_symbol(self._kern.root.symbol_table,
                                              arg).name
         self.append(var_name, var_accesses)
@@ -144,6 +145,9 @@ class KernCallAccArgList(KernCallArgList):
 
         '''
         # The extent is not specified in the metadata so pass the value in
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         name = LFRicStencils.dofmap_size_symbol(self._kern.root.symbol_table,
                                               arg).name
         self.append(name, var_accesses)

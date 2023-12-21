@@ -93,7 +93,6 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-
         from psyclone.dynamo0p3 import (DynFunctionSpaces, DynDofmaps,
                                         DynLMAOperators, DynGlobalSum,
                                         DynCMAOperators, DynBasisFunctions,

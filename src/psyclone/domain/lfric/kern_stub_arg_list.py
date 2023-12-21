@@ -40,7 +40,6 @@ for a kernel subroutine.
 '''
 
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, LFRicSymbolTable
-
 from psyclone.errors import InternalError
 
 
@@ -189,7 +188,6 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
