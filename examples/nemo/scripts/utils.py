@@ -145,6 +145,8 @@ def inline_calls(schedule):
     inline_trans = InlineTrans()
     all_calls = schedule.walk(Call)
     for call in all_calls:
+        if isinstance(call, IntrinsicCall):
+            continue
         rsym = call.routine
         if rsym.is_import:
             try:

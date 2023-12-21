@@ -441,6 +441,9 @@ class Call(Statement, DataNode):
                 f"its implementation is not yet supported - TODO #924")
 
         container = self.ancestor(Container)
+        if not container:
+            container = self.root
+
         if rsym.is_import:
             cursor = rsym
             while cursor.is_import:
@@ -475,7 +478,7 @@ class Call(Statement, DataNode):
                 f"{self.datatype.declaration}\n"
                 f"Cannot currently module inline such a routine.")
 
-        # TODO - need to allow for interface to multiple routines here.
+        # TODO #924 - need to allow for interface to multiple routines here.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine
         for routine in container.walk(Routine, stop_type=Routine):

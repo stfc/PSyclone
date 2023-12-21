@@ -570,29 +570,29 @@ class InlineTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied node is not a Call or is \
-            an IntrinsicCall.
+        :raises TransformationError: if the supplied node is not a Call or is
+            an IntrinsicCall or call to a PSyclone-generated routine.
         :raises TransformationError: if the routine has a return value.
-        :raises TransformationError: if the routine body contains a Return \
+        :raises TransformationError: if the routine body contains a Return
             that is not the first or last statement.
         :raises TransformationError: if the routine body contains a CodeBlock.
-        :raises TransformationError: if the called routine has a named \
+        :raises TransformationError: if the called routine has a named
             argument.
-        :raises TransformationError: if any of the variables declared within \
+        :raises TransformationError: if any of the variables declared within
             the called routine are of UnknownInterface.
-        :raises TransformationError: if any of the variables declared within \
+        :raises TransformationError: if any of the variables declared within
             the called routine have a StaticInterface.
-        :raises TransformationError: if any of the subroutine arguments is of \
+        :raises TransformationError: if any of the subroutine arguments is of
             UnknownType.
-        :raises TransformationError: if a symbol of a given name is imported \
+        :raises TransformationError: if a symbol of a given name is imported
             from different containers at the call site and within the routine.
-        :raises TransformationError: if the routine accesses an un-resolved \
+        :raises TransformationError: if the routine accesses an un-resolved
             symbol.
-        :raises TransformationError: if the number of arguments in the call \
+        :raises TransformationError: if the number of arguments in the call
             does not match the number of formal arguments of the routine.
-        :raises TransformationError: if a symbol declared in the parent \
+        :raises TransformationError: if a symbol declared in the parent
             container is accessed in the target routine.
-        :raises TransformationError: if the shape of an array formal argument \
+        :raises TransformationError: if the shape of an array formal argument
             does not match that of the corresponding actual argument.
 
         '''
@@ -608,6 +608,19 @@ class InlineTrans(Transformation):
             raise TransformationError(
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
+
+        # Check that the RoutineSymbol does not have a tag indicating that it
+        # is an internally-generated routine.
+        sym = node.scope.symbol_table.lookup(name)
+        table = sym.find_symbol_table(node)
+        lookup = table.get_reverse_tags_dict()
+        try:
+            if "psyclone_internal" in lookup[sym]:
+                raise TransformationError(
+                    f"Cannot inline PSyclone-generated routine '{name}'")
+        except KeyError:
+            pass
+
         # Check that we can find the source of the routine being inlined.
         routine = self._find_routine(node)
 
@@ -890,6 +903,13 @@ class InlineTrans(Transformation):
                 f"Failed to find the source for routine '{routine_sym.name}' "
                 f"imported from '{container_symbol.name}' and therefore "
                 f"cannot inline it.")
+
+        if isinstance(routine_sym.datatype, UnknownType):
+            raise TransformationError(
+                f"Failed to find the source for routine '{routine_sym.name}' "
+                f"which is of type '{routine_sym.datatype}'. This indicates "
+                f"that it corresponds to a generic interface and inlining "
+                f"such a routine is not yet implemented - TODO #924")
 
         raise InternalError(
             f"Routine Symbol '{routine_sym.name}' is not local, "
