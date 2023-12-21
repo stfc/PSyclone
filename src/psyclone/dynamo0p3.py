@@ -46,7 +46,6 @@
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
-import fparser
 from dataclasses import dataclass
 from typing import Any
 
@@ -54,27 +53,24 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
-                                                  LFRicBuiltIn, BUILTIN_MAP)
-from psyclone.domain.common.psylayer import PSyLoop
+                                                  LFRicBuiltIn)
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   KernCallArgList, LFRicArgDescriptor,
+                                   KernCallArgList,
                                    LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable, LFRicKernCallFactory,
-                                   LFRicKern, LFRicInvokes, LFRicTypes)
+                                   LFRicKern, LFRicInvokes, LFRicTypes,
+                                   LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
                               ModuleGen, TypeDeclGen, UseGen, PSyIRGen)
-from psyclone.parse.kernel import KernelType, getkerneldescriptors
+from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
-                                  ArrayReference, ACCEnterDataDirective,
-                                  ACCRegionDirective, OMPRegionDirective,
-                                  Routine, ScopingNode)
+from psyclone.psyir.nodes import Reference, ACCEnterDataDirective, ScopingNode
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     DeferredType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -216,10 +212,10 @@ class DynFuncDescriptor03():
 
 class RefElementMetaData():
     '''
-    Class responsible for parsing reference-element meta-data and storing
+    Class responsible for parsing reference-element metadata and storing
     the properties that a kernel requires.
 
-    :param str kernel_name: name of the Kernel that the meta-data is for.
+    :param str kernel_name: name of the Kernel that the metadata is for.
     :param type_declns: list of fparser1 parse tree nodes representing type \
                         declaration statements
     :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
@@ -233,7 +229,7 @@ class RefElementMetaData():
         '''
         Enumeration of the various properties of the Reference Element
         (that a kernel can request). The names of each of these corresponds to
-        the names that must be used in kernel meta-data.
+        the names that must be used in kernel metadata.
 
         '''
         NORMALS_TO_HORIZONTAL_FACES = 1
@@ -244,7 +240,7 @@ class RefElementMetaData():
         OUTWARD_NORMALS_TO_FACES = 6
 
     def __init__(self, kernel_name, type_declns):
-        # The list of properties requested in the meta-data (if any)
+        # The list of properties requested in the metadata (if any)
         self.properties = []
 
         re_properties = []
@@ -264,7 +260,7 @@ class RefElementMetaData():
                 # declaration for the reference-element data
                 break
         try:
-            # The meta-data entry is a declaration of a Fortran array of type
+            # The metadata entry is a declaration of a Fortran array of type
             # reference_element_data_type. The initialisation of each member
             # of this array is done as a Fortran structure constructor, the
             # argument to which gives a property of the reference element.
@@ -305,7 +301,7 @@ class MeshPropertiesMetaData():
     Parses any mesh-property kernel metadata and stores the properties that
     a kernel requires.
 
-    :param str kernel_name: name of the kernel that the meta-data is for.
+    :param str kernel_name: name of the kernel that the metadata is for.
     :param type_declns: list of fparser1 parse tree nodes representing type \
                         declaration statements.
     :type type_declns: list of :py:class:`fparser.one.typedecl_statements.Type`
@@ -315,12 +311,12 @@ class MeshPropertiesMetaData():
 
     '''
     # pylint: disable=too-few-public-methods
-    # The properties that may be specified in kernel meta-data are a subset
+    # The properties that may be specified in kernel metadata are a subset
     # of the MeshProperty enumeration values.
     supported_properties = [MeshProperty.ADJACENT_FACE]
 
     def __init__(self, kernel_name, type_declns):
-        # The list of mesh properties requested in the meta-data.
+        # The list of mesh properties requested in the metadata.
         self.properties = []
 
         mesh_props = []
@@ -340,7 +336,7 @@ class MeshPropertiesMetaData():
                 # declaration for the mesh data
                 break
         try:
-            # The meta-data entry is a declaration of a Fortran array of type
+            # The metadata entry is a declaration of a Fortran array of type
             # mesh_data_type. The initialisation of each member
             # of this array is done as a Fortran structure constructor, the
             # argument to which gives a mesh property.
@@ -363,623 +359,6 @@ class MeshPropertiesMetaData():
             if self.properties.count(prop) > 1:
                 raise ParseError(f"Duplicate mesh property "
                                  f"found: '{prop}'.")
-
-
-class DynKernMetadata(KernelType):
-    ''' Captures the Kernel subroutine code and metadata describing
-    the subroutine for the Dynamo 0.3 API.
-
-    :param ast: fparser1 AST for the kernel.
-    :type ast: :py:class:`fparser.block_statements.BeginSource`
-    :param str name: The name of this kernel.
-
-    :raises ParseError: if the meta-data does not conform to the \
-                        rules for the Dynamo 0.3 API.
-    '''
-    # pylint: disable=too-many-instance-attributes
-    def __init__(self, ast, name=None):
-        # pylint: disable=too-many-branches, too-many-locals
-
-        KernelType.__init__(self, ast, name=name)
-
-        # The type of CMA operation this kernel performs (or None if
-        # no CMA operators are involved)
-        self._cma_operation = None
-
-        # Query the meta-data for the evaluator shape(s) (only required if
-        # kernel uses quadrature or an evaluator). If it is not
-        # present then eval_shapes will be an empty list.
-        shape = self.get_integer_variable('gh_shape')
-        if not shape:
-            # There's no scalar gh_shape - is it present as an array?
-            self._eval_shapes = self.get_integer_array('gh_shape')
-        else:
-            self._eval_shapes = [shape]
-
-        # The list of function space names for which an evaluator is
-        # required. We set this up below once we've processed the meta-
-        # -data describing the kernel arguments.
-        self._eval_targets = []
-
-        # Whether or not this is an inter-grid kernel (i.e. has a mesh
-        # specified for each [field] argument). This property is
-        # set to True if all the checks in _validate_inter_grid() pass.
-        self._is_intergrid = False
-
-        # parse the arg_type metadata
-        self._arg_descriptors = []
-        for idx, arg_type in enumerate(self._inits):
-            self._arg_descriptors.append(
-                LFRicArgDescriptor(arg_type, self.iterates_over, idx))
-
-        # Get a list of the Type declarations in the metadata
-        type_declns = [cline for cline in self._ktype.content if
-                       isinstance(cline, fparser.one.typedecl_statements.Type)]
-
-        # Parse the func_type metadata if it exists
-        func_types = []
-        for line in type_declns:
-            for entry in line.selector:
-                if entry == "func_type":
-                    func_types = getkerneldescriptors(
-                        name, line, var_name="meta_funcs",
-                        var_type="func_type")
-                    break
-
-        self._func_descriptors = []
-        # populate a list of function descriptor objects which we
-        # return via the func_descriptors method.
-        arg_fs_names = []
-        for descriptor in self._arg_descriptors:
-            arg_fs_names.extend(descriptor.function_spaces)
-        used_fs_names = []
-        need_evaluator = False
-        for func_type in func_types:
-            descriptor = DynFuncDescriptor03(func_type)
-            fs_name = descriptor.function_space_name
-            # check that function space names in meta_funcs are specified in
-            # meta_args
-            if fs_name not in arg_fs_names:
-                raise ParseError(
-                    f"In the dynamo0.3 API all function spaces specified in "
-                    f"meta_funcs must exist in meta_args, but '{fs_name}' "
-                    f"breaks this rule in ...\n'{self._ktype.content}'.")
-            if fs_name not in used_fs_names:
-                used_fs_names.append(fs_name)
-            else:
-                raise ParseError(
-                    f"In the dynamo0.3 API function spaces specified in "
-                    f"meta_funcs must be unique, but '{fs_name}' is "
-                    f"replicated.")
-
-            const = LFRicConstants()
-            # Check that a valid shape has been specified if
-            # this function space requires a basis or differential basis
-            for op_name in descriptor.operator_names:
-                if op_name in const.VALID_EVALUATOR_NAMES:
-                    need_evaluator = True
-                    if not self._eval_shapes:
-                        raise ParseError(
-                            f"In the Dynamo0.3 API any kernel requiring "
-                            f"quadrature or an evaluator "
-                            f"({const.VALID_EVALUATOR_NAMES}) must also "
-                            f"supply the shape of that evaluator by setting "
-                            f"'gh_shape' in the kernel meta-data but "
-                            f"this is missing for kernel '{self.name}'")
-                    shape_set = set(self._eval_shapes)
-                    if not shape_set.issubset(
-                            set(const.VALID_EVALUATOR_SHAPES)):
-                        raise ParseError(
-                            f"In the Dynamo0.3 API a kernel requiring either "
-                            f"quadrature or an evaluator must request one or "
-                            f"more valid gh_shapes (one of "
-                            f"{const.VALID_EVALUATOR_SHAPES}) but got "
-                            f"'{self._eval_shapes}' for kernel '{self.name}'")
-
-            self._func_descriptors.append(descriptor)
-
-        # Check to see whether the optional 'gh_evaluator_targets'
-        # has been supplied. This lists the function spaces for which
-        # any evaluators (gh_shape=gh_evaluator) should be provided.
-        _targets = self.get_integer_array('gh_evaluator_targets')
-        if not _targets and \
-           self._eval_shapes and "gh_evaluator" in self._eval_shapes:
-            # Use the FS of the kernel arguments that are updated
-            write_accesses = AccessType.all_write_accesses()
-            write_args = psyGen.args_filter(self._arg_descriptors,
-                                            arg_accesses=write_accesses)
-            # We want the 'to' space of any operator arguments so get
-            # the first FS associated with the kernel argument.
-            _targets = [arg.function_spaces[0] for arg in write_args]
-        # Ensure that _eval_targets entries are not duplicated
-        for target in _targets:
-            if target not in self._eval_targets:
-                self._eval_targets.append(target)
-
-        # Does this kernel require any properties of the reference element?
-        self.reference_element = RefElementMetaData(self.name, type_declns)
-
-        # Does this kernel require any properties of the mesh?
-        self.mesh = MeshPropertiesMetaData(self.name, type_declns)
-
-        # Perform further checks that the meta-data we've parsed
-        # conforms to the rules for this API
-        self._validate(need_evaluator)
-
-    def _validate(self, need_evaluator):
-        '''
-        Check that the meta-data conforms to Dynamo 0.3 rules for a
-        user-provided kernel or a built-in
-
-        :param bool need_evaluator: whether this kernel requires an \
-                                    evaluator/quadrature.
-        :raises ParseError: if the kernel metadata specifies writing to the \
-                            read-only function space.
-        :raises ParseError: if a user-supplied LFRic kernel updates/writes \
-                            to a scalar argument.
-        :raises ParseError: if a kernel does not have at least one argument \
-                            that is updated/written to.
-        :raises ParseError: if a kernel does not require basis or \
-                            differential basis functions but specifies one \
-                            or more gh_shapes.
-        :raises ParseError: if a kernel does not require basis or \
-                            differential basis functions but specifies \
-                            gh_evaluator_targets.
-        :raises ParseError: if a kernel specifies gh_evaluator_targets \
-                            but does not need an evaluator.
-        :raises ParseError: if a kernel requires an evaluator on a \
-                            specific function space but does not have an \
-                            argument on that space.
-        :raises ParseError: if a kernel that has LMA operator arguments \
-                            also has a field argument with an invalid \
-                            data type (other than 'gh_real').
-
-        '''
-        # pylint: disable=too-many-branches
-        # We must have at least one argument that is written to
-        const = LFRicConstants()
-        write_count = 0
-        for arg in self._arg_descriptors:
-            if arg.access != AccessType.READ:
-                write_count += 1
-                # We must not write to a field on a read-only function space
-                if arg.argument_type in const.VALID_FIELD_NAMES \
-                   and arg.function_spaces[0] in \
-                   const.READ_ONLY_FUNCTION_SPACES:
-                    raise ParseError(
-                        f"Found kernel metadata in '{self.name}' that "
-                        f"specifies writing to the read-only function space "
-                        f"'{arg.function_spaces[0]}'.")
-
-                # We must not write to scalar arguments if it's not a
-                # built-in
-                if self.name not in BUILTIN_MAP and \
-                   arg.argument_type in const.VALID_SCALAR_NAMES:
-                    raise ParseError(
-                        f"A user-supplied LFRic kernel must not write/update "
-                        f"a scalar argument but kernel '{self.name}' has a "
-                        f"scalar argument with "
-                        f"'{arg.access.api_specific_name()}' access.")
-        if write_count == 0:
-            raise ParseError(f"An LFRic kernel must have at least one "
-                             f"argument that is updated (written to) but "
-                             f"found none for kernel '{self.name}'.")
-
-        # Check that no shape has been supplied if no basis or
-        # differential basis functions are required for the kernel
-        if not need_evaluator and self._eval_shapes:
-            raise ParseError(
-                f"Kernel '{self.name}' specifies one or more gh_shapes "
-                f"({self._eval_shapes}) but does not need an evaluator because"
-                f" no basis or differential basis functions are required")
-        # Check that gh_evaluator_targets is only present if required
-        if self._eval_targets:
-            if not need_evaluator:
-                raise ParseError(
-                    f"Kernel '{self.name}' specifies gh_evaluator_targets "
-                    f"({self._eval_targets}) but does not need an evaluator "
-                    f"because no basis or differential basis functions are "
-                    f"required")
-            if "gh_evaluator" not in self._eval_shapes:
-                raise ParseError(
-                    f"Kernel '{self.name}' specifies gh_evaluator_targets "
-                    f"({self._eval_targets}) but does not need an evaluator "
-                    f"because gh_shape={self._eval_shapes}")
-            # Check that there is a kernel argument on each of the
-            # specified spaces...
-            # Create a list (set) of the function spaces associated with
-            # the kernel arguments
-            fs_list = set()
-            for arg in self._arg_descriptors:
-                fs_list.update(arg.function_spaces)
-            # Check each evaluator_target against this list
-            for eval_fs in self._eval_targets:
-                if eval_fs not in fs_list:
-                    raise ParseError(
-                        f"Kernel '{self.name}' specifies that an evaluator is "
-                        f"required on '{eval_fs}' but does not have an "
-                        f"argument on this space.")
-
-        # If we have an LMA operator as argument then only field arguments
-        # with 'gh_real' data type are permitted
-        lma_ops = psyGen.args_filter(self._arg_descriptors,
-                                     arg_types=["gh_operator"])
-        if lma_ops:
-            for arg in self._arg_descriptors:
-                if (arg.argument_type in const.VALID_FIELD_NAMES
-                        and arg.data_type != "gh_real"):
-                    raise ParseError(
-                        f"In the LFRic API a kernel that has an LMA operator "
-                        f"argument must only have field arguments with "
-                        f"'gh_real' data type but kernel '{self.name}' has a "
-                        f"field argument with '{arg.data_type}' data type.")
-
-        # If we have a columnwise operator as argument then we need to
-        # identify the operation that this kernel performs (one of
-        # assemble, apply/apply-inverse and matrix-matrix)
-        cwise_ops = psyGen.args_filter(self._arg_descriptors,
-                                       arg_types=["gh_columnwise_operator"])
-        if cwise_ops:
-            self._cma_operation = self._identify_cma_op(cwise_ops)
-
-        # Perform checks for inter-grid kernels
-        self._validate_inter_grid()
-
-        # Perform checks for a kernel with operates_on == domain
-        self._validate_operates_on_domain(need_evaluator)
-
-    def _validate_inter_grid(self):
-        '''
-        Checks that the kernel meta-data obeys the rules for Dynamo 0.3
-        inter-grid kernels. If none of the kernel arguments has a mesh
-        associated with it then it is not an inter-grid kernel and this
-        routine silently returns.
-
-        :raises: ParseError: if meta-data breaks inter-grid rules
-        '''
-        # pylint: disable=too-many-branches
-        # Dictionary of meshes associated with arguments (for inter-grid
-        # kernels). Keys are the meshes, values are lists of function spaces
-        # of the corresponding field arguments.
-        mesh_dict = OrderedDict()
-        # Whether or not any field args are missing the mesh_arg specifier
-        missing_mesh = False
-        # If this is an inter-grid kernel then it must only have field
-        # arguments. Keep a record of any non-field arguments for the benefit
-        # of a verbose error message.
-        non_field_arg_types = set()
-        const = LFRicConstants()
-        for arg in self._arg_descriptors:
-            # Collect info so that we can check inter-grid kernels
-            if arg.argument_type in const.VALID_FIELD_NAMES:
-                if arg.mesh:
-                    # Argument has a mesh associated with it so this must
-                    # be an inter-grid kernel
-                    if arg.mesh in mesh_dict:
-                        mesh_dict[arg.mesh].append(arg.function_space)
-                    else:
-                        mesh_dict[arg.mesh] = [arg.function_space]
-                else:
-                    # Record the fact that we have a field without a
-                    # mesh specifier (in case this is an inter-grid kernel)
-                    missing_mesh = True
-            else:
-                # Inter-grid kernels are only permitted to have field args
-                # so collect a list of other types
-                non_field_arg_types.add(arg.argument_type)
-
-        mesh_list = mesh_dict.keys()
-        if not mesh_list:
-            # There are no meshes associated with any of the arguments so
-            # this is not an inter-grid kernel
-            return
-
-        if len(const.VALID_MESH_TYPES) != 2:
-            # Sanity check that nobody has messed with the number of
-            # grid types that we recognise. This is here because the
-            # implementation assumes that there are just two grids
-            # (coarse and fine).
-            raise InternalError(
-                f"The implementation of inter-grid support in the LFRic "
-                f"API assumes there are exactly two mesh types but "
-                f"LFRicConstants.VALID_MESH_TYPES contains "
-                f"{len(const.VALID_MESH_TYPES)}: {const.VALID_MESH_TYPES}")
-        if len(mesh_list) != len(const.VALID_MESH_TYPES):
-            raise ParseError(
-                f"Inter-grid kernels in the Dynamo 0.3 API must have at least "
-                f"one field argument on each of the mesh types "
-                f"({const.VALID_MESH_TYPES}). However, kernel {self.name} has "
-                f"arguments only on {[str(name) for name in mesh_list]}")
-        # Inter-grid kernels must only have field arguments
-        if non_field_arg_types:
-            raise ParseError(
-                f"Inter-grid kernels in the Dynamo 0.3 API are only permitted "
-                f"to have field arguments but kernel {self.name} also has "
-                f"arguments of type "
-                f"{[str(name) for name in non_field_arg_types]}")
-        # Check that all arguments have a mesh specified
-        if missing_mesh:
-            raise ParseError(
-                f"Inter-grid kernels in the Dynamo 0.3 API must specify which"
-                f" mesh each field argument is on but kernel {self.name} has "
-                f"at least one field argument for which mesh_arg is missing.")
-        # Check that arguments on different meshes are on different
-        # function spaces. We do this by checking that no function space
-        # is listed as being associated with (arguments on) both meshes.
-        fs_sets = []
-        for mesh in mesh_dict:
-            fs_sets.append(set(mesh_dict[mesh]))
-        # Check that the sets of spaces (one for each mesh type) have
-        # no intersection
-        fs_common = fs_sets[0] & fs_sets[1]
-        if fs_common:
-            raise ParseError(
-                f"In the Dynamo 0.3 API field arguments to inter-grid kernels "
-                f"must be on different function spaces if they are on "
-                f"different meshes. However kernel {self.name} has a field on "
-                f"function space(s) {[str(name) for name in fs_common]} on "
-                f"each of the mesh types {[str(name) for name in mesh_list]}.")
-        # Finally, record that this is a valid inter-grid kernel
-        self._is_intergrid = True
-
-    def _identify_cma_op(self, cwise_ops):
-        '''
-        Identify and return the type of CMA-operator-related operation
-        this kernel performs (one of "assemble", "apply" or "matrix-matrix")
-
-        :param cwise_ops: all column-wise operator arguments in a kernel.
-        :type cwise_ops: list of str
-
-        :returns: the type of CMA-operator-related operation that this \
-                  kernel performs.
-        :rtype: str
-
-        :raises ParseError: if the kernel metadata does not conform to the \
-                            LFRic rules for a kernel with a CMA operator.
-
-        '''
-        # pylint: disable=too-many-branches
-        const = LFRicConstants()
-        for arg in self._arg_descriptors:
-            # No vector arguments are permitted
-            if arg.vector_size > 1:
-                raise ParseError(
-                    f"Kernel '{self.name}' takes a CMA operator but has a "
-                    f"vector argument '{arg.argument_type}*{arg.vector_size}'."
-                    f" This is forbidden.")
-            # No stencil accesses are permitted
-            if arg.stencil:
-                raise ParseError(
-                    f"Kernel '{self.name}' takes a CMA operator but has an "
-                    f"argument with a stencil access "
-                    f"('{arg.stencil['type']}'). This is forbidden.")
-            # Only field arguments with 'gh_real' data type are permitted
-            if (arg.argument_type in const.VALID_FIELD_NAMES and
-                    arg.data_type != "gh_real"):
-                raise ParseError(
-                    f"In the LFRic API a kernel that takes a CMA operator "
-                    f"argument must only have field arguments with 'gh_real' "
-                    f"data type but kernel '{self.name}' has a field argument "
-                    f"with '{arg.data_type}' data type.")
-
-        # Count the number of CMA operators that are written to
-        write_count = 0
-        for cop in cwise_ops:
-            if cop.access in AccessType.all_write_accesses():
-                write_count += 1
-
-        if write_count == 0:
-            # This kernel only reads from CMA operators and must
-            # therefore be an apply (or apply-inverse). It must
-            # have one CMA operator, one read-only field and one
-            # written field as arguments
-            if len(cwise_ops) != 1:
-                raise ParseError(
-                    f"In the LFRic API a kernel that applies a CMA operator "
-                    f"must only have one such operator in its list of "
-                    f"arguments but found {len(cwise_ops)} for kernel "
-                    f"'{self.name}'.")
-            cma_op = cwise_ops[0]
-            if len(self._arg_descriptors) != 3:
-                raise ParseError(
-                    f"In the LFRic API a kernel that applies a CMA operator "
-                    f"must have 3 arguments (the operator and two fields) but "
-                    f"kernel '{self.name}' has {len(self._arg_descriptors)} "
-                    f"arguments.")
-            # Check that the other two arguments are fields
-            farg_read = psyGen.args_filter(
-                self._arg_descriptors,
-                arg_types=const.VALID_FIELD_NAMES,
-                arg_accesses=[AccessType.READ])
-            write_accesses = AccessType.all_write_accesses()
-            farg_write = psyGen.args_filter(
-                self._arg_descriptors,
-                arg_types=const.VALID_FIELD_NAMES,
-                arg_accesses=write_accesses)
-            if len(farg_read) != 1:
-                raise ParseError(
-                    f"Kernel '{self.name}' has a read-only CMA operator. In "
-                    f"order to apply it the kernel must have one read-only "
-                    f"field argument.")
-            if len(farg_write) != 1:
-                raise ParseError(
-                    f"Kernel '{self.name}' has a read-only CMA operator. In "
-                    f"order to apply it the kernel must write to one field "
-                    f"argument.")
-            # Check that the function spaces match up
-            if farg_read[0].function_space != cma_op.function_space_from:
-                raise ParseError(
-                    f"Kernel '{self.name}' applies a CMA operator but the "
-                    f"function space of the field argument it reads from "
-                    f"('{farg_read[0].function_space}') does not match the "
-                    f"'from' space of the operator "
-                    f"('{cma_op.function_space_from}').")
-            if farg_write[0].function_space != cma_op.function_space_to:
-                raise ParseError(
-                    f"Kernel '{self.name}' applies a CMA operator but the "
-                    f"function space of the field argument it writes to "
-                    f"('{farg_write[0].function_space}') does not match the "
-                    f"'to' space of the operator "
-                    f"('{cma_op.function_space_to}').")
-            # This is a valid CMA-apply or CMA-apply-inverse kernel
-            return "apply"
-
-        if write_count == 1:
-            # This kernel writes to a single CMA operator and therefore
-            # must either be assembling a CMA operator
-            # or performing a matrix-matrix operation...
-            # The kernel must not write to any args other than the CMA
-            # operator
-            write_accesses = AccessType.all_write_accesses()
-            write_args = psyGen.args_filter(self._arg_descriptors,
-                                            arg_accesses=write_accesses)
-            if len(write_args) > 1:
-                # Remove the one CMA operator from the list of arguments
-                # that are written to so that we can produce a nice
-                # error message
-                for arg in write_args[:]:
-                    if arg.argument_type == 'gh_columnwise_operator':
-                        write_args.remove(arg)
-                        break
-                raise ParseError(
-                    f"Kernel '{self.name}' writes to a column-wise operator "
-                    f"but also writes to "
-                    f"{[str(arg.argument_type) for arg in write_args]} "
-                    f"argument(s). This is not allowed.")
-            if len(cwise_ops) == 1:
-
-                # If this is a valid assembly kernel then we need at least one
-                # read-only LMA operator
-                lma_read_ops = psyGen.args_filter(
-                    self._arg_descriptors,
-                    arg_types=["gh_operator"],
-                    arg_accesses=[AccessType.READ])
-                if lma_read_ops:
-                    return "assembly"
-                raise ParseError(
-                    f"Kernel '{self.name}' has a single column-wise operator "
-                    f"argument but does not conform to the rules for an "
-                    f"Assembly kernel because it does not have any read-only "
-                    f"LMA operator arguments.")
-            # A valid matrix-matrix kernel must only have CMA operators
-            # and scalars as arguments.
-            scalar_args = psyGen.args_filter(
-                self._arg_descriptors,
-                arg_types=const.VALID_SCALAR_NAMES)
-            if (len(scalar_args) + len(cwise_ops)) != \
-               len(self._arg_descriptors):
-                raise ParseError(
-                    f"A column-wise matrix-matrix kernel must have only "
-                    f"column-wise operators and scalars as arguments but "
-                    f"kernel '{self.name}' has: "
-                    f"{[str(a.argument_type) for a in self._arg_descriptors]}."
-                    )
-            return "matrix-matrix"
-        raise ParseError(
-            f"An LFRic kernel cannot update more than one CMA (column-wise) "
-            f"operator but kernel '{self.name}' updates {write_count}.")
-
-    def _validate_operates_on_domain(self, need_evaluator):
-        '''
-        Check whether a kernel that has operates_on == domain obeys
-        the rules for the LFRic API.
-
-        :raises ParseError: if the kernel metadata does not obey the rules \
-                            for an LFRic kernel with operates_on = domain.
-        '''
-        if self.iterates_over != "domain":
-            return
-
-        const = LFRicConstants()
-        # A kernel which operates on the 'domain' is currently restricted
-        # to only accepting scalar and field arguments.
-        valid_arg_types = const.VALID_SCALAR_NAMES + const.VALID_FIELD_NAMES
-        for arg in self._arg_descriptors:
-            if arg.argument_type not in valid_arg_types:
-                raise ParseError(
-                    f"In the LFRic API a kernel which operates on the 'domain'"
-                    f" is only permitted to accept scalar and field arguments "
-                    f"but the metadata for kernel '{self.name}' includes an "
-                    f"argument of type '{arg.argument_type}'")
-
-        if need_evaluator:
-            raise ParseError(
-                f"In the LFRic API a kernel that operates on the 'domain' "
-                f"cannot be passed basis/differential basis functions but the "
-                f"metadata for kernel '{self.name}' contains an entry for "
-                f"'meta_funcs'")
-
-        if self.reference_element.properties:
-            raise ParseError(
-                f"Kernel '{self.name}' operates on the domain but requests "
-                f"properties of the reference element "
-                f"({self.reference_element.properties}). This is not "
-                f"permitted in the LFRic API.")
-
-        if self.mesh.properties:
-            raise ParseError(
-                f"Kernel '{self.name}' operates on the domain but requests "
-                f"properties of the mesh ({self.mesh.properties}). This is "
-                f"not permitted in the LFRic API.")
-
-        if self._is_intergrid:
-            raise ParseError(
-                f"Kernel '{self.name}' operates on the domain but has fields "
-                f"on different mesh resolutions (inter-grid). This is not "
-                f"permitted in the LFRic API.")
-
-    @property
-    def func_descriptors(self):
-        ''' Returns metadata about the function spaces within a
-        Kernel. This metadata is provided within Kernel code via the
-        meta_funcs variable. Information is returned as a list of
-        DynFuncDescriptor03 objects, one for each function space. '''
-        return self._func_descriptors
-
-    @property
-    def cma_operation(self):
-        ''' Returns the type of CMA operation identified from the kernel
-        meta-data (one of 'assembly', 'apply' or 'matrix-matrix') or
-        None if the kernel does not involve CMA operators '''
-        return self._cma_operation
-
-    @property
-    def eval_shapes(self):
-        '''
-        Returns the shape(s) of evaluator required by this kernel or an
-        empty string if none.
-
-        :return: the shape(s) of the evaluator (one of VALID_EVALUATOR_SHAPES)
-                 or an empty list if the kernel does not require one.
-        :rtype: list
-
-        '''
-        return self._eval_shapes
-
-    @property
-    def eval_targets(self):
-        '''
-        Returns the list of function spaces upon which any evaluator must be
-        provided. This list is obtained from the GH_EVALUATOR_TARGETS meta-data
-        entry (if present). If this is not specified in the meta-data then
-        we default to providing evaluators on all of the function spaces
-        associated with the arguments which this kernel updates.
-
-        :return: list of the names of the function spaces (as they appear in \
-                 kernel metadata) upon which any evaluator must be provided.
-        :rtype: list of str
-        '''
-        return self._eval_targets
-
-    @property
-    def is_intergrid(self):
-        '''
-        Returns whether or not this is an inter-grid kernel.
-
-        :return: True if kernel is an inter-grid kernel, False otherwise
-        :rtype: bool
-        '''
-        return self._is_intergrid
 
 # --------------------------------------------------------------------------- #
 # ========== Second section : PSy specialisations =========================== #
@@ -1128,7 +507,7 @@ class DynStencils(LFRicCollection):
     '''
     def __init__(self, node):
         # pylint: disable=too-many-branches
-        super(DynStencils, self).__init__(node)
+        super().__init__(node)
 
         # List of arguments which have an extent value passed to this
         # invoke routine from the algorithm layer. Duplicate argument
@@ -1217,7 +596,7 @@ class DynStencils(LFRicCollection):
         :rtype: str
 
         :raises GenerationError: if an explicit stencil extent is found in \
-                                 the meta-data for the kernel argument.
+                                 the metadata for the kernel argument.
         '''
         unique = context
         unique += arg.function_space.mangled_name
@@ -2404,7 +1783,7 @@ class DynDofmaps(LFRicCollection):
     '''
     def __init__(self, node):
         # pylint: disable=too-many-branches
-        super(DynDofmaps, self).__init__(node)
+        super().__init__(node)
 
         # Look at every kernel call in this invoke and generate a list
         # of the unique function spaces involved.
@@ -2637,7 +2016,7 @@ class DynFunctionSpaces(LFRicCollection):
     :param invoke: the Invoke or Kernel object.
     '''
     def __init__(self, kern_or_invoke):
-        super(DynFunctionSpaces, self).__init__(kern_or_invoke)
+        super().__init__(kern_or_invoke)
 
         if self._invoke:
             self._function_spaces = self._invoke.unique_fss()[:]
@@ -2748,125 +2127,6 @@ class DynFunctionSpaces(LFRicCollection):
                                          rhs=name + "%" +
                                          arg.ref_name(function_space) +
                                          "%get_undf()"))
-
-
-class LFRicFields(LFRicCollection):
-    '''
-    Manages the declarations for all field arguments required by an Invoke
-    or Kernel stub.
-
-    '''
-    def _invoke_declarations(self, parent):
-        '''
-        Add field-related declarations to the PSy-layer routine.
-        Note: PSy layer in LFRic does not modify the field objects. Hence,
-        their Fortran intents are always in (the data updated in the kernels
-        is only pointed to from the field object and is thus not a part of
-        the object).
-
-        :param parent: the node in the f2pygen AST representing the PSy-layer
-                       routine to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: for unsupported intrinsic types of field
-                               argument data.
-
-        '''
-        # Create dict of all field arguments for checks
-        const = LFRicConstants()
-        fld_args = self._invoke.unique_declarations(
-            argument_types=const.VALID_FIELD_NAMES)
-        # Filter field arguments by intent and intrinsic type
-        real_field_args = self._invoke.unique_declarations(
-            argument_types=const.VALID_FIELD_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        int_field_args = self._invoke.unique_declarations(
-            argument_types=const.VALID_FIELD_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
-
-        # Create lists of field names for real- and integer-valued fields
-        fld_arg_list = [arg.declaration_name for arg in fld_args]
-        real_field_arg_list = [arg.declaration_name for arg in real_field_args]
-        int_field_arg_list = [arg.declaration_name for arg in int_field_args]
-        # Check for unsupported intrinsic types
-        fld_inv = (set(fld_arg_list) -
-                   set(real_field_arg_list).union(set(int_field_arg_list)))
-        if fld_inv:
-            raise InternalError(
-                f"Found unsupported intrinsic types for the field arguments "
-                f"{list(fld_inv)} to Invoke '{self._invoke.name}'. Supported "
-                f"types are {const.VALID_FIELD_INTRINSIC_TYPES}.")
-
-        # Create a field argument map that splits the (real and
-        # integer) fields into their different datatypes.
-        field_datatype_map = OrderedDict()
-        for arg in real_field_args + int_field_args:
-            try:
-                field_datatype_map[
-                    (arg.data_type, arg.module_name)].append(arg)
-            except KeyError:
-                # This datatype has not been seen before so create a
-                # new entry
-                field_datatype_map[(arg.data_type, arg.module_name)] = [arg]
-
-        # Add the Invoke subroutine argument declarations for the
-        # different fields types. They are declared as intent "in" as
-        # they contain a pointer to the data that is modified.
-        for fld_type, fld_mod in field_datatype_map:
-            args = field_datatype_map[(fld_type, fld_mod)]
-            arg_list = [arg.declaration_name for arg in args]
-            parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=arg_list,
-                                   intent="in"))
-            (self._invoke.invokes.psy.
-             infrastructure_modules[fld_mod].add(fld_type))
-
-    def _stub_declarations(self, parent):
-        '''
-        Add field-related declarations to a Kernel stub.
-
-        :param parent: the node in the f2pygen AST representing the Kernel \
-                       stub to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: for an unsupported data type of field \
-                               argument data.
-
-        '''
-        const = LFRicConstants()
-
-        fld_args = psyGen.args_filter(
-            self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
-        for fld in fld_args:
-            undf_name = fld.function_space.undf_name
-            fld_dtype = fld.intrinsic_type
-            fld_kind = fld.precision
-
-            # Check for invalid descriptor data type
-            fld_ad_dtype = fld.descriptor.data_type
-            if fld_ad_dtype not in const.VALID_FIELD_DATA_TYPES:
-                raise InternalError(
-                    f"Found an unsupported data type '{fld_ad_dtype}' in "
-                    f"kernel stub declarations for the field argument "
-                    f"'{fld.declaration_name}'. Supported types are "
-                    f"{const.VALID_FIELD_DATA_TYPES}.")
-
-            if fld.vector_size > 1:
-                for idx in range(1, fld.vector_size+1):
-                    text = (fld.name + "_" +
-                            fld.function_space.mangled_name +
-                            "_v" + str(idx))
-                    parent.add(
-                        DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
-                                dimension=undf_name,
-                                intent=fld.intent, entity_decls=[text]))
-            else:
-                parent.add(
-                    DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
-                            intent=fld.intent,
-                            dimension=undf_name,
-                            entity_decls=[fld.name + "_" +
-                                          fld.function_space.mangled_name]))
 
 
 class DynProxies(LFRicCollection):
@@ -3373,7 +2633,7 @@ class DynCMAOperators(LFRicCollection):
                           "beta", "gamma_m", "gamma_p"]
 
     def __init__(self, node):
-        super(DynCMAOperators, self).__init__(node)
+        super().__init__(node)
 
         # Look at every kernel call and generate a set of
         # the unique CMA operators involved. For each one we create a
@@ -4199,7 +3459,7 @@ class DynBasisFunctions(LFRicCollection):
 
     def __init__(self, node):
 
-        super(DynBasisFunctions, self).__init__(node)
+        super().__init__(node)
 
         # Construct a list of all the basis/diff-basis functions required
         # by this invoke. Each entry in the list is a dictionary holding
@@ -5092,7 +4352,7 @@ class DynBoundaryConditions(LFRicCollection):
     BoundaryDofs = namedtuple("BoundaryDofs", ["argument", "function_space"])
 
     def __init__(self, node):
-        super(DynBoundaryConditions, self).__init__(node)
+        super().__init__(node)
 
         self._boundary_dofs = []
         # Check through all the kernel calls to see whether any of them
@@ -5247,7 +4507,7 @@ class DynGlobalSum(GlobalSum):
                 f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
                 f"'{scalar.intrinsic_type}' intrinsic type.")
         # Initialise the parent class
-        super(DynGlobalSum, self).__init__(scalar, parent=parent)
+        super().__init__(scalar, parent=parent)
 
     def gen_code(self, parent):
         '''
@@ -6296,7 +5556,7 @@ class HaloReadAccess(HaloDepth):
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
 
-        loop = call.ancestor(DynLoop)
+        loop = call.ancestor(LFRicLoop)
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and
@@ -6402,986 +5662,6 @@ class HaloReadAccess(HaloDepth):
                 self._var_depth = "2*" + self._var_depth
 
 
-class DynLoop(PSyLoop):
-    '''
-    The LFRic-specific PSyLoop class. This passes the LFRic-specific
-    loop information to the base class so it creates the one
-    we require.  Creates LFRic-specific loop bounds when the code is
-    being generated.
-
-    :param str loop_type: the type (iteration space) of this loop.
-    :param kwargs: additional keyword arguments provided to the PSyIR node.
-    :type kwargs: unwrapped dict.
-
-    :raises InternalError: if an unrecognised loop_type is specified.
-
-    '''
-    # pylint: disable=too-many-instance-attributes
-    def __init__(self, loop_type="", **kwargs):
-        const = LFRicConstants()
-        super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
-        self.loop_type = loop_type
-
-        # Set our variable at initialisation as it might be required
-        # by other classes before code generation. A 'null' loop does not
-        # have an associated variable.
-        if self.loop_type != "null":
-
-            if self.loop_type == "colours":
-                tag = "colours_loop_idx"
-                suggested_name = "colour"
-            elif self.loop_type == "colour":
-                tag = "cell_loop_idx"
-                suggested_name = "cell"
-            elif self.loop_type == "dof":
-                tag = "dof_loop_idx"
-                suggested_name = "df"
-            elif self.loop_type == "":
-                tag = "cell_loop_idx"
-                suggested_name = "cell"
-            else:
-                raise InternalError(
-                    f"Unsupported loop type '{self.loop_type}' found when "
-                    f"creating loop variable. Supported values are 'colours', "
-                    f"'colour', 'dof' or '' (for cell-columns).")
-
-            symtab = self.scope.symbol_table
-            self.variable = symtab.find_or_create_integer_symbol(
-                suggested_name, tag)
-
-        # Pre-initialise the Loop children  # TODO: See issue #440
-        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
-                              parent=self))  # start
-        self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
-                              parent=self))  # stop
-        self.addchild(Literal("1", INTEGER_TYPE, parent=self))  # step
-        self.addchild(Schedule(parent=self))  # loop body
-
-        # At this stage we don't know what our loop bounds are
-        self._lower_bound_name = None
-        self._lower_bound_index = None
-        self._upper_bound_name = None
-        self._upper_bound_halo_depth = None
-
-    def lower_to_language_level(self):
-        '''In-place replacement of DSL or high-level concepts into generic
-        PSyIR constructs. This function replaces a DynLoop with a PSyLoop
-        and inserts the loop boundaries into the new PSyLoop, or removes
-        the loop node in case of a domain kernel. Once TODO #1731 is done
-        (which should fix the loop boundaries, which atm rely on index of
-        the loop in the schedule, i.e. can change when transformations are
-        applied), this function can likely be removed.
-
-        :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
-
-        '''
-        super().lower_to_language_level()
-        if self._loop_type != "null":
-            # Not a domain loop, i.e. there is a real loop
-            # We need to copy the expressions, since the original ones are
-            # attached to the original loop.
-            psy_loop = PSyLoop.create(self._variable,
-                                      self.start_expr.copy(),
-                                      self.stop_expr.copy(),
-                                      self.step_expr.copy(),
-                                      self.loop_body.pop_all_children())
-            self.replace_with(psy_loop)
-            return psy_loop
-
-        # Domain loop, i.e. no need for a loop at all. Remove the loop
-        # node (self), and insert its children directly
-        pos = self.position
-        parent = self.parent
-        self.detach()
-        all_children_reverse = reversed(self.loop_body.pop_all_children())
-        # Attach the children starting with the last, which
-        # preserves the original order of the children.
-        for child in all_children_reverse:
-            parent.children.insert(pos, child)
-        return parent
-
-    def node_str(self, colour=True):
-        ''' Creates a text summary of this loop node. We override this
-        method from the Loop class because, in Dynamo0.3, the function
-        space is now an object and we need to call orig_name on it. We
-        also include the upper loop bound as this can now be modified.
-
-        :param bool colour: whether or not to include control codes for colour.
-
-        :returns: text summary of this node, optionally with control codes \
-                  for colour highlighting.
-        :rtype: str
-
-        '''
-        if self._loop_type == "null":
-            return f"{self.coloured_name(colour)}[type='null']"
-
-        if self._upper_bound_halo_depth:
-            upper_bound = (f"{self._upper_bound_name}"
-                           f"({self._upper_bound_halo_depth})")
-        else:
-            upper_bound = self._upper_bound_name
-        return (f"{self.coloured_name(colour)}[type='{self._loop_type}', "
-                f"field_space='{self._field_space.orig_name}', "
-                f"it_space='{self.iteration_space}', "
-                f"upper_bound='{upper_bound}']")
-
-    def load(self, kern):
-        '''
-        Load the state of this Loop using the supplied Kernel
-        object. This method is provided so that we can individually
-        construct Loop objects for a given kernel call.
-
-        :param kern: Kernel object to use to populate state of Loop
-        :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
-
-        :raises GenerationError: if the field updated by the kernel has an \
-            unexpected function space or if the kernel's 'operates-on' is \
-            not consistent with the loop type.
-
-        '''
-        self._kern = kern
-
-        self._field = kern.arguments.iteration_space_arg()
-        self._field_name = self._field.name
-        self._field_space = self._field.function_space
-
-        if self.loop_type == "null" and kern.iterates_over != "domain":
-            raise GenerationError(
-                f"A DynLoop of type 'null' can only contain a kernel that "
-                f"operates on the 'domain' but kernel '{kern.name}' operates "
-                f"on '{kern.iterates_over}'.")
-        self._iteration_space = kern.iterates_over  # cell_columns etc.
-
-        # Loop bounds
-        self.set_lower_bound("start")
-        const = LFRicConstants()
-        if isinstance(kern, LFRicBuiltIn):
-            # If the kernel is a built-in/pointwise operation
-            # then this loop must be over DoFs
-            if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \
-               and Config.get().distributed_memory \
-               and not kern.is_reduction:
-                self.set_upper_bound("nannexed")
-            else:
-                self.set_upper_bound("ndofs")
-        else:
-            if Config.get().distributed_memory:
-                if self._field.is_operator:
-                    # We always compute operators redundantly out to the L1
-                    # halo
-                    self.set_upper_bound("cell_halo", index=1)
-                elif (self.field_space.orig_name in
-                      const.VALID_DISCONTINUOUS_NAMES):
-                    # Iterate to ncells for all discontinuous quantities,
-                    # including any_discontinuous_space
-                    self.set_upper_bound("ncells")
-                elif (self.field_space.orig_name in
-                      const.CONTINUOUS_FUNCTION_SPACES):
-                    # Must iterate out to L1 halo for continuous quantities
-                    # unless the only arguments that are updated all have
-                    # 'GH_WRITE' access. The only time such an access is
-                    # permitted for a field on a continuous space is when the
-                    # kernel is implemented such that any writes to a given
-                    # shared dof are guaranteed to write the same value. There
-                    # is therefore no need to iterate into the L1 halo in order
-                    # to get correct values for annexed dofs.
-                    if not kern.all_updates_are_writes:
-                        self.set_upper_bound("cell_halo", index=1)
-                    else:
-                        self.set_upper_bound("ncells")
-                elif (self.field_space.orig_name in
-                      const.VALID_ANY_SPACE_NAMES):
-                    # We don't know whether any_space is continuous or not
-                    # so we have to err on the side of caution and assume that
-                    # it is. Again, if the only arguments that are updated have
-                    # 'GH_WRITE' access then we can relax this condition.
-                    if not kern.all_updates_are_writes:
-                        self.set_upper_bound("cell_halo", index=1)
-                    else:
-                        self.set_upper_bound("ncells")
-                else:
-                    raise GenerationError(
-                        f"Unexpected function space found. Expecting one of "
-                        f"{const.VALID_FUNCTION_SPACES} but found "
-                        f"'{self.field_space.orig_name}'")
-            else:  # sequential
-                self.set_upper_bound("ncells")
-
-    def set_lower_bound(self, name, index=None):
-        ''' Set the lower bounds of this loop '''
-        const = LFRicConstants()
-        if name not in const.VALID_LOOP_BOUNDS_NAMES:
-            raise GenerationError(
-                "The specified lower bound loop name is invalid")
-        if name in ["inner"] + const.HALO_ACCESS_LOOP_BOUNDS and index < 1:
-            raise GenerationError(
-                "The specified index '{index}' for this lower loop bound is "
-                "invalid")
-        self._lower_bound_name = name
-        self._lower_bound_index = index
-
-    def set_upper_bound(self, name, index=None):
-        '''Set the upper bound of this loop
-
-        :param name: A loop upper bound name. This should be a supported name.
-        :type name: String
-        :param index: An optional argument indicating the depth of halo
-        :type index: int
-
-        '''
-        const = LFRicConstants()
-        if name not in const.VALID_LOOP_BOUNDS_NAMES:
-            raise GenerationError(
-                f"The specified upper loop bound name is invalid. Expected "
-                f"one of {const.VALID_LOOP_BOUNDS_NAMES} but found '{name}'")
-        if name == "start":
-            raise GenerationError("'start' is not a valid upper bound")
-        # Only halo bounds and inner may have an index. We could just
-        # test for index here and assume that index is None for other
-        # types of bounds, but checking the type of bound as well is a
-        # safer option.
-        if name in (["inner"] + const.HALO_ACCESS_LOOP_BOUNDS) and \
-           index is not None:
-            if index < 1:
-                raise GenerationError(
-                    f"The specified index '{index}' for this upper loop bound "
-                    f"is invalid")
-        self._upper_bound_name = name
-        self._upper_bound_halo_depth = index
-
-    @property
-    def upper_bound_name(self):
-        ''' Returns the name of the upper loop bound '''
-        return self._upper_bound_name
-
-    @property
-    def upper_bound_halo_depth(self):
-        '''Returns the index of the upper loop bound. This is None if the upper
-        bound name is not in HALO_ACCESS_LOOP_BOUNDS.
-
-        :returns: the depth of the halo for a loops upper bound. If it \
-            is None then a depth has not been provided. The depth value is \
-            only valid when the upper-bound name is associated with a halo \
-            e.g. 'cell_halo'.
-        :rtype: int
-
-        '''
-        return self._upper_bound_halo_depth
-
-    def _lower_bound_fortran(self):
-        '''
-        Create the associated Fortran code for the type of lower bound.
-
-        TODO: Issue #440. lower_bound_fortran should generate PSyIR.
-
-        :returns: the Fortran code for the lower bound.
-        :rtype: str
-
-        :raises GenerationError: if self._lower_bound_name is not "start" \
-                                 for sequential code.
-        :raises GenerationError: if self._lower_bound_name is unrecognised.
-
-        '''
-        if not Config.get().distributed_memory and \
-           self._lower_bound_name != "start":
-            raise GenerationError(
-                f"The lower bound must be 'start' if we are sequential but "
-                f"found '{self._upper_bound_name}'")
-        if self._lower_bound_name == "start":
-            return "1"
-
-        # the start of our space is the end of the previous space +1
-        if self._lower_bound_name == "inner":
-            prev_space_name = self._lower_bound_name
-            prev_space_index_str = str(self._lower_bound_index + 1)
-        elif self._lower_bound_name == "ncells":
-            prev_space_name = "inner"
-            prev_space_index_str = "1"
-        elif (self._lower_bound_name == "cell_halo" and
-              self._lower_bound_index == 1):
-            prev_space_name = "ncells"
-            prev_space_index_str = ""
-        elif (self._lower_bound_name == "cell_halo" and
-              self._lower_bound_index > 1):
-            prev_space_name = self._lower_bound_name
-            prev_space_index_str = str(self._lower_bound_index - 1)
-        else:
-            raise GenerationError(
-                f"Unsupported lower bound name '{self._lower_bound_name}' "
-                f"found")
-        # Use InvokeSchedule SymbolTable to share the same symbol for all
-        # Loops in the Invoke.
-        mesh_obj_name = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag("mesh").name
-        return mesh_obj_name + "%get_last_" + prev_space_name + "_cell(" \
-            + prev_space_index_str + ")+1"
-
-    @property
-    def _mesh_name(self):
-        '''
-        :returns: the name of the mesh variable from which to get the bounds \
-                  for this loop.
-        :rtype: str
-        '''
-        # We must allow for self._kern being None (as it will be for
-        # a built-in).
-        if self._kern and self._kern.is_intergrid:
-            # We have more than one mesh object to choose from and we
-            # want the coarse one because that determines the iteration
-            # space. _field_name holds the name of the argument that
-            # determines the iteration space of this kernel and that
-            # is set-up to be the one on the coarse mesh (in
-            # DynKernelArguments.iteration_space_arg()).
-            tag_name = "mesh_" + self._field_name
-        else:
-            # It's not an inter-grid kernel so there's only one mesh
-            tag_name = "mesh"
-
-        # The symbol for the mesh will already have been added to the
-        # symbol table associated with the InvokeSchedule.
-        return self.ancestor(InvokeSchedule).symbol_table.\
-            lookup_with_tag(tag_name).name
-
-    def _upper_bound_fortran(self):
-        ''' Create the Fortran code that gives the appropriate upper bound
-        value for this type of loop.
-
-        TODO: Issue #440. upper_bound_fortran should generate PSyIR.
-
-        :returns: Fortran code for the upper bound of this loop.
-        :rtype: str
-
-        '''
-        # pylint: disable=too-many-branches, too-many-return-statements
-        # precompute halo_index as a string as we use it in more than
-        # one of the if clauses
-        halo_index = ""
-        if self._upper_bound_halo_depth:
-            halo_index = str(self._upper_bound_halo_depth)
-
-        if self._upper_bound_name == "ncolours":
-            # Loop over colours
-            kernels = self.walk(LFRicKern)
-            if not kernels:
-                raise InternalError(
-                    "Failed to find a kernel within a loop over colours.")
-            # Check that all kernels have been coloured. We can't check the
-            # number of colours since that is only known at runtime.
-            for kern in kernels:
-                if not kern.ncolours_var:
-                    raise InternalError(
-                        f"All kernels within a loop over colours must have "
-                        f"been coloured but kernel '{kern.name}' has not")
-            return kernels[0].ncolours_var
-
-        if self._upper_bound_name == "ncolour":
-            # Loop over cells of a particular colour when DM is disabled.
-            # We use the same, DM API as that returns sensible values even
-            # when running without MPI.
-            root_name = "last_edge_cell_all_colours"
-            if self._kern.is_intergrid:
-                root_name += "_" + self._field_name
-            sym = self.ancestor(
-                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
-            return f"{sym.name}(colour)"
-        if self._upper_bound_name == "colour_halo":
-            # Loop over cells of a particular colour when DM is enabled. The
-            # LFRic API used here allows for colouring with redundant
-            # computation.
-            sym_tab = self.ancestor(InvokeSchedule).symbol_table
-            if halo_index:
-                # The colouring API provides a 2D array that holds the last
-                # halo cell for a given colour and halo depth.
-                depth = halo_index
-            else:
-                # If no depth is specified then we go to the full halo depth
-                depth = sym_tab.find_or_create_tag(
-                    f"max_halo_depth_{self._mesh_name}").name
-            root_name = "last_halo_cell_all_colours"
-            if self._kern.is_intergrid:
-                root_name += "_" + self._field_name
-            sym = sym_tab.find_or_create_tag(root_name)
-            return f"{sym.name}(colour, {depth})"
-        if self._upper_bound_name in ["ndofs", "nannexed"]:
-            if Config.get().distributed_memory:
-                if self._upper_bound_name == "ndofs":
-                    result = (f"{self.field.proxy_name_indexed}%"
-                              f"{self.field.ref_name()}%get_last_dof_owned()")
-                else:  # nannexed
-                    result = (
-                        f"{self.field.proxy_name_indexed}%"
-                        f"{self.field.ref_name()}%get_last_dof_annexed()")
-            else:
-                result = self._kern.undf_name
-            return result
-        if self._upper_bound_name == "ncells":
-            if Config.get().distributed_memory:
-                result = f"{self._mesh_name}%get_last_edge_cell()"
-            else:
-                result = (f"{self.field.proxy_name_indexed}%"
-                          f"{self.field.ref_name()}%get_ncell()")
-            return result
-        if self._upper_bound_name == "cell_halo":
-            if Config.get().distributed_memory:
-                return f"{self._mesh_name}%get_last_halo_cell({halo_index})"
-            raise GenerationError(
-                "'cell_halo' is not a valid loop upper bound for "
-                "sequential/shared-memory code")
-        if self._upper_bound_name == "dof_halo":
-            if Config.get().distributed_memory:
-                return (f"{self.field.proxy_name_indexed}%"
-                        f"{self.field.ref_name()}%get_last_dof_halo("
-                        f"{halo_index})")
-            raise GenerationError(
-                "'dof_halo' is not a valid loop upper bound for "
-                "sequential/shared-memory code")
-        if self._upper_bound_name == "inner":
-            if Config.get().distributed_memory:
-                return f"{self._mesh_name}%get_last_inner_cell({halo_index})"
-            raise GenerationError(
-                "'inner' is not a valid loop upper bound for "
-                "sequential/shared-memory code")
-        raise GenerationError(
-            f"Unsupported upper bound name '{self._upper_bound_name}' found "
-            f"in dynloop.upper_bound_fortran()")
-
-    def _halo_read_access(self, arg):
-        '''
-        Determines whether the supplied argument has (or might have) its
-        halo data read within this loop. Returns True if it does, or if
-        it might and False if it definitely does not.
-
-        :param arg: an argument contained within this loop.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
-
-        :returns: True if the argument reads, or might read from the \
-            halo and False otherwise.
-        :rtype: bool
-
-        :raises GenerationError: if an unsupported upper loop bound name is \
-            provided for kernels with stencil access.
-        :raises InternalError: if an unsupported field access is found.
-        :raises InternalError: if an unsupported argument type is found.
-
-        '''
-        const = LFRicConstants()
-        if arg.is_scalar or arg.is_operator:
-            # Scalars and operators do not have halos
-            return False
-        if arg.is_field:
-            # This is a field so might read from a halo
-            if arg.access in [AccessType.WRITE]:
-                # This is not a read access
-                return False
-            if arg.access in AccessType.all_read_accesses():
-                # This is a read access
-                if arg.descriptor.stencil:
-                    if self._upper_bound_name not in ["cell_halo", "ncells"]:
-                        raise GenerationError(
-                            f"Loop bounds other than 'cell_halo' and 'ncells' "
-                            f"are currently unsupported for kernels with "
-                            f"stencil accesses. Found "
-                            f"'{self._upper_bound_name}'.")
-                    # An upper bound of 'cell_halo' means that the
-                    # halo might be accessed irrespective of the
-                    # stencil and a stencil read access with upper
-                    # bound 'ncells' might read from the
-                    # halo due to the stencil.
-                    return True
-                # This is a non-stencil read access
-                if self._upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                    # An upper bound that is part of the halo means
-                    # that the halo might be accessed.
-                    return True
-                if (not arg.discontinuous and
-                        self.kernel.iterates_over == "cell_column" and
-                        self.kernel.all_updates_are_writes and
-                        self._upper_bound_name == "ncells"):
-                    # This is the special case of a kernel that guarantees to
-                    # write the same value to any given dof, irrespective of
-                    # cell column.
-                    return False
-                if not arg.discontinuous and \
-                   self._upper_bound_name in ["ncells", "nannexed"]:
-                    # Annexed dofs may be accessed. Return False if we
-                    # always compute annexed dofs and True if we don't
-                    # (as annexed dofs are part of the level 1 halo).
-                    return not Config.get().api_conf("dynamo0.3").\
-                        compute_annexed_dofs
-                # The halo is not accessed.
-                return False
-            raise InternalError(
-                f"Unexpected field access type '{arg.access}' found for arg "
-                f"'{arg.name}'.")
-        raise InternalError(
-            f"Expecting arg '{arg.name}' to be an operator, scalar or field, "
-            f"but found '{arg.argument_type}'.")
-
-    def _add_field_component_halo_exchange(self, halo_field, idx=None):
-        '''An internal helper method to add the halo exchange call immediately
-        before this loop using the halo_field argument for the
-        associated field information and the optional idx argument if
-        the field is a vector field.
-
-        In certain situations the halo exchange will not be
-        required. This is dealt with by adding the halo exchange,
-        asking it if it is required and then removing it if it is
-        not. This may seem strange but the logic for determining
-        whether a halo exchange is required is within the halo
-        exchange class so it is simplest to do it this way
-
-        :param halo_field: the argument requiring a halo exchange
-        :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
-        :param index: optional argument providing the vector index if
-        there is one and None if not. Defaults to None.
-        :type index: int or None
-
-        :raises InternalError: if there are two forward write \
-            dependencies and they are both associated with halo \
-            exchanges.
-
-        '''
-        exchange = LFRicHaloExchange(halo_field,
-                                     parent=self.parent,
-                                     vector_index=idx)
-        self.parent.children.insert(self.position,
-                                    exchange)
-
-        # Is this halo exchange required? The halo exchange being
-        # added may replace an existing halo exchange, which would
-        # then be returned as a halo exchange dependence and an
-        # exception raised (as a halo exchange should not have another
-        # halo exchange as a dependence). Therefore, halo exchange
-        # dependencies are ignored here by setting the ignore_hex_dep
-        # optional argument.
-        required, _ = exchange.required(ignore_hex_dep=True)
-        if not required:
-            exchange.detach()
-        else:
-            # The halo exchange we have added may be replacing an
-            # existing one. If so, the one being replaced will be the
-            # first and only write dependence encountered and must be
-            # removed.
-            results = exchange.field.forward_write_dependencies()
-            if results:
-                first_dep_call = results[0].call
-                if isinstance(first_dep_call, HaloExchange):
-                    # Sanity check. If the first dependence is a field
-                    # accessed within a halo exchange then the
-                    # subsequent one must not be.
-                    next_results = results[0].forward_write_dependencies()
-                    if next_results and any(tmp for tmp in next_results
-                                            if isinstance(tmp.call,
-                                                          HaloExchange)):
-                        raise InternalError(
-                            f"When replacing a halo exchange with another one "
-                            f"for field {exchange.field.name}, a subsequent "
-                            f"dependent halo exchange was found. This should "
-                            f"never happen.")
-                    first_dep_call.detach()
-
-    def _add_halo_exchange(self, halo_field):
-        '''Internal helper method to add (a) halo exchange call(s) immediately
-        before this loop using the halo_field argument for the
-        associated field information. If the field is a vector then
-        add the appropriate number of halo exchange calls.
-
-        :param halo_field: the argument requiring a halo exchange
-        :type halo_field: :py:class:`psyclone.dynamo0p3.DynArgument`
-
-        '''
-        if halo_field.vector_size > 1:
-            # the range function below returns values from
-            # 1 to the vector size which is what we
-            # require in our Fortran code
-            for idx in range(1, halo_field.vector_size+1):
-                self._add_field_component_halo_exchange(halo_field, idx)
-        else:
-            self._add_field_component_halo_exchange(halo_field)
-
-    def update_halo_exchanges(self):
-        '''add and/or remove halo exchanges due to changes in the loops
-        bounds'''
-        # this call adds any new halo exchanges that are
-        # required. This is done by adding halo exchanges before this
-        # loop for any fields in the loop that require a halo exchange
-        # and don't already have one
-        self.create_halo_exchanges()
-        # Now remove any existing halo exchanges that are no longer
-        # required. This is done by removing halo exchanges after this
-        # loop where a field in this loop previously had a forward
-        # dependence on a halo exchange but no longer does
-        # pylint: disable=too-many-nested-blocks
-        for call in self.kernels():
-            for arg in call.arguments.args:
-                if arg.access in AccessType.all_write_accesses():
-                    dep_arg_list = arg.forward_read_dependencies()
-                    for dep_arg in dep_arg_list:
-                        if isinstance(dep_arg.call, LFRicHaloExchange):
-                            # found a halo exchange as a forward dependence
-                            # ask the halo exchange if it is required
-                            halo_exchange = dep_arg.call
-                            required, _ = halo_exchange.required()
-                            if not required:
-                                halo_exchange.detach()
-
-    def create_halo_exchanges(self):
-        '''Add halo exchanges before this loop as required by fields within
-        this loop. To keep the logic simple we assume that any field
-        that accesses the halo will require a halo exchange and then
-        remove the halo exchange if this is not the case (when
-        previous writers perform sufficient redundant computation). It
-        is implemented this way as the halo exchange class determines
-        whether it is required or not so a halo exchange needs to
-        exist in order to find out. The appropriate logic is coded in
-        the _add_halo_exchange helper method. In some cases a new halo
-        exchange will replace an existing one. In this situation that
-        routine also removes the old one.
-
-        '''
-        for halo_field in self.unique_fields_with_halo_reads():
-            # for each unique field in this loop that has its halo
-            # read (including annexed dofs), find the previous update
-            # of this field
-            prev_arg_list = halo_field.backward_write_dependencies()
-            if not prev_arg_list:
-                # field has no previous dependence so create new halo
-                # exchange(s) as we don't know the state of the fields
-                # halo on entry to the invoke
-                self._add_halo_exchange(halo_field)
-            else:
-                # field has one or more previous dependencies
-                if len(prev_arg_list) > 1:
-                    # field has more than one previous dependencies so
-                    # should be a vector
-                    if halo_field.vector_size <= 1:
-                        raise GenerationError(
-                            f"Error in create_halo_exchanges. Expecting field "
-                            f"'{halo_field.name}' to be a vector as it has "
-                            f"multiple previous dependencies")
-                    if len(prev_arg_list) != halo_field.vector_size:
-                        raise GenerationError(
-                            f"Error in create_halo_exchanges. Expecting a "
-                            f"dependence for each vector index for field "
-                            f"'{halo_field.name}' but the number of "
-                            f"dependencies is '{halo_field.vector_size}' and "
-                            f"the vector size is '{len(prev_arg_list)}'.")
-                    for arg in prev_arg_list:
-                        if not isinstance(arg.call, LFRicHaloExchange):
-                            raise GenerationError(
-                                "Error in create_halo_exchanges. Expecting "
-                                "all dependent nodes to be halo exchanges")
-                prev_node = prev_arg_list[0].call
-                if not isinstance(prev_node, LFRicHaloExchange):
-                    # previous dependence is not a halo exchange so
-                    # call the add halo exchange logic which
-                    # determines whether a halo exchange is required
-                    # or not
-                    self._add_halo_exchange(halo_field)
-
-    @property
-    def start_expr(self):
-        '''
-        :returns: the PSyIR for the lower bound of this loop.
-        :rtype: :py:class:`psyclone.psyir.Node`
-
-        '''
-        inv_sched = self.ancestor(Routine)
-        sym_table = inv_sched.symbol_table
-        loops = inv_sched.loops()
-        posn = None
-        for index, loop in enumerate(loops):
-            if loop is self:
-                posn = index
-                break
-        root_name = f"loop{posn}_start"
-        lbound = sym_table.find_or_create_integer_symbol(root_name,
-                                                         tag=root_name)
-        self.children[0] = Reference(lbound)
-        return self.children[0]
-
-    @property
-    def stop_expr(self):
-        '''
-        :returns: the PSyIR for the upper bound of this loop.
-        :rtype: :py:class:`psyclone.psyir.Node`
-
-        '''
-        inv_sched = self.ancestor(Routine)
-        sym_table = inv_sched.symbol_table
-
-        if self._loop_type == "colour":
-            # If this loop is over all cells of a given colour then we must
-            # lookup the loop bound as it depends on the current colour.
-            parent_loop = self.ancestor(Loop)
-            colour_var = parent_loop.variable
-
-            asym = self.kernel.last_cell_all_colours_symbol
-            if not asym:
-                # TODO #1618: once the symbols are all defined,
-                # this should not happen anymore.
-                raise InternalError(f"No symbol for last_cell_all_colours"
-                                    f"defined for kernel "
-                                    f"'{self.kernel.name}'.")
-            const = LFRicConstants()
-
-            if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
-                if self._upper_bound_halo_depth:
-                    # TODO: #696 Add kind (precision) once the
-                    # DynInvokeSchedule constructor has been extended to
-                    # create the necessary symbols.
-                    halo_depth = Literal(str(self._upper_bound_halo_depth),
-                                         INTEGER_TYPE)
-                else:
-                    # We need to go to the full depth of the halo.
-                    root_name = "mesh"
-                    if self.kernels()[0].is_intergrid:
-                        root_name += f"_{self._field_name}"
-                    depth_sym = sym_table.lookup_with_tag(
-                        f"max_halo_depth_{root_name}")
-                    halo_depth = Reference(depth_sym)
-
-                return ArrayReference.create(asym, [Reference(colour_var),
-                                                    halo_depth])
-            return ArrayReference.create(asym, [Reference(colour_var)])
-
-        # This isn't a 'colour' loop so we have already set-up a
-        # variable that holds the upper bound.
-        loops = inv_sched.loops()
-        posn = None
-        for index, loop in enumerate(loops):
-            if loop is self:
-                posn = index
-                break
-        root_name = f"loop{posn}_stop"
-        ubound = sym_table.find_or_create_integer_symbol(root_name,
-                                                         tag=root_name)
-        self.children[1] = Reference(ubound)
-        return self.children[1]
-
-    def gen_code(self, parent):
-        ''' Call the base class to generate the code and then add any
-        required halo exchanges.
-
-        :param parent: an f2pygen object that will be the parent of \
-            f2pygen objects created in this method.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        :raises GenerationError: if a loop over colours is within an \
-            OpenMP parallel region (as it must be serial).
-
-        '''
-        # pylint: disable=too-many-statements, too-many-branches
-        # Check that we're not within an OpenMP parallel region if
-        # we are a loop over colours.
-        if self._loop_type == "colours" and self.is_openmp_parallel():
-            raise GenerationError("Cannot have a loop over colours within an "
-                                  "OpenMP parallel region.")
-
-        if self._loop_type != "null":
-            super().gen_code(parent)
-        else:
-            # This is a 'null' loop and therefore we do not actually generate
-            # a loop - we go on down to the children instead.
-            for child in self.loop_body.children:
-                child.gen_code(parent)
-
-        if not (Config.get().distributed_memory and
-                self._loop_type != "colour"):
-            # No need to add halo exchanges so we are done.
-            return
-
-        # Set halo clean/dirty for all fields that are modified
-        if not self.unique_modified_args("gh_field"):
-            return
-
-        if self.ancestor((ACCRegionDirective, OMPRegionDirective)):
-            # We cannot include calls to set halos dirty/clean within OpenACC
-            # or OpenMP regions. This is handled by the appropriate Directive
-            # class instead.
-            # TODO #1755 can this check be made more general (e.g. to include
-            # Extraction regions)?
-            return
-
-        parent.add(CommentGen(parent, ""))
-        if self._loop_type != "null":
-            prev_node_name = "loop"
-        else:
-            prev_node_name = "kernel"
-        parent.add(CommentGen(parent, f" Set halos dirty/clean for fields "
-                              f"modified in the above {prev_node_name}"))
-        parent.add(CommentGen(parent, ""))
-
-        self.gen_mark_halos_clean_dirty(parent)
-
-        parent.add(CommentGen(parent, ""))
-
-    def gen_mark_halos_clean_dirty(self, parent):
-        '''
-        Generates the necessary code to mark halo regions for all modified
-        fields as clean or dirty following execution of this loop.
-
-        :param parent: the node in the f2pygen AST to which to add content.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # Set halo clean/dirty for all fields that are modified
-        fields = self.unique_modified_args("gh_field")
-
-        sym_table = self.ancestor(InvokeSchedule).symbol_table
-
-        # First set all of the halo dirty unless we are
-        # subsequently going to set all of the halo clean
-        for field in fields:
-            # The HaloWriteAccess class provides information about how the
-            # supplied field is accessed within its parent loop
-            hwa = HaloWriteAccess(field, sym_table)
-            if not hwa.max_depth or hwa.dirty_outer:
-                # output set dirty as some of the halo will not be set to clean
-                if field.vector_size > 1:
-                    # the range function below returns values from 1 to the
-                    # vector size which is what we require in our Fortran code
-                    for index in range(1, field.vector_size+1):
-                        parent.add(CallGen(parent, name=field.proxy_name +
-                                           f"({index})%set_dirty()"))
-                else:
-                    parent.add(CallGen(parent, name=field.proxy_name +
-                                       "%set_dirty()"))
-            # Now set appropriate parts of the halo clean where
-            # redundant computation has been performed.
-            if hwa.literal_depth:
-                # halo access(es) is/are to a fixed depth
-                halo_depth = hwa.literal_depth
-                if hwa.dirty_outer:
-                    halo_depth -= 1
-                if halo_depth > 0:
-                    if field.vector_size > 1:
-                        # The range function below returns values from 1 to the
-                        # vector size, as required in our Fortran code.
-                        for index in range(1, field.vector_size+1):
-                            parent.add(CallGen(
-                                parent, name=f"{field.proxy_name}({index})%"
-                                f"set_clean({halo_depth})"))
-                    else:
-                        parent.add(CallGen(
-                            parent, name=f"{field.proxy_name}%set_clean("
-                            f"{halo_depth})"))
-            elif hwa.max_depth:
-                # halo accesses(s) is/are to the full halo
-                # depth (-1 if continuous)
-                halo_depth = sym_table.lookup_with_tag(
-                    "max_halo_depth_mesh").name
-
-                if hwa.dirty_outer:
-                    # a continuous field iterating over cells leaves the
-                    # outermost halo dirty
-                    halo_depth += "-1"
-                if field.vector_size > 1:
-                    # the range function below returns values from 1 to the
-                    # vector size which is what we require in our Fortran code
-                    for index in range(1, field.vector_size+1):
-                        call = CallGen(parent,
-                                       name=f"{field.proxy_name}({index})%"
-                                       f"set_clean({halo_depth})")
-                        parent.add(call)
-                else:
-                    call = CallGen(parent, name=f"{field.proxy_name}%"
-                                   f"set_clean({halo_depth})")
-                    parent.add(call)
-
-    def independent_iterations(self,
-                               test_all_variables=False,
-                               signatures_to_ignore=None,
-                               dep_tools=None):
-        '''
-        This function is an LFRic-specific override of the default method
-        in the Loop class. It allows domain-specific rules to be applied when
-        determining whether or not loop iterations are independent.
-
-        :param bool test_all_variables: if True, it will test if all variable
-            accesses are independent, otherwise it will stop after the first
-            variable access is found that isn't.
-        :param signatures_to_ignore: list of signatures for which to skip
-            the access checks.
-        :type signatures_to_ignore: Optional[
-            List[:py:class:`psyclone.core.Signature`]]
-        :param dep_tools: an optional instance of DependencyTools so that the
-            caller can access any diagnostic messages detailing why the loop
-            iterations are not independent.
-        :type dep_tools: Optional[
-            :py:class:`psyclone.psyir.tools.DependencyTools`]
-
-        :returns: True if the loop iterations are independent, False otherwise.
-        :rtype: bool
-
-        '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools, DTCode
-        if not dep_tools:
-            dtools = DependencyTools()
-        else:
-            dtools = dep_tools
-
-        if self.loop_type in ["null", "colours"]:
-            # We know we can't parallelise these loops. ("null" means there
-            # is no actual loop and "colours" is the *outer* loop over the
-            # different colours used - it is the inner, "colour" loop over
-            # cells of a single colour which can be parallelised.)
-            return False
-
-        try:
-            stat = dtools.can_loop_be_parallelised(
-                self, test_all_variables=test_all_variables,
-                signatures_to_ignore=signatures_to_ignore)
-            if stat:
-                return True
-        except (InternalError, KeyError):
-            # LFRic still has symbols that don't exist in the symbol_table
-            # until the gen_code() step, so the dependency analysis raises
-            # errors in some cases.
-            # TODO #1648 - when a transformation colours a loop we must
-            # ensure "last_[halo]_cell_all_colours" is added to the symbol
-            # table.
-            return True
-
-        # The generic DA says that this loop cannot be parallelised. However,
-        # we use domain-specific information to qualify this.
-        if self.loop_type == "colour":
-            # This loop is either over cells of a single colour.
-            # According to LFRic rules this is safe to parallelise.
-            return True
-
-        if self.loop_type == "dof":
-            # The generic DA can't see the PSyIR of this Builtin (because it
-            # hasn't been lowered to language level) so we use
-            # domain-specific knowledge about its properties.
-            if self.kernel.is_reduction:
-                dtools._add_message(
-                    f"Builtin '{self.kernel.name}' performs a reduction",
-                    DTCode.WARN_SCALAR_REDUCTION)
-                return False
-            return True
-
-        if self.loop_type == "":
-            # We can parallelise a non-coloured loop if it only updates
-            # quantities on discontinuous function spaces. If an LFRic kernel
-            # updates quantities on a continuous function space then it must
-            # have at least one argument with GH_INC access. Therefore, we
-            # can simply check whether or not it has such an argument in order
-            # to infer the continuity of the space.
-            if self.has_inc_arg():
-                dtools._add_message(
-                    f"Kernel '{self.kernel.name}' performs an INC update",
-                    DTCode.ERROR_WRITE_WRITE_RACE)
-                return False
-            return True
-
-        raise InternalError(f"independent_iterations: loop of type "
-                            f"'{self.loop_type}' is not supported.")
-
-
 class FSDescriptor():
     ''' Provides information about a particular function space used by
     a meta-funcs entry in the kernel metadata. '''
@@ -7412,14 +5692,14 @@ class FSDescriptors():
     ''' Contains a collection of FSDescriptor objects and methods
     that provide information across these objects. We have one
     FSDescriptor for each meta-funcs entry in the kernel
-    meta-data.
+    metadata.
     # TODO #274 this should actually be named something like
     BasisFuncDescriptors as it holds information describing the
     basis/diff-basis functions required by a kernel.
 
     :param descriptors: list of objects describing the basis/diff-basis \
                         functions required by a kernel, as obtained from \
-                        meta-data.
+                        metadata.
     :type descriptors: list of :py:class:`psyclone.DynFuncDescriptor03`.
 
     '''
@@ -7454,7 +5734,7 @@ class FSDescriptors():
     def descriptors(self):
         '''
         :return: the list of Descriptors, one for each of the meta-funcs
-                 entries in the kernel meta-data.
+                 entries in the kernel metadata.
         :rtype: List of :py:class:`psyclone.dynamo0p3.FSDescriptor`
         '''
         return self._descriptors
@@ -7470,7 +5750,7 @@ def check_args(call):
                  kernel call to be checked.
     :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :raises: GenerationError if the kernel arguments in the Algorithm layer
-             do not match up with the kernel meta-data
+             do not match up with the kernel metadata
     '''
     # stencil arguments
     stencil_arg_count = 0
@@ -7528,14 +5808,14 @@ class DynKernelArguments(Arguments):
     Provides information about Dynamo kernel call arguments
     collectively, as specified by the kernel argument metadata.
 
-    :param call: the kernel meta-data for which to extract argument info.
+    :param call: the kernel metadata for which to extract argument info.
     :type call: :py:class:`psyclone.parse.KernelCall`
     :param parent_call: the kernel-call object.
     :type parent_call: :py:class:`psyclone.domain.lfric.LFRicKern`
     :param bool check: whether to check for consistency between the \
         kernel metadata and the algorithm layer. Defaults to True.
 
-    :raises GenerationError: if the kernel meta-data specifies stencil extent.
+    :raises GenerationError: if the kernel metadata specifies stencil extent.
     '''
     def __init__(self, call, parent_call, check=True):
         # pylint: disable=too-many-branches
@@ -7648,7 +5928,7 @@ class DynKernelArguments(Arguments):
         returns the associated FunctionSpace object.
 
         :param str func_space_name: Name of the function space (as specified \
-                                    in kernel meta-data) for which to \
+                                    in kernel metadata) for which to \
                                     find an argument.
         :return: the first kernel argument that is on the named function \
                  space and the associated FunctionSpace object.
@@ -7863,7 +6143,7 @@ class DynKernelArgument(KernelArgument):
     :param kernel_args: object encapsulating all arguments to the \
                         kernel call.
     :type kernel_args: :py:class:`psyclone.dynamo0p3.DynKernelArguments`
-    :param arg_meta_data: information obtained from the meta-data for \
+    :param arg_meta_data: information obtained from the metadata for \
                           this kernel argument.
     :type arg_meta_data: :py:class:`psyclone.domain.lfric.LFRicArgDescriptor`
     :param arg_info: information on how this argument is specified in \
@@ -8718,12 +6998,10 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
     'DynFuncDescriptor03',
-    'DynKernMetadata',
     'DynamoPSy',
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',
-    'LFRicFields',
     'DynProxies',
     'DynCellIterators',
     'DynLMAOperators',
@@ -8740,7 +7018,6 @@ __all__ = [
     'HaloDepth',
     'HaloWriteAccess',
     'HaloReadAccess',
-    'DynLoop',
     'FSDescriptor',
     'FSDescriptors',
     'LFRicArgStencil',

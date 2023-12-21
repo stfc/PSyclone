@@ -47,7 +47,7 @@ jobs:
     runs-on: self-hosted
     env:
       LFRIC_REV: 45376
-      PYTHON_VERSION: 3.12.0
+      PYTHON_VERSION: 3.12.1
 
     steps:
     - uses: actions/checkout@v3
