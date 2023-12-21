@@ -35,6 +35,8 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
     Reference, CodeBlock, Call, Return, IfBlock, Routine, \
     IntrinsicCall
@@ -42,7 +44,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType, ScalarType, RoutineSymbol, ImportInterface
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
     HoistTrans, ProfileTrans, HoistLocalArraysTrans, Reference2ArrayRangeTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+from psyclone.psyir.transformations import InlineTrans
 from psyclone.transformations import TransformationError
 
 
@@ -127,9 +129,20 @@ def enhance_tree_information(schedule):
 
 def inline_calls(schedule):
     '''
+    Looks for all Calls within the supplied Schedule and attempts to:
+
+      1. Find the source of the routine being called.
+      2. Insert that source into the same Container as the call site.
+      3. Replace the call to the routine with the body of the routine.
+
+    where each step is dependent upon the success of the previous one.
+
+    :param schedule: the schedule in which to search for Calls.
+    :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
+
     '''
-    from psyclone.domain.common.transformations import KernelModuleInlineTrans
     mod_inline_trans = KernelModuleInlineTrans()
+    inline_trans = InlineTrans()
     all_calls = schedule.walk(Call)
     for call in all_calls:
         rsym = call.routine
@@ -139,6 +152,11 @@ def inline_calls(schedule):
             except TransformationError as err:
                 print(f"Module inline of '{rsym.name}' failed:\n{err}")
                 continue
+        try:
+            inline_trans.apply(call)
+        except TransformationError as err:
+            print(f"Inlining of '{rsym.name}' failed:\n{err}")
+            continue
 
 
 def normalise_loops(
