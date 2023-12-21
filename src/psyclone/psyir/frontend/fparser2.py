@@ -3800,7 +3800,7 @@ class Fparser2Reader():
         else:
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation "
-                f"including ranges (e.g. my_array(1,:) are supported but "
+                f"including ranges (e.g. 'my_array(1,:)') are supported but "
                 f"found '{logical_expr}'")
 
         # All array sections in a Fortran WHERE must have the same rank so
