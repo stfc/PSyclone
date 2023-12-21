@@ -43,7 +43,7 @@ from abc import ABC, abstractmethod
 from psyclone.psyir.nodes import (
     Assignment, Reference, ArrayReference, IfBlock, Loop,
     IntrinsicCall, Node, UnaryOperation, BinaryOperation)
-from psyclone.psyir.symbols import ArrayType, DataSymbol
+from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
@@ -170,6 +170,19 @@ class ArrayReductionBaseTrans(Transformation, ABC):
                         f"Unexpected shape for array. Expecting one of "
                         f"Deferred, Attribute or Bounds but found '{shape}'.")
 
+        # If the lhs symbol is used anywhere on the assignment rhs, we need
+        # to create a temporary, and for this we need to resolve its datatype
+        for rhs_reference in assignment.rhs.walk(Reference):
+            if rhs_reference.symbol is assignment.lhs.symbol:
+                if not (isinstance(assignment.lhs.symbol, DataSymbol) and
+                        isinstance(assignment.lhs.datatype, ScalarType)):
+                    line = assignment.debug_string().strip('\n')
+                    raise TransformationError(
+                        f"To loopify '{line}'"
+                        f" we need a temporary variable, but the type of "
+                        f"'{assignment.lhs.debug_string()}' can not be "
+                        f"resolved or is unsupported.")
+
     # pylint: disable=too-many-locals
     def apply(self, node, options=None):
         '''Apply the array-reduction intrinsic conversion transformation to
@@ -199,7 +212,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         if increment:
             new_lhs_symbol = node.scope.symbol_table.new_symbol(
                 root_name="tmp_var", symbol_type=DataSymbol,
-                datatype=lhs_symbol.datatype)
+                datatype=orig_lhs.datatype)
             new_lhs = Reference(new_lhs_symbol)
         else:
             new_lhs = orig_lhs.copy()
