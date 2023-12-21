@@ -43,8 +43,6 @@
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants
-# Avoid circular import:
-from psyclone.domain.lfric.lfric_stencils import LFRicStencils
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
                               UseGen)
@@ -104,7 +102,8 @@ class LFRicInvoke(Invoke):
                                         DynReferenceElement,
                                         LFRicMeshProperties)
         from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
-                                           LFRicScalarArgs, LFRicFields)
+                                           LFRicScalarArgs, LFRicFields,
+                                           LFRicStencils)
 
         self.scalar_args = LFRicScalarArgs(self)
 

@@ -40,8 +40,7 @@ for a kernel subroutine.
 '''
 
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants, LFRicSymbolTable
-# Avoid circular import:
-from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+
 from psyclone.errors import InternalError
 
 
@@ -190,6 +189,10 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         name = LFRicStencils.dofmap_size_symbol(self._stub_symtab, arg).name
         self.append(name, var_accesses)
 
@@ -206,6 +209,9 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         name = LFRicStencils.direction_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
 
@@ -223,6 +229,9 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_name = LFRicStencils.dofmap_symbol(self._stub_symtab, arg).name
         self.append(var_name, var_accesses)
 
@@ -241,6 +250,9 @@ class KernStubArgList(ArgOrdering):
         '''
         # The maximum branch extent is not specified in the metadata so pass
         # the value in.
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         name = LFRicStencils.max_branch_length_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
 
@@ -257,6 +269,9 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         name = LFRicStencils.dofmap_size_symbol(self._stub_symtab, arg).name
         self.append(name, var_accesses)
 
@@ -281,6 +296,9 @@ class KernStubArgList(ArgOrdering):
         # West, South, East, North which is standard in LFRic. This allows
         # for knowledge of what direction a stencil cell is in relation
         # to the centre even when the stencil is truncated at boundaries.
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_name = LFRicStencils.dofmap_symbol(self._stub_symtab, arg).name
         self.append(var_name, var_accesses)
 

@@ -44,7 +44,8 @@
     Argument). '''
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicCollection, LFRicConstants
+from psyclone.domain.lfric.lfric_collection import LFRicCollection
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen,
                               IfThenGen, TypeDeclGen, UseGen)
@@ -64,7 +65,7 @@ class LFRicStencils(LFRicCollection):
     '''
     def __init__(self, node):
         # pylint: disable=too-many-branches
-        super(LFRicStencils, self).__init__(node)
+        super().__init__(node)
 
         # List of arguments which have an extent value passed to this
         # invoke routine from the algorithm layer. Duplicate argument

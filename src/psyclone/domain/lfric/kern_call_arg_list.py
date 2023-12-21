@@ -49,7 +49,6 @@ from psyclone.core import AccessType, Signature
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
-from psyclone.domain.lfric.lfric_stencils import LFRicStencils
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Reference, StructureReference
 from psyclone.psyir.symbols import (
@@ -398,6 +397,9 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # The extent is not specified in the metadata so pass the value in
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [cell_ref],
@@ -420,6 +422,9 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # The extent is not specified in the metadata so pass the value in
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [":", cell_ref],
@@ -445,6 +450,9 @@ class KernCallArgList(ArgOrdering):
         # the value in.
         # TODO #1915, this duplicates code in
         # LFRicStencils.max_branch_length_name
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         unique_tag = LFRicStencils.stencil_unique_str(arg, "length")
         root_name = arg.name + "_max_branch_length"
 
@@ -485,6 +493,9 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # add in stencil dofmap
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [":", ":", cell_ref],
@@ -514,6 +525,9 @@ class KernCallArgList(ArgOrdering):
         # West, South, East, North which is standard in LFRic. This allows
         # for knowledge of what direction a stencil cell is in relation
         # to the center even when the stencil is truncated at boundaries.
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name,
