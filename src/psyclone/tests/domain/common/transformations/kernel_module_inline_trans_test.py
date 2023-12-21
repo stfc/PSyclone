@@ -815,7 +815,7 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert "subroutine a_sub" in output
     assert "subroutine my_sub" in output
     assert "use my_mod, only : my_other_sub\n" in output
-    assert Compile(tmpdir).string_compiles(output)
+    # We can't test the compilation of this code because of the 'use my_mod.'
 
     # Check that we raise the expected error if the name of the obtained
     # subroutine doesn't match that of the caller. It is not
