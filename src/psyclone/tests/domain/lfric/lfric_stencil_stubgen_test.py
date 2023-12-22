@@ -42,8 +42,7 @@ import os
 
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import LFRicKern
-from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -58,7 +57,7 @@ def test_stub_stencil_extent():
     '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
@@ -85,7 +84,7 @@ def test_stub_cross2d_stencil():
                                    "testkern_stencil_cross2d_mod.f90"),
                       ignore_comments=False)
 
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
@@ -114,7 +113,7 @@ def test_stub_stencil_direction():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_xory1d_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
@@ -140,7 +139,7 @@ def test_stub_stencil_vector():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_vector_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
@@ -166,7 +165,7 @@ def test_stub_stencil_multi():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_multi_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
