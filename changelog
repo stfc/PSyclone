@@ -108,6 +108,11 @@
 
 	40) PR #2273 for #2272. Split LFRicFields into domain/lfric module.
 
+	41) PR #2393 for #2392. Split and rename DynKernMetadata into
+	into domain/lfric module (LFRicKernMetadata class).
+	
+	42) PR #2240 for #2132. Update Integration test software stack.
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a

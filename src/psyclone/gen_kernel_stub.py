@@ -45,8 +45,7 @@ from __future__ import print_function
 import os
 
 import fparser
-from psyclone.domain.lfric import LFRicKern
-from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
@@ -94,7 +93,7 @@ def generate(filename, api=""):
         raise ParseError(f"Kernel stub generator: Code appears to be invalid "
                          f"Fortran: {error}.")
 
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
 
