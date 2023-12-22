@@ -52,9 +52,9 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
-from psyclone.psyGen import HaloExchange
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference,
                                   Routine, StructureReference)
@@ -187,7 +187,8 @@ class LFRicExtractDriverCreator:
     @staticmethod
     def _make_valid_unit_name(name):
         '''Valid program or routine names are restricted to 63 characters,
-        and no special characters like ':'.
+        and no special characters like '-' (which is used when adding
+        invoke and region numbers).
 
         :param str name: a proposed unit name.
 
@@ -196,7 +197,7 @@ class LFRicExtractDriverCreator:
         :rtype: str
 
         '''
-        return name.replace(":", "")[:63]
+        return name.replace("-", "")[:63]
 
     # -------------------------------------------------------------------------
     def _get_proxy_name_mapping(self, schedule):
@@ -760,7 +761,6 @@ class LFRicExtractDriverCreator:
                        :py:class:`psyclone.psyir.symbols.Symbol`]]
 
         '''
-
         module = ContainerSymbol("compare_variables_mod")
         program.symbol_table.add(module)
         for compare_func in ["compare", "compare_init", "compare_summary"]:
@@ -783,6 +783,88 @@ class LFRicExtractDriverCreator:
 
         LFRicExtractDriverCreator.\
             _add_call(program, "compare_summary", [])
+
+    # -------------------------------------------------------------------------
+    def _add_command_line_handler(self, program, psy_data_var, module_name,
+                                  region_name):
+        '''
+        This function adds code to handle the command line. For now an
+        alternative filename (to the default one that is hard-coded by
+        the created driver) can be specified, which allows the driver to
+        be used with different files, e.g. several dumps from one run, and/or
+        a separate file from each process. It will also add the code to
+        open the input file using PSyclone's read_kernel_data module.
+
+        :param program: The driver PSyIR.
+        :type program: :py:class:`psyclone.psyir.nodes.Routine`
+        :param psy_data_var: the symbol of the PSyDataExtraction type.
+        :type psy_data_var: :py:class:`psyclone.psyir.symbols.Symbol`]]
+        :param str module_name: the name of the module, used to create the
+            implicit default kernel dump file name.
+        :param str region_name: the name of the region, used to create the
+            implicit default kernel dump file name.
+
+        '''
+        # pylint: disable=too-many-locals
+        program_symbol_table = program.symbol_table
+
+        # PSyIR does not support allocatable strings, so create the two
+        # variables we need in a loop.
+        # TODO #2137: The UnknownFortranType could be reused for all
+        #             variables once this is fixed.
+        for str_name in ["psydata_filename", "psydata_arg"]:
+            str_unique_name = \
+                program_symbol_table.next_available_name(str_name)
+            str_type = UnknownFortranType(
+                f"character(:), allocatable :: {str_unique_name}")
+            sym = DataTypeSymbol(str_unique_name, str_type)
+            program_symbol_table.add(sym)
+            if str_name == "psydata_filename":
+                psydata_filename = str_unique_name
+            else:
+                psydata_arg = str_unique_name
+
+        psydata_len = \
+            program_symbol_table.find_or_create("psydata_len",
+                                                symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE).name
+        psydata_i = \
+            program_symbol_table.find_or_create("psydata_i",
+                                                symbol_type=DataSymbol,
+                                                datatype=INTEGER_TYPE).name
+        # We can only parse one statement at a time, so start with the
+        # command line handling:
+        code = f"""
+        do {psydata_i}=1,command_argument_count()
+           call get_command_argument({psydata_i}, length={psydata_len})
+           allocate(character({psydata_len})::{psydata_arg})
+           call get_command_argument({psydata_i}, {psydata_arg}, &
+                                     length={psydata_len})
+           if ({psydata_arg} == "--update") then
+              ! For later to allow marking fields as being updated
+           else
+              allocate(character({psydata_len})::{psydata_filename})
+              {psydata_filename} = {psydata_arg}
+           endif
+           deallocate({psydata_arg})
+        enddo
+        """
+        command_line = \
+            FortranReader().psyir_from_statement(code, program_symbol_table)
+        program.children.insert(0, command_line)
+
+        # Now add the handling of the filename parameter
+        code = f"""
+        if (trim({psydata_filename}) /= "") then
+           call {psy_data_var.name}%OpenReadFileName({psydata_filename})
+        else
+           call {psy_data_var.name}%OpenReadModuleRegion('{module_name}', &
+                                                         '{region_name}')
+        endif
+        """
+        filename_test = \
+            FortranReader().psyir_from_statement(code, program_symbol_table)
+        program.children.insert(1, filename_test)
 
     # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
@@ -912,12 +994,8 @@ class LFRicExtractDriverCreator:
                                                    symbol_type=DataSymbol,
                                                    datatype=psy_data_type)
 
-        # Provide the module and region name to the OpenRead method, which
-        # will reconstruct the name of the data file to read.
-        module_str = Literal(module_name, CHARACTER_TYPE)
-        region_str = Literal(local_name, CHARACTER_TYPE)
-        self._add_call(program, f"{psy_data.name}%OpenRead",
-                       [module_str, region_str])
+        self._add_command_line_handler(program, psy_data, module_name,
+                                       local_name)
 
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
