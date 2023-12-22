@@ -42,8 +42,7 @@ functionality of the LFRic (Dynamo0.3) API.
 
 import os
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicKern
-from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 
 
 # Constants
@@ -82,7 +81,7 @@ def test_refelem_stub_gen():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_ref_elem_mod.F90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
@@ -131,7 +130,7 @@ def test_refelem_quad_stub_gen():
     contain reference element and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
     ast = fpapi.parse(REF_ELEM_QUAD_MDATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
