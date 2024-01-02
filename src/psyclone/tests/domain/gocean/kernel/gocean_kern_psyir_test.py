@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the KernelMetadataSymbol
 kernel-layer-specific symbol. The tests include translation of
@@ -181,8 +181,7 @@ def test_goceankernelmetadata_init2():
 
     with pytest.raises(ValueError) as info:
         _ = GOceanKernelMetadata(name="1error")
-    assert ("Expected name to be a valid value but found '1error'."
-            in str(info.value))
+    assert "Invalid Fortran name '1error' found." in str(info.value)
 
     metadata = GOceanKernelMetadata(
         iterates_over="go_all_pts", index_offset="go_offset_ne", meta_args=[],
@@ -478,8 +477,7 @@ def test_metadata_name():
     assert kernel_metadata.name == "new_name"
     with pytest.raises(ValueError) as info:
         kernel_metadata.name = "1invalid"
-    assert ("Expected name to be a valid value but found "
-            "'1invalid'." in str(info.value))
+    assert "Invalid Fortran name '1invalid' found." in str(info.value)
 
 
 # internal GridArg class

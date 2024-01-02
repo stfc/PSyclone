@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ program multikernel_invokes_7
   type(quadrature_xyoz_type) :: qr
 
   call invoke( ru_kernel_type(a, b, istp, rdt, d, e, qr), &
-               name="some name",                          &
+               name="some_name",                          &
                testkern_type(ascalar, f, b, c, g) )
 
 end program multikernel_invokes_7

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#          I. Kavcic, A. Coughtrie and L. Turner, Met Office;
+#          I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office;
 #          C. M. Maynard, Met Office/University of Reading;
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -46,8 +46,8 @@ import os
 import pytest
 
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicScalarArgs
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
+                                   LFRicKernMetadata, LFRicScalarArgs)
 from psyclone.f2pygen import ModuleGen
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
@@ -70,8 +70,8 @@ def test_lfricscalars_stub_err():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]

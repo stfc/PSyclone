@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council
+# Copyright (c) 2018-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Modified: O. Brunt, Met Office
 
 '''File containing a PSyclone transformation script for the Dynamo0p3
 API to make asynchronous halo exchanges and overlap their
@@ -40,7 +41,7 @@ in the generator.py script.
 
 '''
 
-from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
+from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
 
@@ -54,7 +55,7 @@ def trans(psy):
 
         # This transformation splits the three synchronous halo exchanges
         ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
-        for h_ex in schedule.walk(DynHaloExchange):
+        for h_ex in schedule.walk(LFRicHaloExchange):
             ahex_trans.apply(h_ex)
 
         # This transformation moves the start of the halo exchanges as far
@@ -62,7 +63,7 @@ def trans(psy):
         # and computation.
         mtrans = MoveTrans()
         location_cursor = 0
-        for ahex in schedule.walk(DynHaloExchangeStart):
+        for ahex in schedule.walk(LFRicHaloExchangeStart):
             if ahex.position <= location_cursor:
                 continue
             try:

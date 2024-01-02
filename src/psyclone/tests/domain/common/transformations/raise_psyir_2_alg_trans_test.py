@@ -32,13 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the translation of PSyIR to PSyclone
 Algorithm PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -418,7 +417,7 @@ def test_apply_codeblocks(fortran_reader):
     code = (
         "subroutine alg()\n"
         "  use kern_mod, only: kern\n"
-        "  call invoke(kern(0.0), kern(1.0), name='an invoke')\n"
+        "  call invoke(kern(0.0), kern(1.0), name='an_invoke')\n"
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
@@ -432,7 +431,7 @@ def test_apply_codeblocks(fortran_reader):
 
     invoke = subroutine.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke._name == "'an invoke'"
+    assert invoke._name == "an_invoke"
     assert invoke._index == 3
     assert len(invoke.children) == 2
     check_literal(invoke.children[0], "kern", "0.0")

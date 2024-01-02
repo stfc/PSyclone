@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic and L. Turner, Met Office
+# Modified: I. Kavcic, L. Turner, O. Brunt and J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
@@ -52,32 +52,32 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import lfric_builtins
+from psyclone.domain.lfric import lfric_builtins, LFRicKern, LFRicKernMetadata
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
-    DynKernelArguments, DynGlobalSum
-from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
+from psyclone.dynamo0p3 import (DynInvokeSchedule, DynGlobalSum,
+                                DynKernelArguments)
+from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
 from psyclone.parse.algorithm import parse, InvokeCall
-from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
-    InlinedKern, object_index, HaloExchange, Invoke, \
-    DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
-    InvokeSchedule, BuiltIn
-from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
-    Literal, Node, KernelSchedule, Call, colored
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
-    SymbolTable
+from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
+                             InlinedKern, object_index, HaloExchange, Invoke,
+                             DataAccess, Kern, Arguments, CodedKern, Argument,
+                             GlobalSum, InvokeSchedule, BuiltIn)
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
+                                  Literal, Loop, Node, KernelSchedule, Call,
+                                  colored, Schedule)
+from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
+                                    ImportInterface, ContainerSymbol, Symbol,
+                                    INTEGER_TYPE, DeferredType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
-    Dynamo0p3KernelConstTrans, Dynamo0p3OMPLoopTrans, Dynamo0p3ColourTrans, \
-    OMPParallelTrans
+from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
+                                      Dynamo0p3KernelConstTrans,
+                                      Dynamo0p3OMPLoopTrans,
+                                      Dynamo0p3ColourTrans, OMPParallelTrans)
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -264,7 +264,28 @@ def test_valid_return_object_from_name():
     assert isinstance(transform, Transformation)
 
 
-# tests for class Call
+# Tests for class Invokes
+
+def test_invokes_get():
+    '''Test the get() method of the Invokes class.'''
+    # Making an Invokes object is not easy so we do a full PSy generation.
+    _, invoke = parse(
+        os.path.join(BASE_PATH, "1.0.1_single_named_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke)
+    # Check that the get isn't case sensitive and doesn't require the
+    # leading "invoke_" text.
+    inv = psy.invokes.get("important_INVOKE")
+    # Stored name has "invoke_" prepended.
+    assert inv._name == "invoke_important_invoke"
+    # No matching name found.
+    with pytest.raises(RuntimeError) as err:
+        psy.invokes.get("missing")
+    assert ("Cannot find an invoke named 'missing' or 'invoke_missing' in "
+            "['invoke_important_invoke']" in str(err.value))
+
+
+# Tests for class InvokeCall
 
 def test_invokes_can_always_be_printed():
     '''Test that an Invoke instance can always be printed (i.e. is
@@ -455,12 +476,12 @@ def test_codedkern_node_str():
 
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     out = my_kern.node_str()
     expected_output = (
-        colored("CodedKern", DynKern._colour) +
+        colored("CodedKern", LFRicKern._colour) +
         " dummy_code(field_1,field_2,field_3) [module_inline=False]")
     assert expected_output in out
 
@@ -668,10 +689,10 @@ def test_kern_children_validation():
     accept any children.
 
     '''
-    # We use a subclass (CodedKern->DynKern) to test this functionality.
+    # We use a subclass (CodedKern->LFRicKern) to test this functionality.
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kern = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kern = LFRicKern()
     kern.load_meta(metadata)
 
     with pytest.raises(GenerationError) as excinfo:
@@ -681,8 +702,9 @@ def test_kern_children_validation():
 
 
 def test_inlinedkern_children_validation():
-    '''Test that children added to Kern are validated. A Kern node does not
-    accept any children.
+    '''Test that children added to InlinedKern are validated. An InlinedKern
+    must have one child that is a Schedule (which is created by its
+    constructor).
 
     '''
     ikern = InlinedKern(None)
@@ -691,6 +713,13 @@ def test_inlinedkern_children_validation():
         ikern.addchild(Literal("2", INTEGER_TYPE))
     assert ("Item 'Literal' can't be child 1 of 'InlinedKern'. The valid "
             "format is: 'Schedule'.") in str(excinfo.value)
+
+
+def test_inlinedkern_node_str():
+    '''Test the node_str() method of InlinedKern.'''
+    ikern = InlinedKern(Schedule())
+    text = ikern.node_str(colour=False)
+    assert text == "InlinedKern[]"
 
 
 def test_call_abstract_methods():
@@ -756,15 +785,15 @@ def test_incremented_arg():
     # Change the kernel metadata so that the the incremented kernel
     # argument has read access
     logging.disable(logging.CRITICAL)
-    # If we change the meta-data then we trip the check in the parser.
-    # Therefore, we change the object produced by parsing the meta-data
+    # If we change the metadata then we trip the check in the parser.
+    # Therefore, we change the object produced by parsing the metadata
     # instead
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     for descriptor in metadata.arg_descriptors:
         if descriptor.access == AccessType.INC:
             descriptor._access = AccessType.READ
-    my_kern = DynKern()
+    my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
         CodedKern.incremented_arg(my_kern)
@@ -798,7 +827,7 @@ def test_kern_is_coloured2():
         table.new_symbol(f"cell{idx}", symbol_type=DataSymbol,
                          datatype=INTEGER_TYPE)
     # Create a loop nest of depth 3 containing the kernel, innermost first
-    my_kern = DynKern()
+    my_kern = LFRicKern()
     loops = [PSyLoop.create(table.lookup("cell0"),
                             Literal("1", INTEGER_TYPE),
                             Literal("10", INTEGER_TYPE),
@@ -1551,7 +1580,7 @@ def test_haloexchange_node_str():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # We have to manually call the correct node_str() method as the one we want
-    # to test is overridden in DynHaloExchange.
+    # to test is overridden in LFRicHaloExchange.
     out = HaloExchange.node_str(schedule.children[2])
     assert (colored("HaloExchange", HaloExchange._colour) +
             "[field='m1', type='None', depth=None, check_dirty=True]" in out)
@@ -1877,7 +1906,7 @@ def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
     # kernel.
     node_list = field_e_v1.forward_read_dependencies()
     assert len(node_list) == 1
-    assert isinstance(node_list[0].call, DynKern)
+    assert isinstance(node_list[0].call, LFRicKern)
     # There are two halo exchanges after e_v1 which should not count
     # as dependencies and a read access from a kernel, so there should
     # be no write dependencies.
@@ -2200,10 +2229,10 @@ def test_walk():
     binary_op_list = invoke.schedule.walk(BinaryOperation)
     assert len(binary_op_list) == 3
 
-    # Now the same tests, but stop at any Kern --> no assignment
+    # Now the same tests, but stop at any Loop --> no assignment
     # or binary operation should be found"
-    assignment_list = invoke.schedule.walk(Assignment, Kern)
+    assignment_list = invoke.schedule.walk(Assignment, Loop)
     assert not assignment_list
 
-    binary_op_list = invoke.schedule.walk(BinaryOperation, Kern)
+    binary_op_list = invoke.schedule.walk(BinaryOperation, Loop)
     assert not binary_op_list

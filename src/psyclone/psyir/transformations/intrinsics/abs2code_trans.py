@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,15 +40,14 @@ by the back-end or if the performance in the inline code is better
 than the intrinsic.
 
 '''
-from __future__ import absolute_import
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-    Operator2CodeTrans
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Assignment, \
-    Reference, Literal, IfBlock
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
+    Intrinsic2CodeTrans)
+from psyclone.psyir.nodes import (
+    BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
-class Abs2CodeTrans(Operator2CodeTrans):
+class Abs2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR ABS Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
@@ -70,10 +69,8 @@ class Abs2CodeTrans(Operator2CodeTrans):
 
     '''
     def __init__(self):
-        super(Abs2CodeTrans, self).__init__()
-        self._operator_name = "ABS"
-        self._classes = (UnaryOperation,)
-        self._operators = (UnaryOperation.Operator.ABS,)
+        super().__init__()
+        self._intrinsic = IntrinsicCall.Intrinsic.ABS
 
     def apply(self, node, options=None):
         '''Apply the ABS intrinsic conversion transformation to the specified

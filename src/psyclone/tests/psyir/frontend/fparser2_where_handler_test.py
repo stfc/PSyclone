@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,11 +44,13 @@ from fparser.two import Fortran2003
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
-    Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
-    Call, Routine, Container, Range, ArrayMember, StructureReference
-from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
-    REAL_TYPE, INTEGER_TYPE, UnresolvedInterface
+from psyclone.psyir.nodes import (
+    Schedule, CodeBlock, Loop, ArrayReference, Assignment, Literal, Reference,
+    UnaryOperation, BinaryOperation, IfBlock, Call, Routine, Container, Range,
+    ArrayMember, StructureReference, IntrinsicCall)
+from psyclone.psyir.symbols import (
+    DataSymbol, ArrayType, ScalarType, REAL_TYPE, INTEGER_TYPE,
+    UnresolvedInterface)
 
 
 def process_where(code, fparser_cls, symbols=None):
@@ -57,18 +59,23 @@ def process_where(code, fparser_cls, symbols=None):
     PSyIR and fparser2 parse trees.
 
     :param str code: Fortran code to process.
-    :param type fparser_cls: the fparser2 class to instantiate to \
+    :param type fparser_cls: the fparser2 class to instantiate to
                              represent the supplied Fortran.
-    :param symbols: list of symbol names that must be added to the symbol \
+    :param symbols: list of symbol names that must be added to the symbol
                     table before constructing the PSyIR.
-    :type symbols: list of str
+    :type symbols: List[str]
 
-    :returns: 2-tuple of a parent PSyIR Schedule and the created instance of \
+    :returns: 2-tuple of a parent PSyIR Schedule and the created instance of
               the requested fparser2 class.
-    :rtype: (:py:class:`psyclone.psyir.nodes.Schedule`, \
-             :py:class:`fparser.two.utils.Base`)
+    :rtype: Tuple[:py:class:`psyclone.psyir.nodes.Schedule`,
+                  :py:class:`fparser.two.utils.Base`]
     '''
     sched = Schedule()
+    # Always add the 'wp' kind parameter as this must have specific properties.
+    sched.symbol_table.new_symbol("wp", symbol_type=DataSymbol,
+                                  datatype=INTEGER_TYPE,
+                                  initial_value=Literal("8", INTEGER_TYPE),
+                                  is_constant=True)
     if symbols:
         for sym_name in symbols:
             sched.symbol_table.new_symbol(sym_name)
@@ -92,7 +99,7 @@ def test_where_broken_tree():
     fake_parent, fparser2spec = process_where(
         "WHERE (ptsu(:, :, :) /= 0._wp)\n"
         "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "wp", "z1_st"])
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
     processor = Fparser2Reader()
     # Test with unexpected clause by adding an extra end-where statement
     assert isinstance(fparser2spec.content[-1], Fortran2003.End_Where_Stmt)
@@ -126,7 +133,7 @@ def test_elsewhere_broken_tree():
         "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
         "ELSE WHERE\n"
         "  z1_st(:, :, :) = 0._wp\n"
-        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "wp", "z1_st"])
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
     processor = Fparser2Reader()
     # Insert an additional Elsewhere_Stmt
     assert isinstance(fparser2spec.content[-3], Fortran2003.Elsewhere_Stmt)
@@ -147,7 +154,7 @@ def test_missing_array_notation_expr(mask):
     fake_parent, _ = process_where(f"WHERE ({mask} /= 0._wp)\n"
                                    f"z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
                                    f"END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "wp", "z1_st"])
+                                   ["ptsu", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -159,7 +166,7 @@ def test_labelled_where():
     fake_parent, _ = process_where("100 WHERE (ptsu /= 0._wp)\n"
                                    "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "wp", "z1_st"])
+                                   ["ptsu", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -172,7 +179,7 @@ def test_missing_array_notation_lhs():
     fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
                                    "  z1_st = 1._wp / ptsu(:, :, :)\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "wp", "z1_st"])
+                                   ["ptsu", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -184,7 +191,7 @@ def test_missing_array_notation_in_assign():
     fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
                                    "  z1_st = 1._wp\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "wp", "z1_st"])
+                                   ["ptsu", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
 
@@ -303,13 +310,13 @@ def test_where_within_loop(fortran_reader):
     # Check that we have symbols for the two arrays
     mymod = psyir.children[0]
     assert isinstance(mymod, Container)
-    assert "var" in mymod.symbol_table
-    assert "var2" in mymod.symbol_table
-    assert isinstance(mymod.symbol_table.lookup("var").interface,
-                      UnresolvedInterface)
-    assert isinstance(mymod.symbol_table.lookup("var2").interface,
-                      UnresolvedInterface)
     sub = mymod.children[0]
+    assert "var" in sub.symbol_table
+    assert "var2" in sub.symbol_table
+    assert isinstance(sub.symbol_table.lookup("var").interface,
+                      UnresolvedInterface)
+    assert isinstance(sub.symbol_table.lookup("var2").interface,
+                      UnresolvedInterface)
     assert isinstance(sub, Routine)
     assert isinstance(sub[0], Loop)
     assert sub[0].variable.name == "jl"
@@ -341,7 +348,8 @@ def test_basic_where():
         assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     assert isinstance(loops[0].children[0], Literal)
-    assert isinstance(loops[0].children[1], BinaryOperation)
+    assert isinstance(loops[0].children[1], IntrinsicCall)
+    assert loops[0].children[1].intrinsic == IntrinsicCall.Intrinsic.SIZE
     assert str(loops[0].children[1].children[0]) == "Reference[name:'dry']"
 
     ifblock = loops[2].loop_body[0]
@@ -417,7 +425,7 @@ def test_elsewhere():
                                    "ELSEWHERE\n"
                                    "  z1_st(:, :, :) = 0._wp\n"
                                    "END WHERE\n", Fortran2003.Where_Construct,
-                                   ["ptsu", "wp", "z1_st"])
+                                   ["ptsu", "z1_st"])
     # This should become:
     #
     # if ptsu(ji,jj,jk) > 10._wp)then
@@ -579,7 +587,8 @@ def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     assert len(loops) == 2
-    assert isinstance(loops[1].stop_expr, BinaryOperation)
+    assert isinstance(loops[1].stop_expr, IntrinsicCall)
+    assert loops[1].stop_expr.intrinsic == IntrinsicCall.Intrinsic.SIZE
     assert isinstance(loops[1].stop_expr.children[0], StructureReference)
     assert fortran_writer(loops[1].stop_expr.children[0]) == size_arg
     assert isinstance(loops[1].loop_body[0], IfBlock)

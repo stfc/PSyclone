@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,8 @@ PSyclone-conformant Algorithm code.
 
 '''
 
-from __future__ import absolute_import
 from collections import OrderedDict
 
-from fparser.two import pattern_tools
 from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import Main_Program, Module, \
@@ -61,6 +59,7 @@ from psyclone.parse.kernel import BuiltInKernelTypeFactory, get_kernel_ast, \
     KernelTypeFactory
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
+from psyclone.psyir.frontend.fortran import FortranReader
 
 # pylint: disable=too-many-statements
 # pylint: disable=too-many-branches
@@ -389,7 +388,7 @@ class Parser():
         '''
         kernel_name, args = get_kernel(argument, self._alg_filename,
                                        self._arg_type_defns)
-        if kernel_name.lower() in self._builtin_name_map.keys():
+        if kernel_name.lower() in self._builtin_name_map:
             # This is a builtin kernel
             kernel_call = self.create_builtin_kernel_call(
                 kernel_name, args)
@@ -557,22 +556,23 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     returns the label specified within it.
 
     :param parse_tree: Parse tree of an invoke argument. This should \
-    contains a "name=xxx" argument.
+                       contain a "name=xxx" argument.
     :type parse_tree: :py:class:`fparser.two.Actual_Arg_Spec`
     :param str alg_filename: The file containing the algorithm code.
-    :param str identifier: An optional string specifying the name \
-    used to specify a named arguement. Defaults to 'name'.
-    :returns: the label as a string.
+    :param str identifier: An optional name used to specify a named argument. \
+                           Defaults to 'name'.
+
+    :returns: the label as a lower-cased string.
     :rtype: str
+
     :except InternalError: if the form of the argument is not what was \
-    expected.
+                           expected.
     :except InternalError: if the number of items contained in the \
-    argument is not what was expected.
+                           argument is not what was expected.
     :except ParseError: if the name used for the named argument does \
-    not match what was expected.
+                        not match what was expected.
     :except ParseError: if the label is not specified as a string.
-    :except ParseError: if the label is not a valid Fortran name \
-    (after any white space has been replaced with '_').
+    :except ParseError: if the label is not a valid Fortran name.
 
     '''
     if not isinstance(parse_tree, Actual_Arg_Spec):
@@ -605,14 +605,19 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     if invoke_label[0] == '"' and invoke_label[-1] == '"' or \
        invoke_label[0] == "'" and invoke_label[-1] == "'":
         invoke_label = invoke_label[1:-1]
-    invoke_label = invoke_label.replace(" ", "_")
 
-    if not pattern_tools.abs_name.match(invoke_label):
-        raise ParseError(
-            f"algorithm.py:Parser:get_invoke_label the (optional) name of an "
-            f"invoke must be a string containing a valid Fortran name (with "
-            f"any spaces replaced by underscores) but got '{invoke_label}' in "
-            f"file {alg_filename}")
+    try:
+        if invoke_label:
+            FortranReader.validate_name(invoke_label)
+            # We store any name as lowercase.
+            invoke_label = invoke_label.lower()
+    except (TypeError, ValueError) as err:
+        raise (
+            ParseError(
+                f"algorithm.py:Parser:get_invoke_label the (optional) name of "
+                f"an invoke must be a string containing a valid Fortran name "
+                f"(with no whitespace) but got '{invoke_label}' in file "
+                f"{alg_filename}")) from err
 
     return invoke_label
 

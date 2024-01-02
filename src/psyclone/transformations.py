@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,8 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
-# Modified J. G. Wallwork, Met Office
+# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -48,24 +47,31 @@ import abc
 
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.domain.lfric import KernCallArgList, LFRicConstants
-from psyclone.dynamo0p3 import DynHaloExchangeEnd, DynHaloExchangeStart, \
-    DynInvokeSchedule, DynKern
+from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.domain.lfric import (KernCallArgList, LFRicConstants, LFRicKern,
+                                   LFRicLoop)
+from psyclone.dynamo0p3 import (LFRicHaloExchangeEnd, LFRicHaloExchangeStart,
+                                DynInvokeSchedule)
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
-from psyclone.psyGen import Transformation, CodedKern, Kern, InvokeSchedule, \
-    BuiltIn
-from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
-    ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective, \
-    ACCParallelDirective, ACCRoutineDirective, Assignment, CodeBlock, \
-    Directive, Loop, Node, OMPDeclareTargetDirective, \
-    OMPDirective, OMPMasterDirective, \
-    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
-    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference, \
-    Return, Routine, Schedule
-from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
-    DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
+from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
+                             BuiltIn)
+from psyclone.psyir.nodes import (
+    ACCDataDirective, ACCDirective,
+    ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective,
+    ACCParallelDirective, ACCRoutineDirective, Assignment, Call, CodeBlock,
+    Directive, IntrinsicCall, Loop, Node, OMPDeclareTargetDirective,
+    OMPDirective, OMPMasterDirective,
+    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
+    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
+    Return, Routine, Schedule)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.structure_member import StructureMember
+from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.symbols import (
+    ArgumentInterface, DataSymbol, DeferredType, INTEGER_TYPE, ScalarType,
+    Symbol, SymbolError)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
@@ -93,7 +99,7 @@ def check_intergrid(node):
     '''
     if not node.children:
         return
-    child_kernels = node.walk(DynKern)
+    child_kernels = node.walk(LFRicKern)
     for kern in child_kernels:
         if kern.is_intergrid:
             raise TransformationError(
@@ -490,7 +496,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (PSyDataNode)
+    excluded_node_types = (PSyDataNode,)
 
     def __init__(self):
         # Whether to add the "independent" clause
@@ -634,10 +640,10 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         validity checks. Actual transformation is done by the
         :py:class:`base class <OMPParallelLoopTrans>`.
 
-        :param str omp_directive: choose which OpenMP loop directive to use. \
+        :param str omp_directive: choose which OpenMP loop directive to use.
             Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+        :param str omp_schedule: the OpenMP schedule to use. Must be one of
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to
             'static'.
 
     '''
@@ -648,36 +654,43 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
-    def apply(self, node, options=None):
-
-        '''Perform Dynamo specific loop validity checks then call the
-        :py:meth:`~OMPParallelLoopTrans.apply` method of the
-        :py:class:`base class <OMPParallelLoopTrans>`.
+    def validate(self, node, options=None):
+        '''
+        Perform LFRic-specific loop validity checks then call the `validate`
+        method of the base class.
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the associated loop requires \
-                colouring.
-
+        :raises TransformationError: if the supplied Node is not a LFRicLoop.
+        :raises TransformationError: if the associated loop requires
+            colouring.
         '''
-        self.validate(node, options=options)
+        if not isinstance(node, LFRicLoop):
+            raise TransformationError(
+                f"Error in {self.name} transformation. The supplied node "
+                f"must be a LFRicLoop but got '{type(node).__name__}'")
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
         # any_discontinuous_space) then we don't need to worry about
         # colouring.
         const = LFRicConstants()
-        if node.field_space.orig_name not in \
-           const.VALID_DISCONTINUOUS_NAMES:
+        if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
             if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     f"Error in {self.name} transformation. The kernel has an "
                     f"argument with INC access. Colouring is required.")
-
-        OMPParallelLoopTrans.apply(self, node, options=options)
+        # As this is a domain-specific loop, we don't perform general
+        # dependence analysis because it is too conservative and doesn't
+        # account for the special steps taken for such a loop at code-
+        # generation time (e.g. the way we ensure variables are given the
+        # correct sharing attributes).
+        local_options = options.copy() if options else {}
+        local_options["force"] = True
+        super().validate(node, options=local_options)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
@@ -978,7 +991,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         loop is over cells of that colour.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type node: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param options: a dictionary with options for transformations.\
         :type options: Optional[Dict[str, Any]]
 
@@ -1080,11 +1093,6 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def __str__(self):
         pass  # pragma: no cover
-
-    @property
-    @abc.abstractmethod
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
 
     def validate(self, node_list, options=None):
         # pylint: disable=arguments-renamed
@@ -1433,52 +1441,122 @@ class OMPParallelTrans(ParallelRegionTrans):
 
 class ACCParallelTrans(ParallelRegionTrans):
     '''
-    Create an OpenACC parallel region by inserting directives. This parallel
-    region *must* come after an enter-data directive (see `ACCEnterDataTrans`)
-    or within a data region (see `ACCDataTrans`). For example:
+    Create an OpenACC parallel region by inserting an 'acc parallel'
+    directive.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
     >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> ptrans = t.get_trans_name('ACCParallelTrans')
-    >>> dtrans = t.get_trans_name('ACCDataTrans')
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.nodes import Loop
+    >>> psyir = FortranReader().psyir_from_source("""
+    ... program do_loop
+    ...     real, dimension(10) :: A
+    ...     integer i
+    ...     do i = 1, 10
+    ...       A(i) = i
+    ...     end do
+    ... end program do_loop
+    ... """)
+    >>> ptrans = TransInfo().get_trans_name('ACCParallelTrans')
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> # Enclose everything within a single OpenACC PARALLEL region
-    >>> ptrans.apply(schedule.children)
-    >>> # Add an enter-data directive
-    >>> dtrans.apply(schedule)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    >>> # Enclose the loop within a OpenACC PARALLEL region
+    >>> ptrans.apply(psyir.walk(Loop))
+    >>> print(FortranWriter()(psyir))
+    program do_loop
+      real, dimension(10) :: a
+      integer :: i
+    <BLANKLINE>
+      !$acc parallel default(present)
+      do i = 1, 10, 1
+        a(i) = i
+      enddo
+      !$acc end parallel
+    <BLANKLINE>
+    end program do_loop
+    <BLANKLINE>
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
                            ACCDataDirective, ACCEnterDataDirective,
                            psyGen.HaloExchange)
 
-    def __init__(self):
+    def __init__(self, default_present=True):
         super().__init__()
-        # Set the type of directive that the base class will use
-        self._directive_factory = ACCParallelDirective
+        if not isinstance(default_present, bool):
+            raise TypeError(
+                f"The provided 'default_present' argument must be a "
+                f"boolean, but found '{default_present}'."
+            )
+        self._default_present = default_present
 
     def __str__(self):
         return "Insert an OpenACC Parallel region"
 
-    @property
-    def name(self):
+    def validate(self, node_list, options=None):
         '''
-        :returns: the name of this transformation as a string.
-        :rtype: str
+        Validate this transformation.
+
+        :param node_list: a single Node or a list of Nodes.
+        :type node_list: :py:class:`psyclone.psyir.nodes.Node` |
+            List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["node-type-check"]: this flag controls if the
+            type of the nodes enclosed in the region should be tested to
+            avoid using unsupported nodes inside a region.
+        :param bool options["default_present"]: this flag controls if the
+            inserted directive should include the default_present clause.
+
         '''
-        return "ACCParallelTrans"
+        super().validate(node_list, options)
+        if options is not None and "default_present" in options:
+            if not isinstance(options["default_present"], bool):
+                raise TransformationError(
+                    f"The provided 'default_present' option must be a "
+                    f"boolean, but found '{options['default_present']}'."
+                )
+
+    def apply(self, target_nodes, options=None):
+        '''
+        Encapsulate given nodes with the ACCParallelDirective.
+
+        :param target_nodes: a single Node or a list of Nodes.
+        :type target_nodes: :py:class:`psyclone.psyir.nodes.Node` |
+            List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["node-type-check"]: this flag controls if the
+            type of the nodes enclosed in the region should be tested to
+            avoid using unsupported nodes inside a region.
+        :param bool options["default_present"]: this flag controls if the
+            inserted directive should include the default_present clause.
+
+        '''
+        if not options:
+            options = {}
+        # Check whether we've been passed a list of nodes or just a
+        # single node. If the latter then we create ourselves a
+        # list containing just that node.
+        node_list = self.get_node_list(target_nodes)
+        self.validate(node_list, options)
+
+        # Keep a reference to the parent of the nodes that are to be
+        # enclosed within a parallel region. Also keep the index of
+        # the first child to be enclosed as that will become the
+        # position of the new !$omp parallel directive.
+        node_parent = node_list[0].parent
+        node_position = node_list[0].position
+
+        # Create the parallel directive
+        directive = ACCParallelDirective(
+            children=[node.detach() for node in node_list])
+        directive.default_present = options.get("default_present",
+                                                self._default_present)
+
+        # Add the region directive as a child of the parent
+        # of the nodes being enclosed and at the original location
+        # of the first of these nodes
+        node_parent.addchild(directive, index=node_position)
 
 
 class MoveTrans(Transformation):
@@ -1777,7 +1855,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         of the field's halo.
 
         :param loop: the loop that we are transforming.
-        :type loop: :py:class:`psyclone.psyGen.DynLoop`
+        :type loop: :py:class:`psyclone.psyGen.LFRicLoop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param int options["depth"]: the depth of the stencil. Defaults \
@@ -1856,12 +1934,12 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         # exchange
         # pylint: disable=protected-access
         node.parent.addchild(
-            DynHaloExchangeStart(
+            LFRicHaloExchangeStart(
                 node.field, check_dirty=node._check_dirty,
                 vector_index=node.vector_index, parent=node.parent),
             index=node.position)
         node.parent.addchild(
-            DynHaloExchangeEnd(
+            LFRicHaloExchangeEnd(
                 node.field, check_dirty=node._check_dirty,
                 vector_index=node.vector_index, parent=node.parent),
             index=node.position)
@@ -1884,7 +1962,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
         '''
         if not isinstance(node, psyGen.HaloExchange) or \
-           isinstance(node, (DynHaloExchangeStart, DynHaloExchangeEnd)):
+           isinstance(node, (LFRicHaloExchangeStart, LFRicHaloExchangeEnd)):
             raise TransformationError(
                 f"Error in Dynamo0p3AsyncHaloExchange transformation. Supplied"
                 f" node must be a synchronous halo exchange but found "
@@ -1973,7 +2051,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         is derived.
 
         :param node: a kernel node.
-        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the cells. This is\
@@ -2040,11 +2118,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # Create a new symbol with a known constant value then swap
             # it with the argument. The argument then becomes xxx_dummy
             # and is unused within the kernel body.
-            # TODO: Temporarily use unsafe name change until the name
-            # space manager is introduced into the SymbolTable (Issue
-            # #321).
             orig_name = symbol.name
-            local_symbol = DataSymbol(orig_name+"_dummy", INTEGER_TYPE,
+            new_name = symbol_table.next_available_name(f"{orig_name}_dummy")
+            local_symbol = DataSymbol(new_name, INTEGER_TYPE,
                                       is_constant=True, initial_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
@@ -2130,7 +2206,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         this transformation.
 
         :param node: a dynamo 0.3 kernel node.
-        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the elements/cells.
@@ -2150,7 +2226,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             provided (as the former needs the latter).
 
         '''
-        if not isinstance(node, DynKern):
+        if not isinstance(node, LFRicKern):
             raise TransformationError(
                 f"Error in Dynamo0p3KernelConstTrans transformation. Supplied "
                 f"node must be a dynamo kernel but found '{type(node)}'.")
@@ -2350,6 +2426,7 @@ class ACCRoutineTrans(Transformation):
     >>> kern = schedule.children[0].children[0].children[0]
     >>> # Transform the kernel
     >>> rtrans.apply(kern)
+
     '''
     @property
     def name(self):
@@ -2395,19 +2472,23 @@ class ACCRoutineTrans(Transformation):
         Perform checks that the supplied kernel or routine can be transformed.
 
         :param node: the kernel which is the target of the transformation.
-        :type node: :py:class:`psyclone.psyGen.Kern` or \
+        :type node: :py:class:`psyclone.psyGen.Kern` |
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
-        :raises TransformationError: if it is a kernel but without an \
+        :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
-        :raises TransformationError: if any of the symbols in the kernel are \
+        :raises TransformationError: if any of the symbols in the kernel are
                                      accessed via a module use statement.
+        :raises TransformationError: if the kernel contains any calls to other
+                                     routines.
         '''
         super().validate(node, options)
+
+        force = options.get("force", False) if options else False
 
         if not isinstance(node, Kern) and not isinstance(node, Routine):
             raise TransformationError(
@@ -2415,13 +2496,13 @@ class ACCRoutineTrans(Transformation):
                 f"Kern or Routine but got '{type(node).__name__}'.")
 
         # If it is a kernel call it must have an accessible implementation
-        if isinstance(node, Kern):
-            if isinstance(node, BuiltIn):
-                raise TransformationError(
-                    f"Applying ACCRoutineTrans to a built-in kernel is not yet"
-                    f" supported and kernel '{node.name}' is of type "
-                    f"'{type(node).__name__}'")
+        if isinstance(node, BuiltIn):
+            raise TransformationError(
+                f"Applying ACCRoutineTrans to a built-in kernel is not yet"
+                f" supported and kernel '{node.name}' is of type "
+                f"'{type(node).__name__}'")
 
+        if isinstance(node, Kern):
             # Get the PSyIR routine from the associated kernel. If there is an
             # exception (this could mean that there is no associated tree
             # or that the frontend failed to convert it into PSyIR) reraise it
@@ -2432,20 +2513,74 @@ class ACCRoutineTrans(Transformation):
                 raise TransformationError(
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
+            k_or_r = "Kernel"
+        else:
+            # Supplied node is a PSyIR Routine which *is* a Schedule.
+            kernel_schedule = node
+            k_or_r = "routine"
 
-            # Check that the kernel does not access any data or routines via a
-            # module 'use' statement
-            imported_variables = kernel_schedule.symbol_table.imported_symbols
-            if imported_variables:
+        # Check that the routine does not access any data that is imported via
+        # a 'use' statement.
+        # TODO #2271 - this implementation will not catch symbols from literal
+        # precisions or intialisation expressions.
+        refs = kernel_schedule.walk(Reference)
+        for ref in refs:
+            if ref.symbol.is_import:
+                # resolve_deferred does nothing if the Symbol type is known.
+                try:
+                    ref.symbol.resolve_deferred()
+                except SymbolError:
+                    # TODO #11 - log that we failed to resolve this Symbol.
+                    pass
+                if (isinstance(ref.symbol, DataSymbol) and
+                        ref.symbol.is_constant):
+                    # An import of a compile-time constant is fine.
+                    continue
                 raise TransformationError(
-                    f"The Symbol Table for kernel '{node.name}' contains the "
-                    f"following symbol(s) with imported interface: "
-                    f"{[sym.name for sym in imported_variables]}. If these "
-                    f"symbols represent data then they must first be converted"
-                    f" to kernel arguments using the KernelImportsToArguments "
-                    f"transformation. If the symbols represent external "
-                    f"routines then PSyclone cannot currently transform this "
-                    f"kernel for execution on an OpenACC device (issue #342).")
+                    f"{k_or_r} '{node.name}' accesses the symbol "
+                    f"'{ref.symbol}' which is imported. If this symbol "
+                    f"represents data then it must first be converted to a "
+                    f"{k_or_r} argument using the KernelImportsToArguments "
+                    f"transformation.")
+
+        # We forbid CodeBlocks because we can't be certain that what they
+        # contain can be executed on a GPU. However, we do permit the user
+        # to override this check.
+        cblocks = kernel_schedule.walk(CodeBlock)
+        if not force:
+            if cblocks:
+                cblock_txt = ("\n  " + "\n  ".join(str(node) for node in
+                                                   cblocks[0].get_ast_nodes)
+                              + "\n")
+                option_txt = "options={'force': True}"
+                raise TransformationError(
+                    f"Cannot safely add 'ACC routine' to {k_or_r} "
+                    f"'{node.name}' because its PSyIR contains one or more "
+                    f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
+                    f"override this check.")
+        else:
+            # Check any accesses within CodeBlocks.
+            # TODO #2271 - this will be handled as part of the checking to be
+            # implemented using the dependence analysis.
+            for cblock in cblocks:
+                names = cblock.get_symbol_names()
+                for name in names:
+                    sym = kernel_schedule.symbol_table.lookup(name)
+                    if sym.is_import:
+                        raise TransformationError(
+                            f"{k_or_r} '{node.name}' accesses the symbol "
+                            f"'{sym.name}' within a CodeBlock and this symbol "
+                            f"is imported. 'ACC routine' cannot be added to "
+                            f"such a {k_or_r}.")
+
+        calls = kernel_schedule.walk(Call)
+        for call in calls:
+            if not isinstance(call, IntrinsicCall):
+                call_str = call.debug_string().rstrip("\n")
+                raise TransformationError(
+                    f"{k_or_r} '{node.name}' calls another routine "
+                    f"'{call_str}' and therefore cannot have "
+                    f"'ACC routine' added to it (TODO #342).")
 
 
 class ACCKernelsTrans(RegionTrans):
@@ -2623,7 +2758,7 @@ class ACCDataTrans(RegionTrans):
 
         # Create a directive containing the nodes in node_list and insert it.
         directive = ACCDataDirective(
-            parent=parent, children=[node.detach() for node in node_list])
+                parent=parent, children=[node.detach() for node in node_list])
 
         parent.children.insert(start_index, directive)
 
@@ -2634,15 +2769,18 @@ class ACCDataTrans(RegionTrans):
         of nodes.
 
         :param nodes: the proposed node(s) to enclose in a data region.
-        :type nodes: (list of) subclasses of \
-                     :py:class:`psyclone.psyir.nodes.Node`
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`] |
+            :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the Schedule to which the nodes \
-                                belong already has an 'enter data' directive.
-        :raises TransformationError: if any of the nodes are themselves \
-                                     data directives.
+        :raises TransformationError: if the Schedule to which the nodes
+            belong already has an 'enter data' directive.
+        :raises TransformationError: if any of the nodes are themselves
+            data directives.
+        :raises TransformationError: if an array of structures needs to be
+            deep copied (this is not currently supported).
+
         '''
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
@@ -2658,6 +2796,44 @@ class ACCDataTrans(RegionTrans):
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
                 "already contains an 'enter data' directive.")
+        # Check that we don't have any accesses to arrays of derived types
+        # that we can't yet deep copy.
+        for node in node_list:
+            for sref in node.walk(StructureReference):
+
+                # Find the loop variables for all Loops that contain this
+                # access and are themselves within the data region.
+                loop_vars = []
+                cursor = sref.ancestor(Loop, limit=node)
+                while cursor:
+                    loop_vars.append(Signature(cursor.variable.name))
+                    cursor = cursor.ancestor(Loop)
+
+                # Now check whether any of these loop variables appear within
+                # the structure reference.
+                # Loop over each component of the structure reference that is
+                # an array access.
+                array_accesses = sref.walk(ArrayMixin)
+                for access in array_accesses:
+                    if not isinstance(access, StructureMember):
+                        continue
+                    var_accesses = VariablesAccessInfo(access.indices)
+                    for var in loop_vars:
+                        if var not in var_accesses.all_signatures:
+                            continue
+                        # For an access such as my_struct(ii)%my_array(ji)
+                        # then if we're inside a loop over it we would actually
+                        # need a loop to do the deep copy:
+                        #   do ii = 1, N
+                        #   !$acc data copyin(my_struct(ii)%my_array)
+                        #   end do
+                        raise TransformationError(
+                            f"Data region contains a structure access "
+                            f"'{sref.debug_string()}' where component "
+                            f"'{access.name}' is an array and is iterated over"
+                            f" (variable '{var}'). Deep copying of data for "
+                            f"structures is only supported where the deepest "
+                            f"component is the one being iterated over.")
 
 
 class KernelImportsToArguments(Transformation):

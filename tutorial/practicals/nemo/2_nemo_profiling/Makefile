@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ $(NAME): $(KERNELS) psy.o runner.o
 	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
 psy.f90: tra_adv_mod.F90
-	$(PSYCLONE) --profile invokes -api nemo \
+	$(PSYCLONE) --profile routines -api nemo \
                      -opsy psy.f90 -l output tra_adv_mod.F90
 #	$(PSYCLONE) -s ./profile_trans.py -api nemo \
 #                     -opsy psy.f90 -l output tra_adv_mod.F90

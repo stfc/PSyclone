@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''This module tests the inlining transformation.
 '''
@@ -42,7 +42,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine
+from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
 from psyclone.psyir.symbols import DataSymbol, DeferredType, AutomaticInterface
 from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
@@ -319,25 +319,25 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for routine in psyir.walk(Call):
+    for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
 
     output = fortran_writer(psyir)
     assert ("    do i = 1, 5, 1\n"
-            "      do i_3 = 1, 10, 1\n"
-            "        var%data(i_3) = 2.0 * i\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        var%data(i_1) = 2.0 * i\n"
             "      enddo\n"
             "      var%data(:) = -1.0\n"
             "      var%data = -5.0\n"
             "      var%data(1:2) = 0.0\n"
-            "      do i_1 = 1, 10, 1\n"
-            "        var_list(i)%data(i_1) = 2.0 * i\n"
+            "      do i_2 = 1, 10, 1\n"
+            "        var_list(i)%data(i_2) = 2.0 * i\n"
             "      enddo\n"
             "      var_list(i)%data(:) = -1.0\n"
             "      var_list(i)%data = -5.0\n"
             "      var_list(i)%data(1:2) = 0.0\n"
-            "      do i_2 = 1, 10, 1\n"
-            "        var2(i)%region%data(i_2) = 2.0 * i\n"
+            "      do i_3 = 1, 10, 1\n"
+            "        var2(i)%region%data(i_3) = 2.0 * i\n"
             "      enddo\n"
             "      var2(i)%region%data(:) = -1.0\n"
             "      var2(i)%region%data = -5.0\n"
@@ -453,7 +453,7 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for routine in psyir.walk(Call):
+    for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
     assert "var_list(:)%local%nx = var_list(:)%local%nx + 1" in output
@@ -490,7 +490,7 @@ def test_apply_struct_local_limits_caller(fortran_reader, fortran_writer,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for routine in psyir.walk(Call):
+    for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
     assert "var_list(3:7)%data(2) = 1.0" in output
@@ -534,7 +534,7 @@ def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for routine in psyir.walk(Call):
+    for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
     # Actual declared range is non-default.
@@ -587,7 +587,7 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for routine in psyir.walk(Call):
+    for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(routine)
     output = fortran_writer(psyir)
     # Access within routine is to full range but formal arg. is declared with
@@ -655,7 +655,7 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
         )
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for routine in psyir.walk(Call):
+    for routine in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         if not isinstance(routine, IntrinsicCall):
             inline_trans.apply(routine)
     output = fortran_writer(psyir)
@@ -715,19 +715,19 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for call in psyir.walk(Call):
+    for call in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("    do i = 1, 10, 1\n"
-            "      do i_4 = 1, 10, 1\n"
-            "        a(1,i_4,i) = 2.0 * i_4\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        a(1,i_1,i) = 2.0 * i_1\n"
             "      enddo\n"
             "    enddo\n"
             "    a(1,1,:) = 3.0 * a(1,1,:)\n"
             "    a(:,1,:) = 2.0 * a(:,1,:)\n"
             "    b(:,:) = 2.0 * b(:,:)\n"
-            "    do i_3 = 1, 10, 1\n"
-            "      b(i_3,:5) = 2.0 * b(i_3,:5)\n" in output)
+            "    do i_4 = 1, 10, 1\n"
+            "      b(i_4,:5) = 2.0 * b(i_4,:5)\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -763,11 +763,11 @@ def test_apply_struct_array_arg(fortran_reader, fortran_writer, tmpdir):
         f"  end subroutine sub\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
-    routines = psyir.walk(Call)
+    loops = psyir.walk(Loop)
     inline_trans = InlineTrans()
-    inline_trans.apply(routines[0])
-    inline_trans.apply(routines[1])
-    inline_trans.apply(routines[2])
+    inline_trans.apply(loops[0].loop_body.children[1])
+    inline_trans.apply(loops[1].loop_body.children[1])
+    inline_trans.apply(loops[2].loop_body.children[1])
     output = fortran_writer(psyir).lower()
     assert ("    do i = 1, 10, 1\n"
             "      a(i) = 1.0\n"
@@ -821,7 +821,8 @@ def test_apply_struct_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
     for call in psyir.walk(Call):
-        inline_trans.apply(call)
+        if not isinstance(call, IntrinsicCall):
+            inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("    do i = 1, 10, 1\n"
             "      a(i) = 1.0\n"
@@ -929,7 +930,7 @@ def test_apply_repeated_module_use(fortran_reader, fortran_writer):
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     inline_trans = InlineTrans()
-    for call in psyir.walk(Call):
+    for call in psyir.walk(Routine)[0].walk(Call, stop_type=Call):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
     # Check container symbol has not been renamed.
@@ -2404,3 +2405,35 @@ def test_find_routine_in_container(fortran_reader):
             call_node, call_node.routine.interface.container_symbol)
     assert isinstance(result, Routine)
     assert result.name == "sub"
+
+
+def test_apply_merges_symbol_table_with_routine(fortran_reader):
+    '''
+    Check that the apply method merges the inlined function's symbol table to
+    the containing Routine when the call node is inside a child ScopingNode.
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    real :: a(10)\n"
+        "    do i=1,10\n"
+        "      call sub(a, i)\n"
+        "    end do\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(x, ivar)\n"
+        "    real, intent(inout), dimension(10) :: x\n"
+        "    integer, intent(in) :: ivar\n"
+        "    integer :: i\n"
+        "    do i = 1, 10\n"
+        "      x(i) = 2.0*ivar\n"
+        "    end do\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    # The i_1 symbol is the renamed i from the inlined call.
+    assert psyir.walk(Routine)[0].symbol_table.get_symbols()['i_1'] is not None

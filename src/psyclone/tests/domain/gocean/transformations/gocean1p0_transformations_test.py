@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Loop, Routine, ACCEnterDataDirective
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
 from psyclone.transformations import ACCKernelsTrans, ACCRoutineTrans, \
@@ -1277,9 +1277,10 @@ def test_accloop(tmpdir, fortran_writer):
     # enclosing parallel region
     with pytest.raises(GenerationError) as err:
         _ = fortran_writer(psy.container)
-    assert ("ACCLoopDirective must have an ACCParallelDirective or "
-            "ACCKernelsDirective as an ancestor in the Schedule" in
-            str(err.value))
+    assert ("ACCLoopDirective in routine 'invoke_0' must either have an "
+            "ACCParallelDirective or ACCKernelsDirective as an ancestor in "
+            "the Schedule or the routine must contain an ACCRoutineDirective"
+            in str(err.value))
 
     # Add an enclosing parallel region
     accpara.apply(schedule.children)
@@ -1484,8 +1485,9 @@ def test_accroutinetrans_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("imported interface: ['rdt']. If these symbols represent data then"
-            " they must first" in str(err.value))
+    assert ("accesses the symbol 'rdt: Symbol<Import(container='model_mod')>' "
+            "which is imported. If this symbol "
+            "represents data then it must first" in str(err.value))
 
 
 def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):

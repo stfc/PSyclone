@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 
 '''A module to perform pytest tests on the code in the preprocess.py
@@ -207,8 +207,8 @@ def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
         "  real, dimension(10,10,10) :: f\n"
         "  integer :: idx\n"
         "  integer :: idx_1\n\n"
-        "  do idx = LBOUND(a, 3), UBOUND(a, 3), 1\n"
-        "    do idx_1 = LBOUND(a, 1), UBOUND(a, 1), 1\n"
+        "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
+        "    do idx_1 = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "      a(idx_1,1,idx) = b(idx_1,1,idx) * c(idx_1,1,idx)\n"
         "    enddo\n"
         "  enddo\n"

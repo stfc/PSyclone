@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,12 @@
 
 '''Module containing tests for the abs2code transformation.'''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import Abs2CodeTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
     ArgumentInterface, REAL_TYPE
-from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, \
-    BinaryOperation, Literal, KernelSchedule
+from psyclone.psyir.nodes import Reference, Assignment, \
+    BinaryOperation, Literal, KernelSchedule, IntrinsicCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.configuration import Config
 from psyclone.tests.utilities import Compile
@@ -53,23 +52,21 @@ def test_initialise():
 
     '''
     trans = Abs2CodeTrans()
-    assert trans._operator_name == "ABS"
-    assert trans._classes == (UnaryOperation,)
-    assert trans._operators == (UnaryOperation.Operator.ABS,)
-    assert (str(trans) == "Convert the PSyIR ABS intrinsic to equivalent "
+    assert trans._intrinsic == IntrinsicCall.Intrinsic.ABS
+    assert (str(trans) == "Convert the PSyIR 'ABS' intrinsic to equivalent "
             "PSyIR code.")
     assert trans.name == "Abs2CodeTrans"
 
 
 def example_psyir(create_expression):
     '''Utility function that creates a PSyIR tree containing an ABS
-    intrinsic operator and returns the operator.
+    IntrinsicCall and returns it.
 
     :param function create_expression: function used to create the \
-        content of the ABS operator.
+        content of the ABS IntrinsicCall.
 
-    :returns: PSyIR ABS operator instance.
-    :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
+    :returns: PSyIR ABS IntrinsicCall instance.
+    :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     '''
     symbol_table = SymbolTable()
@@ -80,11 +77,11 @@ def example_psyir(create_expression):
     symbol_table.specify_argument_list([arg1])
     var1 = Reference(arg1)
     var2 = Reference(local)
-    oper = UnaryOperation.Operator.ABS
-    operation = UnaryOperation.create(oper, create_expression(var1))
-    assign = Assignment.create(var2, operation)
+    intr = IntrinsicCall.Intrinsic.ABS
+    intrinsic = IntrinsicCall.create(intr, [create_expression(var1)])
+    assign = Assignment.create(var2, intrinsic)
     _ = KernelSchedule.create("abs_example", symbol_table, [assign])
-    return operation
+    return intrinsic
 
 
 @pytest.mark.parametrize("func,output",
@@ -98,8 +95,8 @@ def test_correct(func, output, tmpdir):
 
     '''
     Config.get().api = "nemo"
-    operation = example_psyir(func)
-    root = operation.root
+    intr_call = example_psyir(func)
+    root = intr_call.root
     writer = FortranWriter()
     result = writer(root)
     assert (
@@ -109,7 +106,7 @@ def test_correct(func, output, tmpdir):
         f"  psyir_tmp = ABS({output})\n\n"
         f"end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(operation, root.symbol_table)
+    trans.apply(intr_call, root.symbol_table)
     result = writer(root)
     assert (
         f"subroutine abs_example(arg)\n"
@@ -136,15 +133,15 @@ def test_correct_expr(tmpdir):
 
     '''
     Config.get().api = "nemo"
-    operation = example_psyir(
+    intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
-    root = operation.root
-    assignment = operation.parent
-    operation.detach()
+    root = intr_call.root
+    assignment = intr_call.parent
+    intr_call.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 Literal("1.0", REAL_TYPE), operation)
+                                 Literal("1.0", REAL_TYPE), intr_call)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  op1, Literal("2.0", REAL_TYPE))
     assignment.addchild(op2)
@@ -157,7 +154,7 @@ def test_correct_expr(tmpdir):
         "  psyir_tmp = 1.0 + ABS(arg * 3.14) + 2.0\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(operation, root.symbol_table)
+    trans.apply(intr_call, root.symbol_table)
     result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
@@ -184,17 +181,17 @@ def test_correct_2abs(tmpdir):
 
     '''
     Config.get().api = "nemo"
-    operation = example_psyir(
+    intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
-    root = operation.root
-    assignment = operation.parent
-    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
-                                   Literal("1.0", REAL_TYPE))
-    operation.detach()
+    root = intr_call.root
+    assignment = intr_call.parent
+    intr_call2 = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS,
+                                      [Literal("1.0", REAL_TYPE)])
+    intr_call.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 operation, abs_op)
+                                 intr_call, intr_call2)
     assignment.addchild(op1)
     writer = FortranWriter()
     result = writer(root)
@@ -205,8 +202,8 @@ def test_correct_2abs(tmpdir):
         "  psyir_tmp = ABS(arg * 3.14) + ABS(1.0)\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(operation, root.symbol_table)
-    trans.apply(abs_op, root.symbol_table)
+    trans.apply(intr_call, root.symbol_table)
+    trans.apply(intr_call2, root.symbol_table)
     result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
@@ -242,5 +239,5 @@ def test_invalid():
     with pytest.raises(TransformationError) as excinfo:
         trans.apply(None)
     assert (
-        "Error in Abs2CodeTrans transformation. The supplied node argument "
-        "is not a ABS operator, found 'NoneType'." in str(excinfo.value))
+        "Error in Abs2CodeTrans transformation. The supplied node must be an "
+        "'IntrinsicCall', but found 'NoneType'." in str(excinfo.value))

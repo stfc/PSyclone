@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module containing tests for the LFRicKernelMetadata class.
 
@@ -155,8 +155,7 @@ def test_init_args_error():
 
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(name="1_invalid")
-    assert ("Expected name to be a valid Fortran name but found "
-            "'1_invalid'." in str(info.value))
+    assert "Invalid Fortran name '1_invalid' found." in str(info.value)
 
 
 def test_validation_error_str():
@@ -1438,8 +1437,7 @@ def test_setter_getter_name():
     assert metadata.name is None
     with pytest.raises(ValueError) as info:
         metadata.name = "1_invalid"
-    assert ("Expected name to be a valid Fortran name but found "
-            "'1_invalid'." in str(info.value))
+    assert "Invalid Fortran name '1_invalid' found." in str(info.value)
     metadata.name = "kern_type"
     assert metadata.name == "kern_type"
 

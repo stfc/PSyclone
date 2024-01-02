@@ -95,12 +95,14 @@ def test_abstract():
     '''Test that AlgInvoke2PSyCallTrans is abstract.'''
     with pytest.raises(TypeError) as info:
         _ = AlgInvoke2PSyCallTrans()
-    # Split assert tests as earlier versions of Python output
-    # 'methods' even if there is only one whilst later versions of
-    # Python output 'method'.
-    assert ("Can't instantiate abstract class AlgInvoke2PSyCallTrans with "
-            "abstract method" in str(info.value))
-    assert "get_arguments" in str(info.value)
+    # Python >= 3.9 spots that 'method' should be singular. Prior to this it
+    # was plural. Python >= 3.12 tweaks the error message yet again to mention
+    # the lack of an implementation and to quote the method name.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class AlgInvoke2PSyCallTrans with"
+            in str(info.value))
+    assert ("abstract method" in str(info.value))
+    assert ("get_arguments" in str(info.value))
 
 
 # pylint: enable=abstract-class-instantiated
@@ -196,6 +198,23 @@ def test_ai2psycall_apply_error(fortran_reader):
             "'kern' is of type 'BinaryOperation'." in str(info.value))
 
 
+def test_ai2psycall_invalid_name(fortran_reader):
+    '''Check that an invalid invoke name is rejected by the transformation.'''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field(10)\n"
+        "  integer :: i\n"
+        "  call invoke(kern(field), name='invalid name')\n"
+        "end subroutine alg1\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    with pytest.raises(TransformationError) as err:
+        AlgTrans().apply(psyir)
+    assert ("Problem with invoke name: Invalid Fortran "
+            "name 'invalid name' found" in str(err.value))
+
+
 def test_ai2psycall_apply_expr(fortran_reader):
     '''Check that the apply() method deals correctly with simple
     associative expressions, i.e. i+1 is the same as 1+i. Use
@@ -281,7 +300,7 @@ def test_aipsycall_apply_multi(fortran_reader):
         "  call invoke(kern1(field1), kern2(field1), kern3(field2(i)), &\n"
         "              kern1(field2(I)), kern2(field2( j )), &\n"
         "              kern3(field2(j+1)), kern1(1.0_r_def), &\n"
-        "              name=\"multi kern invoke\")\n"
+        "              name=\"multi_kern_invoke\")\n"
         "end subroutine alg1\n")
     psyir = fortran_reader.psyir_from_source(code)
     AlgTrans().apply(psyir)

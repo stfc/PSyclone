@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
 ! Author R. W. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Modified: I. Kavcic Met Office
+!           A. R. Porter, STFC Daresbury Lab
 
 program single_invoke
 
@@ -48,6 +49,6 @@ program single_invoke
 
   call invoke(                           &
        testkern_type(a, f1, f2, m1, m2), &
-       name="Important invoke")
+       name="Important_invoke")
 
 end program single_invoke

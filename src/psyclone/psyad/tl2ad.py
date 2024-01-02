@@ -263,7 +263,7 @@ def _add_precision_symbol(symbol, table):
     :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     :raises TypeError: if the supplied symbol is not of the correct type.
-    :raises NotImplementedError: if the supplied symbol is not local or \
+    :raises NotImplementedError: if the supplied symbol is not local or
                                  explicitly imported.
 
     '''
@@ -292,7 +292,9 @@ def _add_precision_symbol(symbol, table):
         kind_symbol = symbol.copy()
         kind_symbol.interface = ImportInterface(kind_contr_sym)
         table.add(kind_symbol)
-    elif symbol.is_automatic or symbol.is_modulevar or symbol.is_constant:
+    elif not (symbol.is_unresolved or symbol.is_argument):
+        # The symbol is declared somewhere within a parent scope and is not an
+        # argument.
         table.add(symbol.copy())
     else:
         raise NotImplementedError(
@@ -669,20 +671,20 @@ def _create_array_inner_product(result, array1, array2, table):
     # Generate a Range object for each dimension of each array
     for idx in range(len(array1.datatype.shape)):
         idx_literal = Literal(str(idx+1), INTEGER_TYPE)
-        lbound1 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                         Reference(array1),
-                                         idx_literal.copy())
-        ubound1 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                         Reference(array1),
-                                         idx_literal.copy())
+        lbound1 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array1), ("dim", idx_literal.copy())])
+        ubound1 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array1), ("dim", idx_literal.copy())])
         ranges1.append(Range.create(lbound1, ubound1))
 
-        lbound2 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                         Reference(array2),
-                                         idx_literal.copy())
-        ubound2 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                         Reference(array2),
-                                         idx_literal.copy())
+        lbound2 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array2), ("dim", idx_literal.copy())])
+        ubound2 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array2), ("dim", idx_literal.copy())])
         ranges2.append(Range.create(lbound2, ubound2))
 
     # Use these Ranges to create references for all elements of both arrays

@@ -38,20 +38,18 @@
 ''' Module containing py.test tests for functionality related to
 evaluators in the LFRic API '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
 from psyclone.dynamo0p3 import DynBasisFunctions
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import print_diffs
 
@@ -98,7 +96,7 @@ def test_eval_mdata():
     ''' Check that we recognise "evaluator" as a valid gh_shape '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert dkm.get_integer_variable('gh_shape') == 'gh_evaluator'
 
 
@@ -109,34 +107,34 @@ def test_multi_updated_arg():
     # Change the access of the read-only argument
     code = CODE.replace("GH_READ", "GH_INC", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
     # Evaluator targets list remains unchanged
     assert dkm._eval_targets == ['w0', 'w1']
     # Change the gh_shape element to specify quadrature and then test again
     qr_code = code.replace("gh_evaluator", "gh_quadrature_xyoz")
     ast = fpapi.parse(qr_code, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert dkm.get_integer_variable('gh_shape') == "gh_quadrature_xyoz"
 
 
 def test_eval_targets():
     ''' Check that we can specify multiple evaluator targets using
-    the gh_evaluator_targets meta-data entry. '''
+    the 'gh_evaluator_targets' metadata entry. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert dkm._eval_targets == ["w0", "w1"]
 
 
 def test_eval_targets_err():
-    ''' Check that needlessly specifying gh_evaluator_targets raises the
+    ''' Check that needlessly specifying 'gh_evaluator_targets' raises the
     expected errors. '''
     # When the shape is gh_quadrature_* instead of gh_evaluator
     code = CODE.replace("gh_evaluator\n", "gh_quadrature_xyoz\n")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        _ = DynKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
-            "an evaluator because gh_shape=['gh_quadrature_xyoz']"
+        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
+    assert ("specifies 'gh_evaluator_targets' (['w0', 'w1']) but does not "
+            "need an evaluator because gh_shape=['gh_quadrature_xyoz']"
             in str(err.value))
     # When there are no basis/diff-basis functions required
     code = CODE.replace(
@@ -148,19 +146,19 @@ def test_eval_targets_err():
                         "")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        _ = DynKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
-            "an evaluator because no basis or differential basis functions "
-            "are required" in str(err.value))
+        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
+    assert ("specifies 'gh_evaluator_targets' (['w0', 'w1']) but does not "
+            "need an evaluator because no basis or differential basis "
+            "functions are required" in str(err.value))
 
 
 def test_eval_targets_wrong_space():
-    ''' Check that we reject meta-data where there is no argument for one of
+    ''' Check that we reject metadata where there is no argument for one of
     the function spaces listed in gh_evaluator_targets. '''
     code = CODE.replace("[W0, W1]", "[W0, W3]")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        _ = DynKernMetadata(ast, name="testkern_eval_type")
+        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert ("specifies that an evaluator is required on 'w3' but does not "
             "have an argument on this space" in str(err.value))
 
@@ -175,14 +173,14 @@ def test_eval_targets_op_space():
     code = code.replace("[W0, W1]", "[W0, W3]")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        _ = DynKernMetadata(ast, name="testkern_eval_type")
+        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert ("specifies that an evaluator is required on 'w3' but does not "
             "have an argument on this space" in str(err.value))
     # Change to a space that is referenced by an operator
     code = code.replace("[W0, W3]", "[W0, W2]")
     ast = fpapi.parse(code, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_eval_type")
-    assert isinstance(dkm, DynKernMetadata)
+    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
+    assert isinstance(dkm, LFRicKernMetadata)
 
 
 def test_single_kern_eval(tmpdir):
@@ -204,10 +202,10 @@ def test_single_kern_eval(tmpdir):
 
     # Check subroutine declarations
     expected_decl = (
-        "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
+        "    SUBROUTINE invoke_0_testkern_eval_type(f0, cmap)\n"
         "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
-        "      TYPE(field_type), intent(in) :: f0, f1\n"
+        "      TYPE(field_type), intent(in) :: f0, cmap\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) df_nodal, df_w0, df_w1\n"
@@ -216,7 +214,10 @@ def test_single_kern_eval(tmpdir):
         "      INTEGER(KIND=i_def) dim_w0, diff_dim_w1\n"
         "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
         "      INTEGER(KIND=i_def) nlayers\n"
-        "      TYPE(field_proxy_type) f0_proxy, f1_proxy\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: "
+        "cmap_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f0_data => null()\n"
+        "      TYPE(field_proxy_type) f0_proxy, cmap_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null(), "
         "map_w1(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w0, undf_w0, ndf_w1, undf_w1\n")
@@ -227,7 +228,9 @@ def test_single_kern_eval(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f0_proxy = f0%get_proxy()\n"
-        "      f1_proxy = f1%get_proxy()\n"
+        "      f0_data => f0_proxy%data\n"
+        "      cmap_proxy = cmap%get_proxy()\n"
+        "      cmap_data => cmap_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -236,7 +239,7 @@ def test_single_kern_eval(tmpdir):
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
         "      map_w0 => f0_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w1 => cmap_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
         "      ! Initialise number of DoFs for w0\n"
         "      !\n"
@@ -245,8 +248,8 @@ def test_single_kern_eval(tmpdir):
         "      !\n"
         "      ! Initialise number of DoFs for w1\n"
         "      !\n"
-        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
-        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      ndf_w1 = cmap_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = cmap_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Initialise evaluator-related quantities for the target "
         "function spaces\n"
@@ -256,7 +259,7 @@ def test_single_kern_eval(tmpdir):
         "      ! Allocate basis/diff-basis arrays\n"
         "      !\n"
         "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
-        "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
+        "      diff_dim_w1 = cmap_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_w0))\n"
         "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_w0))\n"
         "      !\n"
@@ -270,7 +273,7 @@ def test_single_kern_eval(tmpdir):
         "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
-        "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
+        "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = cmap_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
         "        END DO\n"
         "      END DO\n"
@@ -284,8 +287,8 @@ def test_single_kern_eval(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
-        "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
+        "        CALL testkern_eval_code(nlayers, f0_data, "
+        "cmap_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "      END DO\n"
         "      !\n"
@@ -325,7 +328,10 @@ def test_single_kern_eval_op(tmpdir):
         "      INTEGER(KIND=i_def) dim_w2, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:,:,:) :: "
+        "op1_local_stencil => null()\n"
         "      TYPE(operator_proxy_type) op1_proxy\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w3(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w0, ndf_w2, ndf_w3, undf_w3\n")
@@ -361,7 +367,7 @@ def test_single_kern_eval_op(tmpdir):
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d,"
-        " op1_proxy%local_stencil, f1_proxy%data, ndf_w0, ndf_w2, "
+        " op1_local_stencil, f1_data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
         "      END DO\n")
@@ -414,6 +420,14 @@ def test_two_qr_same_shape(tmpdir):
         "weights_z_qr(:) => null()\n"
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: n2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: n1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: g2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: g1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
         "m2_proxy, g1_proxy, g2_proxy, n1_proxy, n2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy, qr2_proxy\n"
@@ -487,8 +501,8 @@ def test_two_qr_same_shape(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, a, m2_proxy%data, istp, "
+        "        CALL testkern_qr_code(nlayers, f1_data, f2_data, "
+        "m1_data, a, m2_data, istp, "
         "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, "
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr, "
         "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, "
@@ -496,8 +510,8 @@ def test_two_qr_same_shape(tmpdir):
         "      END DO\n"
         "      DO cell=loop1_start,loop1_stop\n"
         "        !\n"
-        "        CALL testkern_qr_code(nlayers, g1_proxy%data, g2_proxy%data, "
-        "n1_proxy%data, b, n2_proxy%data, istp, "
+        "        CALL testkern_qr_code(nlayers, g1_data, g2_data, "
+        "n1_data, b, n2_data, istp, "
         "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr2, "
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr2, "
         "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr2, diff_basis_w3_qr2, "
@@ -568,16 +582,16 @@ def test_two_identical_qr(tmpdir):
     expected_kern_call = (
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data,"
-        " m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
+        "        CALL testkern_qr_code(nlayers, f1_data, f2_data,"
+        " m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "      END DO\n"
         "      DO cell=loop1_start,loop1_stop\n"
         "        !\n"
-        "        CALL testkern_qr_code(nlayers, g1_proxy%data, g2_proxy%data, "
-        "n1_proxy%data, b, n2_proxy%data, istp, ndf_w1, undf_w1, "
+        "        CALL testkern_qr_code(nlayers, g1_data, g2_data, "
+        "n1_data, b, n2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
@@ -614,14 +628,14 @@ def test_two_qr_different_shapes(tmpdir):
     assert "nfaces_qrf = qrf_proxy%nfaces" in gen_code
     assert "weights_xyz_qrf => qrf_proxy%weights_xyz" in gen_code
 
-    assert ("CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-            "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
+    assert ("CALL testkern_qr_code(nlayers, f1_data, f2_data, "
+            "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
             "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
             "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
             "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)"
             in gen_code)
-    assert ("CALL testkern_qr_faces_code(nlayers, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+    assert ("CALL testkern_qr_faces_code(nlayers, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), basis_w1_qrf, ndf_w2, undf_w2, map_w2(:,cell), "
             "diff_basis_w2_qrf, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qrf,"
             " diff_basis_w3_qrf, nfaces_qrf, np_xyz_qrf, weights_xyz_qrf)"
@@ -714,6 +728,12 @@ def test_qr_plus_eval(tmpdir):
         "weights_z_qr(:) => null()\n"
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f0_data => null()\n"
+
         "      TYPE(field_proxy_type) f0_proxy, f1_proxy, f2_proxy, "
         "m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
@@ -787,14 +807,14 @@ def test_qr_plus_eval(tmpdir):
     output_kern_call = (
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
-        "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
+        "        CALL testkern_eval_code(nlayers, f0_data, "
+        "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "      END DO\n"
         "      DO cell=loop1_start,loop1_stop\n"
         "        !\n"
-        "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
+        "        CALL testkern_qr_code(nlayers, f1_data, f2_data, "
+        "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
@@ -859,14 +879,14 @@ def test_two_eval_same_space(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
-        "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
+        "        CALL testkern_eval_code(nlayers, f0_data, "
+        "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "      END DO\n"
         "      DO cell=loop1_start,loop1_stop\n"
         "        !\n"
-        "        CALL testkern_eval_code(nlayers, f2_proxy%data, "
-        "f3_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
+        "        CALL testkern_eval_code(nlayers, f2_data, "
+        "f3_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "      END DO\n"
     )
@@ -949,14 +969,14 @@ def test_two_eval_diff_space(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
-        "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
+        "        CALL testkern_eval_code(nlayers, f0_data, "
+        "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "      END DO\n"
         "      DO cell=loop1_start,loop1_stop\n"
         "        !\n"
         "        CALL testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d,"
-        " op1_proxy%local_stencil, f2_proxy%data, ndf_w0, ndf_w2, "
+        " op1_local_stencil, f2_data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
         "      END DO\n")
@@ -1086,14 +1106,14 @@ def test_two_eval_op_to_space(tmpdir):
     kernel_calls = (
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
-        "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
+        "        CALL testkern_eval_code(nlayers, f0_data, "
+        "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "      END DO\n"
         "      DO cell=loop1_start,loop1_stop\n"
         "        !\n"
         "        CALL testkern_eval_op_to_code(cell, nlayers, "
-        "op1_proxy%ncell_3d, op1_proxy%local_stencil, f2_proxy%data, "
+        "op1_proxy%ncell_3d, op1_local_stencil, f2_data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
         "      END DO\n"
@@ -1187,15 +1207,15 @@ def test_eval_diff_nodal_space(tmpdir):
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_eval_op_to_code(cell, nlayers, "
-        "op2_proxy%ncell_3d, op2_proxy%local_stencil, f1_proxy%data, "
+        "op2_proxy%ncell_3d, op2_local_stencil, f1_data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
         "      END DO\n"
         "      DO cell=loop1_start,loop1_stop\n"
         "        !\n"
         "        CALL testkern_eval_op_to_w0_code(cell, nlayers, "
-        "op1_proxy%ncell_3d, op1_proxy%local_stencil, f0_proxy%data, "
-        "f2_proxy%data, ndf_w2, basis_w2_on_w0, diff_basis_w2_on_w0, "
+        "op1_proxy%ncell_3d, op1_local_stencil, f0_data, "
+        "f2_data, ndf_w2, basis_w2_on_w0, diff_basis_w2_on_w0, "
         "ndf_w0, undf_w0, map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
         "      END DO\n"
@@ -1229,8 +1249,8 @@ def test_eval_2fs(tmpdir):
             "ndf_w0))\n"
             "      ALLOCATE (diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, "
             "ndf_w1))\n" in gen_code)
-    assert ("CALL testkern_eval_2fs_code(nlayers, f0_proxy%data, "
-            "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
+    assert ("CALL testkern_eval_2fs_code(nlayers, f0_data, "
+            "f1_data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
             "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in
             gen_code)
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1350,21 +1370,21 @@ def test_2eval_1qr_2fs(tmpdir):
 
     assert ("      DO cell=loop0_start,loop0_stop\n"
             "        !\n"
-            "        CALL testkern_eval_2fs_code(nlayers, f0_proxy%data, "
-            "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1,"
+            "        CALL testkern_eval_2fs_code(nlayers, f0_data, "
+            "f1_data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1,"
             " map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)\n"
             "      END DO\n"
             "      DO cell=loop1_start,loop1_stop\n"
             "        !\n"
             "        CALL testkern_eval_op_code(cell, nlayers, "
-            "op1_proxy%ncell_3d, op1_proxy%local_stencil, m2_proxy%data, "
+            "op1_proxy%ncell_3d, op1_local_stencil, m2_data, "
             "ndf_w0, ndf_w2, basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell),"
             " diff_basis_w3_on_w0)\n"
             "      END DO\n"
             "      DO cell=loop2_start,loop2_stop\n"
             "        !\n"
-            "        CALL testkern_qr_code(nlayers, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, "
+            "        CALL testkern_qr_code(nlayers, f1_data, "
+            "f2_data, m1_data, a, m2_data, istp, ndf_w1, "
             "undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
             "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, np_xy_qr, "
@@ -1443,8 +1463,8 @@ def test_basis_evaluator():
 
     '''
     ast = fpapi.parse(BASIS_EVAL, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
 
@@ -1570,8 +1590,8 @@ def test_basis_unsupported_space():
     PSy layer to the kernels (see issue #461). '''
     # Test any_space_*
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -1584,8 +1604,8 @@ def test_basis_unsupported_space():
                                            "any_discontinuous_space_5")
     code = code.replace("gh_inc", "gh_readwrite")
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -1646,8 +1666,8 @@ def test_diff_basis():
 
     '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -1757,7 +1777,7 @@ def test_diff_basis():
     assert output in generated_code
 
 
-# Meta-data for a kernel that requires differential basis functions
+# Metadata for a kernel that requires differential basis functions
 # evaluated only on W2 (the to-space of the operator that this kernel
 # writes to).
 DIFF_BASIS_EVAL = '''
@@ -1812,8 +1832,8 @@ def test_diff_basis_eval():
 
     '''
     ast = fpapi.parse(DIFF_BASIS_EVAL, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
 
@@ -1922,15 +1942,15 @@ def test_2eval_stubgen():
     required on more than one space.
 
     '''
-    # Modify the meta-data so that it specifies that evaluators be provided
+    # Modify the metadata so that it specifies that evaluators be provided
     # on two function spaces
     twoeval_meta = DIFF_BASIS_EVAL.replace(
         "     integer :: gh_shape = gh_evaluator\n",
         "     integer :: gh_shape = gh_evaluator\n"
         "     integer :: gh_evaluator_targets(2) = (/w2h, wtheta/)\n")
     ast = fpapi.parse(twoeval_meta, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
 
@@ -2040,8 +2060,8 @@ def test_diff_basis_unsupp_space():
     kernels (see issue #461). '''
     # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -2054,8 +2074,8 @@ def test_diff_basis_unsupp_space():
                                                 "any_discontinuous_space_5")
     code = code.replace("gh_inc", "gh_readwrite")
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -2069,8 +2089,8 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     DynBasisFunctions._stub_declarations() if an un-supported quadrature
     shape is encountered. '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
     monkeypatch.setattr(
@@ -2086,8 +2106,8 @@ def test_dynbasisfns_declns(monkeypatch):
     ''' Check the various internal errors that
     DynBasisFunctions._basis_fn_declns can raise. '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
     # Missing name for qr variable

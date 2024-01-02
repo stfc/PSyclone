@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,6 @@
 
 from psyclone.domain.nemo.transformations.create_nemo_invoke_schedule_trans \
     import CreateNemoInvokeScheduleTrans
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
-    import CreateNemoKernelTrans
 from psyclone.domain.nemo.transformations.create_nemo_loop_trans \
     import CreateNemoLoopTrans
 from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
@@ -63,7 +61,6 @@ from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
 # from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 
 __all__ = ['CreateNemoInvokeScheduleTrans',
-           'CreateNemoKernelTrans',
            'CreateNemoLoopTrans',
            'CreateNemoPSyTrans',
            'NemoAllArrayRange2LoopTrans',

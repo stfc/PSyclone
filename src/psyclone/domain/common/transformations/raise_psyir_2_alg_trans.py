@@ -42,6 +42,7 @@ which uses specialised classes.
 
 from fparser.two.Fortran2003 import Structure_Constructor
 
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock, Literal
 from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \
     RoutineSymbol, ScalarType
@@ -145,22 +146,22 @@ class RaisePSyIR2AlgTrans(Transformation):
     def validate(self, node, options=None):
         '''Validate the node argument.
 
-        :param node: a PSyIR call node capturing an invoke call in \
+        :param node: a PSyIR call node capturing an invoke call in
             generic PSyIR.
         :type node: :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied call argument is \
+        :raises TransformationError: if the supplied call argument is
             not a PSyIR Call node.
-        :raises TransformationError: if the supplied call argument \
-            does not have the expected name which would identify it as an \
+        :raises TransformationError: if the supplied call argument
+            does not have the expected name which would identify it as an
             invoke call.
-        :raises TransformationError: if the there is more than one \
-            named argument.
+        :raises TransformationError: if there is more than one named argument.
         :raises TransformationError: if the named argument does not
             conform to the name=str format.
-        :raises TransformationError: if the invoke arguments are not a \
+        :raises TransformationError: if the name of the invoke is invalid.
+        :raises TransformationError: if the invoke arguments are not a
             PSyIR ArrayReference or CodeBlock.
 
         '''
@@ -183,16 +184,21 @@ class RaisePSyIR2AlgTrans(Transformation):
                 f"most one named argument in an invoke, but there are "
                 f"{len(names)} in '{node.debug_string()}'.")
         for idx, arg in enumerate(node.children):
-            if ((node.argument_names[idx]) and
-                    (not (node.argument_names[idx].lower() == "name")
-                     or not (isinstance(arg, Literal) and
-                             isinstance(arg.datatype, ScalarType) and
-                             arg.datatype.intrinsic ==
-                             ScalarType.Intrinsic.CHARACTER))):
-                raise TransformationError(
-                    f"Error in {self.name} transformation. If there is a "
-                    f"named argument, it must take the form name='str', "
-                    f"but found '{node.debug_string()}'.")
+            if node.argument_names[idx]:
+                if (not node.argument_names[idx].lower() == "name"
+                    or not (isinstance(arg, Literal) and
+                            isinstance(arg.datatype, ScalarType) and
+                            arg.datatype.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER)):
+                    raise TransformationError(
+                        f"Error in {self.name} transformation. If there "
+                        f"is a named argument, it must take the form name"
+                        f"='str', but found '{node.debug_string()}'.")
+                try:
+                    FortranReader.validate_name(arg.value)
+                except (TypeError, ValueError) as err:
+                    raise TransformationError(
+                        f"Problem with invoke name: {err}") from err
             if node.argument_names[idx]:
                 pass
             elif isinstance(arg, ArrayReference):
@@ -237,7 +243,7 @@ class RaisePSyIR2AlgTrans(Transformation):
             # pylint: disable=protected-access
             arg_info = []
             if call.argument_names[idx]:
-                call_name = f"'{call_arg.value}'"
+                call_name = f"{call_arg.value}"
             elif isinstance(call_arg, ArrayReference):
                 # kernel misrepresented as ArrayReference
                 args = call_arg.pop_all_children()

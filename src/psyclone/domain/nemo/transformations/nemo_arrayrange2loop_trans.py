@@ -41,13 +41,11 @@ to the equivalent explicit loop representation using a NemoLoop node.
 
 '''
 
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans import \
-    CreateNemoKernelTrans
 from psyclone.errors import LazyString, InternalError
 from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
-    Assignment, Operation, CodeBlock, ArrayMember, Routine, BinaryOperation, \
+    Assignment, CodeBlock, ArrayMember, Routine, IntrinsicCall, \
     StructureReference, StructureMember, Node
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType
@@ -91,7 +89,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
     '''
     def apply(self, node, options=None):
-        ''' Apply the transformation that given an assignment with an
+        ''' Apply the transformation such that, given an assignment with an
         ArrayReference Range in the LHS (equivalent to an array assignment
         statement in Fortran), it converts it to an explicit loop doing each
         of the individual element assignments separately.
@@ -100,8 +98,8 @@ class NemoArrayRange2LoopTrans(Transformation):
         to indicate which array index should be transformed. This can only
         be applied to the outermost Range of the ArrayReference.
 
-        This is currently specific to NEMO. It will create NemoLoops and
-        put the loop body inside a NemoKern to conform to the NEMO API.
+        This is currently specific to the 'nemo' API in that it will create
+        NemoLoops.
 
         :param node: a Range node.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
@@ -154,12 +152,6 @@ class NemoArrayRange2LoopTrans(Transformation):
         loop = NemoLoop.create(loop_variable_symbol, start, stop, step,
                                [assignment.detach()])
         parent.children.insert(position, loop)
-
-        if not assignment.lhs.walk(Range):
-            # All valid array ranges have been replaced with explicit
-            # loops. We now need to take the content of the loop and
-            # place it within a NemoKern (inlined kernel) node.
-            CreateNemoKernelTrans().apply(assignment.parent)
 
     def __str__(self):
         return (
@@ -239,17 +231,17 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Does the rhs of the assignment have any operations/calls that are not
         # elemental?
-        for cnode in assignment.rhs.walk((Operation, Call)):
+        for cnode in assignment.rhs.walk(Call):
             # Allow non elemental UBOUND and LBOUND.
             # TODO #2156 - add support for marking routines as being 'inquiry'
             # to improve this special-casing.
-            if isinstance(cnode, Operation):
-                if cnode.operator is BinaryOperation.Operator.LBOUND:
+            if isinstance(cnode, IntrinsicCall):
+                if cnode.intrinsic is IntrinsicCall.Intrinsic.LBOUND:
                     continue
-                if cnode.operator is BinaryOperation.Operator.UBOUND:
+                if cnode.intrinsic is IntrinsicCall.Intrinsic.UBOUND:
                     continue
-                name = cnode.operator.name
-                type_txt = "Operation"
+                name = cnode.intrinsic.name
+                type_txt = "IntrinsicCall"
             else:
                 name = cnode.routine.name
                 type_txt = "Call"
@@ -276,13 +268,13 @@ class NemoArrayRange2LoopTrans(Transformation):
         references = [n for n in nodes_to_check if isinstance(n, Reference)]
         for reference in references:
             # As special case we always allow references to whole arrays as
-            # part of the LBOUND and UBOUND operations, regardless of the
+            # part of the LBOUND and UBOUND intrinsics, regardless of the
             # restrictions below (e.g. is a DeferredType reference).
-            if isinstance(reference.parent, Operation):
-                operator = reference.parent.operator
-                if operator is BinaryOperation.Operator.LBOUND:
+            if isinstance(reference.parent, IntrinsicCall):
+                intrinsic = reference.parent.intrinsic
+                if intrinsic is IntrinsicCall.Intrinsic.LBOUND:
                     continue
-                if operator is BinaryOperation.Operator.UBOUND:
+                if intrinsic is IntrinsicCall.Intrinsic.UBOUND:
                     continue
 
             # We allow any references that are part of a structure syntax - we
@@ -307,7 +299,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Is the Range node the outermost Range (as if not, the
         # transformation would be invalid)?
-        for child in node.parent.indices[node.parent.indices.index(node)+1:]:
+        for child in node.parent.indices[node.position+1:]:
             if isinstance(child, Range):
                 raise TransformationError(
                     "Error in NemoArrayRange2LoopTrans transformation. This "

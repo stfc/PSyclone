@@ -38,7 +38,6 @@
 file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
-from __future__ import absolute_import
 import os
 
 import pytest
@@ -173,7 +172,7 @@ def test_parser_invokeinfo_nocode(tmpdir):
     '''
     parser = Parser()
     alg_filename = str(tmpdir.join("empty.f90"))
-    with open(alg_filename, "w") as ffile:
+    with open(alg_filename, "w", encoding="utf-8") as ffile:
         ffile.write("")
     alg_parse_tree = parse_fp2(alg_filename)
     with pytest.raises(ParseError) as info:
@@ -190,7 +189,7 @@ def test_parser_invokeinfo_first(tmpdir):
     '''
     parser = Parser()
     alg_filename = str(tmpdir.join("two_routines.f90"))
-    with open(alg_filename, "w") as ffile:
+    with open(alg_filename, "w", encoding="utf-8") as ffile:
         ffile.write(
             "subroutine first()\n"
             "end subroutine first\n"
@@ -214,7 +213,7 @@ def test_parser_invokeinfo_containers(tmpdir, code, name):
     '''
     parser = Parser()
     alg_filename = str(tmpdir.join("container.f90"))
-    with open(alg_filename, "w") as ffile:
+    with open(alg_filename, "w", encoding="utf-8") as ffile:
         ffile.write(code)
     alg_parse_tree = parse_fp2(alg_filename)
     res = parser.invoke_info(alg_parse_tree)
@@ -501,6 +500,13 @@ def test_parser_caseinsensitive2(monkeypatch):
 # function get_invoke_label() tests
 
 
+def test_getinvokelabel_lowercase():
+    '''Test that 'get_invoke_label' converts to lowercase.'''
+    parse_tree = Actual_Arg_Spec("name='HeartOfGold'")
+    label = get_invoke_label(parse_tree, "dummy.f90")
+    assert label == "heartofgold"
+
+
 def test_getinvokelabel_invalid_tree():
     '''Test that if the parse tree argument is not an Actual_Arg_Spec then
     an exception is raised in the expected way.
@@ -528,6 +534,16 @@ def test_getinvokelabel_invalid_items(monkeypatch):
     assert (
         "Expected the Fortran argument to have two items but found "
         "'3'.") in str(excinfo.value)
+
+
+def test_getinvokelabel_whitespace():
+    '''Test that an invoke label containing whitespace is rejected.'''
+    parse_tree = Actual_Arg_Spec("name='my name'")
+    with pytest.raises(ParseError) as err:
+        _ = get_invoke_label(parse_tree, "dummy.f90")
+    assert ("get_invoke_label the (optional) name of an invoke must be a "
+            "string containing a valid Fortran name (with no whitespace) but "
+            "got 'my name' in file dummy.f90" in str(err.value))
 
 # function get_kernel() tests
 

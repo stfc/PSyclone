@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''PSyclone Internal Representation intrinsics transformation
 module. Contains all transformations that act on PSyIR intrinsic
-(operator) functions.
+functions.
 
 '''

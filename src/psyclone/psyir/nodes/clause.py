@@ -31,10 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. B. G. Chalk, STFC Daresbury Lab
+# Author: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the Clause abstract node implementation '''
+''' This module contains the Clause abstract node implementation. '''
 
 import abc
 from psyclone.psyir.nodes.node import Node
@@ -52,8 +53,7 @@ class Clause(Node, metaclass=abc.ABCMeta):
     @property
     def clause_string(self):
         '''
-        Returns the clause string for this Clause
-
+        :returns: the base clause string for this Clause.
         :rtype: str
         '''
         return self._clause_string

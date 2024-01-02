@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ transformation within a transformation script.
 
 
 PSyclone can be used with a variety of existing profiling tools.
-It currently supports dl_timer, Dr Hook, the NVIDIA GPU profiling
+It currently supports dl_timer, TAU, Dr Hook, the NVIDIA GPU profiling
 tools and it comes with a simple stand-alone timer library. The
 :ref:`PSyData API <psy_data>` (see also the
 :ref:`Developer Guide <dev_guide:psy_data>`)
@@ -77,7 +77,7 @@ Interface to Third Party Profiling Tools
 ----------------------------------------
 
 PSyclone comes with :ref:`wrapper libraries <libraries>` to support
-usage of Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
+usage of TAU, Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
 and a simple non-thread-safe timing library. Support for further
 profiling libraries will be added in the future. To compile the
 wrapper libraries, change into the directory ``lib/profiling``
@@ -112,6 +112,10 @@ libraries that come with PSyclone:
     support. Additional link options might therefore be required
     (e.g. enabling OpenMP, or linking with MPI).
 
+``lib/profiling/tau``
+    This wrapper uses TAU profiling and tracing toolkit. It can be
+    downloaded from ``https://www.cs.uoregon.edu/research/tau``.
+
 ``lib/profiling/drhook``
     This wrapper uses the Dr Hook library. You need to contact
     ECMWF to obtain a copy of Dr Hook.
@@ -145,9 +149,10 @@ module. The functions that need to be implemented are described in
 the developer's guide (:ref:`dev_guide:psy_data`).
 
 Most libraries in ``lib/profiling`` need to be linked in
-with the corresponding 3rd party profiling tool. The
-exceptions are the template and simple_timing libraries,
-which are stand alone. The profiling example in
+with the corresponding 3rd party profiling tool, or use a compiler
+wrapper provided by the tool which will provide the required additional
+compiler parameters. The exceptions are the template and simple_timing
+libraries, which are stand alone. The profiling example in
 ``examples/gocean/eg5/profile`` can be used with any of the
 wrapper libraries (except ``nvidia``) to see how they work.
 
@@ -195,18 +200,26 @@ used (e.g. before or after a call to ``MPI_Finalize()``).
 
 Profiling Command-Line Options
 ------------------------------
-PSyclone offers two command line options to automatically instrument
+PSyclone offers two command-line options to automatically instrument
 code with profiling regions. It can create profile regions around
-a full invoke (including all kernel calls in this invoke), and/or
-around each individual kernel. 
+a full invoke routine (including all kernel calls in this invoke), and/or
+around each individual kernel (for the PSyKAl APIs 'dynamo0.3' and
+'gocean1.0'). 
 
 The option ``--profile invokes`` will automatically add calls to 
 start and end a profile region at the beginning and end of every
 invoke subroutine created by PSyclone. All kernels called within
 this invoke subroutine will be included in the profiled region.
 
+The option ``--profile routines`` is a synonym for 'invokes' but is
+provided as it is more intuitive for users who are transforming
+existing code. (In this case, PSyclone will put a profiling region
+around every routine that it processes.)
+
 The option ``--profile kernels`` will surround each outer loop
-created by PSyclone with start and end profiling calls.
+created by PSyclone with start and end profiling calls. Note that this
+option is not available for the 'nemo' API as it does not have the
+concept of explicit Kernels.
 
 .. note:: In some APIs (for example :ref:`LFRic <dynamo0.3-api>`
           when using distributed memory) additional minor code might

@@ -32,7 +32,8 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic and L. Turner, Met Office
+! Modified: I. Kavcic and L. Turner, Met Office
+!           A. R. Porter, STFC Daresbury Lab
 
 program multi_functions_multi_invokes
 
@@ -51,7 +52,7 @@ program multi_functions_multi_invokes
   integer(i_def)             :: istp
 
   call invoke(                                      &
-       name="my first",                             &
+       name="my_first",                             &
        testkern_type(a, f1, f2, m1, m2),            &
        testkern_type(a, f1, f2, m1, m2),            &
        testkern_qr_type(f1, f2, m1,a, m2, istp, qr) &
@@ -60,7 +61,7 @@ program multi_functions_multi_invokes
   call invoke(                                        &
        testkern_qr_type(f1, f2, m1, a, m2, istp, qr), &
        testkern_qr_type(f1, f2, m1, a, m2, istp, qr), &
-       name="my second",                              &
+       name="my_second",                              &
        testkern_qr_type(f1, f2, m1, a, m2, istp, qr)  &
        )
 

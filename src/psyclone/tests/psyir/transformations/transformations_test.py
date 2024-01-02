@@ -102,6 +102,16 @@ def test_accparallel():
     ''' Generic tests for the ACCParallelTrans class '''
     acct = ACCParallelTrans()
     assert acct.name == "ACCParallelTrans"
+    assert acct._default_present is True
+
+    acct = ACCParallelTrans(default_present=False)
+    assert acct.name == "ACCParallelTrans"
+    assert acct._default_present is False
+
+    with pytest.raises(TypeError) as err:
+        _ = ACCParallelTrans(default_present=3)
+    assert ("The provided 'default_present' argument must be a boolean, "
+            "but found '3'." in str(err.value))
 
 
 def test_accenterdata():
@@ -407,10 +417,6 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
     # just with 'jk' and it is not modified in the inner loops
     omplooptrans.validate(loops[1])
 
-    # Check if there is missing symbol information it still validates
-    del loops[1].ancestor(Routine).symbol_table._symbols['zws']
-    omplooptrans.validate(loops[1])
-
     # Reductions also indicate a data dependency that needs to be handled, so
     # we don't permit the parallelisation of the loop (until we support
     # reduction clauses)
@@ -438,8 +444,7 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
             enddo
           enddo
         enddo''')
-    assert not DependencyTools().can_loop_be_parallelised(
-                    loops[0], only_nested_loops=False)
+    assert not DependencyTools().can_loop_be_parallelised(loops[0])
     omplooptrans.validate(loops[0])
 
 

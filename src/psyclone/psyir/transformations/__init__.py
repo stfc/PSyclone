@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,12 +66,16 @@ from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     Matmul2CodeTrans
 from psyclone.psyir.transformations.intrinsics.max2code_trans import \
     Max2CodeTrans
+from psyclone.psyir.transformations.intrinsics.maxval2loop_trans import \
+    Maxval2LoopTrans
 from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
+from psyclone.psyir.transformations.intrinsics.minval2loop_trans import \
+    Minval2LoopTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
-from psyclone.psyir.transformations.intrinsics.sum2code_trans import \
-    Sum2CodeTrans
+from psyclone.psyir.transformations.intrinsics.sum2loop_trans import \
+    Sum2LoopTrans
 from psyclone.psyir.transformations.loop_fuse_trans import LoopFuseTrans
 from psyclone.psyir.transformations.loop_swap_trans import LoopSwapTrans
 from psyclone.psyir.transformations.loop_tiling_2d_trans \
@@ -81,8 +85,11 @@ from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
+from psyclone.psyir.transformations.omp_task_trans import OMPTaskTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
+from psyclone.psyir.transformations.intrinsics.product2loop_trans import \
+    Product2LoopTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.read_only_verify_trans \
@@ -110,16 +117,20 @@ __all__ = ['ACCUpdateTrans',
            'Max2CodeTrans',
            'Min2CodeTrans',
            'Sign2CodeTrans',
-           'Sum2CodeTrans',
+           'Sum2LoopTrans',
            'LoopFuseTrans',
            'LoopSwapTrans',
            'LoopTiling2DTrans',
            'LoopTrans',
+           'Maxval2LoopTrans',
+           'Minval2LoopTrans',
            'NanTestTrans',
            'OMPLoopTrans',
-           'OMPTaskwaitTrans',
            'OMPTargetTrans',
+           'OMPTaskTrans',
+           'OMPTaskwaitTrans',
            'ParallelLoopTrans',
+           'Product2LoopTrans',
            'ProfileTrans',
            'PSyDataTrans',
            'ReadOnlyVerifyTrans',

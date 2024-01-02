@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,27 +32,27 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing a class that provides functionality to transform
-a PSyIR MIN or MAX operator to PSyIR code. This could be useful if the
-operator is not supported by the back-end or if the performance of the
+a PSyIR MIN or MAX intrinsics to PSyIR code. This could be useful if the
+intrinsic is not supported by the back-end or if the performance of the
 inline code is better than the intrinsic. This utility transformation
 should not be called directly by the user, rather it provides
 functionality that can be specialised by MIN and MAX-specific
 transformations.
 
 '''
-from __future__ import absolute_import
 
-from psyclone.psyir.nodes import BinaryOperation, NaryOperation, Assignment, \
+from psyclone.psyir.nodes import BinaryOperation, Assignment, \
         Reference, IfBlock
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-        Operator2CodeTrans
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
+        Intrinsic2CodeTrans
 
 
-class MinOrMax2CodeTrans(Operator2CodeTrans):
-    '''Provides a utility transformation from a PSyIR MIN or MAX Operator
+class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
+    '''Provides a utility transformation from a PSyIR MIN or MAX Intrinsic
     node to equivalent code in a PSyIR tree. Validity checks are also
     performed (by the parent class). This utility transformation is
     not designed to be called directly by the user, rather it should
@@ -77,8 +77,7 @@ class MinOrMax2CodeTrans(Operator2CodeTrans):
 
     '''
     def __init__(self):
-        super(MinOrMax2CodeTrans, self).__init__()
-        self._classes = (BinaryOperation, NaryOperation)
+        super().__init__()
         self._compare_operator = None
 
     def apply(self, node, options=None):
@@ -127,19 +126,19 @@ class MinOrMax2CodeTrans(Operator2CodeTrans):
         assignment = node.ancestor(Assignment)
 
         # Create a temporary result variable. There is an assumption
-        # here that the Operator returns a PSyIR real type. This
+        # here that the Intrinsic returns a PSyIR real type. This
         # might not be what is wanted (e.g. the args might PSyIR
         # integers), or there may be errors (arguments are of
         # different types) but this can't be checked as we don't have
         # appropriate methods to query nodes (see #658).
         res_var_symbol = symbol_table.new_symbol(
-            f"res_{self._operator_name.lower()}",
+            f"res_{self._intrinsic.name.lower()}",
             symbol_type=DataSymbol, datatype=REAL_TYPE)
         # Create a temporary variable. Again there is an
         # assumption here about the datatype - please see previous
         # comment (associated issue #658).
         tmp_var_symbol = symbol_table.new_symbol(
-            f"tmp_{self._operator_name.lower()}",
+            f"tmp_{self._intrinsic.name.lower()}",
             symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operation with a temporary (res_var).

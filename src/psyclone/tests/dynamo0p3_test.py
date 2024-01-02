@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office,
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office,
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -47,12 +47,13 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import FunctionSpace, LFRicArgDescriptor, \
-    LFRicConstants
-from psyclone.dynamo0p3 import DynACCEnterDataDirective, \
-    DynBoundaryConditions, DynCellIterators, DynGlobalSum, DynKern, \
-    DynKernelArguments, DynKernMetadata, DynLoop, DynProxies, \
-    HaloReadAccess, KernCallArgList
+from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
+                                   LFRicConstants, LFRicKern,
+                                   LFRicKernMetadata, LFRicLoop)
+from psyclone.dynamo0p3 import (DynACCEnterDataDirective,
+                                DynBoundaryConditions, DynCellIterators,
+                                DynGlobalSum, DynKernelArguments, DynProxies,
+                                HaloReadAccess, KernCallArgList)
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -61,7 +62,8 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
                                   Reference, Routine)
-from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
+from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
+                                    UnknownFortranType)
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -124,7 +126,7 @@ def test_arg_descriptor_wrong_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("each 'meta_arg' entry must be of type 'arg_type'" in
             str(excinfo.value))
 
@@ -142,7 +144,7 @@ def test_ad_invalid_type():
     const = LFRicConstants()
 
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"the 1st argument of a 'meta_arg' entry should be a valid "
             f"argument type (one of {const.VALID_ARG_TYPE_NAMES}), "
             f"but found 'gh_operato'" in str(excinfo.value))
@@ -152,7 +154,7 @@ def test_ad_invalid_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"the 1st argument of a 'meta_arg' entry should be a valid "
             f"argument type (one of {const.VALID_ARG_TYPE_NAMES}), "
             f"but found ':'" in str(excinfo.value))
@@ -169,7 +171,7 @@ def test_ad_invalid_access_type():
     api_config = Config.get().api_conf("dynamo0.3")
     valid_access_names = api_config.get_valid_accesses_api()
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"argument 3 of a 'meta_arg' entry must be a valid "
             f"access descriptor (one of {valid_access_names}), "
             "but found 'gh_ead'" in str(excinfo.value))
@@ -181,7 +183,7 @@ def test_ad_invalid_iteration_space():
     (other than "cells" or "dofs"). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
     # Extract an arg_type object that we can use to create an
     # LFRicArgDescriptor object
@@ -208,9 +210,9 @@ def test_missing_shape_both():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'gh_shape' in the kernel meta-data but this is missing "
+            "'gh_shape' in the kernel metadata but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo.value))
 
 
@@ -218,7 +220,7 @@ def test_missing_shape_basis_only():
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    # Alter meta-data so only requires gh_basis
+    # Alter metadata so only requires gh_basis
     code1 = CODE.replace(
         "     type(func_type), dimension(3) :: meta_funcs =  &\n"
         "          (/ func_type(w1, gh_basis),               &\n"
@@ -233,9 +235,9 @@ def test_missing_shape_basis_only():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'gh_shape' in the kernel meta-data but this is missing "
+            "'gh_shape' in the kernel metadata but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo.value))
 
 
@@ -243,7 +245,7 @@ def test_missing_eval_shape_diff_basis_only():
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_diff_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
-    # Alter meta-data so only requires gh_diff_basis
+    # Alter metadata so only requires gh_diff_basis
     code1 = CODE.replace(
         "     type(func_type), dimension(3) :: meta_funcs =  &\n"
         "          (/ func_type(w1, gh_basis),               &\n"
@@ -258,9 +260,9 @@ def test_missing_eval_shape_diff_basis_only():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("must also supply the shape of that evaluator by setting "
-            "'gh_shape' in the kernel meta-data but this is missing "
+            "'gh_shape' in the kernel metadata but this is missing "
             "for kernel 'testkern_qr_type'" in str(excinfo.value))
 
 
@@ -275,15 +277,16 @@ def test_invalid_shape():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("request one or more valid gh_shapes (one of ['gh_quadrature_xyoz'"
-            ", 'gh_quadrature_face', 'gh_quadrature_edge', 'gh_evaluator']) "
-            "but got '['quadrature_wrong']' for kernel 'testkern_qr_type'"
+        _ = LFRicKernMetadata(ast, name=name)
+    assert ("request one or more valid 'gh_shapes' (one of "
+            "['gh_quadrature_xyoz', 'gh_quadrature_face', "
+            "'gh_quadrature_edge', 'gh_evaluator']) but got "
+            "'['quadrature_wrong']' for kernel 'testkern_qr_type'"
             in str(excinfo.value))
 
 
 def test_unnecessary_shape():
-    ''' Check that we raise the correct error if a kernel meta-data specifies
+    ''' Check that we raise the correct error if a kernel metadata specifies
     an evaluator shape but does not require quadrature or an evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Remove the need for basis or diff-basis functions
@@ -297,8 +300,8 @@ def test_unnecessary_shape():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel 'testkern_qr_type' specifies one or more gh_shapes "
+        _ = LFRicKernMetadata(ast, name=name)
+    assert ("Kernel 'testkern_qr_type' specifies one or more 'gh_shapes' "
             "(['gh_quadrature_xyoz']) but does not need an evaluator because "
             "no basis or differential basis functions are required"
             in str(excinfo.value))
@@ -346,8 +349,8 @@ def test_any_space_1(tmpdir):
             generated_code)
     assert ("map_aspc2_b => b_proxy%vspace%get_whole_dofmap()" in
             generated_code)
-    assert ("CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, "
-            "b_proxy%data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, "
+    assert ("CALL testkern_any_space_1_code(nlayers, a_data, rdt, "
+            "b_data, c_1_data, c_2_data, c_3_data, "
             "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell), "
             "basis_aspc1_a_qr, ndf_aspc2_b, undf_aspc2_b, "
             "map_aspc2_b(:,cell), basis_aspc2_b_qr, ndf_w0, undf_w0, "
@@ -378,8 +381,8 @@ def test_any_space_2(tmpdir):
     assert "undf_aspc1_a = a_proxy%vspace%get_undf()" in generated_code
     assert ("map_aspc1_a => a_proxy%vspace%get_whole_dofmap()"
             in generated_code)
-    assert ("CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, "
-            "b_proxy%data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, "
+    assert ("CALL testkern_any_space_2_code(cell, nlayers, a_data, "
+            "b_data, c_proxy%ncell_3d, c_local_stencil, istp, "
             "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell))"
             in generated_code)
 
@@ -457,9 +460,9 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert "ndf_adspc3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
     assert "ndf_adspc7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
     assert ("CALL testkern_any_discontinuous_space_op_1_code(cell, nlayers, "
-            "f1_proxy(1)%data, f1_proxy(2)%data, f1_proxy(3)%data, "
-            "f2_proxy%data, op3_proxy%ncell_3d, op3_proxy%local_stencil, "
-            "op4_proxy%ncell_3d, op4_proxy%local_stencil, rdt, "
+            "f1_1_data, f1_2_data, f1_3_data, "
+            "f2_data, op3_proxy%ncell_3d, op3_local_stencil, "
+            "op4_proxy%ncell_3d, op4_local_stencil, rdt, "
             "ndf_adspc1_f1, undf_adspc1_f1, map_adspc1_f1(:,cell), "
             "ndf_adspc2_f2, undf_adspc2_f2, map_adspc2_f2(:,cell), "
             "ndf_adspc3_op4, ndf_adspc7_op4)" in generated_code)
@@ -818,7 +821,7 @@ def test_field_bc_kernel(tmpdir):
     assert ("INTEGER(KIND=i_def), pointer :: boundary_dofs_a(:,:) => "
             "null()" in gen_code)
     assert "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()" in gen_code
-    assert ("CALL enforce_bc_code(nlayers, a_proxy%data, ndf_aspc1_a, "
+    assert ("CALL enforce_bc_code(nlayers, a_data, ndf_aspc1_a, "
             "undf_aspc1_a, map_aspc1_a(:,cell), boundary_dofs_a)"
             in gen_code)
 
@@ -851,6 +854,8 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     # Monkeypatch the argument object so that it thinks it is an
     # operator rather than a field
     monkeypatch.setattr(arg, "_argument_type", value="gh_operator")
+    # Have to add a tag to the symbol table to get to the error.
+    schedule.symbol_table.find_or_create_tag("a:local_stencil")
     # We have to monkey-patch the arg.ref_name() function too as
     # otherwise the first monkey-patch causes it to break. Since
     # it is a function we have to patch it with a temporary
@@ -876,7 +881,7 @@ def test_bc_kernel_anyspace1_only():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kernels = schedule.walk(DynKern)
+    kernels = schedule.walk(LFRicKern)
     assert kernels[0].base_name == "enforce_bc"
     # Ensure that none of the arguments are listed as being on ANY_SPACE_1
     for fspace in kernels[0].arguments._unique_fss:
@@ -897,10 +902,12 @@ def test_bc_op_kernel_wrong_args():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    kernels = invoke.schedule.walk(DynKern)
+    kernels = invoke.schedule.walk(LFRicKern)
     # Ensure that the kernel has the wrong number of arguments - duplicate
     # the existing argument in the list
     kernels[0].arguments.args.append(kernels[0].arguments.args[0])
+    # Have to add a tag to the symbol table to get to the error.
+    invoke.schedule.symbol_table.find_or_create_tag("a_local_stencil")
     with pytest.raises(GenerationError) as err:
         _ = DynBoundaryConditions(invoke)
     assert ("enforce_operator_bc_code kernel must have exactly one argument "
@@ -977,13 +984,13 @@ def test_2kern_invoke_any_space(tmpdir):
     assert "map_aspc1_f1 => f1_proxy%vspace%get_whole_dofmap()\n" in gen
     assert "map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
-        "        CALL testkern_any_space_2_code(cell, nlayers, f1_proxy%data,"
-        " f2_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, scalar, "
+        "        CALL testkern_any_space_2_code(cell, nlayers, f1_data,"
+        " f2_data, op_proxy%ncell_3d, op_local_stencil, scalar, "
         "ndf_aspc1_f1, undf_aspc1_f1, map_aspc1_f1(:,cell))\n" in gen)
     assert "map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n" in gen
     assert (
-        "        CALL testkern_any_space_2_code(cell, nlayers, f2_proxy%data,"
-        " f1_proxy%data, op_proxy%ncell_3d, op_proxy%local_stencil, scalar, "
+        "        CALL testkern_any_space_2_code(cell, nlayers, f2_data,"
+        " f1_data, op_proxy%ncell_3d, op_local_stencil, scalar, "
         "ndf_aspc1_f2, undf_aspc1_f2, map_aspc1_f2(:,cell))\n" in gen)
 
 
@@ -1020,9 +1027,9 @@ def test_multikern_invoke_any_space(tmpdir):
         "      map_aspc1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_aspc2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
         in gen)
-    assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, rdt, "
-            "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
-            "f3_proxy(3)%data, ndf_aspc1_f1, undf_aspc1_f1, "
+    assert ("CALL testkern_any_space_1_code(nlayers, f1_data, rdt, "
+            "f2_data, f3_1_data, f3_2_data, "
+            "f3_3_data, ndf_aspc1_f1, undf_aspc1_f1, "
             "map_aspc1_f1(:,cell), basis_aspc1_f1_qr, ndf_aspc2_f2, "
             "undf_aspc2_f2, map_aspc2_f2(:,cell), basis_aspc2_f2_qr, ndf_w0, "
             "undf_w0, map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
@@ -1209,7 +1216,7 @@ def test_arg_descriptor_funcs_method_error():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[0]
     field_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
@@ -1244,7 +1251,7 @@ def test_dynkernmetadata_read_fs_error():
         "end module testkern_chi_write_mod\n")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as info:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert ("Found kernel metadata in 'testkern_chi_write_type' that "
             "specifies writing to the read-only function space 'wchi'."
             in str(info.value))
@@ -1441,16 +1448,12 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     second_arg = first_kernel.arguments.args[1]
     psyir = second_arg.psyir_expression()
     assert isinstance(psyir, Reference)
-    assert psyir.symbol.name == "f1_proxy"
-    assert isinstance(psyir.symbol.datatype, DataTypeSymbol)
-    assert psyir.symbol.datatype.name == "field_proxy_type"
-    # Repeat but force the symbol for 'f1_proxy' to be created
-    del first_kernel.scope.symbol_table._symbols["f1_proxy"]
-    psyir = second_arg.psyir_expression()
-    assert isinstance(psyir, Reference)
-    assert psyir.symbol.name == "f1_proxy"
-    assert isinstance(psyir.symbol.datatype, DataTypeSymbol)
-    assert psyir.symbol.datatype.name == "field_proxy_type"
+    assert psyir.symbol.name == "f1_data"
+    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
+    assert (psyir.symbol.datatype.partial_datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert len(psyir.symbol.datatype.partial_datatype.shape) == 1
     # Break the argument type
     monkeypatch.setattr(second_arg, "_argument_type", "gh_wrong")
     with pytest.raises(NotImplementedError) as err:
@@ -1473,17 +1476,37 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     assert isinstance(psyir, BinaryOperation)
     assert psyir.operator == BinaryOperation.Operator.ADD
     # Test that we catch invalid literal expressions
-    monkeypatch.setattr(kern.arguments.args[1], "_name", "missing")
-    with pytest.raises(InternalError) as err:
-        _ = kern.arguments.args[1].psyir_expression()
-    assert ("Unexpected literal expression 'missing' when processing kernel "
-            "'inc_x_powint_n" in str(err.value))
     monkeypatch.setattr(kern.arguments.args[1], "_name", "3.0 + f1")
     with pytest.raises(InternalError) as err:
         _ = kern.arguments.args[1].psyir_expression()
     assert ("Expected argument '3.0 + f1' to kernel 'inc_x_powint_n' to be a "
             "literal but the created PSyIR contains one or more References"
             in str(err.value))
+    # Test for an LMA operator argument.
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.walk(LFRicKern)[0]
+    psyir = kern.arguments.args[0].psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "mm_w0_local_stencil"
+    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
+    assert len(psyir.symbol.datatype.partial_datatype.shape) == 3
+    # Test for a CMA operator argument.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "20.0.1_cma_assembly_scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.walk(LFRicKern)[0]
+    psyir = kern.arguments.args[1].psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "cma_op1_cma_matrix"
+    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
+    assert len(psyir.symbol.datatype.partial_datatype.shape) == 3
 
 
 def test_arg_ref_name_method_error1():
@@ -2065,7 +2088,7 @@ def test_no_arg_on_space(monkeypatch):
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.coded_kernels()[0]
     kernel_args = first_kernel.arguments
-    # Test getting the argument by the meta-data name for the function space
+    # Test getting the argument by the metadata name for the function space
     arg, fspace = kernel_args.get_arg_on_space_name("w2")
     assert arg.name == "f2"
     assert fspace.orig_name == "w2"
@@ -2096,7 +2119,7 @@ def test_arg_descriptor_func_method_error():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     scalar_descriptor = metadata.arg_descriptors[0]
     scalar_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
@@ -2114,7 +2137,7 @@ def test_arg_descriptor_str_error():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     scalar_descriptor = metadata.arg_descriptors[0]
     scalar_descriptor._argument_type = "gh_fire_starter"
     with pytest.raises(InternalError) as excinfo:
@@ -2131,7 +2154,7 @@ def test_arg_desc_func_space_tofrom_err():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     scalar_descriptor = metadata.arg_descriptors[0]
     with pytest.raises(InternalError) as excinfo:
         _ = scalar_descriptor.function_space_to
@@ -2272,7 +2295,7 @@ def test_arg_descriptor_init_error(monkeypatch):
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     field_descriptor = metadata.arg_descriptors[1]
     # Extract an arg_type object that we can use to create an
     # LFRicArgDescriptor object
@@ -2295,7 +2318,7 @@ def test_func_descriptor_repr():
     ''' Tests the __repr__ output of a func_descriptor '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     func_descriptor = metadata.func_descriptors[0]
     func_str = repr(func_descriptor)
     assert "DynFuncDescriptor03(func_type(w1, gh_basis))" in func_str
@@ -2305,7 +2328,7 @@ def test_func_descriptor_str():
     ''' Tests the __str__ output of a func_descriptor '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_qr_type")
     func_descriptor = metadata.func_descriptors[0]
     func_str = str(func_descriptor)
     output = (
@@ -2317,7 +2340,7 @@ def test_func_descriptor_str():
     assert output in func_str
 
 
-def test_dynkern_arg_for_fs():
+def test_lfrickern_arg_for_fs():
     ''' Test that LFRicInvoke.arg_for_funcspace() raises an error if
     passed an invalid function space.
 
@@ -2769,7 +2792,7 @@ def test_operator_gh_sum_invalid():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("allowed accesses for operators are ['gh_read', 'gh_write', "
             "'gh_readwrite'] because they behave as discontinuous "
             "quantities, but found 'gh_sum'" in str(excinfo.value))
@@ -2802,23 +2825,23 @@ def test_derived_type_arg(dist_mem, tmpdir):
     # Check that they are still named correctly when passed to the
     # kernels
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "my_obj_iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "my_obj_iflag, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "my_obj_get_flag, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "my_obj_get_flag, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "my_obj_get_flag_1, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "my_obj_get_flag_1, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "my_obj_get_flag_2, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "my_obj_get_flag_2, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
 
@@ -2849,30 +2872,30 @@ def test_multiple_derived_type_args(dist_mem, tmpdir):
     # Check that they are still named correctly when passed to the
     # kernels
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "obj_a_iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "obj_a_iflag, f2_data, m1_data, m2_data, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "obj_b_iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "obj_b_iflag, f2_data, m1_data, m2_data, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "obj_a_obj_b_iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "obj_a_obj_b_iflag, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
     assert (
-        "CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "obj_b_obj_a_iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "obj_b_obj_a_iflag, f2_data, m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))" in gen)
 
 
 def test_haloexchange_unknown_halo_depth():
     ''' If a stencil extent is provided in the kernel metadata then the
-    value is stored in an instance of the DynHaloExchange class. This test
+    value is stored in an instance of the LFRicHaloExchange class. This test
     checks that the value is stored as expected (although stencil extents
     in metadata are not currently supported in PSyclone).
 
@@ -2978,7 +3001,7 @@ def test_no_updated_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("An LFRic kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
             "'testkern_qr_type'." in str(excinfo.value))
@@ -3007,7 +3030,7 @@ end module testkern
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("An LFRic kernel must have at least one argument that is "
             "updated (written to) but found none for kernel "
             "'testkern_type'." in str(excinfo.value))
@@ -3022,7 +3045,7 @@ def test_multiple_updated_op_args():
         "arg_type(gh_operator, gh_real,    gh_write, w1, w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
         if (descriptor.argument_type in ["gh_field", "gh_operator"] and
@@ -3057,7 +3080,7 @@ def test_kerncallarglist_quad_rule_error(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.walk(DynLoop)[0]
+    loop = schedule.walk(LFRicLoop)[0]
     create_arg_list = KernCallArgList(loop.loop_body[0])
     # Add an invalid shape to the dict of qr rules
     create_arg_list._kern.qr_rules["broken"] = None
@@ -3114,7 +3137,7 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "      DO cell=loop0_start,loop0_stop\n"
             "        !\n"
             "        CALL testkern_multi_anyw2_code(nlayers, "
-            "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
+            "f1_data, f2_data, f3_data, ndf_any_w2, "
             "undf_any_w2, map_any_w2(:,cell))\n"
             "      END DO\n"
             "      !\n"
@@ -3144,7 +3167,7 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "      DO cell=loop0_start,loop0_stop\n"
             "        !\n"
             "        CALL testkern_multi_anyw2_code(nlayers, "
-            "f1_proxy%data, f2_proxy%data, f3_proxy%data, ndf_any_w2, "
+            "f1_data, f2_data, f3_data, ndf_any_w2, "
             "undf_any_w2, map_any_w2(:,cell))\n"
             "      END DO")
         assert output in generated_code
@@ -3162,7 +3185,7 @@ def test_anyw2_vectors():
         generated_code = str(psy.gen)
         assert "f3_proxy(1) = f3(1)%get_proxy()" in generated_code
         assert "f3_proxy(2) = f3(2)%get_proxy()" in generated_code
-        assert "f3_proxy(1)%data, f3_proxy(2)%data" in generated_code
+        assert "f3_1_data, f3_2_data" in generated_code
 
 
 def test_anyw2_operators(dist_mem, tmpdir):
@@ -3279,7 +3302,7 @@ def test_halo_different_stencils_no_red_comp(tmpdir):
 
 def test_comp_halo_intern_err(monkeypatch):
     '''Check that we raise an exception if the compute_halo_read_info method in
-    dynhaloexchange does not find any read dependencies. This should
+    LFRicHaloExchange does not find any read dependencies. This should
     never be the case. We use monkeypatch to force the exception to be
     raised'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -3368,7 +3391,7 @@ def test_HaloReadAccess_field_in_call():
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(field, None)
     assert ("field 'f1' should be from a call but found "
-            "<class 'psyclone.dynamo0p3.DynHaloExchange'>"
+            "<class 'psyclone.dynamo0p3.LFRicHaloExchange'>"
             in str(excinfo.value))
 
 
@@ -3649,26 +3672,23 @@ def test_haloex_not_required(monkeypatch):
 
 def test_lfriccollection_err1():
     ''' Check that the LFRicCollection constructor raises the expected
-    error if it is not provided with a DynKern or LFRicInvoke. '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    error if it is not provided with an LFRicKern or LFRicInvoke. '''
     with pytest.raises(InternalError) as err:
-        _ = DynProxies(psy)
-    assert ("LFRicCollection takes only an LFRicInvoke or a DynKern but"
+        _ = DynProxies(None)
+    assert ("LFRicCollection takes only an LFRicInvoke or an LFRicKern but"
             in str(err.value))
 
 
 def test_lfriccollection_err2(monkeypatch):
     ''' Check that the LFRicCollection constructor raises the expected
-    error if it is not provided with a DynKern or LFRicInvoke. '''
+    error if it is not provided with an LFRicKern or LFRicInvoke. '''
 
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    # Create a valid sub-class of a LFRicCollection
-    proxies = DynProxies(invoke)
+    # Obtain a valid sub-class of a LFRicCollection
+    proxies = invoke.proxies
     # Monkeypatch it to break internal state
     monkeypatch.setattr(proxies, "_invoke", None)
     with pytest.raises(InternalError) as err:
@@ -3768,9 +3788,8 @@ def test_dynkernelarguments_acc_args_1():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_proxy', 'f1_proxy%data', 'f2_proxy',
-        'f2_proxy%data', 'm1_proxy', 'm1_proxy%data', 'm2_proxy',
-        'm2_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1', 'ndf_w2', 'undf_w2',
+        'nlayers', 'f1_data', 'f2_data', 'm1_data', 'm2_data', 'ndf_w1',
+        'undf_w1', 'map_w1', 'ndf_w2', 'undf_w2',
         'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
 
 
@@ -3788,10 +3807,8 @@ def test_dynkernelarguments_acc_args_2():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_proxy(1)', 'f1_proxy(2)', 'f1_proxy(3)',
-        'f1_proxy(1)%data', 'f1_proxy(2)%data', 'f1_proxy(3)%data',
-        'f2_proxy(1)', 'f2_proxy(2)', 'f2_proxy(3)',
-        'f2_proxy(1)%data', 'f2_proxy(2)%data', 'f2_proxy(3)%data',
+        'nlayers', 'f1_1_data', 'f1_2_data', 'f1_3_data',
+        'f2_1_data', 'f2_2_data', 'f2_3_data',
         'ndf_w3', 'undf_w3', 'map_w3']
 
 
@@ -3809,9 +3826,9 @@ def test_dynkernelarguments_acc_args_3():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_proxy', 'f1_proxy%data', 'f2_proxy', 'f2_proxy%data',
-        'f2_stencil_size', 'f2_stencil_dofmap', 'f3_proxy', 'f3_proxy%data',
-        'f4_proxy', 'f4_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1', 'ndf_w2',
+        'nlayers', 'f1_data', 'f2_data',
+        'f2_stencil_size', 'f2_stencil_dofmap', 'f3_data',
+        'f4_data', 'ndf_w1', 'undf_w1', 'map_w1', 'ndf_w2',
         'undf_w2', 'map_w2', 'ndf_w3', 'undf_w3', 'map_w3']
 
 
@@ -3829,9 +3846,9 @@ def test_dynkernelarguments_acc_args_4():
     kern_args = kern.arguments
     acc_args = kern_args.acc_args
     assert acc_args == [
-        'nlayers', 'f1_proxy', 'f1_proxy%data', 'f2_proxy', 'f2_proxy%data',
-        'f2_stencil_size', 'f2_max_branch_length', 'f2_stencil_dofmap',
-        'f3_proxy', 'f3_proxy%data', 'f4_proxy', 'f4_proxy%data', 'ndf_w1',
+        'nlayers', 'f1_data', 'f2_data', 'f2_stencil_size',
+        'f2_max_branch_length', 'f2_stencil_dofmap',
+        'f3_data', 'f4_data', 'ndf_w1',
         'undf_w1', 'map_w1', 'ndf_w2', 'undf_w2', 'map_w2', 'ndf_w3',
         'undf_w3', 'map_w3']
 
@@ -3851,9 +3868,8 @@ def test_dynkernelarguments_acc_args_5():
     acc_args = kern_args.acc_args
     assert acc_args == [
         'cell', 'nlayers', 'mm_w0_proxy', 'mm_w0_proxy%ncell_3d',
-        'mm_w0_proxy%local_stencil', 'coord_proxy(1)', 'coord_proxy(2)',
-        'coord_proxy(3)', 'coord_proxy(1)%data', 'coord_proxy(2)%data',
-        'coord_proxy(3)%data', 'ndf_w0', 'undf_w0', 'map_w0',
+        'mm_w0_local_stencil', 'coord_1_data', 'coord_2_data',
+        'coord_3_data', 'ndf_w0', 'undf_w0', 'map_w0',
         'basis_w0_qr', 'diff_basis_w0_qr', 'np_xy_qr', 'np_z_qr',
         'weights_xy_qr', 'weights_z_qr']
 
@@ -3909,6 +3925,7 @@ def test_lfricinvoke_runtime(tmpdir, monkeypatch):
     assert expected1 in generated_code
     expected2 = (
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
@@ -3971,6 +3988,7 @@ def test_dynruntimechecks_anyspace(tmpdir, monkeypatch):
     assert expected1 in generated_code
     expected2 = (
         "      c_proxy(3) = c(3)%get_proxy()\n"
+        "      c_3_data => c_proxy(3)%data\n"
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
@@ -4016,6 +4034,7 @@ def test_dynruntimechecks_vector(tmpdir, monkeypatch):
     assert expected1 in generated_code
     expected2 = (
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
@@ -4077,6 +4096,7 @@ def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
     assert expected1 in generated_code
     expected2 = (
         "      f3_proxy = f3%get_proxy()\n"
+        "      f3_data => f3_proxy%data\n"
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
@@ -4155,6 +4175,7 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
     assert expected_code1 in generated_code
     expected_code2 = (
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
@@ -4195,6 +4216,7 @@ def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     assert expected1 in generated_code
     expected2 = (
         "      op4_proxy = op4%get_proxy()\n"
+        "      op4_local_stencil => op4_proxy%local_stencil\n"
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
@@ -4257,7 +4279,6 @@ def test_dynruntimechecks_anyw2(tmpdir, monkeypatch):
         "      USE mesh_mod, ONLY: mesh_type\n")
     assert expected1 in generated_code
     expected2 = (
-        "      f3_proxy = f3%get_proxy()\n"
         "      !\n"
         "      ! Perform run-time checks\n"
         "      !\n"
@@ -4384,13 +4405,29 @@ def test_mixed_precision_args(tmpdir):
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_tran), pointer, dimension(:,:,:) :: "
+        "operator_r_tran_local_stencil => null()\n"
         "      TYPE(r_tran_operator_proxy_type) operator_r_tran_proxy\n"
+        "      REAL(KIND=r_solver), pointer, dimension(:,:,:) :: "
+        "operator_r_solver_local_stencil => null()\n"
         "      TYPE(r_solver_operator_proxy_type) operator_r_solver_proxy\n"
+        "      REAL(KIND=r_def), pointer, dimension(:,:,:) :: "
+        "operator_r_def_local_stencil => null()\n"
         "      TYPE(operator_proxy_type) operator_r_def_proxy\n"
+        "      REAL(KIND=r_phys), pointer, dimension(:) :: field_r_phys_data "
+        "=> null()\n"
         "      TYPE(r_phys_field_proxy_type) field_r_phys_proxy\n"
+        "      REAL(KIND=r_bl), pointer, dimension(:) :: field_r_bl_data => "
+        "null()\n"
         "      TYPE(r_bl_field_proxy_type) field_r_bl_proxy\n"
+        "      REAL(KIND=r_tran), pointer, dimension(:) :: field_r_tran_data "
+        "=> null()\n"
         "      TYPE(r_tran_field_proxy_type) field_r_tran_proxy\n"
+        "      REAL(KIND=r_solver), pointer, dimension(:) :: "
+        "field_r_solver_data => null()\n"
         "      TYPE(r_solver_field_proxy_type) field_r_solver_proxy\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: field_r_def_data "
+        "=> null()\n"
         "      TYPE(field_proxy_type) field_r_def_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w3(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w3, undf_w3, ndf_w0\n"

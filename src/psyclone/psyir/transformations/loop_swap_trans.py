@@ -77,7 +77,7 @@ class LoopSwapTrans(LoopTrans):
 
     '''
 
-    excluded_node_types = (Call, CodeBlock)
+    excluded_node_types = (CodeBlock, )
 
     def __str__(self):
         return "Exchange the order of two nested loops: inner becomes " + \
@@ -130,6 +130,13 @@ class LoopSwapTrans(LoopTrans):
                 f"{len(node_outer.loop_body.children)} inner statements, the "
                 f"first two being '{node_outer.loop_body[0]}' and "
                 f"'{node_outer.loop_body[1]}'.")
+
+        calls = [call for call in node.walk(Call) if not call.is_pure]
+        if calls:
+            raise TransformationError(
+                f"Nodes of type 'Call' cannot be enclosed by a LoopSwapTrans "
+                f"unless they can be guaranteed to be pure, but found: "
+                f"{[call.debug_string() for call in calls]}.")
 
         outer_sched = node_outer.loop_body
         if outer_sched.symbol_table and \

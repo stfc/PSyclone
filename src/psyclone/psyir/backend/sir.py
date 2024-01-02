@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified by: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified by: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
 limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
 gen() method to generate Fortran.
 
 '''
-from psyclone.nemo import NemoLoop, NemoKern
+from psyclone.nemo import NemoLoop
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import ArrayReference, BinaryOperation, Literal, \
-    Reference, UnaryOperation, NaryOperation
+from psyclone.psyir.nodes import (
+    ArrayReference, BinaryOperation, CodeBlock, Literal,
+    Reference, UnaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import ScalarType
 
 # Mapping from PSyIR data types to SIR types.
@@ -163,7 +164,7 @@ class SIRWriter(PSyIRVisitor):
 
     def nemoloop_node(self, loop_node):
         '''Supported NEMO loops are triply nested with particular indices (not
-        yet checked) and should contain a NemoKern. If this is not the
+        yet checked) and should contain only computation. If this is not the
         case then it is not possible to translate so an exception is
         raised.
 
@@ -173,36 +174,42 @@ class SIRWriter(PSyIRVisitor):
         :returns: the SIR Python code.
         :rtype: str
 
-        :raises VisitorError: if the loop is not triply nested with \
-        computation within the triply nested loop.
+        :raises VisitorError: if the loop is not triply nested with computation
+                              within the triply nested loop.
 
         '''
+        loops = loop_node.walk(NemoLoop)
+        if len(loops) != 3:
+            raise VisitorError("Only triply-nested loops are supported.")
+
         # Check first loop has a single loop as a child.
-        loop_content = loop_node.loop_body.children
+        loop_content = loops[0].loop_body.children
         if not (len(loop_content) == 1 and
                 isinstance(loop_content[0], NemoLoop)):
             raise VisitorError("Child of loop should be a single loop.")
 
         # Check second loop has a single loop as a child.
-        loop_content = loop_content[0].loop_body.children
-        if not (len(loop_content) == 1 and
-                isinstance(loop_content[0], NemoLoop)):
+        loop2_content = loops[1].loop_body.children
+        if not (len(loop2_content) == 1 and
+                isinstance(loop2_content[0], NemoLoop)):
             raise VisitorError(
                 "Child of child of loop should be a single loop.")
 
-        # Check third loop has a single NemoKern as a child.
-        loop_content = loop_content[0].loop_body.children
-        if not (len(loop_content) == 1 and
-                isinstance(loop_content[0], NemoKern)):
+        # Check that the innermost loop does not contain any CodeBlocks.
+        loop3 = loops[2]
+        if loop3.walk(CodeBlock):
             raise VisitorError(
-                "Child of child of child of loop should be a NemoKern.")
+                f"A loop nest containing a CodeBlock cannot be translated to "
+                f"SIR:\n"
+                f"{loop3.debug_string()}")
 
         # The interval values are hardcoded for the moment (see #470).
         result = f"{self._nindent}interval = "\
                  f"make_interval(Interval.Start, Interval.End, 0, 0)\n"
         result += f"{self._nindent}body_ast = make_ast([\n"
         self._depth += 1
-        result += self.nemokern_node(loop_content[0])
+        for child in loop3.loop_body:
+            result += self._visit(child)
         self._depth -= 1
         # Remove the trailing comma if there is one as this is the
         # last entry in make_ast.
@@ -214,23 +221,6 @@ class SIRWriter(PSyIRVisitor):
         result += f"{self._nindent}vertical_region_fns.append("\
                   f"make_vertical_region_decl_stmt(body_ast, interval, "\
                   f"VerticalRegion.Forward))\n"
-        return result
-
-    def nemokern_node(self, node):
-        '''NEMO kernels are a group of nodes collected into a schedule
-        so simply visit the nodes in the schedule.
-
-        :param node: a NemoKern PSyIR node.
-        :type node: :py:class:`psyclone.nemo.NemoKern`
-
-        :returns: the SIR Python code.
-        :rtype: str
-
-        '''
-        result = ""
-        schedule = node.get_kernel_schedule()
-        for child in schedule.children:
-            result += self._visit(child)
         return result
 
     def nemoinvokeschedule_node(self, node):
@@ -314,13 +304,6 @@ class SIRWriter(PSyIRVisitor):
         operator to SIR.
 
         '''
-        # Specify any PSyIR intrinsic operators as these are typically
-        # mapped to SIR functions and are therefore treated
-        # differently to other operators.
-        intrinsic_operators = [
-            BinaryOperation.Operator.MIN, BinaryOperation.Operator.MAX,
-            BinaryOperation.Operator.SIGN]
-
         # Specify the mapping of PSyIR binary operators to SIR binary
         # operators.
         binary_operators = {
@@ -336,10 +319,7 @@ class SIRWriter(PSyIRVisitor):
             BinaryOperation.Operator.GE: '>=',
             BinaryOperation.Operator.GT: '>',
             BinaryOperation.Operator.AND: '&&',
-            BinaryOperation.Operator.OR: '||',
-            BinaryOperation.Operator.MIN: 'math::min',
-            BinaryOperation.Operator.MAX: 'math::max',
-            BinaryOperation.Operator.SIGN: 'math::sign'}
+            BinaryOperation.Operator.OR: '||'}
 
         self._depth += 1
         lhs = self._visit(node.children[0])
@@ -352,28 +332,11 @@ class SIRWriter(PSyIRVisitor):
         rhs = self._visit(node.children[1])
         self._depth -= 1
 
-        if node.operator in intrinsic_operators:
-            if node.operator is BinaryOperation.Operator.SIGN:
-                # This is a special case as the implementation of SIGN
-                # in the PSyIR (which uses the Fortran implementation)
-                # is different to that in SIR (which uses the C
-                # implementation).
-                # [F] SIGN(A,B) == [C] FABS(A)*SIGN(B)
-                c_abs_fun = (f"make_fun_call_expr(\"math::fabs\", "
-                             f"[{lhs.strip()}])")
-                c_sign_fun = (f"make_fun_call_expr(\"math::sign\", "
-                              f"[{rhs.strip()}])")
-                result = (f"make_binary_operator({c_abs_fun}, "
-                          f"\"*\", {c_sign_fun})")
-            else:
-                result = (f"{self._nindent}{self._indent}make_fun_call_expr("
-                          f"\"{oper}\", [{lhs.strip()}], [{rhs.strip()}])")
-        else:
-            result = f"{self._nindent}make_binary_operator(\n{lhs}"
-            # For better formatting, remove the newline if one exists.
-            result = result.rstrip("\n") + ",\n"
-            result += f"{self._nindent}{self._indent}\"{oper}\",\n{rhs}\n"\
-                f"{self._nindent}{self._indent})\n"
+        result = f"{self._nindent}make_binary_operator(\n{lhs}"
+        # For better formatting, remove the newline if one exists.
+        result = result.rstrip("\n") + ",\n"
+        result += f"{self._nindent}{self._indent}\"{oper}\",\n{rhs}\n"\
+            f"{self._nindent}{self._indent})\n"
         return result
 
     def reference_node(self, node):
@@ -461,23 +424,15 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         # Currently only '-' and intrinsics are supported in the SIR mapping.
-        intrinsic_operators = [UnaryOperation.Operator.ABS]
-
         unary_operators = {
             UnaryOperation.Operator.MINUS: '-',
-            UnaryOperation.Operator.ABS: 'math::fabs'}
+        }
         try:
             oper = unary_operators[node.operator]
         except KeyError as err:
             raise VisitorError(
                 f"Method unaryoperation_node in class SIRWriter, unsupported "
                 f"operator '{node.operator}' found.") from err
-
-        if node.operator in intrinsic_operators:
-            rhs = self._visit(node.children[0])
-            result = (f"{self._nindent}{self._indent}make_fun_call_expr("
-                      f"\"{oper}\", [{rhs.strip()}])")
-            return result
 
         if isinstance(node.children[0], Literal):
             # The unary minus operator is being applied to a
@@ -558,12 +513,12 @@ class SIRWriter(PSyIRVisitor):
             result += self._visit(child)
         return result
 
-    def naryoperation_node(self, node):
-        '''This method is called when an NaryOperation instance is found in
+    def intrinsiccall_node(self, node):
+        '''This method is called when an Intrinsic node is found in
         the PSyIR tree.
 
-        :param node: a NaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.NaryOperation`
+        :param node: an IntrinsicCall PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -575,26 +530,43 @@ class SIRWriter(PSyIRVisitor):
         # Specify the mapping of PSyIR nary operators to SIR nary
         # operators. The assumption here is that the nary operators
         # are SIR intrinsics.
-        nary_operators = {
-            NaryOperation.Operator.MIN: 'math::min',
-            NaryOperation.Operator.MAX: 'math::max'}
+        supported_intrinsics = {
+            IntrinsicCall.Intrinsic.ABS: 'math::fabs',
+            IntrinsicCall.Intrinsic.MIN: 'math::min',
+            IntrinsicCall.Intrinsic.MAX: 'math::max',
+            IntrinsicCall.Intrinsic.SIGN: 'math::sign'}
 
         try:
-            oper = nary_operators[node.operator]
+            intrinsic = supported_intrinsics[node.intrinsic]
         except KeyError as err:
-            oper_names = [operator.name for operator in nary_operators]
+            intr_names = [intr.name for intr in supported_intrinsics]
             raise VisitorError(
-                f"Method naryoperation_node in class SIRWriter, unsupported "
-                f"operator '{node.operator}' found. Expected one of "
-                f"'{oper_names}'.") from err
+                f"Method intrinsiccall_node in class SIRWriter, unsupported "
+                f"intrinsic '{node.intrinsic.name}' found. Expected one of "
+                f"'{intr_names}'.") from err
 
-        arg_list = []
         self._depth += 1
-        for child in node.children:
-            arg_list.append(f"[{self._visit(child).strip()}]")
+
+        if node.intrinsic is IntrinsicCall.Intrinsic.SIGN:
+            # This is a special case as the implementation of SIGN
+            # in the PSyIR (which uses the Fortran implementation)
+            # is different to that in SIR (which uses the C
+            # implementation).
+            # [F] SIGN(A,B) == [C] FABS(A)*SIGN(B)
+            c_abs_fun = (f"make_fun_call_expr(\"math::fabs\", "
+                         f"[{self._visit(node.children[0]).strip()}])")
+            c_sign_fun = (f"make_fun_call_expr(\"math::sign\", "
+                          f"[{self._visit(node.children[1]).strip()}])")
+            result = (f"make_binary_operator({c_abs_fun}, "
+                      f"\"*\", {c_sign_fun})")
+        else:
+            # Everything else it is a SIR intrinsics
+            arg_list = []
+            for child in node.children:
+                arg_list.append(f"[{self._visit(child).strip()}]")
+            arg_str = ", ".join(arg_list)
+            result = (f"{self._nindent}{self._indent}make_fun_call_expr("
+                      f"\"{intrinsic}\", {arg_str})")
+
         self._depth -= 1
-        arg_str = ", ".join(arg_list)
-        # The assumption here is that the supported operators are intrinsics
-        result = (f"{self._nindent}{self._indent}make_fun_call_expr("
-                  f"\"{oper}\", {arg_str})")
         return result

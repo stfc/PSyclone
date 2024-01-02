@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,9 @@
 ''' PSyclone transformation script to insert OpenMP for CPU
 directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
+from utils import (insert_explicit_loop_parallelism, normalise_loops,
+                   enhance_tree_information, add_profiling)
 from psyclone.transformations import OMPLoopTrans
-from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information, add_profiling
 
 PROFILING_ENABLED = False
 
@@ -65,6 +65,12 @@ def trans(psy):
 
         if PROFILING_ENABLED:
             add_profiling(invoke.schedule.children)
+
+        # TODO #2317: Has structure accesses that can not be offloaded and has
+        # a problematic range to loop expansion of (1:1)
+        if psy.name.startswith("psy_obs_"):
+            print("Skipping", invoke.name)
+            continue
 
         enhance_tree_information(invoke.schedule)
 

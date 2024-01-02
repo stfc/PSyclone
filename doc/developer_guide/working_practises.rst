@@ -388,6 +388,13 @@ and --f90 and --f90flags), e.g.::
 
   > pytest --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
 
+If you want to test OpenMP code created by PSyclone, you must add the relevant
+openmp flag to --f90flags (`-qopenmp` for intel, `-fopenmp` for gfortran). In addition
+the OpenMP tasking tests currently only support compilation testing with intel
+compilers, e.g.::
+
+  > pytest --compile --f90=ifort --f90flags="-qopenmp"
+
 
 Infrastructure libraries
 ++++++++++++++++++++++++
@@ -448,13 +455,13 @@ computational cost (so that we 'fail fast'):
  4. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 5. All of the examples are tested (for Python versions 3.7, 3.8 and 3.11)
+ 5. All of the examples are tested (for Python versions 3.7, 3.8 and 3.12)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
     The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 6. The full test suite is run for Python versions 3.7, 3.8 and 3.11 but
+ 6. The full test suite is run for Python versions 3.7, 3.8 and 3.12 but
     without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
     so that it will run the tests in parallel on as many cores as are
     available (currently 2 on GHA instances).
@@ -581,6 +588,16 @@ the LFRic model (available in the self-hosted runner). Two tests are performed:
     the ``examples/lfric/scripts/everything_everywhere_all_at_once.py`` script
     and then compiled and run 6-way parallel using OpenMP threading.
 
+Some of the LFRic and NEMO integration tests also store, and upload, their
+performance results
+`into a Github Gist <https://gist.github.com/a4049a0fc0a0a11651a5ce6a04d76160>`_.
+These results can track the performance improvements and degradations that
+psyclone scripts suffered from each change for LFRic and NEMO applications.
+However, one must note that the test runner does not have exclusive access to
+the testing system, and some results may be impacted by other users using the
+system at the same time.
+
+
 Performance
 ===========
 
@@ -614,10 +631,9 @@ returns a string and only executes the function if the ``str`` method
 is called for the class. This will not be the case for the above code
 as the exception string is not used.
 
-This approach is currently used in the ``CreateNemoKernelTrans``
-transformation and internally in the ``TransformationError`` exception
-(so that this transformation does not accidentally cause the string to
-be evaluated).
+This approach is currently used internally in the ``TransformationError``
+exception (so that this transformation does not accidentally cause the
+string to be evaluated).
 
 If a transformation is used in the way described above and PSyclone
 subsequently runs more slowly it is recommended that the ``LazyString``

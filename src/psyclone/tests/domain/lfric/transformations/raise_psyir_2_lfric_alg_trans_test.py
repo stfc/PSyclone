@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the translation of PSyIR to PSyclone
 Algorithm PSyIR.
@@ -66,7 +66,7 @@ def check_invoke(call, kern_info, description=None):
     '''
     assert isinstance(call, LFRicAlgorithmInvokeCall)
     if call._name:
-        assert call._name == f"'{description}'"
+        assert call._name == f"{description}"
     else:
         assert call._name is None
     assert len(call.children) == len(kern_info)

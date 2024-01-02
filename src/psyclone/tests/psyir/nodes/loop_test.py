@@ -34,22 +34,46 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified by L. Turner, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Loop PSyIR node. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
-    Reference
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE, \
-    SymbolTable
+from psyclone.psyir.nodes import (
+    Assignment, Loop, Literal, Schedule, Return, Reference, Routine)
+from psyclone.psyir.symbols import (
+    DataSymbol, REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType,
+    REAL_TYPE, SymbolTable)
+from psyclone.psyir.tools import DependencyTools
 from psyclone.tests.utilities import check_links
+
+
+def make_loop():
+    '''
+    Utility to create a simple PSyIR loop for testing. The loop is contained
+    within a Routine as it must have a parent scope for its Symbols.
+
+    :returns: a PSyIR Loop instance.
+    :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+    '''
+    start = Literal("0", INTEGER_SINGLE_TYPE)
+    stop = Literal("1", INTEGER_SINGLE_TYPE)
+    step = Literal("1", INTEGER_SINGLE_TYPE)
+    sched = Routine("loop_test_sub")
+    tmp = sched.symbol_table.new_symbol("tmp", symbol_type=DataSymbol,
+                                        datatype=REAL_SINGLE_TYPE)
+    isym = sched.symbol_table.new_symbol("i", symbol_type=DataSymbol,
+                                         datatype=INTEGER_SINGLE_TYPE)
+    child_node = Assignment.create(Reference(tmp), Reference(isym))
+    loop = Loop.create(isym, start, stop, step, [child_node])
+    sched.addchild(loop)
+    return loop
 
 
 def test_loop_init():
@@ -143,6 +167,55 @@ def test_loop_navigation_properties():
     assert loop.step_expr.value == "2"
 
 
+def test_loop_dag_name():
+    '''Test the dag_name method of Loop.'''
+    loop = make_loop()
+    assert loop.dag_name == "loop_1"
+    # Make the Loop an orphan to test the error handling.
+    loop.detach()
+    with pytest.raises(InternalError) as err:
+        _ = loop.dag_name
+    assert ("Cannot generate DAG name for loop node 'Loop[variable:'i']"
+            in str(err.value))
+
+
+def test_loop_node_str(monkeypatch):
+    '''Test the node_str method of Loop.'''
+    loop = make_loop()
+    assert loop.node_str(colour=False) == "Loop[variable='i']"
+
+    # Rather than mess about with colour codes, it's simpler if we
+    # monkeypatch the 'coloured_name' method (inherited from Node).
+    def fake_coloured_name(colour=True):
+        if colour:
+            return "yes"
+        return "no"
+    monkeypatch.setattr(loop, "coloured_name", fake_coloured_name)
+    assert loop.node_str(colour=True) == "yes[variable='i']"
+    assert loop.node_str(colour=False) == "no[variable='i']"
+
+
+def test_loop_str():
+    '''Test the __str__ property of Loop.'''
+    loop = make_loop()
+    out = str(loop)
+    assert "Loop[variable:'i']\n" in out
+    assert "End Loop" in out
+
+
+def test_loop_independent_iterations():
+    '''Test the independent_iterations method of Loop.'''
+    loop = make_loop()
+    assert not loop.independent_iterations()
+    # Test that we can supply our own instance of DependencyTools and use
+    # it to query any messages.
+    dtools = DependencyTools()
+    loop.independent_iterations(dep_tools=dtools)
+    msgs = dtools.get_all_messages()
+    assert len(msgs) == 1
+    assert "variable 'tmp' is only written once" in str(msgs[0])
+
+
 def test_loop_gen_code():
     ''' Check that the Loop gen_code method prints the proper loop '''
     base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -152,7 +225,7 @@ def test_loop_gen_code():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
 
-    # By default DynLoop has step = 1 and it is not printed in the Fortran DO
+    # By default LFRicLoop has step = 1 and it is not printed in the Fortran DO
     gen = str(psy.gen)
     assert "loop0_start = 1" in gen
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
@@ -318,13 +391,13 @@ def test_check_variable():
     array_symbol = DataSymbol("my_array", array_type)
     with pytest.raises(GenerationError) as info:
         Loop._check_variable(array_symbol)
-    assert ("variable property in Loop class should be a ScalarType but "
+    assert ("variable 'my_array' in Loop class should be a ScalarType but "
             "found 'ArrayType'." in str(info.value))
 
     scalar_symbol = DataSymbol("my_array", REAL_TYPE)
     with pytest.raises(GenerationError) as info:
         Loop._check_variable(scalar_symbol)
-    assert ("variable property in Loop class should be a scalar integer but "
+    assert ("variable 'my_array' in Loop class should be a scalar integer but "
             "found 'REAL'." in str(info.value))
 
     scalar_symbol = DataSymbol("my_array", INTEGER_TYPE)

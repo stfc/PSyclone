@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,6 +86,17 @@ class PSycloneError(Exception):
 
     def __str__(self):
         return str(self.value)
+
+
+class UnresolvedDependencyError(PSycloneError):
+    ''' Provides a PSyclone specific error class for errors detected when
+    resolving dependencies in the code.
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        PSycloneError.__init__(self, value)
+        self.value = "UnresolvedDependencyError: "+str(value)
 
 
 class GenerationError(PSycloneError):

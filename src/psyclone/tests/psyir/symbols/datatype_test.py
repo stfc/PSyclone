@@ -56,11 +56,13 @@ def test_datatype():
     with pytest.raises(TypeError) as excinfo:
         _ = DataType()
     msg = str(excinfo.value)
-    # Have to split this check as Python >= 3.10 spots that 'method'
-    # should be singular.
-    assert ("Can't instantiate abstract class DataType with abstract "
-            "method" in msg)
-    assert " __str__" in msg
+    # Python >= 3.9 spots that 'method' should be singular. Prior to this it
+    # was plural. Python >= 3.12 tweaks the error message yet again to mention
+    # the lack of an implementation and to quote the method name.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class DataType with" in msg)
+    assert ("abstract method" in msg)
+    assert ("__str__" in msg)
 
 
 # DeferredType class
@@ -293,9 +295,9 @@ def test_arraytype():
     # TODO #1857: the datatype property might be affected.
     assert array_type.datatype == scalar_type
     # Provided and stored as a Literal (DataNode)
-    assert array_type.shape[1].upper is literal
+    assert array_type.shape[1].upper == literal
     # Provided and stored as an Operator (DataNode)
-    assert array_type.shape[2].upper is var_plus_1
+    assert array_type.shape[2].upper == var_plus_1
     # Provided and stored as a Reference to a DataSymbol
     assert isinstance(array_type.shape[3].upper, Reference)
     assert array_type.shape[3].upper.symbol is data_symbol
@@ -337,7 +339,7 @@ def test_arraytype_datatypesymbol_only():
     type of StructureType. (This limitation is the subject of #1031.) '''
     with pytest.raises(NotImplementedError) as err:
         _ = ArrayType(StructureType.create(
-            [("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)]),
+            [("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)]),
                       [5])
     assert ("When creating an array of structures, the type of those "
             "structures must be supplied as a DataTypeSymbol but got a "
@@ -624,6 +626,43 @@ def test_unknown_fortran_type_text():
     # Calling it a second time should just return the previously cached
     # result.
     assert utype.type_text is text
+    # Test for a SAVE for a common block.
+    decl2 = "save :: /a_common_fault/"
+    utype2 = UnknownFortranType(decl2)
+    assert utype2.type_text == "SAVE"
+    # Test for a Common block.
+    decl3 = "common /name1/ a, b, c"
+    utype3 = UnknownFortranType(decl3)
+    assert utype3.type_text == "COMMON"
+
+
+def test_unknown_fortran_type_text_error():
+    '''
+    Check that the expected error is raised if the 'type_text' is requested
+    for something that is not a straightforward declaration.
+    '''
+    decl = "10 format('4I4')"
+    utype = UnknownFortranType(decl)
+    with pytest.raises(NotImplementedError) as err:
+        utype.type_text
+    assert ("Cannot extract the declaration part from UnknownFortranType "
+            "'10 format('4I4')'. Only Declaration_Construct, "
+            "Type_Declaration_Stmt, Save_Stmt and Common_Stmt are supported "
+            "but got 'Implicit_Part' from the parser." in str(err.value))
+    # Valid Fortran but not a declaration.
+    utype = UnknownFortranType("call fn(a)")
+    with pytest.raises(NotImplementedError) as err:
+        utype.type_text
+    assert ("Cannot extract the declaration part from UnknownFortranType "
+            "'call fn(a)' because parsing (attempting to match a "
+            "Fortran2003.Specification_Part) failed." in str(err.value))
+    # Invalid Fortran.
+    utype = UnknownFortranType("not valid fortran")
+    with pytest.raises(NotImplementedError) as err:
+        utype.type_text
+    assert ("Cannot extract the declaration part from UnknownFortranType "
+            "'not valid fortran' because parsing (attempting to match a "
+            "Fortran2003.Specification_Part) failed." in str(err.value))
 
 
 def test_unknown_fortran_type_eq():
@@ -635,6 +674,15 @@ def test_unknown_fortran_type_eq():
     # Type is the same even if the variable name is different.
     assert utype == UnknownFortranType("type(some_type) :: var1")
     assert utype != UnknownFortranType("type(other_type) :: var")
+    # A common block is the same type as another common block.
+    assert (UnknownFortranType("common /how_common/ a, b, cc") ==
+            UnknownFortranType("common /common_land/ a, b, cc"))
+    # A SAVE statement is the same type as another SAVE statement.
+    assert (UnknownFortranType("save :: /how_common/") ==
+            UnknownFortranType("save :: blue_blood"))
+    # Just sanity check that the type of a SAVE != that of a common.
+    assert (UnknownFortranType("common /how_common/ a, b, cc") !=
+            UnknownFortranType("save :: blue_blood"))
 
 
 # StructureType tests
@@ -644,26 +692,37 @@ def test_structure_type():
     stype = StructureType()
     assert str(stype) == "StructureType<>"
     assert not stype.components
-    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)
+    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
     flag = stype.lookup("flag")
+    assert not flag.initial_value
     assert isinstance(flag, StructureType.ComponentType)
+    stype.add("flag2", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
+              Literal("1", INTEGER_TYPE))
+    flag2 = stype.lookup("flag2")
+    assert isinstance(flag2, StructureType.ComponentType)
+    assert flag2.initial_value.value == "1"
     with pytest.raises(TypeError) as err:
-        stype.add(1, "hello", "hello")
+        stype.add(1, "hello", "hello", None)
     assert ("name of a component of a StructureType must be a 'str' but got "
             "'int'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", "hello", "hello")
+        stype.add("hello", "hello", "hello", None)
     assert ("type of a component of a StructureType must be a 'DataType' "
             "or 'DataTypeSymbol' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", INTEGER_TYPE, "hello")
+        stype.add("hello", INTEGER_TYPE, "hello", None)
     assert ("visibility of a component of a StructureType must be an instance "
             "of 'Symbol.Visibility' but got 'str'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, "Hello")
+    assert ("The initial value of a component of a StructureType must be "
+            "None or an instance of 'DataNode', but got 'str'."
+            in str(err.value))
     with pytest.raises(KeyError):
         stype.lookup("missing")
     # Cannot have a recursive type definition
     with pytest.raises(TypeError) as err:
-        stype.add("hello", stype, Symbol.Visibility.PUBLIC)
+        stype.add("hello", stype, Symbol.Visibility.PUBLIC, None)
     assert ("attempting to add component 'hello' - a StructureType definition "
             "cannot be recursive" in str(err.value))
 
@@ -673,52 +732,65 @@ def test_create_structuretype():
     # One member will have its type defined by a DataTypeSymbol
     tsymbol = DataTypeSymbol("my_type", DeferredType())
     stype = StructureType.create([
-        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE),
-        ("barry", tsymbol, Symbol.Visibility.PUBLIC)])
+        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE)),
+        ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
     assert len(stype.components) == 3
     george = stype.lookup("george")
     assert isinstance(george, StructureType.ComponentType)
     assert george.name == "george"
     assert george.datatype == REAL_TYPE
     assert george.visibility == Symbol.Visibility.PRIVATE
+    assert george.initial_value.value == "1.0"
     barry = stype.lookup("barry")
     assert isinstance(barry, StructureType.ComponentType)
     assert barry.datatype is tsymbol
     assert barry.visibility == Symbol.Visibility.PUBLIC
+    assert not barry.initial_value
     with pytest.raises(TypeError) as err:
         StructureType.create([
-            ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+            ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
             ("george", Symbol.Visibility.PRIVATE)])
-    assert ("Each component must be specified using a 3-tuple of (name, "
-            "type, visibility) but found a tuple with 2 members: ("
-            "'george', " in str(err.value))
+    assert ("Each component must be specified using a 4-tuple of (name, "
+            "type, visibility, initial_value) but found a tuple with 2 "
+            "members: ('george', " in str(err.value))
 
 
 def test_structuretype_eq():
     '''Test the equality operator of StructureType.'''
     stype = StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))])
     assert stype == StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))])
     # Something that is not a StructureType
     assert stype != NoType()
     # Component with a different name.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("roger", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("roger", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))])
     # Component with a different type.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("peggy", INTEGER_TYPE, Symbol.Visibility.PRIVATE)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", INTEGER_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))])
     # Component with a different visibility.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PUBLIC)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PUBLIC,
+         Literal("1.0", REAL_TYPE))])
+    # Component wth a different initialisation
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE, None)])
     # Different number of components.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE),
-        ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE)),
+        ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])

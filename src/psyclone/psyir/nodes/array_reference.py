@@ -41,10 +41,11 @@
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
+from psyclone.psyir.symbols import (DataSymbol, DeferredType,
+                                    UnknownFortranType, UnknownType,
                                     DataTypeSymbol, ScalarType, ArrayType,
                                     INTEGER_TYPE)
 
@@ -91,23 +92,23 @@ class ArrayReference(ArrayMixin, Reference):
                 raise GenerationError(
                     f"expecting the symbol '{symbol.name}' to be an array, but"
                     f" found '{symbol.datatype}'.")
-        if symbol.is_array:
-            if len(symbol.shape) != len(indices):
-                raise GenerationError(
-                    f"the symbol '{symbol.name}' should have the same number "
-                    f"of dimensions as indices (provided in the 'indices' "
-                    f"argument). Expecting '{len(indices)}' but found "
-                    f"'{len(symbol.shape)}'.")
+        elif len(symbol.shape) != len(indices):
+            raise GenerationError(
+                f"the symbol '{symbol.name}' should have the same number of "
+                f"dimensions as indices (provided in the 'indices' argument). "
+                f"Expecting '{len(indices)}' but found '{len(symbol.shape)}'.")
 
         array = ArrayReference(symbol)
         for ind, child in enumerate(indices):
             if child == ":":
-                lbound = BinaryOperation.create(
-                    BinaryOperation.Operator.LBOUND,
-                    Reference(symbol), Literal(f"{ind+1}", INTEGER_TYPE))
-                ubound = BinaryOperation.create(
-                    BinaryOperation.Operator.UBOUND,
-                    Reference(symbol), Literal(f"{ind+1}", INTEGER_TYPE))
+                lbound = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.LBOUND,
+                    [Reference(symbol),
+                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                ubound = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.UBOUND,
+                    [Reference(symbol),
+                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
                 my_range = Range.create(lbound, ubound)
                 array.addchild(my_range)
             else:
@@ -128,7 +129,37 @@ class ArrayReference(ArrayMixin, Reference):
         '''
         shape = self._get_effective_shape()
         if shape:
-            return ArrayType(self.symbol.datatype, shape)
+            if isinstance(self.symbol.datatype, UnknownType):
+                # Even if an Unknown(Fortran)Type has partial type
+                # information, we can't easily use it here because we'd need
+                # to re-write the original Fortran declaration stored in the
+                # type. We could manipulate the shape in the fparser2 parse
+                # tree if need be but, at this point, we wouldn't know what
+                # the variable name should be (TODO #2137).
+                base_type = DeferredType()
+            else:
+                base_type = self.symbol.datatype
+            # TODO #1857 - passing base_type as an instance of ArrayType
+            # only works because the ArrayType constructor just pulls out
+            # the intrinsic and precision properties of the type.
+            return ArrayType(base_type, shape)
+
+        # Otherwise, we're accessing a single element of the array.
+        if isinstance(self.symbol.datatype, UnknownType):
+            if (isinstance(self.symbol.datatype, UnknownFortranType) and
+                    self.symbol.datatype.partial_datatype):
+                precision = self.symbol.datatype.partial_datatype.precision
+                intrinsic = self.symbol.datatype.partial_datatype.intrinsic
+                return ScalarType(intrinsic, precision)
+            else:
+                # Since we're accessing a single element of an array
+                # of UnknownType we have to create a new
+                # UnknownFortranType.  Ideally we would re-write the
+                # original Fortran declaration stored in the type. We
+                # could remove the shape in the fparser2 parse tree
+                # but, at this point, we wouldn't know what the
+                # variable name should be (TODO #2137).
+                return DeferredType()
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modifications: A. R. Porter, STFC Daresbury Lab
+# Modifications: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''A simple Python script showing how to create a PSyIR tree using the
 create methods. In order to use it you must first install
@@ -47,7 +47,7 @@ C representation of the PSyIR.
 
 '''
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
-    BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
+    BinaryOperation, Assignment, IfBlock, Loop, IntrinsicCall, \
     Container, ArrayReference, Call, Routine, FileContainer
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
@@ -112,21 +112,21 @@ def create_psyir_tree():
         return Reference(tmp_symbol)
 
     # Unary Operation
-    oper = UnaryOperation.Operator.SIN
+    oper = UnaryOperation.Operator.MINUS
     unaryoperation = UnaryOperation.create(oper, tmp2())
 
     # Binary Operation
     oper = BinaryOperation.Operator.ADD
     binaryoperation = BinaryOperation.create(oper, one(), unaryoperation)
 
-    # Nary Operation
-    oper = NaryOperation.Operator.MAX
-    naryoperation = NaryOperation.create(oper, [tmp1(), tmp2(), one()])
+    # Intrinsic
+    intr = IntrinsicCall.Intrinsic.MAX
+    intrinsic = IntrinsicCall.create(intr, [tmp1(), tmp2(), one()])
 
-    # Operation with named args
-    oper = BinaryOperation.Operator.DOT_PRODUCT
-    binaryoperation_named = BinaryOperation.create(
-        oper, ("vector_a", tmp1()), ("vector_b", tmp2()))
+    # Intrinisc with named args
+    intr = IntrinsicCall.Intrinsic.DOT_PRODUCT
+    intrinsic_named = IntrinsicCall.create(
+        intr, [("vector_a", tmp1()), ("vector_b", tmp2())])
 
     # The create method supports the usage of ":" instead
     # of a range from lower bound to upper bound:
@@ -137,8 +137,8 @@ def create_psyir_tree():
     assign2 = Assignment.create(tmp2(), zero())
     assign3 = Assignment.create(tmp2(), binaryoperation)
     assign4 = Assignment.create(tmp1(), tmp2())
-    assign5 = Assignment.create(tmp1(), naryoperation)
-    assign6 = Assignment.create(tmp2(), binaryoperation_named)
+    assign5 = Assignment.create(tmp1(), intrinsic)
+    assign6 = Assignment.create(tmp2(), intrinsic_named)
     assign7 = Assignment.create(tmparray, two())
 
     # Call with named argument
