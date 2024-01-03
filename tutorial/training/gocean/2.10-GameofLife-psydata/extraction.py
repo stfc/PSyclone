@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ def trans(psy):
     '''
     extract = GOceanExtractTrans()
 
-    invoke = psy.invokes.get("invoke_combine")
+    invoke = psy.invokes.get("invoke_compute")
 
     extract.apply(invoke.schedule,
                   options={"create_driver": True,

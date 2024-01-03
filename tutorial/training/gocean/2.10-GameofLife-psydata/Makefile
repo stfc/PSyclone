@@ -1,19 +1,18 @@
 EXE = gol
 API = gocean1.0
 
-
 # We need to compile and link the PSyData libraries:
 PSY_DATA_DIR = $(ROOT_DIR)/lib/profiling/simple_timing
 PSY_DATA_LIB = $(PSY_DATA_DIR)/libsimple_timing.a
 PSY_DATA_INCLUDE = -I $(PSY_DATA_DIR)
 
-F90FLAGS += $(PSY_DATA_INCLUDE)
+F90FLAGS += $(PSY_DATA_INCLUDE) -DPSYDATA_PROFILE
 
 OBJ = gol.o time_step_alg_mod.o time_step_alg_mod_psy.o
 
 include ../common.mk
 
-$(EXE): $(PSY_DATA_LIB) $(OBJ)
+$(EXE): $(INF_LIB) $(PSY_DATA_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(PSY_DATA_LIB) $(LDFLAGS) -o $(EXE)
 
 test: $(EXE)

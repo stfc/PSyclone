@@ -59,6 +59,9 @@ $(INF_LIB):
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<
 
+%.o: %.F90
+	$(F90) -c $(F90FLAGS) $<
+
 # Dependencies - sources need golib
 $(OBJ): $(GOL_LIB)
 
