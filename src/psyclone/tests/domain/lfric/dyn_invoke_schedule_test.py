@@ -33,11 +33,11 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 
-''' This module contains pytest tests for the DynInvokeSchedule class. '''
+''' This module contains pytest tests for the LFRicInvokeSchedule class. '''
 
 import os
 from psyclone.domain.lfric import LFRicSymbolTable
-from psyclone.dynamo0p3 import DynInvokeSchedule
+from psyclone.dynamo0p3 import LFRicInvokeSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyir.nodes import Container
 
@@ -49,15 +49,15 @@ TEST_API = "dynamo0.3"
 
 
 def test_dyninvsched_parent():
-    ''' Check the setting of the parent of a DynInvokeSchedule. '''
+    ''' Check the setting of the parent of a LFRicInvokeSchedule. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
                            api=TEST_API)
     kcalls = invoke_info.calls[0].kcalls
     # With no parent specified
-    dsched = DynInvokeSchedule("my_sched", kcalls)
+    dsched = LFRicInvokeSchedule("my_sched", kcalls)
     assert dsched.parent is None
     # With a parent
     fake_parent = Container("my_mod", symbol_table=LFRicSymbolTable())
-    dsched2 = DynInvokeSchedule("my_sched", kcalls, parent=fake_parent)
+    dsched2 = LFRicInvokeSchedule("my_sched", kcalls, parent=fake_parent)
     assert dsched2.parent is fake_parent

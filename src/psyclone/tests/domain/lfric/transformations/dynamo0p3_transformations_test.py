@@ -460,7 +460,7 @@ def test_colouring_not_a_loop(dist_mem):
     with pytest.raises(TransformationError) as excinfo:
         ctrans.apply(schedule)
     assert ("Target of Dynamo0p3ColourTrans transformation must be a "
-            "sub-class of Loop but got 'DynInvokeSchedule'" in
+            "sub-class of Loop but got 'LFRicInvokeSchedule'" in
             str(excinfo.value))
 
 
@@ -502,7 +502,7 @@ def test_omp_not_a_loop(dist_mem):
         otrans.apply(schedule)
 
     assert ("Target of Dynamo0p3OMPLoopTrans transformation must be a sub-"
-            "class of Loop but got 'DynInvokeSchedule'" in str(excinfo.value))
+            "class of Loop but got 'LFRicInvokeSchedule'" in str(excinfo.value))
 
 
 def test_omp_parallel_not_a_loop(dist_mem):
@@ -519,7 +519,7 @@ def test_omp_parallel_not_a_loop(dist_mem):
     with pytest.raises(TransformationError) as excinfo:
         otrans.apply(schedule)
     assert ("Error in DynamoOMPParallelLoopTrans transformation. The "
-            "supplied node must be a LFRicLoop but got 'DynInvokeSchedule'"
+            "supplied node must be a LFRicLoop but got 'LFRicInvokeSchedule'"
             in str(excinfo.value))
 
 
@@ -5310,7 +5310,7 @@ def test_rc_wrong_parent(monkeypatch):
     # Apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4], {"depth": 1})
-    assert ("the parent of the supplied loop must be the DynInvokeSchedule, "
+    assert ("the parent of the supplied loop must be the LFRicInvokeSchedule, "
             "or a Loop") in str(excinfo.value)
 
 
@@ -5350,7 +5350,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[4].loop_body[0], {"depth": 1})
     assert ("if the parent of the supplied Loop is also a Loop then the "
-            "parent's parent must be the DynInvokeSchedule"
+            "parent's parent must be the LFRicInvokeSchedule"
             in str(excinfo.value))
 
     # Make the outermost loop iterate over cells (it should be

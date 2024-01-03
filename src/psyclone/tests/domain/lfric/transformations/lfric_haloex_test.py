@@ -93,7 +93,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
         write-to-gh_inc dependence.
 
         :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
+        :type schedule: :py:class:`psyclone.dynamo0p3.LFRicInvokeSchedule`.
 
         '''
         assert len(schedule.children) == 3
@@ -250,7 +250,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
         field 'f1' is what we are expecting
 
         :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
+        :type schedule: :py:class:`psyclone.dynamo0p3.LFRicInvokeSchedule`.
         :param int f1depth: The expected depth of the halo exchange \
         associated with field f1
         :param int f2depth: The expected depth of the halo exchange \
@@ -316,7 +316,7 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
         field 'f1' is what we are expecting
 
         :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
+        :type schedule: :py:class:`psyclone.dynamo0p3.LFRicInvokeSchedule`.
         :param int f1depth: The expected depth of the halo exchange \
         associated with field f1
         :param int f2depth: The expected depth of the halo exchange \

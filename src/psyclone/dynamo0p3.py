@@ -3441,7 +3441,7 @@ class DynBasisFunctions(LFRicCollection):
     :param node: either the schedule of an Invoke or a single Kernel object \
                  for which to extract information on all required \
                  basis/diff-basis functions.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvokeSchedule` or \
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises InternalError: if a call has an unrecognised evaluator shape.
@@ -4438,7 +4438,7 @@ class DynBoundaryConditions(LFRicCollection):
                               "get_boundary_dofs()"])))
 
 
-class DynInvokeSchedule(InvokeSchedule):
+class LFRicInvokeSchedule(InvokeSchedule):
     ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require.
@@ -7010,7 +7010,7 @@ __all__ = [
     'DynInterGrid',
     'DynBasisFunctions',
     'DynBoundaryConditions',
-    'DynInvokeSchedule',
+    'LFRicInvokeSchedule',
     'DynGlobalSum',
     'LFRicHaloExchange',
     'LFRicHaloExchangeStart',
