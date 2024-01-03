@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,12 +34,13 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds NAN verification for all
-kernels.
+function via the -s option. It adds kernel fuseion code to
+all invokes.
 '''
 
-from psyclone.gocean1p0 import GOLoop
-from psyclone.psyir.transformations import NanTestTrans
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
+from psyclone.gocean1p0 import GOKern
 
 
 def trans(psy):
@@ -53,15 +54,33 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    nan_test = NanTestTrans()
+    fuse = GOceanLoopFuseTrans()
+    inline = KernelModuleInlineTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-        # Apply nan-testing
-        for loop in schedule.walk(GOLoop):
-            # Only apply to the outer loop, PSyData will
-            # get full arrays provided to check for NANs
-            if loop.loop_type == "outer":
-                nan_test.apply(loop)
+    invoke = psy.invokes.get("invoke_compute")
+    schedule = invoke.schedule
+
+    # Inline all kernels to help gfortran with inlining.
+    for kern in schedule.walk(GOKern):
+        inline.apply(kern)
+
+    # This schedule has four loops, corresponding to
+    # count_neighbours, compute_born, compute_die, combine kernels
+
+    # First merge 2nd and 3rd loops
+    fuse.apply(schedule[1], schedule[2])
+    # Then merge the (previous fourth, now third) loop to the
+    # fused loop
+    fuse.apply(schedule[1], schedule[2])
+    # Now we have:
+    # do j count_neighbours
+    # do j
+    #   do i
+    #   do i
+    #   do i
+    # Fuse the three inner loops:
+    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
+    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
+    invoke.schedule.view()
 
     return psy

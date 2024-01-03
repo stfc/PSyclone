@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,12 +34,13 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds NAN verification for all
-kernels.
+function via the -s option. It adds kernel fuseion code to
+all invokes.
 '''
 
-from psyclone.gocean1p0 import GOLoop
-from psyclone.psyir.transformations import NanTestTrans
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
+from psyclone.gocean1p0 import GOKern
 
 
 def trans(psy):
@@ -53,15 +54,49 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    nan_test = NanTestTrans()
+    fuse = GOceanLoopFuseTrans()
+    inline = KernelModuleInlineTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-        # Apply nan-testing
-        for loop in schedule.walk(GOLoop):
-            # Only apply to the outer loop, PSyData will
-            # get full arrays provided to check for NANs
-            if loop.loop_type == "outer":
-                nan_test.apply(loop)
+    invoke = psy.invokes.get("invoke_compute")
+    schedule = invoke.schedule
+
+    print(schedule.view())
+    # Inline all kernels to help gfortran with inlining.
+    for kern in schedule.walk(GOKern):
+        inline.apply(kern)
+
+    # do j do i count
+    # do j do i born
+    # do j do i die
+    # do j do i combine
+
+    # First merge the first two j loops
+    fuse.apply(schedule[0], schedule[1])
+    # do j do i count
+    #      do i born
+    # do j do i die
+    # do j do i combine
+
+    # Then merge the (previous third, now second) loop to the
+    # fused loop
+    fuse.apply(schedule[0], schedule[1])
+    # do j do i count
+    #      do i born
+    #      do i die
+    # do j do i combine
+
+    # You cannot fuse the two remaining outer loops!
+
+    # Fuse the three inner loops: first the first two
+    fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
+    # do j do i count born
+    #      do i die
+    # do j do i combine
+
+    # Then merge in the previous third, now second) loop
+    fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
+    # do j do i count born die
+    # do j do i combine
+    print(schedule.view())
 
     return psy

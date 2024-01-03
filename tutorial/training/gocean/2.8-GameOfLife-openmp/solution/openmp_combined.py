@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2024, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,12 +34,14 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds NAN verification for all
-kernels.
+function via the -s option. It adds optimised OpenMP statements.
 '''
 
-from psyclone.gocean1p0 import GOLoop
-from psyclone.psyir.transformations import NanTestTrans
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+
+from fuse_loops import trans as fuse_trans
 
 
 def trans(psy):
@@ -53,15 +55,27 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    nan_test = NanTestTrans()
+    omp_parallel = OMPParallelTrans()
+    omp_do = OMPLoopTrans()
+    inline = KernelModuleInlineTrans()
 
-    for invoke in psy.invokes.invoke_list:
-        schedule = invoke.schedule
-        # Apply nan-testing
-        for loop in schedule.walk(GOLoop):
-            # Only apply to the outer loop, PSyData will
-            # get full arrays provided to check for NANs
-            if loop.loop_type == "outer":
-                nan_test.apply(loop)
+    invoke = psy.invokes.get("invoke_compute")
+    schedule = invoke.schedule
 
-    return psy
+    # Inline all kernels to help gfortran with inlining.
+    for kern in schedule.walk(GOKern):
+        inline.apply(kern)
+
+    fuse_trans(psy)
+
+    # Both ways work - either specify the default in
+    # the constructor, or change the schedule
+    omp_do.omp_schedule = "static"
+    for loop in schedule.walk(GOLoop):
+        if loop.loop_type == "outer":
+            omp_do.apply(loop)
+
+    # Now add the OMP PARALLEL around all loops:
+    omp_parallel.apply(schedule)
+
+    print(schedule.view())

@@ -1,5 +1,6 @@
 program GameOfLife
 
+    use parallel_mod, only     : parallel_finalise
     use read_config_mod, only  : read_config
     use time_step_alg_mod, only: time_step
     USE grid_mod, only         : grid_type
@@ -22,4 +23,6 @@ program GameOfLife
     call read_config(grid, initial, time_steps) 
 
     call time_step(grid, initial, time_steps)
+    call parallel_finalise()
 end program GameOfLife
+
