@@ -3441,7 +3441,7 @@ class DynBasisFunctions(LFRicCollection):
     :param node: either the schedule of an Invoke or a single Kernel object \
                  for which to extract information on all required \
                  basis/diff-basis functions.
-    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvokeSchedule` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule` or \
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises InternalError: if a call has an unrecognised evaluator shape.
@@ -4436,41 +4436,6 @@ class DynBoundaryConditions(LFRicCollection):
                 rhs="%".join([dofs.argument.proxy_name,
                               dofs.argument.ref_name(dofs.function_space),
                               "get_boundary_dofs()"])))
-
-
-class LFRicInvokeSchedule(InvokeSchedule):
-    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
-    specific factories for creating kernel and infrastructure calls
-    to the base class so it creates the ones we require.
-
-    :param str name: name of the Invoke.
-    :param arg: list of KernelCalls parsed from the algorithm layer.
-    :type arg: list of :py:class:`psyclone.parse.algorithm.KernelCall`
-    :param reserved_names: optional list of names that are not allowed in the \
-                           new InvokeSchedule SymbolTable.
-    :type reserved_names: list of str
-    :param parent: the parent of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-
-    def __init__(self, name, arg, reserved_names=None, parent=None):
-        super().__init__(name, LFRicKernCallFactory,
-                         LFRicBuiltInCallFactory, arg, reserved_names,
-                         parent=parent, symbol_table=LFRicSymbolTable())
-
-    def node_str(self, colour=True):
-        ''' Creates a text summary of this node.
-
-        :param bool colour: whether or not to include control codes for colour.
-
-        :returns: text summary of this node, optionally with control codes \
-                  for colour highlighting.
-        :rtype: str
-
-        '''
-        return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
-                "', dm=" + str(Config.get().distributed_memory)+"]")
 
 
 class DynGlobalSum(GlobalSum):
@@ -7010,7 +6975,6 @@ __all__ = [
     'DynInterGrid',
     'DynBasisFunctions',
     'DynBoundaryConditions',
-    'LFRicInvokeSchedule',
     'DynGlobalSum',
     'LFRicHaloExchange',
     'LFRicHaloExchangeStart',

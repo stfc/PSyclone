@@ -121,7 +121,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
         '''
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import LFRicInvokeSchedule
+        from psyclone.domain.lfric import LFRicInvokeSchedule
         from psyclone.gocean1p0 import GOInvokeSchedule
         from psyclone.psyir.tools import DependencyTools
 

@@ -36,8 +36,7 @@
 ''' This module contains pytest tests for the LFRicInvokeSchedule class. '''
 
 import os
-from psyclone.domain.lfric import LFRicSymbolTable
-from psyclone.dynamo0p3 import LFRicInvokeSchedule
+from psyclone.domain.lfric import LFRicSymbolTable, LFRicInvokeSchedule
 from psyclone.parse.algorithm import parse
 from psyclone.psyir.nodes import Container
 

@@ -75,7 +75,7 @@ class LFRicInvoke(Invoke):
             return
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import LFRicInvokeSchedule
+        from psyclone.domain.lfric import LFRicInvokeSchedule
         self._schedule = LFRicInvokeSchedule('name', None)  # for pyreverse
         reserved_names_list = []
         const = LFRicConstants()

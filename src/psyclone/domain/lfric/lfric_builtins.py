@@ -108,7 +108,7 @@ class LFRicBuiltInCallFactory():
         :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
         :param parent: the schedule instance to which the built-in call \
                        belongs.
-        :type parent: :py:class:`psyclone.dynamo0p3.LFRicInvokeSchedule`
+        :type parent: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule`
 
         :raises ParseError: if the name of the function being called is \
                             not a recognised built-in.
