@@ -65,10 +65,10 @@ $(OBJ): $(GOL_LIB)
 .PHONY: run-default allclean-default clean-default test-default
 
 run-default: $(EXE)
-	./$(EXE) ../gol-lib/config.glider
+	./$(EXE) $(GOL_DIR)/config.glider
 
 test-default: $(EXE)
-	make run | tail -n 13 | head -n 12 | diff - ../gol-lib/glider.correct
+	make run | tail -n 13 | head -n 12 | diff - $(GOL_DIR)/glider.correct
 
 clean-default:
 	rm -f *.o $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90

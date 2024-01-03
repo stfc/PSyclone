@@ -36,8 +36,12 @@ contains
         do j=ystart, ystop
             do i=xstart, xstop
                 born%data(i, j) = 0.0
-                ! A new cell is born in an empty location if it has
-                ! exactly three neighbours. Set `born` to 1.0
+                if (current%data(i, j) == 0.0 .and.       &
+                    neighbours%data(i, j) == 3.0   ) then
+                    ! A new cell is born in an empty location if
+                    ! it has exactly three neighbours.
+                    born%data(i, j) = 1.0
+                endif
             enddo
         enddo
 

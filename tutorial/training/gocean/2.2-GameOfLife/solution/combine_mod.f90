@@ -31,8 +31,9 @@ contains
 
         do j=ystart, ystop
             do i=xstart, xstop
-                ! Add born to current, and subtract die to get
-                ! the new `current` state
+                current%data(i, j) = current%data(i, j)  &
+                                   - die%data(i, j)      &
+                                   + born%data(i, j)
             enddo
         enddo
 

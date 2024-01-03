@@ -21,11 +21,13 @@ contains
         integer, intent(in)            :: time_steps
 
         ! Declare the fields required
-        TYPE(r2d_field)                :: neighbours
+        TYPE(r2d_field)                :: neighbours, die, born
         integer                        :: time
 
         ! Create fields required:
         neighbours = r2d_field(grid, GO_T_POINTS)
+        die        = r2d_field(grid, GO_T_POINTS)
+        born       = r2d_field(grid, GO_T_POINTS)
 
         if(time_steps<=20) call output_field(current)
         ! In each time step:
@@ -34,10 +36,10 @@ contains
         ! 3. Compute dying cells.
         ! 4. Combine the results from 2. and 3. with current state
         do time =1, time_steps
-            call count_neighbours()
-            call compute_born()
-            call compute_die()
-            call combine()
+            call count_neighbours(neighbours, current)
+            call compute_born(born, current, neighbours)
+            call compute_die(die, current, neighbours)
+            call combine(current, die, born)
             if(time_steps<=20) call output_field(current)
         enddo
 

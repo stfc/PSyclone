@@ -34,7 +34,10 @@ contains
 
         do j=ystart, ystop
             do i=xstart, xstop
-                ! Compute neighbours to be the sum of the 8 neighbours
+                neighbours%data(i, j) = &
+                      c%data(i-1, j-1) + c%data(i, j-1) + c%data(i+1, j-1) &
+                    + c%data(i-1, j  )                  + c%data(i+1, j  ) &
+                    + c%data(i-1, j+1) + c%data(i, j+1) + c%data(i+1, j+1)
             enddo
         enddo
 

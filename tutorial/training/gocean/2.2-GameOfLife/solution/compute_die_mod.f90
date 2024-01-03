@@ -1,27 +1,28 @@
-module compute_born_mod
+module compute_die_mod
 
     private
-    public compute_born
+    public compute_die
 
 contains
 
-    !> @brief Computes which empty fields will get a new cell.
+    !> @brief Computes which cells die.
     !>
-    !> This subroutine computes a field 'born' which has the value '1'
-    !> for each dead cell, but which will get a new cell. Otherwise
-    !> the field is 0.
+    !> This subroutine computes a field 'die' which has the value '1'
+    !> for each cell that is currently alive, but should die. Otherwise
+    !> the cell is 0.
     !>
-    !> @param[out] born The output field with 1 iff a cell is newly born.
+    !> @param[out] die  The output field with 1 iff the cell dies.
     !> @param[in]  current The current state.
     !> @param[in]  neighbours The number of live neighbours for each cell.
-    subroutine compute_born(born, current, neighbours)
+
+    subroutine compute_die(die, current, neighbours)
         USE grid_mod, only             : grid_type
         USE field_mod, only            : r2d_field
 
         implicit none
         ! It has to be declared inout - even though the data is only written,
         ! the r2d_field type exists, so it's input as well
-        TYPE(r2d_field), intent(inout) :: born
+        TYPE(r2d_field), intent(inout) :: die
         ! Sorry for the short name, it keeps the line length below shorter
         TYPE(r2d_field), intent(in)    :: current, neighbours
 
@@ -35,12 +36,17 @@ contains
 
         do j=ystart, ystop
             do i=xstart, xstop
-                born%data(i, j) = 0.0
-                ! A new cell is born in an empty location if it has
-                ! exactly three neighbours. Set `born` to 1.0
+                die%data(i, j) = 0.0
+                if (current%data(i, j) > 0.0) then
+                    ! A cell dies by underpopulation if it has less than 2
+                    ! neighbours or by overpopulation if it has more than 3
+                    if (neighbours%data(i, j) < 2.0 .or. &
+                        neighbours%data(i, j) > 3.0       ) die%data(i, j) = 1.0
+                endif
             enddo
         enddo
 
-    end subroutine compute_born
 
-end module compute_born_mod
+    end subroutine compute_die
+
+end module compute_die_mod

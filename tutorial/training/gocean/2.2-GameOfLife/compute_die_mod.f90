@@ -23,7 +23,6 @@ contains
         ! It has to be declared inout - even though the data is only written,
         ! the r2d_field type exists, so it's input as well
         TYPE(r2d_field), intent(inout) :: die
-        ! Sorry for the short name, it keeps the line length below shorter
         TYPE(r2d_field), intent(in)    :: current, neighbours
 
         integer                        :: xstart, xstop, ystart, ystop
@@ -40,8 +39,9 @@ contains
                 if (current%data(i, j) > 0.0) then
                     ! A cell dies by underpopulation if it has less than 2
                     ! neighbours or by overpopulation if it has more than 3
-                    if (neighbours%data(i, j) < 2.0 .or. &
-                        neighbours%data(i, j) > 3.0       ) die%data(i, j) = 1.0
+                    ! In this case, set the corresponding `die` to 1.0
+
+
                 endif
             enddo
         enddo
