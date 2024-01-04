@@ -448,11 +448,11 @@ class KernCallArgList(ArgOrdering):
         '''
         # The maximum branch extent is not specified in the metadata so pass
         # the value in.
-        # TODO #1915, this duplicates code in
-        # LFRicStencils.max_branch_length_name
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        # TODO #1915, this duplicates code in
+        # LFRicStencils.max_branch_length_name
         unique_tag = LFRicStencils.stencil_unique_str(arg, "length")
         root_name = arg.name + "_max_branch_length"
 
