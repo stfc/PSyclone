@@ -130,7 +130,7 @@ jobs:
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
-        make -j 4 openacc_kernels
+        make -j 1 openacc_kernels
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
