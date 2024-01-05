@@ -1,7 +1,7 @@
 module compute_born_mod
 
-    use kernel_mod
-    use argument_mod
+    use kernel_mod, only: GO_INTERNAL_PTS, GO_POINTWISE, kernel_type
+    use argument_mod, only: go_arg, GO_CT, GO_READ, GO_WRITE
     use grid_mod, only: GO_OFFSET_SW
     implicit none
 
@@ -13,8 +13,8 @@ module compute_born_mod
                go_arg(GO_READ,  GO_CT, GO_POINTWISE),    & ! field
                go_arg(GO_READ,  GO_CT, GO_POINTWISE)     & ! field
              /)
-       !> This kernel writes to all points of the
-       !! simulation domain.
+       !> This kernel writes to all internal points
+       !! of the simulation domain.
        integer :: ITERATES_OVER = GO_INTERNAL_PTS
        integer :: index_offset = GO_OFFSET_SW
 
