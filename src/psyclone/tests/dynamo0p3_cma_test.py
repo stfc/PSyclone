@@ -47,8 +47,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
-                                   LFRicKernMetadata)
-from psyclone.dynamo0p3 import LFRicDofmaps
+                                   LFRicDofmaps, LFRicKernMetadata)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
