@@ -33,11 +33,12 @@ GOL_LIB = $(GOL_DIR)/libgol.a
 # the remaining flags set here:
 ifneq ($(IGNORE_GOL_LIB), yes)
 	LIBS = $(GOL_LIB)
+	F90FLAGS += -I$(GOL_DIR)
 endif
 LIBS +=  $(INF_LIB)
 
 LDFLAGS += $(LIBS)
-F90FLAGS += -I$(INF_INC) -I$(GOL_DIR)
+F90FLAGS += -I$(INF_INC)
 
 PSYCLONE = psyclone  -api $(API) -l output $(DM) -d $(GOL_DIR)
 
