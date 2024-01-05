@@ -1771,7 +1771,7 @@ class DynReferenceElement(LFRicCollection):
                     f"faces({self._face_out_normals_symbol.name})"))
 
 
-class DynDofmaps(LFRicCollection):
+class LFRicDofmaps(LFRicCollection):
     '''
     Holds all information on the dofmaps (including column-banded and
     indirection) required by an invoke.
@@ -7000,7 +7000,7 @@ __all__ = [
     'DynFuncDescriptor03',
     'DynamoPSy',
     'DynStencils',
-    'DynDofmaps',
+    'LFRicDofmaps',
     'DynFunctionSpaces',
     'DynProxies',
     'DynCellIterators',

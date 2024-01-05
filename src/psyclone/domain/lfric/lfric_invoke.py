@@ -94,7 +94,7 @@ class LFRicInvoke(Invoke):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import (DynStencils,
-                                        DynFunctionSpaces, DynDofmaps,
+                                        DynFunctionSpaces, LFRicDofmaps,
                                         DynLMAOperators, DynGlobalSum,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
@@ -114,7 +114,7 @@ class LFRicInvoke(Invoke):
 
         # Initialise the object holding all information on the dofmaps
         # required by this Invoke
-        self.dofmaps = DynDofmaps(self)
+        self.dofmaps = LFRicDofmaps(self)
 
         # Initialise information on all of the fields accessed in this Invoke
         self.fields = LFRicFields(self)

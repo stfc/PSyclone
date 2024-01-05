@@ -48,7 +48,7 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
                                    LFRicKernMetadata)
-from psyclone.dynamo0p3 import DynDofmaps
+from psyclone.dynamo0p3 import LFRicDofmaps
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -1354,13 +1354,13 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
 
 
 def test_dyndofmap_stubdecln_err():
-    ''' Check that DynDofmaps._stub_declarations raises the expected errors
+    ''' Check that LFRicDofmaps._stub_declarations raises the expected errors
     if the stored CMA information is invalid. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "20.5_multi_cma_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    dofmaps = DynDofmaps(psy.invokes.invoke_list[0])
+    dofmaps = LFRicDofmaps(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="test_module")
     for cma in dofmaps._unique_indirection_maps.values():
         cma["direction"] = "not-a-direction"
