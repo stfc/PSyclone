@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. B. G. Chalk STFC Daresbury Lab
+# Author A. B. G. Chalk, STFC Daresbury Lab
+
 ''' This module provides the OMPTaskTrans transformation.'''
+
 from psyclone.errors import GenerationError
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import Kern
