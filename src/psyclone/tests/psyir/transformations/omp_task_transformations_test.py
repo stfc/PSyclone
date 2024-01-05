@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -96,15 +96,17 @@ def test_omptask_validate(fortran_reader):
 
 
 def test_omptask_apply(fortran_reader, fortran_writer):
-    ''' Test the apply method of the OMPTaskTrans. '''
+    ''' Test the apply method of the OMPTaskTrans. We contain
+    an IntrinsicCall inside the region to be transformed to ensure that
+    the application doesn't attempt to inline it. '''
     code = '''
     subroutine sub()
         integer :: ji, jj, n
         integer, dimension(10, 10) :: t
         integer, dimension(10, 10) :: s
         do jj = 1, 10
-            do ji = 1, 10
-                t(ji, jj) = s(ji, jj)
+            do ji = 1, SIZE(ji,2)
+                t(ji, jj) = INT(s(ji, jj))
             end do
         end do
     end subroutine sub
@@ -130,8 +132,8 @@ def test_omptask_apply(fortran_reader, fortran_writer):
   do jj = 1, 10, 1
     !$omp task private(ji), firstprivate(jj), shared(t,s), \
 depend(in: s(:,jj)), depend(out: t(:,jj))
-    do ji = 1, 10, 1
-      t(ji,jj) = s(ji,jj)
+    do ji = 1, SIZE(ji, 2), 1
+      t(ji,jj) = INT(s(ji,jj))
     enddo
     !$omp end task
   enddo

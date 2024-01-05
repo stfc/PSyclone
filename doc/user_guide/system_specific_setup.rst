@@ -20,7 +20,7 @@ You will need a terminal window open in which to enter the commands.
 Installing dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^
 Most required dependencies are installed from the 
-Python Package Index (https://packaging.python.org/installing/)
+Python Package Index (https://packaging.python.org/tutorials/installing-packages/)
 using the program pip ("PIP Installs Packages"). Besides ``pip``
 it is also recommended to install the graphviz package to be
 able to visualise dependency graphs. This is optional and the associated
