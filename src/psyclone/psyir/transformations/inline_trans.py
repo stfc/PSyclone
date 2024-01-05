@@ -845,8 +845,6 @@ class InlineTrans(Transformation):
         :returns: the PSyIR for the target routine.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
-        :raises InternalError: if the routine symbol is local but the \
-            routine definition is not found.
         :raises TransformationError: if the routine definition cannot be found.
 
         '''
@@ -858,9 +856,9 @@ class InlineTrans(Transformation):
             for routine in table.node.walk(Routine):
                 if routine.name.lower() == name.lower():
                     return routine
-            raise InternalError(
+            raise TransformationError(
                 f"Failed to find the source code of the local routine "
-                f"'{routine_sym.name}'.")
+                f"'{routine_sym.name}' - it is probably in a CodeBlock.")
 
         if routine_sym.is_unresolved:
 
