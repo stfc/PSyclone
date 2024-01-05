@@ -43,11 +43,12 @@ from psyclone.psyir.nodes.omp_clauses import (
     OMPDependClause,
     OMPSharedClause,
 )
+from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.omp_directives import (
-    Loop,
     OMPRegionDirective,
     OMPSingleDirective,
 )
+from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.schedule import Schedule
 
 
@@ -118,26 +119,29 @@ class OMPTaskDirective(OMPRegionDirective):
         :returns: The loop over which this task operates
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
-        :raises GenerationError: If the OMPTaskDirective has multiple children.
-        :raises GenerationError: If the OMPTaskDirective's child is not a Loop.
+        :raises GenerationError: If the OMPTaskDirective has multiple loops as
+                                 children.
+        :raises GenerationError: If the OMPTaskDirective contains any non-Loop,
+                                 non-PSyDataNode children.
         '''
         # Find the child loop node, and check our schedule contains a single
         # loop for now.
         # For #1744 we need to adjust this to support child PSyDataNode
-        if len(self.children[0].children) > 1:
+        loops = self.children[0].walk(Loop, depth=self.children[0].depth+1)
+        if len(loops) != 1:
             raise GenerationError(
-                "OMPTaskDirective must have exactly one Loop"
+                f"OMPTaskDirective must have exactly one Loop"
                 f" child. Found "
-                f"{len(self.children[0].children)} "
-                "children."
+                f"{len(loops)} loop children."
             )
-        if not isinstance(self.children[0].children[0], Loop):
+        psydatanodes = self.children[0].walk(PSyDataNode, depth=1)
+        if len(psydatanodes) != len(self.children[0].children)-1:
             raise GenerationError(
-                "OMPTaskDirective must have exactly one Loop"
-                " child. Found "
-                f"'{type(self.children[0].children[0])}'"
+                f"OMPTaskDirective contains a non-Loop, non-PSyDataNode child."
+                f" The OMPTaskDirective's children are "
+                f"{[type(x).__name__ for x in self.children[0].children[:]]}."
             )
-        return self.children[0].children[0]
+        return loops[0]
 
     @property
     def input_depend_clause(self):
