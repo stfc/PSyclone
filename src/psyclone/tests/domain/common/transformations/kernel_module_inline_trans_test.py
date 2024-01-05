@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,14 +54,14 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.tests.utilities import count_lines, get_invoke, Compile
+from psyclone.tests.utilities import count_lines, get_invoke
 
 
 def test_module_inline_constructor_and_str():
     ''' Test that the transformation can be created and stringified. '''
     inline_trans = KernelModuleInlineTrans()
-    assert str(inline_trans) == \
-        "Inline a kernel subroutine into the PSy module"
+    assert (str(inline_trans) == "Copy the routine associated with a (Kernel) "
+            "call into the Container of the call site.")
 
 
 def test_validate_inline_error_if_not_kernel(fortran_reader):

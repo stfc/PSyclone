@@ -36,7 +36,9 @@
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
-''' This module provides the KernelModuleInlineTrans transformation. '''
+''' This module provides the KernelModuleInlineTrans transformation.
+TODO #924 - rename this to PrivatiseRoutineToLocalContainerTrans and move it
+to psyir/transformations/. '''
 
 
 from psyclone.errors import InternalError
@@ -51,8 +53,8 @@ from psyclone.psyir.nodes import (
 
 
 class KernelModuleInlineTrans(Transformation):
-    ''' Module-inlines (bring the subroutine to the same compiler-unit) the
-    subroutine pointed by this Kernel. For example:
+    ''' Brings the routine being called into the same Container as the call
+    site. For example:
 
     .. code-block:: python
 
@@ -66,23 +68,26 @@ class KernelModuleInlineTrans(Transformation):
 
 
     .. warning ::
-        Not all kernel subroutines can be module-inlined. This transformation
-        will reject attempts to in-line kernels that access global data in the
-        original module.
+        Not all Routines can be privatised. This transformation will reject
+        attempts to privatise routines that access global data in the
+        original Container.
 
     '''
 
     def __str__(self):
-        return "Inline a kernel subroutine into the PSy module"
+        return ("Copy the routine associated with a (Kernel) call into the "
+                "Container of the call site.")
 
     # pylint: disable=too-many-branches
     def validate(self, node, options=None):
         '''
-        Checks that the supplied node is a Kernel and that it is possible to
-        inline its PSyIR.
+        Checks that the supplied node is a Kernel or Call and that it is
+        possible to inline its PSyIR into the parent Container.
 
-        :param kern: the kernel which is the target of the transformation.
-        :type kern: :py:class:`psyclone.psyGen.CodedKern`
+        :param node: the kernel or call which is the target of the
+                     transformation.
+        :type node: :py:class:`psyclone.psyGen.CodedKern` |
+                    :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -382,9 +387,11 @@ class KernelModuleInlineTrans(Transformation):
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
-            container.symbol_table.add(RoutineSymbol(
-                    callee_name, interface=DefaultModuleInterface()
-            ))
+            container.symbol_table.add(
+                RoutineSymbol(
+                    callee_name, interface=DefaultModuleInterface(),
+                    visibility=Symbol.Visibility.PRIVATE)
+            )
             # 2) Insert the relevant code into the tree.
             container.addchild(code_to_inline.detach())
         else:
@@ -399,6 +406,7 @@ class KernelModuleInlineTrans(Transformation):
                 remove_csym = (ctable.symbols_imported_from(csym) ==
                                [existing_symbol])
                 existing_symbol.interface = DefaultModuleInterface()
+                existing_symbol.visibility = Symbol.Visibility.PRIVATE
                 if remove_csym:
                     ctable.remove(csym)
                 container.addchild(code_to_inline.detach())

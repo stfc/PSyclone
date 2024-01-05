@@ -2128,10 +2128,10 @@ def test_find_routine_missing_exception(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     assert call.routine.is_modulevar
-    with pytest.raises(InternalError) as info:
+    with pytest.raises(TransformationError) as info:
         _ = inline_trans._find_routine(call)
-    assert ("Failed to find the source code of the local routine 'sub'."
-            in str(info.value))
+    assert ("Failed to find the source code of the local routine 'sub' - it "
+            "is probably in a CodeBlock." in str(info.value))
 
 
 def test_find_routine_unresolved_wildcard(fortran_reader):
