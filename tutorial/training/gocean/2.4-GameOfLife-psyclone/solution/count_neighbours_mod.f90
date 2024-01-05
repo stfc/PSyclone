@@ -1,7 +1,7 @@
 module count_neighbours_mod
 
-    use kernel_mod
-    use argument_mod
+    use kernel_mod, only: GO_INTERNAL_PTS, GO_POINTWISE, kernel_type
+    use argument_mod, only: go_arg, GO_CT, GO_READ, GO_STENCIL, GO_WRITE
     use grid_mod, only: GO_OFFSET_SW
     implicit none
 
@@ -14,8 +14,8 @@ module count_neighbours_mod
                                                   101,   &
                                                   111))  & ! field
              /)
-       !> This kernel writes to all points of the
-       !! simulation domain.
+       !> This kernel writes to all internal points
+       !! of the simulation domain.
        integer :: ITERATES_OVER = GO_INTERNAL_PTS
        integer :: index_offset = GO_OFFSET_SW
 
