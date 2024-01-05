@@ -44,6 +44,7 @@ from psyclone.psyir.nodes.omp_clauses import (
     OMPSharedClause,
 )
 from psyclone.psyir.nodes.omp_directives import (
+    Loop,
     OMPRegionDirective,
     OMPSingleDirective,
 )
@@ -110,6 +111,33 @@ class OMPTaskDirective(OMPRegionDirective):
         if position in (4, 5):
             return isinstance(child, OMPDependClause)
         return False
+
+    @property
+    def task_loop(self):
+        '''
+        :returns: The loop over which this task operates
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :raises GenerationError: If the OMPTaskDirective has multiple children.
+        :raises GenerationError: If the OMPTaskDirective's child is not a Loop.
+        '''
+        # Find the child loop node, and check our schedule contains a single
+        # loop for now.
+        # For #1744 we need to adjust this to support child PSyDataNode
+        if len(self.children[0].children) > 1:
+            raise GenerationError(
+                "OMPTaskDirective must have exactly one Loop"
+                f" child. Found "
+                f"{len(self.children[0].children)} "
+                "children."
+            )
+        if not isinstance(self.children[0].children[0], Loop):
+            raise GenerationError(
+                "OMPTaskDirective must have exactly one Loop"
+                " child. Found "
+                f"'{type(self.children[0].children[0])}'"
+            )
+        return self.children[0].children[0]
 
     @property
     def input_depend_clause(self):

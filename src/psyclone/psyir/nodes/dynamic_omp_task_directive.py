@@ -2011,9 +2011,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                      :py:class:`psyclone.psyir.nodes.OMPDependClause`,
                      :py:class:`psyclone.psyir.nodes.OMPDependClause`]
 
-        :raises GenerationError: If the OMPTaskDirective has multiple children.
-        :raises GenerationError: If the OMPTaskDirective's child is not a Loop.
-
         """
 
         # These lists will store PSyclone nodes which are to be added to the
@@ -2034,23 +2031,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Find all the parent loop variables
         self._find_parent_loop_vars()
 
-        # Find the child loop node, and check our schedule contains a single
-        # loop for now.
-        if len(self.children[0].children) != 1:
-            raise GenerationError(
-                "OMPTaskDirective must have exactly one Loop"
-                f" child. Found "
-                f"{len(self.children[0].children)} "
-                "children."
-            )
-        if not isinstance(self.children[0].children[0], Loop):
-            raise GenerationError(
-                "OMPTaskDirective must have exactly one Loop"
-                " child. Found "
-                f"'{type(self.children[0].children[0])}'"
-            )
+        # Call _evaluate_node on the task_loop
         self._evaluate_node(
-            self.children[0].children[0],
+            self.task_loop,
             clause_lists
         )
 
