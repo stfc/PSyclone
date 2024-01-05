@@ -8,11 +8,8 @@ module combine_mod
     private
     public combine, combine_code
     type, extends(kernel_type) :: combine
-       type(go_arg), dimension(3) :: meta_args =           &
-            (/ go_arg(GO_READWRITE, GO_CT, GO_POINTWISE),  & ! field
-               go_arg(GO_READ,  GO_CT, GO_POINTWISE),      & ! field
-               go_arg(GO_READ,  GO_CT, GO_POINTWISE)       & ! field
-             /)
+       type(go_arg), dimension(TODO) :: meta_args =           &
+       TODO
        !> This kernel writes to all internal points
        !! of the simulation domain.
        integer :: ITERATES_OVER = GO_INTERNAL_PTS

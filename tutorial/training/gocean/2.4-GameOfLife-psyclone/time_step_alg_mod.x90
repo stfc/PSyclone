@@ -35,10 +35,11 @@ contains
         ! 3. Compute dying cells.
         ! 4. Combine the results from 2. and 3. with current state
         do time =1, time_steps
-            call invoke(count_neighbours(neighbours, current))
-            call invoke(compute_born(born, current, neighbours))
-            call invoke(compute_die(die, current, neighbours))
-            call invoke(combine(current, die, born))
+            ! TODO: Replace the calls with invokes, and add the parameters
+            call count_neighbours()
+            call compute_born()
+            call compute_die()
+            call combine()
             if(time_steps<=20) call output_field(current)
         enddo
 

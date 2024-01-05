@@ -8,18 +8,8 @@ module compute_born_mod
     private
     public compute_born, compute_born_code
     type, extends(kernel_type) :: compute_born
-       type(go_arg), dimension(3) :: meta_args =         &
-            (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),    & ! field
-               go_arg(GO_READ,  GO_CT, GO_POINTWISE),    & ! field
-               go_arg(GO_READ,  GO_CT, GO_POINTWISE)     & ! field
-             /)
-       !> This kernel writes to all internal points
-       !! of the simulation domain.
-       integer :: ITERATES_OVER = GO_INTERNAL_PTS
-       integer :: index_offset = GO_OFFSET_SW
-
+       type(go_arg), dimension(TODO) :: meta_args =
        contains
-         procedure, nopass :: code => compute_born_code
        end type compute_born
 
 contains

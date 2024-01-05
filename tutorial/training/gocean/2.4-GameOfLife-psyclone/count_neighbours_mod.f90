@@ -8,12 +8,9 @@ module count_neighbours_mod
     private
     public count_neighbours, count_neighbours_code
     type, extends(kernel_type) :: count_neighbours
-       type(go_arg), dimension(2) :: meta_args =         &
-            (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),    & ! field
-               go_arg(GO_READ,  GO_CT, GO_STENCIL(111,   &
-                                                  101,   &
-                                                  111))  & ! field
-             /)
+       type(go_arg), dimension(TODO) :: meta_args =         &
+       TODO
+       
        !> This kernel writes to all internal points
        !! of the simulation domain.
        integer :: ITERATES_OVER = GO_INTERNAL_PTS

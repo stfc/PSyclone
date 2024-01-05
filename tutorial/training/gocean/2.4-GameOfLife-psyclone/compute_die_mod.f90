@@ -40,12 +40,7 @@ contains
         double precision, dimension(:,:), intent(in)  :: current, neighbours
         integer, intent(in)                           :: i, j
 
-        die(i, j) = 0.0
-        ! A cell dies by underpopulation if it has less than 2
-        ! neighbours or by overpopulation if it has more than 3
-        if (current(i, j) > 0.0 .and.                                   &
-            (neighbours(i, j) < 2.0 .or. neighbours(i, j) > 3.0) ) then
-              die(i, j) = 1.0
+        ! TODO: Set die to 0, then check if a cell is alive and dies
         endif
 
     end subroutine compute_die_code
