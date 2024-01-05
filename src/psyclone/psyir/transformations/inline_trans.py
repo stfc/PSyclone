@@ -611,15 +611,15 @@ class InlineTrans(Transformation):
 
         # Check that the RoutineSymbol does not have a tag indicating that it
         # is an internally-generated routine.
-        sym = node.scope.symbol_table.lookup(name)
-        table = sym.find_symbol_table(node)
-        lookup = table.get_reverse_tags_dict()
-        try:
-            if "psyclone_internal" in lookup[sym]:
-                raise TransformationError(
-                    f"Cannot inline PSyclone-generated routine '{name}'")
-        except KeyError:
-            pass
+        #sym = node.scope.symbol_table.lookup(name)
+        #table = sym.find_symbol_table(node)
+        #lookup = table.get_reverse_tags_dict()
+        #try:
+        #    if "psyclone_internal" in lookup[sym]:
+        #        raise TransformationError(
+        #            f"Cannot inline PSyclone-generated routine '{name}'")
+        #except KeyError:
+        #    pass
 
         # Check that we can find the source of the routine being inlined.
         routine = self._find_routine(node)
@@ -848,6 +848,15 @@ class InlineTrans(Transformation):
         :raises TransformationError: if the routine definition cannot be found.
 
         '''
+        # TODO remove this routine altogether!
+        try:
+            callees = call_node.get_callees()
+            return callees[0]
+        except (NotImplementedError, SymbolError) as err:
+            raise TransformationError(
+                f"Failed to find the source code of the routine "
+                f"'{call_node.routine.name}': {err}")
+
         name = call_node.routine.name
         routine_sym = call_node.routine
 

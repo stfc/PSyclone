@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,13 +38,14 @@
 
 
 from psyclone.core import AccessType
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
     RoutineSymbol, Symbol, SymbolError, UnknownFortranType)
-from psyclone.errors import GenerationError
 
 
 class Call(Statement, DataNode):
@@ -455,9 +456,36 @@ class Call(Statement, DataNode):
 
         rsym = self.routine
         if rsym.is_unresolved:
-            # TODO #924 - Use ModuleManager to search?
+
+            # Check for any "raw" Routines, i.e. ones that are not
+            # in a Container.  Such Routines would exist in the PSyIR
+            # as a child of a FileContainer (if the PSyIR contains a
+            # FileContainer). Note, if the PSyIR does contain a
+            # FileContainer, it will be the root node of the PSyIR.
+            for routine in self.root.children:
+                if (isinstance(routine, Routine) and
+                        routine.name.lower() == rsym.name.lower()):
+                    return [routine]
+
+            # Now check for any wildcard imports and see if they can
+            # be used to resolve the symbol.
+            wildcard_names = []
+            current_table = self.scope.symbol_table
+            while current_table:
+                for container_symbol in current_table.containersymbols:
+                    if container_symbol.wildcard_import:
+                        wildcard_names.append(container_symbol.name)
+                        # TODO this needs to support returning multiple routines
+                        routine = container_symbol.get_routine_definition(
+                            rsym.name)
+                        if routine:
+                            return [routine]
+                current_table = current_table.parent_symbol_table()
             raise NotImplementedError(
-                f"RoutineSymbol '{rsym.name}' is unresolved and searching for "
+                f"Failed to find the source code of the unresolved "
+                f"routine '{rsym.name}' after trying wildcard imports from "
+                f"{wildcard_names} and all routines that are not in "
+                f"containers. Wider searching for "
                 f"its implementation is not yet supported - TODO #924")
 
         root_node = self.ancestor(Container)
@@ -492,9 +520,17 @@ class Call(Statement, DataNode):
             rsym = cursor
             root_node = container
 
+        if isinstance(rsym.datatype, UnknownFortranType):
+            # TODO #924 - an UnknownFortranType here typically indices that
+            # the target is actually an interface.
+            raise NotImplementedError(
+                f"RoutineSymbol '{rsym.name}' exists in "
+                f"{_location_txt(root_node)} but is of UnknownFortranType:\n"
+                f"{rsym.datatype.declaration}\n"
+                f"Cannot currently module inline such a routine.")
+
         # TODO #924 - need to allow for interface to multiple routines here.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.routine import Routine
         for routine in root_node.walk(Routine, stop_type=Routine):
             if routine.name.lower() == rsym.name.lower():
                 kernel_schedule = routine

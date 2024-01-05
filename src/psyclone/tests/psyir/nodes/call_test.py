@@ -631,6 +631,41 @@ end subroutine top'''
             "not yet supported - TODO #924" in str(err.value))
 
 
+def test_call_get_callees_unknown_type(fortran_reader):
+    '''
+    '''
+    code = '''
+module my_mod
+
+    interface bottom
+      module procedure :: rbottom, ibottom
+    end interface bottom
+contains
+  subroutine top()
+    integer :: luggage
+    luggage = 0
+    call bottom(luggage)
+  end subroutine top
+
+  subroutine ibottom(luggage)
+    integer :: luggage
+    luggage = luggage + 1
+  end subroutine ibottom
+
+  subroutine rbottom(luggage)
+    real :: luggage
+    luggage = luggage + 1.0
+  end subroutine rbottom
+end module my_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    with pytest.raises(NotImplementedError) as err:
+        _ = call.get_callees()
+    assert ("RoutineSymbol 'bottom' exists in Container 'my_mod' but is of "
+            "UnknownFortranType:" in str(err.value))
+
+
 def test_call_get_callees_no_container(fortran_reader):
     '''
     Check that get_callees() raises the expected error when the Call is not
