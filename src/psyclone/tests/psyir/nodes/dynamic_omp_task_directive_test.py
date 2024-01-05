@@ -1510,10 +1510,10 @@ def test_omp_task_directive_non_loop(fortran_reader):
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    print(str(excinfo.value))
-    assert ("OMPTaskDirective must have exactly one Loop child. Found 0 "
-            "loop children."
-             in str(excinfo.value))
+    assert ("OMPTaskDirective must have exactly one Loop or PSyDataNode child."
+            " Found a '<class "
+            "'psyclone.psyir.nodes.assignment.Assignment'>' instead." in
+            str(excinfo.value))
 
 
 def test_omp_task_directive_multichild(fortran_reader):
@@ -1554,9 +1554,8 @@ def test_omp_task_directive_multichild(fortran_reader):
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("OMPTaskDirective contains a non-Loop, non-PSyDataNode child. The "
-            "OMPTaskDirective's children are ['Assignment', 'Loop']." in
-            str(excinfo.value))
+    assert ("OMPTaskDirective must have exactly one Loop or PSyDataNode child."
+            " Found 2 children." in str(excinfo.value))
 
 
 def test_omp_task_directive_loop_start_array(fortran_reader):
