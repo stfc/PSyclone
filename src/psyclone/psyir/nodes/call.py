@@ -433,6 +433,26 @@ class Call(Statement, DataNode):
         :raises NotImplementedError: if the routine is not local and is not
                                      explicitly imported.
         '''
+
+        def _location_txt(node):
+            '''
+            Utility to generate meaningful location text.
+
+            :param node: a PSyIR node.
+            :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+            :returns: description of location of node.
+            :rtype: str
+            '''
+            if isinstance(node, Container):
+                return f"Container '{node.name}'"
+            out_lines = node.debug_string().split("\n")
+            idx = -1
+            while not out_lines[idx]:
+                idx -= 1
+            last_line = out_lines[idx]
+            return f"code:\n'{out_lines[0]}\n...\n{last_line}'"
+
         rsym = self.routine
         if rsym.is_unresolved:
             # TODO #924 - Use ModuleManager to search?
@@ -440,9 +460,9 @@ class Call(Statement, DataNode):
                 f"RoutineSymbol '{rsym.name}' is unresolved and searching for "
                 f"its implementation is not yet supported - TODO #924")
 
-        container = self.ancestor(Container)
-        if not container:
-            container = self.root
+        root_node = self.ancestor(Container)
+        if not root_node:
+            root_node = self.root
 
         if rsym.is_import:
             cursor = rsym
@@ -462,30 +482,24 @@ class Call(Statement, DataNode):
                         f"RoutineSymbol '{rsym.name}' is imported from "
                         f"Container '{csym.name}' but that Container defines "
                         f"a private Symbol of the same name. Searching for the"
-                        f" Container defining a public Routine with that name "
-                        f"is not yet supported - TODO #924")
+                        f" Container that defines a public Routine with that "
+                        f"name is not yet supported - TODO #924")
                 if not isinstance(imported_sym, RoutineSymbol):
                     # We now know that this is a RoutineSymbol so specialise it
                     # in place.
                     imported_sym.specialise(RoutineSymbol)
                 cursor = imported_sym
             rsym = cursor
-
-        if isinstance(rsym.datatype, UnknownFortranType):
-            raise NotImplementedError(
-                f"RoutineSymbol '{rsym.name}' exists in Container "
-                f"'{container.name}' but is of UnknownFortranType:\n"
-                f"{self.datatype.declaration}\n"
-                f"Cannot currently module inline such a routine.")
+            root_node = container
 
         # TODO #924 - need to allow for interface to multiple routines here.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine
-        for routine in container.walk(Routine, stop_type=Routine):
+        for routine in root_node.walk(Routine, stop_type=Routine):
             if routine.name.lower() == rsym.name.lower():
                 kernel_schedule = routine
                 return [kernel_schedule]
 
         raise SymbolError(
-            f"Failed to find a Routine named '{self.name}' in Container "
-            f"'{container.name}'.")
+            f"Failed to find a Routine named '{rsym.name}' in "
+            f"{_location_txt(root_node)}.")

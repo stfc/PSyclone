@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
     Container, Routine, CodeBlock, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, ImportInterface, RoutineSymbol, REAL_TYPE,
-    SymbolError, SymbolTable)
+    Symbol, SymbolError, SymbolTable)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -327,8 +327,11 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     inline_trans = KernelModuleInlineTrans()
     inline_trans.apply(kern_call)
 
-    # The new inlined routine must now exist
-    assert kern_call.ancestor(Container).symbol_table.lookup("compute_cv_code")
+    # The new inlined routine must now exist and be private.
+    routine_sym = kern_call.ancestor(Container).symbol_table.lookup(
+        "compute_cv_code")
+    assert routine_sym
+    assert routine_sym.visibility == Symbol.Visibility.PRIVATE
     assert kern_call.ancestor(Container).children[1].name == "compute_cv_code"
     assert (kern_call.ancestor(Container).symbol_table.
             lookup("compute_cv_code").is_modulevar)
@@ -811,6 +814,9 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert len(routines) == 2
     assert routines[0].name in ["a_sub", "my_sub"]
     assert routines[1].name in ["a_sub", "my_sub"]
+    # Local copy of routine must be private.
+    rsym = container.symbol_table.lookup("my_sub")
+    assert rsym.visibility == Symbol.Visibility.PRIVATE
     output = fortran_writer(psyir)
     assert "subroutine a_sub" in output
     assert "subroutine my_sub" in output
