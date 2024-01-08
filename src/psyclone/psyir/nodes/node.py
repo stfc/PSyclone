@@ -1698,6 +1698,33 @@ class Node():
         result_list.reverse()
         return result_list
 
+    def get_container_definition(self, csym):
+        '''
+        :param csym: the container to search for.
+        :type csym: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+
+        :returns: the PSyIR of the specified Container or None if not found.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container` | NoneType
+
+        '''
+        # TODO should this be replaced by the ModuleManager?
+        lowered_name = csym.name.lower()
+        from psyclone.psyir.nodes.container import Container
+        from psyclone.psyir.nodes.routine import Routine
+        local_containers = self.root.walk(Container, stop_type=Routine)
+        for local in local_containers:
+            if lowered_name == local.name.lower():
+                return local
+
+        # The Container isn't defined locally.
+        try:
+            return csym.container
+        except SymbolError:
+            # Failed to find the container source.
+            # TODO #924 this would be much better as a
+            # FileNotFoundError.
+            return None
+
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.

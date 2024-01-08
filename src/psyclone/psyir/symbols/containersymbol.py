@@ -163,41 +163,6 @@ class ContainerSymbol(Symbol):
                             f"'{type(value).__name__}'")
         self._has_wildcard_import = value
 
-    def old_get_routine_definition(self, name):
-        '''
-        '''
-        rname = name.lower()
-        # Get the container definition. Imports it if necessary.
-        cntr = self.container
-        from psyclone.psyir.nodes.routine import Routine
-        for node in cntr.children:
-            if isinstance(node, Routine) and node.name.lower() == rname:
-                # Check this routine is public
-                routine_sym = cntr.symbol_table.lookup(node.name)
-                if routine_sym.visibility == Symbol.Visibility.PUBLIC:
-                    return node
-                # The Container does not contain the expected Routine or the
-                # Routine is not public.
-
-        # Look in the import that names the routine if there is one.
-        table = cntr.symbol_table
-        try:
-            routine_sym = table.lookup(rname)
-            if routine_sym.is_import:
-                child_cntr_sym = routine_sym.interface.container_symbol
-                return child_cntr_sym.get_routine_definition(rname)
-        except KeyError:
-            pass
-
-        # Look in any wildcard imports.
-        for child_cntr_sym in table.containersymbols:
-            if child_cntr_sym.wildcard_import:
-                result = child_cntr_sym.get_routine_definition(rname)
-                if result:
-                    return result
-        # The required Routine was not found in the Container.
-        return None
-
 
 class ContainerSymbolInterface(SymbolInterface):
     ''' Abstract implementation of the ContainerSymbol Interface '''

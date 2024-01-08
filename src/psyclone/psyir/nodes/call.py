@@ -455,8 +455,6 @@ class Call(Statement, DataNode):
             last_line = out_lines[idx]
             return f"code:\n'{out_lines[0]}\n...\n{last_line}'"
 
-        #import pdb; pdb.set_trace()
-        local_containers = self.root.walk(Container, stop_type=Routine)
         rsym = self.routine
         if rsym.is_unresolved:
 
@@ -478,20 +476,10 @@ class Call(Statement, DataNode):
                 for container_symbol in current_table.containersymbols:
                     if container_symbol.wildcard_import:
                         wildcard_names.append(container_symbol.name)
-                        for local in local_containers:
-                            if container_symbol.name == local.name:
-                                container = local
-                                break
-                        else:
-                            # The Container isn't defined locally.
-                            try:
-                                container = container_symbol.container
-                            except SymbolError:
-                                # Failed to find the container source.
-                                # TODO #924 this would be much better as a
-                                # FileNotFoundError.
-                                continue
-                        # TODO this needs to support returning multiple routines
+                        container = self.get_container_definition(
+                            container_symbol)
+                        if not container:
+                            continue
                         routine = container.get_routine_definition(rsym.name)
                         if routine:
                             return [routine]
@@ -513,14 +501,12 @@ class Call(Statement, DataNode):
             cursor = rsym
             while cursor.is_import:
                 csym = cursor.interface.container_symbol
-                for local in local_containers:
-                    if local.name == csym.name:
-                        container = local
-                        break
-                else:
-                    # If necessary, this will search for and process the source
-                    # file defining the container.
-                    container = csym.container
+                container = self.get_container_definition(csym)
+                if not container:
+                    raise NotImplementedError(
+                        f"RoutineSymbol '{rsym.name}' is imported from "
+                        f"Container '{csym.name}' but the source defining "
+                        f"that container could not be found.")
                 imported_sym = container.symbol_table.lookup(cursor.name)
                 if imported_sym.visibility != Symbol.Visibility.PUBLIC:
                     # The required Symbol must be shadowed with a PRIVATE
@@ -556,10 +542,6 @@ class Call(Statement, DataNode):
             routine = container.get_routine_definition(rsym.name)
             if routine:
                 return [routine]
-        #for routine in root_node.walk(Routine, stop_type=Routine):
-        #    if routine.name.lower() == rsym.name.lower():
-        #        kernel_schedule = routine
-        #        return [kernel_schedule]
 
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "

@@ -191,14 +191,20 @@ class Container(ScopingNode, CommentableMixin):
             routine_sym = table.lookup(rname)
             if routine_sym.is_import:
                 child_cntr_sym = routine_sym.interface.container_symbol
-                return child_cntr_sym.get_routine_definition(rname)
+                # Find the definition of the container.
+                container = self.get_container_definition(child_cntr_sym)
+                if not container:
+                    return None
+                return container.get_routine_definition(rname)
         except KeyError:
             pass
 
         # Look in any wildcard imports.
         for child_cntr_sym in table.containersymbols:
             if child_cntr_sym.wildcard_import:
-                result = child_cntr_sym.get_routine_definition(rname)
+                # Find the definition of the container.
+                container = self.get_container_definition(child_cntr_sym)
+                result = container.get_routine_definition(rname)
                 if result:
                     return result
         # The required Routine was not found in the Container.

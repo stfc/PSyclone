@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,9 @@
 
 ''' Performs py.test tests on the Container PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Container, Return, KernelSchedule, \
-    FileContainer
+from psyclone.psyir.nodes import (Call, Container, KernelSchedule,
+                                  FileContainer, Return, Routine)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -180,3 +179,123 @@ def test_container_children_validation():
     assert ("Item 'Return' can't be child 1 of 'Container'. The valid format"
             " is: '[Container | Routine | CodeBlock]*'."
             "" in str(excinfo.value))
+
+
+# _find_routine_in_container
+
+CALL_IN_SUB_USE = (
+    "subroutine run_it()\n"
+    "  use inline_mod, only : sub\n"
+    "  real :: a\n"
+    "  call sub(a)\n"
+    "end subroutine run_it\n")
+CALL_IN_SUB = CALL_IN_SUB_USE.replace(
+    "  use inline_mod, only : sub\n", "")
+SUB = (
+    "subroutine sub(x)\n"
+    "  real :: x\n"
+    "  x = 1.0\n"
+    "end subroutine sub\n")
+SUB_IN_MODULE = (
+    f"module inline_mod\n"
+    f"contains\n"
+    f"{SUB}"
+    f"end module inline_mod\n")
+
+
+def test_get_routine_definition_routine_not_found(fortran_reader):
+    '''Test that None is returned when the required Routine is not found
+    in the Container associated with the supplied container symbol, as
+    it does not exist.
+
+    '''
+    code = (
+        "module inline_mod\n"
+        "end module inline_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    result = container.get_routine_definition("missing")
+    assert result is None
+
+
+def test_get_routine_definition_recurse_named(fortran_reader):
+    '''Test that when a container does not contain the required routine,
+    any imported containers within this container are also
+    searched. In this case the test is for a container within the
+    original container that explicitly names the routine. The PSyIR of
+    the routine is returned when it is found in the second container.
+
+    '''
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod2, only : sub\n"
+        f"end module inline_mod\n"
+        f"module inline_mod2\n"
+        f"contains\n"
+        f"{SUB}\n"
+        f"end module inline_mod2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.walk(Container)[1]
+    result = container.get_routine_definition("sub")
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
+
+
+def test_get_routine_definition_recurse_wildcard(fortran_reader):
+    '''Test that when a container does not contain the required routine,
+    any imported containers within this container are also
+    searched. In this case the test is for a wildcard container within
+    the original container. The PSyIR of the routine is returned when
+    it is found in the second container.
+
+    '''
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod2\n"
+        f"end module inline_mod\n"
+        f"module inline_mod2\n"
+        f"contains\n"
+        f"{SUB}\n"
+        f"end module inline_mod2\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    container = psyir.get_container_definition(call_node.routine.interface.container_symbol)
+    result = container.get_routine_definition(call_node.routine.name)
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
+
+
+def test_find_routine_in_container_private_routine_not_found(fortran_reader):
+    '''Test that None is returned when the required Routine is not found
+    in the Container associated with the supplied container symbol, as
+    it is private. This situation should not arise as it is invalid to
+    try to import a private routine. However, there are currrently no
+    checks for this when creating PSyIR.
+
+    '''
+    private_sub_in_module = SUB_IN_MODULE.replace(
+        "contains\n", "  private :: sub\ncontains\n")
+    code = f"{private_sub_in_module}{CALL_IN_SUB_USE}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    container = psyir.get_container_definition(
+        call_node.routine.interface.container_symbol)
+    result = container.get_routine_definition(call_node.routine.name)
+    assert result is None
+
+
+def test_find_routine_in_container(fortran_reader):
+    '''Test that the PSyIR of the Routine is returned when it is found
+    in the Container associated with the supplied container symbol.
+
+    '''
+    code = f"{SUB_IN_MODULE}{CALL_IN_SUB_USE}"
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    container = psyir.get_container_definition(
+        call_node.routine.interface.container_symbol)
+    result = container.get_routine_definition(call_node.routine.name)
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
