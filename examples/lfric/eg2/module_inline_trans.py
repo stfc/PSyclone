@@ -48,10 +48,10 @@ def trans(psy):
 
     :param psy: the PSy object that PSyclone has constructed for the \
                 'invoke'(s) found in the Algorithm file.
-    :type psy: :py:class:`psyclone.dynamo0p3.LFRicPSy`
+    :type psy: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
     :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.dynamo0p3.LFRicPSy`
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
     '''
     invokes = psy.invokes

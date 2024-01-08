@@ -35,15 +35,15 @@
 # Modifications: A. R. Porter, STFC Daresbury Lab
 
 
-'''This module tests the LFRicPSy class, currently located within the
-dynamo0.3.py file.'''
+'''This module tests the LFRicPSy class found in the LFRic domain.
+'''
 
 from collections import OrderedDict
 import os
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import LFRicPSy, LFRicInvokes
+from psyclone.domain.lfric import LFRicPSy, LFRicConstants
+from psyclone.dynamo0p3 import LFRicInvokes
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSy
 
@@ -68,11 +68,11 @@ def test_dynamopsy():
     ''' Check that an instance of LFRicPSy can be created successfully.'''
 
     invoke_info = DummyInvokeInfo()
-    dynamo_psy = LFRicPSy(invoke_info)
-    assert isinstance(dynamo_psy, LFRicPSy)
+    lfric_psy = LFRicPSy(invoke_info)
+    assert isinstance(lfric_psy, LFRicPSy)
     assert issubclass(LFRicPSy, PSy)
-    assert isinstance(dynamo_psy._invokes, LFRicInvokes)
-    infrastructure_modules = dynamo_psy._infrastructure_modules
+    assert isinstance(lfric_psy._invokes, LFRicInvokes)
+    infrastructure_modules = lfric_psy._infrastructure_modules
     assert isinstance(infrastructure_modules, OrderedDict)
     assert list(infrastructure_modules["constants_mod"]) == ["i_def"]
     const = LFRicConstants()
@@ -91,16 +91,16 @@ def test_dynamopsy_kind():
     # is not required).
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "15.12.3_single_pointwise_builtin.f90"), api="dynamo0.3")
-    dynamo_psy = LFRicPSy(invoke_info)
-    result = str(dynamo_psy.gen)
+    lfric_psy = LFRicPSy(invoke_info)
+    result = str(lfric_psy.gen)
     assert "USE constants_mod, ONLY: r_def, i_def" in result
     assert "f1_data(df) = 0.0\n" in result
     # 2: Literal kind value is declared (trying with two cases to check)
     for kind_name in ["r_solver", "r_tran"]:
         invoke_info.calls[0].kcalls[0].args[1]._text = f"0.0_{kind_name}"
         invoke_info.calls[0].kcalls[0].args[1]._datatype = ("real", kind_name)
-        dynamo_psy = LFRicPSy(invoke_info)
-        result = str(dynamo_psy.gen).lower()
+        lfric_psy = LFRicPSy(invoke_info)
+        result = str(lfric_psy.gen).lower()
         assert f"use constants_mod, only: {kind_name}, r_def, i_def" in result
         assert f"f1_data(df) = 0.0_{kind_name}" in result
 
@@ -112,9 +112,9 @@ def test_dynamopsy_names():
     '''
     supplied_name = "hello"
     invoke_info = DummyInvokeInfo(name=supplied_name)
-    dynamo_psy = LFRicPSy(invoke_info)
-    assert dynamo_psy.name == supplied_name + "_psy"
-    assert dynamo_psy.orig_name == supplied_name
+    lfric_psy = LFRicPSy(invoke_info)
+    assert lfric_psy.name == supplied_name + "_psy"
+    assert lfric_psy.orig_name == supplied_name
 
 
 def test_dynamopsy_inf_modules():
@@ -124,9 +124,9 @@ def test_dynamopsy_inf_modules():
     an instance of LFRicPSy.
 
     '''
-    dynamo_psy = LFRicPSy(DummyInvokeInfo())
-    assert (dynamo_psy.infrastructure_modules is
-            dynamo_psy._infrastructure_modules)
+    lfric_psy = LFRicPSy(DummyInvokeInfo())
+    assert (lfric_psy.infrastructure_modules is
+            lfric_psy._infrastructure_modules)
 
 
 def test_dynamopsy_gen_no_invoke():
@@ -141,8 +141,8 @@ def test_dynamopsy_gen_no_invoke():
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "  END MODULE hello_psy")
-    dynamo_psy = LFRicPSy(DummyInvokeInfo(name="hello"))
-    result = dynamo_psy.gen
+    lfric_psy = LFRicPSy(DummyInvokeInfo(name="hello"))
+    result = lfric_psy.gen
     assert str(result) == expected_result
 
 
@@ -168,8 +168,8 @@ def test_dynamopsy_gen(monkeypatch):
     # to be false.
     config = Config.get()
     config.distributed_memory = True
-    dynamo_psy = LFRicPSy(invoke_info)
-    result = str(dynamo_psy.gen)
+    lfric_psy = LFRicPSy(invoke_info)
+    result = str(lfric_psy.gen)
     assert (
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"

@@ -52,10 +52,10 @@ def trans(psy):
     transformed through the addition of a routine directive.
 
     :param psy: the PSy object containing the invokes to transform.
-    :type psy: :py:class:`psyclone.dynamo0p3.LFRicPSy`
+    :type psy: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
     :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.dynamo0p3.LFRicPSy`
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
     '''
     const = LFRicConstants()
