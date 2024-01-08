@@ -152,7 +152,7 @@ class RoutineSymbol(TypedSymbol):
                             f"'{type(value).__name__}'")
         self._is_elemental = value
 
-    def get_routine(self, container=None):
+    def old_get_routine(self, container=None):
         '''
         Recursively searches for the implementation of this RoutineSymbol by
         following Container imports.

@@ -850,13 +850,12 @@ class InlineTrans(Transformation):
         '''
         # TODO remove this routine altogether!
         try:
-            import pdb; pdb.set_trace()
             callees = call_node.get_callees()
             return callees[0]
         except (NotImplementedError, SymbolError) as err:
             raise TransformationError(
                 f"Failed to find the source code of the routine "
-                f"'{call_node.routine.name}': {err}")
+                f"'{call_node.routine.name}': {err}") from err
 
         name = call_node.routine.name
         routine_sym = call_node.routine

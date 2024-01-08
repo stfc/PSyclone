@@ -2130,8 +2130,9 @@ def test_find_routine_missing_exception(fortran_reader):
     assert call.routine.is_modulevar
     with pytest.raises(TransformationError) as info:
         _ = inline_trans._find_routine(call)
-    assert ("Failed to find the source code of the local routine 'sub' - it "
-            "is probably in a CodeBlock." in str(info.value))
+    assert ("Failed to find a Routine named 'sub' in Container 'test_mod'. "
+            "This is normally because the routine is within a CodeBlock." in
+            str(info.value))
 
 
 def test_find_routine_unresolved_wildcard(fortran_reader):
@@ -2232,8 +2233,10 @@ def test_find_routine_import_exception(fortran_reader):
     assert call.routine.is_import
     with pytest.raises(TransformationError) as info:
         _ = inline_trans._find_routine(call)
-    assert ("Failed to find the source for routine 'sub' imported from "
-            "'inline_mod' and therefore cannot inline it." in str(info.value))
+    assert ("Failed to find the source code of the routine 'sub':" in
+            str(info.value))
+    assert ("Module 'inline_mod' (expected to be found in 'inline_mod" in
+            str(info.value))
 
 
 def test_find_routine_module_to_raw_exception(fortran_reader):
@@ -2249,8 +2252,10 @@ def test_find_routine_module_to_raw_exception(fortran_reader):
     assert call.routine.is_import
     with pytest.raises(TransformationError) as info:
         _ = inline_trans._find_routine(call)
-    assert ("Failed to find the source for routine 'sub' imported from "
-            "'inline_mod' and therefore cannot inline it." in str(info.value))
+    assert ("Failed to find the source code of the routine 'sub':" in
+            str(info.value))
+    assert ("Module 'inline_mod' (expected to be found in 'inline_mod." in
+            str(info.value))
 
 
 def test_find_routine_exception(fortran_reader, monkeypatch):
@@ -2265,9 +2270,9 @@ def test_find_routine_exception(fortran_reader, monkeypatch):
     # Set the interface to None so it is not local, unresolved or import.
     monkeypatch.setattr(call.routine, "_interface", None)
     inline_trans = InlineTrans()
-    with pytest.raises(InternalError) as info:
+    with pytest.raises(TransformationError) as info:
         _ = inline_trans._find_routine(call)
-    assert ("Routine Symbol 'sub' is not local, unresolved or imported."
+    assert ("Failed to find the source code of the routine 'sub'"
             in str(info.value))
 
 

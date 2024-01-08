@@ -454,6 +454,7 @@ class Call(Statement, DataNode):
             last_line = out_lines[idx]
             return f"code:\n'{out_lines[0]}\n...\n{last_line}'"
 
+        #import pdb; pdb.set_trace()
         local_containers = self.root.walk(Container, stop_type=Routine)
         rsym = self.routine
         if rsym.is_unresolved:
@@ -485,7 +486,13 @@ class Call(Statement, DataNode):
                             # TODO this needs to support returning multiple routines
                             #routine = container_symbol.get_routine_definition(
                             #    rsym.name)
-                            container = container_symbol.container
+                            try:
+                                container = container_symbol.container
+                            except SymbolError:
+                                # Failed to find the container source.
+                                # TODO #924 this would be much better as a
+                                # FileNotFoundError.
+                                continue
                         routine = container.get_routine_definition(rsym.name)
                         if routine:
                             return [routine]
@@ -500,7 +507,7 @@ class Call(Statement, DataNode):
         root_node = self.ancestor(Container)
         if not root_node:
             root_node = self.root
-        container = root_node.root
+        container = root_node
 
         if rsym.is_import:
             cursor = rsym
@@ -556,4 +563,5 @@ class Call(Statement, DataNode):
 
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "
-            f"{_location_txt(root_node)}.")
+            f"{_location_txt(root_node)}. This is normally because the routine"
+            f" is within a CodeBlock.")
