@@ -551,11 +551,11 @@ class Call(Statement, DataNode):
                 f"{rsym.datatype.declaration}\n"
                 f"Cannot currently module inline such a routine.")
 
-        # TODO #924 - need to allow for interface to multiple routines here.
-        # pylint: disable=import-outside-toplevel
-        routine = container.get_routine_definition(rsym.name)
-        if routine:
-            return [routine]
+        if isinstance(container, Container):
+            # TODO #924 - need to allow for interface to multiple routines here.
+            routine = container.get_routine_definition(rsym.name)
+            if routine:
+                return [routine]
         #for routine in root_node.walk(Routine, stop_type=Routine):
         #    if routine.name.lower() == rsym.name.lower():
         #        kernel_schedule = routine

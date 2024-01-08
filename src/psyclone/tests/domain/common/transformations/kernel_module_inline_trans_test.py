@@ -742,9 +742,9 @@ def test_psyir_mod_inline_fail_to_get_psyir(fortran_reader):
     call = psyir.walk(Call)[0]
     with pytest.raises(TransformationError) as err:
         intrans.validate(call)
-    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: "
-            "RoutineSymbol 'my_sub' is unresolved and searching for its "
-            "implementation is not yet supported" in str(err.value))
+    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Failed "
+            "to find the source code of the unresolved routine 'my_sub' "
+            "after trying" in str(err.value))
 
 
 def test_get_psyir_to_inline(monkeypatch):
@@ -836,7 +836,7 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
         :returns: a fake routine name and the routine PSyIR.
         :rtype: Tuple(str, :py:class:`psyclone.psyir.nodes.Routine`)
         '''
-        code_to_inline = node.routine.get_routine(node)
+        code_to_inline = node.get_callees()[0]
         return "broken", code_to_inline
 
     monkeypatch.setattr(KernelModuleInlineTrans, "_get_psyir_to_inline",

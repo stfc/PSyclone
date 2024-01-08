@@ -135,7 +135,7 @@ class InlineTrans(Transformation):
         # The table associated with the scoping region holding the Call.
         table = node.scope.symbol_table
         # Find the routine to be inlined.
-        orig_routine = self._find_routine(node)
+        orig_routine = node.get_callees()[0]
 
         if not orig_routine.children or isinstance(orig_routine.children[0],
                                                    Return):
@@ -622,7 +622,13 @@ class InlineTrans(Transformation):
         #    pass
 
         # Check that we can find the source of the routine being inlined.
-        routine = self._find_routine(node)
+        # TODO #924 allow for multiple routines (interfaces).
+        try:
+            routine = node.get_callees()[0]
+        except (NotImplementedError, SymbolError) as err:
+            raise TransformationError(
+                f"Cannot inline routine '{name}' because its source cannot be "
+                f"found: {err}") from err
 
         if not routine.children or isinstance(routine.children[0], Return):
             # An empty routine is fine.
