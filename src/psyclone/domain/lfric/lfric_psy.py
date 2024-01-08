@@ -174,3 +174,8 @@ class LFRicPSy(PSy):
 
         # Return the root node of the generated code
         return psy_module.root
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ['LFRicPSy']
