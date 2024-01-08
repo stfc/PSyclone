@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,7 @@
 
 ''' This module contains the RoutineSymbol.'''
 
-from psyclone.psyir.symbols.datatypes import NoType, UnknownFortranType
-from psyclone.psyir.symbols.symbol import SymbolError
+from psyclone.psyir.symbols.datatypes import NoType
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -151,70 +150,6 @@ class RoutineSymbol(TypedSymbol):
                             f"be a bool or None but got "
                             f"'{type(value).__name__}'")
         self._is_elemental = value
-
-    def old_get_routine(self, container=None):
-        '''
-        Recursively searches for the implementation of this RoutineSymbol by
-        following Container imports.
-
-        :param container: optional Container containing the RoutineSymbol we
-                          are searching for.
-        :type container: Optional[:py:class:`psyclone.psyir.nodes.Container`]
-
-        :returns: the PSyIR of the implementation of this Routine.
-        :rtype: :py:class:`psyclone.psyir.nodes.Routine`
-
-        :raises NotImplementedError: if this symbol is unresolved or is of
-            UnknownFortranType (which often means it is an Interface).
-        :raises SymbolError: if this symbol is not imported and no `container`
-            has been supplied in which to search.
-        :raises SymbolError: if the RoutineSymbol is not imported or unresolved
-            but an associated Routine cannot be found in the Container.
-
-        '''
-        if self.is_unresolved:
-            # TODO #924 - Use ModuleManager to search?
-            raise NotImplementedError(
-                f"RoutineSymbol '{self.name}' is unresolved and searching for "
-                f"its implementation is not yet supported - TODO #924")
-
-        if self.is_import:
-            csym = self.interface.container_symbol
-            # If necessary, this will search for and process the source file
-            # defining the container.
-            container = csym.container
-            rsym = container.symbol_table.lookup(self.name)
-            if not isinstance(rsym, RoutineSymbol):
-                # We now know that this is a RoutineSymbol so specialise it
-                # in place.
-                rsym.specialise(RoutineSymbol)
-            # This symbol is itself imported into the current Container so
-            # we recurse.
-            return rsym.get_routine(container)
-
-        if not container:
-            raise SymbolError(
-                f"RoutineSymbol '{self.name}' is not imported so a "
-                f"Container node must be provided in order to search for "
-                f"its Schedule.")
-
-        if isinstance(self.datatype, UnknownFortranType):
-            raise NotImplementedError(
-                f"RoutineSymbol '{self.name}' exists in Container "
-                f"'{container.name}' but is of UnknownFortranType:\n"
-                f"{self.datatype.declaration}\n"
-                f"Cannot currently module inline such a routine.")
-
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.routine import Routine
-        for routine in container.walk(Routine, stop_type=Routine):
-            if routine.name.lower() == self.name.lower():
-                kernel_schedule = routine
-                return kernel_schedule
-
-        raise SymbolError(
-            f"Failed to find a Routine named '{self.name}' in Container "
-            f"'{container.name}'.")
 
 
 # For Sphinx AutoAPI documentation generation
