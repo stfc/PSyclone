@@ -367,7 +367,7 @@ class MeshPropertiesMetaData():
 # ---------- Classes -------------------------------------------------------- #
 
 
-class DynamoPSy(PSy):
+class LFRicPSy(PSy):
     '''
     The LFRic-specific PSy class. This creates an LFRic-specific
     Invokes object (which controls all the required invocation calls).
@@ -6998,7 +6998,7 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
     'DynFuncDescriptor03',
-    'DynamoPSy',
+    'LFRicPSy',
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',

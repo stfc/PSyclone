@@ -58,10 +58,10 @@ def trans(psy):
     designed to be called by the psyclone script.
 
     :param psy: PSyclone's representation of the PSy-layer code.
-    :type psy: :class:py:`psyclone.dynamo0p3.DynamoPSy`
+    :type psy: :class:py:`psyclone.dynamo0p3.LFRicPSy`
 
     :returns: modified algorithm-layer code.
-    :rtype: :class:py:`psyclone.dynamo0p3.DynamoPSy`
+    :rtype: :class:py:`psyclone.dynamo0p3.LFRicPSy`
 
     '''
     return psy
