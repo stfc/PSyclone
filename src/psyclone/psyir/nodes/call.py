@@ -37,6 +37,7 @@
 ''' This module contains the Call node implementation.'''
 
 
+from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.container import Container
@@ -479,13 +480,10 @@ class Call(Statement, DataNode):
                         wildcard_names.append(container_symbol.name)
                         for local in local_containers:
                             if container_symbol.name == local.name:
-                                #routine = local.get_routine_definition(rsym.name)
                                 container = local
                                 break
-                        else:    
-                            # TODO this needs to support returning multiple routines
-                            #routine = container_symbol.get_routine_definition(
-                            #    rsym.name)
+                        else:
+                            # The Container isn't defined locally.
                             try:
                                 container = container_symbol.container
                             except SymbolError:
@@ -493,6 +491,7 @@ class Call(Statement, DataNode):
                                 # TODO #924 this would be much better as a
                                 # FileNotFoundError.
                                 continue
+                        # TODO this needs to support returning multiple routines
                         routine = container.get_routine_definition(rsym.name)
                         if routine:
                             return [routine]
@@ -501,8 +500,9 @@ class Call(Statement, DataNode):
                 f"Failed to find the source code of the unresolved "
                 f"routine '{rsym.name}' after trying wildcard imports from "
                 f"{wildcard_names} and all routines that are not in "
-                f"containers. Wider searching for "
-                f"its implementation is not yet supported - TODO #924")
+                f"containers. Note that currently module filenames are "
+                f"constrained to follow the pattern <mod_name>.[fF]90 and "
+                f"the search path is set to {Config.get().include_paths}.")
 
         root_node = self.ancestor(Container)
         if not root_node:

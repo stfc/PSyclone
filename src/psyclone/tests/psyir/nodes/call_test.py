@@ -629,12 +629,15 @@ end subroutine top'''
         _ = call.get_callees()
     assert ("Failed to find the source code of the unresolved routine 'bottom'"
             " after trying wildcard imports from [] and all routines that are "
-            "not in containers. Wider searching for its implementation is not "
-            "yet supported - TODO #924" in str(err.value))
+            "not in containers. Note that currently module filenames are "
+            "constrained to follow the pattern <mod_name>.[fF]90 and "
+            "the search path is set to []" in str(err.value))
 
 
 def test_call_get_callees_unknown_type(fortran_reader):
     '''
+    Check that get_callees() raises the expected error when the RoutineSymbol
+    is of UnknownFortranType (which happens when it is an interface).
     '''
     code = '''
 module my_mod
@@ -725,6 +728,103 @@ end module my_mod
         _ = call.get_callees()
     assert ("Failed to find a Routine named 'bottom' in code:\n'subroutine "
             "top()" in str(err.value))
+
+
+def test_call_get_callees_wildcard_import_local_container(fortran_reader):
+    '''
+    Check that get_callees() works successfully for a routine accessed via
+    a wildcard import from another module in the same file.
+    '''
+    code = '''
+module some_mod
+contains
+  subroutine just_do_it()
+    write(*,*) "hello"
+  end subroutine just_do_it
+end module some_mod
+module other_mod
+  use some_mod
+contains
+  subroutine run_it()
+    call just_do_it()
+  end subroutine run_it
+end module other_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    srcs = call.get_callees()
+    assert len(srcs) == 1
+    assert isinstance(srcs[0], Routine)
+    assert srcs[0].name == "just_do_it"
+
+
+def test_call_get_callees_import_local_container(fortran_reader):
+    '''
+    Check that get_callees() works successfully for a routine accessed via
+    a specific import from another module in the same file.
+    '''
+    code = '''
+module some_mod
+contains
+  subroutine just_do_it()
+    write(*,*) "hello"
+  end subroutine just_do_it
+end module some_mod
+module other_mod
+  use some_mod, only: just_do_it
+contains
+  subroutine run_it()
+    call just_do_it()
+  end subroutine run_it
+end module other_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    srcs = call.get_callees()
+    assert len(srcs) == 1
+    assert isinstance(srcs[0], Routine)
+    assert srcs[0].name == "just_do_it"
+
+
+def test_call_get_callees_wildcard_import_container(fortran_reader,
+                                                    tmpdir, monkeypatch):
+    '''
+    Check that get_callees() works successfully for a routine accessed via
+    a wildcard import from a module in another file.
+    '''
+    code = '''
+module other_mod
+  use some_mod
+contains
+  subroutine run_it()
+    call just_do_it()
+  end subroutine run_it
+end module other_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    # This should fail as it can't find the module.
+    with pytest.raises(NotImplementedError) as err:
+        _ = call.get_callees()
+    assert "" in str(err)
+    # Create the module containing the subroutine definition,
+    # write it to file and set the search path so that PSyclone can find it.
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+
+    with open(os.path.join(path, "some_mod.f90"),
+              "w", encoding="utf-8") as mfile:
+        mfile.write('''\
+module some_mod
+contains
+  subroutine just_do_it()
+    write(*,*) "hello"
+  end subroutine just_do_it
+end module some_mod''')
+    srcs = call.get_callees()
+    assert len(srcs) == 1
+    assert isinstance(srcs[0], Routine)
+    assert srcs[0].name == "just_do_it"
 
 
 def test_fn_call_get_callees(fortran_reader):
