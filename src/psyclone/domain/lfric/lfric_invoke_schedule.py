@@ -36,12 +36,13 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' This module contains the LFRic-specific InvokeSchedule sub-class which
+inherits from the InvokeSchedule class. LFRicInvokeSchedule takes an
+Invoke name and a list of parsed KernelCalls as required parameters
+which it passes to the base class to create a new SymbolTable for
+the new InvokeSchedule.
+
+'''
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltInCallFactory
@@ -50,7 +51,7 @@ from psyclone.psyGen import InvokeSchedule
 
 
 class LFRicInvokeSchedule(InvokeSchedule):
-    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
+    ''' The LFRic-specific InvokeSchedule sub-class. This passes the LFRic-
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require.
 
