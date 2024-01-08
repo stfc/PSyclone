@@ -850,6 +850,7 @@ class InlineTrans(Transformation):
         '''
         # TODO remove this routine altogether!
         try:
+            import pdb; pdb.set_trace()
             callees = call_node.get_callees()
             return callees[0]
         except (NotImplementedError, SymbolError) as err:

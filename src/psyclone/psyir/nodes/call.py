@@ -454,6 +454,7 @@ class Call(Statement, DataNode):
             last_line = out_lines[idx]
             return f"code:\n'{out_lines[0]}\n...\n{last_line}'"
 
+        local_containers = self.root.walk(Container, stop_type=Routine)
         rsym = self.routine
         if rsym.is_unresolved:
 
@@ -475,9 +476,17 @@ class Call(Statement, DataNode):
                 for container_symbol in current_table.containersymbols:
                     if container_symbol.wildcard_import:
                         wildcard_names.append(container_symbol.name)
-                        # TODO this needs to support returning multiple routines
-                        routine = container_symbol.get_routine_definition(
-                            rsym.name)
+                        for local in local_containers:
+                            if container_symbol.name == local.name:
+                                #routine = local.get_routine_definition(rsym.name)
+                                container = local
+                                break
+                        else:    
+                            # TODO this needs to support returning multiple routines
+                            #routine = container_symbol.get_routine_definition(
+                            #    rsym.name)
+                            container = container_symbol.container
+                        routine = container.get_routine_definition(rsym.name)
                         if routine:
                             return [routine]
                 current_table = current_table.parent_symbol_table()
@@ -491,14 +500,20 @@ class Call(Statement, DataNode):
         root_node = self.ancestor(Container)
         if not root_node:
             root_node = self.root
+        container = root_node.root
 
         if rsym.is_import:
             cursor = rsym
             while cursor.is_import:
                 csym = cursor.interface.container_symbol
-                # If necessary, this will search for and process the source
-                # file defining the container.
-                container = csym.container
+                for local in local_containers:
+                    if local.name == csym.name:
+                        container = local
+                        break
+                else:
+                    # If necessary, this will search for and process the source
+                    # file defining the container.
+                    container = csym.container
                 imported_sym = container.symbol_table.lookup(cursor.name)
                 if imported_sym.visibility != Symbol.Visibility.PUBLIC:
                     # The required Symbol must be shadowed with a PRIVATE
@@ -531,10 +546,13 @@ class Call(Statement, DataNode):
 
         # TODO #924 - need to allow for interface to multiple routines here.
         # pylint: disable=import-outside-toplevel
-        for routine in root_node.walk(Routine, stop_type=Routine):
-            if routine.name.lower() == rsym.name.lower():
-                kernel_schedule = routine
-                return [kernel_schedule]
+        routine = container.get_routine_definition(rsym.name)
+        if routine:
+            return [routine]
+        #for routine in root_node.walk(Routine, stop_type=Routine):
+        #    if routine.name.lower() == rsym.name.lower():
+        #        kernel_schedule = routine
+        #        return [kernel_schedule]
 
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "

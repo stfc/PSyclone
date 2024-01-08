@@ -170,6 +170,40 @@ class Container(ScopingNode, CommentableMixin):
     def __str__(self):
         return f"Container[{self.name}]\n"
 
+    def get_routine_definition(self, name):
+        '''
+        '''
+        rname = name.lower()
+        from psyclone.psyir.nodes.routine import Routine
+        from psyclone.psyir.symbols.symbol import Symbol
+        for node in self.children:
+            if isinstance(node, Routine) and node.name.lower() == rname:
+                # Check this routine is public
+                routine_sym = self.symbol_table.lookup(node.name)
+                if routine_sym.visibility == Symbol.Visibility.PUBLIC:
+                    return node
+                # The Container does not contain the expected Routine or the
+                # Routine is not public.
+
+        # Look in the import that names the routine if there is one.
+        table = self.symbol_table
+        try:
+            routine_sym = table.lookup(rname)
+            if routine_sym.is_import:
+                child_cntr_sym = routine_sym.interface.container_symbol
+                return child_cntr_sym.get_routine_definition(rname)
+        except KeyError:
+            pass
+
+        # Look in any wildcard imports.
+        for child_cntr_sym in table.containersymbols:
+            if child_cntr_sym.wildcard_import:
+                result = child_cntr_sym.get_routine_definition(rname)
+                if result:
+                    return result
+        # The required Routine was not found in the Container.
+        return None
+
 
 # For AutoAPI documentation generation
 __all__ = ['Container']

@@ -163,7 +163,7 @@ class ContainerSymbol(Symbol):
                             f"'{type(value).__name__}'")
         self._has_wildcard_import = value
 
-    def get_routine_definition(self, name):
+    def old_get_routine_definition(self, name):
         '''
         '''
         rname = name.lower()
