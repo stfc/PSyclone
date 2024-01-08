@@ -172,6 +172,13 @@ class Container(ScopingNode, CommentableMixin):
 
     def get_routine_definition(self, name):
         '''
+        Searches the Container for the definition of the named routine.
+
+        :param str name: the name of the Routine for which to search.
+
+        :returns: the PSyIR of the named Routine if found, otherwise None.
+        :rtype: :py:class:`psyclone.psyir.nodes.Routine` | NoneType
+
         '''
         rname = name.lower()
         from psyclone.psyir.nodes.routine import Routine
@@ -204,6 +211,8 @@ class Container(ScopingNode, CommentableMixin):
             if child_cntr_sym.wildcard_import:
                 # Find the definition of the container.
                 container = self.get_container_definition(child_cntr_sym)
+                if not container:
+                    continue
                 result = container.get_routine_definition(rname)
                 if result:
                     return result

@@ -133,7 +133,7 @@ class CodeBlock(Statement, DataNode):
         '''
         :returns: the nodes associated with this code block in
                   the original AST.
-        :rtype: list[`:py:classfparser.two.Fortran2003.Base`]
+        :rtype: list[:py:class:`fparser.two.Fortran2003.Base`]
 
         '''
         return self._fp2_nodes
