@@ -38,7 +38,13 @@
 
 ''' 
 This module contains the LFRicDofmaps class which holds all the
-information and methods for the dofmaps required by an invoke.
+information and methods for the dofmaps required by an invoke such as:
+generating the calls to the LFRic infrastructure that look-up the necessary
+dofmaps; declaring all unique function space dofmaps in the PSy layer as
+pointers to integer arrays; and adding dofmap-related declarations to a
+Kernel stub.
+
+LFRicDofmaps is used in the LFRicInvoke module.
 '''
 
 from collections import OrderedDict
