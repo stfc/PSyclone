@@ -141,6 +141,7 @@ def inline_calls(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
     '''
+    excluding = ["ctl_stop", "iom_", "lbc_", "eos"]
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
     all_calls = schedule.walk(Call)
@@ -148,16 +149,20 @@ def inline_calls(schedule):
         if isinstance(call, IntrinsicCall):
             continue
         rsym = call.routine
+        name = rsym.name.lower()
+        if any(excl_name in name for excl_name in excluding):
+            print(f"Inlining of routine '{name}' is disabled.")
+            continue
         if rsym.is_import:
             try:
                 mod_inline_trans.apply(call)
             except TransformationError as err:
-                print(f"Module inline of '{rsym.name}' failed:\n{err}")
+                print(f"Module inline of '{name}' failed:\n{err}")
                 continue
         try:
             inline_trans.apply(call)
         except TransformationError as err:
-            print(f"Inlining of '{rsym.name}' failed:\n{err}")
+            print(f"Inlining of '{name}' failed:\n{err}")
             continue
 
 
