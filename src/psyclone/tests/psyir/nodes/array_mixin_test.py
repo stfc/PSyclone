@@ -567,11 +567,10 @@ def test_get_outer_range_index_error():
 
 
 def test_same_range(fortran_reader):
-    '''Test that the same_range method behaves in the expected way.
+    '''Test that the same_range method behaves in the expected way.'''
 
-    '''
-    array1 = fortran_reader.psyir_from_statement("a(:) = 0").lhs
-    array2 = fortran_reader.psyir_from_statement("b(:) = 0").lhs
+    array1 = fortran_reader.psyir_from_statement("a(i) = 0").lhs
+    array2 = fortran_reader.psyir_from_statement("b(j) = 0").lhs
 
     with pytest.raises(TypeError) as info:
         array1.same_range(None, None, None)
@@ -585,72 +584,82 @@ def test_same_range(fortran_reader):
 
     with pytest.raises(TypeError) as info:
         array1.same_range(1, array2, None)
-    assert ("The fourth argument to the same_range() method should be an "
+    assert ("The 'index2' argument of the same_range() method should be an "
             "int but found 'NoneType'." in str(info.value))
 
     with pytest.raises(IndexError) as info:
         array1.same_range(1, array2, 2)
-    assert ("The value of the 'index2' argument of the same_range() method "
-            "is '1', but it should be less than the number of dimensions '1' "
-            "in the associated array." in str(info.value))
+    assert ("The value of the 'index' argument of the same_range() method "
+            "is '1', but it should be less than the number of dimensions "
+            "in the associated array, which is '1'." in str(info.value))
 
     with pytest.raises(IndexError) as info:
         array1.same_range(0, array2, 2)
-    assert ("The value of the fourth argument to the same_range() method "
-            "'2' should be less than the number of dimensions '1' in the "
-            "associated array 'array2'." in str(info.value))
+    assert ("The value of the 'index2' argument of the same_range() method "
+            "is '2', but it should be less than the number of dimensions in "
+            "the associated array 'array2', which is '1'." in str(info.value))
 
     with pytest.raises(TypeError) as info:
         array1.same_range(0, array2, 0)
-    assert ("The child of the first array argument at the specified index (0) "
-            "should be a Range node, but found 'DataNode'" in str(info.value))
+    assert ("The child of the first array argument at the specified index '0' "
+            "should be a Range node, but found 'Reference'" in str(info.value))
+
+    array1 = fortran_reader.psyir_from_statement("a(:) = 0").lhs
 
     with pytest.raises(TypeError) as info:
         array1.same_range(0, array2, 0)
     assert ("The child of the second array argument at the specified index "
-            "(0) should be a Range node, but found 'DataNode'"
+            "'0' should be a Range node, but found 'Reference'"
             in str(info.value))
+
+    array2 = fortran_reader.psyir_from_statement("b(:) = 0").lhs
 
     # lower bounds both use lbound, upper bounds both use ubound and
     # step is the same so everything matches.
-    array_x = create_array_x(SymbolTable())
-    array_x_2 = create_array_x(SymbolTable())
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
+    assert array1.same_range(0, array2, 0) is True
 
-    # steps are different
-    tmp = array_x_2.children[0].step
-    array_x_2.children[0].step = Literal("2", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
-
-    # Put step value back to what it was in case it affects the ubound
-    # and lbound tests
-    array_x_2.children[0].step = tmp
+    # Check if steps are different
+    array2.children[0].step = Literal("2", INTEGER_TYPE)
+    assert array1.same_range(0, array2, 0) is False
 
     # one of upper bounds uses ubound, other does not
-    tmp1 = array_x_2.children[0].stop
-    array_x_2.children[0].stop = Literal("2", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
+    array2 = fortran_reader.psyir_from_statement("b(:4) = 0").lhs
+    assert array1.same_range(0, array2, 0) is False
 
     # neither use upper bound and are different
-    tmp2 = array_x.children[0].stop
-    array_x.children[0].stop = Literal("1", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
+    array1 = fortran_reader.psyir_from_statement("a(:3) = 0").lhs
+    assert array1.same_range(0, array2, 0) is False
 
-    # Put upper bounds back to what they were in case they affect the
-    # lbound tests
-    array_x_2.children[0].stop = tmp1
-    array_x.children[0].stop = tmp2
+    # Both have lower and upper bound but are symbolically equal
+    array1 = fortran_reader.psyir_from_statement("a(3:5) = 0").lhs
+    array2 = fortran_reader.psyir_from_statement("a(2+1:6-1) = 0").lhs
+    assert array1.same_range(0, array2, 0) is True
 
-    # One of lower bounds uses lbound, other does not but has the same value.
-    array_x_2.children[0].start = Literal("1", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
+    # One uses bound and the other does not, but the compile time known
+    # shape is the same
+    code = '''
+    subroutine test()
+        real, dimension(4, 5-1, 2:5) :: A
+        real, dimension(4,   4,   4) :: B
+        A(:,:,:) = B(1:4,1:4, 1:4)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    array1, array2 = psyir.walk(Assignment)[0].children
+    assert array1.same_range(0, array2, 0) is True
+    assert array1.same_range(1, array2, 1) is True
+    assert array1.same_range(2, array2, 2) is True
 
-    # One of lower bounds uses lbound, other does not and has a
-    # different start value.
-    array_x_2.children[0].start = Literal("2", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
-
-    # Neither use lower bound and are different.
-    array_x.children[0].start = Literal("3", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
-
+    # Same but the compile time known shape is not the same
+    code = '''
+    subroutine test()
+        real, dimension(4, 5-1, 2:5) :: A
+        real, dimension(5,   5,   5) :: B
+        A(:,:,:) = B(1:4,1:4,1:4)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    array1, array2 = psyir.walk(Assignment)[0].children
+    assert array1.same_range(0, array2, 0) is False
+    assert array1.same_range(1, array2, 1) is False
+    assert array1.same_range(2, array2, 2) is False

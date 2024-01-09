@@ -599,14 +599,21 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         raise IndexError
 
     def same_range(self, index: int, array2, index2: int) -> bool:
-        ''' This method compares the range node at the given 'index' with
-        the range node at position 'index2' in array access 'array2'.
+        ''' This method compares the range length of this array node
+        at a given index with range length of a second array at
+        a second index. This is useful to verify is array operations
+        are valid, e.g.: A(3,:,5) + B(:,2,2).
+
+        Note that this check supports symbolic comparisons, e.g.:
+        A(3:4) has the same range as B(2+1:5-1),
+        and will consider compile-time unknown dimensions as equal, e.g.:
+        A(:) has the same range as B(:).
 
         :param index: the index indicating the location of a range node in
-        this array.
+            this array.
         :param array2: the array accessor that we want to compare it to.
         :param index2: the index indicating the location of a range node in
-        array2.
+            array2.
 
         :returns: True if the ranges are the same and False if they are not
         the same, or if it is not possible to determine.
@@ -616,35 +623,37 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         if not isinstance(index, int):
             raise TypeError(
-                f"The second argument to the same_range() method should be an "
-                f"int but found '{type(index).__name__}'.")
+                f"The 'index' argument of the same_range() method should be an"
+                f" int but found '{type(index).__name__}'.")
         if not isinstance(array2, ArrayMixin):
             raise TypeError(
-                f"The third argument to the same_range() method should be an "
-                f"ArrayReference but found '{type(array2).__name__}'.")
+                f"The 'array2' argument of the same_range() method should be "
+                f"an ArrayMixin but found '{type(array2).__name__}'.")
         if not isinstance(index2, int):
             raise TypeError(
-                f"The fourth argument to the same_range() method should be an "
-                f"int but found '{type(index2).__name__}'.")
+                f"The 'index2' argument of the same_range() method should be "
+                f"an int but found '{type(index2).__name__}'.")
         if not index < len(self.children):
             raise IndexError(
-                f"The value of the second argument to the same_range() method "
-                f"'{index}' should be less than the number of dimensions "
-                f"'{len(self.children)}' in the associated array 'self'.")
+                f"The value of the 'index' argument of the same_range() method"
+                f" is '{index}', but it should be less than the number of "
+                f"dimensions in the associated array, which is "
+                f"'{len(self.children)}'.")
         if not index2 < len(array2.children):
             raise IndexError(
-                f"The value of the fourth argument to the same_range() method "
-                f"'{index2}' should be less than the number of dimensions "
-                f"'{len(array2.children)}' in the associated array 'array2'.")
+                f"The value of the 'index2' argument of the same_range() "
+                f"method is '{index2}', but it should be less than the number"
+                f" of dimensions in the associated array 'array2', which is "
+                f"'{len(array2.children)}'.")
         if not isinstance(self.children[index], Range):
             raise TypeError(
                 f"The child of the first array argument at the specified index"
-                f" ({index}) should be a Range node, but found "
+                f" '{index}' should be a Range node, but found "
                 f"'{type(self.children[index]).__name__}'.")
         if not isinstance(array2.children[index2], Range):
             raise TypeError(
                 f"The child of the second array argument at the specified "
-                f"index ({index2}) should be a Range node, but found "
+                f"index '{index2}' should be a Range node, but found "
                 f"'{type(array2.children[index2]).__name__}'.")
 
         range1 = self.children[index]
