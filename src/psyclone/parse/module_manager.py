@@ -43,6 +43,10 @@ import os
 
 from psyclone.errors import InternalError
 from psyclone.parse.module_info import ModuleInfo
+import re
+
+_MODULE_PATTERN = re.compile(r"^\s*module\s+([a-z]\S*).*$",
+                             flags=(re.IGNORECASE | re.MULTILINE))
 
 
 class ModuleManager:
@@ -72,6 +76,7 @@ class ModuleManager:
                                 "to get the singleton instance.")
         # Cached mapping from module name to filename.
         self._mod_2_filename = {}
+        self._visited_files = set()
 
         # The list of all search paths which have not yet all their files
         # checked. It is stored as an ordered dict to make it easier to avoid
@@ -128,6 +133,9 @@ class ModuleManager:
                         ext not in [".F90", ".f90", ".X90", ".x90"]:
                     continue
                 full_path = os.path.join(directory, entry.name)
+                if full_path in self._visited_files:
+                    continue
+                self._visited_files.add(full_path)
                 # Obtain the names of all modules defined in this source file.
                 all_modules = self.get_modules_in_file(full_path)
                 for module in all_modules:
@@ -182,7 +190,7 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, filename):
+    def old_get_modules_in_file(self, filename):
         '''This function returns the list of modules defined in the specified
         file. The base implementation assumes the use of the LFRic coding
         style: the file `a_mod.f90` implements the module `a_mod`. This
@@ -202,6 +210,15 @@ class ModuleManager:
             return [root]
 
         return []
+
+    def get_modules_in_file(self, filename):
+        '''
+        '''
+        with open(filename, "r", encoding='utf-8') as file_in:
+            print(f"reading file {filename}...")
+            source_code = file_in.read()
+        mod_names = _MODULE_PATTERN.findall(source_code)
+        return mod_names
 
     # ------------------------------------------------------------------------
     def get_all_dependencies_recursively(self, all_mods):
