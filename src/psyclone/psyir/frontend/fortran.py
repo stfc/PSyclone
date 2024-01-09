@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ from fparser.two import Fortran2003, pattern_tools
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from fparser.two.utils import NoMatchError
+from psyclone.configuration import Config
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Schedule, Assignment, Routine
 from psyclone.psyir.symbols import SymbolTable
@@ -92,7 +93,8 @@ class FortranReader():
 
         '''
         SYMBOL_TABLES.clear()
-        string_reader = FortranStringReader(source_code)
+        string_reader = FortranStringReader(
+            source_code, include_dirs=Config.get().include_paths)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(string_reader)
