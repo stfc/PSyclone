@@ -44,6 +44,7 @@ from fparser.two.Fortran2003 import Use_Stmt
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
 
+from psyclone.configuration import Config
 from psyclone.errors import PSycloneError
 
 
@@ -135,7 +136,9 @@ class ModuleInfo:
 
         '''
         if not self._parse_tree:
-            reader = FortranStringReader(self.get_source_code())
+            reader = FortranStringReader(
+                self.get_source_code(),
+                include_dirs=Config.get().include_paths)
             parser = ParserFactory().create(std="f2008")
             self._parse_tree = parser(reader)
         return self._parse_tree
