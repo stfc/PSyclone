@@ -170,11 +170,20 @@ class Container(ScopingNode, CommentableMixin):
     def __str__(self):
         return f"Container[{self.name}]\n"
 
-    def get_routine_definition(self, name):
+    def get_routine_definition(self, name, allow_private=False):
         '''
-        Searches the Container for the definition of the named routine.
+        Searches the Container for a definition of the named routine.
+
+        If it is not found and the routine is named in an import statement
+        then the search is continued in the named Container. Failing that,
+        all wildcard imports are checked.
+
+        TODO #924 - if the named Routine is actually a procedure interface
+        then currently no match will be found.
 
         :param str name: the name of the Routine for which to search.
+        :param bool allow_private: whether the Routine is permitted to have
+            a visibility of PRIVATE.
 
         :returns: the PSyIR of the named Routine if found, otherwise None.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine` | NoneType
@@ -184,10 +193,12 @@ class Container(ScopingNode, CommentableMixin):
         from psyclone.psyir.nodes.routine import Routine
         from psyclone.psyir.symbols.symbol import Symbol
         for node in self.children:
+            # TODO #924 this needs to allow for procedure interfaces.
             if isinstance(node, Routine) and node.name.lower() == rname:
                 # Check this routine is public
                 routine_sym = self.symbol_table.lookup(node.name)
-                if routine_sym.visibility == Symbol.Visibility.PUBLIC:
+                if (allow_private or
+                        routine_sym.visibility == Symbol.Visibility.PUBLIC):
                     return node
                 # The Container does not contain the expected Routine or the
                 # Routine is not public.
@@ -199,7 +210,7 @@ class Container(ScopingNode, CommentableMixin):
             if routine_sym.is_import:
                 child_cntr_sym = routine_sym.interface.container_symbol
                 # Find the definition of the container.
-                container = self.get_container_definition(child_cntr_sym)
+                container = child_cntr_sym.container
                 if not container:
                     return None
                 return container.get_routine_definition(rname)
@@ -210,7 +221,7 @@ class Container(ScopingNode, CommentableMixin):
         for child_cntr_sym in table.containersymbols:
             if child_cntr_sym.wildcard_import:
                 # Find the definition of the container.
-                container = self.get_container_definition(child_cntr_sym)
+                container = child_cntr_sym.container
                 if not container:
                     continue
                 result = container.get_routine_definition(rname)

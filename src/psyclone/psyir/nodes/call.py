@@ -476,8 +476,8 @@ class Call(Statement, DataNode):
                 for container_symbol in current_table.containersymbols:
                     if container_symbol.wildcard_import:
                         wildcard_names.append(container_symbol.name)
-                        container = self.get_container_definition(
-                            container_symbol)
+                        container = container_symbol.container(local_node=self) # self.get_container_definition(
+                            #container_symbol)
                         if not container:
                             continue
                         routine = container.get_routine_definition(rsym.name)
@@ -496,12 +496,16 @@ class Call(Statement, DataNode):
         if not root_node:
             root_node = self.root
         container = root_node
+        can_be_private = True
 
         if rsym.is_import:
             cursor = rsym
+            # A Routine imported from another Container must be public in that
+            # Container.
+            can_be_private = False
             while cursor.is_import:
                 csym = cursor.interface.container_symbol
-                container = self.get_container_definition(csym)
+                container = csym.container(local_node=self)
                 if not container:
                     raise NotImplementedError(
                         f"RoutineSymbol '{rsym.name}' is imported from "
@@ -538,8 +542,10 @@ class Call(Statement, DataNode):
                 f"Cannot currently module inline such a routine.")
 
         if isinstance(container, Container):
-            # TODO #924 - need to allow for interface to multiple routines here.
-            routine = container.get_routine_definition(rsym.name)
+            # TODO #924 - need to allow for interface to multiple routines
+            # here.
+            routine = container.get_routine_definition(
+                rsym.name, allow_private=can_be_private)
             if routine:
                 return [routine]
 
