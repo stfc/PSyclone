@@ -10,7 +10,7 @@ clean: $(clean_EXAMPLES)
 allclean: $(allclean_EXAMPLES)
 
 $(EXAMPLES):
-	$(MAKE) -C $@ test
+	$(MAKE) -C $@/solution test
 
 $(clean_EXAMPLES):
 	$(MAKE) -C $(patsubst clean_%,%,$@) clean
