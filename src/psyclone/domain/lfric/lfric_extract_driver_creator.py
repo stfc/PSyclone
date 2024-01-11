@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic, O. Brunt and L. Turner, Met Office
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality for LFRic. It contains the class that creates a driver that
@@ -40,6 +40,7 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
+from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
@@ -49,7 +50,7 @@ from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
-                                  IntrinsicCall, Literal, Node, Reference,
+                                  IntrinsicCall, Literal, Reference,
                                   Routine, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
@@ -77,10 +78,10 @@ class LFRicExtractDriverCreator:
        be extracted, all others are removed. This is required since the kernel
        extraction will not contain the required data for the other kernels to
        be called. The lowering is important to fix the variable names for the
-       loop boundaries of the :py:class:`psyclone.dynamo0p3.DynLoop`: the loop
-       start/stop expressions (`loop0_start` etc.) depend on the position of
-       the loop in the tree. For example, if there are two kernels, they will
-       be using `loop0_start` and `loop1_start`. If only the second is
+       loop boundaries of the :py:class:`psyclone.domain.lfric.LFRicLoop`: the
+       loop start/stop expressions (`loop0_start` etc.) depend on the position
+       of the loop in the tree. For example, if there are two kernels, they
+       will be using `loop0_start` and `loop1_start`. If only the second is
        extracted, the former second (and now only) loop would be using
        `loop0_start` without lowering, but the kernel extraction would have
        written the values for `loop1_start`.
@@ -438,7 +439,7 @@ class LFRicExtractDriverCreator:
                                            symbol_type=DataSymbol,
                                            datatype=sym.datatype)
         if index is not None:
-            post_tag = f"{name}_{index}_data{postfix}"
+            post_tag = f"{name}{postfix}%{index}"
         else:
             # If it is not indexed then `name` will already end in "_data"
             post_tag = f"{name}{postfix}"
@@ -466,7 +467,7 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     def _create_read_in_code(self, program, psy_data, original_symbol_table,
                              read_write_info, postfix):
-        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-arguments, too-many-locals
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
 
@@ -521,7 +522,6 @@ class LFRicExtractDriverCreator:
                 intrinsic_name = sym.datatype.intrinsic.name
             return intrinsic_name in self._all_field_types
 
-        # pylint: disable=too-many-locals
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
 
@@ -540,7 +540,7 @@ class LFRicExtractDriverCreator:
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}_data")
-                    name_lit = Literal(f"{sig_str}_{i}_data", CHARACTER_TYPE)
+                    name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
                     self._add_call(program, read_var, [name_lit,
                                                        Reference(sym)])
                 continue
@@ -637,7 +637,8 @@ class LFRicExtractDriverCreator:
         # r_quad is defined in constants_mod, but not exported. So
         # we have to remove it from the lists of precisions to import.
         # TODO #2018
-        all_precisions = [name for name in const.PRECISION_MAP
+        api_config = Config.get().api_conf("dynamo0.3")
+        all_precisions = [name for name in api_config.precision_map
                           if name != "r_quad"]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
@@ -734,18 +735,6 @@ class LFRicExtractDriverCreator:
         extract_trans = ExtractTrans()
         # We need to provide the prefix to the validation function:
         extract_trans.validate(nodes, options={"prefix": prefix})
-
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
-        for node in nodes:
-            for builtin in node.walk(LFRicBuiltIn):
-                # If the lower_to_language function is not overwritten from
-                # the implementation in Node, the builtin is not yet supported:
-                if type(builtin).lower_to_language_level == \
-                        Node.lower_to_language_level:
-                    raise NotImplementedError(
-                        f"LFRic builtin '{builtin.name}' is not supported")
 
         module_name, local_name = region_name
         unit_name = self._make_valid_unit_name(f"{module_name}_{local_name}")
@@ -886,38 +875,43 @@ class LFRicExtractDriverCreator:
 
         :param nodes: a list of nodes.
         :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output \
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
+        :param str prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
+        :param str postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param Tuple[str,str] region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
+        :param Tuple[str,str] region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
             should uniquely identify a region.
-        :param language_writer: a backend visitor to convert PSyIR \
-            representation to the selected language. It defaults to \
+        :param language_writer: a backend visitor to convert PSyIR
+            representation to the selected language. It defaults to
             the FortranWriter.
-        :type language_writer: \
+        :type language_writer:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         :returns: the driver in the selected language.
         :rtype: str
 
+        :raises NotImplementedError: if the driver creation fails.
+
         '''
         try:
             file_container = self.create(nodes, read_write_info, prefix,
                                          postfix, region_name)
-        except NotImplementedError as err:
-            print(f"Cannot create driver for '{region_name[0]}-"
-                  f"{region_name[1]}' because:")
-            print(str(err))
+        # TODO #2120 (Handle failures in Kernel Extraction): Now that all
+        # built-ins are lowered, an alternative way of triggering a
+        # NotImplementedError is needed.
+        except NotImplementedError:
+            # print(f"Cannot create driver for '{region_name[0]}-"
+            #      f"{region_name[1]}' because:")
+            # print(str(err))
             return ""
 
         module_dependencies = self.collect_all_required_modules(file_container)
@@ -982,6 +976,8 @@ class LFRicExtractDriverCreator:
         if not code:
             # This indicates an error that was already printed,
             # so ignore it here.
+            # TODO #2120 (Handle failures in Kernel Extraction): revisit
+            # how this is handled in 'get_driver_as_string'.
             return
         module_name, local_name = region_name
         with open(f"driver-{module_name}-{local_name}.F90", "w",

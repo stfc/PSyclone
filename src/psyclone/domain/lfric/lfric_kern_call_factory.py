@@ -41,6 +41,9 @@
 
 '''
 
+# Imports
+from psyclone.domain.lfric import LFRicKern, LFRicLoop
+
 
 class LFRicKernCallFactory():
     ''' Create the necessary framework for an LFRic kernel call.
@@ -70,16 +73,10 @@ class LFRicKernCallFactory():
         else:
             # Loop over cells, indicated by an empty string.
             loop_type = ""
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynLoop
-        cloop = DynLoop(parent=parent, loop_type=loop_type)
+        cloop = LFRicLoop(parent=parent, loop_type=loop_type)
 
         # The kernel itself
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynKern
-        kern = DynKern()
+        kern = LFRicKern()
         kern.load(call, cloop.loop_body)
 
         # Add the kernel as a child of the loop

@@ -53,9 +53,16 @@ def test_init_error():
     # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as info:
         _ = CommonMetaArgMetadata(None, None)
-    assert ("Can't instantiate abstract class CommonMetaArgMetadata"
+    # Python >= 3.12 tweaks the error message to mention
+    # the lack of an implementation and to quote the method names.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class CommonMetaArgMetadata with"
             in str(info.value))
-    # pylint: enable=abstract-class-instantiated
+    assert ("abstract methods" in str(info.value))
+    assert ("_get_metadata" in str(info.value))
+    assert ("check_access" in str(info.value))
+    assert ("check_datatype" in str(info.value))
+# pylint: enable=abstract-class-instantiated
 
 
 class CheckArg(CommonMetaArgMetadata):

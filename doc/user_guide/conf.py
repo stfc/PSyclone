@@ -242,7 +242,7 @@ latex_elements = {
 latex_documents = [
     ('index', 'psyclone.tex', 'PSyclone Documentation',
      'Andrew Coughtrie, Rupert Ford, Joerg Henrichs, Iva Kavcic,\\\\ '
-     'Andrew Porter and Sergi Siso', 'manual'),
+     'Andrew Porter, Sergi Siso and Joseph Wallwork', 'manual'),
 ]
 
 # Set maximum depth for the nested lists to prevent LaTeX
@@ -286,8 +286,8 @@ latex_elements = {
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'psyclone', u'PSyclone Documentation',
-     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi '
-      'Siso'], 1)
+     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi '
+      'Siso and Joseph Wallwork'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -301,7 +301,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     ('index', 'psyclone', u'psyclone Documentation',
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso',
+     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi Siso and'
+     'Joseph Wallwork',
      'psyclone',
      'A domain-specific compiler for Finite-Element/Volume/Difference models.',
      'Miscellaneous'),
@@ -321,10 +322,10 @@ texinfo_documents = [
 
 # Bibliographic Dublin Core info.
 epub_title = u'PSyclone'
-epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and ' \
-    'Sergi Siso'
-epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter ' \
-    'and Sergi Siso'
+epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, ' \
+    'Sergi Siso and Joseph Wallwork'
+epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, ' \
+    'Sergi Siso and Joseph Wallwork'
 epub_copyright = copyright
 
 # The language of the text. It defaults to the language option

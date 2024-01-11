@@ -50,6 +50,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (ACCKernelsDirective,
                                   ACCLoopDirective,
+                                  ACCParallelDirective,
                                   ACCRegionDirective,
                                   ACCRoutineDirective,
                                   ACCUpdateDirective,
@@ -62,8 +63,9 @@ from psyclone.psyir.nodes import (ACCKernelsDirective,
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
-from psyclone.transformations import (ACCDataTrans, ACCEnterDataTrans,
-                                      ACCParallelTrans, ACCKernelsTrans)
+from psyclone.transformations import (
+    ACCDataTrans, ACCEnterDataTrans, ACCKernelsTrans, ACCLoopTrans,
+    ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -306,6 +308,50 @@ def test_accloopdirective_equality():
     directive2._vector = not directive1._vector
     assert directive1 != directive2
 
+
+def test_accloopdirective_validate(fortran_reader):
+    '''
+    Check the validate_global_constraints method of ACCLoopDirective. For
+    an ACC loop to validate, it must either be within an 'ACC parallel/kernels'
+    region or in a routine with an 'ACC routine' directive.
+
+    '''
+    code = '''\
+subroutine my_sub()
+  implicit none
+  real, dimension(10,10) :: var
+  integer :: ji, jj
+  do jj = 1, 10
+    do ji = 1, 10
+      var(ji,jj) = ji + jj
+    end do
+  end do
+end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Add an orphan ACC loop directive.
+    acclooptrans = ACCLoopTrans()
+    acclooptrans.apply(routine[0])
+    # This should be rejected.
+    with pytest.raises(GenerationError) as err:
+        routine[0].validate_global_constraints()
+    assert ("ACCLoopDirective in routine 'my_sub' must either have an "
+            "ACCParallelDirective or ACCKernelsDirective as an ancestor in "
+            "the Schedule or the routine must contain an ACCRoutineDirective."
+            in str(err.value))
+    # Add an ACCRoutineDirective.
+    accrtrans = ACCRoutineTrans()
+    accrtrans.apply(routine)
+    routine[0].validate_global_constraints()
+    # Remove the ACCRoutineDirective.
+    routine.children.pop(index=0)
+    with pytest.raises(GenerationError) as err:
+        routine[0].validate_global_constraints()
+    # Add an ACC Parallel region
+    accptrans = ACCParallelTrans()
+    accptrans.apply(routine.children)
+    routine[0].validate_global_constraints()
+
 # Class ACCLoopDirective end
 
 
@@ -495,6 +541,47 @@ def test_accdatadirective_update_data_movement_clauses(fortran_reader,
     # 'sfactor' should have been removed from the copyin()
     assert ("!$acc data copyin(small_holding,small_holding(3)%grid,"
             "small_holding(3)%grid(jf)%data), copy(sto_tmp)" in output)
+
+
+def test_accparalleldirective():
+    '''
+    Test the ACCParallelDirective constructors, property getters and
+    setters and string methods.
+    '''
+
+    # It can be created
+    accpar = ACCParallelDirective()
+    assert isinstance(accpar, ACCParallelDirective)
+    assert accpar._default_present is True
+
+    # Also without default(present)
+    accpar = ACCParallelDirective(default_present=False)
+    assert isinstance(accpar, ACCParallelDirective)
+    assert accpar._default_present is False
+
+    # But only with boolean values
+    with pytest.raises(TypeError) as err:
+        _ = ACCParallelDirective(default_present=3)
+    assert ("The ACCParallelDirective default_present property must be a "
+            "boolean but value '3' has been given." in str(err.value))
+
+    # The default present value has getter and setter
+    accpar.default_present = True
+    assert accpar.default_present is True
+
+    with pytest.raises(TypeError) as err:
+        accpar.default_present = "invalid"
+    assert ("The ACCParallelDirective default_present property must be a "
+            "boolean but value 'invalid' has been given." in str(err.value))
+
+    # The begin string depends on the default present value
+    accpar.default_present = True
+    assert accpar.begin_string() == "acc parallel default(present)"
+    accpar.default_present = False
+    assert accpar.begin_string() == "acc parallel"
+
+    # It has an end_string
+    assert accpar.end_string() == "acc end parallel"
 
 
 def test_acc_atomics_is_valid_atomic_statement(fortran_reader):

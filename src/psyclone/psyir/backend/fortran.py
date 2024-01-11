@@ -546,11 +546,17 @@ class FortranWriter(LanguageWriter):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
-                if include_visibility and not isinstance(symbol,
-                                                         RoutineSymbol):
+
+                if (include_visibility and
+                        not isinstance(symbol, RoutineSymbol) and
+                        not symbol.name.startswith("_PSYCLONE_INTERNAL")):
+                    # We don't attempt to add accessibility to RoutineSymbols
+                    # or to those created by PSyclone to handle named common
+                    # blocks appearing in SAVE statements.
                     decln = add_accessibility_to_unknown_declaration(symbol)
-                else:
-                    decln = symbol.datatype.declaration
+                    return f"{self._nindent}{decln}\n"
+
+                decln = symbol.datatype.declaration
                 return f"{self._nindent}{decln}\n"
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(
@@ -1483,23 +1489,6 @@ class FortranWriter(LanguageWriter):
         else:
             raise VisitorError(
                 f"Unsupported CodeBlock Structure '{node.structure}' found.")
-        return result
-
-    def nemokern_node(self, node):
-        '''NEMO kernels are a group of nodes collected into a schedule
-        so simply call the nodes in the schedule.
-
-        :param node: a NemoKern PSyIR node.
-        :type node: :py:class:`psyclone.nemo.NemoKern`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        '''
-        result = ""
-        schedule = node.get_kernel_schedule()
-        for child in schedule.children:
-            result += self._visit(child)
         return result
 
     def operandclause_node(self, node):

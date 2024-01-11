@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified: I. Kavcic, A. Coughtrie and O. Brunt, Met Office
+# Modified: I. Kavcic, A. Coughtrie, O. Brunt and L. Turner, Met Office
 #          C.M. Maynard, Met Office / University of Reading
 # Modified: J. Henrichs, Bureau of Meteorology
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
@@ -47,16 +47,17 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynLoop, LFRicHaloExchangeStart, \
-    LFRicHaloExchangeEnd, LFRicHaloExchange
+from psyclone.domain.lfric import LFRicLoop
+from psyclone.dynamo0p3 import (LFRicHaloExchangeStart, LFRicHaloExchangeEnd,
+                                LFRicHaloExchange)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
-from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
-    OMPDoDirective, ACCEnterDataDirective
-from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType, \
-    REAL_TYPE, INTEGER_TYPE
-from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
-    TransformationError
+from psyclone.psyir.nodes import (colored, Loop, Schedule, Literal, Directive,
+                                  OMPDoDirective, ACCEnterDataDirective)
+from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
+                                    REAL_TYPE, INTEGER_TYPE)
+from psyclone.psyir.transformations import (LoopFuseTrans, LoopTrans,
+                                            TransformationError)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelTrans, \
@@ -99,10 +100,10 @@ def test_colour_trans_create_colours_loop(dist_mem):
     kernel = loop.loop_body[0]
 
     new_loop = ctrans._create_colours_loop(loop)
-    assert isinstance(new_loop, DynLoop)
+    assert isinstance(new_loop, LFRicLoop)
     assert new_loop.loop_type == "colours"
     colour_loop = new_loop.loop_body[0]
-    assert isinstance(colour_loop, DynLoop)
+    assert isinstance(colour_loop, LFRicLoop)
     assert colour_loop.loop_type == "colour"
     assert new_loop.field_space == loop.field_space
     assert colour_loop.field_space == loop.field_space
@@ -121,7 +122,7 @@ def test_colour_trans_create_colours_loop(dist_mem):
     # should have no effect - we still need to loop into the halo if DM
     # is enabled.
     kernel.args[2]._access = AccessType.WRITE
-    new_loop1 = DynLoop(parent=schedule)
+    new_loop1 = LFRicLoop(parent=schedule)
     new_loop1.load(kernel)
     new_cloop = ctrans._create_colours_loop(new_loop1)
     colour_loop = new_cloop.loop_body[0]
@@ -133,7 +134,7 @@ def test_colour_trans_create_colours_loop(dist_mem):
     # Finally, change the remaining GH_INC access to be GH_WRITE. We no
     # longer need to loop into the halo.
     kernel.args[1]._access = AccessType.WRITE
-    new_loop1 = DynLoop(parent=schedule)
+    new_loop1 = LFRicLoop(parent=schedule)
     new_loop1.load(kernel)
     new_cloop = ctrans._create_colours_loop(new_loop1)
     colour_loop = new_cloop.loop_body[0]
@@ -518,7 +519,7 @@ def test_omp_parallel_not_a_loop(dist_mem):
     with pytest.raises(TransformationError) as excinfo:
         otrans.apply(schedule)
     assert ("Error in DynamoOMPParallelLoopTrans transformation. The "
-            "supplied node must be a DynLoop but got 'DynInvokeSchedule'"
+            "supplied node must be a LFRicLoop but got 'DynInvokeSchedule'"
             in str(excinfo.value))
 
 
@@ -1869,7 +1870,7 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1881,7 +1882,7 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
 
@@ -1910,7 +1911,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -1922,7 +1923,7 @@ def test_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n") in code
@@ -1956,7 +1957,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1969,7 +1970,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop1_start,loop1_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -1983,7 +1984,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -1994,7 +1995,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop1_start,loop1_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n") in code
 
@@ -2229,7 +2230,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
@@ -2254,7 +2255,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
@@ -2311,7 +2312,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-            "f1_data(df)*f2_data(df)\n"
+            "f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2353,7 +2354,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-            "f1_data(df)*f2_data(df)\n"
+            "f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2460,7 +2461,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -2489,7 +2490,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
@@ -2542,7 +2543,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
@@ -2570,7 +2571,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
@@ -2624,7 +2625,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2657,7 +2658,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f2_data(df)\n"
+            "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -2714,7 +2715,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=loop0_start,loop0_stop\n"
-                "        asum = asum + f1_data(df)*f2_data(df)\n"
+                "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n"
@@ -2738,7 +2739,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
                 "      DO df=loop0_start,loop0_stop\n"
-                "        asum = asum + f1_data(df)*f2_data(df)\n"
+                "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end parallel do\n")
@@ -2792,7 +2793,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=loop0_start,loop0_stop\n"
-                "        asum = asum + f1_data(df)*f2_data(df)\n"
+                "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -2815,7 +2816,7 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
                 "      DO df=loop0_start,loop0_stop\n"
-                "        asum = asum + f1_data(df)*f2_data(df)\n"
+                "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3139,8 +3140,8 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)"
-            "*f2_data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "* f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -3164,8 +3165,8 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)"
-            "*f2_data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "* f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
@@ -3258,8 +3259,8 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)"
-            "*f2_data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "* f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -3298,8 +3299,8 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)"
-            "*f2_data(df)\n"
+            "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
+            "* f2_data(df)\n"
             "      END DO\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
@@ -3380,7 +3381,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp do schedule(static)\n"
                 "      DO df=loop0_start,loop0_stop\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-                "f1_data(df)*f2_data(df)\n"
+                "f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3414,7 +3415,7 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp do schedule(static)\n"
                 "      DO df=loop0_start,loop0_stop\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
-                "f1_data(df)*f2_data(df)\n"
+                "f1_data(df) * f2_data(df)\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
                 "      END DO\n"
                 "      !$omp end do\n"
@@ -3534,7 +3535,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
     rtrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     for child in schedule.children:
-        if isinstance(child, DynLoop):
+        if isinstance(child, LFRicLoop):
             otrans.apply(child, {"reprod": True})
     for child in schedule.children:
         if isinstance(child, OMPDoDirective):
@@ -3551,7 +3552,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
 
         for names in [
                 {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
-                 "rhs": "f1_data(df)*f2_data(df)"},
+                 "rhs": "f1_data(df) * f2_data(df)"},
                 {"var": "bsum", "lvar": "l_bsum", "loop_idx": "2",
                  "rhs": "f2_data(df)"}]:
             assert (
@@ -3587,7 +3588,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
 
         for names in [
                 {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
-                 "rhs": "f1_data(df)*f2_data(df)"},
+                 "rhs": "f1_data(df) * f2_data(df)"},
                 {"var": "bsum", "lvar": "l_bsum",
                  "loop_idx": "2", "rhs": "f2_data(df)"}]:
             assert (
@@ -3645,7 +3646,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     rtrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     for child in schedule.children:
-        if isinstance(child, DynLoop):
+        if isinstance(child, LFRicLoop):
             otrans.apply(child, {"reprod": True})
     for child in schedule.children:
         if isinstance(child, OMPDoDirective):
@@ -4222,7 +4223,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
+
     for idx in range(1, 4):
         assert f"IF (f2_proxy({idx})%is_dirty(depth=3)) THEN" in result
         assert f"CALL f2_proxy({idx})%halo_exchange(depth=3)" in result
@@ -7042,8 +7043,8 @@ def test_vector_halo_exchange_remove():
     assert len(schedule.children) == 5
     for index in [0, 1, 2]:
         assert isinstance(schedule.children[index], LFRicHaloExchange)
-    assert isinstance(schedule.children[3], DynLoop)
-    assert isinstance(schedule.children[4], DynLoop)
+    assert isinstance(schedule.children[3], LFRicLoop)
+    assert isinstance(schedule.children[4], LFRicLoop)
 
 
 def test_vector_async_halo_exchange(tmpdir):
@@ -7101,8 +7102,8 @@ def test_vector_async_halo_exchange(tmpdir):
     for index in [0, 2, 4]:
         assert isinstance(schedule.children[index], LFRicHaloExchangeStart)
         assert isinstance(schedule.children[index+1], LFRicHaloExchangeEnd)
-    assert isinstance(schedule.children[6], DynLoop)
-    assert isinstance(schedule.children[7], DynLoop)
+    assert isinstance(schedule.children[6], LFRicLoop)
+    assert isinstance(schedule.children[7], LFRicLoop)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

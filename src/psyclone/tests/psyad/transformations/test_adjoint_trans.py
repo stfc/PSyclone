@@ -48,8 +48,14 @@ def test_abstract():
     '''
     with pytest.raises(TypeError) as info:
         _ = AdjointTransformation([])
-    assert ("Can't instantiate abstract class AdjointTransformation"
+    # Python >= 3.9 spots that 'method' should be singular. Prior to this it
+    # was plural. Python >= 3.12 tweaks the error message yet again to mention
+    # the lack of an implementation and to quote the method name.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class AdjointTransformation with"
             in str(info.value))
+    assert ("abstract method" in str(info.value))
+    assert ("apply" in str(info.value))
 
 
 def test_args():

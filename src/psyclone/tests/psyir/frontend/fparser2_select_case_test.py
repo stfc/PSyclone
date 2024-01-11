@@ -559,10 +559,8 @@ end interface psyclone_internal_cmp_1''' in fortran_writer(container)
 
 def test_expression_case(fortran_reader, fortran_writer):
     '''Test that a select case statement comparing two expressions
-    is using the generic comparison interface.
-
-    # TODO #1799: The interface may not be needed for this case if
-    # we can successuly obtain the expression.datatype
+    does not use the generic comparison interface if the types can be
+    determined.
 
     '''
     code = '''
@@ -584,12 +582,10 @@ def test_expression_case(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
 
-    # Check that the interface implementation has been inserted
-    has_cmp_interface(output)
-
-    # Check that the cannonicalised comparisons use the interface method
-    assert "if (psyclone_internal_cmp(a * a, b - c)) then" in output
-    assert "if (psyclone_internal_cmp(a * a, c - b)) then" in output
+    # Check that the cannonicalised comparisons do not use the interface method
+    assert "if (a * a == b - c) then" in output
+    assert "if (a * a == c - b) then" in output
+    assert "interface psyclone_internal_cmp" not in output
 
 
 def test_unknown_types_case(fortran_reader, fortran_writer):

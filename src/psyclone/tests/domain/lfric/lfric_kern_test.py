@@ -32,12 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford STFC Daresbury Lab
-# Modified: I. Kavcic Met Office
+# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
 #           J. Henrichs, Bureau of Meteorology
 #           A. R. Porter, STFC Daresbury Laboratory
 
-'''This module tests the DynKern class within dynamo0p3 using
-pytest. At the moment the tests here do not fully cover DynKern as
+'''This module tests the LFRicKern class within dynamo0p3 using
+pytest. At the moment the tests here do not fully cover LFRicKern as
 tests for other classes end up covering the rest.'''
 
 import os
@@ -46,9 +46,10 @@ import pytest
 from fparser import api as fpapi
 
 import psyclone
+from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop
+from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
+                                   LFRicKernMetadata, LFRicLoop)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -58,8 +59,8 @@ from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
 
 CODE = '''
@@ -91,15 +92,15 @@ end module testkern_qr
 
 
 def test_scalar_kernel_load_meta_err():
-    ''' Check that the DynKern.load_meta() method raises the expected
+    ''' Check that the LFRicKern.load_meta() method raises the expected
     internal error if it encounters an unrecognised data type for
     a scalar descriptor.
 
     '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast, name=name)
+    kernel = LFRicKern()
     # Get a scalar argument descriptor and set an invalid data type
     scalar_arg = metadata.arg_descriptors[5]
     scalar_arg._data_type = "gh_triple"
@@ -111,7 +112,7 @@ def test_scalar_kernel_load_meta_err():
 
 
 def test_kern_colourmap(monkeypatch):
-    ''' Tests for error conditions in the colourmap getter of DynKern. '''
+    ''' Tests for error conditions in the colourmap getter of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -129,7 +130,7 @@ def test_kern_colourmap(monkeypatch):
 
 
 def test_kern_ncolours(monkeypatch):
-    ''' Tests for error conditions in the ncolours getter of DynKern. '''
+    ''' Tests for error conditions in the ncolours getter of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -174,15 +175,16 @@ def test_get_kernel_schedule_mixed_precision():
     Test that we can get the correct schedule for a mixed-precision kernel.
 
     '''
+    api_config = Config.get().api_conf(TEST_API)
     _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
                            name="invoke_0", dist_mem=False)
     sched = invoke.schedule
-    kernels = sched.walk(DynKern, stop_type=DynKern)
+    kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
     # 26.8 contains an invoke of five kernels, one each at the following
     # precisions.
     kernel_precisions = ["r_def", "r_solver", "r_tran", "r_bl", "r_phys"]
     # Get the precision (in bytes) for each of these.
-    precisions = [LFRicConstants.PRECISION_MAP[name] for
+    precisions = [api_config.precision_map[name] for
                   name in kernel_precisions]
     # Check that the correct kernel implementation is obtained for each
     # one in the invoke.
@@ -201,14 +203,14 @@ def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
     _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
                            name="invoke_0", dist_mem=False)
     sched = invoke.schedule
-    kernels = sched.walk(DynKern, stop_type=DynKern)
+    kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
 
     # To simplify things we just monkeypatch the 'validate_kernel_code_args'
     # method so that it never succeeds.
     def fake_validate(_1, _2):
         raise GenerationError("Just a test")
 
-    monkeypatch.setattr(DynKern, "validate_kernel_code_args",
+    monkeypatch.setattr(LFRicKern, "validate_kernel_code_args",
                         fake_validate)
     with pytest.raises(GenerationError) as err:
         _ = kernels[0].get_kernel_schedule()
@@ -234,7 +236,7 @@ def test_validate_kernel_code_args(monkeypatch):
     sched = kernel.get_kernel_schedule()
     kernel.validate_kernel_code_args(sched.symbol_table)
 
-    # Force DynKern to think that this kernel is an 'apply' kernel and
+    # Force LFRicKern to think that this kernel is an 'apply' kernel and
     # therefore does not need the mesh height argument.
     monkeypatch.setattr(kernel, "_cma_operation", "apply")
     with pytest.raises(GenerationError) as info:
@@ -252,7 +254,7 @@ def test_validate_kernel_code_arg(monkeypatch):
     exceptions are raised.
 
     '''
-    kernel = DynKern()
+    kernel = LFRicKern()
     # Kernel name needs to be set when testing exceptions.
     kernel._name = "dummy"
     read_access = ArgumentInterface(ArgumentInterface.Access.READ)
@@ -311,13 +313,14 @@ def test_validate_kernel_code_arg(monkeypatch):
                                                       interface=read_access)
     lfric_real_field_symbol2 = LFRicTypes("RealFieldDataSymbol")(
         "field", dims=[Reference(undf)], fs="w0", interface=read_access)
-    # if one of the dimensions is not a datasymbol then the arguments
+    # If one of the dimensions is not a datasymbol then the arguments
     # are not checked.
     kernel._validate_kernel_code_arg(lfric_real_field_symbol,
                                      lfric_real_field_symbol2)
     kernel._validate_kernel_code_arg(lfric_real_field_symbol2,
                                      lfric_real_field_symbol)
 
+    # Check for the correct number of array dimensions.
     lfric_real_field_symbol3 = LFRicTypes("RealFieldDataSymbol")(
         "field", dims=[Reference(undf)], fs="w0", interface=read_access)
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
@@ -328,7 +331,12 @@ def test_validate_kernel_code_arg(monkeypatch):
     assert ("Argument 'field' to kernel 'dummy' should be an array with 2 "
             "dimension(s) according to the LFRic API, but found 1."
             in str(info.value))
-
+    # Monkeypatch the shape of lfric_real_field_symbol3 from ArrayBounds
+    # to a Reference to check the 'continue' statement is triggered.
+    monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
+                        [Reference(undf)])
+    kernel._validate_kernel_code_arg(lfric_real_field_symbol3,
+                                     lfric_real_field_symbol2)
     # Lower array bound of 2 rather than 1
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
                         [ArrayType.ArrayBounds(2, Reference(undf))])
@@ -355,7 +363,7 @@ def test_validate_kernel_code_arg(monkeypatch):
         "'generic_int_scalar' to kernel 'dummy' has precision "
         "Precision.UNDEFINED" in str(info.value))
 
-    # monkeypatch lfric_real_scalar_symbol to return that it is not a
+    # Monkeypatch lfric_real_scalar_symbol to return that it is not a
     # scalar in order to force the required exception. We do this by
     # changing the ScalarType as it is used when determining whether
     # the symbol is a scalar.
@@ -364,18 +372,18 @@ def test_validate_kernel_code_arg(monkeypatch):
         kernel._validate_kernel_code_arg(
             lfric_real_scalar_symbol, lfric_real_scalar_symbol)
     assert (
-        "unexpected argument type found for 'scalar' in kernel 'dummy'. "
+        "Unexpected argument type found for 'scalar' in kernel 'dummy'. "
         "Expecting a scalar or an array." in str(info.value))
 
 
 def test_kern_last_cell_all_colours_errors(monkeypatch):
     ''' Tests for the checks in the last_cell_all_colours property
-    of DynKern. '''
+    of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    kern = sched.walk(DynKern)[0]
+    kern = sched.walk(LFRicKern)[0]
     # Kernel is not coloured.
     with pytest.raises(InternalError) as err:
         _ = kern.last_cell_all_colours_symbol
@@ -390,12 +398,12 @@ def test_kern_last_cell_all_colours_errors(monkeypatch):
 
 
 def test_kern_last_cell_all_colours():
-    ''' Tests for the last_cell_all_colours property of DynKern. '''
+    ''' Tests for the last_cell_all_colours property of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loop = sched.walk(DynLoop)[0]
+    loop = sched.walk(LFRicLoop)[0]
     # Apply a colouring transformation to the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loop)
@@ -407,13 +415,16 @@ def test_kern_last_cell_all_colours():
 
 
 def test_kern_last_cell_all_colours_intergrid():
-    ''' Test the last_cell_all_colours property for an inter-grid DynKern. '''
+    ''' Test the last_cell_all_colours property for an inter-grid
+    LFRicKern.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loop = sched.walk(DynLoop)[0]
+    loop = sched.walk(LFRicLoop)[0]
     # Apply a colouring transformation to the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loop)
@@ -425,12 +436,12 @@ def test_kern_last_cell_all_colours_intergrid():
 
 
 def test_kern_all_updates_are_writes():
-    ''' Tests for the 'all_updates_are_writes' property of DynKern. '''
+    ''' Tests for the 'all_updates_are_writes' property of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loop = sched.walk(DynLoop)[0]
+    loop = sched.walk(LFRicLoop)[0]
     # The only argument updated by this kernel has GH_INC access.
     assert not loop.kernel.all_updates_are_writes
     # Patch the kernel so that a different argument has GH_WRITE access.
@@ -440,3 +451,24 @@ def test_kern_all_updates_are_writes():
     # Change the GH_INC to be GH_WRITE.
     loop.kernel.args[1]._access = AccessType.WRITE
     assert loop.kernel.all_updates_are_writes
+
+
+def test_kern_not_coloured_inc(monkeypatch):
+    ''' Tests that there is no kernel argument with INC access when OpenMP
+    is applied without colouring.
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched.walk(LFRicKern)[0]
+    # Kernel is not coloured.
+    assert kern.is_coloured() is False
+    # Monkeypatch the Kernel so that it appears to be OpenMP parallel.
+    monkeypatch.setattr(kern, "is_openmp_parallel", lambda: True)
+    assert kern.is_openmp_parallel() is True
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("Kernel 'testkern_code' has an argument with INC access and "
+            "therefore must be coloured in order to be parallelised with "
+            "OpenMP." in str(err.value))

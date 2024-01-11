@@ -629,12 +629,12 @@ includes a kernel that reads from an operator then the operator must
 have valid values in the halos to that depth. In the current
 implementation of PSyclone all loops which write to, or update an
 operator are computed redundantly in the halo up to depth-1 (see the
-``load()`` method in the ``DynLoop`` class). This implementation therefore
+``load()`` method in the ``LFRicLoop`` class). This implementation therefore
 requires a check that any loop which includes a kernel that reads from
 an operator is limited to iterating in the halo up to
 depth-1. PSyclone will raise an exception if an optimisation attempts
 to increase the iteration space beyond this (see the ``gen_code()``
-method in the ``DynKern`` class).
+method in the ``LFRicKern`` class).
 
 To alleviate the above restriction one could add a configurable depth with
 which to compute operators e.g. operators are always computed up to
@@ -695,7 +695,7 @@ initial schedule. There are four cases:
 
 Halo exchanges are created separately (for fields with halo reads) for
 each loop by calling the ``create_halo_exchanges()`` method within the
-``DynLoop`` class.
+``LFRicLoop`` class.
 
 In the situation where a field's halo is read in more than one kernel
 in different loops, we do not want to add too many halo exchanges -
@@ -709,7 +709,7 @@ no additional halo exchange will be added.
 The algorithm for adding the necessary halo exchanges is as follows:
 For each loop in the schedule, the ``create_halo_exchanges()`` method
 iterates over each field that reads from its halo (determined by the
-``unique_fields_with_halo_reads()`` method in the ``DynLoop`` class).
+``unique_fields_with_halo_reads()`` method in the ``LFRicLoop`` class).
 
 For each field we then look for its previous dependencies (the
 previous writer(s) to that field) using PSyclone's dependence
@@ -816,7 +816,7 @@ adding, updating or removing halo exchanges the test for whether halo
 exchanges have a dependence between each other must be temporarily
 disabled. This is achieved by the ``ignore_hex_dep`` argument being
 set to ``True`` in the ``_add_halo_exchange_code`` function within the
-``DynLoop`` class and the actual check that is skipped is implemented
+``LFRicLoop`` class and the actual check that is skipped is implemented
 in the ``_compute_halo_read_info`` function within the
 ``LFRicHaloExchange`` class.
 
@@ -880,11 +880,11 @@ spaces through the use of the ``gh_evaluator_targets`` metadata entry.
 Every evaluator used by that kernel will then be provided on all of the
 target spaces.
 
-When constructing a ``DynKernMetadata`` object from the parsed kernel
+When constructing a ``LFRicKernMetadata`` object from the parsed kernel
 metadata, the list of target function-space names (as they appear in
-the meta-data) is stored in ``DynKernMetadata._eval_targets``. This
-information is then used in the ``DynKern._setup()`` method which
-populates ``DynKern._eval_targets``. This is an ``OrderedDict`` which has
+the meta-data) is stored in ``LFRicKernMetadata._eval_targets``. This
+information is then used in the ``LFRicKern._setup()`` method which
+populates ``LFRicKern._eval_targets``. This is an ``OrderedDict`` which has
 the (mangled) names of the target function spaces as keys and 2-tuples
 consisting of ``FunctionSpace`` and ``DynKernelArgument`` objects as
 values. The ``DynKernelArgument`` object provides the kernel argument
@@ -894,7 +894,7 @@ holds full information on the target function space.
 The ``DynInvokeBasisFunctions`` class is responsible for managing the
 evaluators required by all of the kernels called from an Invoke.
 ``DynInvokeBasisFunctions._eval_targets`` collects all of the unique target
-function spaces from the ``DynKern._eval_targets`` of each kernel.
+function spaces from the ``LFRicKern._eval_targets`` of each kernel.
 
 ``DynInvokeBasisFunctions._basis_fns`` is a list holding information on
 each basis/differential basis function required by a kernel within the
@@ -955,7 +955,7 @@ redundantly to halo depth 2, for example. The solution employed in
 then remove it if it is not required. The halo exchange itself
 determines whether it is required or not via the ``required()`` method. The
 removal code is found at the end of the ``_add_halo_exchange_code()``
-method in the ``DynLoop()`` class.
+method in the ``LFRicLoop()`` class.
 
 The second thing that the ``update_halo_exchanges()`` method does is check
 that any halo exchanges after this loop are still required. It finds
