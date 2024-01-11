@@ -3621,6 +3621,8 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: setval_c (set a real-valued field to "
+            "a real scalar value)\n"
             "        f1_data(df) = c\n"
             "      END DO")
         assert output in code
@@ -3634,6 +3636,8 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: setval_c (set a real-valued field to "
+                "a real scalar value)\n"
                 "  f1_data(df) = c\n"
                 "enddo") in code
     else:
@@ -3643,6 +3647,8 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: setval_c (set a real-valued field to "
+            "a real scalar value)\n"
             "        f1_data(df) = c\n"
             "      END DO\n"
             "      !\n"
@@ -3702,6 +3708,8 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: setval_X (set a real-valued field "
+            "equal to another such field)\n"
             "        f2_data(df) = f1_data(df)\n"
             "      END DO")
         assert output in code
@@ -3711,6 +3719,8 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: setval_X (set a real-valued field "
+                "equal to another such field)\n"
                 "  f2_data(df) = f1_data(df)\n"
                 "enddo") in code
     else:
@@ -3720,6 +3730,8 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: setval_X (set a real-valued field "
+            "equal to another such field)\n"
             "        f2_data(df) = f1_data(df)\n"
             "      END DO\n"
             "      !\n"

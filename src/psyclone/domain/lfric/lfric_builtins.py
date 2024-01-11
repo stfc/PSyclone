@@ -2357,6 +2357,8 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
         #      call random_number(proxy0%data(df))
         call = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
                                     arg_refs)
+        # Add a preceding comment to the Assignment
+        call.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(call)
         return call
