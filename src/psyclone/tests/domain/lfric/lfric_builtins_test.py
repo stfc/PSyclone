@@ -2907,6 +2907,7 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: X_divideby_Y (divide real-valued fields)\n"
             "        f3_data(df) = f1_data(df) / f2_data(df)\n"
             "      END DO")
         assert output in code
@@ -2916,6 +2917,7 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: X_divideby_Y (divide real-valued fields)\n"
                 "  f3_data(df) = f1_data(df) / f2_data(df)\n"
                 "enddo") in code
     else:
@@ -2925,6 +2927,7 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: X_divideby_Y (divide real-valued fields)\n"
             "        f3_data(df) = f1_data(df) / f2_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -2985,6 +2988,8 @@ def test_inc_X_divideby_Y(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_divideby_Y (divide one real-valued "
+            "field by another)\n"
             "        f1_data(df) = f1_data(df) / f2_data(df)\n"
             "      END DO")
         assert output in code
@@ -2994,6 +2999,8 @@ def test_inc_X_divideby_Y(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: inc_X_divideby_Y (divide one real-valued "
+                "field by another)\n"
                 "  f1_data(df) = f1_data(df) / f2_data(df)\n"
                 "enddo" in code)
     else:
@@ -3003,6 +3010,8 @@ def test_inc_X_divideby_Y(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_divideby_Y (divide one real-valued "
+            "field by another)\n"
             "        f1_data(df) = f1_data(df) / f2_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -3077,6 +3086,8 @@ def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: X_divideby_a (divide a real-valued field "
+            "by a real scalar (Y = X/a))\n"
             "        f2_data(df) = f1_data(df) / a_scalar\n"
             "      END DO")
         assert output in code
@@ -3086,6 +3097,8 @@ def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: X_divideby_a (divide a real-valued field "
+                "by a real scalar (Y = X/a))\n"
                 "  f2_data(df) = f1_data(df) / a_scalar\n"
                 "enddo") in code
     else:
@@ -3095,6 +3108,8 @@ def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: X_divideby_a (divide a real-valued field "
+            "by a real scalar (Y = X/a))\n"
             "        f2_data(df) = f1_data(df) / a_scalar\n"
             "      END DO\n"
             "      !\n"
@@ -3164,6 +3179,8 @@ def test_inc_X_divideby_a(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_divideby_a (divide a real-valued "
+            "field by a real scalar (X = X/a))\n"
             "        f1_data(df) = f1_data(df) / a_scalar\n"
             "      END DO")
         assert output in code
@@ -3173,6 +3190,8 @@ def test_inc_X_divideby_a(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: inc_X_divideby_a (divide a real-valued "
+                "field by a real scalar (X = X/a))\n"
                 "  f1_data(df) = f1_data(df) / a_scalar\n"
                 "enddo") in code
     else:
@@ -3182,6 +3201,8 @@ def test_inc_X_divideby_a(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_divideby_a (divide a real-valued "
+            "field by a real scalar (X = X/a))\n"
             "        f1_data(df) = f1_data(df) / a_scalar\n"
             "      END DO\n"
             "      !\n"
