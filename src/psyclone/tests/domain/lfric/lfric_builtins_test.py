@@ -1613,6 +1613,7 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: X_minus_Y (subtract real-valued fields)\n"
             "        f3_data(df) = f1_data(df) - f2_data(df)\n"
             "      END DO")
         assert output in code
@@ -1622,6 +1623,7 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: X_minus_Y (subtract real-valued fields)\n"
                 "  f3_data(df) = f1_data(df) - "
                 "f2_data(df)\n"
                 "enddo") in code
@@ -1632,6 +1634,7 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: X_minus_Y (subtract real-valued fields)\n"
             "        f3_data(df) = f1_data(df) - "
             "f2_data(df)\n"
             "      END DO\n"
@@ -1692,6 +1695,8 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_minus_Y (decrement a real-valued "
+            "field)\n"
             "        f1_data(df) = f1_data(df) - f2_data(df)\n"
             "      END DO\n")
         assert output in code
@@ -1701,6 +1706,8 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: inc_X_minus_Y (decrement a real-valued "
+                "field)\n"
                 "  f1_data(df) = f1_data(df) - "
                 "f2_data(df)\n"
                 "enddo") in code
@@ -1711,6 +1718,8 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_minus_Y (decrement a real-valued "
+            "field)\n"
             "        f1_data(df) = f1_data(df) - "
             "f2_data(df)\n"
             "      END DO\n"
@@ -1764,6 +1773,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: a_minus_X (real-valued fields)\n"
             "        f2_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1775,6 +1785,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: a_minus_X (real-valued fields)\n"
                 "  f2_data(df) = a - f1_data(df)\n"
                 "enddo") in code
     else:
@@ -1785,6 +1796,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: a_minus_X (real-valued fields)\n"
             "        f2_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1831,6 +1843,7 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_a_minus_X (real-valued field)\n"
             "        f1_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1842,6 +1855,7 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: inc_a_minus_X (real-valued field)\n"
                 "  f1_data(df) = a - f1_data(df)\n"
                 "enddo") in code
     else:
@@ -1851,6 +1865,7 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_a_minus_X (real-valued field)\n"
             "        f1_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -1905,6 +1920,7 @@ def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: X_minus_a (real-valued fields)\n"
             "        f2_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
@@ -1916,6 +1932,7 @@ def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: X_minus_a (real-valued fields)\n"
                 "  f2_data(df) = f1_data(df) - a\n"
                 "enddo") in code
     else:
@@ -1926,6 +1943,7 @@ def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: X_minus_a (real-valued fields)\n"
             "        f2_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
@@ -1984,6 +2002,7 @@ def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_minus_a (real-valued field)\n"
             "        f1_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
@@ -1995,6 +2014,7 @@ def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: inc_X_minus_a (real-valued field)\n"
                 "  f1_data(df) = f1_data(df) - a\n"
                 "enddo") in code
     else:
@@ -2005,6 +2025,7 @@ def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_minus_a (real-valued field)\n"
             "        f1_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
@@ -2082,6 +2103,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: aX_minus_Y (real-valued fields)\n"
             "        f3_data(df) = a * f1_data(df) - f2_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -2093,6 +2115,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: aX_minus_Y (real-valued fields)\n"
                 "  f3_data(df) = a * f1_data(df) - f2_data(df)\n"
                 "enddo") in code
     else:
@@ -2102,6 +2125,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: aX_minus_Y (real-valued fields)\n"
             "        f3_data(df) = a * f1_data(df) - f2_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -2179,6 +2203,7 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: X_minus_bY (real-valued fields)\n"
             "        f3_data(df) = f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -2190,6 +2215,7 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: X_minus_bY (real-valued fields)\n"
                 "  f3_data(df) = f1_data(df) - b * f2_data(df)\n"
                 "enddo") in code
     else:
@@ -2199,6 +2225,7 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: X_minus_bY (real-valued fields)\n"
             "        f3_data(df) = f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -2272,6 +2299,7 @@ def test_inc_X_minus_bY(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_minus_bY (real-valued fields)\n"
             "        f1_data(df) = f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -2283,6 +2311,7 @@ def test_inc_X_minus_bY(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: inc_X_minus_bY (real-valued fields)\n"
                 "  f1_data(df) = f1_data(df) - b * f2_data(df)\n"
                 "enddo") in code
     else:
@@ -2292,6 +2321,7 @@ def test_inc_X_minus_bY(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_minus_bY (real-valued fields)\n"
             "        f1_data(df) = f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -2353,6 +2383,7 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: aX_minus_bY (real-valued fields)\n"
             "        f3_data(df) = a * f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -2364,6 +2395,7 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: aX_minus_bY (real-valued fields)\n"
                 "  f3_data(df) = a * f1_data(df) - b * f2_data(df)\n"
                 "enddo") in code
     else:
@@ -2373,6 +2405,7 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: aX_minus_bY (real-valued fields)\n"
             "        f3_data(df) = a * f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
