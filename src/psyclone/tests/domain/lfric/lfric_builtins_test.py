@@ -3423,6 +3423,8 @@ def test_inc_X_powreal_a(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_powreal_a (raise a real-valued "
+            "field to a real power)\n"
             "        f1_data(df) = f1_data(df) ** a_scalar\n"
             "      END DO\n"
             "      !\n")
@@ -3436,6 +3438,8 @@ def test_inc_X_powreal_a(
         assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: inc_X_powreal_a (raise a real-valued "
+                "field to a real power)\n"
                 "  f1_data(df) = f1_data(df) ** a_scalar\n"
                 "enddo") in code
     else:
@@ -3447,6 +3451,8 @@ def test_inc_X_powreal_a(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_powreal_a (raise a real-valued "
+            "field to a real power)\n"
             "        f1_data(df) = f1_data(df) ** a_scalar\n"
             "      END DO\n"
             "      !\n"
@@ -3508,6 +3514,8 @@ def test_inc_X_powint_n(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_powint_n (raise a real-valued field "
+            "to an integer power)\n"
             "        f1_data(df) = f1_data(df) ** i_scalar\n"
             "      END DO\n"
             "      !\n")
@@ -3521,6 +3529,8 @@ def test_inc_X_powint_n(
         assert scalar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: inc_X_powint_n (raise a real-valued field "
+                "to an integer power)\n"
                 "  f1_data(df) = f1_data(df) ** i_scalar\n"
                 "enddo") in code
     else:
@@ -3534,6 +3544,8 @@ def test_inc_X_powint_n(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_X_powint_n (raise a real-valued field "
+            "to an integer power)\n"
             "        f1_data(df) = f1_data(df) ** i_scalar\n"
             "      END DO\n"
             "      !\n"
