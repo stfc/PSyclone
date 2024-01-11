@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module provides tools analyse the sequence of calls
+''' This module provides tools to analyse the sequence of calls
 across different subroutines and modules.'''
 
 from psyclone.core import Signature, VariablesAccessInfo
@@ -48,7 +48,7 @@ from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 # pylint: disable=too-few-public-methods
 class CallTreeUtils():
-    '''This class provides functions functions to analyse the sequence of
+    '''This class provides functions to analyse the sequence of
     calls.
     '''
 
@@ -80,18 +80,15 @@ class CallTreeUtils():
         outer_module = routine.ancestor(Container)
 
         for access in routine.walk((Kern, Call, Reference)):
-            # Builtins are certainly not externals, so ignore them.
-            if isinstance(access, BuiltIn):
+            if isinstance(access, (BuiltIn, IntrinsicCall)):
+                # Builtins and Intrinsicsd are certainly not externals,
+                # so ignore them.
                 continue
 
             if isinstance(access, Kern):
                 # A kernel is a subroutine call from a module:
                 non_locals.append(("routine", access.module_name,
                                    Signature(access.name)))
-                continue
-
-            if isinstance(access, IntrinsicCall):
-                # Intrinsic calls can be ignored
                 continue
 
             if isinstance(access, Call):
@@ -114,6 +111,7 @@ class CallTreeUtils():
                 non_locals.append(("routine", None, Signature(sym.name)))
                 continue
 
+            # Now access must be a Reference
             sym = access.symbol
             if isinstance(sym.interface, ArgumentInterface):
                 # Arguments are not external symbols and can be ignored
@@ -259,7 +257,6 @@ class CallTreeUtils():
         or written.
 
         '''
-
         # First collect all non-local symbols from the kernels called. They
         # are collected in the todo list. This list will initially contain
         # unknown accesses, since at this stage we cannot always differentiate
@@ -303,7 +300,7 @@ class CallTreeUtils():
 
         :param todo: the information about symbol type, module_name,
             symbol_name and access information
-        :type todo: List[Tuple[str,str, str,\
+        :type todo: List[Tuple[str,str, str,
                               :py:class:`psyclone.core.Signature`,str]]
         :param read_write_info: information about all input and output
             parameters.
