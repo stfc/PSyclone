@@ -71,10 +71,6 @@ If you now invoke PSyclone with the additional parameter
 `-s inline.py`, the script will be invoked by PSyclone,
 and inlining for the first kernel will be enabled.
 
-> Note that you have to explicitly specify the path to
-> the script (or modify your PYTHONPATH). E.g. you
-> need to specify `./inline.py`, not just `-s inline.py`.
-
 Look at the psy-layer output file. While the nested loops
 and kernel call inside these loops have not changed, the
 difference is that the kernel called is now contained in
