@@ -36,5 +36,6 @@
 # Python packages required for Binder and not installed by default
 # when using setup.py. (See README.md for details on launching the
 # examples on Binder.)
+dataclasses
 termcolor
 graphviz
