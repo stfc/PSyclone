@@ -1674,6 +1674,8 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      mult_op, arg_refs[1])
         assign = Assignment.create(lhs, rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
