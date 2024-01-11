@@ -2050,6 +2050,8 @@ class LFRicADividebyXKern(LFRicBuiltIn):
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      scalar_args[0], arg_refs[1])
         assign = Assignment.create(arg_refs[0], rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
@@ -2102,6 +2104,8 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      scalar_args[0], lhs.copy())
         assign = Assignment.create(lhs, rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
