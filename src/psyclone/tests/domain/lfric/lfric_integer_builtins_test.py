@@ -131,6 +131,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: int_X_plus_Y (add integer-valued fields)\n"
             "        f3_data(df) = f1_data(df) + f2_data(df)\n"
             "      END DO")
         assert output in code
@@ -141,8 +142,8 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_data(df) = f1_data(df) + "
-            "f2_data(df)\n"
+            "        ! Built-in: int_X_plus_Y (add integer-valued fields)\n"
+            "        f3_data(df) = f1_data(df) + f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -186,6 +187,7 @@ def test_int_inc_X_plus_Y(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_inc_X_plus_Y (increment an integer-valued field)\n"
         "  f1_data(df) = f1_data(df) + f2_data(df)\n"
         "enddo")
     assert output in code
@@ -217,6 +219,7 @@ def test_int_a_plus_X(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_a_plus_X (integer-valued fields)\n"
         "  f2_data(df) = a + f1_data(df)\n"
         "enddo")
     assert output in code
@@ -248,6 +251,7 @@ def test_int_inc_a_plus_X(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_inc_a_plus_X (integer-valued field)\n"
         "  f1_data(df) = a + f1_data(df)\n"
         "enddo")
     assert output in code
@@ -284,6 +288,7 @@ def test_int_X_minus_Y(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_X_minus_Y (subtract integer-valued fields)\n"
         "  f3_data(df) = f1_data(df) - f2_data(df)\n"
         "enddo")
     assert output in code
@@ -317,6 +322,7 @@ def test_int_inc_X_minus_Y(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_inc_X_minus_Y (decrement an integer-valued field)\n"
         "  f1_data(df) = f1_data(df) - f2_data(df)\n"
         "enddo")
     assert output in code
@@ -350,6 +356,7 @@ def test_int_a_minus_X(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_a_minus_X (integer-valued fields)\n"
         "  f2_data(df) = a - f1_data(df)\n"
         "enddo")
     assert output in code
@@ -381,6 +388,7 @@ def test_int_inc_a_minus_X(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_inc_a_minus_X (integer-valued field)\n"
         "  f1_data(df) = a - f1_data(df)\n"
         "enddo")
     assert output in code
@@ -414,6 +422,7 @@ def test_int_X_minus_a(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_X_minus_a (integer-valued fields)\n"
         "  f2_data(df) = f1_data(df) - a\n"
         "enddo")
     assert output in code
@@ -444,6 +453,7 @@ def test_int_inc_X_minus_a(tmpdir, fortran_writer):
     loop = first_invoke.schedule.walk(Loop)[0]
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_inc_X_minus_a (integer-valued field)\n"
         "  f1_data(df) = f1_data(df) - a\n"
         "enddo")
     code = fortran_writer(loop)
@@ -481,6 +491,7 @@ def test_int_X_times_Y(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_X_times_Y (multiply integer-valued fields)\n"
         "  f3_data(df) = f1_data(df) * f2_data(df)\n"
         "enddo")
     assert output in code
@@ -515,6 +526,8 @@ def test_int_inc_X_times_Y(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_inc_X_times_Y (multiply one integer-valued field "
+        "by another)\n"
         "  f1_data(df) = f1_data(df) * f2_data(df)\n"
         "enddo")
     assert output in code
@@ -552,6 +565,7 @@ def test_int_a_times_X(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_a_times_X (copy a scaled integer-valued field)\n"
         "  f2_data(df) = a_scalar * f1_data(df)\n"
         "enddo")
     assert output in code
@@ -586,6 +600,7 @@ def test_int_inc_a_times_X(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_inc_a_times_X (scale an integer-valued field)\n"
         "  f1_data(df) = a_scalar * f1_data(df)\n"
         "enddo")
     assert output in code
@@ -622,6 +637,8 @@ def test_int_setval_c(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_setval_c (set an integer-valued field to a "
+        "integer scalar value)\n"
         "  f1_data(df) = c\n"
         "enddo")
     assert output in code
@@ -655,6 +672,8 @@ def test_int_setval_X(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_setval_X (set an integer-valued field equal to "
+        "another such field)\n"
         "  f2_data(df) = f1_data(df)\n"
         "enddo")
     assert output in code
@@ -691,6 +710,7 @@ def test_int_sign_X(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_sign_X (sign of an integer-valued field)\n"
         "  f2_data(df) = SIGN(a, f1_data(df))\n"
         "enddo")
     assert output in code
@@ -726,6 +746,7 @@ def test_int_max_aX(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_max_aX (integer-valued fields)\n"
         "  f2_data(df) = MAX(a, f1_data(df))\n"
         "enddo")
     assert output in code
@@ -758,6 +779,7 @@ def test_int_inc_max_aX(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_inc_max_aX (integer-valued field)\n"
         "  f1_data(df) = MAX(a, f1_data(df))\n"
         "enddo")
     assert output in code
@@ -793,6 +815,7 @@ def test_int_min_aX(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_min_aX (integer-valued fields)\n"
         "  f2_data(df) = MIN(a, f1_data(df))\n"
         "enddo")
     assert output in code
@@ -825,6 +848,7 @@ def test_int_inc_min_aX(tmpdir, fortran_writer):
     code = fortran_writer(loop)
     output = (
         "do df = loop0_start, loop0_stop, 1\n"
+        "  ! Built-in: int_inc_min_aX (integer-valued field)\n"
         "  f1_data(df) = MIN(a, f1_data(df))\n"
         "enddo")
     assert output in code
