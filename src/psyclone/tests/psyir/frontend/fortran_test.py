@@ -149,29 +149,24 @@ def test_fortran_psyir_from_expression_invalid(fortran_reader):
     error when given something that is not an expression. '''
     # No supplied table
     with pytest.raises(TypeError) as err:
-        fortran_reader.psyir_from_expression("3.0 + sin(a)", None)
-    assert ("Must be supplied with a valid SymbolTable but got 'NoneType'" in
+        fortran_reader.psyir_from_expression("3.0 + sin(a)", 3)
+    assert ("Must be supplied with a valid SymbolTable but got 'int'" in
             str(err.value))
     with pytest.raises(TypeError) as err:
         fortran_reader.psyir_from_expression("3.0 + sin(a)", "wrong")
     assert ("Must be supplied with a valid SymbolTable but got 'str'" in
             str(err.value))
-    with pytest.raises(TypeError) as err:
-        fortran_reader.psyir_from_expression("3.0 + sin(a)", None)
-    assert ("Must be supplied with a valid SymbolTable but got 'NoneType'" in
-            str(err.value))
-    table = SymbolTable()
     # OK
-    fortran_reader.psyir_from_expression("return", table)
+    fortran_reader.psyir_from_expression("return")
     with pytest.raises(ValueError) as err:
-        fortran_reader.psyir_from_expression("a = b", table)
+        fortran_reader.psyir_from_expression("a = b")
     assert "not represent a Fortran expression: 'a = b'" in str(err.value)
     with pytest.raises(ValueError) as err:
-        fortran_reader.psyir_from_expression("if(3 == 2)then", table)
+        fortran_reader.psyir_from_expression("if(3 == 2)then")
     assert ("not represent a Fortran expression: 'if(3 == 2)then'" in
             str(err.value))
     with pytest.raises(ValueError) as err:
-        fortran_reader.psyir_from_expression("this is not Fortran", table)
+        fortran_reader.psyir_from_expression("this is not Fortran")
     assert ("not represent a Fortran expression: 'this is not Fortran'" in
             str(err.value))
 
@@ -192,16 +187,15 @@ def test_psyir_from_statement_invalid(fortran_reader):
     ''' Test that the psyir_from_statement method raises the expected error
     when given something that is not a statement. '''
     with pytest.raises(TypeError) as err:
-        fortran_reader.psyir_from_statement("blah", None)
-    assert ("Must be supplied with a valid SymbolTable but got 'NoneType'"
+        fortran_reader.psyir_from_statement("blah", 3)
+    assert ("Must be supplied with a valid SymbolTable but got 'int'"
             in str(err.value))
-    table = SymbolTable()
     with pytest.raises(ValueError) as err:
-        fortran_reader.psyir_from_statement("blah", table)
+        fortran_reader.psyir_from_statement("blah")
     assert ("Supplied source does not represent a Fortran statement: 'blah'"
             in str(err.value))
     # OK
-    fortran_reader.psyir_from_statement("a=b", table)
+    fortran_reader.psyir_from_statement("a=b")
 
 
 def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):

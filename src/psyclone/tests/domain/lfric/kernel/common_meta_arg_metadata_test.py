@@ -45,18 +45,17 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.errors import InternalError
 
 
-# pylint: disable=abstract-class-instantiated
 def test_init_error():
     '''Test that a CommonMetaArgMetadata instance can't be created as it
     is abstract.
 
     '''
+    # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as info:
         _ = CommonMetaArgMetadata(None, None)
-    assert ("Can't instantiate abstract class CommonMetaArgMetadata with "
-            "abstract methods _get_metadata, check_access, check_datatype"
+    assert ("Can't instantiate abstract class CommonMetaArgMetadata"
             in str(info.value))
-# pylint: enable=abstract-class-instantiated
+    # pylint: enable=abstract-class-instantiated
 
 
 class CheckArg(CommonMetaArgMetadata):

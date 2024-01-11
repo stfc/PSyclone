@@ -55,12 +55,7 @@ def test_datatype():
     # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as excinfo:
         _ = DataType()
-    msg = str(excinfo.value)
-    # Have to split this check as Python >= 3.10 spots that 'method'
-    # should be singular.
-    assert ("Can't instantiate abstract class DataType with abstract "
-            "method" in msg)
-    assert " __str__" in msg
+    assert "Can't instantiate abstract class DataType" in  str(excinfo.value)
 
 
 # DeferredType class

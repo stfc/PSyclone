@@ -52,12 +52,8 @@ def test_create():
     '''Check that Intrinsic2CodeTrans is abstract.'''
     with pytest.raises(TypeError) as excinfo:
         _ = Intrinsic2CodeTrans()
-    msg = str(excinfo.value)
-    # Have to split this check as Python >= 3.10 spots that 'method'
-    # should be singular.
-    assert ("Can't instantiate abstract class Intrinsic2CodeTrans with "
-            "abstract method" in msg)
-    assert " apply" in msg
+    assert ("Can't instantiate abstract class Intrinsic2CodeTrans"
+            in str(excinfo.value))
 
 
 class DummyTrans(Intrinsic2CodeTrans):

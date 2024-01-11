@@ -98,8 +98,8 @@ def test_abstract():
     # Split assert tests as earlier versions of Python output
     # 'methods' even if there is only one whilst later versions of
     # Python output 'method'.
-    assert ("Can't instantiate abstract class AlgInvoke2PSyCallTrans with "
-            "abstract method" in str(info.value))
+    assert ("Can't instantiate abstract class AlgInvoke2PSyCallTrans with"
+            in str(info.value))
     assert "get_arguments" in str(info.value)
 
 
