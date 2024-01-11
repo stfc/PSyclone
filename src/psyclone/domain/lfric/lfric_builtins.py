@@ -2160,6 +2160,9 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
         rhs = BinaryOperation.create(BinaryOperation.Operator.POW,
                                      lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
+        # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
 
@@ -2208,6 +2211,9 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
         rhs = BinaryOperation.create(BinaryOperation.Operator.POW,
                                      lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
+        # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
 
