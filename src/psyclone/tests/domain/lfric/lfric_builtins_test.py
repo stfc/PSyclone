@@ -3266,6 +3266,8 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: a_divideby_X (inverse scaling of a "
+            "real-valued field (Y = a/X))\n"
             "        f2_data(df) = a_scalar / f1_data(df)\n"
             "      END DO")
         assert output in code
@@ -3275,6 +3277,8 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: a_divideby_X (inverse scaling of a "
+                "real-valued field (Y = a/X))\n"
                 "  f2_data(df) = a_scalar / f1_data(df)\n"
                 "enddo") in code
     else:
@@ -3284,6 +3288,8 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: a_divideby_X (inverse scaling of a "
+            "real-valued field (Y = a/X))\n"
             "        f2_data(df) = a_scalar / f1_data(df)\n"
             "      END DO\n"
             "      !\n"
@@ -3333,6 +3339,8 @@ def test_inc_a_divideby_X(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_a_divideby_X (inverse scaling of a "
+            "real-valued field (X = a/X))\n"
             "        f1_data(df) = a_scalar / f1_data(df)\n"
             "      END DO\n"
             "      !\n")
@@ -3343,6 +3351,8 @@ def test_inc_a_divideby_X(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
+                "  ! Built-in: inc_a_divideby_X (inverse scaling of a "
+                "real-valued field (X = a/X))\n"
                 "  f1_data(df) = a_scalar / f1_data(df)\n"
                 "enddo") in code
     else:
@@ -3352,6 +3362,8 @@ def test_inc_a_divideby_X(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
+            "        ! Built-in: inc_a_divideby_X (inverse scaling of a "
+            "real-valued field (X = a/X))\n"
             "        f1_data(df) = a_scalar / f1_data(df)\n"
             "      END DO\n"
             "      !\n"
