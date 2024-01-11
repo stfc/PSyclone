@@ -1837,6 +1837,8 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      arg_refs[1], arg_refs[2])
         assign = Assignment.create(arg_refs[0], rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
@@ -1884,6 +1886,8 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      lhs.copy(), arg_refs[1])
         assign = Assignment.create(lhs, rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
@@ -1935,6 +1939,8 @@ class LFRicXDividebyAKern(LFRicBuiltIn):
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      arg_refs[1], scalar_args[0])
         assign = Assignment.create(arg_refs[0], rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
@@ -1985,6 +1991,8 @@ class LFRicIncXDividebyAKern(LFRicBuiltIn):
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
