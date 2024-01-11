@@ -262,8 +262,10 @@ class ModuleManager:
         not_found = set()
 
         while todo:
-            # Pick one (random) module to handle:
-            module = todo.pop()
+            # Pick one (random) module to handle (convert to lowercase
+            # in case that the code use inconsistent capitalisation)
+            module = todo.pop().lower()
+
             # Ignore any modules that we were asked to ignore
             if module in self.ignores():
                 continue
