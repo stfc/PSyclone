@@ -2512,6 +2512,8 @@ class LFRicSumXKern(LFRicBuiltIn):
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      lhs.copy(), arg_refs[0])
         assign = Assignment.create(lhs, rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
