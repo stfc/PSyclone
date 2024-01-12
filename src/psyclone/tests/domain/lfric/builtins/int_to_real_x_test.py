@@ -34,7 +34,7 @@
 # Authors: I. Kavcic, Met Office
 #          A. R. Porter, STFC Daresbury Laboratory
 # Modified: R. W. Ford, STFC Daresbury Lab
-# Modified: O. Brunt, Met Office
+#           O. Brunt, Met Office
 
 ''' Module containing pytest tests of the LFRicRealXKern built-in
     (converting integer-valued to real-valued field elements).'''
@@ -85,8 +85,8 @@ def test_int_to_real_x(tmpdir, monkeypatch, annexed, dist_mem):
     # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: int_to_real_X (convert an integer-valued to a "
-                         "real-valued field)")
+    assert str(kern) == ("Built-in: int_to_real_X (convert an integer-valued "
+                         "to a real-valued field)")
     # Test code generation
     code = str(psy.gen)
 

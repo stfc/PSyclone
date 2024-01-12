@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2023, Science and Technology Facilities Council
+! Copyright (c) 2017-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -674,7 +674,7 @@ use argument_mod,  only : arg_type,            &
 ! ============== Converting real to integer field elements ========== !
 ! ------------------------------------------------------------------- !
 
-  !> ifield2 = int(field1, i_def)
+  !> ifield2 = int(field1, i_<prec>)
   type, public, extends(kernel_type) :: real_to_int_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -690,7 +690,7 @@ use argument_mod,  only : arg_type,            &
 ! ============== Converting real to real field elements ============= !
 ! ------------------------------------------------------------------- !
 
-  !> field2 = real(field1, r_def)
+  !> field2 = real(field1, r_<prec>)
   type, public, extends(kernel_type) :: real_to_real_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
@@ -1004,7 +1004,7 @@ use argument_mod,  only : arg_type,            &
 ! ============== Converting integer to real field elements ========== !
 ! ------------------------------------------------------------------- !
 
-  !> field2 = real(ifield1, r_def)
+  !> field2 = real(ifield1, r_<prec>)
   type, public, extends(kernel_type) :: int_to_real_X
      private
      type(arg_type) :: meta_args(2) = (/                              &

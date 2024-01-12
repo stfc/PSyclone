@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2739,7 +2739,7 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = INT(proxy0%data, kind=i_<prec>)
+        #      proxy0%data(df) = INT(proxy1%data, kind=i_<prec>)
         i_precision = arg_refs[0].datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
@@ -3311,6 +3311,7 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicMinAXKern',
            'LFRicIncMinAXKern',
            'LFRicRealToIntXKern',
+           'LFRicRealToRealXKern',
            'LFRicIntXPlusYKern',
            'LFRicIntIncXPlusYKern',
            'LFRicIntAPlusXKern',
@@ -3332,5 +3333,4 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntIncMaxAXKern',
            'LFRicIntMinAXKern',
            'LFRicIntIncMinAXKern',
-           'LFRicIntToRealXKern',
-           'LFRicRealToRealXKern']
+           'LFRicIntToRealXKern']

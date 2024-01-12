@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -443,8 +443,8 @@ def test_builtin_args_not_same_space():
 def test_builtin_fld_args_different_data_type(monkeypatch):
     '''Check that we raise the correct error if we encounter a built-in
     that has has different data type of its field arguments and is not
-    one of the data type conversion built-ins ('real_to_int_X' and
-    'int_to_real_X').
+    one of the data type conversion built-ins ('real_to_int_X',
+    'real_to_real_X', and 'int_to_real_X').
 
     '''
     # Define the built-in name and test file

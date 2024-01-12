@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2023, Science and Technology Facilities Council
+.. Copyright (c) 2017-2024, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -2661,9 +2661,7 @@ scheme presented below. Any new Built-in needs to comply with these rules.
       arguments (i.e. ``"inc_"<RHSargs>_<operationname>_<RHSargs>``);
 
    4) Prefix ``"int_"`` for the Built-in operations on the ``integer``-valued
-      field arguments (i.e. ``"int_inc_"<RHSargs>_<operationname>_<RHSargs>``),
-      except for the Built-in that converts the data type of field arguments
-      from ``integer`` to ``real`` (see rule 7 below).
+      field arguments (i.e. ``"int_inc_"<RHSargs>_<operationname>_<RHSargs>``).
 
 6) Built-ins names in Python definitions are similar to their Fortran
    counterparts, with a few differences:
@@ -2677,15 +2675,7 @@ scheme presented below. Any new Built-in needs to comply with these rules.
 
    3) Common prefix is ``"LFRic"`` for the Built-in operations on the
       ``real``-valued arguments and ``"LFRicInt"`` for the Built-in
-      operations on the ``integer``-valued fields (except for the
-      data-type conversion Built-ins, see rule 7 below).
-
-7) As in the case of Built-in field argument rules, the names of the
-   field data-type conversion Built-ins,
-   :ref:`real_to_int_X <real-to-int-built-in>`,
-   :ref:`real_to_real_X <real-to-real-built-in>`, and
-   :ref:`int_to_real_X <int-to-real-built-in>`, are the only exceptions
-   for the naming of Built-ins in Fortran above.
+      operations on the ``integer``-valued fields.
 
 .. _lfric-built-ins-real:
 
@@ -3269,13 +3259,6 @@ the same field (``X = min(a, X)``)::
 Conversion of ``real`` field elements
 #####################################
 
-Built-ins which take a ``real`` field element for conversion to
-a different datatype are prefixed with the keyword **real** and
-are denoted by the datatype that the input ``real`` will be
-converted to. A Built-in that converts a ``real`` to an ``integer``
-field is denoted by the keyword **int**. Likewise, a Built-in that
-converts a ``real`` to a ``real`` is denoted by the keyword **real**.
-
 .. _real-to-int-built-in:
 
 real_to_int_X
@@ -3284,20 +3267,23 @@ real_to_int_X
 **real_to_int_X** (**ifield2**, *field1*)
 
 Converts ``real``-valued field elements to ``integer``-valued field
-elements, e.g. in Fortran this would be: ``Y = INT(X, kind=i_def)``.
+elements, e.g. in Fortran this would be: ``Y = INT(X, kind=i_<prec>)``.
 Here ``Y`` is an ``integer``-valued field and ``X`` is the
 ``real``-valued field being converted::
 
   ifield2(:) = INT(field1(:), kind=i_def)
 
-where **ifield2** is an ``integer_field_type`` of ``i_def`` precision
-and a ``real``-valued field *field1* can be of any :ref:`supported
-precisions <lfric-mixed-precision>` for ``GH_REAL`` fields (e.g.
-``r_tran`` for ``r_tran_field_type``).
+where **ifield2** is the only currently supported ``integer_field_type``
+(``i_def`` precision) and a ``real``-valued field *field1* can be of
+any :ref:`supported precisions <lfric-mixed-precision>` for ``GH_REAL``
+fields (e.g. ``r_tran`` for ``r_tran_field_type``).
 
-A Built-in which takes a ``real`` field of one precision type and
-converts it to a ``real`` field of a differing precision is denoted
-with the keyword **real**.
+Built-ins which take a ``real`` field element for conversion to
+a field of different datatype or precision prefixed with the keyword
+**real** and are denoted by the datatype that the input ``real`` field will
+be converted to. A Built-in that converts a ``real`` to an ``integer``
+field is denoted by the keyword **int**. Likewise, a Built-in that
+converts a ``real`` to a ``real`` field is denoted by the keyword **real**.
 
 .. _real-to-real-built-in:
 
@@ -3307,17 +3293,16 @@ real_to_real_X
 **real_to_real_X** (**field2**, *field1*)
 
 Converts ``real``-valued field elements from a precision ``r_<prec>``
-to ``real``-valued field elements of a differing precision ``r_<prec>``.
-For example, in Fortran this would be: ``Y = REAL(X, kind=r_<prec>)``.
-Here ``Y`` is a ``real``-valued field of precision ``r_solver`` and
-``X`` is the ``real``-valued field being converted from a detected type::
+to ``real``-valued field elements of a differing precision ``r_<prec>``,
+e.g. in Fortran this would be: ``Y = REAL(X, kind=r_<prec>)``. Here ``Y``
+and ``X`` are both ``real``-valued fields, with ``X`` being converted
+to the precision of ``Y``::
 
-  field2(:) = REAL(field1(:), kind=r_solver)
+field2(:) = REAL(field1(:), kind=r_<prec>)
 
-where **field2** is a ``real_field_type`` of ``r_solver`` precision
-and a ``real``-valued field *field1* can be of any :ref:`supported
-precisions <lfric-mixed-precision>` for ``GH_REAL`` fields (e.g.
-``r_tran`` for ``r_tran_field_type``).
+**field2** and *field1* are ``real``-valued fields of any :ref:`supported
+precisions <lfric-mixed-precision>` for ``GH_REAL`` fields (e.g. ``r_tran``
+for ``r_tran_field_type``).
 
 .. _lfric-built-ins-int:
 
@@ -3613,7 +3598,7 @@ int_to_real_X
 **int_to_real_X** (**field2**, *ifield1*)
 
 Converts ``integer``-valued field elements to ``real``-valued field
-elements, e.g. in Fortran this would be ``Y = REAL(X, kind=r_def)``.
+elements, e.g. in Fortran this would be ``Y = REAL(X, kind=r_<prec>)``.
 Here ``Y`` is a ``real``-valued field and ``X`` is the
 ``integer``-valued field being converted::
 

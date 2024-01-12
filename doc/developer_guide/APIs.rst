@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -1072,15 +1072,6 @@ layer routine. A lot of this work is currently performed in the
 ``DynKernelArgument.infer_datatype()`` method but ultimately (see
 https://github.com/stfc/PSyclone/issues/1258) much of this will be
 removed.
-
-To date, all the LFRic BuiltIns have had ``lower_to_language_level()``
-methods implemented except for the following:
-
-* ``LFRicXInnerproductYKern``,
-* ``LFRicXInnerproductXKern``,
-* ``LFRicSumXKern``,
-* ``LFRicRealToIntXKern``,
-* ``LFRicIntToRealXKern``.
 
 The sum and inner product BuiltIns require extending PSyIR to handle
 reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from
