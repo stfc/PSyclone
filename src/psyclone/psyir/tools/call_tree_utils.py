@@ -87,6 +87,8 @@ class CallTreeUtils():
 
             if isinstance(access, Kern):
                 # A kernel is a subroutine call from a module:
+                # TODO #2054: This will not be necessary anymore once
+                # a Kernel is also a Call.
                 non_locals.append(("routine", access.module_name,
                                    Signature(access.name)))
                 continue
@@ -276,7 +278,10 @@ class CallTreeUtils():
                 try:
                     mod_info = mod_manager.get_module_info(kernel.module_name)
                 except FileNotFoundError:
-                    print(f"Could not find module '{kernel.module_name}' - "
+                    # TODO #11: Add proper logging
+                    # TODO #2120: Handle error
+                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
+                          f"Could not find module '{kernel.module_name}' - "
                           f"ignored.")
                     continue
 
@@ -326,19 +331,28 @@ class CallTreeUtils():
                 if module_name is None:
                     # We don't know where the subroutine comes from.
                     # For now ignore this
-                    print(f"Unknown routine '{signature[0]} - ignored.")
+                    # TODO #11: Add proper logging
+                    # TODO #2120: Handle error
+                    print(f"[CallTreeUtils._outstanding_nonlocals] Unknown "
+                          f"routine '{signature[0]} - ignored.")
                     continue
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
-                    print(f"Cannot find module '{module_name}' - ignored.")
+                    # TODO #11: Add proper logging
+                    # TODO #2120: Handle error
+                    print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
+                          f"find module '{module_name}' - ignored.")
                     continue
                 try:
                     # Add the list of non-locals to our todo list:
                     todo.extend(self.get_non_local_symbols(
                         mod_info.get_psyir(signature[0])))
                 except KeyError:
-                    print(f"Cannot find symbol '{signature[0]}' in module "
+                    # TODO #11: Add proper logging
+                    # TODO #2120: Handle error
+                    print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
+                          f"find symbol '{signature[0]}' in module "
                           f"'{module_name}' - ignored.")
                 continue
 
@@ -348,7 +362,10 @@ class CallTreeUtils():
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
-                    print(f"Cannot find module '{module_name}' - ignoring "
+                    # TODO #11: Add proper logging
+                    # TODO #2120: Handle error
+                    print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
+                          f"find module '{module_name}' - ignoring "
                           f"unknown symbol '{signature}'.")
                     continue
 

@@ -255,6 +255,10 @@ class ModuleInfo:
         try:
             parse_tree = self.get_parse_tree()
         except FortranSyntaxError:
+            # TODO #11: Add proper logging
+            # TODO #2120: Handle error
+            print(f"[ModuleInfo._extract_import_information] Syntax error "
+                  f"parsing '{self._filename} - ignored")
             # Hide syntax errors
             return
         for use in walk(parse_tree, Use_Stmt):
