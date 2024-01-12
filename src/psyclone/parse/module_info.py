@@ -372,23 +372,3 @@ class ModuleInfo:
         # If a generic interface name is queried, return a copy
         # of all possible routine names that might be called:
         return self._generic_interfaces[routine_name][:]
-
-    # ------------------------------------------------------------------------
-    def get_symbol(self, name):
-        '''Returns the symbol with the specified name from the module symbol
-        table.
-
-        :param str name: name of the symbol to look up.
-
-        :returns: the symbol with the give name, or None if the information
-            could not be found.
-        :rtype: Union[:py:class:`psyclone.psyir.symbols.Symbol`, NoneType]
-
-        '''
-        symbol_table = self.get_psyir().children[0].symbol_table
-
-        try:
-            return symbol_table.lookup(name)
-        except KeyError:
-            # Convert the exception to a None return value.
-            return None
