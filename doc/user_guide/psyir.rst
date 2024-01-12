@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
 .. Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
+.. Modified by J. G. Wallwork, Met Office
 
 .. The following section imports those Python modules that are needed in
    subsequent doctest snippets.
@@ -66,13 +67,12 @@ collectively as 'PSyIR nodes'.
 
 At the present time PSyIR classes can be essentially split into two
 types. PSy-layer classes and Kernel-layer classes. PSy-layer classes
-make use of a ``gen_code()`` or an ``update()`` method to create
-Fortran code whereas Kernel-layer classes make use of PSyIR backends
-to create code.
+make use of a ``gen_code()`` method to create Fortran code whereas
+Kernel-layer classes make use of PSyIR backends to create code.
 
 .. note:: This separation will be removed in the future and eventually
 	  all PSyIR classes will make use of backends with the
-	  expectation that ``gen_code()`` and ``update()`` methods
+	  expectation that ``gen_code()`` methods
 	  will be removed. Further this separation will be superseded
 	  by a separation between ``language-level PSyIR`` and
 	  ``domain-specific PSyIR``.
@@ -218,6 +218,28 @@ Finally, the `path_from` method can be used to find the route through the
 tree from an ancestor node to the node:
 
 .. automethod:: psyclone.psyir.nodes.Node.path_from
+
+Tree Interrogation
+==================
+
+Each PSyIR node provides several ways to interrogate the AST:
+
+Following the `parent` and `children` terminology, we define a node's `siblings`
+as the children of its parent. Note that this definition implies that all nodes
+are their own siblings.
+
+.. autoproperty:: psyclone.psyir.nodes.Node.siblings
+
+We can check whether two nodes are siblings which immediately precede or follow
+one another using the following methods:
+
+.. automethod:: psyclone.psyir.nodes.Node.immediately_precedes
+.. automethod:: psyclone.psyir.nodes.Node.immediately_follows
+
+Finally, the `get_sibling_lists` method provides functionality to `walk` over
+the tree associated with a node and gather those which are immediate siblings.
+
+.. automethod:: psyclone.psyir.nodes.Node.get_sibling_lists
 
 DataTypes
 =========

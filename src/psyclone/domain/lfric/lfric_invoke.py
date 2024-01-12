@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -95,15 +95,14 @@ class LFRicInvoke(Invoke):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import (DynStencils,
                                         DynFunctionSpaces, DynDofmaps,
-                                        LFRicFields, DynLMAOperators,
+                                        DynLMAOperators, DynGlobalSum,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
                                         DynProxies, DynCellIterators,
                                         DynReferenceElement,
-                                        LFRicMeshProperties,
-                                        DynGlobalSum)
+                                        LFRicMeshProperties)
         from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
-                                           LFRicScalarArgs)
+                                           LFRicScalarArgs, LFRicFields)
 
         self.scalar_args = LFRicScalarArgs(self)
 

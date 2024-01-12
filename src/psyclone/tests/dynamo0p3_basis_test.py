@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,14 +43,13 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicKernMetadata
 from psyclone.dynamo0p3 import DynBasisFunctions
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import print_diffs
 
@@ -97,7 +96,7 @@ def test_eval_mdata():
     ''' Check that we recognise "evaluator" as a valid gh_shape '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert dkm.get_integer_variable('gh_shape') == 'gh_evaluator'
 
 
@@ -108,34 +107,34 @@ def test_multi_updated_arg():
     # Change the access of the read-only argument
     code = CODE.replace("GH_READ", "GH_INC", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
     # Evaluator targets list remains unchanged
     assert dkm._eval_targets == ['w0', 'w1']
     # Change the gh_shape element to specify quadrature and then test again
     qr_code = code.replace("gh_evaluator", "gh_quadrature_xyoz")
     ast = fpapi.parse(qr_code, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert dkm.get_integer_variable('gh_shape') == "gh_quadrature_xyoz"
 
 
 def test_eval_targets():
     ''' Check that we can specify multiple evaluator targets using
-    the gh_evaluator_targets meta-data entry. '''
+    the 'gh_evaluator_targets' metadata entry. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert dkm._eval_targets == ["w0", "w1"]
 
 
 def test_eval_targets_err():
-    ''' Check that needlessly specifying gh_evaluator_targets raises the
+    ''' Check that needlessly specifying 'gh_evaluator_targets' raises the
     expected errors. '''
     # When the shape is gh_quadrature_* instead of gh_evaluator
     code = CODE.replace("gh_evaluator\n", "gh_quadrature_xyoz\n")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        _ = DynKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
-            "an evaluator because gh_shape=['gh_quadrature_xyoz']"
+        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
+    assert ("specifies 'gh_evaluator_targets' (['w0', 'w1']) but does not "
+            "need an evaluator because gh_shape=['gh_quadrature_xyoz']"
             in str(err.value))
     # When there are no basis/diff-basis functions required
     code = CODE.replace(
@@ -147,19 +146,19 @@ def test_eval_targets_err():
                         "")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        _ = DynKernMetadata(ast, name="testkern_eval_type")
-    assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
-            "an evaluator because no basis or differential basis functions "
-            "are required" in str(err.value))
+        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
+    assert ("specifies 'gh_evaluator_targets' (['w0', 'w1']) but does not "
+            "need an evaluator because no basis or differential basis "
+            "functions are required" in str(err.value))
 
 
 def test_eval_targets_wrong_space():
-    ''' Check that we reject meta-data where there is no argument for one of
+    ''' Check that we reject metadata where there is no argument for one of
     the function spaces listed in gh_evaluator_targets. '''
     code = CODE.replace("[W0, W1]", "[W0, W3]")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        _ = DynKernMetadata(ast, name="testkern_eval_type")
+        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert ("specifies that an evaluator is required on 'w3' but does not "
             "have an argument on this space" in str(err.value))
 
@@ -174,14 +173,14 @@ def test_eval_targets_op_space():
     code = code.replace("[W0, W1]", "[W0, W3]")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        _ = DynKernMetadata(ast, name="testkern_eval_type")
+        _ = LFRicKernMetadata(ast, name="testkern_eval_type")
     assert ("specifies that an evaluator is required on 'w3' but does not "
             "have an argument on this space" in str(err.value))
     # Change to a space that is referenced by an operator
     code = code.replace("[W0, W3]", "[W0, W2]")
     ast = fpapi.parse(code, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_eval_type")
-    assert isinstance(dkm, DynKernMetadata)
+    dkm = LFRicKernMetadata(ast, name="testkern_eval_type")
+    assert isinstance(dkm, LFRicKernMetadata)
 
 
 def test_single_kern_eval(tmpdir):
@@ -1464,8 +1463,8 @@ def test_basis_evaluator():
 
     '''
     ast = fpapi.parse(BASIS_EVAL, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
 
@@ -1591,8 +1590,8 @@ def test_basis_unsupported_space():
     PSy layer to the kernels (see issue #461). '''
     # Test any_space_*
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -1605,8 +1604,8 @@ def test_basis_unsupported_space():
                                            "any_discontinuous_space_5")
     code = code.replace("gh_inc", "gh_readwrite")
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -1667,8 +1666,8 @@ def test_diff_basis():
 
     '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -1778,7 +1777,7 @@ def test_diff_basis():
     assert output in generated_code
 
 
-# Meta-data for a kernel that requires differential basis functions
+# Metadata for a kernel that requires differential basis functions
 # evaluated only on W2 (the to-space of the operator that this kernel
 # writes to).
 DIFF_BASIS_EVAL = '''
@@ -1833,8 +1832,8 @@ def test_diff_basis_eval():
 
     '''
     ast = fpapi.parse(DIFF_BASIS_EVAL, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
 
@@ -1943,15 +1942,15 @@ def test_2eval_stubgen():
     required on more than one space.
 
     '''
-    # Modify the meta-data so that it specifies that evaluators be provided
+    # Modify the metadata so that it specifies that evaluators be provided
     # on two function spaces
     twoeval_meta = DIFF_BASIS_EVAL.replace(
         "     integer :: gh_shape = gh_evaluator\n",
         "     integer :: gh_shape = gh_evaluator\n"
         "     integer :: gh_evaluator_targets(2) = (/w2h, wtheta/)\n")
     ast = fpapi.parse(twoeval_meta, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
 
@@ -2061,8 +2060,8 @@ def test_diff_basis_unsupp_space():
     kernels (see issue #461). '''
     # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -2075,8 +2074,8 @@ def test_diff_basis_unsupp_space():
                                                 "any_discontinuous_space_5")
     code = code.replace("gh_inc", "gh_readwrite")
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -2090,8 +2089,8 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     DynBasisFunctions._stub_declarations() if an un-supported quadrature
     shape is encountered. '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
     monkeypatch.setattr(
@@ -2107,8 +2106,8 @@ def test_dynbasisfns_declns(monkeypatch):
     ''' Check the various internal errors that
     DynBasisFunctions._basis_fn_declns can raise. '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
     # Missing name for qr variable

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,9 +47,9 @@ from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
     StructureReference, ArrayOfStructuresReference, Assignment, \
     IntrinsicCall, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
-    ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, DataTypeSymbol,\
+    ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
     ImportInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
-    DeferredType, Symbol
+    DeferredType, Symbol, DataTypeSymbol
 from psyclone.psyir.backend.fortran import FortranWriter
 
 

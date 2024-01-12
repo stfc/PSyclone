@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -106,19 +106,20 @@ class OMPRegionDirective(OMPDirective, RegionDirective, metaclass=abc.ABCMeta):
         Returns the names of all scalars within this region that require a
         reduction of type 'reduction_type'. Returned names will be unique.
 
-        :param reduction_type: the reduction type (e.g. AccessType.SUM) to \
+        TODO #514 - this only works for the PSyKAl APIs currently. It needs
+        extending/replacing with the use of the PSyIR Dependence Analysis.
+
+        :param reduction_type: the reduction type (e.g. AccessType.SUM) to
                                search for.
         :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
 
         :returns: names of scalar arguments with reduction access.
-        :rtype: list of str
+        :rtype: list[str]
 
         '''
         result = []
         const = Config.get().api_conf().get_constants()
         for call in self.kernels():
-            if not call.arguments:
-                continue
             for arg in call.arguments.args:
                 if arg.argument_type in const.VALID_SCALAR_NAMES:
                     if arg.descriptor.access == reduction_type:

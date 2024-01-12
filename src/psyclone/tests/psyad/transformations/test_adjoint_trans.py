@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,11 +48,14 @@ def test_abstract():
     '''
     with pytest.raises(TypeError) as info:
         _ = AdjointTransformation([])
-    # Python >= 3.10 spots that 'method' should be singular. Prior to
-    # this it was plural, therefore we split the check into two.
-    assert ("Can't instantiate abstract class AdjointTransformation with "
-            "abstract method" in str(info.value))
-    assert " apply" in str(info.value)
+    # Python >= 3.9 spots that 'method' should be singular. Prior to this it
+    # was plural. Python >= 3.12 tweaks the error message yet again to mention
+    # the lack of an implementation and to quote the method name.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class AdjointTransformation with"
+            in str(info.value))
+    assert ("abstract method" in str(info.value))
+    assert ("apply" in str(info.value))
 
 
 def test_args():

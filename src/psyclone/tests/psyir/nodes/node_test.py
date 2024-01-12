@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
+#         I. Kavcic and J. G. Wallwork, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -1481,6 +1481,22 @@ def test_following_preceding():
     assert multiply1.following() == [c_ref, d_ref]
     assert multiply1.preceding() == [assign1, a_ref, multiply2, b_ref]
 
+    # 1d: Immediately following
+    assert not a_ref.immediately_follows(assign1)
+    assert multiply2.immediately_follows(a_ref)
+    assert not b_ref.immediately_follows(multiply2)
+    assert multiply1.immediately_follows(b_ref)
+    assert not c_ref.immediately_follows(multiply1)
+    assert d_ref.immediately_follows(c_ref)
+
+    # 1e: Immediately preceding
+    assert not assign1.immediately_precedes(a_ref)
+    assert a_ref.immediately_precedes(multiply2)
+    assert not multiply2.immediately_precedes(b_ref)
+    assert b_ref.immediately_precedes(multiply1)
+    assert not multiply1.immediately_precedes(c_ref)
+    assert c_ref.immediately_precedes(d_ref)
+
     # 2: Routine is an ancestor node, but is not a root
     # node.
     routine1 = Routine.create("routine1", SymbolTable(), [assign1])
@@ -1580,3 +1596,198 @@ def test_path_from(fortran_reader):
         assigns[0].path_from(loops[0])
     assert ("Attempted to find path_from a non-ancestor 'Loop' "
             "node." in str(excinfo.value))
+
+
+def test_siblings(fortran_reader):
+    '''Tests the siblings method of the Node class.'''
+
+    code = '''subroutine test_siblings()
+    integer :: i, j, k
+    integer, dimension(2,2,2) :: arr
+
+    arr(1,1,1) = 0
+    do k = 1, 2
+       do j = 1, 2
+          do i = 1, 2
+             arr(i,j,k) = i*j*k
+          end do
+       end do
+    end do
+    do k = 1, 2
+       do j = 1, 2
+          do i = 1, 2
+             arr(i,j,k) = i*j*k
+          end do
+       end do
+    end do
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # The initial assignment has two other siblings, whereas the assignments at
+    # the deepest levels of the loops have no other siblings
+    for assign in psyir.walk(Assignment):
+        siblings = assign.siblings
+        assert assign in siblings
+        assert len(siblings) == (1 if assign.ancestor(Loop) else 3)
+
+    # The two outer-most loops have each other as siblings, plus the initial
+    # integer assignment, whereas the inner loops have no other siblings
+    for loop in psyir.walk(Loop):
+        siblings = loop.siblings
+        assert loop in siblings
+        assert len(siblings) == (1 if loop.ancestor(Loop) else 3)
+
+    # Special case of a root node
+    root_siblings = psyir.siblings
+    assert len(root_siblings) == 1
+    assert root_siblings[0] is psyir
+
+
+def test_walk_depth(fortran_reader):
+    '''Test the depth restriction functionality of Node's walk method.'''
+
+    code = '''subroutine test_depth()
+    integer :: i, j, k
+    integer :: arr(2,2,2)
+
+    do i = 1, 2
+      do j = 1, 2
+        do k = 1, 2
+          if (k == 1) then
+              arr(i,j,k) = 0
+          else
+              arr(i,j,k) = -1
+          end if
+        end do
+      end do
+    end do
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assignments = psyir.walk(Assignment)
+    assert len(loops) == 3
+    assert len(assignments) == 2
+    root_depth = psyir.depth
+
+    # Test walking over the depths of each loop
+    for i, loop in enumerate(loops):
+        depth = root_depth + 2 * (i + 1)
+        loop_i_list = psyir.walk(Loop, depth=depth)
+        assert len(loop_i_list) == 1
+        assert loop_i_list[0] is loop
+        assert len(psyir.walk(Assignment, depth=depth)) == 0
+
+    # Test walking over the depth of the assignment in the inner loop
+    depth = root_depth + 10
+    assign_10_list = psyir.walk(Assignment, depth=depth)
+    assert len(assign_10_list) == 2
+    assert assign_10_list[0] is assignments[0]
+    assert assign_10_list[1] is assignments[1]
+    assert len(psyir.walk(Loop, depth=depth)) == 0
+
+
+def test_get_sibling_lists(fortran_reader):
+    '''Tests the get_sibling_lists functionality.'''
+
+    code = '''subroutine test_get_sibling_lists()
+    integer :: i, j, k, n
+    integer, dimension(2,2,2) :: arr
+
+    n = 0
+    do k = 1, 2
+       do j = 1, 2
+          arr(:,j,k) = 0
+          do i = 1, 2
+             arr(i,j,k) = i*j*k
+             n = n + 1
+          end do
+       end do
+       do j = 1, 2
+          do i = 1, 2
+             arr(i,j,k) = i*j*k
+          end do
+          arr(:,j,k) = 0
+       end do
+    end do
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # Test case where only loops are requested
+    loops = psyir.walk(Loop)
+    assert len(loops) == 5
+    loop_blocks = psyir.get_sibling_lists(Loop)
+    expected = [[0], [1, 3], [2], [4]]
+    assert len(loop_blocks) == len(expected)
+    for block, indices in zip(loop_blocks, expected):
+        assert len(block) == len(indices)
+        for node, index in zip(block, indices):
+            assert node is loops[index]
+
+    # Test case where only assignments are requested
+    assignments = psyir.walk(Assignment)
+    assert len(assignments) == 6
+    assignment_blocks = psyir.get_sibling_lists(Assignment)
+    expected = [[0], [1], [5], [2, 3], [4]]
+    assert len(assignment_blocks) == len(expected)
+    for block, indices in zip(assignment_blocks, expected):
+        assert len(block) == len(indices)
+        for node, index in zip(block, indices):
+            assert node is assignments[index]
+
+    # Test case where both loops and assignments are requested
+    loops_assignments = psyir.walk((Loop, Assignment))
+    assert len(loops_assignments) == 11
+    both_blocks = psyir.get_sibling_lists((Loop, Assignment))
+    expected = [[0, 1], [2, 7], [3, 4], [8, 10], [5, 6], [9]]
+    assert len(both_blocks) == len(expected)
+    for block, indices in zip(both_blocks, expected):
+        assert len(block) == len(indices)
+        for node, index in zip(block, indices):
+            assert node is loops_assignments[index]
+
+
+def test_get_sibling_lists_with_stopping(fortran_reader):
+    '''Tests the get_sibling_lists functionality when stop_type is provided.'''
+
+    code = '''subroutine test_get_sibling_lists_with_stopping()
+    integer :: i, j
+    integer, dimension(2,2) :: arr
+
+    arr(:,:) = 0
+    do j = 1, 2
+       do i = 1, 2
+          arr(i,j) = i*j
+       end do
+    end do
+    if (arr(1,1) == 0) then
+        do j = 1, 2
+           do i = 1, 2
+              arr(i,j) = i*j
+           end do
+           arr(:,j) = 0
+        end do
+    end if
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assignments = psyir.walk(Assignment)
+
+    # Use the same types for both my_type and stop_type so that the tree
+    # traversal stops as soon as either of the requested types are found
+    # (motivated by directive-based GPU porting)
+    to_port = (Loop, Assignment)
+    blocks_to_port = psyir.get_sibling_lists(to_port, stop_type=to_port)
+    assert len(blocks_to_port) == 2
+
+    # First kernel
+    assert len(blocks_to_port[0]) == 2
+    assert blocks_to_port[0][0] is assignments[0]
+    assert blocks_to_port[0][1] is loops[0]
+
+    # Second kernel
+    assert len(blocks_to_port[1]) == 1
+    assert blocks_to_port[1][0] is loops[2]

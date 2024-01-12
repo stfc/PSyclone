@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -101,5 +101,4 @@ ${SOLUTION_SCRIPTS}:
 	# We need to use different output names to support testing in parallel
 	# and not interfering with the compile task (which uses psy.f90)
 	${MY_PSYCLONE} -s $@ -opsy psy_1.f90 tra_adv_mod.F90
-	${MY_PSYCLONE} -s $@ -opsy psy_2.f90 --profile invokes tra_adv_mod.F90
-	${MY_PSYCLONE} -s $@ -opsy psy_3.f90 --profile kernels tra_adv_mod.F90
+	${MY_PSYCLONE} -s $@ -opsy psy_2.f90 --profile routines tra_adv_mod.F90

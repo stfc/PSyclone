@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -82,8 +82,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         the case then all Range nodes within array references within
         the assignment are replaced with references to the appropriate
         loop indices. The appropriate number of NemoLoop loops are
-        also placed around the modified assignment statement and the
-        assignment statement is placed within a NemoKern.
+        also placed around the modified assignment statement.
 
         The name of each loop index is taken from the PSyclone
         configuration file if a name exists for the particular array

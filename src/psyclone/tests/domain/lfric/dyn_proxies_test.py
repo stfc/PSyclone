@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified L. Turner, Met Office
 
 ''' This module tests the DynProxies class using pytest. '''
 
 import os
 import pytest
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKern, DynProxies
+from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.dynamo0p3 import DynProxies
 from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.parse.algorithm import parse
@@ -127,7 +128,7 @@ def test_initialise_errors(monkeypatch):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    kern = invoke.schedule.walk(DynKern)[0]
+    kern = invoke.schedule.walk(LFRicKern)[0]
     proxies = DynProxies(invoke)
     amod = ModuleGen("test_mod")
     node = SubroutineGen(amod, name="a_sub")

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
 from psyclone.psyir.symbols import (DataSymbol, DeferredType, NoType,
                                     RoutineSymbol, ScalarType,
-                                    UnknownFortranType)
+                                    SymbolError, UnknownFortranType)
 
 IN_OUTS = []
 # subroutine no declarations
@@ -279,9 +279,10 @@ def test_function_result_suffix(fortran_reader, fortran_writer,
 
 def test_function_missing_return_type(fortran_reader):
     '''
-    Test that we generate a CodeBlock for a Fortran function without an
-    explicit declaration of its return type (i.e. if it's relying on Fortran's
-    implicit typing).
+    Test that we reject a Fortran function without an explicit declaration of
+    its return type (i.e. if it's relying on Fortran's implicit typing). We
+    can't put such a function in a CodeBlock because we generate code with
+    `implicit none` specified.
 
     '''
     code = (
@@ -291,8 +292,25 @@ def test_function_missing_return_type(fortran_reader):
         "    my_func = 1.0\n"
         "  end function my_func\n"
         "end module\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir.children[0].children[0], CodeBlock)
+    with pytest.raises(SymbolError) as err:
+        _ = fortran_reader.psyir_from_source(code)
+    assert ("No explicit return-type information found for function "
+            "'my_func'. PSyclone requires that all symbols be explicitly "
+            "typed." in str(err.value))
+    # Test where the result is specified in a suffix but there is no actual
+    # declaration of the symbol.
+    code = (
+        "module a\n"
+        "contains\n"
+        "  function my_func() result(some_var)\n"
+        "    some_var = 1.0\n"
+        "  end function my_func\n"
+        "end module\n")
+    with pytest.raises(SymbolError) as err:
+        _ = fortran_reader.psyir_from_source(code)
+    assert ("No explicit return-type information found for function "
+            "'my_func'. PSyclone requires that all symbols be explicitly "
+            "typed." in str(err.value))
 
 
 def test_function_unsupported_type(fortran_reader):

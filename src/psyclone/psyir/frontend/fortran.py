@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -107,7 +107,7 @@ class FortranReader():
         :param str source_code: text of the expression to be parsed.
         :param symbol_table: the SymbolTable in which to search for any
             symbols that are encountered.
-        :type symbol_table: :py.class:`psyclone.psyir.symbols.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: PSyIR representing the provided Fortran expression.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -149,7 +149,7 @@ class FortranReader():
         :param str source_code: text of the statement to be parsed.
         :param symbol_table: the SymbolTable in which to search for any
             symbols that are encountered.
-        :type symbol_table: :py.class:`psyclone.psyir.symbols.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: PSyIR representing the provided Fortran statement.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`

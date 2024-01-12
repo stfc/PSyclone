@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -962,6 +962,7 @@ class IntrinsicCall(Call):
         :rtype: NoneType | bool
         '''
         return self.intrinsic.is_inquiry
+
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.

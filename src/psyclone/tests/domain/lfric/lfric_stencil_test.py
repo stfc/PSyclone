@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic and A. Coughtrie, Met Office,
+#         I. Kavcic, A. Coughtrie and L. Turner, Met Office,
 #         C. M. Maynard, Met Office/University of Reading,
 #         J. Henrichs, Bureau of Meteorology.
 
@@ -44,9 +44,9 @@ import pytest
 import fparser
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import (DynKern, DynKernelArguments,
-                                DynKernMetadata, DynStencils)
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
+                                   LFRicKernMetadata)
+from psyclone.dynamo0p3 import DynKernelArguments, DynStencils
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -82,7 +82,7 @@ end module stencil_mod
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata. '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
 
     stencil_descriptor_0 = metadata.arg_descriptors[0]
     assert stencil_descriptor_0.stencil is None
@@ -113,7 +113,7 @@ def test_stencil_field_metadata_too_many_arguments():
         "(gh_field, gh_real, gh_read, w2, stencil(cross), w1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert ("each 'meta_arg' entry must have at most 5 arguments" in
             str(excinfo.value))
 
@@ -124,7 +124,7 @@ def test_unsupported_second_argument():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "Kernels with fixed stencil extents are not currently supported" \
         in str(excinfo.value)
 
@@ -136,7 +136,7 @@ def test_valid_stencil_types():
         result = STENCIL_CODE.replace("stencil(cross)",
                                       "stencil(" + stencil_type + ")", 1)
         ast = fpapi.parse(result, ignore_comments=False)
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
 
 
 def test_stencil_read_only():
@@ -147,7 +147,7 @@ def test_stencil_read_only():
                                 "gh_inc, w2, stencil(cross)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name="stencil_type")
+        _ = LFRicKernMetadata(ast, name="stencil_type")
     assert ("In the LFRic API a field with a stencil access must be "
             "read-only ('gh_read'), but found 'gh_inc'" in
             str(excinfo.value))
@@ -165,8 +165,8 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
 
     # Test 'real'-valued field of 'field_type' with stencil access
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast, name=name)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
     assert stencil_arg.module_name == "field_mod"
@@ -180,8 +180,8 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     code = STENCIL_CODE.replace("gh_field, gh_real",
                                 "gh_field, gh_integer")
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast, name=name)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
     assert stencil_arg.module_name == "integer_field_mod"
@@ -514,14 +514,14 @@ def test_invalid_stencil_form_1():
     result = STENCIL_CODE.replace("stencil(cross)", "1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
     assert "Unrecognised metadata entry" in str(excinfo.value)
     result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
     assert "Expecting format stencil(<type>[,<extent>]) but found stencil" \
@@ -534,7 +534,7 @@ def test_invalid_stencil_form_2():
     result = STENCIL_CODE.replace("stencil(cross)", "stenci(cross)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
 
@@ -545,7 +545,7 @@ def test_invalid_stencil_form_3():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
 
@@ -557,7 +557,7 @@ def test_invalid_stencil_form_4():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil()", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "but found stencil()" in str(excinfo.value)
 
 
@@ -568,7 +568,7 @@ def test_invalid_stencil_form_5():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(,)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "Kernel metadata has an invalid format" \
            in str(excinfo.value)
 
@@ -580,7 +580,7 @@ def test_invalid_stencil_form_6():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(cross,1,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
     assert "there must be at most two arguments inside the brackets" \
@@ -593,7 +593,7 @@ def test_invalid_stencil_first_arg_1():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "not one of the valid types" in str(excinfo.value)
     assert "is a literal" in str(excinfo.value)
 
@@ -604,7 +604,7 @@ def test_invalid_stencil_first_arg_2():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(cros)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "not one of the valid types" in str(excinfo.value)
 
 
@@ -614,7 +614,7 @@ def test_invalid_stencil_first_arg_3():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d(xx))", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "the specified <type>" in str(excinfo.value)
     assert "includes brackets" in str(excinfo.value)
 
@@ -625,7 +625,7 @@ def test_invalid_stencil_second_arg_1():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,x1d)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is not an integer" in str(excinfo.value)
 
@@ -636,7 +636,7 @@ def test_invalid_stencil_second_arg_2():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,0)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is less than 1" in str(excinfo.value)
 

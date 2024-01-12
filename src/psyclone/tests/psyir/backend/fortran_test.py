@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ from psyclone.psyir.symbols import (
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
 from psyclone.psyGen import PSyFactory
-from psyclone.nemo import NemoInvokeSchedule, NemoKern
+from psyclone.nemo import NemoInvokeSchedule
 
 
 def test_gen_intent():
@@ -1615,40 +1615,6 @@ def test_fw_nemoinvokeschedule(fortran_writer, parser):
     assert isinstance(schedule, NemoInvokeSchedule)
     result = fortran_writer(schedule)
     assert "a = 1\n" in result
-
-
-def test_fw_nemokern(fortran_writer, parser):
-    '''Check the FortranWriter class nemokern method prints the
-    class information and calls any children. This method is used to
-    output nothing for a NemoKern object and simply call its children
-    as NemoKern is a collection of PSyIR nodes so needs no
-    output itself.
-
-    '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "program test\n"
-        "  integer, parameter :: n=20\n"
-        "  integer :: i, j, k\n"
-        "  real :: a(n,n,n)\n"
-        "  do k=1,n\n"
-        "    do j=1,n\n"
-        "      do i=1,n\n"
-        "        a(i,j,k) = 0.0\n"
-        "      end do\n"
-        "    end do\n"
-        "  end do\n"
-        "end program test")
-    schedule = get_nemo_schedule(parser, code)
-
-    kernel = schedule[0].loop_body[0].loop_body[0].loop_body[0]
-    assert isinstance(kernel, NemoKern)
-
-    result = fortran_writer(schedule)
-    assert (
-        "      do i = 1, n, 1\n"
-        "        a(i,j,k) = 0.0\n"
-        "      enddo\n" in result)
 
 
 def test_fw_query_intrinsics(fortran_reader, fortran_writer, tmpdir):
