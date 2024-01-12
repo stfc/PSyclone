@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
+# Modified work Copyright (c) 2017-2024 by J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
 ''' Module containing tests of Transformations when using the
