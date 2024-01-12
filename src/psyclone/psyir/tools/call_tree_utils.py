@@ -287,7 +287,8 @@ class CallTreeUtils():
 
                 all_possible_routines = mod_info.resolve_routine(kernel.name)
                 for routine_name in all_possible_routines:
-                    psyir = mod_info.get_psyir(routine_name)
+                    psyir = \
+                        mod_info.get_psyir().get_routine_psyir(routine_name)
                     todo.extend(self.get_non_local_symbols(psyir))
         return self._outstanding_nonlocals(todo, read_write_info)
 
@@ -344,11 +345,11 @@ class CallTreeUtils():
                     print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
                           f"find module '{module_name}' - ignored.")
                     continue
-                try:
+                routine = mod_info.get_psyir().get_routine_psyir(signature[0])
+                if routine:
                     # Add the list of non-locals to our todo list:
-                    todo.extend(self.get_non_local_symbols(
-                        mod_info.get_psyir(signature[0])))
-                except KeyError:
+                    todo.extend(self.get_non_local_symbols(routine))
+                else:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
                     print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
