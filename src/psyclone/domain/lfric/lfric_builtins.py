@@ -2833,6 +2833,8 @@ class LFRicIntXKern(LFRicBuiltIn):
             IntrinsicCall.Intrinsic.INT,
             [arg_refs[1], ("kind", Reference(i_precision))])
         assign = Assignment.create(arg_refs[0], rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
@@ -3176,6 +3178,8 @@ class LFRicRealXKern(LFRicBuiltIn):
             IntrinsicCall.Intrinsic.REAL,
             [arg_refs[1], ("kind", Reference(r_precision))])
         assign = Assignment.create(arg_refs[0], rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
