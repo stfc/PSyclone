@@ -284,10 +284,10 @@ class CallTreeUtils():
                 for routine_name in all_possible_routines:
                     psyir = mod_info.get_psyir(routine_name)
                     todo.extend(self.get_non_local_symbols(psyir))
-        return self._resolve_calls_and_unknowns(todo, read_write_info)
+        return self._outstanding_nonlocals(todo, read_write_info)
 
     # -------------------------------------------------------------------------
-    def _resolve_calls_and_unknowns(self, todo, read_write_info):
+    def _outstanding_nonlocals(self, todo, read_write_info):
         '''This function updates the list of non-local symbols by:
         1. replacing all subroutine calls with the list of their corresponding
             non-local symbols.

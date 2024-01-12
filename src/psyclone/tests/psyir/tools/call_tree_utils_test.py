@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -278,7 +278,7 @@ def test_get_non_local_read_write_info(capsys):
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_call_tree_utils_resolve_calls_and_unknowns(capsys):
+def test_call_tree_utils_outstanding_nonlocals(capsys):
     '''Tests resolving symbols in case of missing modules, subroutines, and
     unknown type (e.g. function call or array access).
     '''
@@ -296,7 +296,7 @@ def test_call_tree_utils_resolve_calls_and_unknowns(capsys):
              None)]
     ctu = CallTreeUtils()
     rw_info = ReadWriteInfo()
-    ctu._resolve_calls_and_unknowns(todo, rw_info)
+    ctu._outstanding_nonlocals(todo, rw_info)
     out, _ = capsys.readouterr()
     assert "Cannot find module 'unknown_module' - ignored." in out
     assert rw_info.read_list == []
@@ -305,7 +305,7 @@ def test_call_tree_utils_resolve_calls_and_unknowns(capsys):
     # Now try to find a routine that does not exist in an existing module:
     todo = [('routine', 'module_with_var_mod', Signature("does-not-exist"),
              None)]
-    ctu._resolve_calls_and_unknowns(todo, rw_info)
+    ctu._outstanding_nonlocals(todo, rw_info)
     out, _ = capsys.readouterr()
     assert ("Cannot find symbol 'does-not-exist' in module "
             "'module_with_var_mod' - ignored." in out)
@@ -317,7 +317,7 @@ def test_call_tree_utils_resolve_calls_and_unknowns(capsys):
     # this subroutine should then be reported:
     todo = [('unknown', 'module_with_var_mod',
              Signature("module_subroutine"), None)]
-    ctu._resolve_calls_and_unknowns(todo, rw_info)
+    ctu._outstanding_nonlocals(todo, rw_info)
     assert rw_info.read_list == [('module_with_var_mod',
                                   Signature("module_var_b"))]
     assert rw_info.write_list == [('module_with_var_mod',
