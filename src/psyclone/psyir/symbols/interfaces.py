@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso STFC Daresbury Lab
+# Modified by: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the SymbolInterface class and its subclasses. '''
@@ -93,6 +94,15 @@ class CommonBlockInterface(SymbolInterface):
 
     def __str__(self):
         return "CommonBlock"
+
+
+class NamelistInterface(SymbolInterface):
+    ''' A symbol declared in the local scope but is added to a namelist
+    statement.
+    '''
+
+    def __str__(self):
+        return "Namelist"
 
 
 class UnresolvedInterface(SymbolInterface):

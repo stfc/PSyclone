@@ -41,10 +41,10 @@
 
 import pytest
 
-from psyclone.psyir.symbols.interfaces import SymbolInterface, \
-    AutomaticInterface, ArgumentInterface, ImportInterface, \
-    UnresolvedInterface, StaticInterface, DefaultModuleInterface, \
-    CommonBlockInterface, UnknownInterface
+from psyclone.psyir.symbols.interfaces import \
+    (AutomaticInterface, ArgumentInterface, CommonBlockInterface,
+     DefaultModuleInterface, ImportInterface, NamelistInterface,
+     StaticInterface, SymbolInterface, UnknownInterface, UnresolvedInterface)
 from psyclone.psyir.symbols import ContainerSymbol
 
 
@@ -92,6 +92,15 @@ def test_commonblockinterface():
     '''
     interface = CommonBlockInterface()
     assert str(interface) == "CommonBlock"
+
+
+def test_namelist_interface():
+    '''Test we can create an NamelistInterface instance and check its
+    __str__ value
+
+    '''
+    interface = NamelistInterface()
+    assert str(interface) == "Namelist"
 
 
 def test_unresolvedinterface():
