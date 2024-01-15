@@ -329,6 +329,7 @@ class CallTreeUtils():
 
         '''
         # pylint: disable=too-many-branches, too-many-locals
+        # pylint: disable=too-many-statements
         mod_manager = ModuleManager.get()
         done = set()
         # Using a set here means that duplicated entries will automatically
@@ -400,11 +401,14 @@ class CallTreeUtils():
                 # Check if it is a constant (the symbol should always be found,
                 # but if a module cannot be parsed and get_symbol it will
                 # return None)
-                symbol_table = \
+                sym_tab = \
                     mod_info.get_psyir().children[0].symbol_table
-                sym = symbol_table.lookup(signature[0])
-                if sym and sym.is_constant:
-                    continue
+                try:
+                    sym = sym_tab.lookup(signature[0])
+                    if sym.is_constant:
+                        continue
+                except KeyError:
+                    sym = None
                 # Otherwise fall through to the code that adds a reference:
 
             # Now it must be a reference, so add it to the list of input-
