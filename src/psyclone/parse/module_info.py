@@ -230,6 +230,8 @@ class ModuleInfo:
         :rtype: bool
 
         '''
+        # TODO #2413: Adds a 'get routine' method, which could replace this
+        # function to avoid code duplication
         if self._routine_names is None:
             # This will trigger adding routine information
             try:
