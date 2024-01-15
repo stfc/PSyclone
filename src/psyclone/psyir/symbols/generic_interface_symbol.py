@@ -52,23 +52,12 @@ class GenericInterfaceSymbol(RoutineSymbol):
     :type kwargs: unwrapped dict.
 
     :raises ValueError: if no routine names are provided.
-    :raises TypeError: if `routines` is not a list that consists only of str.
 
     '''
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
-        if not routines:
-            raise ValueError("A GenericInterfaceSymbol requires a list of "
-                             "Routine names but none were provided.")
-        if not isinstance(routines, list):
-            raise TypeError(f"A GenericInterfaceSymbol requires a list of "
-                            f"Routine names but got: '{routines}'")
-        if not all(isinstance(item, str) for item in routines):
-            raise TypeError(
-                f"A GenericInterfaceSymbol must be provided with a list of "
-                f"Routine names as strings but got: "
-                f"{[type(rt).__name__ for rt in routines]}")
-        self._routines = routines
+        self._routines = []
+        self.routines = routines
 
     @property
     def routines(self):
@@ -78,13 +67,27 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
         return self._routines
 
+    @routines.setter
+    def routines(self, symbols):
+        '''
+        :raises TypeError: if `symbols` is not a list that consists only of
+                           RoutineSymbols.
+        '''
+        if not symbols:
+            raise ValueError("A GenericInterfaceSymbol requires a list of "
+                             "RoutineSymbols but none were provided.")
+        if not isinstance(symbols, list):
+            raise TypeError(f"A GenericInterfaceSymbol requires a list of "
+                            f"RoutineSymbols but got: '{symbols}'")
+        if not all(isinstance(item, RoutineSymbol) for item in symbols):
+            raise TypeError(
+                f"A GenericInterfaceSymbol requires a list of RoutineSymbols "
+                f"but got: {[type(rt).__name__ for rt in symbols]}")
+        self._routines = symbols
+
     def __str__(self):
-        is_pure = "unknown" if self.is_pure is None else f"{self.is_pure}"
-        is_elemental = ("unknown" if self.is_elemental is None
-                        else f"{self.is_elemental}")
         return (f"{self.name}: {type(self).__name__}<{self.datatype}, "
-                f"pure={is_pure}, elemental={is_elemental}, "
-                f"routines={self.routines}>")
+                f"routines={[rt.name for rt in self.routines]}>")
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the

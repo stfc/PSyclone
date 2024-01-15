@@ -540,7 +540,7 @@ class FortranWriter(LanguageWriter):
 
         if isinstance(symbol, GenericInterfaceSymbol):
             decln = f"{self._nindent}interface {symbol.name}\n"
-            routines = ", ".join(symbol.routines)
+            routines = ", ".join([rsym.name for rsym in symbol.routines])
             self._depth += 1
             decln += f"{self._nindent}procedure :: {routines}\n"
             self._depth -= 1

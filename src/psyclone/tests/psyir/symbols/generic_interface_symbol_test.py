@@ -49,19 +49,19 @@ def test_gis_constructor():
     '''
     with pytest.raises(ValueError) as err:
         _ = GenericInterfaceSymbol("beech", [])
-    assert ("A GenericInterfaceSymbol requires a list of Routine names but "
+    assert ("A GenericInterfaceSymbol requires a list of RoutineSymbols but "
             "none were provided." in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = GenericInterfaceSymbol("oak", "sycamore")
-    assert ("requires a list of Routine names but got: 'sycamore'"
+    assert ("requires a list of RoutineSymbols but got: 'sycamore'"
             in str(err.value))
     acorn = RoutineSymbol("acorn")
     with pytest.raises(TypeError) as err:
         _ = GenericInterfaceSymbol("oak", [acorn, "sycamore"])
-    assert ("of Routine names as strings but got: ['RoutineSymbol', 'str']" in
+    assert ("of RoutineSymbols but got: ['RoutineSymbol', 'str']" in
             str(err.value))
-    oak = GenericInterfaceSymbol("oak", ["acorn"])
-    assert oak.routines == ["acorn"]
+    oak = GenericInterfaceSymbol("oak", [acorn])
+    assert oak.routines == [acorn]
 
 
 def test_gis_typedsymbol_keywords():
@@ -69,7 +69,8 @@ def test_gis_typedsymbol_keywords():
     Test that keyword arguments to the constructor are passed through to the
     TypedSymbol constructor.
     '''
-    walnut = GenericInterfaceSymbol("walnut", ["nut"], datatype=INTEGER_TYPE)
+    walnut = GenericInterfaceSymbol("walnut", [RoutineSymbol("nut")],
+                                    datatype=INTEGER_TYPE)
     assert walnut.datatype == INTEGER_TYPE
 
 
@@ -77,9 +78,10 @@ def test_gis_str():
     '''
     Test the __str__ method of GenericInterfaceSymbol.
     '''
-    coppice = GenericInterfaceSymbol("coppice", ["ash", "holly"])
+    ash = RoutineSymbol("ash")
+    holly = RoutineSymbol("holly")
+    coppice = GenericInterfaceSymbol("coppice", [ash, holly])
     assert str(coppice) == ("coppice: GenericInterfaceSymbol<NoType, "
-                            "pure=unknown, elemental=unknown, "
                             "routines=['ash', 'holly']>")
 
 
@@ -87,10 +89,12 @@ def test_gis_copy():
     '''
     Test the copy() method of GenericInterfaceSymbol.
     '''
-    coppice = GenericInterfaceSymbol("coppice", ["ash", "holly"])
+    ash = RoutineSymbol("ash")
+    holly = RoutineSymbol("holly")
+    coppice = GenericInterfaceSymbol("coppice", [ash, holly])
     spinney = coppice.copy()
     assert isinstance(spinney, GenericInterfaceSymbol)
     assert spinney is not coppice
     assert len(spinney.routines) == 2
-    assert "ash" in spinney.routines
-    assert "holly" in spinney.routines
+    assert ash in spinney.routines
+    assert holly in spinney.routines

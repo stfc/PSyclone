@@ -2374,7 +2374,7 @@ class Fparser2Reader():
             rsymbols = []
             for proc_stmt in proc_stmts:
                 for routine_name in proc_stmt.children[0].children:
-                    rsymbols.append(routine_name.string)
+                    rsymbols.append(symbol_table.lookup(routine_name.string))
             try:
                 if rsymbols:
                     # A named interface block corresponds to a

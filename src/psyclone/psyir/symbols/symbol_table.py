@@ -44,11 +44,13 @@
 from collections import OrderedDict
 import inspect
 import copy
+
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
-    Symbol, DataSymbol, ImportInterface, ContainerSymbol, DataTypeSymbol,
-    RoutineSymbol, SymbolError, UnresolvedInterface)
+    DataSymbol, ImportInterface, ContainerSymbol, DataTypeSymbol,
+    GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError,
+    UnresolvedInterface)
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -287,6 +289,16 @@ class SymbolTable():
             new_container = new_st.lookup(name)
             symbol.interface = ImportInterface(new_container,
                                                orig_name=orig_name)
+
+        # Fix the references to RoutineSymbols within any
+        # GenericInterfaceSymbols.
+        for symbol in new_st.symbols:
+            if not isinstance(symbol, GenericInterfaceSymbol):
+                continue
+            new_syms = []
+            for rsym in symbol.routines:
+                new_syms.append(new_st.lookup(rsym.name))
+            symbol.routines = new_syms
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
