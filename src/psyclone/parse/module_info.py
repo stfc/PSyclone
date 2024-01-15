@@ -191,6 +191,8 @@ class ModuleInfo:
             # First collect information about all subroutines/functions.
             # Store information about generic interface to be handled later
             # (so we only walk the tree once):
+            # TODO #2478: once generic interfaces are supported, use PSyIR
+            # instead of fparser here.
             all_generic_interfaces = []
             for routine in walk(self._parse_tree, (Function_Subprogram,
                                                    Subroutine_Subprogram,
