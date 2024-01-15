@@ -554,6 +554,10 @@ def test_array_datatype():
     assert isinstance(upper, BinaryOperation)
     # But we don't know the type of the array elements.
     assert isinstance(aref3.datatype.intrinsic, DeferredType)
+    # A whole array of UnknownType should simply have the same datatype as
+    # the original symbol.
+    aref4 = ArrayReference.create(not_quite_unknown_sym, [":"])
+    assert aref4.datatype == not_quite_unknown_sym.datatype
 
 
 def test_array_create_colon(fortran_writer):
