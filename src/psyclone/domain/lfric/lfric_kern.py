@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -157,8 +157,8 @@ class LFRicKern(CodedKern):
         which is created by the parser. The object includes the
         metadata describing the kernel code.
 
-        :param ktype: the kernel meta-data object produced by the parser
-        :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+        :param ktype: the kernel metadata object produced by the parser
+        :type ktype: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
 
         :raises InternalError: for an invalid data type of a scalar argument.
         :raises GenerationError: if an invalid argument type is found \
@@ -222,8 +222,8 @@ class LFRicKern(CodedKern):
         Initialisation of the basis/diff basis information. This may be
         needed before general setup so is computed in a separate method.
 
-        :param kmetadata: The kernel meta-data object produced by the parser.
-        :type kmetadata: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+        :param kmetadata: The kernel metadata object produced by the parser.
+        :type kmetadata: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
         '''
         for descriptor in kmetadata.func_descriptors:
             if len(descriptor.operator_names) > 0:
@@ -237,7 +237,7 @@ class LFRicKern(CodedKern):
 
         :param ktype: object holding information on the parsed metadata for \
                       this kernel.
-        :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
+        :type ktype: :py:class:`psyclone.domain.lfric.LFRicKernMetadata`
         :param str module_name: the name of the Fortran module that contains \
                                 the source of this Kernel.
         :param args: list of Arg objects produced by the parser for the \
@@ -268,11 +268,11 @@ class LFRicKern(CodedKern):
             self._base_name = self.name
         self._func_descriptors = ktype.func_descriptors
         # Keep a record of the type of CMA kernel identified when
-        # parsing the kernel meta-data
+        # parsing the kernel metadata
         self._cma_operation = ktype.cma_operation
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
 
-        # Record whether or not the kernel meta-data specifies that this
+        # Record whether or not the kernel metadata specifies that this
         # is an inter-grid kernel
         self._is_intergrid = ktype.is_intergrid
 
@@ -609,13 +609,13 @@ class LFRicKern(CodedKern):
         # Add all the declarations
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicScalarArgs
+        from psyclone.domain.lfric import LFRicScalarArgs, LFRicFields
         from psyclone.dynamo0p3 import (DynCellIterators, DynDofmaps,
                                         DynFunctionSpaces, DynCMAOperators,
                                         DynBoundaryConditions,
                                         DynLMAOperators, LFRicMeshProperties,
-                                        DynBasisFunctions, LFRicFields,
-                                        DynReferenceElement, DynStencils)
+                                        DynBasisFunctions, DynStencils,
+                                        DynReferenceElement)
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
@@ -712,7 +712,7 @@ class LFRicKern(CodedKern):
 
         parent.add(CommentGen(parent, ""))
 
-        super(LFRicKern, self).gen_code(parent)
+        super().gen_code(parent)
 
     def get_kernel_schedule(self):
         '''Returns a PSyIR Schedule representing the kernel code. The base

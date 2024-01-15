@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2020-2023, Science and Technology Facilities Council.
+   Copyright (c) 2020-2024, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,54 @@ symbol has not yet been resolved. Since ``UnknownType`` captures the
 original, unsupported symbol declaration, it is subclassed for each
 language for which a PSyIR frontend exists. Currently therefore this
 is limited to ``UnknownFortranType``.
+
+The support for Fortran declaration constructs in the ``fparser2``
+frontend is summarised in the following table (any attributes not
+explicitly listed may be assumed to be unsupported):
+
+.. tabularcolumns:: |l|L|L|
+
++----------------------+--------------------+--------------------+
+|                      |Supported           |Unsupported         |
++======================+====================+====================+
+|Variables             |ALLOCATABLE         |CLASS               |
++----------------------+--------------------+--------------------+
+|                      |CHARACTER, DOUBLE   |COMPLEX, CHARACTER  |
+|                      |PRECISION, INTEGER, |with LEN or KIND    |
+|                      |LOGICAL, REAL       |                    |
++----------------------+--------------------+--------------------+
+|                      |Derived Types       |'extends',          |
+|                      |                    |'abstract' or with  |
+|                      |                    |CONTAINS; Operator  |
+|                      |                    |overloading         |
++----------------------+--------------------+--------------------+
+|                      |DIMENSION           |Array extents       |
+|                      |                    |specified using     |
+|                      |                    |expressions;        |
+|                      |                    |Assumed-size arrays |
++----------------------+--------------------+--------------------+
+|                      |Initialisation      |                    |
+|                      |expressions         |                    |
++----------------------+--------------------+--------------------+
+|                      |INTENT, PARAMETER,  |VOLATILE, VALUE,    |
+|                      |SAVE                |POINTER             |
++----------------------+--------------------+--------------------+
+|                      |KIND=param, REAL*8  |                    |
+|                      |etc.                |                    |
++----------------------+--------------------+--------------------+
+|                      |PUBLIC, PRIVATE     |                    |
++----------------------+--------------------+--------------------+
+|Imports/globals       |USE with ONLY and   |User-defined        |
+|                      |renaming            |operators           |
+|                      |                    |                    |
++----------------------+--------------------+--------------------+
+|                      |Common blocks       |                    |
+|                      |(limited)           |                    |
++----------------------+--------------------+--------------------+
+|Routine Interfaces    |PURE, IMPURE,       |CONTAINS            |
+|                      |ELEMENTAL, PUBLIC,  |                    |
+|                      |PRIVATE             |                    |
++----------------------+--------------------+--------------------+
 
 .. warning:: Checking for equality between Type objects is currently
 	     only implemented for ``ScalarType``. This will be
