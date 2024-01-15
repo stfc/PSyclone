@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -90,7 +90,7 @@ def test_module_info_get_psyir():
     mod_man.add_search_path("d2")
     mod_info = mod_man.get_module_info("g_mod")
 
-    psyir = mod_info.get_psyir("myfunc1")
+    psyir = mod_info.get_psyir().get_routine_psyir("myfunc1")
     assert psyir.name == "myfunc1"
 
     psyir = mod_info.get_psyir()
@@ -293,22 +293,3 @@ def test_module_info_extract_import_information_error():
     # trying to parse them again later
     assert mod_info._used_modules == set()
     assert mod_info._used_symbols_from_module == {}
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
-def test_module_info_get_symbol():
-    '''Test the get_symbol.
-    '''
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path("d2")
-    mod_info = mod_man.get_module_info("g_mod")
-    assert mod_info.name == "g_mod"
-
-    symbol = mod_info.get_symbol("myfunc1")
-    assert symbol.name == "myfunc1"
-
-    mod_info = mod_man.get_module_info("error_mod")
-    assert mod_info.name == "error_mod"
-    mod_info.get_symbol("myfunc1")
