@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
-                                   LFRicKern, LFRicLoop)
-from psyclone.dynamo0p3 import DynKernMetadata
+                                   LFRicKern, LFRicKernMetadata, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -993,7 +992,7 @@ contains
   end subroutine testkern_code
 end module testkern_mod
 ''', ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_type")
     kern = LFRicKern()
     kern.load_meta(dkm)
     with pytest.raises(GenerationError) as err:

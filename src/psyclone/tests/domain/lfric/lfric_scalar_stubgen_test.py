@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,6 @@
 #          I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office;
 #          C. M. Maynard, Met Office/University of Reading;
 #          J. Henrichs, Bureau of Meteorology.
-# Modified by: L. Turner, Met Office
 
 '''
 Module containing pytest tests for kernel stub code generation for the
@@ -48,8 +47,7 @@ import pytest
 
 from fparser import api as fpapi
 from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
-                                   LFRicScalarArgs)
-from psyclone.dynamo0p3 import DynKernMetadata
+                                   LFRicKernMetadata, LFRicScalarArgs)
 from psyclone.f2pygen import ModuleGen
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
@@ -72,7 +70,7 @@ def test_lfricscalars_stub_err():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type

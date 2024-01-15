@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023 Science and Technology Facilities Council.
+# Copyright (c) 2019-2024 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic and L.Turner, Met Office
+# Modified I. Kavcic and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for LMA operators in the LFRic (Dynamo 0.3)
@@ -48,9 +48,9 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicKern, LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import (DynFuncDescriptor03, DynKernMetadata,
-                                FunctionSpace)
+from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
+                                   LFRicKern, LFRicKernMetadata)
+from psyclone.dynamo0p3 import DynFuncDescriptor03, FunctionSpace
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -117,7 +117,7 @@ def test_ad_op_type_invalid_data_type():
     name = "testkern_qr_type"
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             f"be a valid data type (one of {const.VALID_SCALAR_DATA_TYPES}), "
             f"but found 'gh_clear' in 'arg_type(gh_operator, gh_clear, "
@@ -133,7 +133,7 @@ def test_ad_op_type_too_few_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     const = LFRicConstants()
     assert (f"'meta_arg' entry must have 5 arguments if its first "
             f"argument is an operator (one of {const.VALID_OPERATOR_NAMES})"
@@ -149,7 +149,7 @@ def test_ad_op_type_too_many_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert "'meta_arg' entry must have 5 arguments" in str(excinfo.value)
 
 
@@ -162,7 +162,7 @@ def test_ad_op_type_4th_arg_not_space():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("LFRic API argument 4 of a 'meta_arg' operator entry "
             "must be a valid function-space name" in str(excinfo.value))
 
@@ -176,7 +176,7 @@ def test_ad_op_type_5th_arg_not_space():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("LFRic API argument 5 of a 'meta_arg' operator entry "
             "must be a valid function-space name" in str(excinfo.value))
 
@@ -190,7 +190,7 @@ def test_no_vector_operator():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("vector notation is only supported for ['gh_field'] "
             "argument types but found 'gh_operator * 3'" in
             str(excinfo.value))
@@ -201,7 +201,7 @@ def test_ad_op_type_init_wrong_argument_type():
     is passed to the LFRicArgDescriptor._init_operator() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     # Get an argument which is not an operator
     wrong_arg = metadata._inits[1]
     with pytest.raises(InternalError) as excinfo:
@@ -216,7 +216,7 @@ def test_ad_op_type_init_wrong_data_type():
     is passed to the LFRicArgDescriptor._init_operator() method. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     # Get an operator argument descriptor and set a wrong data type
     op_arg = metadata._inits[3]
     op_arg.args[1].name = "gh_integer"
@@ -238,7 +238,7 @@ def test_ad_op_type_wrong_access():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("In the LFRic API, allowed accesses for operators are "
             "['gh_read', 'gh_write', 'gh_readwrite'] because they behave "
             "as discontinuous quantities, but found 'gh_inc'" in
@@ -255,7 +255,7 @@ def test_ad_op_invalid_field_data_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("In the LFRic API a kernel that has an LMA operator argument "
             "must only have field arguments with 'gh_real' data type but "
             "kernel 'testkern_qr_type' has a field argument with "
@@ -267,7 +267,7 @@ def test_arg_descriptor_op():
     as expected when we have an operator. '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     operator_descriptor = metadata.arg_descriptors[3]
 
     # Assert correct string representation from LFRicArgDescriptor
@@ -301,7 +301,7 @@ def test_fs_descriptor_wrong_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("'meta_funcs' metadata must consist of an array of structure "
             "constructors, all of type 'func_type'" in str(excinfo.value))
     # Check that the DynFuncDescriptor03 rejects it too
@@ -323,7 +323,7 @@ def test_fs_descriptor_too_few_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert 'meta_func entry must have at least 2 args' in str(excinfo.value)
 
 
@@ -334,7 +334,7 @@ def test_fs_desc_invalid_fs_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert '1st argument of a meta_func entry should be a valid function ' + \
         'space name' in str(excinfo.value)
 
@@ -346,8 +346,8 @@ def test_fs_desc_replicated_fs_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert 'function spaces specified in meta_funcs must be unique' \
+        _ = LFRicKernMetadata(ast, name=name)
+    assert "function spaces specified in 'meta_funcs' must be unique" \
         in str(excinfo.value)
 
 
@@ -358,7 +358,7 @@ def test_fs_desc_invalid_op_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert '2nd argument and all subsequent arguments of a meta_func ' + \
         'entry should be one of' in str(excinfo.value)
 
@@ -371,7 +371,7 @@ def test_fs_desc_replicated_op_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert 'error to specify an operator name more than once' \
         in str(excinfo.value)
 
@@ -383,9 +383,9 @@ def test_fsdesc_fs_not_in_argdesc():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert 'function spaces specified in meta_funcs must exist in ' + \
-        'meta_args' in str(excinfo.value)
+        _ = LFRicKernMetadata(ast, name=name)
+    assert "function spaces specified in 'meta_funcs' must exist in " + \
+        "'meta_args'" in str(excinfo.value)
 
 
 def test_invoke_uniq_declns_valid_access_op():
@@ -439,7 +439,7 @@ def test_operator_arg_lfricconst_properties(monkeypatch):
     '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
 
@@ -893,7 +893,7 @@ def test_operators():
 
     '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
@@ -985,7 +985,7 @@ def test_stub_operator_different_spaces():
     '''
     # Check the original code (to- and from- spaces both continuous)
     ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
@@ -996,7 +996,7 @@ def test_stub_operator_different_spaces():
         "(gh_operator, gh_real, gh_write, w0, w1)",
         "(gh_operator, gh_real, gh_write, w3, any_discontinuous_space_2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)

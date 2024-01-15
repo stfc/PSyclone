@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,8 +47,8 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicConstants, LFRicKern, LFRicFields
-from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
+                                   LFRicFields, LFRicKernMetadata)
 from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.errors import InternalError
 
@@ -97,7 +97,7 @@ def test_lfricfields_stub_err():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Create an empty Kernel stub module and subroutine objects
@@ -152,7 +152,7 @@ def test_int_field_gen_stub():
 
     '''
     ast = fpapi.parse(INTEGER_FIELD_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
@@ -216,7 +216,7 @@ def test_int_field_all_stencils_gen_stub():
     ast = fpapi.parse(
         os.path.join(BASE_PATH, "testkern_stencil_multi_int_field_mod.f90"),
         ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
@@ -281,7 +281,7 @@ def test_real_int_field_gen_stub():
         "func_type(w1, gh_basis),",
         "func_type(w1, gh_basis, gh_diff_basis),", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
