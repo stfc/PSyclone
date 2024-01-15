@@ -350,7 +350,10 @@ class ModuleInfo:
                 module = Container("invalid-module")
                 self._psyir.children.append(module)
 
-        return self._psyir
+        # TODO #2462: needs to be fixed to properly support multiple modules
+        # in one file
+        # Return the actual module Container (not the FileContainer)
+        return self._psyir.children[0]
 
     # ------------------------------------------------------------------------
     def resolve_routine(self, routine_name):

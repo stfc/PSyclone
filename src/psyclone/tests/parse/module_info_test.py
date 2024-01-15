@@ -190,10 +190,10 @@ def test_mod_info_get_psyir():
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
     assert mod_info._psyir is None
     psyir = mod_info.get_psyir()
-    assert isinstance(psyir, FileContainer)
-    assert psyir.children[0].name == "testkern_import_symbols_mod"
+    assert isinstance(psyir, Container)
+    assert psyir.name == "testkern_import_symbols_mod"
     # Make sure the PSyIR is cached:
-    assert mod_info._psyir is psyir
+    assert mod_info._psyir.children[0] is psyir
     # Test that we get the cached value (and not a new instance)
     psyir_cached = mod_info.get_psyir()
     assert psyir_cached is psyir
@@ -206,12 +206,11 @@ def test_mod_info_get_psyir():
     broken_builtins = mod_man.get_module_info("broken_builtins_mod")
     broken_builtins_psyir = broken_builtins.get_psyir()
 
-    # We should still get an empty FileContainer with a dummy Container:
-    assert isinstance(broken_builtins_psyir, FileContainer)
-    assert broken_builtins_psyir.name == "broken_builtins_mod.f90"
-    assert len(broken_builtins_psyir.children) == 1
-    assert isinstance(broken_builtins_psyir.children[0], Container)
-    assert broken_builtins_psyir.children[0].name == "invalid-module"
+    # We should still get an empty Container with a dummy Container:
+    assert isinstance(broken_builtins_psyir, Container)
+    assert broken_builtins_psyir.name == "invalid-module"
+    assert isinstance(broken_builtins_psyir.parent, FileContainer)
+    assert broken_builtins_psyir.parent.name == "broken_builtins_mod.f90"
 
 
 # -----------------------------------------------------------------------------

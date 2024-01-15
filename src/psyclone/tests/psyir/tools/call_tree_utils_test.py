@@ -194,10 +194,9 @@ def test_call_tree_get_used_symbols_from_modules():
     ref = psyir.walk(Reference)[0]
     # Change the name of the symbol so that it is not in the symbol table:
     ref.symbol._name = "not-in-any-symbol-table"
-    psyir = \
-        mod_info.get_psyir().get_routine_psyir("testkern_import_symbols_code")
-    info = ctu._compute_all_non_locals(ref)
-    assert info == []
+    # Just pass in the Reference, otherwise we would get additional output
+    # (as above):
+    assert ctu._compute_all_non_locals(ref) == []
 
 
 # -----------------------------------------------------------------------------
