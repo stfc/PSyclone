@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,11 +47,11 @@ from psyclone.psyir.nodes.statement import Statement
 class GlobalReduction(Statement):
     '''
     Generic Global Reduction class which can be added to and manipulated
-    in, a schedule.
+    in a schedule.
 
-    :param scalar: the scalar that the global reduction is stored into
+    :param scalar: the scalar that the global reduction is stored into.
     :type scalar: :py:class:`psyclone.psyGen.KernelArgument`
-    :param parent: optional parent (default None) of this object
+    :param parent: optional parent (default None) of this object.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
@@ -122,7 +122,7 @@ class GlobalReduction(Statement):
         '''
         Initialise all reduction variables associated with the calls in the call
         list.
-        :param red_call_list: list of kernel calls that contain \
+        :param red_call_list: list of kernel calls that contain
                               a reduction variable.
         :type red_call_list: list of `psyGen.Kern`
         :param parent: the node in the f2pygen AST to which to add content.
@@ -139,7 +139,7 @@ class GlobalReduction(Statement):
             parent.add(CommentGen(parent, " Initialise reduction variables"))
             parent.add(CommentGen(parent, ""))
             for call in red_call_list:
-                call.zero_reduction_variable(parent)
+                call.initialise_reduction_variable(parent)
             parent.add(CommentGen(parent, ""))
 
 # For AutoAPI documentation generation

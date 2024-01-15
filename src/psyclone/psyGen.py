@@ -1092,7 +1092,7 @@ class Kern(Statement):
         # with the PSy-layer generation or relevant transformation.
         return "l_" + self.reduction_arg.name
 
-    def zero_reduction_variable(self, parent, position=None):
+    def initialise_reduction_variable(self, parent, position=None):
         '''
         Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
@@ -1122,7 +1122,7 @@ class Kern(Statement):
         # Check for a non-scalar argument
         if not var_arg.is_scalar:
             raise GenerationError(
-                f"Kern.zero_reduction_variable() should be a scalar but "
+                f"Kern.initialise_reduction_variable() should be a scalar but "
                 f"found '{var_arg.argument_type}'.")
         # Generate the reduction variable
         var_data_type = var_arg.intrinsic_type
@@ -1132,7 +1132,7 @@ class Kern(Statement):
             data_value = "0"
         else:
             raise GenerationError(
-                f"Kern.zero_reduction_variable() should be either a 'real' or "
+                f"Kern.initialise_reduction_variable() should be either a 'real' or "
                 f"an 'integer' scalar but found scalar of type "
                 f"'{var_arg.intrinsic_type}'.")
         # Retrieve the precision information (if set) and append it

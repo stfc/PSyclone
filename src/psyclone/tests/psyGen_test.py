@@ -960,7 +960,7 @@ def test_args_filter2():
 
 
 def test_reduction_var_error(dist_mem):
-    ''' Check that we raise an exception if the zero_reduction_variable()
+    ''' Check that we raise an exception if the initialise_reduction_variable()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
@@ -971,13 +971,13 @@ def test_reduction_var_error(dist_mem):
     # args[1] is of type gh_field
     call._reduction_arg = call.arguments.args[1]
     with pytest.raises(GenerationError) as err:
-        call.zero_reduction_variable(None)
-    assert ("Kern.zero_reduction_variable() should be a scalar but "
+        call.initialise_reduction_variable(None)
+    assert ("Kern.initialise_reduction_variable() should be a scalar but "
             "found 'gh_field'." in str(err.value))
 
 
 def test_reduction_var_invalid_scalar_error(dist_mem):
-    ''' Check that we raise an exception if the zero_reduction_variable()
+    ''' Check that we raise an exception if the initialise_reduction_variable()
     method is provided with an incorrect intrinsic type of scalar
     argument (other than 'real' or 'integer').
 
@@ -992,8 +992,8 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     # args[5] is a scalar of data type gh_logical
     call._reduction_arg = call.arguments.args[5]
     with pytest.raises(GenerationError) as err:
-        call.zero_reduction_variable(None)
-    assert ("Kern.zero_reduction_variable() should be either a 'real' "
+        call.initialise_reduction_variable(None)
+    assert ("Kern.initialise_reduction_variable() should be either a 'real' "
             "or an 'integer' scalar but found scalar of type 'logical'."
             in str(err.value))
 
@@ -1037,7 +1037,7 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
 
 
 def test_reduction_no_set_precision(dist_mem):
-    '''Test that the zero_reduction_variable() method generates correct
+    '''Test that the initialise_reduction_variable() method generates correct
     code when a reduction argument does not have a defined
     precision. Only a zero value (without precision i.e. 0.0 not
     0.0_r_def) is generated in this case.
@@ -1074,7 +1074,7 @@ def test_reduction_no_set_precision(dist_mem):
     assert zero_sum_decls in generated_code
 
     zero_sum_output = (
-        "      ! Zero summation variables\n"
+        "      ! Initialise reduction variables\n"
         "      !\n"
         "      asum = 0.0\n")
     assert zero_sum_output in generated_code

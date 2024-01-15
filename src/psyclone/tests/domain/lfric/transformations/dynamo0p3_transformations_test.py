@@ -1951,7 +1951,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         assert (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -1964,7 +1964,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
             "      !\n"
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -1989,7 +1989,7 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2039,7 +2039,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
         expected_output = (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2069,7 +2069,7 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
         assert "loop0_stop = undf_aspc1_f1" in result
         assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2123,7 +2123,7 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
                     in result)
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -2163,7 +2163,7 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
         assert "loop0_stop = undf_aspc1_f1" in result
         assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -2223,7 +2223,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()\n" in result
         expected_output = (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      bsum = 0.0_r_def\n"
@@ -2248,7 +2248,7 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
         assert "loop0_stop = undf_aspc1_f1" in result
         assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      bsum = 0.0_r_def\n"
@@ -2299,7 +2299,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in result
         expected_output = (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -2341,7 +2341,7 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
         assert "loop0_stop = undf_aspc1_f1" in result
         assert "loop1_stop = undf_aspc1_f1" in result
         expected_output = (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -2455,7 +2455,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert "loop1_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2468,7 +2468,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
             "      !\n"
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      bsum = 0.0_r_def\n"
             "      !\n"
@@ -2484,7 +2484,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
         assert "loop0_stop = undf_aspc1_f1" in code
         assert "loop1_stop = undf_aspc1_f1" in code
         assert (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2495,7 +2495,7 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      bsum = 0.0_r_def\n"
             "      !\n"
@@ -2537,7 +2537,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
         code = (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2565,7 +2565,7 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
         assert "loop0_stop = undf_aspc1_f1" in result
         assert "loop1_stop = undf_aspc1_f1" in result
         assert (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2619,7 +2619,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             assert ("loop1_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
         code = (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2652,7 +2652,7 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
         assert "loop0_stop = undf_aspc1_f1" in result
         assert "loop1_stop = undf_aspc1_f1" in result
         assert (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2709,7 +2709,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in
                     result)
             code = (
-                "      ! Zero summation variables\n"
+                "      ! Initialise reduction variables\n"
                 "      !\n"
                 "      asum = 0.0_r_def\n"
                 "      !\n"
@@ -2733,7 +2733,7 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
         else:  # not distmem. annexed can be True or False
             assert "loop0_stop = undf_aspc1_f1" in result
             code = (
-                "      ! Zero summation variables\n"
+                "      ! Initialise reduction variables\n"
                 "      !\n"
                 "      asum = 0.0_r_def\n"
                 "      !\n"
@@ -2873,7 +2873,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
             "      !\n"
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2897,7 +2897,7 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      END DO\n"
             "      !$omp end parallel do\n"
             "      !\n"
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
@@ -2941,7 +2941,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
             code = (
-                "      ! Zero summation variables\n"
+                "      ! Initialise reduction variables\n"
                 "      !\n"
                 "      asum = 0.0_r_def\n"
                 "      !\n"
@@ -2965,7 +2965,7 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
         else:  # not distmem. annexed can be True or False
             assert "loop0_stop = undf_aspc1_f1" in result
             code = (
-                "      ! Zero summation variables\n"
+                "      ! Initialise reduction variables\n"
                 "      !\n"
                 "      asum = 0.0_r_def\n"
                 "      !\n"
@@ -3132,7 +3132,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
     if dist_mem:
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in code
         assert (
-            "      ! Zero summation variables\n"
+            "      ! Initialise reduction variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      ALLOCATE (l_asum(8,nthreads))\n"
