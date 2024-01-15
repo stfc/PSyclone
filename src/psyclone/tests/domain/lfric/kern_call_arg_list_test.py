@@ -38,8 +38,8 @@
 ''' This module tests the LFric KernCallArg class.'''
 
 import os
-import pytest
 import re
+import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import (KernCallArgList, LFRicSymbolTable,
@@ -65,14 +65,13 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     :param create_arg_list: a KernCallArgList instance.
     :type create_arg_list: :py:class:`psyclone.domain.lfric.KernCallArgList`
     :param fortran_writer: a FortranWriter instance.
-    :type fortran_writer: \
+    :type fortran_writer:
         :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
-    :param valid_classes: a tuple of classes that are expected in the PSyIR \
+    :param valid_classes: a tuple of classes that are expected in the PSyIR
         argument list. Defaults to `(Reference)`.
     :type valid_classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
 
     '''
-
     if not valid_classes:
         valid_classes = Reference
 
@@ -81,9 +80,9 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     for node in create_arg_list.psyir_arglist:
         assert isinstance(node, valid_classes)
         out = fortran_writer(node)
-        # We're comparing old and new here and only the new way supports
-        # the addition of array-slice notation (e.g. 'array(:)'). Therefore,
-        # we remove it before comparing.
+        # We're comparing old (textual) and new (PSyIR) approaches here and
+        # only the new, PSyIR approach supports the addition of array-slice
+        # notation (e.g. 'array(:)'). Therefore, we remove it before comparing.
         result.append(re.sub(r"[(]\s*:(,\s*:)*\s*[)]$", "", out))
 
     assert result == create_arg_list._arglist

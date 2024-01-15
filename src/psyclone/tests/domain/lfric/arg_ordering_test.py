@@ -38,8 +38,8 @@
 ''' This module tests the LFric classes based on ArgOrdering.'''
 
 import os
-import pytest
 import re
+import pytest
 
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
@@ -71,9 +71,9 @@ def check_psyir_results(create_arg_list, fortran_writer):
     for node in create_arg_list.psyir_arglist:
         assert isinstance(node, Reference)
         out = fortran_writer(node)
-        # We're comparing old and new here and only the new way supports
-        # the addition of array-slice notation (e.g. 'array(:)'). Therefore,
-        # we remove it before comparing.
+        # We're comparing old and new (textual versus PSyIR) here and only
+        # the new, PSyIR approach supports the addition of array-slice notation
+        # (e.g. 'array(:)'). Therefore, we remove it before comparing.
         result.append(re.sub(r"[(]\s*:(,\s*:)*\s*[)]$", "", out))
 
     assert result == create_arg_list._arglist

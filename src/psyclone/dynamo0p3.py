@@ -2171,7 +2171,7 @@ class DynProxies(LFRicCollection):
             # Create symbols that we will associate with the internal
             # data arrays of fields, field vectors and LMA operators.
             if arg.argument_type == "gh_columnwise_operator":
-                # CMA operators are handled by DynCMAOperators
+                # CMA operators are handled by the DynCMAOperators class.
                 continue
             ctable.add_lfric_precision_symbol(arg.precision)
             intrinsic_type = "integer" if arg in int_field_args else "real"
@@ -2673,6 +2673,7 @@ class DynCMAOperators(LFRicCollection):
             new_name = self._symbol_table.next_available_name(
                 f"{op_name}_{suffix}")
             tag = f"{op_name}:{suffix}"
+            arg = self._cma_ops[op_name]["arg"]
             precision = LFRicConstants().precision_for_type(arg.data_type)
             array_type = ArrayType(
                 LFRicTypes("LFRicRealScalarDataType")(precision),
