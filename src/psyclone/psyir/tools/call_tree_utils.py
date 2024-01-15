@@ -402,7 +402,7 @@ class CallTreeUtils():
                 # but if a module cannot be parsed and get_symbol it will
                 # return None)
                 sym_tab = \
-                    mod_info.get_psyir().children[0].symbol_table
+                    mod_info.get_psyir().symbol_table
                 try:
                     sym = sym_tab.lookup(signature[0])
                     if sym.is_constant:

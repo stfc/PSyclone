@@ -389,7 +389,7 @@ class LFRicExtractDriverCreator:
             # its type. And since they are not imported, they need to be
             # explicitly declared.
             mod_info = mod_man.get_module_info(module_name)
-            sym_tab = mod_info.get_psyir().children[0].symbol_table
+            sym_tab = mod_info.get_psyir().symbol_table
             try:
                 container_symbol = sym_tab.lookup(signature[0])
             except KeyError:
@@ -597,7 +597,7 @@ class LFRicExtractDriverCreator:
             sig_str = self._flatten_signature(signature)
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
-                sym_tab = mod_info.get_psyir().children[0].symbol_table
+                sym_tab = mod_info.get_psyir().symbol_table
                 try:
                     orig_sym = sym_tab.lookup(signature[0])
                 except KeyError:
@@ -658,7 +658,7 @@ class LFRicExtractDriverCreator:
             # in the symbol table (in _add_all_kernel_symbols).
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
-                sym_tab = mod_info.get_psyir().children[0].symbol_table
+                sym_tab = mod_info.get_psyir().symbol_table
                 orig_sym = sym_tab.lookup(signature[0])
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
