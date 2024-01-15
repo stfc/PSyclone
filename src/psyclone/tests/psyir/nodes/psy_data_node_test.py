@@ -527,7 +527,7 @@ def test_psy_data_node_name_clash(fortran_writer):
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example the external
     module uses a variable with the same name as the user code, which causes
-    a name clash and must .
+    a name clash and must be renamed.
 
     '''
     api = "dynamo0.3"
