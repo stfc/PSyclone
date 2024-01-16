@@ -1050,6 +1050,25 @@ class SymbolTable():
                 f" {[sym.name for sym in self.symbols_imported_from(symbol)]} "
                 f"are imported from it - remove them first.")
 
+        if isinstance(symbol, RoutineSymbol):
+            # Check for Calls.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import Call
+            all_calls = self.node.walk(Call) if self.node else []
+            for call in all_calls:
+                if call.routine is symbol:
+                    raise ValueError(
+                        f"Cannot remove RoutineSymbol '{symbol.name}' "
+                        f"because it is referenced by '{call.debug_string()}'")
+            # Check for any references to it within interfaces.
+            for sym in self._symbols.values():
+                if isinstance(sym, GenericInterfaceSymbol):
+                    if symbol in sym.routines:
+                        raise ValueError(
+                            f"Cannot remove RoutineSymbol '{symbol.name}' "
+                            f"because it is referenced in interface "
+                            f"'{sym.name}'")
+
         # If the symbol had a tag, it should be disassociated
         for tag, tagged_symbol in list(self._tags.items()):
             if symbol is tagged_symbol:
