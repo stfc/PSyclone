@@ -369,9 +369,9 @@ def test_lfric_kern_cma_args():
 
     # Check the parameters that will change access type according to read or
     # write declaration of the argument:
-    assert (var_accesses_read[Signature("cma_op1_matrix")][0].access_type
+    assert (var_accesses_read[Signature("cma_op1_cma_matrix")][0].access_type
             == AccessType.READ)
-    assert (var_accesses_write[Signature("cma_op1_matrix")][0].access_type
+    assert (var_accesses_write[Signature("cma_op1_cma_matrix")][0].access_type
             == AccessType.WRITE)
 
     # All other parameters are read-only (e.g. sizes, ... - they will not
@@ -531,7 +531,7 @@ def test_lfric_cma():
     assert "cma_op1_beta: READ" in var_info
     assert "cma_op1_gamma_m: READ" in var_info
     assert "cma_op1_gamma_p: READ" in var_info
-    assert "cma_op1_matrix: WRITE" in var_info
+    assert "cma_op1_cma_matrix: WRITE" in var_info
     assert "cma_op1_ncol: READ" in var_info
     assert "cma_op1_nrow: READ," in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
