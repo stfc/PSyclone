@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ from fparser.two.parser import ParserFactory
 from fparser.two.utils import FortranSyntaxError, walk
 
 from psyclone.errors import InternalError, PSycloneError
-from psyclone.psyir.nodes import Container, FileContainer, Routine
+from psyclone.psyir.nodes import Container, FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import SymbolError
 
@@ -110,11 +110,6 @@ class ModuleInfo:
         # errors would cause routine_names to be empty, so we can test
         # if routine_name is None vs if routine_names is empty)
         self._routine_names = None
-
-        # This dictionary stores the mapping of routine name to the list
-        # of PSyIR Routine nodes. It is a list since in case of a generic
-        # interface several Routine nodes are required.
-        self._psyir_of_routines = None
 
         # This map contains the list of routine names that are part
         # of the same generic interface.
@@ -196,6 +191,8 @@ class ModuleInfo:
             # First collect information about all subroutines/functions.
             # Store information about generic interface to be handled later
             # (so we only walk the tree once):
+            # TODO #2478: once generic interfaces are supported, use PSyIR
+            # instead of fparser here.
             all_generic_interfaces = []
             for routine in walk(self._parse_tree, (Function_Subprogram,
                                                    Subroutine_Subprogram,
@@ -209,6 +206,8 @@ class ModuleInfo:
             # Then handle all generic interfaces and add them to
             # _generic_interfaces:
             for interface in all_generic_interfaces:
+                # TODO #2422 This code does not support all potential
+                # interface statements. After #2422 we can use PSyIR here.
                 # Get the name of the interface from the Interface_Stmt:
                 name = str(walk(interface, Interface_Stmt)[0].items[0]).lower()
                 self._routine_names.add(name)
@@ -231,6 +230,9 @@ class ModuleInfo:
         :rtype: bool
 
         '''
+        # TODO #2413 and TODO #2478: Once we parse everything to PSyIR (esp.
+        # generic interfaces), this routine can just be replaced with
+        # get_psyir().get_routine_psyir(routine_name)
         if self._routine_names is None:
             # This will trigger adding routine information
             try:
@@ -255,6 +257,10 @@ class ModuleInfo:
         try:
             parse_tree = self.get_parse_tree()
         except FortranSyntaxError:
+            # TODO #11: Add proper logging
+            # TODO #2120: Handle error
+            print(f"[ModuleInfo._extract_import_information] Syntax error "
+                  f"parsing '{self._filename} - ignored")
             # Hide syntax errors
             return
         for use in walk(parse_tree, Use_Stmt):
@@ -311,7 +317,7 @@ class ModuleInfo:
         return self._used_symbols_from_module
 
     # ------------------------------------------------------------------------
-    def get_psyir(self, routine_name=None):
+    def get_psyir(self):
         '''Returns the PSyIR representation of this module. This is based
         on the fparser tree (see get_parse_tree), and the information is
         cached. If the PSyIR must be modified, it needs to be copied,
@@ -335,20 +341,20 @@ class ModuleInfo:
                 self._psyir = \
                     self._processor.generate_psyir(self.get_parse_tree())
             except (KeyError, SymbolError, InternalError, FortranSyntaxError):
+                # TODO #11: Add proper logging
+                # TODO #2120: Handle error better. Long term we should not
+                # just ignore errors.
                 # Create a dummy FileContainer with a dummy module. This avoids
                 # additional error handling in other subroutines, since they
                 # will all return 'no information', whatever you ask for
                 self._psyir = FileContainer(os.path.basename(self._filename))
                 module = Container("invalid-module")
                 self._psyir.children.append(module)
-            # Store the PSyIR of all routines:
-            self._psyir_of_routines = {}
-            for routine in self._psyir.walk(Routine):
-                self._psyir_of_routines[routine.name.lower()] = routine
 
-        if routine_name is not None:
-            return self._psyir_of_routines[routine_name.lower()]
-        return self._psyir
+        # TODO #2462: needs to be fixed to properly support multiple modules
+        # in one file
+        # Return the actual module Container (not the FileContainer)
+        return self._psyir.children[0]
 
     # ------------------------------------------------------------------------
     def resolve_routine(self, routine_name):
@@ -365,7 +371,7 @@ class ModuleInfo:
         :rtype: List[str]
 
         '''
-        if self._psyir_of_routines is None:
+        if self._psyir is None:
             self.get_psyir()
         routine_name = routine_name.lower()
         if routine_name not in self._generic_interfaces:
@@ -374,23 +380,3 @@ class ModuleInfo:
         # If a generic interface name is queried, return a copy
         # of all possible routine names that might be called:
         return self._generic_interfaces[routine_name][:]
-
-    # ------------------------------------------------------------------------
-    def get_symbol(self, name):
-        '''Returns the symbol with the specified name from the module symbol
-        table.
-
-        :param str name: name of the symbol to look up.
-
-        :returns: the symbol with the give name, or None if the information
-            could not be found.
-        :rtype: Union[:py:class:`psyclone.psyir.symbols.Symbol`, NoneType]
-
-        '''
-        symbol_table = self.get_psyir().children[0].symbol_table
-
-        try:
-            return symbol_table.lookup(name)
-        except KeyError:
-            # Convert the exception to a None return value.
-            return None

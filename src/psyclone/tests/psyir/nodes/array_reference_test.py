@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -554,6 +554,10 @@ def test_array_datatype():
     assert isinstance(upper, BinaryOperation)
     # But we don't know the type of the array elements.
     assert isinstance(aref3.datatype.intrinsic, DeferredType)
+    # A whole array of UnknownType should simply have the same datatype as
+    # the original symbol.
+    aref4 = ArrayReference.create(not_quite_unknown_sym, [":"])
+    assert aref4.datatype == not_quite_unknown_sym.datatype
 
 
 def test_array_create_colon(fortran_writer):

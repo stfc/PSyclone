@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -392,8 +392,10 @@ class LFRicExtractDriverCreator:
             # its type. And since they are not imported, they need to be
             # explicitly declared.
             mod_info = mod_man.get_module_info(module_name)
-            container_symbol = mod_info.get_symbol(signature[0])
-            if not container_symbol:
+            sym_tab = mod_info.get_psyir().symbol_table
+            try:
+                container_symbol = sym_tab.lookup(signature[0])
+            except KeyError:
                 # TODO #2120: This typically indicates a problem with parsing
                 # a module: the psyir does not have the full tree structure.
                 continue
@@ -598,8 +600,10 @@ class LFRicExtractDriverCreator:
             sig_str = self._flatten_signature(signature)
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
-                orig_sym = mod_info.get_symbol(signature[0])
-                if not orig_sym:
+                sym_tab = mod_info.get_psyir().symbol_table
+                try:
+                    orig_sym = sym_tab.lookup(signature[0])
+                except KeyError:
                     # TODO 2120: We likely couldn't parse the module.
                     print(f"Index error finding '{sig_str}' in "
                           f"'{module_name}'.")
@@ -657,7 +661,8 @@ class LFRicExtractDriverCreator:
             # in the symbol table (in _add_all_kernel_symbols).
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
-                orig_sym = mod_info.get_symbol(signature[0])
+                sym_tab = mod_info.get_psyir().symbol_table
+                orig_sym = sym_tab.lookup(signature[0])
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
             is_input = read_write_info.is_read(signature)
