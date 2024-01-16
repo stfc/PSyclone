@@ -52,7 +52,8 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
+from psyclone.psyir.symbols import (
+    ContainerSymbol, GenericInterfaceSymbol, RoutineSymbol)
 from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
 
 
@@ -116,16 +117,34 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     # help fix this problem as it would only be arguments that would
     # need to have the same names.
 
+    ctr_table = ad_container.symbol_table
+    isymbols = []
+    interfaced_routines = dict()
+    for sym in ctr_table.symbols:
+        if isinstance(sym, GenericInterfaceSymbol):
+            isymbols.append(sym)
+            for isym in sym.routines:
+                interfaced_routines[isym] = sym
+
     for routine in routines:
 
         # We need to re-name the kernel routine.
-        kernel_sym = ad_container.symbol_table.lookup(routine.name)
+        kernel_sym = ctr_table.lookup(routine.name)
         adj_kernel_name = create_adjoint_name(routine.name)
         # A symbol's name is immutable so create a new RoutineSymbol
-        adj_kernel_sym = ad_container.symbol_table.new_symbol(
+        #new_name = ad_container.symbol_table.next_available_name(
+        #    adj_kernel_name)
+        #adj_kernel_sym = RoutineSymbol(new_name,
+        #                               visibility=kernel_sym.visibility)
+        adj_kernel_sym = ctr_table.new_symbol(
             adj_kernel_name, symbol_type=RoutineSymbol,
             visibility=kernel_sym.visibility)
+        if kernel_sym in interfaced_routines:
+            gsym = interfaced_routines[kernel_sym]
+            gsym.routines.remove(kernel_sym)
+            gsym.routines.append(adj_kernel_sym)
         ad_container.symbol_table.remove(kernel_sym)
+        #ad_container.symbol_table.add(adj_kernel_sym)
         routine.name = adj_kernel_sym.name
 
         logger.debug("AD LFRic kernel will be named '%s'", routine.name)
