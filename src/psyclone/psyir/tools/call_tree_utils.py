@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' This module provides tools analyse the sequence of calls
+''' This module provides tools to analyse the sequence of calls
 across different subroutines and modules.'''
 
 from psyclone.core import Signature, VariablesAccessInfo
@@ -48,7 +48,7 @@ from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 # pylint: disable=too-few-public-methods
 class CallTreeUtils():
-    '''This class provides functions functions to analyse the sequence of
+    '''This class provides functions to analyse the sequence of
     calls.
     '''
 
@@ -80,18 +80,17 @@ class CallTreeUtils():
         outer_module = routine.ancestor(Container)
 
         for access in routine.walk((Kern, Call, Reference)):
-            # Builtins are certainly not externals, so ignore them.
-            if isinstance(access, BuiltIn):
+            if isinstance(access, (BuiltIn, IntrinsicCall)):
+                # Builtins and Intrinsicsd are certainly not externals,
+                # so ignore them.
                 continue
 
             if isinstance(access, Kern):
                 # A kernel is a subroutine call from a module:
+                # TODO #2054: This will not be necessary anymore once
+                # a Kernel is also a Call.
                 non_locals.append(("routine", access.module_name,
                                    Signature(access.name)))
-                continue
-
-            if isinstance(access, IntrinsicCall):
-                # Intrinsic calls can be ignored
                 continue
 
             if isinstance(access, Call):
@@ -114,6 +113,7 @@ class CallTreeUtils():
                 non_locals.append(("routine", None, Signature(sym.name)))
                 continue
 
+            # Now access must be a Reference
             sym = access.symbol
             if isinstance(sym.interface, ArgumentInterface):
                 # Arguments are not external symbols and can be ignored
@@ -274,7 +274,6 @@ class CallTreeUtils():
         or written.
 
         '''
-
         # First collect all non-local symbols from the kernels called. They
         # are collected in the todo list. This list will initially contain
         # unknown accesses, since at this stage we cannot always differentiate
@@ -294,18 +293,22 @@ class CallTreeUtils():
                 try:
                     mod_info = mod_manager.get_module_info(kernel.module_name)
                 except FileNotFoundError:
-                    print(f"Could not find module '{kernel.module_name}' - "
+                    # TODO #11: Add proper logging
+                    # TODO #2120: Handle error
+                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
+                          f"Could not find module '{kernel.module_name}' - "
                           f"ignored.")
                     continue
 
                 all_possible_routines = mod_info.resolve_routine(kernel.name)
                 for routine_name in all_possible_routines:
-                    psyir = mod_info.get_psyir(routine_name)
+                    psyir = \
+                        mod_info.get_psyir().get_routine_psyir(routine_name)
                     todo.extend(self.get_non_local_symbols(psyir))
-        return self._resolve_calls_and_unknowns(todo, read_write_info)
+        return self._outstanding_nonlocals(todo, read_write_info)
 
     # -------------------------------------------------------------------------
-    def _resolve_calls_and_unknowns(self, todo, read_write_info):
+    def _outstanding_nonlocals(self, todo, read_write_info):
         '''This function updates the list of non-local symbols by:
         1. replacing all subroutine calls with the list of their corresponding
             non-local symbols.
@@ -318,7 +321,7 @@ class CallTreeUtils():
 
         :param todo: the information about symbol type, module_name,
             symbol_name and access information
-        :type todo: List[Tuple[str,str, str,\
+        :type todo: List[Tuple[str,str, str,
                               :py:class:`psyclone.core.Signature`,str]]
         :param read_write_info: information about all input and output
             parameters.
@@ -326,6 +329,7 @@ class CallTreeUtils():
 
         '''
         # pylint: disable=too-many-branches, too-many-locals
+        # pylint: disable=too-many-statements
         mod_manager = ModuleManager.get()
         done = set()
         # Using a set here means that duplicated entries will automatically
@@ -344,23 +348,35 @@ class CallTreeUtils():
                 if module_name is None:
                     # We don't know where the subroutine comes from.
                     # For now ignore this
-                    print(f"Unknown routine '{signature[0]} - ignored.")
+                    # TODO #11: Add proper logging
+                    # TODO #2120: Handle error
+                    print(f"[CallTreeUtils._outstanding_nonlocals] Unknown "
+                          f"routine '{signature[0]} - ignored.")
                     continue
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
-                    print(f"Cannot find module '{module_name}' - ignored.")
+                    # TODO #11: Add proper logging
+                    # TODO #2120: Handle error
+                    print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
+                          f"find module '{module_name}' - ignored.")
                     continue
-                try:
-                    # Add the list of non-locals to our todo list. Handle
-                    # generic interfaces:
-                    all_routines = mod_info.resolve_routine(signature[0])
-                    for routine_name in all_routines:
-                        todo.extend(self.get_non_local_symbols(
-                            mod_info.get_psyir(routine_name)))
-                except KeyError:
-                    print(f"Cannot find symbol '{signature[0]}' in module "
-                          f"'{module_name}' - ignored.")
+
+                all_routines = mod_info.resolve_routine(signature[0])
+                # Add the list of non-locals to our todo list. Handle
+                # generic interfaces:
+                all_routines = mod_info.resolve_routine(signature[0])
+                for routine_name in all_routines:
+                    psyir = \
+                        mod_info.get_psyir().get_routine_psyir(routine_name)
+                    if not psyir:
+                        # TODO #11: Add proper logging
+                        # TODO #2120: Handle error
+                        print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
+                              f"find symbol '{signature[0]}' in module "
+                              f"'{module_name}' - ignored.")
+                    else:
+                        todo.extend(self.get_non_local_symbols(psyir))
                 continue
 
             if external_type == "unknown":
@@ -369,7 +385,10 @@ class CallTreeUtils():
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
-                    print(f"Cannot find module '{module_name}' - ignoring "
+                    # TODO #11: Add proper logging
+                    # TODO #2120: Handle error
+                    print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
+                          f"find module '{module_name}' - ignoring "
                           f"unknown symbol '{signature}'.")
                     continue
 
@@ -382,9 +401,14 @@ class CallTreeUtils():
                 # Check if it is a constant (the symbol should always be found,
                 # but if a module cannot be parsed and get_symbol it will
                 # return None)
-                sym = mod_info.get_symbol(signature[0])
-                if sym and sym.is_constant:
-                    continue
+                sym_tab = \
+                    mod_info.get_psyir().symbol_table
+                try:
+                    sym = sym_tab.lookup(signature[0])
+                    if sym.is_constant:
+                        continue
+                except KeyError:
+                    sym = None
                 # Otherwise fall through to the code that adds a reference:
 
             # Now it must be a reference, so add it to the list of input-
