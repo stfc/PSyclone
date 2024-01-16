@@ -230,8 +230,9 @@ class ModuleInfo:
         :rtype: bool
 
         '''
-        # TODO #2413: Adds a 'get routine' method, which could replace this
-        # function to avoid code duplication
+        # TODO #2413 and TODO #2478: Once we parse everything to PSyIR (esp.
+        # generic interfaces), this routine can just be replaced with
+        # get_psyir().get_routine_psyir(routine_name)
         if self._routine_names is None:
             # This will trigger adding routine information
             try:
