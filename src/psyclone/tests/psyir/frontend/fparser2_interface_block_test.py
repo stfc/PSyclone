@@ -126,15 +126,20 @@ def test_named_interface_declared(fortran_reader, mod_txt):
     assert test_symbol.visibility == Symbol.Visibility.PUBLIC
 
 
-def test_named_interface_with_body(fortran_reader):
+@pytest.mark.parametrize("mod_procedure", ["", "module procedure other_sub\n"])
+def test_named_interface_with_body(fortran_reader, mod_procedure):
     '''
-    Test that an INTERFACE that does not use [MODULE] PROCEDURE :: name-list
-    is captured as a RoutineSymbol of UnknownFortranType.
+    Test that an INTERFACE that does not exclusively use
+    '[MODULE] PROCEDURE :: name-list' is captured as a RoutineSymbol of
+    UnknownFortranType. We test for the cases where an interface contains
+    only subroutine definitions and when it contains a mixture of procedure
+    statements and subroutine definitions.
     '''
-    test_module = '''
+    test_module = f'''
     module test_mod
       implicit none
       interface test
+         {mod_procedure}
          subroutine test_code(arg)
            real, intent(in) :: arg
          end subroutine test_code
@@ -146,6 +151,9 @@ def test_named_interface_with_body(fortran_reader):
       subroutine some_sub()
         call test_code(1.0)
       end subroutine some_sub
+      subroutine other_sub(arg)
+        complex :: arg
+      end subroutine other_sub
     end module test_mod
     '''
     file_container = fortran_reader.psyir_from_source(test_module)
@@ -155,8 +163,10 @@ def test_named_interface_with_body(fortran_reader):
     test_symbol = table.lookup("test")
     assert isinstance(test_symbol, RoutineSymbol)
     assert isinstance(test_symbol.datatype, UnknownFortranType)
+    extra = f"  {mod_procedure}" if mod_procedure else ""
     assert test_symbol.datatype.declaration == (
-        "interface test\n"
+        "interface test\n" +
+        extra +
         "  subroutine test_code(arg)\n"
         "    real, intent(in) :: arg\n"
         "  end subroutine test_code\n"

@@ -2350,7 +2350,6 @@ class Fparser2Reader():
         #                   or ABSTRACT INTERFACE
         # where generic-spec is either (R1207) a generic-name or one
         # of OPERATOR, ASSIGNMENT or dtio-spec.
-        proc_stmts = walk(node, Fortran2003.Procedure_Stmt)
         if not isinstance(node.children[0].children[0],
                           Fortran2003.Name):
             # This interface does not have a name. Therefore we store it as a
@@ -2372,9 +2371,30 @@ class Fparser2Reader():
             #     [MODULE] PROCEDURE :: <name-list>
             # to specify these.
             rsymbols = []
-            for proc_stmt in proc_stmts:
-                for routine_name in proc_stmt.children[0].children:
-                    rsymbols.append(symbol_table.lookup(routine_name.string))
+            try:
+                for child in node.children:
+                    if isinstance(child, (Fortran2003.Interface_Stmt,
+                                          Fortran2003.End_Interface_Stmt)):
+                        continue
+                    if isinstance(child, Fortran2003.Procedure_Stmt):
+                        for routine_name in child.children[0].children:
+                            rsym = symbol_table.lookup(routine_name.string)
+                            if not isinstance(rsym, RoutineSymbol):
+                                raise InternalError(
+                                    f"Found a symbol of type "
+                                    f"{type(rsym).__name__} when searching "
+                                    f"for the RoutineSymbol "
+                                    f"referenced in INTERFACE '{name}'")
+                            rsymbols.append(rsym)
+                    else:
+                        # Interface block contains an unsupported entry so
+                        # we'll create a symbol of UnknownFortranType.
+                        raise KeyError()
+            except KeyError:
+                # Failed to find the corresponding RoutineSymbol so we'll
+                # create a symbol of UnknownFortranType.
+                rsymbols = []
+
             try:
                 if rsymbols:
                     # A named interface block corresponds to a
