@@ -36,6 +36,7 @@
 
 ''' This module contains the GenericInterfaceSymbol.'''
 
+from collections import namedtuple
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 
 
@@ -51,6 +52,8 @@ class GenericInterfaceSymbol(RoutineSymbol):
     :type kwargs: unwrapped dict.
 
     '''
+    RoutineInfo = namedtuple("RoutineInfo", ["symbol", "is_module"])
+
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
         # Use the setter for 'routines' as it performs checking.
@@ -66,26 +69,52 @@ class GenericInterfaceSymbol(RoutineSymbol):
         return self._routines
 
     @routines.setter
-    def routines(self, symbols):
+    def routines(self, values):
         '''
         Setter for the list of routines to which this interface provides
         access.
 
-        :raises ValueError: if no list of symbols is provided.
+        :param values: the RoutineSymbols and whether or not each of them
+            is a module procedure.
+        :type values: list[
+            tuple[:py:class:`psyclone.psyir.symbols.RoutineSymbol`, bool]]
+
+        :raises ValueError: if no (or an empty) list of values is provided.
         :raises TypeError: if `symbols` is not a list that consists only of
                            RoutineSymbols.
         '''
-        if not symbols:
+        if not values:
             raise ValueError("A GenericInterfaceSymbol requires a list of "
                              "RoutineSymbols but none were provided.")
-        if not isinstance(symbols, list):
+        if not isinstance(values, list):
             raise TypeError(f"A GenericInterfaceSymbol requires a list of "
-                            f"RoutineSymbols but got: '{symbols}'")
-        if not all(isinstance(item, RoutineSymbol) for item in symbols):
+                            f"RoutineSymbols but got: '{values}'")
+        if not all(isinstance(item, tuple) for item in values):
             raise TypeError(
                 f"A GenericInterfaceSymbol requires a list of RoutineSymbols "
-                f"but got: {[type(rt).__name__ for rt in symbols]}")
-        self._routines = symbols
+                f"but got: {[type(rt).__name__ for rt in values]}")
+        for routine in values:
+            self._routines.append(self.RoutineInfo(routine[0], routine[1]))
+
+    @property
+    def module_routines(self):
+        '''
+        '''
+        result = []
+        for value in self._routines:
+            if value.is_module:
+                result.append(value.symbol)
+        return result
+
+    @property
+    def external_routines(self):
+        '''
+        '''
+        result = []
+        for value in self._routines:
+            if not value.is_module:
+                result.append(value.symbol)
+        return result
 
     def __str__(self):
         return (f"{self.name}: {type(self).__name__}<{self.datatype}, "

@@ -83,7 +83,7 @@ def test_named_interface(fortran_reader, mod_txt):
     assert isinstance(eos, GenericInterfaceSymbol)
     assert isinstance(eos.datatype, NoType)
     assert eos.visibility == Symbol.Visibility.PUBLIC
-    names = [rsym.name for rsym in eos.routines]
+    names = [rsym.symbol.name for rsym in eos.routines]
     assert "eos_insitu" in names
     assert "eos_insitu_2d" in names
     assert "eos_insitu_3d" in names

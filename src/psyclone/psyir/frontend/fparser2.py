@@ -2361,67 +2361,69 @@ class Fparser2Reader():
                 root_name="_psyclone_internal_interface",
                 symbol_type=RoutineSymbol,
                 datatype=UnknownFortranType(str(node).lower()))
-        else:
-            # This interface has a name.
-            name = node.children[0].children[0].string.lower()
-            vis = visibility_map.get(
-                name, symbol_table.default_visibility)
-            # Attempt to work out which routines this interface includes. We
-            # only support those interfaces which use:
-            #     [MODULE] PROCEDURE :: <name-list>
-            # to specify these.
-            rsymbols = []
-            try:
-                for child in node.children:
-                    if isinstance(child, (Fortran2003.Interface_Stmt,
-                                          Fortran2003.End_Interface_Stmt)):
-                        continue
-                    if isinstance(child, Fortran2003.Procedure_Stmt):
-                        for routine_name in child.children[0].children:
-                            rsym = symbol_table.lookup(routine_name.string)
-                            if not isinstance(rsym, RoutineSymbol):
-                                raise InternalError(
-                                    f"Found a symbol of type "
-                                    f"{type(rsym).__name__} when searching "
-                                    f"for the RoutineSymbol "
-                                    f"referenced in INTERFACE '{name}'")
-                            rsymbols.append(rsym)
-                    else:
-                        # Interface block contains an unsupported entry so
-                        # we'll create a symbol of UnknownFortranType.
-                        raise KeyError()
-            except KeyError:
-                # Failed to find the corresponding RoutineSymbol so we'll
-                # create a symbol of UnknownFortranType.
-                rsymbols = []
+            return
 
-            try:
-                if rsymbols:
-                    # A named interface block corresponds to a
-                    # GenericInterfaceSymbol. (There will be calls to it
-                    # although there will be no corresponding implementation
-                    # with that name.)
-                    symbol_table.add(GenericInterfaceSymbol(
-                        name, rsymbols, visibility=vis))
+        # This interface has a name.
+        name = node.children[0].children[0].string.lower()
+        vis = visibility_map.get(
+            name, symbol_table.default_visibility)
+        # Attempt to work out which routines this interface includes. We
+        # only support those interfaces which use:
+        #     [MODULE] PROCEDURE :: <name-list>
+        # to specify these.
+        rsymbols = []
+        try:
+            for child in node.children:
+                if isinstance(child, (Fortran2003.Interface_Stmt,
+                                      Fortran2003.End_Interface_Stmt)):
+                    continue
+                if isinstance(child, Fortran2003.Procedure_Stmt):
+                    # Keep track of whether these are module procedures.
+                    is_module = child.children[1] == 'MODULE'
+                    for routine_name in child.children[0].children:
+                        rsym = symbol_table.lookup(routine_name.string)
+                        if not isinstance(rsym, RoutineSymbol):
+                            raise InternalError(
+                                f"Found a symbol of type {type(rsym).__name__}"
+                                f" when searching for the RoutineSymbol "
+                                f"referenced in INTERFACE '{name}'")
+                        rsymbols.append((rsym, is_module))
                 else:
-                    # We've not been able to determine the list of
-                    # RoutineSymbols that this interface maps to so we just
-                    # create a RoutineSymbol of UnknownFortranType.
-                    symbol_table.add(RoutineSymbol(
-                        name, datatype=UnknownFortranType(str(node).lower()),
-                        visibility=vis))
-            except KeyError:
-                # This symbol has already been declared. This can happen when
-                # an interface overloads a constructor for a type (as the
-                # interface name is then the name of the type). However we
-                # still want to capture the interface so we store it in the
-                # PSyIR as an UnknownFortranType with an internal name as we do
-                # for unnamed interfaces.
-                symbol_table.new_symbol(
-                    root_name=f"_psyclone_internal_{name}",
-                    symbol_type=RoutineSymbol,
-                    datatype=UnknownFortranType(str(node).lower()),
-                    visibility=vis)
+                    # Interface block contains an unsupported entry so
+                    # we'll create a symbol of UnknownFortranType.
+                    raise KeyError()
+        except KeyError:
+            # Failed to find the corresponding RoutineSymbol so we'll
+            # create a symbol of UnknownFortranType.
+            rsymbols = []
+
+        try:
+            if rsymbols:
+                # A named interface block corresponds to a
+                # GenericInterfaceSymbol. (There will be calls to it
+                # although there will be no corresponding implementation
+                # with that name.)
+                symbol_table.add(GenericInterfaceSymbol(
+                    name, rsymbols, visibility=vis))
+            else:
+                # We've not been able to determine the list of
+                # RoutineSymbols that this interface maps to so we just
+                # create a RoutineSymbol of UnknownFortranType.
+                symbol_table.add(RoutineSymbol(
+                    name, datatype=UnknownFortranType(str(node).lower()),
+                    visibility=vis))
+        except KeyError:
+            # This symbol has already been declared. This can happen when
+            # an interface overloads a constructor for a type (as the
+            # interface name is then the name of the type). However we
+            # still want to capture the interface so we store it in the
+            # PSyIR as an UnknownFortranType with an internal name as we do
+            # for unnamed interfaces.
+            symbol_table.new_symbol(
+                root_name=f"_psyclone_internal_{name}",
+                symbol_type=RoutineSymbol,
+                datatype=UnknownFortranType(str(node).lower()),
+                visibility=vis)
 
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
