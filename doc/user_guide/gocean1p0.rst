@@ -64,9 +64,9 @@ The GOcean Library
 
 The use of PSyclone and the GOcean 1.0 API implies the use of a
 standard set of data types and associated infrastructure. This is
-provided by version 1.0 of the GOcean Library (GOLib v.1.0).
-Currently this library is distributed separately from PSyclone and is
-available from https://puma.nerc.ac.uk/trac/GOcean.
+provided by the dl_esm_inf library. Currently this library is distributed
+separately from PSyclone and is available from
+https://github.com/stfc/dl_esm_inf.
 
 .. _gocean1.0-grid:
 

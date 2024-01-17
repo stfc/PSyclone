@@ -376,7 +376,7 @@ linkcheck_anchors_ignore = ['user-content-netcdf-library-lfric-examples']
 # updated (TODO #237).
 # Despite its name 'collab.metoffice.../twiki' requires authenticated access.
 linkcheck_ignore = [r'^https://mybinder.org/v2/gh/stfc/psyclone',
-                    r'https://puma.nerc.ac.uk/trac/GOcean',
+                    r'^https://github.com/stfc/PSyclone#',
                     r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/'
                     r'LFRicDocumentationPapers/lfric_documentation.pdf']
 
