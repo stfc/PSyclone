@@ -42,13 +42,12 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import NamelistInterface, UnknownFortranType
+from psyclone.psyir.symbols import UnknownFortranType
 
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_named_namelist():
-    ''' Test that namelists are correctly captured and the symbols
-    they reference have a NamelistInterface. '''
+    ''' Test that namelists are correctly captured. '''
 
     # Create a dummy test routine
     routine = Routine("test_routine")
@@ -66,11 +65,6 @@ def test_named_namelist():
     namelist = symtab.lookup("_PSYCLONE_INTERNAL_NAMELIST")
     assert isinstance(namelist.datatype, UnknownFortranType)
     assert namelist.datatype.declaration == "NAMELIST /name1/ a, b, c"
-
-    # The variables have been updated to a namelist interface
-    assert isinstance(symtab.lookup("a").interface, NamelistInterface)
-    assert isinstance(symtab.lookup("b").interface, NamelistInterface)
-    assert isinstance(symtab.lookup("c").interface, NamelistInterface)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -100,12 +94,6 @@ def test_multiple_namelists_in_statement():
     assert isinstance(namelist.datatype, UnknownFortranType)
     assert namelist.datatype.declaration == "NAMELIST /name2/ d"
 
-    # The variables have been updated to a namelist interface
-    assert isinstance(symtab.lookup("a").interface, NamelistInterface)
-    assert isinstance(symtab.lookup("b").interface, NamelistInterface)
-    assert isinstance(symtab.lookup("c").interface, NamelistInterface)
-    assert isinstance(symtab.lookup("d").interface, NamelistInterface)
-
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_namelist_with_posterior_declaration():
@@ -128,27 +116,20 @@ def test_namelist_with_posterior_declaration():
     assert isinstance(namelist.datatype, UnknownFortranType)
     assert namelist.datatype.declaration == "NAMELIST /name1/ a, b"
 
-    # The variables have been updated to a namelist interface
-    assert isinstance(symtab.lookup("a").interface, NamelistInterface)
-    assert isinstance(symtab.lookup("b").interface, NamelistInterface)
 
+def test_static_namelist_variables(fortran_reader, fortran_writer):
+    ''' Test that a variable in a namelist can be static (either
+    explicit using save, or implicit by assigning it a value in
+    the declaration.'''
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_namelist_undeclared_symbol():
-    ''' Test that namelist of symbols that have not been declared
-    produce NotImplementedError.'''
+    code = '''program test
+    integer :: a=1
+    integer, save :: b=2
+    namelist /my_namelist/ a, b
+    end program test'''
+    psyir = fortran_reader.psyir_from_source(code)
 
-    # Create a dummy test routine
-    routine = Routine("test_routine")
-    processor = Fparser2Reader()
-
-    # This is also valid Fortran, but currently not supported
-    reader = FortranStringReader('''
-        namelist /name1/ a, b
-        integer :: a''')
-    fparser2spec = Specification_Part(reader)
-    with pytest.raises(NotImplementedError) as err:
-        processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("The symbol interface of a namelist variable could not be "
-            "updated because of \"Could not find 'b' in the Symbol Table.\"."
-            in str(err.value))
+    # Make sure no exception is raised here (if 'a' gets a new interface,
+    # it's not static, and the FortranWriter raises an exception
+    out = fortran_writer(psyir)
+    assert "NAMELIST /my_namelist/ a, b" in out

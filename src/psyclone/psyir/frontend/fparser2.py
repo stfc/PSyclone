@@ -61,9 +61,9 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, CommonBlockInterface, DeferredType, RoutineSymbol,
     StaticInterface, UnknownFortranType, ArrayType, AutomaticInterface,
     ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
-    ImportInterface, INTEGER_TYPE, NamelistInterface, NoType, ScalarType,
-    StructureType, Symbol, SymbolError, SymbolTable, UnknownInterface,
-    UnknownType, UnresolvedInterface)
+    ImportInterface, INTEGER_TYPE, NoType, ScalarType, StructureType, Symbol,
+    SymbolError, SymbolTable, UnknownInterface, UnknownType,
+    UnresolvedInterface)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -2511,13 +2511,13 @@ class Fparser2Reader():
 
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Save_Stmt,
-                                   Fortran2003.Namelist_Stmt,
                                    Fortran2003.Derived_Type_Def,
                                    Fortran2003.Stmt_Function_Stmt,
                                    Fortran2003.Common_Stmt,
                                    Fortran2003.Use_Stmt)):
                 # These node types are handled separately
                 pass
+
             elif isinstance(node, Fortran2003.Implicit_Part):
                 # Anything other than a PARAMETER statement or an
                 # IMPLICIT NONE means we can't handle this code.
@@ -2534,6 +2534,18 @@ class Fparser2Reader():
                     raise NotImplementedError(
                         f"Error processing implicit-part: implicit variable "
                         f"declarations not supported but found '{node}'")
+
+            elif isinstance(node, Fortran2003.Namelist_Stmt):
+                # Place the declaration statement into a using an internal
+                # symbol name. In case that we need more details (e.g. to
+                # update symbol information), the following code loops over
+                # namelist and each symbol:
+                # for namelist_object in node.children:
+                #    for symbol_name in namelist_object[1].items:
+                parent.symbol_table.new_symbol(
+                    root_name="_PSYCLONE_INTERNAL_NAMELIST",
+                    symbol_type=DataSymbol,
+                    datatype=UnknownFortranType(str(node)))
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
@@ -2544,11 +2556,10 @@ class Fparser2Reader():
         # symbols and can appear in any order.
         self._process_parameter_stmts(nodes, parent)
 
-        # We process the nodes again looking for common blocks, then namelists.
+        # We process the nodes again looking for common blocks.
         # We do this here, after the main declarations loop, because they
         # modify the interface of existing symbols and can appear in any order.
         self._process_common_blocks(nodes, parent)
-        self._process_namelists(nodes, parent)
 
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly
@@ -2682,51 +2693,6 @@ class Fparser2Reader():
             except KeyError as error:
                 raise NotImplementedError(
                     f"The symbol interface of a common block variable "
-                    f"could not be updated because of {error}.") from error
-
-    @staticmethod
-    def _process_namelists(nodes, psyir_parent):
-        ''' Process the fparser2 namelist declaration statements. This is
-        done after the other declarations and it will keep the statement
-        as a UnknownFortranType and update the referenced symbols to a
-        NamelistInterface.
-
-        :param nodes: fparser2 AST nodes containing declaration statements.
-        :type nodes: List[:py:class:`fparser.two.utils.Base`]
-        :param psyir_parent: the PSyIR Node with a symbol table in which to
-            add the namelist and update the symbols interfaces.
-        :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
-
-        :raises NotImplementedError: if it is unable to find one of the
-            namelist expressions in the symbol table (because it has not
-            been declared yet or when it is not just the symbol name).
-
-        '''
-        for node in nodes:
-            if not isinstance(node, Fortran2003.Namelist_Stmt):
-                continue
-            # Place the declaration statement into a UnknownFortranType
-            # (for now we just want to reproduce it). The name of the
-            # namelist is not in the same namespace as the variable
-            # symbols names (and there may be multiple of them in a
-            # single statement). So we use an internal symbol name.
-            psyir_parent.symbol_table.new_symbol(
-                root_name="_PSYCLONE_INTERNAL_NAMELIST",
-                symbol_type=DataSymbol, datatype=UnknownFortranType(str(node)))
-
-            # Get the names of the symbols accessed with the namelist,
-            # they are already defined in the symbol table but they must
-            # now have a namelist interface.
-            try:
-                # Loop over every namelist defined in this Namelist_Stmt
-                for namelist_object in node.children:
-                    for symbol_name in namelist_object[1].items:
-                        sym = psyir_parent.symbol_table.lookup(
-                                    str(symbol_name))
-                        sym.interface = NamelistInterface()
-            except KeyError as error:
-                raise NotImplementedError(
-                    f"The symbol interface of a namelist variable "
                     f"could not be updated because of {error}.") from error
 
     @staticmethod

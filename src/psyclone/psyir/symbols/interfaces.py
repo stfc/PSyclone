@@ -96,15 +96,6 @@ class CommonBlockInterface(SymbolInterface):
         return "CommonBlock"
 
 
-class NamelistInterface(SymbolInterface):
-    ''' A symbol declared in the local scope but is added to a namelist
-    statement.
-    '''
-
-    def __str__(self):
-        return "Namelist"
-
-
 class UnresolvedInterface(SymbolInterface):
     ''' We have a symbol but we don't know where it is declared. '''
 
