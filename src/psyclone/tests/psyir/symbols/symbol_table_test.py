@@ -1347,7 +1347,7 @@ def test_symbols():
     SymbolTable.'''
     sym_table = symbols.SymbolTable()
     assert sym_table.symbols == []
-    sym_table.add(symbols.DataSymbol("var1", REAL_TYPE))
+    sym_table.add(symbols.DataSymbol("var1", symbols.REAL_TYPE))
     array_type = symbols.ArrayType(symbols.REAL_TYPE,
                                    [symbols.ArrayType.Extent.ATTRIBUTE])
     sym_table.add(symbols.DataSymbol("var2", array_type))
@@ -1364,7 +1364,7 @@ def test_automatic_datasymbols():
     sym_table = symbols.SymbolTable()
     assert [] == sym_table.automatic_datasymbols
 
-    sym_table.add(DataSymbol("var1", REAL_TYPE))
+    sym_table.add(symbols.DataSymbol("var1", symbols.REAL_TYPE))
     array_type = symbols.ArrayType(symbols.REAL_TYPE,
                                    [symbols.ArrayType.Extent.ATTRIBUTE])
     sym_table.add(symbols.DataSymbol("var2", array_type))
