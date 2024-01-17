@@ -81,7 +81,7 @@ $(F90)  ... -L$(PSYDATA_LIB_DIR)/nan_test/dl_esm_inf -l_nan_test \
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2021, Science and Technology Facilities Council.
+Copyright (c) 2020-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
