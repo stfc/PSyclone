@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,18 +44,16 @@ class GenericInterfaceSymbol(RoutineSymbol):
     different callable routines.
 
     :param str name: name of the interface.
-    :param routines: the names of the routines that this interface provides
-                     access to.
-    :type routines: list[str]
+    :param routines: the routines that this interface provides access to.
+    :type routines: list[:py:class:`psyclone.psyir.symbols.RoutineSymbol`]
     :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
 
-    :raises ValueError: if no routine names are provided.
-
     '''
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
+        # Use the setter for 'routines' as it performs checking.
         self._routines = []
         self.routines = routines
 
@@ -70,6 +68,10 @@ class GenericInterfaceSymbol(RoutineSymbol):
     @routines.setter
     def routines(self, symbols):
         '''
+        Setter for the list of routines to which this interface provides
+        access.
+
+        :raises ValueError: if no list of symbols is provided.
         :raises TypeError: if `symbols` is not a list that consists only of
                            RoutineSymbols.
         '''
