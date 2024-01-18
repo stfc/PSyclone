@@ -38,13 +38,12 @@
 ''' This module tests the LFric KernCallArg class.'''
 
 import os
-
+import re
 import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
-                                   LFRicSymbolTable, LFRicTypes,
-                                   LFRicKern)
+from psyclone.domain.lfric import (KernCallArgList, LFRicSymbolTable,
+                                   LFRicTypes, LFRicKern)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -66,14 +65,13 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     :param create_arg_list: a KernCallArgList instance.
     :type create_arg_list: :py:class:`psyclone.domain.lfric.KernCallArgList`
     :param fortran_writer: a FortranWriter instance.
-    :type fortran_writer: \
+    :type fortran_writer:
         :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
-    :param valid_classes: a tuple of classes that are expected in the PSyIR \
+    :param valid_classes: a tuple of classes that are expected in the PSyIR
         argument list. Defaults to `(Reference)`.
     :type valid_classes: Tuple[:py:class:`psyclone.psyir.nodes.node`]
 
     '''
-
     if not valid_classes:
         valid_classes = Reference
 
@@ -81,7 +79,11 @@ def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):
     result = []
     for node in create_arg_list.psyir_arglist:
         assert isinstance(node, valid_classes)
-        result.append(fortran_writer(node))
+        out = fortran_writer(node)
+        # We're comparing old (textual) and new (PSyIR) approaches here and
+        # only the new, PSyIR approach supports the addition of array-slice
+        # notation (e.g. 'array(:)'). Therefore, we remove it before comparing.
+        result.append(re.sub(r"[(]\s*:(,\s*:)*\s*[)]$", "", out))
 
     assert result == create_arg_list._arglist
 
@@ -543,8 +545,9 @@ def test_indirect_dofmap(fortran_writer):
     create_arg_list.generate()
     assert (create_arg_list._arglist == [
         'cell', 'ncell_2d', 'field_a_data', 'field_b_data',
-        'cma_op1_matrix', 'cma_op1_nrow', 'cma_op1_ncol', 'cma_op1_bandwidth',
-        'cma_op1_alpha', 'cma_op1_beta', 'cma_op1_gamma_m', 'cma_op1_gamma_p',
+        'cma_op1_cma_matrix', 'cma_op1_nrow', 'cma_op1_ncol',
+        'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
+        'cma_op1_gamma_m', 'cma_op1_gamma_p',
         'ndf_adspc1_field_a', 'undf_adspc1_field_a',
         'map_adspc1_field_a(:,cell)', 'cma_indirection_map_adspc1_field_a',
         'ndf_aspc1_field_b', 'undf_aspc1_field_b', 'map_aspc1_field_b(:,cell)',
@@ -576,9 +579,10 @@ def test_indirect_dofmap(fortran_writer):
                 ScalarType.Intrinsic.REAL)
 
     # Test all 3D real arrays:
-    real_3d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 3,
-                                                 ScalarType.Intrinsic.REAL)
-    assert psyir_args[4].datatype == real_3d.datatype
+    assert isinstance(psyir_args[4].datatype, UnknownFortranType)
+    assert (psyir_args[4].datatype.partial_datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
 
     # Test all 1D integer arrays:
     int_1d = dummy_sym_tab.find_or_create_array("doesnt_matter1dint", 1,

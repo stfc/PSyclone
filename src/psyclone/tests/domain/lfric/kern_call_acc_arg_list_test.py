@@ -186,7 +186,7 @@ def test_lfric_acc_operator():
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
     assert "lma_op1_local_stencil: READ" in var_info
-    assert "cma_op1_matrix: WRITE" in var_info
+    assert "cma_op1_cma_matrix: WRITE" in var_info
 
 
 def test_lfric_stencil():
