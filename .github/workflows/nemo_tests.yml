@@ -115,10 +115,12 @@ jobs:
         tail -n 1 output.txt | grep -q "S_max:  0.407622"
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_gpu
-        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} --password ${{ secrets.MONGODB_PASSWORD }} \
-          --eval 'db.Github_CI_NEMO.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-          nemo_version: "MetOffice 4.0", psyclone_transformation: "OpenMP for GPU", system: "GlaDos",
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          ci_test: "NEMO OpenMP for GPU", nemo_version: "MetOffice 4.0", system: "GlaDos",
           compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     - name: Upload NEMO OpenMP GPU results
@@ -150,10 +152,12 @@ jobs:
         tail -n 1 output.txt | grep -q "S_max:  0.407622"
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_kernels_gpu
-        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} --password ${{ secrets.MONGODB_PASSWORD }} \
-          --eval 'db.Github_CI_NEMO.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-          nemo_version: "MetOffice 4.0", psyclone_transformation: "OpenCC Kernels for GPU", system: "GlaDos",
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          ci_test: "NEMO OpenACC kernels for GPU", nemo_version: "MetOffice 4.0", system: "GlaDos",
           compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     - name: Upload NEMO OpenACC kernels GPU results
@@ -185,10 +189,12 @@ jobs:
         tail -n 1 output.txt | grep -q "S_max:  0.407622"
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_loops_gpu
-        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} --password ${{ secrets.MONGODB_PASSWORD }} \
-          --eval 'db.Github_CI_NEMO.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-          nemo_version: "MetOffice 4.0", psyclone_transformation: "OpenCC loops for GPU", system: "GlaDos",
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.Github_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          ci_test: "NEMO OpenACC loops for GPU", nemo_version: "MetOffice 4.0", system: "GlaDos",
           compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
     - name: Upload NEMO OpenACC loops GPU results
@@ -228,11 +234,14 @@ jobs:
         tail -n 1 output.txt | grep -q "S_max:  0.404045"
         export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1 | awk '{print $1}')
         echo  $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_cpu
-        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} --password ${{ secrets.MONGODB_PASSWORD }} \
-          --eval 'db.Github_CI_NEMO.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-          nemo_version: "ECMWF 4.0 V40 with mpp", psyclone_transformation: "OpenMP for CPU", system: "GlaDos",
-          compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(), num_omp_threads: '"$OMP_NUM_THREADS"', elapsed_time: '"$VAR_TIME"'})'
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          ci_test: "NEMO OpenMP for CPU", nemo_version: "ECMWF 4.0 V40 with mpp", system: "GlaDos",
+          compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(),
+          num_omp_threads: '"$OMP_NUM_THREADS"', elapsed_time: '"$VAR_TIME"'})'
 
     - name: Upload NEMO OpenMP CPU results
       uses: exuanbo/actions-deploy-gist@v1

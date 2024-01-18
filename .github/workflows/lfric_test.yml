@@ -105,11 +105,14 @@ jobs:
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_passthrough_performance_history
-        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} --password ${{ secrets.MONGODB_PASSWORD }} \
-          --eval 'db.Github_CI_LFRic.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-          lfric_version: '"$LFRIC_REV"', psyclone_transformation: "Passthrough with DM", system: "GlaDos",
-          compiler:"spack-gfortran", date: new Date(), elapsed_time: '"$VAR_TIME"', num_of_halo_exchanges: '"$VAR_HALOS"'})'
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          ci_test: "LFRic Passthrough with DM", lfric_version: '"$LFRIC_REV"', system: "GlaDos",
+          compiler:"spack-gfortran", date: new Date(), elapsed_time: '"$VAR_TIME"',
+          num_of_halo_exchanges: '"$VAR_HALOS"'})'
 
     - name: Upload LFRic passthrough results
       uses: exuanbo/actions-deploy-gist@v1
@@ -154,10 +157,12 @@ jobs:
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_optimised_performance_history
-        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
-          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} --password ${{ secrets.MONGODB_PASSWORD }} \
-          --eval 'db.Github_CI_LFRic.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
-          lfric_version: '"$LFRIC_REV"', psyclone_transformation: "All", omp_threads: '"$OMP_NUM_THREADS"',
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_REV"', omp_threads: '"$OMP_NUM_THREADS"',
           system: "GlaDos", compiler:"spack-gfortran", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'
 
