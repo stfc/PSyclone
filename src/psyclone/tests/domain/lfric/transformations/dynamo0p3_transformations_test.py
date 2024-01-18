@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -319,7 +319,7 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "          CALL columnwise_op_asm_field_kernel_code(cmap(colour,"
         "cell), nlayers, ncell_2d, afield_data, "
         "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
-        "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+        "cma_op1_cma_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
         "ndf_aspc1_afield, undf_aspc1_afield, "
         "map_aspc1_afield(:,cmap(colour,cell)), cbanded_map_aspc1_afield, "
@@ -1377,7 +1377,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
     assert (
         "      ! Look-up information for each CMA operator\n"
         "      !\n"
-        "      cma_op1_matrix => cma_op1_proxy%columnwise_matrix\n"
+        "      cma_op1_cma_matrix => cma_op1_proxy%columnwise_matrix\n"
         "      cma_op1_nrow = cma_op1_proxy%nrow\n"
         "      cma_op1_ncol = cma_op1_proxy%ncol\n"
         "      cma_op1_bandwidth = cma_op1_proxy%bandwidth\n"
@@ -1389,7 +1389,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
     assert (
         "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
-        "lma_op1_local_stencil, cma_op1_matrix, cma_op1_nrow, "
+        "lma_op1_local_stencil, cma_op1_cma_matrix, cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
         "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
         "undf_aspc1_afield, map_aspc1_afield(:,cell), "
