@@ -110,6 +110,7 @@ jobs:
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
           --password ${{ secrets.MONGODB_PASSWORD }} \
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic Passthrough with DM", lfric_version: '"$LFRIC_REV"', system: "GlaDos",
           compiler:"spack-gfortran", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'
@@ -162,6 +163,7 @@ jobs:
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
           --password ${{ secrets.MONGODB_PASSWORD }} \
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_REV"', omp_threads: '"$OMP_NUM_THREADS"',
           system: "GlaDos", compiler:"spack-gfortran", date: new Date(), elapsed_time: '"$VAR_TIME"',
           num_of_halo_exchanges: '"$VAR_HALOS"'})'

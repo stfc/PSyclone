@@ -120,6 +120,7 @@ jobs:
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
           --password ${{ secrets.MONGODB_PASSWORD }} \
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMO OpenMP for GPU", nemo_version: "MetOffice 4.0", system: "GlaDos",
           compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
@@ -157,6 +158,7 @@ jobs:
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
           --password ${{ secrets.MONGODB_PASSWORD }} \
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMO OpenACC kernels for GPU", nemo_version: "MetOffice 4.0", system: "GlaDos",
           compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
@@ -194,6 +196,7 @@ jobs:
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
           --password ${{ secrets.MONGODB_PASSWORD }} \
           --eval 'db.Github_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMO OpenACC loops for GPU", nemo_version: "MetOffice 4.0", system: "GlaDos",
           compiler:"nvhpc-'"$NVFORTRAN_VERSION"'", date: new Date(), elapsed_time: '"$VAR_TIME"'})'
 
@@ -239,6 +242,7 @@ jobs:
           --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
           --password ${{ secrets.MONGODB_PASSWORD }} \
           --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
           ci_test: "NEMO OpenMP for CPU", nemo_version: "ECMWF 4.0 V40 with mpp", system: "GlaDos",
           compiler:"intel-'"$ONEAPI_VERSION"'" , date: new Date(),
           num_omp_threads: '"$OMP_NUM_THREADS"', elapsed_time: '"$VAR_TIME"'})'
