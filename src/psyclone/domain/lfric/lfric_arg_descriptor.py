@@ -334,14 +334,6 @@ class LFRicArgDescriptor(Descriptor):
         # ... and set the array size if all checks pass
         self._array_nranks = arraysize
 
-        # Check that no other arguments than arrays use array notation
-        if self._argument_type not in \
-           const.VALID_ARRAY_NAMES and self._array_nranks:
-            raise ParseError(                     #SHARKS (needs test coverage)
-                f"In the LFRic API, array notation is only supported for "
-                f"'{const.VALID_ARRAY_NAMES}' argument types but found "
-                f"'{arg_type.args[0]}' in '{arg_type}'.")
-
     def _init_field(self, arg_type, operates_on):
         '''
         Validates metadata descriptors for field arguments and
