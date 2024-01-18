@@ -3271,19 +3271,13 @@ elements, e.g. in Fortran this would be: ``Y = INT(X, kind=i_<prec>)``.
 Here ``Y`` is an ``integer``-valued field and ``X`` is the
 ``real``-valued field being converted::
 
-  ifield2(:) = INT(field1(:), kind=i_def)
+  ifield2(:) = INT(field1(:), kind=i_<prec>)
 
-where **ifield2** is the only currently supported ``integer_field_type``
-(``i_def`` precision) and a ``real``-valued field *field1* can be of
-any :ref:`supported precisions <lfric-mixed-precision>` for ``GH_REAL``
-fields (e.g. ``r_tran`` for ``r_tran_field_type``).
-
-Built-ins which take a ``real`` field element for conversion to
-a field of different datatype or precision prefixed with the keyword
-**real** and are denoted by the datatype that the input ``real`` field will
-be converted to. A Built-in that converts a ``real`` to an ``integer``
-field is denoted by the keyword **int**. Likewise, a Built-in that
-converts a ``real`` to a ``real`` field is denoted by the keyword **real**.
+where **ifield2** is currently the only supported ``integer``-valued field
+type in LFRic (``integer_field_type`` of ``i_def`` precision) and a ``real``
+-valued field *field1* can be of any :ref:`supported precisions
+<lfric-mixed-precision>` for ``GH_REAL`` fields (e.g. ``r_tran`` for
+``r_tran_field_type``).
 
 .. _real-to-real-built-in:
 
@@ -3298,11 +3292,18 @@ e.g. in Fortran this would be: ``Y = REAL(X, kind=r_<prec>)``. Here ``Y``
 and ``X`` are both ``real``-valued fields, with ``X`` being converted
 to the precision of ``Y``::
 
-field2(:) = REAL(field1(:), kind=r_<prec>)
+  field2(:) = REAL(field1(:), kind=r_<prec>)
 
 **field2** and *field1* are ``real``-valued fields of any :ref:`supported
 precisions <lfric-mixed-precision>` for ``GH_REAL`` fields (e.g. ``r_tran``
 for ``r_tran_field_type``).
+
+Built-ins which take a ``real`` field for conversion to a field of
+a different datatype or precision are denoted by the datatype that the
+input ``real`` field will be converted to. A Built-in that converts a
+``real`` to an ``integer`` field is denoted by the keyword **int**.
+Likewise, a Built-in that converts a ``real`` to a ``real`` field is 
+denoted by the keyword **real**.
 
 .. _lfric-built-ins-int:
 
@@ -3604,7 +3605,8 @@ Here ``Y`` is a ``real``-valued field and ``X`` is the
 
   field2(:) = REAL(ifield1(:), kind=r_<prec>)
 
-where *ifield1* is an ``integer_field_type`` of ``i_def`` precision.
+where **ifield1** is currently the only supported ``integer``-valued
+field type in LFRic (``integer_field_type`` of ``i_def`` precision).
 The ``real``-valued **field1** can be of any :ref:`supported
 precisions <lfric-mixed-precision>` for ``GH_REAL`` fields, hence
 ``r_<prec>`` is determined from the algorithm layer (e.g.

@@ -47,8 +47,8 @@ program single_invoke
   type(r_tran_field_type)   :: f2
   type(r_solver_field_type) :: f3
 
-  call invoke( real_to_real_X(f2, f1),&
-               real_to_real_X(f1, f3),&
+  call invoke( real_to_real_X(f2, f1), &
+               real_to_real_X(f1, f3), &
                real_to_real_X(f3, f2) )
 
 end program single_invoke

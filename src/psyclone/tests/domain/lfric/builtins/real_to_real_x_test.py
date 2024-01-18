@@ -88,8 +88,6 @@ def test_real_to_real_x(tmpdir, monkeypatch, annexed, dist_mem):
     # Test code generation
     code = str(psy.gen)
 
-    print(code)
-
     # Check that the correct field types and constants are used
     output = (
         "    USE constants_mod, ONLY: r_tran, r_solver, r_def, i_def\n"
@@ -116,7 +114,7 @@ def test_real_to_real_x(tmpdir, monkeypatch, annexed, dist_mem):
         "      END DO\n"
         )
     assert output in code
-    
+
     # Check built-in loop for 'r_solver'
     output = (
         "      DO df=loop2_start,loop2_stop\n"
