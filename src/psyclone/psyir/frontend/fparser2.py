@@ -3825,13 +3825,6 @@ class Fparser2Reader():
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
-            # Add loop lower bound
-            loop.addchild(Literal("1", integer_type))
-            # Add loop upper bound - we use the SIZE operator to query the
-            # extent of the current array dimension
-            size_node = IntrinsicCall(IntrinsicCall.Intrinsic.SIZE,
-                                      parent=loop)
-            loop.addchild(size_node)
 
             # Create the first argument to the SIZE operator
             if isinstance(first_array, Member):
@@ -3848,12 +3841,29 @@ class Fparser2Reader():
             else:
                 # The array access is to a symbol of ArrayType
                 symbol = _find_or_create_unresolved_symbol(
-                    size_node, first_array.name, symbol_type=DataSymbol,
+                    loop, first_array.name, symbol_type=DataSymbol,
                     datatype=DeferredType())
                 new_ref = Reference(symbol)
-            size_node.addchild(new_ref)
-            size_node.addchild(Literal(str(idx), integer_type,
-                                       parent=size_node))
+
+            # Add loop lower bound
+            #loop.addchild(Literal("1", integer_type))
+            loop.addchild(
+                IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
+                                     [new_ref,
+                                      Literal(str(idx), integer_type)]))
+            # Add loop upper bound - we use the SIZE operator to query the
+            # extent of the current array dimension
+            #size_node = IntrinsicCall(IntrinsicCall.Intrinsic.SIZE,
+            #                          parent=loop)
+            #loop.addchild(size_node)
+            loop.addchild(
+                IntrinsicCall.create(IntrinsicCall.Intrinsic.UBOUND,
+                                     [new_ref.copy(),
+                                      Literal(str(idx), integer_type)]))
+
+            #size_node.addchild(new_ref)
+            #size_node.addchild(Literal(str(idx), integer_type,
+            #                           parent=size_node))
             # Add loop increment
             loop.addchild(Literal("1", integer_type))
             # Fourth child of a Loop must be a Schedule

@@ -455,10 +455,10 @@ class IntrinsicCall(Call):
             ArgDesc(1, 1, (DataNode)), {})
         LBOUND = IAttr(
             'LBOUND', True, False, True,
-            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+            ArgDesc(1, 3, (DataNode)), {"dim": DataNode, "kind": DataNode})
         LCOBOUND = IAttr(
             'LCOBOUND', True, False, True,
-            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+            ArgDesc(1, 3, (DataNode)), {"dim": DataNode, "kind": DataNode})
         LEADZ = IAttr(
             'LEADZ', True, True, False,
             ArgDesc(1, 1, (DataNode)), {})
@@ -727,10 +727,10 @@ class IntrinsicCall(Call):
             ArgDesc(1, 1, DataNode), {})
         UBOUND = IAttr(
             'UBOUND', True, False, True,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+            ArgDesc(1, 3, DataNode), {"dim": DataNode, "kind": DataNode})
         UCOBOUND = IAttr(
             'UCOBOUND', True, False, True,
-            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+            ArgDesc(1, 3, DataNode), {"dim": DataNode, "kind": DataNode})
         UNPACK = IAttr(
             'UNPACK', True, False, False,
             ArgDesc(3, 3, DataNode), {})

@@ -328,6 +328,14 @@ def test_where_within_loop(fortran_reader):
     assign = where_loop.loop_body[0].if_body[0]
     assert isinstance(assign, Assignment)
     assert [idx.name for idx in assign.lhs.indices] == ["widx1", "jl"]
+    assert isinstance(where_loop.start_expr, IntrinsicCall)
+    assert where_loop.start_expr.intrinsic == IntrinsicCall.Intrinsic.LBOUND
+    assert where_loop.start_expr.children[0].symbol.name == "var"
+    assert where_loop.start_expr.children[1].value == "1"
+    assert isinstance(where_loop.stop_expr, IntrinsicCall)
+    assert where_loop.stop_expr.intrinsic == IntrinsicCall.Intrinsic.UBOUND
+    assert where_loop.stop_expr.children[0].symbol.name == "var"
+    assert where_loop.stop_expr.children[1].value == "1"
 
 
 @pytest.mark.usefixtures("parser")
@@ -347,9 +355,9 @@ def test_basic_where():
         assert "was_where" in loop.annotations
         assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
-    assert isinstance(loops[0].children[0], Literal)
+    assert isinstance(loops[0].children[0], IntrinsicCall)
     assert isinstance(loops[0].children[1], IntrinsicCall)
-    assert loops[0].children[1].intrinsic == IntrinsicCall.Intrinsic.SIZE
+    assert loops[0].children[1].intrinsic == IntrinsicCall.Intrinsic.UBOUND
     assert str(loops[0].children[1].children[0]) == "Reference[name:'dry']"
 
     ifblock = loops[2].loop_body[0]
@@ -692,7 +700,7 @@ def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
     loops = psyir.walk(Loop)
     assert len(loops) == 2
     assert isinstance(loops[1].stop_expr, IntrinsicCall)
-    assert loops[1].stop_expr.intrinsic == IntrinsicCall.Intrinsic.SIZE
+    assert loops[1].stop_expr.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     assert isinstance(loops[1].stop_expr.children[0], StructureReference)
     assert fortran_writer(loops[1].stop_expr.children[0]) == size_arg
     assert isinstance(loops[1].loop_body[0], IfBlock)
