@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council
+# Copyright (c) 2023-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,8 +70,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
     nargs = (4)
 
     def __init__(self, datatype, access, array_nranks):
-        super().__init__(datatype, access)
-        self.array_nranks = array_nranks
+        super().__init__(datatype, access)                  #SHARKS (needs test coverage)
+        self.array_nranks = array_nranks                    #SHARKS (needs test coverage)
 
 #    @classmethod
 #    def _get_metadata(cls, fparser2_tree):
@@ -99,7 +99,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
         '''
-        return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
+        return (f"arg_type({self.form}, {self.datatype}, {self.access}, "    #SHARKS (needs test coverage)
                 f"{self.array_nranks})")
 
     @staticmethod
@@ -111,8 +111,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
             datatype descriptor.
 
         '''
-        const = LFRicConstants()
-        ArrayArgMetadata.validate_scalar_value(
+        const = LFRicConstants()                                             #SHARKS (needs test coverage)
+        ArrayArgMetadata.validate_scalar_value(                              #SHARKS (needs test coverage)
             value, const.VALID_ARRAY_DATA_TYPES, "datatype descriptor")
 
     @staticmethod
@@ -120,8 +120,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
         '''
         :param str value: the access descriptor to validate.
         '''
-        const = LFRicConstants()
-        ArrayArgMetadata.validate_scalar_value(
+        const = LFRicConstants()                                             #SHARKS (needs test coverage)
+        ArrayArgMetadata.validate_scalar_value(                              #SHARKS (needs test coverage)
             value, const.VALID_ARRAY_ACCESS_TYPES, "access descriptor")
 
     @property
@@ -130,6 +130,6 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :returns: the function space for this array argument.
         :rtype: str
         '''
-        return self.array_nranks
+        return self.array_nranks                                             #SHARKS (needs test coverage)
 
 __all__ = ["ArrayArgMetadata"]

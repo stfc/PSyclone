@@ -42,8 +42,8 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicConstants
+from psyclone.domain.lfric import LFRicArgDescriptor, LFRicKernMetadata
+from psyclone.dynamo0p3 import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 
@@ -82,7 +82,7 @@ def test_ad_array_init_wrong_argument_type():
     is passed to the LFRicArgDescriptor._init_array() method. '''
     ast = fpapi.parse(ARRAY_CODE, ignore_comments=False)
     name = "testkern_array_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     # Get an argument which is not an array
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
@@ -102,7 +102,7 @@ def test_ad_array_type_wrong_num_of_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_array_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("each 'meta_arg' entry must have 4 arguments if its first "
             "argument is of ['gh_array'] type" in str(excinfo.value))
 
@@ -119,7 +119,7 @@ def test_ad_array_invalid_data_type():
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             f"be a valid data type (one of {const.VALID_ARRAY_DATA_TYPES}), "
             f"but found 'gh_unreal' in 'arg_type(gh_array, gh_unreal, "
@@ -131,7 +131,7 @@ def test_ad_array_invalid_data_type():
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             f"be a valid data type (one of {const.VALID_ARRAY_DATA_TYPES}), "
             f"but found 'gh_frac' in 'arg_type(gh_array, gh_frac, "
@@ -143,7 +143,7 @@ def test_ad_array_invalid_data_type():
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             f"be a valid data type (one of {const.VALID_ARRAY_DATA_TYPES}), "
             f"but found 'gh_illogical' in 'arg_type(gh_array, gh_illogical, "
@@ -155,7 +155,7 @@ def test_ad_array_init_wrong_data_type(monkeypatch):
     is passed to the LFRicArgDescriptor._init_array() method. '''
     ast = fpapi.parse(ARRAY_CODE, ignore_comments=False)
     name = "testkern_array_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     # Get an array argument descriptor and set a wrong data type
     scalar_arg = metadata._inits[0]
     scalar_arg.args[1].name = "gh_double"
@@ -184,7 +184,7 @@ def test_ad_array_type_no_write():
             "arg_type(gh_array,   gh_real,    gh_write, NRANKS*1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("array arguments must have read-only ('gh_read') "
                 "access but found 'gh_write'" in str(excinfo.value))
 
@@ -201,7 +201,7 @@ def test_ad_array_type_no_inc():
             "arg_type(gh_array,   gh_real,    gh_inc, NRANKS*1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("array arguments must have read-only ('gh_read') "
                 "access but found 'gh_inc'" in str(excinfo.value))
 
@@ -218,7 +218,7 @@ def test_ad_array_type_no_readwrite():
             "arg_type(gh_array,   gh_real, gh_readwrite, NRANKS*1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("array arguments must have read-only ('gh_read') "
                 "access but found 'gh_readwrite'" in str(excinfo.value))
 
@@ -233,7 +233,7 @@ def test_ad_array_type_no_sum():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_array_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("array arguments must have read-only ('gh_read') "
             "access but found 'gh_sum'" in str(excinfo.value))
 
@@ -250,7 +250,7 @@ def test_no_vector_array():
                             "gh_read, NRANKS*1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("vector notation is only supported for ['gh_field'] argument "
                 "types but found 'gh_array * 3'" in str(excinfo.value))
 
@@ -265,7 +265,7 @@ def test_arg_descriptor_array(array_ind, array_type, array_ranks):
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(ARRAY_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_array_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_array_type")
     array_descriptor = metadata.arg_descriptors[array_ind]
 
     # Assert correct string representation from LFRicArgDescriptor
@@ -298,7 +298,7 @@ def test_keyword_not_nranks():
                             "gh_read, SKNARN*1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("the 4th argument of a 'meta_arg' entry must use 'NRANKS' as "
                 "the keyword in the format 'NRANKS*n' if the 1st argument "
                 "is 'GH_ARRAY', but found 'sknarn' as the keyword in "
@@ -316,7 +316,7 @@ def test_incorrect_operator():
                             "gh_read, NRANKS+1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("the 4th argument of a 'meta_arg' entry may be an "
                 "array but if so must use '*' as the separator "
                 "in the format 'NRANKS*n', but found '+' in "
@@ -334,7 +334,7 @@ def test_n_not_integer():
                             "gh_read, NRANKS*0.5)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("the array notation must be in the format 'NRANKS*n' "
                 "where 'n' is an integer, but '0.5' was found in "
                 "'arg_type(gh_array, gh_real, gh_read, nranks * 0.5)'."
@@ -351,7 +351,7 @@ def test_n_less_than_one():
                             "gh_read, NRANKS*0)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("the array notation must be in the format 'NRANKS*n' "
                 "where 'n' is an integer >= 1. However, found n = '0' in "
                 "'arg_type(gh_array, gh_real, gh_read, nranks * 0)'."
