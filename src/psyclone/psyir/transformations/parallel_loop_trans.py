@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -87,10 +87,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         This transform supports "collapse", which is the\
                         number of nested loops to collapse.
         :type options: Optional[Dict[str, Any]]
-        :param int options["collapse"]: number of nested loops to collapse \
+        :param int options["collapse"]: number of nested loops to collapse
                                         or None.
-        :param bool options["force"]: whether to force parallelisation of the \
+        :param bool options["force"]: whether to force parallelisation of the
                 target loop (i.e. ignore any dependence analysis).
+        :param bool options["sequential"]: whether this is a sequential loop.
 
         :raises TransformationError: if the \
                 :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
@@ -106,16 +107,18 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # unsupported nodes.
         super().validate(node, options=options)
 
-        # Check we are not a sequential loop
-        if isinstance(node, PSyLoop) and node.loop_type == 'colours':
-            raise TransformationError(f"Error in {self.name} transformation. "
-                                      f"The target loop is over colours and "
-                                      f"must be computed serially.")
-
         if not options:
             options = {}
         collapse = options.get("collapse", None)
         ignore_dep_analysis = options.get("force", False)
+        sequential = options.get("sequential", False)
+
+        # Check we are not a sequential loop
+        if (not sequential and isinstance(node, PSyLoop) and
+                node.loop_type == 'colours'):
+            raise TransformationError(f"Error in {self.name} transformation. "
+                                      f"The target loop is over colours and "
+                                      f"must be computed serially.")
 
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
@@ -141,12 +144,13 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     f"containing only {loop_count} loops")
 
         # Check that there are no loop-carried dependencies
-        if ignore_dep_analysis:
+        if sequential or ignore_dep_analysis:
             return
 
         dep_tools = DependencyTools()
 
-        if not node.independent_iterations(dep_tools=dep_tools):
+        if not node.independent_iterations(dep_tools=dep_tools,
+                                           test_all_variables=True):
             # The DependencyTools also returns False for things that are
             # not an issue, so we ignore specific messages.
             for message in dep_tools.get_all_messages():

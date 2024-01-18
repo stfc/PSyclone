@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council
+# Copyright (c) 2023-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -76,7 +76,7 @@ def trans(psy):
                         matmul_trans.apply(icall)
                     except TransformationError as err:
                         print(f"Inline MATMUL failed for '{kschedule.name}' "
-                               "because:")
+                              f"because:")
                         print(str(err))
 
     return psy

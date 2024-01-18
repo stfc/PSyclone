@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -87,6 +87,14 @@ class LFRicConstants():
             LFRicConstants.VALID_OPERATOR_NAMES + \
             LFRicConstants.VALID_ARRAY_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
+
+        # Mapping from argument type to the suffix used when creating
+        # pointers to actual data arrays (and the associated symbol tags).
+        LFRicConstants.ARG_TYPE_SUFFIX_MAPPING = {
+            "gh_field": "data",
+            "gh_operator": "local_stencil",
+            "gh_columnwise_operator": "cma_matrix"
+            }
 
         # Supported API argument data types ('gh_real', 'gh_integer'
         # and 'gh_logical')
@@ -317,29 +325,6 @@ class LFRicConstants():
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
                             ["r_def", "i_def", "l_def"]))
 
-        # ----------- Map from symbolic to actual precision -------------------
-
-        # The value of the actual precision is in bytes.
-        # TODO #1941: this mapping should be in the config file or obtained
-        # from the constants_mod.f90 file in the LFRic infrastructure. The
-        # values for 'r_tran', 'r_solver', 'r_def', 'r_bl' and 'r_phys' are
-        # set according to CPP ifdefs. The values given below are the defaults.
-        # 'l_def' is included in this dict so that it contains a complete
-        # record of the various precision symbols used in LFRic.
-        LFRicConstants.PRECISION_MAP = {"i_def": 4,
-                                        "l_def": 1,
-                                        "r_def": 8,
-                                        "r_double": 8,
-                                        "r_ncdf": 8,
-                                        "r_quad": 16,
-                                        "r_second": 8,
-                                        "r_single": 4,
-                                        "r_solver": 4,
-                                        "r_tran": 8,
-                                        "r_bl": 8,
-                                        "r_phys": 8,
-                                        "r_um": 8}
-
         # ---------- Infrastructure module maps -------------------------------
 
         # Dictionary allowing us to look-up the name of the Fortran module,
@@ -524,6 +509,30 @@ class LFRicConstants():
 
         raise InternalError(f"Error mapping from meta-data function space "
                             f"to actual space: cannot handle '{space}'")
+
+    def precision_for_type(self, data_type):
+        '''This function returns the precision required for the various
+        LFRic types.
+
+        :param str data_type: the name of the data type.
+
+        :returns: the precision as defined in domain.lfric.lfric_types
+            (one of R_SOLVER, R_TRAN, R_DEF).
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises InternalError: if an unknown data_type is specified.
+
+        '''
+        for module_info in self.DATA_TYPE_MAP.values():
+            if module_info["type"] == data_type:
+                # pylint: disable=import-outside-toplevel
+                from psyclone.domain.lfric.lfric_types import LFRicTypes
+                return LFRicTypes(module_info["kind"].upper())
+
+        valid = [module_info["type"]
+                 for module_info in self.DATA_TYPE_MAP.values()]
+        raise InternalError(f"Unknown data type '{data_type}', expected one "
+                            f"of {valid}.")
 
 
 # =============================================================================

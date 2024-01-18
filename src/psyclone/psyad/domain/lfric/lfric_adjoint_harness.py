@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by L. Turner, Met Office
 
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
@@ -46,15 +47,20 @@ from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
-                                                        create_real_comparison,
-                                                        find_container)
+from psyclone.psyad.domain.common.adjoint_utils import (
+    create_adjoint_name, find_container, common_real_comparison)
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     IntrinsicCall, Reference, ArrayReference, Assignment,
-    Literal, BinaryOperation, Routine)
-from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
-                                    ScalarType, ArrayType, RoutineSymbol,
-                                    DataTypeSymbol, DataSymbol, DeferredType)
+    Literal, BinaryOperation, Routine, IfBlock)
+from psyclone.psyir.symbols import (
+    ImportInterface, ContainerSymbol, ScalarType, ArrayType, RoutineSymbol,
+    DataTypeSymbol, DataSymbol, DeferredType)
+
+#: The tolerance applied to the comparison of the inner product values in
+#: the generated test-harness code.
+#: TODO #1346 this tolerance should be user configurable.
+INNER_PRODUCT_TOLERANCE = 1500.0
 
 
 def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
@@ -385,7 +391,7 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
     properties of the field that it is supposed to represent.
 
     :param kern: the kernel under consideration.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
     :param in arg_idx: the 1-indexed position of the argument in the list \
                        defined in the kernel metadata.
     :param str name: the name of the argument that we are expecting.
@@ -429,6 +435,90 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
             f"to be a field but the argument at the specified position "
             f"({arg_idx}) is a field vector of length "
             f"{descriptor.vector_size}.")
+
+
+def _lfric_create_real_comparison(sym_table, kernel, var1, var2):
+    '''Creates PSyIR that checks the values held by Symbols var1 and var2
+    for equality, allowing for machine precision and writes the
+    success or failure of the checks to the LFRic-specific logging
+    API.  The generic version that writes to stdout can be found in
+    psyad/domain/common/adjoint_utils.py
+
+    :param sym_table: the SymbolTable in which to put new Symbols.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param kernel: the routine for which this adjoint test is being performed.
+    :type kernel: :py:class:`psyclone.psyir.nodes.Routine`
+    :param var1: the symbol holding the first value for the comparison.
+    :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param var2: the symbol holding the second value for the comparison.
+    :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: the PSyIR nodes that perform the check and write its
+        success or failure to the LFRic-specific logging API.
+    :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+
+    '''
+    statements = []
+    statements.extend(common_real_comparison(sym_table, var1, var2))
+    statements.extend(_lfric_log_write(sym_table, kernel, var1, var2))
+    return statements
+
+
+def _lfric_log_write(sym_table, kernel, var1, var2):
+    '''Creates PSyIR that writes whether the precision test passed or
+    failed to the LFRic-specific logging API.
+
+    :param sym_table: the SymbolTable in which to read existing Symbols.
+    :type sym_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+    :param kernel: the routine for which this adjoint test is being performed.
+    :type kernel: :py:class:`psyclone.psyir.nodes.Routine`
+    :param var1: the symbol holding the first value for the comparison.
+    :type var1: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param var2: the symbol holding the second value for the comparison.
+    :type var2: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+    :returns: PSyIR nodes that write out test success or failure to
+        the LFRic logging API.
+    :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+
+    '''
+    freader = FortranReader()
+    statements = []
+    rel_diff = sym_table.lookup_with_tag("relative_diff")
+    overall_tol = sym_table.lookup_with_tag("overall_tolerance")
+    log_mod = sym_table.find_or_create("log_mod", symbol_type=ContainerSymbol)
+    log_scratch = sym_table.find_or_create(
+        "log_scratch_space", symbol_type=DataSymbol, datatype=DeferredType(),
+        interface=ImportInterface(log_mod))
+    log_level_info = sym_table.new_symbol(
+        "log_level_info", symbol_type=DataSymbol, datatype=DeferredType(),
+        interface=ImportInterface(log_mod))
+    log_level_error = sym_table.new_symbol(
+        "log_level_error", symbol_type=DataSymbol, datatype=DeferredType(),
+        interface=ImportInterface(log_mod))
+    log_event = sym_table.new_symbol(
+        "log_event", symbol_type=RoutineSymbol,
+        interface=ImportInterface(log_mod))
+    write_pass = freader.psyir_from_statement(
+        f"WRITE({log_scratch.name}, *) \"PASSED {kernel.name}:\", "
+        f"{var1.name}, {var2.name}, {rel_diff.name}", sym_table)
+    write_fail = freader.psyir_from_statement(
+        f"WRITE({log_scratch.name}, *) \"FAILED {kernel.name}:\", "
+        f"{var1.name}, {var2.name}, {rel_diff.name}", sym_table)
+    log_pass = freader.psyir_from_statement(
+        f"call {log_event.name}( {log_scratch.name}, {log_level_info.name} )",
+        sym_table)
+    log_fail = freader.psyir_from_statement(
+        f"call {log_event.name}( {log_scratch.name}, {log_level_error.name} )",
+        sym_table)
+
+    statements.append(
+        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.LT,
+                                              Reference(rel_diff),
+                                              Reference(overall_tol)),
+                       [write_pass, log_pass], [write_fail, log_fail]))
+
+    return statements
 
 
 def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
@@ -510,16 +600,16 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
                                    datatype=DeferredType(),
                                    interface=ImportInterface(adj_mod))
 
-    # Construct a DynKern using the metadata and then use it to construct
+    # Construct a LFRicKern using the metadata and then use it to construct
     # the kernel argument list.
     # TODO #1806 - once we have the new PSyIR-based metadata handling then
     # we can pass PSyIR to this routine rather than an fparser1 parse tree.
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
 
     # Replace generic names for fields. operators etc generated in
-    # DynKern with the scientific names used by the tangent-linear
+    # LFRicKern with the scientific names used by the tangent-linear
     # kernel. This makes the harness code more readable. Changing the
-    # names in-place within DynKern is the neatest solution given that
+    # names in-place within LFRicKern is the neatest solution given that
     # this is a legacy structure.
 
     # First raise the tangent-linear kernel PSyIR to LFRic PSyIR. This
@@ -530,7 +620,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # Use the metadata to determine the mapping from a metadata
     # meta_arg index to the kernel argument index. Note, the meta_arg
     # index corresponds to the order of the arguments stored in
-    # DynKern.
+    # LFRicKern.
     index_map = ArgIndexToMetadataIndex.mapping(metadata)
     inv_index_map = {value: key for key, value in index_map.items()}
 
@@ -717,8 +807,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     _compute_lfric_inner_products(routine, scalars, field_ip_symbols,
                                   inner2_sym)
 
-    # Finally, compare the two inner products.
-    stmts = create_real_comparison(table, kern, inner1_sym, inner2_sym)
+    # Finally, compare the two inner products with an LFRic-specific routine.
+    stmts = _lfric_create_real_comparison(table, kern, inner1_sym, inner2_sym)
     for stmt in stmts:
         routine.addchild(stmt)
 

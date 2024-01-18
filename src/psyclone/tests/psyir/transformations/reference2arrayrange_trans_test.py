@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the Reference2ArrayRangeLoopTrans
 transformation.'''
@@ -40,10 +40,10 @@ transformation.'''
 import pytest
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Reference, Literal, IntrinsicCall
+from psyclone.psyir.nodes import IfBlock, IntrinsicCall, Literal, Reference
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-from psyclone.psyir.transformations import Reference2ArrayRangeTrans, \
-    TransformationError
+from psyclone.psyir.transformations import (Reference2ArrayRangeTrans,
+                                            TransformationError)
 
 CODE = (
     "program test\n"
@@ -245,18 +245,22 @@ def test_validate_range(fortran_reader):
 
 def test_validate_query(fortran_reader):
     '''Test that the validate method raises an exception if the Reference
-    is within one of the LBOUND, UBOUND or SIZE query functions.
+    is within one of the ALLOCATED, LBOUND, UBOUND or SIZE query functions.
 
     '''
     code = (
         "program test\n"
         "  real :: a(10),b(10)\n"
         "  integer :: i,c\n"
+        "  real, dimension(:), allocatable :: igor\n"
         "  do i = lbound(a,1), ubound(a,1)\n"
         "     a(i) = 0.0\n"
         "  end do\n"
         "  b(:) = 0.0\n"
         "  c = size(b,1)\n"
+        "  if(allocated(igor))then\n"
+        "     igor = 4.0\n"
+        "  end if\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Reference2ArrayRangeTrans()
@@ -264,12 +268,13 @@ def test_validate_query(fortran_reader):
     # Check the references to 'a' in lbound and ubound do not get modified
     loop = psyir.children[0].children[0]
     locations = [loop.start_expr, loop.stop_expr]
-    for location in locations:
+    for text, location in zip(["LBOUND", "UBOUND"], locations):
         for reference in location.walk(Reference):
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
-            assert ("References to arrays within LBOUND, UBOUND or SIZE "
-                    "intrinsics should not be transformed." in str(info.value))
+            assert (f"References to arrays passed as arguments to intrinsic "
+                    f"enquiry routine '{text}' should not be transformed."
+                    in str(info.value))
 
     # Check the references to 'b' in the hidden lbound and ubound
     # intrinsics within 'b(:)' do not get modified.
@@ -280,16 +285,24 @@ def test_validate_query(fortran_reader):
         if type(reference) is Reference:
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
-            assert ("References to arrays within LBOUND, UBOUND or SIZE "
-                    "intrinsics should not be transformed." in str(info.value))
+            assert ("References to arrays passed as arguments to intrinsic "
+                    "enquiry routine '" in str(info.value))
 
     # Check the reference to 'b' in the size intrinsics does not get modified
     assignment = psyir.children[0].children[2]
     reference = assignment.children[1].children[0]
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
-    assert ("References to arrays within LBOUND, UBOUND or SIZE "
-            "intrinsics should not be transformed." in str(info.value))
+    assert ("References to arrays passed as arguments to intrinsic enquiry "
+            "routine 'SIZE' should not be transformed." in str(info.value))
+
+    ifblock = psyir.walk(IfBlock)[0]
+    allocd = ifblock.condition
+    assert isinstance(allocd, IntrinsicCall)
+    with pytest.raises(TransformationError) as info:
+        trans.validate(allocd.children[0])
+    assert ("References to arrays passed as arguments to intrinsic enquiry "
+            "routine 'ALLOCATED' should not be transformed" in str(info.value))
 
 
 def test_validate_structure(fortran_reader):
@@ -328,8 +341,8 @@ def test_validate_deallocate(fortran_reader):
     trans = Reference2ArrayRangeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
-    assert ("References to arrays within DEALLOCATE intrinsics should not be "
-            "transformed, but found:\n DEALLOCATE(a)" in str(info.value))
+    assert ("References to arrays passed to 'DEALLOCATE' intrinsics should not"
+            " be transformed, but found:\n DEALLOCATE(a)" in str(info.value))
 
 
 def test_apply_validate():

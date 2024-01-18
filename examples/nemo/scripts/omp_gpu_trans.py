@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -88,11 +88,8 @@ def trans(psy):
         # them, but we could:
         # - Inine them
         # - Annotate them with 'omp declare target' and allow to call from gpus
-
-        # TODO 2019: DDPDD in additon has a wp precision symbol that PSyclone
-        # wrongly considers undeclared
         if invoke.name in ("q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m",
-                           "psi_h", "psi_m", "DDPDD"):
+                           "psi_h", "psi_m"):
 
             print("Skipping", invoke.name)
             continue

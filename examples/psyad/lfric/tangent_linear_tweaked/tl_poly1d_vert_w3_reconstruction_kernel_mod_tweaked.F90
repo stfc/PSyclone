@@ -11,6 +11,11 @@
 !!          \f$ F = \rho ls_u + ls_\rho u \f$
 !!          Near the boundaries the polynomial is no longer upwinded
 !!          and reduces to an extrapolation at the boundaries.
+
+! This tweaked version of the code 1) splits the real and floor
+! intrinsics onto their own lines and 2) replaces minval and maxval
+! with equialent inline code.
+
 module tl_poly1d_vert_w3_reconstruction_kernel_mod
 
 use argument_mod,      only : arg_type, func_type,         &

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
+#              L. Turner, Met Office
 
 ''' pytest tests for the LFRic-specific algorithm-generation functionality. '''
 
@@ -40,9 +41,8 @@ import os
 import pytest
 
 from fparser import api as fpapi
-from psyclone.domain.lfric import KernCallInvokeArgList
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicKern
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
-from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
@@ -289,10 +289,10 @@ end module testkern_mod
             "Kernel type john does not exist'." in str(err.value))
     # Valid parse tree and correct name.
     kern = lfric_alg.kernel_from_metadata(ptree, "testkern_type")
-    assert isinstance(kern, DynKern)
+    assert isinstance(kern, LFRicKern)
 
 
-def test_construct_kernel_args(lfric_alg, prog, dynkern, fortran_writer):
+def test_construct_kernel_args(lfric_alg, prog, lfrickern, fortran_writer):
     ''' Tests for the construct_kernel_args() function. Since this function
     primarily calls _create_function_spaces(), initialise_field(),
     KernCallInvokeArgList.generate() and initialise_quadrature(), all of which
@@ -302,7 +302,7 @@ def test_construct_kernel_args(lfric_alg, prog, dynkern, fortran_writer):
     prog.symbol_table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                                  datatype=DeferredType(),
                                  interface=ImportInterface(field_mod))
-    kargs = lfric_alg.construct_kernel_args(prog, dynkern)
+    kargs = lfric_alg.construct_kernel_args(prog, lfrickern)
 
     assert isinstance(kargs, KernCallInvokeArgList)
     gen = fortran_writer(prog)

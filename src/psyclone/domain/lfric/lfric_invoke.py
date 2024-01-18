@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,13 +58,13 @@ class LFRicInvoke(Invoke):
 
     :param alg_invocation: object containing the invoke call information.
     :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param int idx: the position of the invoke in the list of invokes \
+    :param int idx: the position of the invoke in the list of invokes
                     contained in the Algorithm.
-    :param invokes: the Invokes object containing this LFRicInvoke \
+    :param invokes: the Invokes object containing this LFRicInvoke
                     object.
-    :type invokes: :py:class:`psyclone.dynamo0p3.DynamoInvokes`
+    :type invokes: :py:class:`psyclone.domain.lfric.LFRicInvokes`
 
-    :raises GenerationError: if integer reductions are required in the \
+    :raises GenerationError: if integer reductions are required in the
                     PSy-layer.
 
     '''
@@ -95,13 +95,14 @@ class LFRicInvoke(Invoke):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import (DynStencils,
                                         DynFunctionSpaces, DynDofmaps,
-                                        LFRicFields, DynLMAOperators,
+                                        DynLMAOperators, DynGlobalSum,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
-                                        DynProxies, LFRicRunTimeChecks,
-                                        DynCellIterators, DynReferenceElement,
-                                        LFRicMeshProperties, DynGlobalSum)
-        from psyclone.domain.lfric import LFRicLoopBounds, LFRicScalarArgs
+                                        DynProxies, DynCellIterators,
+                                        DynReferenceElement,
+                                        LFRicMeshProperties)
+        from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
+                                           LFRicScalarArgs, LFRicFields)
 
         self.scalar_args = LFRicScalarArgs(self)
 

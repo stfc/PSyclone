@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,9 +53,15 @@ def test_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = CommonMetaArgMetadata(None, None)
-    assert ("Can't instantiate abstract class CommonMetaArgMetadata with "
-            "abstract methods _get_metadata, check_access, check_datatype"
+    # Python >= 3.12 tweaks the error message to mention
+    # the lack of an implementation and to quote the method names.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class CommonMetaArgMetadata with"
             in str(info.value))
+    assert ("abstract methods" in str(info.value))
+    assert ("_get_metadata" in str(info.value))
+    assert ("check_access" in str(info.value))
+    assert ("check_datatype" in str(info.value))
 # pylint: enable=abstract-class-instantiated
 
 

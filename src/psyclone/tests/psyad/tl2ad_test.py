@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -230,7 +230,8 @@ def test_generate_adjoint_str_generate_harness_lfric():
     tl_code = (
         "module testkern_mod\n"
         "  use kinds_mod, only: i_def, r_def\n"
-        "  use kernel_mod, only: kernel_type, arg_type, gh_field, gh_real, "
+        "  use kernel_mod, only: kernel_type\n"
+        "  use argument_mod, only: arg_type, gh_field, gh_real, &\n"
         "gh_write, w3, cell_column\n"
         "  type, extends(kernel_type) :: testkern_type\n"
         "     type(arg_type), dimension(1) :: meta_args =          & \n"

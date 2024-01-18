@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -388,6 +388,13 @@ and --f90 and --f90flags), e.g.::
 
   > pytest --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
 
+If you want to test OpenMP code created by PSyclone, you must add the relevant
+openmp flag to --f90flags (`-qopenmp` for intel, `-fopenmp` for gfortran). In addition
+the OpenMP tasking tests currently only support compilation testing with intel
+compilers, e.g.::
+
+  > pytest --compile --f90=ifort --f90flags="-qopenmp"
+
 
 Infrastructure libraries
 ++++++++++++++++++++++++
@@ -448,13 +455,13 @@ computational cost (so that we 'fail fast'):
  4. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 5. All of the examples are tested (for Python versions 3.7, 3.8 and 3.11)
+ 5. All of the examples are tested (for Python versions 3.7, 3.8 and 3.12)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
     The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 6. The full test suite is run for Python versions 3.7, 3.8 and 3.11 but
+ 6. The full test suite is run for Python versions 3.7, 3.8 and 3.12 but
     without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
     so that it will run the tests in parallel on as many cores as are
     available (currently 2 on GHA instances).
@@ -624,10 +631,9 @@ returns a string and only executes the function if the ``str`` method
 is called for the class. This will not be the case for the above code
 as the exception string is not used.
 
-This approach is currently used in the ``CreateNemoKernelTrans``
-transformation and internally in the ``TransformationError`` exception
-(so that this transformation does not accidentally cause the string to
-be evaluated).
+This approach is currently used internally in the ``TransformationError``
+exception (so that this transformation does not accidentally cause the
+string to be evaluated).
 
 If a transformation is used in the way described above and PSyclone
 subsequently runs more slowly it is recommended that the ``LazyString``

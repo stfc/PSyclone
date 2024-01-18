@@ -47,6 +47,7 @@ jobs:
     runs-on: self-hosted
     env:
       LFRIC_REV: 45376
+      PYTHON_VERSION: 3.12.1
 
     steps:
     - uses: actions/checkout@v3
@@ -63,12 +64,11 @@ jobs:
         commit-filter: '[skip ci]'
     - name: Install dependencies
       run: |
+        # Use a specific version of Python (rather than the system-wide one).
+        module load python/${PYTHON_VERSION}
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip
-        # If you wish to install the version of fparser pointed to by the
-        # submodule instead of the released version (from PyPI) then
-        # uncomment the following line:
         pip install external/fparser
         pip install .[test]
         pip install jinja2
@@ -84,7 +84,7 @@ jobs:
         export CXX="g++"
         export FPP="cpp -traditional-cpp"
         export LDMPI="mpif90"
-        export FFLAGS="-I$(spack location -e lfric-gnu)/.spack-env/view/include"
+        export FFLAGS="-Wall -Werror=conversion -Werror=unused-variable -Werror=character-truncation -Werror=unused-value -Werror=tabs -I$(spack location -e lfric-gnu)/.spack-env/view/include"
         export LDFLAGS="-L$(spack location -e lfric-gnu)/.spack-env/view/lib"
         export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib"
         export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib64"

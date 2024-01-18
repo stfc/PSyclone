@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -161,7 +161,7 @@ class UnknownFortranType(UnknownType):
     @property
     def partial_datatype(self):
         '''
-        :returns: partial datatype information if it can be determined, \
+        :returns: partial datatype information if it can be determined,
             else None.
         :rtype: Optional[:py:class:`psyclone.symbols.DataType`]
         '''
@@ -179,8 +179,16 @@ class UnknownFortranType(UnknownType):
         of the variable being declared. Once that is done this method
         won't be required.
 
+        Note that UnknownFortranType is also used to hold things like
+        'SAVE :: /my_common/' and thus it is not always possible/appropriate
+        to extract a type expression.
+
         :returns: the Fortran code specifying the type.
         :rtype: str
+
+        :raises NotImplementedError: if declaration text cannot be
+            extracted from the original Fortran declaration.
+
         '''
         if self._type_text:
             return self._type_text
@@ -195,10 +203,28 @@ class UnknownFortranType(UnknownType):
         # Set reader to free format.
         string_reader.set_format(FortranFormat(True, False))
         ParserFactory().create(std="f2008")
-        ptree = Fortran2003.Declaration_Construct(
-            string_reader)
-        self._type_text = str(ptree.children[0])
-
+        try:
+            ptree = Fortran2003.Specification_Part(
+                string_reader)
+        except Exception as err:
+            raise NotImplementedError(
+                f"Cannot extract the declaration part from UnknownFortranType "
+                f"'{self._declaration}' because parsing (attempting to match "
+                f"a Fortran2003.Specification_Part) failed.") from err
+        node = ptree.children[0]
+        if isinstance(node, (Fortran2003.Declaration_Construct,
+                             Fortran2003.Type_Declaration_Stmt)):
+            self._type_text = str(node.children[0])
+        elif isinstance(node, Fortran2003.Save_Stmt):
+            self._type_text = "SAVE"
+        elif isinstance(node, Fortran2003.Common_Stmt):
+            self._type_text = "COMMON"
+        else:
+            raise NotImplementedError(
+                f"Cannot extract the declaration part from UnknownFortranType "
+                f"'{self._declaration}'. Only Declaration_Construct, "
+                f"Type_Declaration_Stmt, Save_Stmt and Common_Stmt are "
+                f"supported but got '{type(node).__name__}' from the parser.")
         return self._type_text
 
     def __eq__(self, other):
@@ -407,7 +433,7 @@ class ArrayType(DataType):
                     "When creating an array of structures, the type of "
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
-            if not isinstance(datatype, UnknownType):
+            if not isinstance(datatype, (UnknownType, DeferredType)):
                 self._intrinsic = datatype.intrinsic
                 self._precision = datatype.precision
             else:
@@ -700,8 +726,8 @@ class StructureType(DataType):
     '''
     # Each member of a StructureType is represented by a ComponentType
     # (named tuple).
-    ComponentType = namedtuple("ComponentType", ["name", "datatype",
-                                                 "visibility"])
+    ComponentType = namedtuple("ComponentType", [
+        "name", "datatype", "visibility", "initial_value"])
 
     def __init__(self):
         self._components = OrderedDict()
@@ -714,8 +740,15 @@ class StructureType(DataType):
         '''
         Creates a StructureType from the supplied list of properties.
 
-        :param components: the name, type and visibility of each component.
-        :type components: list of 3-tuples
+        :param components: the name, type, visibility (whether public or
+            private) and initial value (if any) of each component.
+        :type components: List[tuple[
+            str,
+            :py:class:`psyclone.psyir.symbols.DataType` |
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
+            Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
+            ]]
 
         :returns: the new type object.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
@@ -723,12 +756,12 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) != 3:
+            if len(component) != 4:
                 raise TypeError(
-                    f"Each component must be specified using a 3-tuple of "
-                    f"(name, type, visibility) but found a tuple with "
-                    f"{len(component)} members: {component}")
-            stype.add(component[0], component[1], component[2])
+                    f"Each component must be specified using a 4-tuple of "
+                    f"(name, type, visibility, initial_value) but found a "
+                    f"tuple with {len(component)} members: {component}")
+            stype.add(*component)
         return stype
 
     @property
@@ -739,21 +772,28 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility):
+    def add(self, name, datatype, visibility, initial_value):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
 
         :param str name: the name of the new component.
         :param datatype: the type of the new component.
-        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
-                        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         :param visibility: whether this component is public or private.
         :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        :param initial_value: the initial value of the new component.
+        :type initial_value: Optional[
+            :py:class:`psyclone.psyir.nodes.DataNode`]
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
         '''
+        # This import must be placed here to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import DataNode
         if not isinstance(name, str):
             raise TypeError(
                 f"The name of a component of a StructureType must be a 'str' "
@@ -774,8 +814,15 @@ class StructureType(DataType):
                 f"Error attempting to add component '{name}' - a "
                 f"StructureType definition cannot be recursive - i.e. it "
                 f"cannot contain components with the same type as itself.")
+        if (initial_value is not None and
+                not isinstance(initial_value, DataNode)):
+            raise TypeError(
+                f"The initial value of a component of a StructureType must "
+                f"be None or an instance of 'DataNode', but got "
+                f"'{type(initial_value).__name__}'.")
 
-        self._components[name] = self.ComponentType(name, datatype, visibility)
+        self._components[name] = self.ComponentType(
+            name, datatype, visibility, initial_value)
 
     def lookup(self, name):
         '''

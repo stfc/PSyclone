@@ -91,6 +91,11 @@ contains
 !> @param[in]     outward_normals_to_horizontal_faces Vector of normals to the
 !!                                                    reference element horizontal
 !!                                                    "outward faces"
+
+! This tweaked version of the code changes the dimensions of
+! polynomial tracer. These are modified as PSyAD does not support
+! array dimensions with offsets.
+
 subroutine poly1d_w3_reconstruction_code( nlayers,              &
                                           reconstruction,       &
                                           wind,                 &
@@ -147,7 +152,6 @@ subroutine poly1d_w3_reconstruction_code( nlayers,              &
                                               stencil_depth, depth, face_mod, &
                                               ijp
   real(kind=r_def)                         :: direction, v_dot_n
-  !RF Need to change dimensions back to original once processed by PSyAD
   !RF real(kind=r_def), dimension(0:nlayers-1) :: polynomial_tracer
   real(kind=r_def), dimension(nlayers) :: polynomial_tracer
 

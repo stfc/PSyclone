@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ from psyclone.psyir.symbols import (
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
 from psyclone.psyGen import PSyFactory
-from psyclone.nemo import NemoInvokeSchedule, NemoKern
+from psyclone.nemo import NemoInvokeSchedule
 
 
 def test_gen_intent():
@@ -362,8 +362,8 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
             "'UnknownType'" in str(err.value))
     # Symbol with an invalid visibility
     dtype = StructureType.create([
-        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE)])
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE, None)])
     tsymbol = DataTypeSymbol("my_type", dtype)
     tsymbol._visibility = "wrong"
     with pytest.raises(InternalError) as err:
@@ -433,15 +433,15 @@ def test_gen_typedecl(fortran_writer):
     tsymbol = DataTypeSymbol("grid_type", DeferredType())
     dtype = StructureType.create([
         # Scalar integer
-        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         # Private, scalar integer
-        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE),
+        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE, None),
         # Static array
-        ("matrix", atype, Symbol.Visibility.PUBLIC),
+        ("matrix", atype, Symbol.Visibility.PUBLIC, None),
         # Allocatable array
-        ("data", dynamic_atype, Symbol.Visibility.PUBLIC),
+        ("data", dynamic_atype, Symbol.Visibility.PUBLIC, None),
         # Derived type
-        ("grid", tsymbol, Symbol.Visibility.PRIVATE)])
+        ("grid", tsymbol, Symbol.Visibility.PRIVATE, None)])
     tsymbol = DataTypeSymbol("my_type", dtype)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type, public :: my_type\n"
@@ -1617,40 +1617,6 @@ def test_fw_nemoinvokeschedule(fortran_writer, parser):
     assert "a = 1\n" in result
 
 
-def test_fw_nemokern(fortran_writer, parser):
-    '''Check the FortranWriter class nemokern method prints the
-    class information and calls any children. This method is used to
-    output nothing for a NemoKern object and simply call its children
-    as NemoKern is a collection of PSyIR nodes so needs no
-    output itself.
-
-    '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "program test\n"
-        "  integer, parameter :: n=20\n"
-        "  integer :: i, j, k\n"
-        "  real :: a(n,n,n)\n"
-        "  do k=1,n\n"
-        "    do j=1,n\n"
-        "      do i=1,n\n"
-        "        a(i,j,k) = 0.0\n"
-        "      end do\n"
-        "    end do\n"
-        "  end do\n"
-        "end program test")
-    schedule = get_nemo_schedule(parser, code)
-
-    kernel = schedule[0].loop_body[0].loop_body[0].loop_body[0]
-    assert isinstance(kernel, NemoKern)
-
-    result = fortran_writer(schedule)
-    assert (
-        "      do i = 1, n, 1\n"
-        "        a(i,j,k) = 0.0\n"
-        "      enddo\n" in result)
-
-
 def test_fw_query_intrinsics(fortran_reader, fortran_writer, tmpdir):
     ''' Check that the FortranWriter outputs SIZE/LBOUND/UBOUND
     intrinsic calls. '''
@@ -2005,3 +1971,27 @@ def test_fw_keeps_symbol_renaming(fortran_writer, fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     assert "b_mod_name=>a_mod_name" in output
+
+
+def test_componenttype_initialisation(fortran_reader, fortran_writer):
+    '''Test that initial values are output for a StructureType which
+    contains types that have initial values.
+
+    '''
+    test_code = (
+        "module test_mod\n"
+        "    type :: my_type\n"
+        "      integer :: i = 1\n"
+        "      integer :: j\n"
+        "    end type my_type\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("my_type")
+    assert isinstance(symbol.datatype, StructureType)
+    result = fortran_writer(psyir)
+    assert (
+        "  type, public :: my_type\n"
+        "    integer, public :: i = 1\n"
+        "    integer, public :: j\n"
+        "  end type my_type\n" in result)

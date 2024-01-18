@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 
 '''
 Module containing pytest tests for the mesh-property functionality
@@ -43,8 +43,8 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import (DynKernMetadata, LFRicMeshProperties,
-                                MeshProperty)
+from psyclone.domain.lfric import LFRicKernMetadata
+from psyclone.dynamo0p3 import LFRicMeshProperties, MeshProperty
 from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -87,7 +87,7 @@ def test_mdata_parse():
     code = MESH_PROPS_MDATA
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     assert dkm.mesh.properties == [MeshProperty.ADJACENT_FACE]
 
 
@@ -100,7 +100,7 @@ def test_mdata_invalid_property(property_name):
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert (f"in metadata: '{property_name}'. Supported values are: "
             f"['ADJACENT_FACE'" in str(err.value))
 
@@ -113,7 +113,7 @@ def test_mdata_wrong_arg_count():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("'meta_mesh' metadata, the number of items in the array "
             "constructor (1) does not match the extent of the array (4)"
             in str(err.value))
@@ -126,7 +126,7 @@ def test_mdata_wrong_name():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("No variable named 'meta_mesh' found in the metadata for"
             in str(err.value))
 
@@ -140,7 +140,7 @@ def test_mdata_wrong_type_var():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("'meta_mesh' metadata must consist of an array of "
             "structure constructors, all of type 'mesh_data_type'"
             " but found: ['ref_element_data_type']" in str(err.value))
@@ -157,7 +157,7 @@ def test_mdata_duplicate_var():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("Duplicate mesh property found: "
             "'MeshProperty.ADJACENT_FACE'." in str(err.value))
 
@@ -245,7 +245,7 @@ def test_mesh_gen(tmpdir):
     assert "adjacent_face => mesh%get_adjacent_face()" in gen
     assert "nfaces_re_v" not in gen
     # The kernel call
-    assert ("call testkern_mesh_prop_code(nlayers, a, f1_proxy%data, "
+    assert ("call testkern_mesh_prop_code(nlayers, a, f1_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
             "adjacent_face(:,cell))" in gen)
 
@@ -268,10 +268,10 @@ def test_duplicate_mesh_gen(tmpdir):
         "nfaces_re_h = reference_element%get_number_horizontal_faces()") == 1
     assert "nfaces_re_v" not in gen
     assert gen.count("adjacent_face => mesh%get_adjacent_face()") == 1
-    assert ("call testkern_mesh_prop_code(nlayers, a, f1_proxy%data, "
+    assert ("call testkern_mesh_prop_code(nlayers, a, f1_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
             "adjacent_face(:,cell)" in gen)
-    assert ("call testkern_mesh_prop_code(nlayers, b, f2_proxy%data, "
+    assert ("call testkern_mesh_prop_code(nlayers, b, f2_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
             "adjacent_face(:,cell))" in gen)
 
@@ -296,7 +296,7 @@ def test_mesh_prop_plus_ref_elem_gen(tmpdir):
         "      call reference_element%get_normals_to_vertical_faces("
         "normals_to_vert_faces)\n" in gen)
     assert ("call testkern_mesh_ref_elem_props_code(nlayers, a, "
-            "f1_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
+            "f1_data, ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, "
             "nfaces_re_v, normals_to_horiz_faces, normals_to_vert_faces, "
             "adjacent_face(:,cell))" in gen)
 
@@ -331,7 +331,7 @@ def test_mesh_plus_face_quad_gen(tmpdir):
             "      !\n"
             "      adjacent_face => mesh%get_adjacent_face()" in gen)
 
-    assert ("call testkern_mesh_prop_face_qr_code(nlayers, a, f1_proxy%data, "
+    assert ("call testkern_mesh_prop_face_qr_code(nlayers, a, f1_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, "
             "nfaces_re_h, adjacent_face(:,cell), "
             "nfaces_qr, np_xyz_qr, weights_xyz_qr)" in gen)
@@ -369,12 +369,12 @@ def test_multi_kernel_mesh_props(tmpdir):
         in gen)
     assert "adjacent_face => mesh%get_adjacent_face()" in gen
     # Call to kernel requiring props of the reference element & adjacent faces
-    assert ("call testkern_mesh_ref_elem_props_code(nlayers, a, f1_proxy%data,"
+    assert ("call testkern_mesh_ref_elem_props_code(nlayers, a, f1_data,"
             " ndf_w1, undf_w1, map_w1(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces, "
             "adjacent_face(:,cell))" in gen)
     # Call to kernel requiring adjacent faces and face quadrature
-    assert ("call testkern_mesh_prop_face_qr_code(nlayers, a, f2_proxy%data, "
+    assert ("call testkern_mesh_prop_face_qr_code(nlayers, a, f2_data, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, nfaces_re_h, "
             "adjacent_face(:,cell), nfaces_qr, np_xyz_qr, weights_xyz_qr)"
             in gen)

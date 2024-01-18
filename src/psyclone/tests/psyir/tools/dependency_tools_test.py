@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -162,10 +162,10 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(jk,jk)' causes a write-write race "
-            "condition" in str(msg))
+    assert ("The write access to 'mask' in 'mask(jk,jk)' causes a write-write "
+            "race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
-    assert msg.var_names == ["mask(jk,jk)"]
+    assert msg.var_names == ["mask"]
 
     # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
@@ -762,10 +762,10 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(jk,jk)' causes a write-write race "
-            "condition" in str(msg))
+    assert ("The write access to 'mask' in 'mask(jk,jk)' causes a write-write "
+            "race condition" in str(msg))
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
-    assert msg.var_names == ["mask(jk,jk)"]
+    assert msg.var_names == ["mask"]
 
     # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])

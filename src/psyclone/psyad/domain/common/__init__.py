@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,6 @@
 Functionality common to all API support in PSyAD.
 '''
 
-from psyclone.psyad.domain.common.adjoint_utils import (find_container,
-                                                        create_adjoint_name,
-                                                        create_real_comparison)
+from psyclone.psyad.domain.common.adjoint_utils import (
+    find_container, create_adjoint_name, create_real_comparison,
+    common_real_comparison)

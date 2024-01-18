@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -135,7 +135,7 @@ def test_gen_decls(fortran_writer):
     local_variable = DataSymbol("local", INTEGER_TYPE)
     symbol_table.add(local_variable)
     dtype = StructureType.create([
-        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
     dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
     grid_type = DataTypeSymbol("grid_type", DeferredType(),

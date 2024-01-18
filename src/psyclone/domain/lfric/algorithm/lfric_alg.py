@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory.
 # Modified by: R. W. Ford, STFC Daresbury Laboratory.
+#              L. Turner, Met Office
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
@@ -43,7 +44,7 @@ from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
                                    LFRicSymbolTable, LFRicTypes)
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
-from psyclone.dynamo0p3 import DynKern
+from psyclone.domain.lfric import LFRicKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.parse.utils import ParseError
@@ -406,15 +407,15 @@ class LFRicAlg:
     def kernel_from_metadata(parse_tree, kernel_name):
         '''
         Given an fparser1 parse tree for an LFRic kernel, creates and returns
-        a DynKern object.
+        a LFRicKern object.
 
         :param parse_tree: the fparser1 parse tree for the LFRic kernel.
         :type parse_tree: :py:class:`fparser.one.block_statements.BeginSource`
         :param str kernel_name: the name of the kernel contained in the \
-            supplied parse tree for which a DynKern is to be created.
+            supplied parse tree for which a LFRicKern is to be created.
 
-        :returns: a DynKern object describing the LFRic kernel.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKern`
+        :returns: a LFRicKern object describing the LFRic kernel.
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
 
         :raises ValueError: if an LFRic kernel with the specified name cannot \
                             be found in the supplied parse tree.
@@ -427,8 +428,8 @@ class LFRicAlg:
                 f"Failed to find kernel '{kernel_name}' in supplied "
                 f"code: '{parse_tree}'. Is it a valid LFRic kernel? Original "
                 f"error was '{err}'.") from err
-        # Construct a DynKern using the metadata.
-        kern = DynKern()
+        # Construct a LFRicKern using the metadata.
+        kern = LFRicKern()
         kern.load_meta(ktype)
         return kern
 
@@ -440,7 +441,7 @@ class LFRicAlg:
         :param prog: the routine to which to add the declarations etc.
         :type prog: :py:class:`psyclone.psyir.nodes.Routine`
         :param kern: the kernel for which we are to create arguments.
-        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+        :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
         :returns: object capturing all of the kernel arguments.
         :rtype: :py:class:`psyclone.domain.lfric.KernCallInvokeArgList`

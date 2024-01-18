@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 
 
@@ -42,7 +42,7 @@
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -77,7 +77,7 @@ contains
   end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''', ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_domain_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_domain_type")
     assert dkm.iterates_over == "domain"
 
 
@@ -102,7 +102,7 @@ contains
 end module testkern_domain_mod
 ''', ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("'domain' is only permitted to accept scalar and field arguments "
             "but the metadata for kernel 'testkern_domain_type' includes an "
             "argument of type 'gh_operator'" in str(err.value))
@@ -128,7 +128,7 @@ contains
 end module testkern_domain_mod
 ''', ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("domain only accept field arguments on discontinuous function "
             "spaces but found 'w2' in 'arg_type(gh_field, gh_real, "
             "gh_read, w2)'" in str(err.value))
@@ -154,7 +154,7 @@ contains
 end module testkern_domain_mod
 ''', ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("domain are not permitted to have arguments with a stencil "
             "access but found: 'arg_type(gh_field, gh_real, gh_read, "
             "w3, stencil(cross))'" in str(err.value))
@@ -185,7 +185,7 @@ contains
 end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("'domain' cannot be passed basis/differential basis functions "
             "but the metadata for kernel 'testkern_domain_type' contains an "
             "entry for 'meta_funcs'" in str(err.value))
@@ -213,7 +213,7 @@ contains
 end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("'testkern_domain_type' operates on the domain but requests "
             "properties of the mesh ([" in str(err.value))
     assert "ADJACENT_FACE" in str(err.value)
@@ -242,7 +242,7 @@ contains
 end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("'testkern_domain_type' operates on the domain but requests "
             "properties of the reference element ([" in str(err.value))
     assert "NORMALS_TO_HORIZONTAL_FACES" in str(err.value)
@@ -271,7 +271,7 @@ contains
 end module restrict_mod
 ''')
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="restrict_kernel_type")
+        LFRicKernMetadata(ast, name="restrict_kernel_type")
     assert ("'restrict_kernel_type' operates on the domain but has fields on "
             "different mesh resolutions" in str(err.value))
 
@@ -299,28 +299,28 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     assert (expected + "      !\n"
             "      !\n"
             "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in gen_code)
+            "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Also test that the FortranWriter handles domain kernels as expected.
-    # ATM we have a `lower_to_language_level method` for DynLoop which removes
-    # the loop node for a domain kernel entirely and only leaves the body.
-    # So we can't call the FortranWriter directly, since it will first lower
-    # the tree, which removes the domain kernel.
+    # ATM we have a `lower_to_language_level method` for LFRicLoop which
+    # removes the loop node for a domain kernel entirely and only leaves the
+    # body. So we can't call the FortranWriter directly, since it will first
+    # lower the tree, which removes the domain kernel.
     # In order to test the actual writer atm, we have to call the
     # `loop_node` directly. But in order for this to work, we need to
     # lower the actual kernel call. Once #1731 is fixed, the temporary
-    # `lower_to_language_level` method in DynLoop can (likely) be removed,
+    # `lower_to_language_level` method in LFRicLoop can (likely) be removed,
     # and then we can just call `fortran_writer(schedule)` here.
     schedule = psy.invokes.invoke_list[0].schedule
-    # Lower the DynKern:
-    for kern in schedule.walk(DynKern):
+    # Lower the LFRicKern:
+    for kern in schedule.walk(LFRicKern):
         kern.lower_to_language_level()
     # Now call the loop handling method directly.
     out = fortran_writer.loop_node(schedule.children[0])
     assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in out)
+            "f1_data, ndf_w3, undf_w3, map_w3)" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
@@ -348,7 +348,7 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
             "      !\n")
     expected += (
         "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-        "f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
+        "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
         assert ("      ! set halos dirty/clean for fields modified in the "
@@ -375,7 +375,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     expected = ("      !\n"
                 "      !\n"
                 "      call testkern_domain_code(nlayers, ncell_2d_no_halos, "
-                "b, f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
+                "b, f1_data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
         assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in gen_code
         expected += ("      !\n"
@@ -416,7 +416,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
             "      !\n")
     expected += (
         "      call testkern_domain_code(nlayers, ncell_2d_no_halos, c, "
-        "f1_proxy%data, ndf_w3, undf_w3, map_w3)\n")
+        "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
         assert ("      ! set halos dirty/clean for fields modified in the "
@@ -447,7 +447,7 @@ def test_domain_plus_cma_kernels(dist_mem, tmpdir):
     assert "ncell_2d = mesh%get_ncells_2d()" in gen_code
     assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
     assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
-            "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in gen_code)
+            "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
     assert ("call columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
             "lma_op1_proxy%ncell_3d," in gen_code)
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -617,14 +617,12 @@ class DependencyTools():
                         # a(3) = ...    or a((i-2)**2) = ...
                         # Both would result in a write-write conflict
                         node = write_access.node
-                        self._add_message(LazyString(
-                            lambda node=write_access.node:
-                                (f"The write access to '"
-                                 f"{node.debug_string()}' causes "
-                                 f"a write-write race condition.")),
+                        self._add_message(
+                            f"The write access to '{var_info.var_name}' in "
+                            f"'{node.debug_string()}' causes "
+                            f"a write-write race condition.",
                             DTCode.ERROR_WRITE_WRITE_RACE,
-                            [LazyString(lambda node=node:
-                                        f"{node.debug_string()}")])
+                            [var_info.var_name])
                     else:
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,

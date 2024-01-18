@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,7 @@ def test_named_interface_declared(fortran_reader):
         module procedure test_code
       end interface test
     contains
-      function test_code()
+      real function test_code()
       end function test_code
     end module test_mod
     '''

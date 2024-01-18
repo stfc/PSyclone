@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements the base class for managing arguments to
@@ -47,6 +47,8 @@ from psyclone.core import AccessType, Signature
 # a circular dependency.
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
+from psyclone.domain.lfric.metadata_to_arguments_rules import (
+    MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
 from psyclone.psyir.symbols import ScalarType
@@ -65,7 +67,7 @@ class ArgOrdering:
     a list.
 
     :param kern: the kernel call object to use.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
     def __init__(self, kern):
@@ -77,8 +79,14 @@ class ArgOrdering:
         invoke_sched = None
         if kern:
             invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
-        # This pylint does not work when I put it in the else branch :(
-        # pylint: disable=import-outside-toplevel
+
+        # TODO #1934 - we should not keep a reference to a SymbolTable here
+        # as this creates a double reference (with
+        # self._kernel.ancestor(InvokeSchedule)._symbol_table) to that table
+        # and might go stale e.g. if the tree is copied.
+        # In fact, using the same symbol table as the Invoke is a bit odd as
+        # we are describing kernel *arguments* here so they will have a
+        # different interface to those in the Schedule of the invoke.
         if invoke_sched:
             self._symtab = invoke_sched.symbol_table
         else:
@@ -466,8 +474,8 @@ class ArgOrdering:
                     self.diff_basis(unique_fs, var_accesses=var_accesses)
             # Fix for boundary_dofs array to the boundary condition
             # kernel (enforce_bc_kernel) arguments
-            if self._kern.name.lower() == "enforce_bc_code" and \
-               unique_fs.orig_name.lower() == "any_space_1":
+            if (MetadataToArgumentsRules.bc_kern_regex.match(self._kern.name)
+                    and unique_fs.orig_name.lower() == "any_space_1"):
                 self.field_bcs_kernel(unique_fs, var_accesses=var_accesses)
 
         # Add boundary dofs array to the operator boundary condition

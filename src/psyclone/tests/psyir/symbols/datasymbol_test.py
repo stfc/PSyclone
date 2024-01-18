@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,10 @@ from fparser.two import Fortran2003
 
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, Symbol, DataTypeSymbol, AutomaticInterface,
-    ImportInterface, ArgumentInterface, UnresolvedInterface,
+    ImportInterface, ArgumentInterface, StaticInterface, UnresolvedInterface,
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE,
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType)
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, UnknownFortranType)
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation, Return,
                                   CodeBlock)
 
@@ -66,20 +66,22 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', real_kind_type),
                       DataSymbol)
     assert isinstance(DataSymbol('a', INTEGER_SINGLE_TYPE), DataSymbol)
-    # Run-time constant.
+    # Run-time constant with no interface specified.
     sym = DataSymbol('a', REAL_DOUBLE_TYPE, is_constant=True,
                      initial_value=0.0)
     assert isinstance(sym, DataSymbol)
     assert sym.is_constant
-    # Defaults to StaticInterface for a run-time constant.
+    # Interface defaults to static for a constant with initial value.
     assert sym.is_static
-    # Run-time constant can only have StaticInterface or ImportInterface.
+
+    # Run-time constant can only have StaticInterface, UnresolvedInterface
+    # or ImportInterface.
     with pytest.raises(ValueError) as err:
         _ = DataSymbol('a', INTEGER_DOUBLE_TYPE, is_constant=True,
-                       initial_value=1, interface=AutomaticInterface())
-    assert ("A DataSymbol representing a constant must have either a "
-            "StaticInterface or an ImportInterface but 'a' has interface "
-            "'Automatic'" in str(err.value))
+                       interface=StaticInterface())
+    assert ("DataSymbol 'a' cannot be a constant because it does not have an "
+            "initial value or an import or unresolved interface."
+            in str(err.value))
 
     assert isinstance(DataSymbol('a', INTEGER4_TYPE),
                       DataSymbol)
@@ -164,8 +166,8 @@ def test_datasymbol_specialise_and_process_arguments():
     with pytest.raises(ValueError) as error:
         sym5.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
                         is_constant=True)
-    assert ("DataSymbol 'symbol5' does not have an initial value set and is "
-            "not imported and therefore cannot be a constant."
+    assert ("DataSymbol 'symbol5' cannot be a constant because it does not "
+            "have an initial value or an import or unresolved interface."
             in str(error.value))
     # The absence of an initial value is permitted if the symbol has an
     # ImportInterface.
@@ -175,6 +177,22 @@ def test_datasymbol_specialise_and_process_arguments():
                     is_constant=True, interface=ImportInterface(csym))
     assert sym6.is_constant
     assert sym6.is_import
+    # It is also permitted if the symbol is of UnknownType.
+    sym7 = Symbol("symbol7")
+    sym7.specialise(DataSymbol,
+                    datatype=UnknownFortranType("integer :: symbol7 = 5"),
+                    is_constant=True)
+    assert sym7.is_constant
+    assert sym7.is_static
+    sym8 = Symbol("symbol8")
+    with pytest.raises(ValueError) as err:
+        sym8.specialise(
+            DataSymbol, datatype=INTEGER_SINGLE_TYPE, is_constant=True,
+            initial_value=Literal("1", INTEGER_SINGLE_TYPE),
+            interface=ArgumentInterface(ArgumentInterface.Access.READ))
+    assert ("Error setting initial value for symbol 'symbol8'. A DataSymbol "
+            "with an ArgumentInterface can not have an initial value."
+            in str(err.value))
 
 
 def test_datasymbol_can_be_printed():
@@ -302,8 +320,9 @@ def test_datasymbol_initial_value_setter_invalid():
     # is_constant specified but without an initial_value
     with pytest.raises(ValueError) as error:
         DataSymbol('a', BOOLEAN_TYPE, is_constant=True)
-    assert ("DataSymbol 'a' does not have an initial value set and is not "
-            "imported and therefore cannot be a constant" in str(error.value))
+    assert ("DataSymbol 'a' cannot be a constant because it does not have an "
+            "initial value or an import or unresolved interface."
+            in str(error.value))
 
 
 def test_datasymbol_is_constant():
@@ -323,8 +342,9 @@ def test_datasymbol_is_constant():
     sym.initial_value = None
     with pytest.raises(ValueError) as err:
         sym.is_constant = True
-    assert ("DataSymbol 'a' does not have an initial value set and is not "
-            "imported and therefore cannot be a constant." in str(err.value))
+    assert ("DataSymbol 'a' cannot be a constant because it does not have an "
+            "initial value or an import or unresolved interface."
+            in str(err.value))
 
 
 @pytest.mark.usefixtures("parser")
@@ -427,6 +447,10 @@ def test_datasymbol_copy():
     assert (symbol.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
     assert symbol.initial_value is None
+
+    new_new_symbol = new_symbol.copy()
+    assert new_symbol.initial_value == new_new_symbol.initial_value
+    assert new_symbol.initial_value is not new_new_symbol.initial_value
 
 
 def test_datasymbol_copy_properties():

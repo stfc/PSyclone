@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -531,7 +531,7 @@ class GOLoop(PSyLoop):
             caller can access any diagnostic messages detailing why the loop
             iterations are not independent.
         :type dep_tools: Optional[
-            :py:class:`psyclone.psyir.tools.DependencyTools]
+            :py:class:`psyclone.psyir.tools.DependencyTools`]
 
         :returns: True if the loop iterations are independent, False otherwise.
         :rtype: bool

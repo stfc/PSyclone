@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -112,19 +112,22 @@ class DataSymbol(TypedSymbol):
 
         if "initial_value" in kwargs:
             new_initial_value = kwargs.pop("initial_value")
-        elif not hasattr(self, '_initial_value'):
+        if not hasattr(self, '_initial_value'):
             # Initialise this attribute if we reach this point and this object
-            # doesn't already have it.
+            # doesn't already have it (which may happen if this symbol has been
+            # specialised from a Symbol).
             self._initial_value = None
 
         if "is_constant" in kwargs:
             new_is_constant_value = kwargs.pop("is_constant")
-        elif not hasattr(self, '_is_constant'):
+        if not hasattr(self, '_is_constant'):
             # At least initialise it if we reach this point and it doesn't
-            # exist
+            # exist (which may happen if this symbol has been specialised from
+            # a Symbol).
             self._is_constant = False
 
         # Record whether an explicit value has been supplied for 'interface'
+        # (before it is consumed by the super method).
         interface_supplied = "interface" in kwargs
 
         super()._process_arguments(**kwargs)
@@ -134,26 +137,16 @@ class DataSymbol(TypedSymbol):
         if new_initial_value is not None:
             self.initial_value = new_initial_value
 
-        # Now that we know whether or not we have an intial_value, we can
-        # call the is_constant setter.
+        # Now that we know whether or not we have an intial_value and an
+        # interface, we can call the is_constant setter.
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value
 
-        # A run-time constant must have a StaticInterface or an
-        # ImportInterface. If the user did not supply an explicit interface
-        # then default to StaticInterface. If they did supply
-        # one then we check it is valid.
-        if self.is_constant:
-            if interface_supplied:
-                if not (self.is_static or self.is_import):
-                    raise ValueError(
-                        f"A DataSymbol representing a constant must have "
-                        f"either a StaticInterface or an ImportInterface but "
-                        f"'{self.name}' has interface '{self.interface}'.")
-            else:
-                # No explicit interface was supplied and this Symbol represents
-                # a runtime constant so change its interface to be static.
-                self.interface = StaticInterface()
+        if self.is_constant and not interface_supplied and self.is_automatic:
+            # No explicit interface was supplied and this Symbol represents
+            # a runtime constant so change its interface to be static if it
+            # would otherwise default to Automatic.
+            self.interface = StaticInterface()
 
     @property
     def is_constant(self):
@@ -171,13 +164,20 @@ class DataSymbol(TypedSymbol):
             constant.
 
         :raises ValueError: if `value` is True but this symbol does not have an
-            initial value set and does not have an ImportInterface.
+            initial value or an import or unresolved interface.
 
         '''
-        if value and not self.is_import and self.initial_value is None:
-            raise ValueError(
-                f"DataSymbol '{self.name}' does not have an initial value set "
-                f"and is not imported and therefore cannot be a constant.")
+        if (value and not (self.is_import or self.is_unresolved) and
+                self.initial_value is None):
+            # A Symbol of UnknownType could have initialisation within its
+            # original declaration.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.symbols.datatypes import UnknownType
+            if not isinstance(self.datatype, UnknownType):
+                raise ValueError(
+                    f"DataSymbol '{self.name}' cannot be a constant because it"
+                    f" does not have an initial value or an import or "
+                    f"unresolved interface.")
         self._is_constant = value
 
     @property

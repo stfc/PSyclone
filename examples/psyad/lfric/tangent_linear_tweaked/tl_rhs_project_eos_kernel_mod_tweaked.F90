@@ -17,6 +17,8 @@
 !> \f[ L = p0/Rd * ls_exner ^ gamma /(ls_rho*ls_theta_vd) \f]
 !> and \f[ gamma = (1-kappa)/kappa \f]
 
+! This tweaked kernel replaces ANY_SPACE_9 with WCHI
+
 module tl_rhs_project_eos_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,         &
