@@ -43,11 +43,12 @@ import pytest
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
-    Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall
+from psyclone.psyir.nodes import (
+    Reference, ArrayReference, Assignment,
+    Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, DeferredType, ScalarType,
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE,
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, Symbol, INTEGER_TYPE,
     UnknownFortranType)
 from psyclone.tests.utilities import check_links
 
@@ -558,6 +559,18 @@ def test_array_datatype():
     # the original symbol.
     aref4 = ArrayReference.create(not_quite_unknown_sym, [":"])
     assert aref4.datatype == not_quite_unknown_sym.datatype
+    # When the Reference is just to a Symbol. Although `create` forbids this,
+    # it is possible for the fparser2 frontend to create such a construct.
+    generic_sym = Symbol("existential")
+    aref5 = ArrayReference(generic_sym)
+    aref5.addchild(two.copy())
+    assert isinstance(aref5.datatype, DeferredType)
+    aref5.addchild(Range.create(two.copy(), four.copy()))
+    dtype5 = aref5.datatype
+    assert isinstance(dtype5, ArrayType)
+    assert isinstance(dtype5.intrinsic, DeferredType)
+    assert dtype5.shape[0].lower.value == "1"
+    assert dtype5.shape[0].upper.debug_string() == "(4 - 2) / 1 + 1"
 
 
 def test_array_create_colon(fortran_writer):
