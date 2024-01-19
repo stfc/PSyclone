@@ -59,22 +59,22 @@ describe the functionality provided by the GOcean Library.
 
 .. _gocean1.0-library:
 
-The GOcean Library
-------------------
+The GOcean Infrastructure Library - dl_esm_inf
+----------------------------------------------
 
 The use of PSyclone and the GOcean 1.0 API implies the use of a
 standard set of data types and associated infrastructure. This is
-provided by the dl_esm_inf library. Currently this library is distributed
-separately from PSyclone and is available from
-https://github.com/stfc/dl_esm_inf.
+provided by the GOcean infrastructure library - dl_esm_inf.
+Currently this library is distributed separately from PSyclone and
+is available from https://github.com/stfc/dl_esm_inf.
 
 .. _gocean1.0-grid:
 
 Grid
 ++++
 
-The GOLib contains a ``grid_mod`` module which defines a ``grid_type``
-and associated constructor::
+The dl_esm_inf library contains a ``grid_mod`` module which defines a
+``grid_type`` and associated constructor::
 
   use grid_mod
   ...
@@ -165,8 +165,8 @@ supported by this routine.
 Fields
 ++++++
 
-Once a model has a grid defined it will require one or more
-fields. The GOLib contains a ``field_mod`` module which defines an
+Once a model has a grid defined it will require one or more fields.
+The dl_esm_inf library contains a ``field_mod`` module which defines an
 ``r2d_field`` type (real, 2-dimensional field) and associated
 constructor::
 
@@ -200,7 +200,7 @@ GOcean Library. See ``<PSYCLONEHOME>/examples/gocean/shallow_alg.f90``.  In what
 follows we will walk through a slightly cut-down example for a
 different program.
 
-The following code illustrates the use of the GOLib in constructing an
+The following code illustrates the use of dl_esm_inf for constructing an
 application::
 
    program gocean2d
@@ -284,8 +284,8 @@ reading a namelist file. An example might look something like::
 
    end subroutine model_init
 
-Here, only ``grid_type`` and the ``grid_init`` routine come from the
-GOLib. The remaining code is all application specific.
+Here, only ``grid_type`` and the ``grid_init`` routine come from dl_esm_inf.
+The remaining code is all application specific.
 
 Once the grid object is fully configured and all fields have been
 constructed, a simulation will proceed by performing calculations with
