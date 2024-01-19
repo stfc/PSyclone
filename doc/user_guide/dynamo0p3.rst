@@ -3259,6 +3259,13 @@ the same field (``X = min(a, X)``)::
 Conversion of ``real`` field elements
 #####################################
 
+Built-ins which take a ``real`` field for conversion to a field of
+a different datatype or precision are denoted by the datatype that the
+input ``real`` field will be converted to. A Built-in that converts a
+``real`` to an ``integer`` field is denoted by the phrase **to_int**.
+Likewise, a Built-in that converts a ``real`` to a ``real`` field is
+denoted by the phrase **to_real**.
+
 .. _real-to-int-built-in:
 
 real_to_int_X
@@ -3297,13 +3304,6 @@ to the precision of ``Y``::
 **field2** and *field1* are ``real``-valued fields of any :ref:`supported
 precisions <lfric-mixed-precision>` for ``GH_REAL`` fields (e.g. ``r_tran``
 for ``r_tran_field_type``).
-
-Built-ins which take a ``real`` field for conversion to a field of
-a different datatype or precision are denoted by the datatype that the
-input ``real`` field will be converted to. A Built-in that converts a
-``real`` to an ``integer`` field is denoted by the keyword **int**.
-Likewise, a Built-in that converts a ``real`` to a ``real`` field is 
-denoted by the keyword **real**.
 
 .. _lfric-built-ins-int:
 
@@ -3589,7 +3589,7 @@ Conversion of ``integer`` to ``real`` field elements
 ####################################################
 
 A Built-in which takes an ``integer`` field and converts it to
-a ``real`` field is denoted with the keyword **real**.
+a ``real`` field is denoted by the phrase **to_real**.
 
 .. _int-to-real-built-in:
 
