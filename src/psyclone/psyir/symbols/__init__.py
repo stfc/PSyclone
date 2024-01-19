@@ -41,8 +41,8 @@
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
-from psyclone.psyir.symbols.interfaces import \
-    (ArgumentInterface, AutomaticInterface, CommonBlockInterface,
+from psyclone.psyir.symbols.interfaces import (
+     ArgumentInterface, AutomaticInterface, CommonBlockInterface,
      DefaultModuleInterface, ImportInterface,
      StaticInterface, UnknownInterface, UnresolvedInterface)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
@@ -50,8 +50,8 @@ from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
-from psyclone.psyir.symbols.datatypes import \
-    (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, DataType,
+from psyclone.psyir.symbols.datatypes import (
+     ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, DataType,
      INTEGER4_TYPE, INTEGER8_TYPE, INTEGER_DOUBLE_TYPE, INTEGER_SINGLE_TYPE,
      INTEGER_TYPE, NoType, REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE,
      REAL_TYPE, REAL_SINGLE_TYPE, ScalarType, StructureType,

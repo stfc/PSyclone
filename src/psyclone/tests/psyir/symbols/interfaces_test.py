@@ -41,8 +41,8 @@
 
 import pytest
 
-from psyclone.psyir.symbols.interfaces import \
-    (AutomaticInterface, ArgumentInterface, CommonBlockInterface,
+from psyclone.psyir.symbols.interfaces import (
+     AutomaticInterface, ArgumentInterface, CommonBlockInterface,
      DefaultModuleInterface, ImportInterface,
      StaticInterface, SymbolInterface, UnknownInterface, UnresolvedInterface)
 from psyclone.psyir.symbols import ContainerSymbol
