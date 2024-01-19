@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' 
+'''
 This module contains the LFRicDofmaps class which holds all the
 information and methods for the dofmaps required by an invoke such as:
 generating the calls to the LFRic infrastructure that look-up the necessary
@@ -291,6 +291,7 @@ class LFRicDofmaps(LFRicCollection):
                                kind=api_config.default_kind["integer"],
                                intent="in", dimension=dim_name,
                                entity_decls=[dmap]))
+
 
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
