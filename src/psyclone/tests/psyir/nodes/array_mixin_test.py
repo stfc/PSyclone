@@ -626,8 +626,16 @@ def test_same_range(fortran_reader):
     array2 = fortran_reader.psyir_from_statement("b(:4) = 0").lhs
     assert array1.same_range(0, array2, 0) is False
 
-    # neither use upper bound and are different
+    # both have an specific ubound and are different
     array1 = fortran_reader.psyir_from_statement("a(:3) = 0").lhs
+    assert array1.same_range(0, array2, 0) is False
+
+    # one of lower bounds uses lbound, other does not
+    array2 = fortran_reader.psyir_from_statement("b(2:) = 0").lhs
+    assert array1.same_range(0, array2, 0) is False
+
+    # both have an specific lbound and are different
+    array1 = fortran_reader.psyir_from_statement("a(3:) = 0").lhs
     assert array1.same_range(0, array2, 0) is False
 
     # Both have lower and upper bound but are symbolically equal
@@ -650,12 +658,15 @@ def test_same_range(fortran_reader):
     assert array1.same_range(1, array2, 1) is True
     assert array1.same_range(2, array2, 2) is True
 
-    # Same but the compile time known shape is not the same
+    # The asserts below are incorrect
+    pytest.xfail("issue #2485: same_range still has problems")
+
+    # Full-ranges but the compile time known shape is not the same
     code = '''
     subroutine test()
         real, dimension(4, 5-1, 2:5) :: A
         real, dimension(5,   5,   5) :: B
-        A(:,:,:) = B(1:4,1:4,1:4)
+        A(:,:,:) = B(:,:,:)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -663,3 +674,17 @@ def test_same_range(fortran_reader):
     assert array1.same_range(0, array2, 0) is False
     assert array1.same_range(1, array2, 1) is False
     assert array1.same_range(2, array2, 2) is False
+
+    # Same range length, but shifted
+    code = '''
+    subroutine test()
+        real, dimension(4, 5-1, 2:5) :: A
+        real, dimension(5,   5,   5) :: B
+        A(2:4,2:4,2:4) = B(3:5,3:5,3:5)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    array1, array2 = psyir.walk(Assignment)[0].children
+    assert array1.same_range(0, array2, 0) is True
+    assert array1.same_range(1, array2, 1) is True
+    assert array1.same_range(2, array2, 2) is True

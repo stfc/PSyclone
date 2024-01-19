@@ -600,14 +600,17 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
     def same_range(self, index: int, array2, index2: int) -> bool:
         ''' This method compares the range length of this array node
-        at a given index with range length of a second array at
-        a second index. This is useful to verify is array operations
+        at a given index with the range length of a second array at
+        a second index. This is useful to verify if array operations
         are valid, e.g.: A(3,:,5) + B(:,2,2).
 
         Note that this check supports symbolic comparisons, e.g.:
         A(3:4) has the same range as B(2+1:5-1),
         and will consider compile-time unknown dimensions as equal, e.g.:
         A(:) has the same range as B(:).
+
+        TODO #2485. This method has false negatives: cases when the range
+        is the same but it can not be proved, so we return False.
 
         :param index: the index indicating the location of a range node in
             this array.

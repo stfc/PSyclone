@@ -45,12 +45,12 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.errors import InternalError
 
 
+# pylint: disable=abstract-class-instantiated
 def test_init_error():
     '''Test that a CommonMetaArgMetadata instance can't be created as it
     is abstract.
 
     '''
-    # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as info:
         _ = CommonMetaArgMetadata(None, None)
     # Python >= 3.12 tweaks the error message to mention
