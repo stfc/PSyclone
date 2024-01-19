@@ -303,7 +303,7 @@ class StructureReference(Reference):
         if isinstance(dtype, (DeferredType, UnknownType)):
             # We don't know the type of the symbol that defines the type
             # of this structure.
-            return DeferredType()
+            dtype = DeferredType()
 
         # We do have the definition of this structure - walk down it.
         cursor = self
@@ -325,9 +325,10 @@ class StructureReference(Reference):
                 cursor_type = cursor_type.intrinsic
             if isinstance(cursor_type, DataTypeSymbol):
                 cursor_type = cursor_type.datatype
-            cursor_type = cursor_type.components[cursor.name].datatype
-            if isinstance(cursor_type, (UnknownType, DeferredType)):
-                return DeferredType()
+            if not isinstance(cursor_type, (DeferredType, UnknownType)):
+                # Once we've hit a Deferred/UnknownType the cursor_type will
+                # remain set to that as we can't do any better.
+                cursor_type = cursor_type.components[cursor.name].datatype
             if isinstance(cursor, ArrayMixin):
                 # pylint: disable=protected-access
                 shape.extend(cursor._get_effective_shape())

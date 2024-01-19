@@ -327,15 +327,11 @@ def test_where_within_loop(fortran_reader):
     assert isinstance(where_loop.loop_body[0], IfBlock)
     assign = where_loop.loop_body[0].if_body[0]
     assert isinstance(assign, Assignment)
-    assert [idx.name for idx in assign.lhs.indices] == ["widx1", "jl"]
-    assert isinstance(where_loop.start_expr, IntrinsicCall)
-    assert where_loop.start_expr.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-    assert where_loop.start_expr.children[0].symbol.name == "var"
-    assert where_loop.start_expr.children[1].value == "1"
-    assert isinstance(where_loop.stop_expr, IntrinsicCall)
-    assert where_loop.stop_expr.intrinsic == IntrinsicCall.Intrinsic.UBOUND
-    assert where_loop.stop_expr.children[0].symbol.name == "var"
-    assert where_loop.stop_expr.children[1].value == "1"
+    assert assign.lhs.indices[0].debug_string() == "1 + widx1 - 1"
+    assert assign.lhs.indices[1].debug_string() == "jl"
+    assert where_loop.start_expr.value == "1"
+    assert (where_loop.stop_expr.debug_string() ==
+            "(UBOUND(var, dim=1) - LBOUND(var, dim=1)) / 1 + 1")
 
 
 @pytest.mark.usefixtures("parser")
@@ -355,19 +351,15 @@ def test_basic_where():
         assert "was_where" in loop.annotations
         assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
-    assert isinstance(loops[0].children[0], IntrinsicCall)
-    assert isinstance(loops[0].children[1], IntrinsicCall)
-    assert loops[0].children[1].intrinsic == IntrinsicCall.Intrinsic.UBOUND
-    assert str(loops[0].children[1].children[0]) == "Reference[name:'dry']"
+    assert isinstance(loops[0].start_expr, Literal)
+    assert (loops[0].stop_expr.debug_string() ==
+            "(UBOUND(dry, dim=3) - LBOUND(dry, dim=3)) / 1 + 1")
 
     ifblock = loops[2].loop_body[0]
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
-    assert ("ArrayReference[name:'dry']\n"
-            "Reference[name:'widx1']\n"
-            "Reference[name:'widx2']\n"
-            "Reference[name:'widx3']\n"
-            in str(ifblock.condition))
+    assert (ifblock.condition.debug_string() ==
+            "dry(1 + widx1 - 1,1 + widx2 - 1,1 + widx3 - 1)")
 
 
 @pytest.mark.usefixtures("parser")
@@ -392,9 +384,9 @@ def test_where_array_subsections():
     # Check that the array reference is indexed correctly
     assign = ifblock.if_body[0]
     assert isinstance(assign, Assignment)
-    assert isinstance(assign.lhs.children[0], Reference)
-    assert assign.lhs.children[0].name == "widx1"
-    assert assign.lhs.children[2].name == "widx2"
+    assert isinstance(assign.lhs.children[0], BinaryOperation)
+    assert assign.lhs.children[0].debug_string() == "1 + widx1 - 1"
+    assert assign.lhs.children[2].debug_string() == "1 + widx2 - 1"
 
 
 def test_where_body_containing_sum_with_dim(fortran_reader, fortran_writer):
@@ -455,7 +447,8 @@ def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
     routine = psyir.walk(Routine)[0]
     assert isinstance(routine[0], Loop)
     output = fortran_writer(psyir)
-    assert "SUM(a_i_last_couple) / picefr(widx1,widx2)" in output
+    assert ("SUM(a_i_last_couple) / picefr(LBOUND(picefr, dim=1) + widx1 - 1,"
+            "LBOUND(picefr, dim=2) + widx2 - 1)" in output)
 
 
 def test_where_mask_containing_sum_with_dim(fortran_reader):
@@ -545,9 +538,8 @@ def test_elsewhere():
     assert isinstance(ifblock.ast, Fortran2003.Where_Construct)
     assert isinstance(ifblock.condition, BinaryOperation)
     assert ifblock.condition.operator == BinaryOperation.Operator.GT
-    assert ("ArrayReference[name:'ptsu']\n"
-            "Reference[name:'widx1']\n" in str(ifblock.condition.children[0]))
-    assert "Literal[value:'10." in str(ifblock.condition.children[1])
+    assert (ifblock.condition.debug_string() ==
+            "ptsu(1 + widx1 - 1,1 + widx2 - 1,1 + widx3 - 1) > 10._wp")
     # Check that this IF block has an else body which contains another IF
     assert ifblock.else_body is not None
     ifblock2 = ifblock.else_body[0]
@@ -555,8 +547,8 @@ def test_elsewhere():
     assert isinstance(ifblock2, IfBlock)
     assert isinstance(ifblock2.condition, BinaryOperation)
     assert ifblock2.condition.operator == BinaryOperation.Operator.LT
-    assert ("ArrayReference[name:'ptsu']\n"
-            "Reference[name:'widx1']\n" in str(ifblock2.condition.children[0]))
+    assert (ifblock2.condition.debug_string() ==
+            "ptsu(1 + widx1 - 1,1 + widx2 - 1,1 + widx3 - 1) < 0.0_wp")
     # Check that this IF block too has an else body
     assert isinstance(ifblock2.else_body[0], Assignment)
     # Check that we have three assignments of the correct form and with the
@@ -567,10 +559,8 @@ def test_elsewhere():
         assert isinstance(assign.lhs, ArrayReference)
         refs = assign.lhs.walk(Reference)
         assert len(refs) == 4
-        assert refs[1:4] == assign.lhs.indices
-        assert assign.lhs.name == "z1_st"
-        assert ([idx.name for idx in assign.lhs.indices] ==
-                ["widx1", "widx2", "widx3"])
+        assert (assign.lhs.debug_string() ==
+                "z1_st(1 + widx1 - 1,1 + widx2 - 1,1 + widx3 - 1)")
         assert isinstance(assign.parent.parent, IfBlock)
 
     assert isinstance(assigns[0].rhs, BinaryOperation)
@@ -699,14 +689,14 @@ def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     assert len(loops) == 2
-    assert isinstance(loops[1].stop_expr, IntrinsicCall)
-    assert loops[1].stop_expr.intrinsic == IntrinsicCall.Intrinsic.UBOUND
-    assert isinstance(loops[1].stop_expr.children[0], StructureReference)
-    assert fortran_writer(loops[1].stop_expr.children[0]) == size_arg
+    assert isinstance(loops[1].stop_expr, BinaryOperation)
+    assert (loops[1].stop_expr.debug_string() ==
+            f"(UBOUND({size_arg}, dim=1) - LBOUND({size_arg}, dim=1)) / 1 + 1")
     assert isinstance(loops[1].loop_body[0], IfBlock)
     # All Range nodes should have been replaced
     assert not loops[0].walk(Range)
     # All ArrayMember accesses should now use the `widx1` loop variable
     array_members = loops[0].walk(ArrayMember)
     for member in array_members:
-        assert member.indices[0].symbol.name == "widx1"
+        idx_refs = member.indices[0].walk(Reference)
+        assert all([idx.name == "widx1" for idx in idx_refs])

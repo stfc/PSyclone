@@ -44,9 +44,9 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import (DataSymbol, DeferredType,
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, DeferredType,
                                     UnknownFortranType, UnknownType,
-                                    DataTypeSymbol, ScalarType, ArrayType,
+                                    DataTypeSymbol, ScalarType, Symbol,
                                     INTEGER_TYPE)
 
 
@@ -129,7 +129,9 @@ class ArrayReference(ArrayMixin, Reference):
         '''
         shape = self._get_effective_shape()
         if shape:
-            if isinstance(self.symbol.datatype, ArrayType):
+            if type(self.symbol) is Symbol:
+                orig_shape = []
+            elif isinstance(self.symbol.datatype, ArrayType):
                 # We have full type information so we know the shape of the
                 # original declaration.
                 orig_shape = self.symbol.datatype.shape
@@ -140,7 +142,7 @@ class ArrayReference(ArrayMixin, Reference):
                 orig_shape = self.symbol.datatype.partial_datatype.shape
             else:
                 # We don't have any information on the shape of the original
-                # delcaration.
+                # declaration.
                 orig_shape = []
             if (len(shape) == len(orig_shape) and
                     all(self.is_full_range(idx) for idx in range(len(shape)))):
@@ -150,7 +152,8 @@ class ArrayReference(ArrayMixin, Reference):
                 # StructureReference but they have their own implementation
                 # of this method.)
                 return self.symbol.datatype
-            if isinstance(self.symbol.datatype, UnknownType):
+            if type(self.symbol) is Symbol or isinstance(self.symbol.datatype,
+                                                         UnknownType):
                 # Even if an Unknown(Fortran)Type has partial type
                 # information, we can't easily use it here because we'd need
                 # to re-write the original Fortran declaration stored in the
@@ -166,6 +169,8 @@ class ArrayReference(ArrayMixin, Reference):
             return ArrayType(base_type, shape)
 
         # Otherwise, we're accessing a single element of the array.
+        if type(self.symbol) is Symbol:
+            return DeferredType()
         if isinstance(self.symbol.datatype, UnknownType):
             if (isinstance(self.symbol.datatype, UnknownFortranType) and
                     self.symbol.datatype.partial_datatype):

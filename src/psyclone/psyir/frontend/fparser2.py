@@ -3604,15 +3604,17 @@ class Fparser2Reader():
         '''
         Utility function that modifies each ArrayReference object in the
         supplied PSyIR fragment so that they are indexed using the supplied
-        loop variables rather than having colon array notation.
+        loop variables rather than having colon array notation. This indexing
+        is always done relative to the declared lower bound of the array being
+        accessed.
 
-        :param parent: root of PSyIR sub-tree to search for Array \
+        :param parent: root of PSyIR sub-tree to search for Array
                        references to modify.
         :type parent:  :py:class:`psyclone.psyir.nodes.Node`
         :param loop_vars: the variable names for the array indices.
         :type loop_vars: list of str
 
-        :raises NotImplementedError: if array sections of differing ranks are \
+        :raises NotImplementedError: if array sections of differing ranks are
                                      found.
         '''
         assigns = parent.walk(Assignment)
@@ -3629,6 +3631,8 @@ class Fparser2Reader():
         # PSyIR (using e.g. the Fortran backend) will not
         # compile. We need to implement robust identification of the
         # types of all symbols in the PSyIR fragment.
+        table = parent.scope.symbol_table
+        one = Literal("1", INTEGER_TYPE)
         arrays = parent.walk(ArrayMixin)
         first_rank = None
         for array in arrays:
@@ -3650,14 +3654,27 @@ class Fparser2Reader():
             else:
                 first_rank = rank
 
+            base_ref = _copy_full_base_reference(array)
+            array_ref = array.ancestor(Reference, include_self=True)
+            shape = array_ref.datatype.shape
+            add_op = BinaryOperation.Operator.ADD
+            sub_op = BinaryOperation.Operator.SUB
             # Replace the PSyIR Ranges with the loop variables
             range_idx = 0
             for idx, child in enumerate(array.indices):
                 if isinstance(child, Range):
-                    symbol = _find_or_create_unresolved_symbol(
-                        array, loop_vars[range_idx],
-                        symbol_type=DataSymbol, datatype=DeferredType())
-                    array.children[idx] = Reference(symbol)
+                    symbol = table.lookup(loop_vars[range_idx])
+                    if isinstance(shape[range_idx], ArrayType.Extent):
+                        lbound = IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.LBOUND,
+                            [base_ref.copy(),
+                             ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+                    else:
+                        lbound = shape[range_idx].lower.copy()
+                    expr = BinaryOperation.create(
+                        add_op, lbound, Reference(symbol))
+                    expr2 = BinaryOperation.create(sub_op, expr, one.copy())
+                    array.children[idx] = expr2
                     range_idx += 1
 
     def _where_construct_handler(self, node, parent):
@@ -3782,6 +3799,10 @@ class Fparser2Reader():
         # parent for this logical expression we will repeat the processing.
         fake_parent = Assignment(parent=parent)
         self.process_nodes(fake_parent, logical_expr)
+        # TODO ought to be able to do:
+        #    result_type = fake_parent.lhs.datatype
+        # but that frequently just gives a DeferredType rather than an
+        # ArrayType with a scalar type of DeferredType.
         arrays = fake_parent.walk(ArrayMixin)
 
         if not arrays:
@@ -3793,6 +3814,7 @@ class Fparser2Reader():
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation (e.g. "
                 f"my_array(:,:)) are supported but found '{logical_expr}'.")
+
         for array in arrays:
             if any(isinstance(idx, Range) for idx in array.indices):
                 first_array = array
@@ -3803,9 +3825,11 @@ class Fparser2Reader():
                 f"including ranges (e.g. 'my_array(1,:)') are supported but "
                 f"found '{logical_expr}'")
 
-        # All array sections in a Fortran WHERE must have the same rank so
-        # just look at the first array.
-        rank = self._array_notation_rank(first_array)
+        array_ref = first_array.ancestor(Reference, include_self=True)
+        mask_shape = array_ref.datatype.shape
+        # All array sections in a Fortran WHERE must have the same shape so
+        # just look at that of the mask.
+        rank = len(mask_shape)
         # Create a list to hold the names of the loop variables as we'll
         # need them to index into the arrays.
         loop_vars = rank*[""]
@@ -3826,7 +3850,7 @@ class Fparser2Reader():
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
 
-            # Create the first argument to the SIZE operator
+            # Create the first argument to the LBOUND/UBOUND intrinsic
             if isinstance(first_array, Member):
                 # The array access is a member of some derived type
                 parent_ref = first_array.ancestor(Reference)
@@ -3845,25 +3869,22 @@ class Fparser2Reader():
                     datatype=DeferredType())
                 new_ref = Reference(symbol)
 
-            # Add loop lower bound
-            #loop.addchild(Literal("1", integer_type))
-            loop.addchild(
-                IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
-                                     [new_ref,
-                                      Literal(str(idx), integer_type)]))
-            # Add loop upper bound - we use the SIZE operator to query the
-            # extent of the current array dimension
-            #size_node = IntrinsicCall(IntrinsicCall.Intrinsic.SIZE,
-            #                          parent=loop)
-            #loop.addchild(size_node)
-            loop.addchild(
-                IntrinsicCall.create(IntrinsicCall.Intrinsic.UBOUND,
-                                     [new_ref.copy(),
-                                      Literal(str(idx), integer_type)]))
+            # Add loop lower bound. This loop is over the shape of the mask
+            # and thus starts at unity. Each individual array access is then
+            # adjusted according to the lower bound of that array.
+            loop.addchild(Literal("1", integer_type))
+            # Add loop upper bound using the shape of the mask.
+            if isinstance(mask_shape[idx-1], ArrayType.Extent):
+                # We don't have an explicit value for the upper bound so we
+                # have to query it using SIZE.
+                loop.addchild(
+                    IntrinsicCall.create(IntrinsicCall.Intrinsic.SIZE,
+                                         [first_array.copy(),
+                                          ("dim", Literal(str(idx),
+                                                          integer_type))]))
+            else:
+                loop.addchild(mask_shape[idx-1].upper.copy())
 
-            #size_node.addchild(new_ref)
-            #size_node.addchild(Literal(str(idx), integer_type,
-            #                           parent=size_node))
             # Add loop increment
             loop.addchild(Literal("1", integer_type))
             # Fourth child of a Loop must be a Schedule
@@ -3879,6 +3900,7 @@ class Fparser2Reader():
                 # handler returns
                 root_loop = loop
             new_parent = sched
+
         # Now we have the loop nest, add an IF block to the innermost
         # schedule
         ifblock = IfBlock(parent=new_parent, annotations=annotations)
