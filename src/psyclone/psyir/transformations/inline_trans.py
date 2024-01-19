@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -132,7 +132,6 @@ class InlineTrans(Transformation):
 
         '''
         self.validate(node, options)
-
         # The table associated with the scoping region holding the Call.
         table = node.scope.symbol_table
         # Find the routine to be inlined.
@@ -160,7 +159,6 @@ class InlineTrans(Transformation):
         # Shallow copy the symbols from the routine into the table at the
         # call site.
         table.merge(routine_table, include_arguments=False)
-
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
         # accesses. If they use 'array notation' (i.e. represent a whole array)
@@ -181,6 +179,10 @@ class InlineTrans(Transformation):
         for ref in refs[:]:
             self._replace_formal_arg(ref, node, formal_args)
 
+        # Store the Routine level symbol table and node's current scope
+        # so we can merge symbol tables later if required.
+        ancestor_table = node.ancestor(Routine).scope.symbol_table
+        scope = node.scope
         # Copy the nodes from the Routine into the call site.
         if isinstance(new_stmts[-1], Return):
             # If the final statement of the routine is a return then
@@ -209,6 +211,16 @@ class InlineTrans(Transformation):
             for child in new_stmts[1:]:
                 idx += 1
                 parent.addchild(child, idx)
+
+        # If the scope we merged the inlined functions symbol table into
+        # is not a Routine scope then we now merge that symbol table into
+        # the ancestor Routine. This avoids issues like #2424 when
+        # applying ParallelLoopTrans to loops containing inlined calls.
+        if ancestor_table is not scope.symbol_table:
+            ancestor_table.merge(scope.symbol_table)
+            replacement = type(scope.symbol_table)()
+            scope.symbol_table.detach()
+            replacement.attach(scope)
 
     def _replace_formal_arg(self, ref, call_node, formal_args):
         '''
@@ -596,7 +608,6 @@ class InlineTrans(Transformation):
             raise TransformationError(
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
-
         # Check that we can find the source of the routine being inlined.
         routine = self._find_routine(node)
 

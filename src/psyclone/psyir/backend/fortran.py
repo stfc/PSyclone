@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1489,23 +1489,6 @@ class FortranWriter(LanguageWriter):
         else:
             raise VisitorError(
                 f"Unsupported CodeBlock Structure '{node.structure}' found.")
-        return result
-
-    def nemokern_node(self, node):
-        '''NEMO kernels are a group of nodes collected into a schedule
-        so simply call the nodes in the schedule.
-
-        :param node: a NemoKern PSyIR node.
-        :type node: :py:class:`psyclone.nemo.NemoKern`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        '''
-        result = ""
-        schedule = node.get_kernel_schedule()
-        for child in schedule.children:
-            result += self._visit(child)
         return result
 
     def operandclause_node(self, node):

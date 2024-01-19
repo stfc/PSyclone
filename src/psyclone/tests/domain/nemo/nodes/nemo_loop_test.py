@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,11 +35,9 @@
 
 '''Module containing tests for the NemoLoop node. '''
 
-from __future__ import absolute_import
-
 import pytest
 
-from psyclone.nemo import NemoLoop, NemoKern
+from psyclone.nemo import NemoLoop
 from psyclone.psyir.nodes import Assignment, Loop, Literal, Reference, Schedule
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -150,28 +148,3 @@ def test_create_errors():
         _ = NemoLoop.create(variable, start, stop, step, None)
     assert ("Generation Error: children argument in create method of NemoLoop "
             "class should be a list but found 'NoneType'." in str(info.value))
-
-
-def test_kernel():
-    '''Test that the kernel method behaves as expected.'''
-    variable = DataSymbol("ji", INTEGER_TYPE)
-    start = Literal("2", INTEGER_TYPE)
-    stop = Literal("10", INTEGER_TYPE)
-    step = Literal("1", INTEGER_TYPE)
-    x_var = DataSymbol("X", REAL_TYPE)
-    children = [Assignment.create(Reference(x_var), Literal("3.0", REAL_TYPE))]
-    nemo_loop = NemoLoop.create(variable, start, stop, step, children)
-    assert not nemo_loop.kernel
-
-    schedule = nemo_loop.loop_body
-    nemo_kern = NemoKern(schedule.pop_all_children())
-    schedule.children = [nemo_kern]
-    assert nemo_loop.kernel
-
-    children = [Assignment.create(Reference(x_var), Literal("3.0", REAL_TYPE))]
-    nemo_kern = NemoKern(children)
-    schedule.children.append(nemo_kern)
-    with pytest.raises(NotImplementedError) as info:
-        _ = nemo_loop.kernel
-    assert ("Kernel getter method does not yet support a loop containing more "
-            "than one kernel but this loop contains 2" in str(info.value))

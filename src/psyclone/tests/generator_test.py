@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -401,12 +401,13 @@ def test_profile_gocean():
     information if this has been specified.
 
     '''
-    Profiler.set_options(['invokes'])
+    Profiler.set_options(['invokes'], "gocean1.0")
     _, psy = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
         api="gocean1.0")
     assert "CALL profile_psy_data" in str(psy)
-    Profiler.set_options([])
+    # Reset the stored options.
+    Profiler._options = []
 
 
 def test_script_attr_error():
@@ -614,9 +615,9 @@ def test_main_profile(capsys):
     assert Profiler.profile_kernels()
     assert not Profiler.profile_invokes()
 
-    # Check for invokes + kernels
+    # Check for routines (aka invokes) + kernels
     main(options+["--profile", "kernels",
-                  '--profile', 'invokes', filename])
+                  '--profile', 'routines', filename])
     assert Profiler.profile_kernels()
     assert Profiler.profile_invokes()
 
@@ -626,7 +627,7 @@ def test_main_profile(capsys):
         main(options+["--profile", filename])
     _, outerr = capsys.readouterr()
 
-    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    correct_re = "invalid choice.*choose from 'invokes', 'routines', 'kernels'"
     assert re.search(correct_re, outerr) is not None
 
     # Check for invalid parameter
@@ -636,8 +637,16 @@ def test_main_profile(capsys):
 
     assert re.search(correct_re, outerr) is not None
 
+    # Check that 'kernels' is rejected for the 'nemo' API.
+    Profiler._options = []
+    with pytest.raises(SystemExit):
+        main(["-api", "nemo", "--profile", "kernels", filename])
+    _, outerr = capsys.readouterr()
+    assert ("The 'kernels' automatic profiling option is not compatible with "
+            "the 'nemo' API." in outerr)
+
     # Reset profile flags to avoid further failures in other tests
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 def test_main_invalid_api(capsys):

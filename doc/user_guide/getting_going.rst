@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -219,7 +219,7 @@ support Python 2.7 was version 2.1.0.)
 PSyclone immediately relies on four external Python packages; ``configparser``,
 ``fparser``, ``sympy``, and ``pyparsing``. The easiest way to satisfy the
 Python dependencies is to use the
-`PyPI installation <https://packaging.python.org/installing>`_
+`PyPI installation <https://packaging.python.org/tutorials/installing-packages/>`_
 and ``pip``.
 
 If everything is working correctly then using ``pip`` to install PSyclone::
@@ -260,7 +260,7 @@ parser originally developed as a part of the `f2py project
 
 ``fparser`` is available from the Python Package
 Index and thus may be installed using ``pip``
-(https://packaging.python.org/installing/#requirements-for-installing-packages):
+(https://packaging.python.org/tutorials/installing-packages/#requirements-for-installing-packages):
 ::
 
    > pip install fparser

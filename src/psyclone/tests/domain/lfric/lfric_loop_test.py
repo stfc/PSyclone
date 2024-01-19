@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
-''' This module uses pytest to test the DynLoop class. This is the LFRic-
+''' This module uses pytest to test the LFRicLoop class. This is the LFRic-
     specific subclass of the Loop class. '''
 
 import os
@@ -48,8 +48,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
-                                   LFRicKern)
-from psyclone.dynamo0p3 import DynLoop, DynKernMetadata
+                                   LFRicKern, LFRicKernMetadata, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -77,7 +76,7 @@ def test_constructor_invalid_loop_type(monkeypatch):
     '''
     # An invalid type should be caught by the setter in the base Loop class.
     with pytest.raises(TypeError) as err:
-        DynLoop(loop_type="wrong")
+        LFRicLoop(loop_type="wrong")
     const = LFRicConstants()
     assert (f"Error, loop_type value (wrong) is invalid. Must be one of "
             f"{const.VALID_LOOP_TYPES}." in str(err.value))
@@ -85,14 +84,14 @@ def test_constructor_invalid_loop_type(monkeypatch):
     # that attempts to set the loop variable.
     monkeypatch.setattr(LFRicConstants, "VALID_LOOP_TYPES", ["wrong"])
     with pytest.raises(InternalError) as err:
-        DynLoop(loop_type="wrong")
+        LFRicLoop(loop_type="wrong")
     assert ("Unsupported loop type 'wrong' found when creating loop variable."
             " Supported values are 'colours'" in str(err.value))
 
 
 def test_set_lower_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the lower bound of
-    a DynLoop is set to invalid values.
+    a LFRicLoop is set to invalid values.
 
     '''
     # Make sure we get an LFRicSymbolTable
@@ -100,7 +99,7 @@ def test_set_lower_bound_functions(monkeypatch):
     monkeypatch.setattr(ScopingNode, "_symbol_table_class",
                         LFRicSymbolTable)
     schedule = Schedule()
-    my_loop = DynLoop(parent=schedule)
+    my_loop = LFRicLoop(parent=schedule)
     schedule.children = [my_loop]
     with pytest.raises(GenerationError) as excinfo:
         my_loop.set_lower_bound("invalid_loop_bounds_name")
@@ -113,7 +112,7 @@ def test_set_lower_bound_functions(monkeypatch):
 
 def test_set_upper_bound_functions(monkeypatch):
     ''' Test that we raise appropriate exceptions when the upper bound of
-    a DynLoop is set to invalid values.
+    a LFRicLoop is set to invalid values.
 
     '''
     # Make sure we get an LFRicSymbolTable
@@ -121,7 +120,7 @@ def test_set_upper_bound_functions(monkeypatch):
     monkeypatch.setattr(ScopingNode, "_symbol_table_class",
                         LFRicSymbolTable)
     schedule = Schedule()
-    my_loop = DynLoop(parent=schedule)
+    my_loop = LFRicLoop(parent=schedule)
     schedule.children = [my_loop]
     with pytest.raises(GenerationError) as excinfo:
         my_loop.set_upper_bound("invalid_loop_bounds_name")
@@ -136,7 +135,7 @@ def test_set_upper_bound_functions(monkeypatch):
 
 
 def test_lower_bound_fortran_1():
-    ''' Tests we raise an exception in the DynLoop:_lower_bound_fortran()
+    ''' Tests we raise an exception in the LFRicLoop:_lower_bound_fortran()
     method - first GenerationError.
 
     '''
@@ -152,7 +151,7 @@ def test_lower_bound_fortran_1():
 
 
 def test_lower_bound_fortran_2(monkeypatch):
-    ''' Tests we raise an exception in the DynLoop:_lower_bound_fortran()
+    ''' Tests we raise an exception in the LFRicLoop:_lower_bound_fortran()
     method - second GenerationError.
 
     '''
@@ -190,7 +189,7 @@ def test_lower_bound_fortran_3(monkeypatch, name, index, output):
 
 
 def test_mesh_name():
-    ''' Tests for the '_mesh_name' property of DynLoop.
+    ''' Tests for the '_mesh_name' property of LFRicLoop.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -199,12 +198,13 @@ def test_mesh_name():
     # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
     # pylint: disable=pointless-statement
     psy.gen
-    loops = psy.invokes.invoke_list[0].schedule.walk(DynLoop)
+    loops = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)
     assert loops[0]._mesh_name == "mesh"
 
 
 def test_mesh_name_intergrid():
-    ''' Tests for the '_mesh_name' property of DynLoop for an intergrid kernel.
+    ''' Tests for the '_mesh_name' property of LFRicLoop for an intergrid
+    kernel.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -214,14 +214,14 @@ def test_mesh_name_intergrid():
     # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
     # pylint: disable=pointless-statement
     psy.gen
-    loops = psy.invokes.invoke_list[0].schedule.walk(DynLoop)
+    loops = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)
     assert loops[0]._mesh_name == "mesh_field1"
 
 
 def test_lower_to_language_normal_loop():
     ''' Test that we can call lower_to_language_level on a normal
-    (i.e. not a domain) DynLoop. The new loop type should not be a
-    DynLoop anymore, but a PSyLoop. Additionally, also test that
+    (i.e. not a domain) LFRicLoop. The new loop type should not be a
+    LFRicLoop anymore, but a PSyLoop. Additionally, also test that
     without lowering the symbols (for start and stop expressions)
     will change if the loop order is modified, but after lowering
     the symbols should not change anymore.
@@ -237,7 +237,7 @@ def test_lower_to_language_normal_loop():
     # (which is a problem in case of driver creation, since the symbol names
     # written in the full code can then be different from the symbols used
     # in the driver). TODO #1731 might fix this, in which case this test
-    # will fail (and the whole lowering of DynLoop can likely be removed).
+    # will fail (and the whole lowering of LFRicLoop can likely be removed).
     sched.children.pop(0)
     assert loop1.start_expr.symbol.name == "loop0_start"
 
@@ -248,10 +248,10 @@ def test_lower_to_language_normal_loop():
     # Now lower the loop:
     sched = invoke.schedule
     # Verify that we have the right node:
-    assert isinstance(sched.children[1], DynLoop)
+    assert isinstance(sched.children[1], LFRicLoop)
     sched.lower_to_language_level()
     loop1 = sched.children[1]
-    assert not isinstance(loop1, DynLoop)
+    assert not isinstance(loop1, LFRicLoop)
     assert isinstance(loop1, PSyLoop)
 
     # Verify that after lowering the symbol name does not change
@@ -262,7 +262,7 @@ def test_lower_to_language_normal_loop():
 
 
 def test_lower_to_language_domain_loop():
-    ''' Tests that we can call lower_to_language_level on a domain DynLoop.
+    ''' Tests that we can call lower_to_language_level on a domain LFRicLoop.
     This test takes an invoke with two consecutive domain kernels and then
     fuses the 'loops' to verify that the kernels are all still in the right
     order.
@@ -271,7 +271,7 @@ def test_lower_to_language_domain_loop():
     _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
     # Domain loops cannot be fused with the transformation, so manually
     # move the two kernels into one domain loop. First detach the second
-    # DynLoop from the invoke, then detach the actual kernel. Lastly,
+    # LFRicLoop from the invoke, then detach the actual kernel. Lastly,
     # insert this second kernel into the domain loop body:
     sched = invoke.schedule
     loop1 = sched.children[1].detach()
@@ -297,7 +297,7 @@ def test_lower_to_language_domain_loop():
 
 
 def test_upper_bound_fortran_1():
-    ''' Tests we raise an exception in the DynLoop:_upper_bound_fortran()
+    ''' Tests we raise an exception in the LFRicLoop:_upper_bound_fortran()
     method when 'cell_halo', 'dof_halo' or 'inner' are used.
 
     '''
@@ -315,7 +315,7 @@ def test_upper_bound_fortran_1():
 
 
 def test_upper_bound_fortran_2(monkeypatch):
-    ''' Tests we raise an exception in the DynLoop:_upper_bound_fortran()
+    ''' Tests we raise an exception in the LFRicLoop:_upper_bound_fortran()
     method if an invalid value is provided.
 
     '''
@@ -360,11 +360,11 @@ def test_upper_bound_ncolour(dist_mem):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     # Apply a colouring transformation to the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loops[0])
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     if dist_mem:
         assert loops[1]._upper_bound_name == "colour_halo"
         assert (loops[1]._upper_bound_fortran() ==
@@ -391,11 +391,11 @@ def test_upper_bound_ncolour_intergrid(dist_mem):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     # Apply a colouring transformation to the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loops[0])
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     if dist_mem:
         assert loops[1]._upper_bound_name == "colour_halo"
         assert (loops[1]._upper_bound_fortran() ==
@@ -426,7 +426,7 @@ def test_loop_start_expr(dist_mem):
     # pylint: disable=pointless-statement
     psy.gen
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     lbound = loops[0].start_expr
     assert isinstance(lbound, Reference)
     assert lbound.symbol.name == "loop0_start"
@@ -443,7 +443,7 @@ def test_loop_stop_expr(dist_mem):
     # pylint: disable=pointless-statement
     psy.gen
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     ubound = loops[0].stop_expr
     assert isinstance(ubound, Reference)
     assert ubound.symbol.name == "loop0_stop"
@@ -453,7 +453,7 @@ def test_loop_stop_expr(dist_mem):
     # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
     psy.gen
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     ubound = loops[1].stop_expr
     assert isinstance(ubound, ArrayReference)
     assert ubound.indices[0].name == "colour"
@@ -483,7 +483,7 @@ def test_loop_stop_expr_intergrid(dist_mem):
     # pylint: disable=pointless-statement
     psy.gen
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     ubound = loops[0].stop_expr
     assert isinstance(ubound, Reference)
     assert ubound.symbol.name == "loop0_stop"
@@ -493,7 +493,7 @@ def test_loop_stop_expr_intergrid(dist_mem):
     # TODO #1010. Replace this psy.gen with a call to lower_to_language_level()
     psy.gen
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     ubound = loops[1].stop_expr
     assert isinstance(ubound, ArrayReference)
     assert ubound.indices[0].name == "colour"
@@ -519,11 +519,11 @@ def test_lfricloop_gen_code_err():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     # Apply a colouring transformation to the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loops[0])
-    loops = sched.walk(DynLoop)
+    loops = sched.walk(LFRicLoop)
     # Parallelise the inner loop (over cells of a given colour)
     trans = DynamoOMPParallelLoopTrans()
     trans.apply(loops[1])
@@ -535,20 +535,20 @@ def test_lfricloop_gen_code_err():
             in str(err.value))
 
 
-def test_dynloop_load_unexpected_func_space():
-    ''' The load function of an instance of the DynLoop class raises an
+def test_lfricloop_load_unexpected_func_space():
+    ''' The load function of an instance of the LFRicLoop class raises an
     error if an unexpected function space is found. This test makes
     sure this error works correctly. It's a little tricky to raise
     this error as it is unreachable. However, we can sabotage an
     earlier function to make it return an invalid value.
 
     '''
-    # first create a working instance of the DynLoop class
+    # first create a working instance of the LFRicLoop class
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # now get access to the DynLoop class, the associated kernel class
+    # now get access to the LFRicLoop class, the associated kernel class
     # and the associated field.
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[4]
@@ -582,16 +582,16 @@ def test_loop_load_builtin_bound_names(monkeypatch, dist_mem, annexed):
     '''
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    # First create a working instance of the DynLoop class.
+    # First create a working instance of the LFRicLoop class.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.1.2_builtin_and_normal_kernel_invoke.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    # Now get access to the DynLoop and its associated Built-in kernel.
+    # Now get access to the LFRicLoop and its associated Built-in kernel.
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.walk(DynLoop)[0]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
-    new_loop0 = DynLoop(parent=schedule)
+    new_loop0 = LFRicLoop(parent=schedule)
     new_loop0.load(kernel)
     if dist_mem and annexed:
         assert new_loop0._upper_bound_name == "nannexed"
@@ -605,15 +605,15 @@ def test_loop_load_bound_names_continuous(dist_mem):
     continuous function spaces.
 
     '''
-    # First create a working instance of the DynLoop class.
+    # First create a working instance of the LFRicLoop class.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    # Now get access to the DynLoop and its associated kernel.
+    # Now get access to the LFRicLoop and its associated kernel.
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.walk(DynLoop)[0]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
-    new_loop0 = DynLoop(parent=schedule)
+    new_loop0 = LFRicLoop(parent=schedule)
     assert new_loop0._lower_bound_name is None
     assert new_loop0._upper_bound_name is None
     new_loop0.load(kernel)
@@ -626,7 +626,7 @@ def test_loop_load_bound_names_continuous(dist_mem):
     # Patch it so that a second field has GH_WRITE access. As there is still
     # a GH_INC, this should make no difference to the loop bounds.
     kernel.args[2]._access = AccessType.WRITE
-    new_loop1 = DynLoop(parent=schedule)
+    new_loop1 = LFRicLoop(parent=schedule)
     new_loop1.load(kernel)
     if dist_mem:
         assert new_loop1._upper_bound_name == "cell_halo"
@@ -635,7 +635,7 @@ def test_loop_load_bound_names_continuous(dist_mem):
     # Patch it again to change the GH_INC argument into a GH_WRITE. The loop
     # bound should no longer go into the halo.
     kernel.args[1]._access = AccessType.WRITE
-    new_loop2 = DynLoop(parent=schedule)
+    new_loop2 = LFRicLoop(parent=schedule)
     new_loop2.load(kernel)
     assert new_loop2._upper_bound_name == "ncells"
 
@@ -646,15 +646,15 @@ def test_loop_load_bound_names_anyspace(dist_mem):
     unknown ('any_space') function spaces.
 
     '''
-    # First create a working instance of the DynLoop class.
+    # First create a working instance of the LFRicLoop class.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "11_any_space.f90"), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    # Now get access to the DynLoop and its associated kernel.
+    # Now get access to the LFRicLoop and its associated kernel.
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.walk(DynLoop)[0]
+    loop = schedule.walk(LFRicLoop)[0]
     kernel = loop.loop_body[0]
-    new_loop0 = DynLoop(parent=schedule)
+    new_loop0 = LFRicLoop(parent=schedule)
     assert new_loop0._lower_bound_name is None
     assert new_loop0._upper_bound_name is None
     new_loop0.load(kernel)
@@ -669,7 +669,7 @@ def test_loop_load_bound_names_anyspace(dist_mem):
     # instead of GH_INC. We no longer need to loop into the halo to get correct
     # results for annexed dofs.
     kernel.args[0]._access = AccessType.WRITE
-    new_loop1 = DynLoop(parent=schedule)
+    new_loop1 = LFRicLoop(parent=schedule)
     new_loop1.load(kernel)
     assert new_loop1._upper_bound_name == "ncells"
 
@@ -688,7 +688,7 @@ def test_unsupported_halo_read_access():
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    # get access to the DynLoop object
+    # get access to the LFRicLoop object
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[4]
     # access to the argument that has a stencil access in the kernel
@@ -928,8 +928,8 @@ def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_dynloop_halo_read_access_error1(monkeypatch):
-    '''Test that the halo_read_access method in class DynLoop raises the
+def test_lfricloop_halo_read_access_error1(monkeypatch):
+    '''Test that the halo_read_access method in class LFRicLoop raises the
     expected exception when an unsupported field access is found.
 
     '''
@@ -947,8 +947,8 @@ def test_dynloop_halo_read_access_error1(monkeypatch):
             in str(info.value))
 
 
-def test_dynloop_halo_read_access_error2(monkeypatch):
-    '''Test that the halo_read_access method in class DynLoop raises the
+def test_lfricloop_halo_read_access_error2(monkeypatch):
+    '''Test that the halo_read_access method in class LFRicLoop raises the
     expected exception when an unsupported field type is found.
 
     '''
@@ -971,7 +971,7 @@ def test_null_loop():
     check in the 'load()' method behaves as expected.
 
     '''
-    loop = DynLoop(loop_type="null")
+    loop = LFRicLoop(loop_type="null")
     assert loop.loop_type == "null"
     assert loop.node_str(colour=False) == "Loop[type='null']"
 
@@ -992,12 +992,12 @@ contains
   end subroutine testkern_code
 end module testkern_mod
 ''', ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_type")
     kern = LFRicKern()
     kern.load_meta(dkm)
     with pytest.raises(GenerationError) as err:
         loop.load(kern)
-    assert ("A DynLoop of type 'null' can only contain a kernel that "
+    assert ("A LFRicLoop of type 'null' can only contain a kernel that "
             "operates on the 'domain' but kernel 'testkern_code' operates "
             "on 'cell_column'" in str(err.value))
 
@@ -1006,7 +1006,7 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     '''Tests for the independent_iterations() method.'''
     # A 'null' loop cannot be parallelised (because there's nothing to
     # parallelise).
-    loop = DynLoop(loop_type="null")
+    loop = LFRicLoop(loop_type="null")
     assert not loop.independent_iterations()
     # A loop over all columns that contains a kernel that increments a field
     # on a continuous function space does not have independent iterations.
@@ -1015,7 +1015,7 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.walk(DynLoop)[0]
+    loop = schedule.walk(LFRicLoop)[0]
     assert not loop.independent_iterations()
     dtools = DependencyTools()
     # Check that we get the expected message back from the DA
@@ -1025,7 +1025,7 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     # Colour the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loop)
-    loops = schedule.walk(DynLoop)
+    loops = schedule.walk(LFRicLoop)
     assert not loops[0].independent_iterations()
     assert loops[1].independent_iterations()
     # Unsupported/unknown loop type
@@ -1060,7 +1060,7 @@ def test_dof_loop_independent_iterations(monkeypatch, dist_mem):
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    loop = psy.invokes.invoke_list[0].schedule.walk(DynLoop)[0]
+    loop = psy.invokes.invoke_list[0].schedule.walk(LFRicLoop)[0]
     assert loop.loop_type == "dof"
     assert not loop.independent_iterations()
     # Test that we can get hold of any DA messages if we supply our own
@@ -1078,7 +1078,7 @@ def test_dof_loop_independent_iterations(monkeypatch, dist_mem):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.walk(DynLoop)[0]
+    loop = schedule.walk(LFRicLoop)[0]
     assert loop.independent_iterations()
     # Test that DA warnings about a scalar variable are ignored if the loop is
     # over DoFs.

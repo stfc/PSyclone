@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic and O. Brunt, Met Office
+# Modified: I. Kavcic, O. Brunt and L. Turner, Met Office
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality for LFRic. It contains the class that creates a driver that
@@ -78,10 +78,10 @@ class LFRicExtractDriverCreator:
        be extracted, all others are removed. This is required since the kernel
        extraction will not contain the required data for the other kernels to
        be called. The lowering is important to fix the variable names for the
-       loop boundaries of the :py:class:`psyclone.dynamo0p3.DynLoop`: the loop
-       start/stop expressions (`loop0_start` etc.) depend on the position of
-       the loop in the tree. For example, if there are two kernels, they will
-       be using `loop0_start` and `loop1_start`. If only the second is
+       loop boundaries of the :py:class:`psyclone.domain.lfric.LFRicLoop`: the
+       loop start/stop expressions (`loop0_start` etc.) depend on the position
+       of the loop in the tree. For example, if there are two kernels, they
+       will be using `loop0_start` and `loop1_start`. If only the second is
        extracted, the former second (and now only) loop would be using
        `loop0_start` without lowering, but the kernel extraction would have
        written the values for `loop1_start`.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -433,7 +433,7 @@ class ArrayType(DataType):
                     "When creating an array of structures, the type of "
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
-            if not isinstance(datatype, UnknownType):
+            if not isinstance(datatype, (UnknownType, DeferredType)):
                 self._intrinsic = datatype.intrinsic
                 self._precision = datatype.precision
             else:
@@ -740,8 +740,15 @@ class StructureType(DataType):
         '''
         Creates a StructureType from the supplied list of properties.
 
-        :param components: the name, type and visibility of each component.
-        :type components: list of 4-tuples
+        :param components: the name, type, visibility (whether public or
+            private) and initial value (if any) of each component.
+        :type components: List[tuple[
+            str,
+            :py:class:`psyclone.psyir.symbols.DataType` |
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
+            Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
+            ]]
 
         :returns: the new type object.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType`

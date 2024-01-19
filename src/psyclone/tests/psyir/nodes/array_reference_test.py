@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -500,7 +500,7 @@ def test_array_same_array():
     assert array.is_same_array(bare_array) is True
 
 
-def test_array_datatype(fortran_writer):
+def test_array_datatype():
     '''Test the datatype() method for an ArrayReference.'''
     test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
     one = Literal("1", INTEGER_TYPE)
@@ -521,8 +521,8 @@ def test_array_datatype(fortran_writer):
     assert bref.datatype.shape[0].lower == one
     upper = bref.datatype.shape[0].upper
     assert isinstance(upper, BinaryOperation)
-    # The easiest way to check the expression is to convert it to Fortran
-    code = fortran_writer(upper)
+    # The easiest way to check the expression is to use debug_string()
+    code = upper.debug_string()
     assert code == "(4 - 2) / 1 + 1"
     # Reference to a single element of an array of structures.
     stype = DataTypeSymbol("grid_type", DeferredType())
@@ -535,7 +535,29 @@ def test_array_datatype(fortran_writer):
         "unknown",
         UnknownFortranType("real, dimension(5), pointer :: unknown"))
     aref = ArrayReference.create(unknown_sym, [two.copy()])
-    assert isinstance(aref.datatype, UnknownFortranType)
+    assert isinstance(aref.datatype, DeferredType)
+    # Reference to a single element of an array of UnknownType but with partial
+    # type information.
+    not_quite_unknown_sym = DataSymbol(
+        "unknown",
+        UnknownFortranType("real, dimension(5), pointer :: unknown",
+                           partial_datatype=ArrayType(REAL_SINGLE_TYPE, [5])))
+    bref = ArrayReference.create(not_quite_unknown_sym, [two.copy()])
+    assert bref.datatype == REAL_SINGLE_TYPE
+    # A sub-array of UnknownFortranType.
+    aref3 = ArrayReference.create(unknown_sym, [Range.create(two.copy(),
+                                                             four.copy())])
+    # We know the result is an ArrayType
+    assert isinstance(aref3.datatype, ArrayType)
+    assert aref3.datatype.shape[0].lower == one
+    upper = aref3.datatype.shape[0].upper
+    assert isinstance(upper, BinaryOperation)
+    # But we don't know the type of the array elements.
+    assert isinstance(aref3.datatype.intrinsic, DeferredType)
+    # A whole array of UnknownType should simply have the same datatype as
+    # the original symbol.
+    aref4 = ArrayReference.create(not_quite_unknown_sym, [":"])
+    assert aref4.datatype == not_quite_unknown_sym.datatype
 
 
 def test_array_create_colon(fortran_writer):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,9 +48,10 @@ import abc
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallArgList, LFRicConstants, LFRicKern
-from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart, \
-    DynInvokeSchedule, DynLoop
+from psyclone.domain.lfric import (KernCallArgList, LFRicConstants, LFRicKern,
+                                   LFRicLoop)
+from psyclone.dynamo0p3 import (LFRicHaloExchangeEnd, LFRicHaloExchangeStart,
+                                DynInvokeSchedule)
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
@@ -663,14 +664,14 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied Node is not a DynLoop.
+        :raises TransformationError: if the supplied Node is not a LFRicLoop.
         :raises TransformationError: if the associated loop requires
             colouring.
         '''
-        if not isinstance(node, DynLoop):
+        if not isinstance(node, LFRicLoop):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
-                f"must be a DynLoop but got '{type(node).__name__}'")
+                f"must be a LFRicLoop but got '{type(node).__name__}'")
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
@@ -990,7 +991,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         loop is over cells of that colour.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type node: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param options: a dictionary with options for transformations.\
         :type options: Optional[Dict[str, Any]]
 
@@ -1854,7 +1855,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         of the field's halo.
 
         :param loop: the loop that we are transforming.
-        :type loop: :py:class:`psyclone.psyGen.DynLoop`
+        :type loop: :py:class:`psyclone.psyGen.LFRicLoop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param int options["depth"]: the depth of the stencil. Defaults \

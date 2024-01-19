@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import (KernCallAccArgList, KernStubArgList,
-                                   LFRicKern)
-from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
@@ -371,9 +369,9 @@ def test_lfric_kern_cma_args():
 
     # Check the parameters that will change access type according to read or
     # write declaration of the argument:
-    assert (var_accesses_read[Signature("cma_op1_matrix")][0].access_type
+    assert (var_accesses_read[Signature("cma_op1_cma_matrix")][0].access_type
             == AccessType.READ)
-    assert (var_accesses_write[Signature("cma_op1_matrix")][0].access_type
+    assert (var_accesses_write[Signature("cma_op1_cma_matrix")][0].access_type
             == AccessType.WRITE)
 
     # All other parameters are read-only (e.g. sizes, ... - they will not
@@ -533,7 +531,7 @@ def test_lfric_cma():
     assert "cma_op1_beta: READ" in var_info
     assert "cma_op1_gamma_m: READ" in var_info
     assert "cma_op1_gamma_p: READ" in var_info
-    assert "cma_op1_matrix: WRITE" in var_info
+    assert "cma_op1_cma_matrix: WRITE" in var_info
     assert "cma_op1_ncol: READ" in var_info
     assert "cma_op1_nrow: READ," in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
@@ -655,7 +653,7 @@ def test_lfric_stub_args():
 
     '''
     ast = get_ast("dynamo0.3", "testkern_stencil_multi_mod.f90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
@@ -691,7 +689,7 @@ def test_lfric_stub_args2():
 
     '''
     ast = get_ast("dynamo0.3", "testkern_mesh_prop_face_qr_mod.F90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
@@ -711,7 +709,7 @@ def test_lfric_stub_args3():
     '''
     ast = get_ast("dynamo0.3",
                   "testkern_any_discontinuous_space_op_1_mod.f90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
@@ -730,7 +728,7 @@ def test_lfric_stub_boundary_dofs():
 
     '''
     ast = get_ast("dynamo0.3", "enforce_bc_kernel_mod.f90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
@@ -744,7 +742,7 @@ def test_lfric_stub_field_vector():
 
     '''
     ast = get_ast("dynamo0.3", "testkern_stencil_vector_mod.f90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
@@ -765,7 +763,7 @@ def test_lfric_stub_basis():
 
     '''
     ast = get_ast("dynamo0.3", "testkern_qr_eval_mod.F90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
@@ -786,7 +784,7 @@ def test_lfric_stub_cma_operators():
 
     '''
     ast = get_ast("dynamo0.3", "columnwise_op_mul_2scalars_kernel_mod.F90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
@@ -810,7 +808,7 @@ def test_lfric_stub_banded_dofmap():
 
     '''
     ast = get_ast("dynamo0.3", "columnwise_op_asm_kernel_mod.F90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
@@ -825,7 +823,7 @@ def test_lfric_stub_indirection_dofmap():
     '''Check variable usage detection in indirection dofmap.
     '''
     ast = get_ast("dynamo0.3", "columnwise_op_app_kernel_mod.F90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
@@ -842,7 +840,7 @@ def test_lfric_stub_boundary_dofmap():
 
     '''
     ast = get_ast("dynamo0.3", "enforce_operator_bc_kernel_mod.F90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
