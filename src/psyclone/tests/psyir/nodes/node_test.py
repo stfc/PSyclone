@@ -1567,6 +1567,10 @@ def test_debug_string(monkeypatch):
 
 
 def test_origin_string(fortran_reader):
+    ''' Test that the origin_string() method retrieves the original source
+    information available on the tree. If there isn't enough information it
+    still succeeds but returning <unknown> fields.
+    '''
     base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              os.pardir, os.pardir, "test_files", "gocean1p0")
     filename = os.path.join(base_path, "continuity_mod.f90")
