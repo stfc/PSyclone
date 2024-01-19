@@ -1631,7 +1631,8 @@ class Node():
 
     def origin_string(self):
         ''' Generates a string with the available information about where
-        this node has been created.
+        this node has been created. It currently only works with Fortran
+        Statements or subchildren of them.
 
         :returns: a string specifing the origin of this node.
         :rtype: str
@@ -1651,7 +1652,7 @@ class Node():
                 line_span = node._ast.item.span
                 original_src = node._ast.item.line
         return (f"{name} from line {line_span} of file "
-                f"'{filename}'.\n> {original_src}")
+                f"'{filename}':\n> {original_src}")
 
     def update_signal(self):
         '''
