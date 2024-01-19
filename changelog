@@ -125,6 +125,11 @@
 
 	47) PR #2481 for #1192. Unpin jsonschema version.
 
+	48) PR #2470 for #2468 and towards #237. Fixes Sphinx link-check errors
+	for links to anchors in User Guide and also updates the name of the
+	dl_esm_inf library and updates associated links (remove references to
+	puma).
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
