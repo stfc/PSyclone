@@ -123,6 +123,8 @@
 	46) PR #2443 for #2442. Fix bug for PSy-layer generation involving CMA
 	operators in the LFRic API.
 
+	47) PR #2481 for #1192. Unpin jsonschema version.
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
