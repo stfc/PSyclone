@@ -775,7 +775,10 @@ class InlineTrans(Transformation):
             # TODO #924. It would be useful if the `datatype` property was
             # a method that took an optional 'resolve' argument to indicate
             # that it should attempt to resolve any DeferredTypes.
-            if isinstance(actual_arg.datatype, (DeferredType, UnknownType)):
+            if (isinstance(actual_arg.datatype, (DeferredType, UnknownType)) or
+                (isinstance(actual_arg.datatype, ArrayType) and
+                 isinstance(actual_arg.datatype.intrinsic,
+                            (DeferredType, UnknownType)))):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
                     f"the type of the actual argument "
