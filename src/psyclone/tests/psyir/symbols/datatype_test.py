@@ -358,7 +358,7 @@ def test_arraytype_datatypesymbol():
     assert atype.precision is None
 
 
-def test_arraytype_unknowntype():
+def test_arraytype_unsupportedtype():
     '''Test that we can construct an ArrayType when the type of the elements
     is an UnsupportedType.'''
     utype = UnsupportedFortranType("integer, pointer :: var")
@@ -574,7 +574,7 @@ def test_arraytype_eq():
 
 # UnsupportedFortranType tests
 
-def test_unknown_fortran_type():
+def test_unsupported_fortran_type():
     ''' Check the constructor and 'declaration' property of the
     UnsupportedFortranType class. '''
     with pytest.raises(TypeError) as err:
@@ -589,7 +589,7 @@ def test_unknown_fortran_type():
     assert utype._declaration == decl
 
 
-def test_unknown_fortran_type_optional_arg():
+def test_unsupported_fortran_type_optional_arg():
     '''Check the optional 'partial_datatype' argument of the
     UnsupportedFortranType class works as expected. Also check the getter
     method and the string methods work as expected when
@@ -614,7 +614,7 @@ def test_unknown_fortran_type_optional_arg():
     assert str(utype) == f"UnsupportedFortranType('{decl}')"
 
 
-def test_unknown_fortran_type_text():
+def test_unsupported_fortran_type_text():
     '''
     Check that the 'type_text' property returns the expected string and
     that the result is cached.
@@ -636,7 +636,7 @@ def test_unknown_fortran_type_text():
     assert utype3.type_text == "COMMON"
 
 
-def test_unknown_fortran_type_text_error():
+def test_unsupported_fortran_type_text_error():
     '''
     Check that the expected error is raised if the 'type_text' is requested
     for something that is not a straightforward declaration.
@@ -665,7 +665,7 @@ def test_unknown_fortran_type_text_error():
             "Fortran2003.Specification_Part) failed." in str(err.value))
 
 
-def test_unknown_fortran_type_eq():
+def test_unsupported_fortran_type_eq():
     '''Test the equality operator for UnsupportedFortranType.'''
     decl = "type(some_type) :: var"
     utype = UnsupportedFortranType(decl)

@@ -222,7 +222,7 @@ def test_get_symbol_imported(fortran_reader):
     assert not array_ref._is_bound(0, "upper")
 
 
-def test_get_symbol_unknownfortrantype(fortran_reader):
+def test_get_symbol_unsupporedfortrantype(fortran_reader):
     '''Test the _is_bound method returns False when the array access
     datatype is an UnsupportedFortranType.
 

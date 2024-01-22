@@ -362,12 +362,12 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
         "    use some_mod, only: mystery_type, mystery\n"
         "    integer :: i\n"
         "    type(mystery_type) :: var3, varr(5)\n"
-        # Unknown structure type but array dims are known.
+        # Unresolved structure type but array dims are known.
         "    call sub3(varr)\n"
-        # Unknown actual argument corresponding to a formal array argument
+        # Unresolved actual argument corresponding to a formal array argument
         # so we can't be sure that it isn't being reshaped.
         "    call sub3(mystery)\n"
-        # Unknown actual argument corresponding to a formal scalar argument
+        # Unresolved actual argument corresponding to a formal scalar argument
         # so lack of type information isn't a problem.
         "    call sub3a(mystery)\n"
         # Formal arg specifies array bounds and we don't have them for
@@ -1600,7 +1600,7 @@ def test_validate_codeblock(fortran_reader):
             "cannot be inlined" in str(err.value))
 
 
-def test_validate_unknowntype_argument(fortran_reader):
+def test_validate_unsupportedtype_argument(fortran_reader):
     '''
     Test that validate rejects a subroutine with arguments of UnsupportedType.
 

@@ -531,22 +531,22 @@ def test_array_datatype():
     aref = ArrayReference.create(asym, [two.copy()])
     assert aref.datatype is stype
     # Reference to a single element of an array of UnsupportedType.
-    unknown_sym = DataSymbol(
-        "unknown",
-        UnsupportedFortranType("real, dimension(5), pointer :: unknown"))
-    aref = ArrayReference.create(unknown_sym, [two.copy()])
+    unsuppored_sym = DataSymbol(
+        "unsuppored",
+        UnsupportedFortranType("real, dimension(5), pointer :: unsuppored"))
+    aref = ArrayReference.create(unsuppored_sym, [two.copy()])
     assert isinstance(aref.datatype, UnresolvedType)
     # Reference to a single element of an array of UnsupportedType but with
     # partial type information.
-    not_quite_unknown_sym = DataSymbol(
-        "unknown",
+    not_quite_unsuppored_sym = DataSymbol(
+        "unsuppored",
         UnsupportedFortranType(
-            "real, dimension(5), pointer :: unknown",
+            "real, dimension(5), pointer :: unsuppored",
             partial_datatype=ArrayType(REAL_SINGLE_TYPE, [5])))
-    bref = ArrayReference.create(not_quite_unknown_sym, [two.copy()])
+    bref = ArrayReference.create(not_quite_unsuppored_sym, [two.copy()])
     assert bref.datatype == REAL_SINGLE_TYPE
     # A sub-array of UnsupportedFortranType.
-    aref3 = ArrayReference.create(unknown_sym, [Range.create(two.copy(),
+    aref3 = ArrayReference.create(unsuppored_sym, [Range.create(two.copy(),
                                                              four.copy())])
     # We know the result is an ArrayType
     assert isinstance(aref3.datatype, ArrayType)
@@ -557,8 +557,8 @@ def test_array_datatype():
     assert isinstance(aref3.datatype.intrinsic, UnresolvedType)
     # A whole array of UnsupportedType should simply have the same datatype as
     # the original symbol.
-    aref4 = ArrayReference.create(not_quite_unknown_sym, [":"])
-    assert aref4.datatype == not_quite_unknown_sym.datatype
+    aref4 = ArrayReference.create(not_quite_unsuppored_sym, [":"])
+    assert aref4.datatype == not_quite_unsuppored_sym.datatype
 
 
 def test_array_create_colon(fortran_writer):

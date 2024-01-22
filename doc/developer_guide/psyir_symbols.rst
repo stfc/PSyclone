@@ -223,7 +223,7 @@ optional argument. This would probably require a separate `setter` and
 Specialising Symbols
 ====================
 
-When code is translated into PSyIR there may be symbols with unknown
+When code is translated into PSyIR there may be symbols with unresolved
 types, perhaps due to symbols being declared in different files. For
 example, in the following declaration it is not possible to know the
 type of symbol `fred` without knowing the contents of the `my_module`
