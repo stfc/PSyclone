@@ -126,11 +126,11 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     interfaced_routines = dict()
     for gisym in ctr_table.symbols:
         if isinstance(gisym, GenericInterfaceSymbol):
-            for rsym in gisym.routines:
-                if rsym in interfaced_routines:
-                    interfaced_routines[rsym].append(gisym)
+            for routine in gisym.routines:
+                if routine.symbol in interfaced_routines:
+                    interfaced_routines[routine.symbol].append(gisym)
                 else:
-                    interfaced_routines[rsym] = [gisym]
+                    interfaced_routines[routine.symbol] = [gisym]
 
     for routine in routines:
 
@@ -143,8 +143,7 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
             visibility=kernel_sym.visibility)
         if kernel_sym in interfaced_routines:
             for gsym in interfaced_routines[kernel_sym]:
-                gsym.routines.remove(kernel_sym)
-                gsym.routines.append(adj_kernel_sym)
+                gsym.replace(kernel_sym, adj_kernel_sym)
         ad_container.symbol_table.remove(kernel_sym)
 
         routine.name = adj_kernel_sym.name

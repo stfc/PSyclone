@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,6 +71,11 @@ def test_gis_constructor():
     assert len(oak.routines) == 1
     assert oak.routines[0].symbol is acorn
     assert oak.routines[0].from_container is False
+    assert oak.container_routines == []
+    assert oak.external_routines == [acorn]
+    nut = RoutineSymbol("nut")
+    oak.routines.append(GenericInterfaceSymbol.RoutineInfo(nut, True))
+    assert oak.container_routines == [nut]
 
 
 def test_gis_typedsymbol_keywords():
@@ -108,3 +113,24 @@ def test_gis_copy():
     rsyms = [item.symbol for item in spinney.routines]
     assert ash in rsyms
     assert holly in rsyms
+
+
+def test_gis_replace():
+    '''
+    Test the replace() method of GenericInterfaceSymbol.
+    '''
+    ash = RoutineSymbol("ash")
+    holly = RoutineSymbol("holly")
+    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
+    ivy = RoutineSymbol("ivy")
+    # Ivy is not yet a part of the interface.
+    with pytest.raises(ValueError) as err:
+        coppice.replace(ivy, holly)
+    assert ("RoutineSymbol 'ivy' not found in GenericInterfaceSymbol "
+            "'coppice'" in str(err.value))
+    coppice.replace(holly, ivy)
+    assert len(coppice.routines) == 2
+    # The replacement preserves the information on whether or not a routine
+    # originates from a Container.
+    assert coppice.external_routines == [ivy]
+    assert coppice.container_routines == [ash]

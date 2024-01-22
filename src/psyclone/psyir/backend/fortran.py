@@ -640,7 +640,7 @@ class FortranWriter(LanguageWriter):
         decln = f"{self._nindent}interface {symbol.name}\n"
         self._depth += 1
         # Any module procedures.
-        routines = ", ".join([rsym.name for rsym in symbol.module_routines])
+        routines = ", ".join([rsym.name for rsym in symbol.container_routines])
         if routines:
             decln += f"{self._nindent}module procedure :: {routines}\n"
         # Any other (external) procedures.
@@ -651,6 +651,8 @@ class FortranWriter(LanguageWriter):
         decln += f"{self._nindent}end interface {symbol.name}\n"
 
         if include_visibility:
+            # Visibility of an interface has to be supplied as a separate
+            # statement.
             if symbol.visibility == Symbol.Visibility.PRIVATE:
                 decln += f"{self._nindent}private {symbol.name}\n"
             elif symbol.visibility == Symbol.Visibility.PUBLIC:
