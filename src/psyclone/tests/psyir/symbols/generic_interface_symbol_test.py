@@ -58,10 +58,19 @@ def test_gis_constructor():
     acorn = RoutineSymbol("acorn")
     with pytest.raises(TypeError) as err:
         _ = GenericInterfaceSymbol("oak", [acorn, "sycamore"])
-    assert ("of RoutineSymbols but got: ['RoutineSymbol', 'str']" in
+    assert ("GenericInterfaceSymbol ('oak') requires a list of tuples but "
+            "got: 'RoutineSymbol'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        _ = GenericInterfaceSymbol("oak", [(acorn, False),
+                                           (acorn, False, False)])
+    assert ("Each tuple used to define a routine within the "
+            "GenericInterfaceSymbol 'oak' must consist of a RoutineSymbol and "
+            "a bool but got: ['RoutineSymbol', 'bool', 'bool']" in
             str(err.value))
-    oak = GenericInterfaceSymbol("oak", [acorn])
-    assert oak.routines == [acorn]
+    oak = GenericInterfaceSymbol("oak", [(acorn, False)])
+    assert len(oak.routines) == 1
+    assert oak.routines[0].symbol is acorn
+    assert oak.routines[0].from_container is False
 
 
 def test_gis_typedsymbol_keywords():
@@ -69,7 +78,7 @@ def test_gis_typedsymbol_keywords():
     Test that keyword arguments to the constructor are passed through to the
     TypedSymbol constructor.
     '''
-    walnut = GenericInterfaceSymbol("walnut", [RoutineSymbol("nut")],
+    walnut = GenericInterfaceSymbol("walnut", [(RoutineSymbol("nut"), True)],
                                     datatype=INTEGER_TYPE)
     assert walnut.datatype == INTEGER_TYPE
 
@@ -80,7 +89,7 @@ def test_gis_str():
     '''
     ash = RoutineSymbol("ash")
     holly = RoutineSymbol("holly")
-    coppice = GenericInterfaceSymbol("coppice", [ash, holly])
+    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
     assert str(coppice) == ("coppice: GenericInterfaceSymbol<NoType, "
                             "routines=['ash', 'holly']>")
 
@@ -91,10 +100,11 @@ def test_gis_copy():
     '''
     ash = RoutineSymbol("ash")
     holly = RoutineSymbol("holly")
-    coppice = GenericInterfaceSymbol("coppice", [ash, holly])
+    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
     spinney = coppice.copy()
     assert isinstance(spinney, GenericInterfaceSymbol)
     assert spinney is not coppice
     assert len(spinney.routines) == 2
-    assert ash in spinney.routines
-    assert holly in spinney.routines
+    rsyms = [item.symbol for item in spinney.routines]
+    assert ash in rsyms
+    assert holly in rsyms

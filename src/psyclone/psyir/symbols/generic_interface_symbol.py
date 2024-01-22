@@ -52,7 +52,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
     :type kwargs: unwrapped dict.
 
     '''
-    RoutineInfo = namedtuple("RoutineInfo", ["symbol", "is_module"])
+    RoutineInfo = namedtuple("RoutineInfo", ["symbol", "from_container"])
 
     def __init__(self, name, routines, **kwargs):
         super().__init__(name, **kwargs)
@@ -91,17 +91,19 @@ class GenericInterfaceSymbol(RoutineSymbol):
             raise TypeError(f"A GenericInterfaceSymbol requires a list of "
                             f"tuples describing its member routines but got: "
                             f"'{values}'")
+        self._routines = []
         for item in values:
-            if not isinstance(item, tuple) or len(item) != 2:
+            if not isinstance(item, tuple):
                 raise TypeError(
-                    f"A GenericInterfaceSymbol requires a list of 2-tuples but"
-                    f" got: {[type(rt).__name__ for rt in values]}")
-            if (not isinstance(item[0], RoutineSymbol) or
+                    f"A GenericInterfaceSymbol ('{self.name}') requires a "
+                    f"list of tuples but got: '{type(item).__name__}'")
+            if (len(item) != 2 or not isinstance(item[0], RoutineSymbol) or
                     not isinstance(item[1], bool)):
                 raise TypeError(
-                    f"A 2-tuple used to define a routine within the "
+                    f"Each tuple used to define a routine within the "
                     f"GenericInterfaceSymbol '{self.name}' must consist of a "
-                    f"RoutineSymbol and a bool but got: {item}")
+                    f"RoutineSymbol and a bool but got: "
+                    f"{[type(rt).__name__ for rt in item]}")
             self._routines.append(self.RoutineInfo(item[0], item[1]))
 
     @property
@@ -112,7 +114,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
         result = []
         for value in self._routines:
-            if value.is_module:
+            if value.from_container:
                 result.append(value.symbol)
         return result
 
@@ -124,13 +126,13 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
         result = []
         for value in self._routines:
-            if not value.is_module:
+            if not value.from_container:
                 result.append(value.symbol)
         return result
 
     def __str__(self):
         return (f"{self.name}: {type(self).__name__}<{self.datatype}, "
-                f"routines={[rt.name for rt in self.routines]}>")
+                f"routines={[rt.symbol.name for rt in self.routines]}>")
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the

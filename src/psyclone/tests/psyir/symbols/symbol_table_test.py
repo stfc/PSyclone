@@ -1663,7 +1663,7 @@ def test_deep_copy():
     symtab.add(sym3)
     symtab.specify_argument_list([sym1])
     rsym = symbols.RoutineSymbol("my_sub")
-    gisym = symbols.GenericInterfaceSymbol("generic_sub", [rsym])
+    gisym = symbols.GenericInterfaceSymbol("generic_sub", [(rsym, False)])
     symtab.add(rsym)
     symtab.add(gisym)
 

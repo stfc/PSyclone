@@ -295,10 +295,11 @@ class SymbolTable():
         for symbol in new_st.symbols:
             if not isinstance(symbol, GenericInterfaceSymbol):
                 continue
-            new_syms = []
-            for rsym in symbol.routines:
-                new_syms.append(new_st.lookup(rsym.name))
-            symbol.routines = new_syms
+            new_routines = []
+            for routine in symbol.routines:
+                new_routines.append((new_st.lookup(routine.symbol.name),
+                                     routine.from_container))
+            symbol.routines = new_routines
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
@@ -1063,7 +1064,7 @@ class SymbolTable():
             # Check for any references to it within interfaces.
             for sym in self._symbols.values():
                 if isinstance(sym, GenericInterfaceSymbol):
-                    if symbol in sym.routines:
+                    if symbol in [rt.symbol for rt in sym.routines]:
                         raise ValueError(
                             f"Cannot remove RoutineSymbol '{symbol.name}' "
                             f"because it is referenced in interface "

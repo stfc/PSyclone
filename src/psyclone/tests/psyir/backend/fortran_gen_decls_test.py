@@ -319,10 +319,11 @@ def test_procedure_interface(fortran_reader, fortran_writer):
     declaration from a GenericInterfaceSymbol.
     '''
     symbol_table = SymbolTable()
-    isub = GenericInterfaceSymbol("subx", [RoutineSymbol("sub1"),
-                                           RoutineSymbol("sub2")])
+    isub = GenericInterfaceSymbol("subx", [(RoutineSymbol("sub1"), False),
+                                           (RoutineSymbol("sub2"), True)])
     symbol_table.add(isub)
     out = fortran_writer.gen_decls(symbol_table)
     assert "interface subx" in out
-    assert "procedure :: sub1, sub2" in out
+    assert "procedure :: sub1" in out
+    assert "module procedure :: sub2" in out
     assert "end interface subx" in out
