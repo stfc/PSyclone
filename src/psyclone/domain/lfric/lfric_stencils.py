@@ -51,6 +51,7 @@ from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen,
                               IfThenGen, TypeDeclGen, UseGen)
 from psyclone.psyir.symbols import ScalarType
 
+
 class LFRicStencils(LFRicCollection):
     '''
     Stencil information and code generation associated with a PSy-layer

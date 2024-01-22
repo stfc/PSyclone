@@ -1976,9 +1976,9 @@ def test_dynstencils_extent_vars_err(monkeypatch):
 
 
 def test_dynstencils_err():
-    ''' Check that LFRicStencils.initialise and LFRicStencils._declare_maps_invoke
-    raises the expected InternalError if an unsupported stencil type is
-    encountered. '''
+    ''' Check that LFRicStencils.initialise and
+    LFRicStencils._declare_maps_invoke raises the expected
+    InternalError if an unsupported stencil type is encountered. '''
     _, info = parse(os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)

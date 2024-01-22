@@ -111,7 +111,7 @@ class KernCallAccArgList(KernCallArgList):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         var_name = LFRicStencils.dofmap_symbol(self._kern.root.symbol_table,
-                                             arg).name
+                                               arg).name
         self.append(var_name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -149,7 +149,7 @@ class KernCallAccArgList(KernCallArgList):
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         name = LFRicStencils.dofmap_size_symbol(self._kern.root.symbol_table,
-                                              arg).name
+                                                arg).name
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
