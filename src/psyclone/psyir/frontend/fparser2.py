@@ -3659,18 +3659,22 @@ class Fparser2Reader():
             shape = array_ref.datatype.shape
             add_op = BinaryOperation.Operator.ADD
             sub_op = BinaryOperation.Operator.SUB
-            # Replace the PSyIR Ranges with the loop variables
+            # Replace the PSyIR Ranges with appropriate index expressions.
             range_idx = 0
             for idx, child in enumerate(array.indices):
                 if isinstance(child, Range):
                     symbol = table.lookup(loop_vars[range_idx])
                     if isinstance(shape[range_idx], ArrayType.Extent):
+                        # We don't know the bounds of this array so we have
+                        # to query using LBOUND.
                         lbound = IntrinsicCall.create(
                             IntrinsicCall.Intrinsic.LBOUND,
                             [base_ref.copy(),
                              ("dim", Literal(str(idx+1), INTEGER_TYPE))])
                     else:
                         lbound = shape[range_idx].lower.copy()
+                    # Create the index expression:
+                    #    idx-expr = array-lower-bound + loop-idx - 1
                     expr = BinaryOperation.create(
                         add_op, lbound, Reference(symbol))
                     expr2 = BinaryOperation.create(sub_op, expr, one.copy())
@@ -3717,16 +3721,16 @@ class Fparser2Reader():
             but result in an array.
 
             :param pnodes: node(s) in the parse tree to check.
-            :type pnodes: List[:py:class:`fparser.two.utils.Base`] |
+            :type pnodes: list[:py:class:`fparser.two.utils.Base`] |
                           :py:class:`fparser.two.utils.Base`
 
             :returns: whether or not the supplied node(s) in the parse tree
                       contain a call to an intrinsic that performs a reduction
                       into an array.
             :rtype: bool
+
             '''
-            intr_nodes = walk(pnodes,
-                              Fortran2003.Intrinsic_Function_Reference)
+            intr_nodes = walk(pnodes, Fortran2003.Intrinsic_Function_Reference)
             for intr in intr_nodes:
                 if (intr.children[0].string in
                         Fortran2003.Intrinsic_Name.array_reduction_names):
@@ -3799,10 +3803,6 @@ class Fparser2Reader():
         # parent for this logical expression we will repeat the processing.
         fake_parent = Assignment(parent=parent)
         self.process_nodes(fake_parent, logical_expr)
-        # TODO ought to be able to do:
-        #    result_type = fake_parent.lhs.datatype
-        # but that frequently just gives a DeferredType rather than an
-        # ArrayType with a scalar type of DeferredType.
         arrays = fake_parent.walk(ArrayMixin)
 
         if not arrays:
@@ -3850,28 +3850,9 @@ class Fparser2Reader():
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
 
-            # Create the first argument to the LBOUND/UBOUND intrinsic
-            if isinstance(first_array, Member):
-                # The array access is a member of some derived type
-                parent_ref = first_array.ancestor(Reference)
-                new_ref = parent_ref.copy()
-                orig_member = parent_ref.member
-                member = new_ref.member
-                while orig_member is not first_array:
-                    member = member.member
-                    orig_member = orig_member.member
-                member.parent.children[0] = Member(first_array.name,
-                                                   parent=member.parent)
-            else:
-                # The array access is to a symbol of ArrayType
-                symbol = _find_or_create_unresolved_symbol(
-                    loop, first_array.name, symbol_type=DataSymbol,
-                    datatype=DeferredType())
-                new_ref = Reference(symbol)
-
-            # Add loop lower bound. This loop is over the shape of the mask
-            # and thus starts at unity. Each individual array access is then
-            # adjusted according to the lower bound of that array.
+            # This loop is over the shape of the mask and thus starts
+            # at unity. Each individual array access is then adjusted
+            # according to the lower bound of that array.
             loop.addchild(Literal("1", integer_type))
             # Add loop upper bound using the shape of the mask.
             if isinstance(mask_shape[idx-1], ArrayType.Extent):
@@ -3879,7 +3860,7 @@ class Fparser2Reader():
                 # have to query it using SIZE.
                 loop.addchild(
                     IntrinsicCall.create(IntrinsicCall.Intrinsic.SIZE,
-                                         [first_array.copy(),
+                                         [array_ref.copy(),
                                           ("dim", Literal(str(idx),
                                                           integer_type))]))
             else:
