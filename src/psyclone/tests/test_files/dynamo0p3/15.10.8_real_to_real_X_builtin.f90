@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021-2024, Science and Technology Facilities Council.
+! Copyright (c) 2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,20 +31,24 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: I. Kavcic, Met Office
+! Author: O. Brunt, Met Office
 
 program single_invoke
 
-  ! Description: single point-wise operation (conversion of integer-valued to
+  ! Description: single point-wise operation (conversion of real-valued to
   ! real-valued field elements) specified in an invoke call.
-  use field_mod,         only: field_type
-  use integer_field_mod, only: integer_field_type
+  use r_solver_field_mod, only: r_solver_field_type
+  use r_tran_field_mod,   only: r_tran_field_type
+  use field_mod,          only: field_type
 
   implicit none
 
-  type(field_type)         :: f2
-  type(integer_field_type) :: f1
+  type(field_type)          :: f1
+  type(r_tran_field_type)   :: f2
+  type(r_solver_field_type) :: f3
 
-  call invoke( real_X(f2, f1) )
+  call invoke( real_to_real_X(f2, f1), &
+               real_to_real_X(f1, f3), &
+               real_to_real_X(f3, f2) )
 
 end program single_invoke
