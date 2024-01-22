@@ -84,6 +84,12 @@ def trans(psy):
             print("Skipping", invoke.name)
             continue
 
+        # The nvidia compiler does not compile a loop over a string in
+        # this subroutine:
+        if invoke.name in ("bdytide_init", ):
+            print("Skipping", invoke.name)
+            continue
+
         # This are functions with scalar bodies, we don't want to parallelise
         # them, but we could:
         # - Inine them
