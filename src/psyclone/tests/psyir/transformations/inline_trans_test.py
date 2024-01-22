@@ -43,9 +43,10 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
-from psyclone.psyir.symbols import DataSymbol, DeferredType, AutomaticInterface
-from psyclone.psyir.transformations import (InlineTrans,
-                                            TransformationError)
+from psyclone.psyir.symbols import (
+    DataSymbol, UnresolvedType, AutomaticInterface)
+from psyclone.psyir.transformations import (
+    InlineTrans, TransformationError)
 from psyclone.tests.utilities import Compile
 
 MY_TYPE = ("  integer, parameter :: ngrids = 10\n"
@@ -627,7 +628,7 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
         "  type my_type\n"
         # TODO #2053 - if the 'data' attribute is correctly given the
         # 'allocatable' attribute then the whole type ends up as an
-        # UnknownFortranType. For now we therefore omit the 'allocatable'
+        # UnsupportedFortranType. For now we therefore omit the 'allocatable'
         # attribute. This means that the Fortran is not strictly correct
         # and we can't compile the code.
         # "    real, allocatable, dimension(:,:) :: data\n"
@@ -1514,7 +1515,7 @@ def test_validate_node():
             "a Call but found 'NoneType'." in str(info.value))
     call = IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
                                 [Reference(DataSymbol("array",
-                                                      DeferredType()))])
+                                                      UnresolvedType()))])
     with pytest.raises(TransformationError) as info:
         inline_trans.validate(call)
     assert "Cannot inline an IntrinsicCall ('ALLOCATE')" in str(info.value)
@@ -1601,7 +1602,7 @@ def test_validate_codeblock(fortran_reader):
 
 def test_validate_unknowntype_argument(fortran_reader):
     '''
-    Test that validate rejects a subroutine with arguments of UnknownType.
+    Test that validate rejects a subroutine with arguments of UnsupportedType.
 
     '''
     code = (
@@ -1625,7 +1626,7 @@ def test_validate_unknowntype_argument(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
     assert ("Routine 'sub' cannot be inlined because it contains a Symbol 'x' "
-            "which is an Argument of UnknownType: 'REAL, POINTER, "
+            "which is an Argument of UnsupportedType: 'REAL, POINTER, "
             "INTENT(INOUT) :: x'" in str(err.value))
 
 

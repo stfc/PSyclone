@@ -63,7 +63,7 @@ from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
                                   Reference, Routine)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
-                                    UnknownFortranType)
+                                    UnsupportedFortranType)
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -1449,7 +1449,7 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = second_arg.psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "f1_data"
-    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype, UnsupportedFortranType)
     assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
     assert (psyir.symbol.datatype.partial_datatype.intrinsic ==
             ScalarType.Intrinsic.REAL)
@@ -1491,7 +1491,7 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = kern.arguments.args[0].psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "mm_w0_local_stencil"
-    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype, UnsupportedFortranType)
     assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
     assert len(psyir.symbol.datatype.partial_datatype.shape) == 3
     # Test for a CMA operator argument.
@@ -1504,7 +1504,7 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = kern.arguments.args[1].psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "cma_op1_cma_matrix"
-    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype, UnsupportedFortranType)
     assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
     assert len(psyir.symbol.datatype.partial_datatype.shape) == 3
 

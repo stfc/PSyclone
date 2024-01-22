@@ -247,7 +247,7 @@ def test_oclw_kernelschedule():
         "  return;\n" \
         "}\n\n"
 
-    # Add a symbol with a deferred interface and check that this raises the
+    # Add a symbol with a Unresol and check that this raises the
     # expected error
     array_type = ArrayType(REAL_TYPE, [10, 10])
     kschedule.symbol_table.add(DataSymbol('broken', array_type,

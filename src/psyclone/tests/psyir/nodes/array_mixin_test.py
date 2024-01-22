@@ -44,7 +44,7 @@ from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, ArrayReference, BinaryOperation, Range,
     Literal, Routine, StructureReference, Assignment, Reference, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, DeferredType, INTEGER_TYPE,
+    ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, INTEGER_TYPE,
     REAL_TYPE, StructureType, Symbol)
 
 
@@ -224,7 +224,7 @@ def test_get_symbol_imported(fortran_reader):
 
 def test_get_symbol_unknownfortrantype(fortran_reader):
     '''Test the _is_bound method returns False when the array access
-    datatype is an UnknownFortranType.
+    datatype is an UnsupportedFortranType.
 
     '''
     code = (
@@ -309,9 +309,9 @@ def test_get_bound_expression():
     assert lb2.symbol is lbound
     with pytest.raises(IndexError):
         aref._get_bound_expression(3, "lower")
-    # Symbol is of DeferredType so the result should be an instance of the
+    # Symbol is of UnresolvedType so the result should be an instance of the
     # LBOUND intrinsic.
-    dtsym = DataSymbol("oops", DeferredType())
+    dtsym = DataSymbol("oops", UnresolvedType())
     dtref = ArrayReference.create(dtsym,
                                   [_ONE.copy(), _ONE.copy(), _ONE.copy()])
     lbnd = dtref._get_bound_expression(1, "lower")
@@ -338,9 +338,9 @@ def test_get_bound_expression():
     assert ub2 is not ubnd_ref
     assert ub2 == ubnd_ref
 
-    # Symbol is of DeferredType so the result should be an instance of the
+    # Symbol is of UnresolvedType so the result should be an instance of the
     # UBOUND intrinsic.
-    dtsym = DataSymbol("oops", DeferredType())
+    dtsym = DataSymbol("oops", UnresolvedType())
     dtref = ArrayReference.create(dtsym,
                                   [_ONE.copy(), _ONE.copy(), _ONE.copy()])
     ubnd = dtref._get_bound_expression(1, "upper")
@@ -400,7 +400,7 @@ def test_member_get_bound_expression(fortran_writer):
 
     '''
     # First, test when we don't have type information.
-    grid_type = DataTypeSymbol("grid_type", DeferredType())
+    grid_type = DataTypeSymbol("grid_type", UnresolvedType())
     sym = DataSymbol("grid_var", grid_type)
     # Use upper case to test the upper case is converted to lower case
     # correctly.
@@ -414,7 +414,7 @@ def test_member_get_bound_expression(fortran_writer):
     assert isinstance(lbnd, IntrinsicCall)
     out = fortran_writer(lbnd).lower()
     assert "lbound(grid_var%data, dim=1)" in out
-    usym = DataSymbol("uvar", DeferredType())
+    usym = DataSymbol("uvar", UnresolvedType())
     ref = ArrayOfStructuresReference.create(
         usym, [_ONE.copy()],
         [("map", [_ONE.copy(), _TWO.copy()]),
@@ -548,7 +548,7 @@ def test_get_outer_range_index():
     array = ArrayReference.create(symbol, [Range(), Range(), Range()])
     assert array.get_outer_range_index() == 2
 
-    symbol = DataSymbol("my_symbol", DeferredType())
+    symbol = DataSymbol("my_symbol", UnresolvedType())
     aos = ArrayOfStructuresReference.create(
         symbol, [Range(), Range(), Range()], ["nx"])
     assert aos.get_outer_range_index() == 3  # +1 for the member child

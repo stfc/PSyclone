@@ -150,8 +150,8 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         super(TypedSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
 
-    def resolve_deferred(self):
-        ''' If the symbol has a deferred datatype, find where it is defined
+    def resolve_type(self):
+        ''' If the symbol has am Unresolved datatype, find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
         :returns: this TypedSymbol with its properties updated. This is for \
@@ -163,8 +163,8 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         # This import has to be local to this method to avoid circular
         # dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import DeferredType
-        if isinstance(self.datatype, DeferredType):
+        from psyclone.psyir.symbols.datatypes import UnresolvedType
+        if isinstance(self.datatype, UnresolvedType):
             # Copy all the symbol properties but the interface and
             # visibility (the latter is determined by the current
             # scoping unit)
@@ -199,10 +199,10 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         # dependencies.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.symbols.datatypes import (
-            ArrayType, UnknownFortranType)
+            ArrayType, UnsupportedFortranType)
         if isinstance(self.datatype, ArrayType):
             return True
-        return (isinstance(self.datatype, UnknownFortranType) and
+        return (isinstance(self.datatype, UnsupportedFortranType) and
                 isinstance(self.datatype.partial_datatype, ArrayType))
 
     @property
@@ -221,9 +221,9 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         '''
         if self.is_array:
             # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.symbols.datatypes import UnknownFortranType
-            if isinstance(self.datatype, UnknownFortranType):
-                # An UnknownFortranType that has is_array True must have a
+            from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+            if isinstance(self.datatype, UnsupportedFortranType):
+                # An UnsupportedFortranType that has is_array True must have a
                 # partial_datatype.
                 return self._datatype.partial_datatype.shape
             return self._datatype.shape

@@ -42,7 +42,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.nodes import (ProfileNode, Literal, Assignment, CodeBlock,
                                   Reference, Return, KernelSchedule, Loop)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE, \
-    ContainerSymbol, DataTypeSymbol, UnknownFortranType, ImportInterface
+    ContainerSymbol, DataTypeSymbol, UnsupportedFortranType, ImportInterface
 from psyclone.profiler import Profiler
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
@@ -88,10 +88,10 @@ def test_profile_node_create():
     assert type_sym.interface.container_symbol is csym
     # A symbol of derived type to contain the profiling data. As it must
     # have the (unsupported) 'save' and 'target' attributes, it has to be of
-    # UnknownFortranType.
+    # UnsupportedFortranType.
     dsym = table.lookup("profile_psy_data")
     assert isinstance(dsym, DataSymbol)
-    assert isinstance(dsym.datatype, UnknownFortranType)
+    assert isinstance(dsym.datatype, UnsupportedFortranType)
     assert (dsym.datatype.declaration ==
             "type(profile_PSyDataType), save, target :: profile_psy_data")
 
