@@ -63,8 +63,9 @@ class GenericInterfaceSymbol(RoutineSymbol):
     @property
     def routines(self):
         '''
-        :returns: the routines to which this interface provides access.
-        :rtype: list[:py:class:`psyclone.psyir.symbols.RoutineSymbol`]
+        :returns: all of the routines to which this interface provides access.
+        :rtype: list[tuple[:py:class:`psyclone.psyir.symbols.RoutineSymbol`,
+                           bool]]
         '''
         return self._routines
 
@@ -81,24 +82,33 @@ class GenericInterfaceSymbol(RoutineSymbol):
 
         :raises ValueError: if no (or an empty) list of values is provided.
         :raises TypeError: if `symbols` is not a list that consists only of
-                           RoutineSymbols.
+                           (RoutineSymbol, bool) tuples.
         '''
         if not values:
             raise ValueError("A GenericInterfaceSymbol requires a list of "
                              "RoutineSymbols but none were provided.")
         if not isinstance(values, list):
             raise TypeError(f"A GenericInterfaceSymbol requires a list of "
-                            f"RoutineSymbols but got: '{values}'")
-        if not all(isinstance(item, tuple) for item in values):
-            raise TypeError(
-                f"A GenericInterfaceSymbol requires a list of RoutineSymbols "
-                f"but got: {[type(rt).__name__ for rt in values]}")
-        for routine in values:
-            self._routines.append(self.RoutineInfo(routine[0], routine[1]))
+                            f"tuples describing its member routines but got: "
+                            f"'{values}'")
+        for item in values:
+            if not isinstance(item, tuple) or len(item) != 2:
+                raise TypeError(
+                    f"A GenericInterfaceSymbol requires a list of 2-tuples but"
+                    f" got: {[type(rt).__name__ for rt in values]}")
+            if (not isinstance(item[0], RoutineSymbol) or
+                    not isinstance(item[1], bool)):
+                raise TypeError(
+                    f"A 2-tuple used to define a routine within the "
+                    f"GenericInterfaceSymbol '{self.name}' must consist of a "
+                    f"RoutineSymbol and a bool but got: {item}")
+            self._routines.append(self.RoutineInfo(item[0], item[1]))
 
     @property
     def module_routines(self):
         '''
+        :returns: those routines that are module procedures.
+        :rtype: list[:py:class:`psyclone.psyir.symbols.RoutineSymbol`]
         '''
         result = []
         for value in self._routines:
@@ -109,6 +119,8 @@ class GenericInterfaceSymbol(RoutineSymbol):
     @property
     def external_routines(self):
         '''
+        :returns: those routines that are external procedures.
+        :rtype: list[:py:class:`psyclone.psyir.symbols.RoutineSymbol`]
         '''
         result = []
         for value in self._routines:
