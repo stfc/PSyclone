@@ -114,8 +114,8 @@ def test_ad_array_invalid_data_type():
     name = "testkern_array_type"
     # check real array
     code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                        "NRANKS*1)", "arg_type(gh_array, gh_unreal, gh_read, "
-                        "NRANKS*1)", 1)
+                              "NRANKS*1)", "arg_type(gh_array, gh_unreal, "
+                              "gh_read, NRANKS*1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
@@ -126,8 +126,8 @@ def test_ad_array_invalid_data_type():
             f"gh_read, nranks * 1)'." in str(excinfo.value))
     # check integer array
     code = ARRAY_CODE.replace("arg_type(gh_array,   gh_integer, gh_read, "
-                        "NRANKS*2)", "arg_type(gh_array, gh_frac, gh_read, "
-                        "NRANKS*2)", 1)
+                              "NRANKS*2)", "arg_type(gh_array, gh_frac, "
+                              "gh_read, NRANKS*2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
@@ -138,8 +138,8 @@ def test_ad_array_invalid_data_type():
             f"gh_read, nranks * 2)'." in str(excinfo.value))
     # check logical array
     code = ARRAY_CODE.replace("arg_type(gh_array,   gh_logical, gh_read, "
-                        "NRANKS*4)", "arg_type(gh_array, gh_illogical, "
-                        "gh_read, NRANKS*4)", 1)
+                              "NRANKS*4)", "arg_type(gh_array, gh_illogical, "
+                              "gh_read, NRANKS*4)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
@@ -246,8 +246,8 @@ def test_no_vector_array():
     const = LFRicConstants()
     for argname in const.VALID_ARRAY_NAMES:
         code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                            "NRANKS*1)", "arg_type(gh_array*3, gh_real, "
-                            "gh_read, NRANKS*1)", 1)
+                                  "NRANKS*1)", "arg_type(gh_array*3, gh_real, "
+                                  "gh_read, NRANKS*1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
@@ -287,6 +287,7 @@ def test_arg_descriptor_array(array_ind, array_type, array_ndims):
     assert array_descriptor.mesh is None
     assert array_descriptor.stencil is None
 
+
 def test_keyword_not_nranks():
     ''' Tests that we raise an error when the keyword is not nranks'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -294,8 +295,8 @@ def test_keyword_not_nranks():
     const = LFRicConstants()
     for argname in const.VALID_ARRAY_NAMES:
         code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                            "NRANKS*1)", "arg_type(gh_array, gh_real, "
-                            "gh_read, SKNARN*1)", 1)
+                                  "NRANKS*1)", "arg_type(gh_array, gh_real, "
+                                  "gh_read, SKNARN*1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
@@ -305,6 +306,7 @@ def test_keyword_not_nranks():
                 "'arg_type(gh_array, gh_real, gh_read, sknarn * 1)'."
                 in str(excinfo.value))
 
+
 def test_incorrect_operator():
     ''' Tests that we raise an error when the operator is incorrect'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -312,8 +314,8 @@ def test_incorrect_operator():
     const = LFRicConstants()
     for argname in const.VALID_ARRAY_NAMES:
         code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                            "NRANKS*1)", "arg_type(gh_array, gh_real, "
-                            "gh_read, NRANKS+1)", 1)
+                                  "NRANKS*1)", "arg_type(gh_array, gh_real, "
+                                  "gh_read, NRANKS+1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
@@ -323,6 +325,7 @@ def test_incorrect_operator():
                 "'arg_type(gh_array, gh_real, gh_read, nranks + 1)'."
                 in str(excinfo.value))
 
+
 def test_n_not_integer():
     ''' Tests that we raise an error when n is not an integer'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -330,8 +333,8 @@ def test_n_not_integer():
     const = LFRicConstants()
     for argname in const.VALID_ARRAY_NAMES:
         code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                            "NRANKS*1)", "arg_type(gh_array, gh_real, "
-                            "gh_read, NRANKS*0.5)", 1)
+                                  "NRANKS*1)", "arg_type(gh_array, gh_real, "
+                                  "gh_read, NRANKS*0.5)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)
@@ -340,6 +343,7 @@ def test_n_not_integer():
                 "'arg_type(gh_array, gh_real, gh_read, nranks * 0.5)'."
                 in str(excinfo.value))
 
+
 def test_n_less_than_one():
     ''' Tests that we raise an error when n is less than 1'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -347,8 +351,8 @@ def test_n_less_than_one():
     const = LFRicConstants()
     for argname in const.VALID_ARRAY_NAMES:
         code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                            "NRANKS*1)", "arg_type(gh_array, gh_real, "
-                            "gh_read, NRANKS*0)", 1)
+                                  "NRANKS*1)", "arg_type(gh_array, gh_real, "
+                                  "gh_read, NRANKS*0)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = LFRicKernMetadata(ast, name=name)

@@ -132,4 +132,5 @@ class ArrayArgMetadata(ScalarArgMetadata):
         '''
         return self.array_size                                             #SHARKS (needs test coverage)
 
+
 __all__ = ["ArrayArgMetadata"]
