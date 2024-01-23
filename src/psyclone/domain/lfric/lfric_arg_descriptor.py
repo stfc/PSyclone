@@ -330,7 +330,7 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 f"In the LFRic API, the array notation must be in "
                 f"the format 'NRANKS*n' where 'n' is an integer >= 1. "
-                f"However, found n = '{arraysize}' in '{arg_type}'.")
+                f"However, found n = '{array_ndims}' in '{arg_type}'.")
         # ... and set the array size if all checks pass
         self._array_ndims = array_ndims
 
