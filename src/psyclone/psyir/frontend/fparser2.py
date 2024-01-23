@@ -2372,30 +2372,32 @@ class Fparser2Reader():
         #     [MODULE] PROCEDURE :: <name-list>
         # to specify these.
         rsymbols = []
-        try:
-            for child in node.children:
-                if isinstance(child, (Fortran2003.Interface_Stmt,
-                                      Fortran2003.End_Interface_Stmt)):
-                    continue
-                if isinstance(child, Fortran2003.Procedure_Stmt):
-                    # Keep track of whether these are module procedures.
-                    is_module = child.children[1] == 'MODULE'
-                    for routine_name in child.children[0].children:
-                        rsym = symbol_table.lookup(routine_name.string)
-                        if not isinstance(rsym, RoutineSymbol):
-                            raise InternalError(
-                                f"Found a symbol of type {type(rsym).__name__}"
-                                f" when searching for the RoutineSymbol "
-                                f"referenced in INTERFACE '{name}'")
-                        rsymbols.append((rsym, is_module))
-                else:
-                    # Interface block contains an unsupported entry so
-                    # we'll create a symbol of UnknownFortranType.
-                    raise KeyError()
-        except KeyError:
-            # Failed to find the corresponding RoutineSymbol so we'll
-            # create a symbol of UnknownFortranType.
-            rsymbols = []
+
+        for child in node.children:
+            if isinstance(child, (Fortran2003.Interface_Stmt,
+                                  Fortran2003.End_Interface_Stmt)):
+                continue
+            if isinstance(child, Fortran2003.Procedure_Stmt):
+                # Keep track of whether these are module procedures.
+                is_module = child.children[1] == 'MODULE'
+                for routine_name in child.children[0].children:
+                    # Can't specify the symbol_type here as that will raise
+                    # an exception if a bare Symbol is found instead of a
+                    # RoutineSymbol.
+                    rsym = symbol_table.find_or_create(
+                        routine_name.string)
+                    if type(rsym) is Symbol:
+                        rsym.specialise(RoutineSymbol)
+                    elif not isinstance(rsym, RoutineSymbol):
+                        raise InternalError(
+                            f"Expected '{rsym.name}' referenced by generic "
+                            f"interface '{name}' to be a Symbol or a "
+                            f"RoutineSymbol but found '{type(rsym).__name__}'")
+                    rsymbols.append((rsym, is_module))
+            else:
+                # Interface block contains an unsupported entry so
+                # we'll create a symbol of UnknownFortranType.
+                rsymbols = []
 
         try:
             if rsymbols:

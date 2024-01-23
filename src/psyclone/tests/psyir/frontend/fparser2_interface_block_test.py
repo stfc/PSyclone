@@ -40,15 +40,21 @@
 
 import pytest
 
+from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
+
+from psyclone.errors import InternalError
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
-    DataTypeSymbol, GenericInterfaceSymbol, NoType, RoutineSymbol, Symbol,
-    UnknownFortranType)
+    DataSymbol, DataTypeSymbol, GenericInterfaceSymbol, INTEGER_TYPE,
+    NoType, RoutineSymbol, Symbol, SymbolTable, UnknownFortranType)
 
 
 @pytest.mark.parametrize("mod_txt", ["", "module "])
 def test_named_interface(fortran_reader, mod_txt):
-    ''' Test that the frontend creates a RoutineSymbol of UnknownFortranType
+    ''' Test that the frontend creates a GenericInterfaceSymbol
     for a named interface block.'''
     dummy_module = f'''
     module dummy_mod
@@ -124,6 +130,69 @@ def test_named_interface_declared(fortran_reader, mod_txt):
         f"  {mod_txt}procedure test_code\n"
         f"end interface test")
     assert test_symbol.visibility == Symbol.Visibility.PUBLIC
+
+
+def test_named_interface_no_routine_symbol(fortran_reader):
+    '''
+    Test that an interface is handled correctly if it refers to symbols
+    for which we don't have type information (because they are imported).
+    '''
+    test_module = '''
+    module test_mod
+      use other_mod
+      use some_mod, only: other_routine
+      private
+      interface test
+        module procedure :: test_code_r4, test_code_r8
+      end interface test
+      public :: test
+      interface boundary
+        module procedure :: other_routine, test_code_r4
+      end interface boundary
+    contains
+
+    end module test_mod
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    container = file_container.children[0]
+    isym = container.symbol_table.lookup("test")
+    assert isinstance(isym, GenericInterfaceSymbol)
+    bsym = container.symbol_table.lookup("boundary")
+    assert isinstance(bsym, GenericInterfaceSymbol)
+
+
+def test_named_interface_wrong_symbol_type(f2008_parser):
+    '''
+    Check that we get the expected error if we find a Symbol of the wrong
+    type when searching for the routines referenced by an interface.
+
+    We can't get to this error very easily so we resort to adding a clashing
+    symbol to the SymbolTable before doing the processing.
+
+    '''
+    test_module = '''
+    module test_mod
+      use other_mod
+      interface test
+        module procedure :: test_code_r4, test_code_r8
+      end interface test
+    end module test_mod
+'''
+    reader = FortranStringReader(test_module)
+    ptree = f2008_parser(reader)
+    node = walk(ptree, Fortran2003.Interface_Block)[0]
+    table = SymbolTable()
+    # Add a DataSymbol with the same name as one of the routines referred to by
+    # the interface.
+    table.new_symbol("test_code_r4", symbol_type=DataSymbol,
+                     datatype=INTEGER_TYPE)
+    processor = Fparser2Reader()
+    # This should raise an InternalError...
+    with pytest.raises(InternalError) as err:
+        processor._process_interface_block(node, table, {})
+    assert ("Expected 'test_code_r4' referenced by generic interface 'test' "
+            "to be a Symbol or a RoutineSymbol but found 'DataSymbol'" in
+            str(err.value))
 
 
 @pytest.mark.parametrize("mod_procedure", ["", "module procedure other_sub\n"])
