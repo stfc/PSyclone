@@ -36,12 +36,8 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone LFRic API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' This module implements the stencil information and code generation
+    associated with a PSy-layer routine or Kernel stub.  '''
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
@@ -103,7 +99,7 @@ class LFRicStencils(LFRicCollection):
                         raise GenerationError(
                             f"Kernel {call.name}, metadata arg {idx}, a "
                             f"literal is not a valid value for a stencil "
-                            f"direction")
+                            f"direction.")
                     if arg.stencil.direction_arg.text.lower() not in \
                        ["x_direction", "y_direction"]:
                         if arg.stencil.direction_arg.text not in \
