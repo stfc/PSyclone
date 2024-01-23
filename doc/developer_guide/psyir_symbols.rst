@@ -316,23 +316,25 @@ INTERFACE` where `generic-spec` is either (`R1207`) a `generic-name`
 or one of `OPERATOR`, `ASSIGNMENT` or `dtio-spec` (see
 ``https://wg5-fortran.org/N1601-N1650/N1601.pdf``).
 
-The PSyIR captures all forms of Fortran interface but is not able to
-reason about the content of the interface as the text for this is
-stored as an `UnknownFortranType`.
+Interfaces with a `generic-name` used to overload a procedure, e.g.
 
-If the interface has a generic name and `generic-name` is not already
-declared as a PSyIR symbol then the interface is captured as a
-`RoutineSymbol` named as `generic-name`. The `generic-name` may
-already be declared as a PSyIR symbol if it references a type
-declaration or the interface may not have a name. In these two cases
-the interface is still captured as a `RoutineSymbol`, but the root
-name of the `RoutineSymbol` is `_psyclone_internal_<generic-name>`, or
+.. code-block:: fortran
+
+    interface dot_prod
+      module procedure :: dot_prod_r4, dot_prod_r8
+    end interface dot_prod
+
+are captured in the PSyIR as symbols of `GenericInterfaceSymbol` type (a
+sub-class of `RoutineSymbol`), provided that `generic-name` is not already
+declared as a PSyIR symbol (as can happen for a constructor of a derived type).
+If `generic-name` is not present or is already declared then the interface is
+captured instead as a `RoutineSymbol`, but the root
+name of this symbol is `_psyclone_internal_<generic-name>`, or
 `_psyclone_internal_interface` respectively, i.e. it is given an
 internal PSyclone name. The root name should not clash with any other
 symbol names as names should not start with `_`, but providing a root
 name ensures that unique names are used in any case.
-
-As interfaces are captured as text in an `UnknownFortranType` the
-`RoutineSymbol` name is not used in the Fortran backend, the text
+As such interfaces are captured as text in an `UnknownFortranType` the
+`RoutineSymbol` name is not used in the Fortran backend; the text
 stored in `UnknownFortranType` is simply output.
 
