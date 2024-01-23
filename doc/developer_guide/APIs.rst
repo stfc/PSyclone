@@ -1073,15 +1073,6 @@ layer routine. A lot of this work is currently performed in the
 https://github.com/stfc/PSyclone/issues/1258) much of this will be
 removed.
 
-To date, all the LFRic BuiltIns have had ``lower_to_language_level()``
-methods implemented except for the following:
-
-* ``LFRicXInnerproductYKern``,
-* ``LFRicXInnerproductXKern``,
-* ``LFRicSumXKern``,
-* ``LFRicIntXKern``,
-* ``LFRicRealXKern``.
-
 The sum and inner product BuiltIns require extending PSyIR to handle
 reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from
 ``real`` to ``int`` and vice-versa require the target precisions be

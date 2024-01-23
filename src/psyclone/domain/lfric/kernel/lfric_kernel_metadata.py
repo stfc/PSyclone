@@ -328,7 +328,7 @@ class LFRicKernelMetadata(CommonMetadata):
         # 7: The only two exceptions from the rules 5) and 6) above
         # regarding the same data type of “write” and “read” field
         # arguments are Built-ins that convert field data from real to
-        # integer, int_X, and from integer to real, real_X.
+        # integer, real_to_int_X, and from integer to real, int_to_real_X.
 
     def _validate_domain_kernel(self):
         '''Validation checks for a domain kernel.
