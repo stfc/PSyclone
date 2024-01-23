@@ -38,6 +38,7 @@
     PSyIR backend. '''
 
 import pytest
+from psyclone.errors import InternalError
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation,
                                   Container, Routine, Return)
@@ -314,7 +315,7 @@ def test_visibility_abstract_interface(fortran_reader, fortran_writer,
         assert "private :: update_interface" in result
 
 
-def test_procedure_interface(fortran_reader, fortran_writer):
+def test_procedure_interface(fortran_writer):
     '''Test that the Fortran backend correctly recreates an interface
     declaration from a GenericInterfaceSymbol.
     '''
@@ -327,3 +328,44 @@ def test_procedure_interface(fortran_reader, fortran_writer):
     assert "procedure :: sub1" in out
     assert "module procedure :: sub2" in out
     assert "end interface subx" in out
+
+
+def test_gen_interfacedecl(fortran_writer):
+    '''
+    Test the gen_interfacedecl() method directly. That it raises the expected
+    errors and generates the correct visibility statements.
+
+    '''
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_interfacedecl("not a symbol")
+    assert ("gen_interfacedecl only supports 'GenericInterfaceSymbol's but "
+            "got 'str'" in str(err.value))
+    isub = GenericInterfaceSymbol("subx", [(RoutineSymbol("sub1"), False),
+                                           (RoutineSymbol("sub2"), True)])
+    # No visibility.
+    out = fortran_writer.gen_interfacedecl(isub)
+    assert (out == '''interface subx
+  module procedure :: sub2
+  procedure :: sub1
+end interface subx
+''')
+    # With visibility.
+    out2 = fortran_writer.gen_interfacedecl(isub, include_visibility=True)
+    assert (out2 == '''interface subx
+  module procedure :: sub2
+  procedure :: sub1
+end interface subx
+public :: subx
+''')
+    isub.visibility = Symbol.Visibility.PRIVATE
+    out3 = fortran_writer.gen_interfacedecl(isub, include_visibility=True)
+    assert (out3 == '''interface subx
+  module procedure :: sub2
+  procedure :: sub1
+end interface subx
+private :: subx
+''')
+    isub._visibility = "wrong"
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_interfacedecl(isub, include_visibility=True)
+    assert "but symbol 'subx' has visibility 'wrong'" in str(err.value)

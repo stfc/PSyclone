@@ -631,6 +631,8 @@ class FortranWriter(LanguageWriter):
 
         :raises InternalError: if passed something that is not a
                                GenericInterfaceSymbol.
+        :raises InternalError: if the symbol has an unrecognised visibility.
+
         '''
         if not isinstance(symbol, GenericInterfaceSymbol):
             raise InternalError(
@@ -654,12 +656,13 @@ class FortranWriter(LanguageWriter):
             # Visibility of an interface has to be supplied as a separate
             # statement.
             if symbol.visibility == Symbol.Visibility.PRIVATE:
-                decln += f"{self._nindent}private {symbol.name}\n"
+                decln += f"{self._nindent}private :: {symbol.name}\n"
             elif symbol.visibility == Symbol.Visibility.PUBLIC:
-                decln += f"{self._nindent}public {symbol.name}\n"
+                decln += f"{self._nindent}public :: {symbol.name}\n"
             else:
                 raise InternalError(
-                    f"A Symbol must be either public or private but symbol "
+                    f"The visibility of a Symbol must be one of "
+                    f"Symbol.Visibility.PUBLIC/PRIVATE but symbol "
                     f"'{symbol.name}' has visibility '{symbol.visibility}'")
 
         return decln
