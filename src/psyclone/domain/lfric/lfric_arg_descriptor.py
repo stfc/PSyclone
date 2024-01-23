@@ -102,7 +102,7 @@ class LFRicArgDescriptor(Descriptor):
         self._function_spaces = []
         # Set vector size to 1 (scalars set it to 0 in their validation)
         self._vector_size = 1
-        self._array_nranks = 1
+        self._array_ndims = 1
         # Initialise other internal arguments
         self._access_type = None
         self._function_space1 = None
@@ -275,7 +275,7 @@ class LFRicArgDescriptor(Descriptor):
                 f"{const.VALID_FIELD_NAMES} argument types but found "
                 f"'{arg_type.args[0]}'.")
 
-    def _validate_array_nranks(self, arg_type):
+    def _validate_array_ndims(self, arg_type):
         '''
         Validates descriptors for scalar array arguments and populates
         vector properties accordingly.
@@ -316,7 +316,7 @@ class LFRicArgDescriptor(Descriptor):
         # Now try to find the array size for a scalar array and return
         # an error if it is not an integer number...
         try:
-            arraysize = int(arg_type.args[3].toks[2])
+            array_ndims = int(arg_type.args[3].toks[2])
         except ValueError as err:
             raise ParseError(
                 f"In the LFRic API, the array notation must be in "
@@ -326,13 +326,13 @@ class LFRicArgDescriptor(Descriptor):
 
         # ... or it is less than 1 (1 is the default for all fields)...
         const = LFRicConstants()
-        if arraysize < 1:
+        if array_ndims < 1:
             raise ParseError(
                 f"In the LFRic API, the array notation must be in "
                 f"the format 'NRANKS*n' where 'n' is an integer >= 1. "
                 f"However, found n = '{arraysize}' in '{arg_type}'.")
         # ... and set the array size if all checks pass
-        self._array_nranks = arraysize
+        self._array_ndims = array_ndims
 
     def _init_field(self, arg_type, operates_on):
         '''
@@ -665,7 +665,7 @@ class LFRicArgDescriptor(Descriptor):
 
         # Scalars don't have vector size or array size
         self._vector_size = 0
-        self._array_nranks = 0
+        self._array_ndims = 0
 
     def _init_array(self, arg_type):
         '''
@@ -720,7 +720,7 @@ class LFRicArgDescriptor(Descriptor):
                 f"('gh_read') access but found '{api_specific_name}' "
                 f"in '{arg_type}'.")
 
-        self._validate_array_nranks(arg_type)
+        self._validate_array_ndims(arg_type)
 
         # Arrays don't have vector size
         self._vector_size = 0
@@ -841,7 +841,7 @@ class LFRicArgDescriptor(Descriptor):
         return self._vector_size
 
     @property
-    def array_nranks(self):
+    def array_ndims(self):
         '''
         Returns the array size of the argument. This will be 1 if ``*n``
         has not been specified for all argument types except scalars
@@ -851,7 +851,7 @@ class LFRicArgDescriptor(Descriptor):
         :rtype: int
 
         '''
-        return self._array_nranks                 #SHARKS (needs test coverage)
+        return self._array_ndims                 #SHARKS (needs test coverage)
 
     def __str__(self):
         '''
@@ -879,7 +879,7 @@ class LFRicArgDescriptor(Descriptor):
             res += (f"  function_space[3]='{self._function_space1}'"
                     + os.linesep)
         elif self._argument_type in const.VALID_ARRAY_NAMES:
-            res += (f"  array_nranks[3]='{self._array_nranks}'"
+            res += (f"  array_ndims[3]='{self._array_ndims}'"
                     + os.linesep)
         elif self._argument_type in const.VALID_OPERATOR_NAMES:
             res += (f"  function_space_to[3]='{self._function_space1}'"

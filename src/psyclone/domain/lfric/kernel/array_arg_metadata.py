@@ -62,37 +62,37 @@ class ArrayArgMetadata(ScalarArgMetadata):
     form_arg_index = 0
     datatype_arg_index = 1
     access_arg_index = 2
-    array_nranks_arg_index = 3
+    array_size_arg_index = 3
     # The name to use for any exceptions.
     check_name = "array"
     # The number of arguments in the language-level metadata (min and
     # max values).
     nargs = (4)
 
-    def __init__(self, datatype, access, array_nranks):
+    def __init__(self, datatype, access, array_size):
         super().__init__(datatype, access)                  #SHARKS (needs test coverage)
-        self.array_nranks = array_nranks                    #SHARKS (needs test coverage)
+        self.array_size = array_size                    #SHARKS (needs test coverage)
 
-#    @classmethod
-#    def _get_metadata(cls, fparser2_tree):
-#        '''Extract the required metadata from the fparser2 tree and return it
-#        as strings. Also check that the metadata is in the expected
-#        form (but do not check the metadata values as that is done
-#        separately).
-#
-#        :param fparser2_tree: fparser2 tree containing the metadata \
-#            for this argument.
-#        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
-#            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-#
-#        :returns: a tuple containing the datatype, access and array nranks \
-#            metadata.
-#        :rtype: Tuple[str, str, str]
-#
-#        '''
-#        datatype, access = super()._get_metadata(fparser2_tree)
-#        # array_nranks = cls.get_array_dimension(fparser2_tree)
-#        return (datatype, access, array_nranks)
+    @classmethod
+    def _get_metadata(cls, fparser2_tree):
+        '''Extract the required metadata from the fparser2 tree and return it
+        as strings. Also check that the metadata is in the expected
+        form (but do not check the metadata values as that is done
+        separately).
+
+        :param fparser2_tree: fparser2 tree containing the metadata \
+            for this argument.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+
+        :returns: a tuple containing the datatype, access and array nranks \
+            metadata.
+        :rtype: Tuple[str, str, str]
+
+        '''
+        datatype, access = super()._get_metadata(fparser2_tree)
+        array_size = cls.get_array_dimension(fparser2_tree)
+        return (datatype, access, array_size)
 
     def fortran_string(self):
         '''
@@ -100,7 +100,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :rtype: str
         '''
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "    #SHARKS (needs test coverage)
-                f"{self.array_nranks})")
+                f"{self.array_size})")
 
     @staticmethod
     def check_datatype(value):
@@ -125,11 +125,11 @@ class ArrayArgMetadata(ScalarArgMetadata):
             value, const.VALID_ARRAY_ACCESS_TYPES, "access descriptor")
 
     @property
-    def array_nranks(self):
+    def array_size(self):
         '''
-        :returns: the function space for this array argument.
+        :returns: the array size for this array argument.
         :rtype: str
         '''
-        return self.array_nranks                                             #SHARKS (needs test coverage)
+        return self.array_size                                             #SHARKS (needs test coverage)
 
 __all__ = ["ArrayArgMetadata"]

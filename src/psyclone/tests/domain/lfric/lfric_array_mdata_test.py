@@ -255,9 +255,9 @@ def test_no_vector_array():
                 "types but found 'gh_array * 3'" in str(excinfo.value))
 
 
-@pytest.mark.parametrize("array_ind, array_type, array_ranks", [
+@pytest.mark.parametrize("array_ind, array_type, array_ndims", [
     (0, "gh_real", 1), (1, "gh_integer", 2), (2, "gh_logical", 4)])
-def test_arg_descriptor_array(array_ind, array_type, array_ranks):
+def test_arg_descriptor_array(array_ind, array_type, array_ndims):
     ''' Test that the LFRicArgDescriptor argument representation works
     as expected for all three types of valid array argument:
     'real', 'integer' and 'logical'.
@@ -275,13 +275,13 @@ def test_arg_descriptor_array(array_ind, array_type, array_ranks):
         f"  argument_type[0]='gh_array'\n"
         f"  data_type[1]='{array_type}'\n"
         f"  access_descriptor[2]='gh_read'\n"
-        f"  array_nranks[3]='{array_ranks}'")
+        f"  array_ndims[3]='{array_ndims}'")
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
     assert array_descriptor.argument_type == "gh_array"
     assert array_descriptor.data_type == array_type
-    assert array_descriptor._array_nranks == array_ranks
+    assert array_descriptor._array_ndims == array_ndims
     assert array_descriptor.function_spaces == [None]
     assert str(array_descriptor.access) == "READ"
     assert array_descriptor.mesh is None
