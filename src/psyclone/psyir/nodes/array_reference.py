@@ -129,6 +129,27 @@ class ArrayReference(ArrayMixin, Reference):
         '''
         shape = self._get_effective_shape()
         if shape:
+            if isinstance(self.symbol.datatype, ArrayType):
+                # We have full type information so we know the shape of the
+                # original declaration.
+                orig_shape = self.symbol.datatype.shape
+            elif (isinstance(self.symbol.datatype, UnknownFortranType) and
+                  self.symbol.datatype.partial_datatype):
+                # We have partial type information so we also know the shape
+                # of the original declaration.
+                orig_shape = self.symbol.datatype.partial_datatype.shape
+            else:
+                # We don't have any information on the shape of the original
+                # delcaration.
+                orig_shape = []
+            if (len(shape) == len(orig_shape) and
+                    all(self.is_full_range(idx) for idx in range(len(shape)))):
+                # Although this access has a shape, it is in fact for the
+                # whole array and therefore the type of the result is just
+                # that of the base symbol. (This wouldn't be true for a
+                # StructureReference but they have their own implementation
+                # of this method.)
+                return self.symbol.datatype
             if isinstance(self.symbol.datatype, UnknownType):
                 # Even if an Unknown(Fortran)Type has partial type
                 # information, we can't easily use it here because we'd need
@@ -151,15 +172,13 @@ class ArrayReference(ArrayMixin, Reference):
                 precision = self.symbol.datatype.partial_datatype.precision
                 intrinsic = self.symbol.datatype.partial_datatype.intrinsic
                 return ScalarType(intrinsic, precision)
-            else:
-                # Since we're accessing a single element of an array
-                # of UnknownType we have to create a new
-                # UnknownFortranType.  Ideally we would re-write the
-                # original Fortran declaration stored in the type. We
-                # could remove the shape in the fparser2 parse tree
-                # but, at this point, we wouldn't know what the
-                # variable name should be (TODO #2137).
-                return DeferredType()
+            # Since we're accessing a single element of an array of
+            # UnknownType we have to create a new UnknownFortranType.
+            # Ideally we would re-write the original Fortran
+            # declaration stored in the type. We could remove the
+            # shape in the fparser2 parse tree but, at this point, we
+            # wouldn't know what the variable name should be (TODO #2137).
+            return DeferredType()
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return
