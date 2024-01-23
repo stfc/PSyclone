@@ -48,7 +48,6 @@ from enum import Enum
 from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
 from typing import Any
-import fparser
 
 from psyclone import psyGen
 from psyclone.configuration import Config

@@ -1959,7 +1959,7 @@ def test_dynkernargs_unexpect_stencil_extent():
     assert "extent metadata not yet supported" in str(err.value)
 
 
-def test_dynstencils_extent_vars_err(monkeypatch):
+def test_lfricstencils_extent_vars_err(monkeypatch):
     ''' Check that the _unique_extent_vars method of LFRicStencils raises
     the expected internal error. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -1975,7 +1975,7 @@ def test_dynstencils_extent_vars_err(monkeypatch):
             in str(err.value))
 
 
-def test_dynstencils_err():
+def test_lfricstencils_err():
     ''' Check that LFRicStencils.initialise and
     LFRicStencils._declare_maps_invoke raises the expected
     InternalError if an unsupported stencil type is encountered. '''

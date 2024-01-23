@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
+''' This module implements the PSyclone LFRic API by 1)
     specialising the required base classes in parser.py (KernelType) and
     adding a new class (DynFuncDescriptor03) to capture function descriptor
     metadata and 2) specialising the required base classes in psyGen.py
@@ -58,11 +58,12 @@ class LFRicStencils(LFRicCollection):
     routine or Kernel stub.
 
     :param node: the Invoke or Kernel stub for which to provide stencil info.
-    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
-    :raises GenerationError: if a literal has been supplied for a stencil \
+    :raises GenerationError: if a literal has been supplied for a stencil
                              direction.
+
     '''
     def __init__(self, node):
         # pylint: disable=too-many-branches
@@ -111,7 +112,7 @@ class LFRicStencils(LFRicCollection):
                                 arg.stencil.direction_arg.text)
                             self._unique_direction_args.append(arg)
 
-        # list of stencil args with an extent variable passed in. The same
+        # List of stencil args with an extent variable passed in. The same
         # field name may occur more than once here from different kernels.
         self._kern_args = []
         for call in self._calls:
@@ -148,14 +149,15 @@ class LFRicStencils(LFRicCollection):
 
         :param arg: kernel argument with which stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param str context: a context for this stencil (e.g. "size" or \
+        :param str context: a context for this stencil (e.g. "size" or
                             "direction").
 
         :returns: unique string identifying the stencil for this argument.
         :rtype: str
 
-        :raises GenerationError: if an explicit stencil extent is found in \
-                                 the meta-data for the kernel argument.
+        :raises GenerationError: if an explicit stencil extent is found in
+                                 the metadata for the kernel argument.
+
         '''
         unique = context
         unique += arg.function_space.mangled_name
@@ -179,6 +181,7 @@ class LFRicStencils(LFRicCollection):
 
         :returns: a valid unique map name for a stencil in the PSy layer.
         :rtype: str
+
         '''
         root_name = arg.name + "_stencil_map"
         unique = LFRicStencils.stencil_unique_str(arg, "map")
@@ -190,8 +193,8 @@ class LFRicStencils(LFRicCollection):
         Creates and registers a symbol for the stencil dofmap associated with
         the supplied kernel argument.
 
-        :param symtab: symbol table that will contain (or already contains) \
-            the symbol with this name.
+        :param symtab: symbol table that will contain (or already contains)
+                       the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -216,8 +219,8 @@ class LFRicStencils(LFRicCollection):
         Create a valid symbol for the size (in cells) of a stencil
         dofmap in the PSy layer.
 
-        :param symtab: symbol table that will contain (or already contains) \
-            the symbol with this name.
+        :param symtab: symbol table that will contain (or already contains)
+                       the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -244,14 +247,15 @@ class LFRicStencils(LFRicCollection):
         in the kernels for defining the maximum possible length of one of the
         dofmap array dimensions.
 
-        :param symtab: symbol table that will contain (or already contains) \
-            the symbol with this name.
+        :param symtab: symbol table that will contain (or already contains)
+                       the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :returns: a Fortran variable name for the max stencil branch length.
         :rtype: str
+
         '''
         root_name = arg.name + "_max_branch_length"
         unique = LFRicStencils.stencil_unique_str(arg, "length")
@@ -260,8 +264,9 @@ class LFRicStencils(LFRicCollection):
     def _unique_max_branch_length_vars(self):
         '''
         :returns: list of all the unique max stencil extent argument names in
-                  this kernel call for cross2d stencils.
+                  this kernel call for CROSS2D stencils.
         :rtype: list of str
+
         '''
         names = []
         for arg in self._kern_args:
@@ -276,7 +281,7 @@ class LFRicStencils(LFRicCollection):
         in and add the declaration as a child of the parent argument passed
         in.
 
-        :param parent: the node in the f2pygen AST to which to add the \
+        :param parent: the node in the f2pygen AST to which to add the
                        declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
@@ -296,14 +301,15 @@ class LFRicStencils(LFRicCollection):
         Creates a Fortran variable name to hold the direction of the stencil
         associated with the supplied kernel argument.
 
-        :param symtab: symbol table that will contain (or already contains) \
-            the symbol with this name.
+        :param symtab: symbol table that will contain (or already contains)
+                       the symbol with this name.
         :type symtab: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :returns: a Fortran variable name for the stencil direction.
         :rtype: str
+
         '''
         root_name = arg.name+"_direction"
         unique = LFRicStencils.stencil_unique_str(arg, "direction")
@@ -312,7 +318,7 @@ class LFRicStencils(LFRicCollection):
     @property
     def _unique_extent_vars(self):
         '''
-        :returns: list of all the unique extent argument names in this \
+        :returns: list of all the unique extent argument names in this
                   invoke or kernel call.
         :rtype: list of str
 
