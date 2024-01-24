@@ -286,7 +286,7 @@ contains
                 sum(double_values*double_correct)        &
                 / sqrt(real(sum(double_values*double_values)))  &
                 / sqrt(real(sum(double_correct*double_correct)))
-
+            all_results(current_index, count_0) = count(tmp == 0.0d0)
 
             where(double_correct /= 0)
                 tmp = abs(tmp/double_correct)
@@ -294,7 +294,6 @@ contains
                 tmp = -1
             endwhere
             all_results(current_index, MAX_REL_ERROR) = maxval(tmp)
-            all_results(current_index, count_0) = count(tmp == 0.0d0)
             all_results(current_index, COUNT_NEG_3) = count(tmp > 1.0d-3)
             ! Count elements >10^-6, and subtract the ones larger than 10^-3
             all_results(current_index, COUNT_NEG_6) = count(tmp > 1.0d-6) &
