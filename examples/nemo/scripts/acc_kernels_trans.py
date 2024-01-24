@@ -104,7 +104,7 @@ ACC_IGNORE = ["day_mth",  # Just calendar operations
               "iom_open", "iom_get_123d", "iom_nf90_rp0123d",
               "trc_bc_ini", "p2z_ini", "p4z_ini", "sto_par_init",
               "bdytide_init", "bdy_init", "bdy_segs",
-              "asm_inc_init"]  # Str handling, init routine
+              "asm_inc_init", "dia_obs_init"]  # Str handling, init routine
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
