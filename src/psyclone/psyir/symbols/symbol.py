@@ -226,7 +226,7 @@ class Symbol():
               f"Error trying to resolve the properties of symbol "
               f"'{self.name}' in module '{module.name}': {err.value}") from err
 
-    def resolve_deferred(self):
+    def resolve_type(self):
         '''
         Update the properties of this Symbol by using the definition imported
         from the external Container. If this symbol does not have an
