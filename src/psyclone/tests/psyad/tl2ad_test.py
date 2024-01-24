@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
-    ArgumentInterface, UnknownFortranType, DeferredType)
+    ArgumentInterface, UnsupportedFortranType, UnresolvedType)
 from psyclone.tests.utilities import Compile
 
 
@@ -765,7 +765,8 @@ def test_add_precision_symbol():
     assert ("One or more variables have a precision specified by symbol "
             "'wrong' which is not local or explicitly imported" in
             str(err.value))
-    # A precision symbol must be a scalar integer or of deferred/unknown type
+    # A precision symbol must be a scalar integer or of unresolved/unsupported
+    # type
     isym = DataSymbol("iwrong", REAL_TYPE)
     with pytest.raises(TypeError) as err:
         _add_precision_symbol(isym, table)
@@ -776,11 +777,11 @@ def test_add_precision_symbol():
         _add_precision_symbol(arr_sym, table)
     assert ("integer type but 'iarray' has type 'Array<Scalar<INTEGER, "
             "UNDEFINED>, shape=[10]>'." in str(err.value))
-    def_sym = DataSymbol("my_def",
-                         UnknownFortranType("integer, parameter :: my_def"))
+    def_sym = DataSymbol(
+        "my_def", UnsupportedFortranType("integer, parameter :: my_def"))
     _add_precision_symbol(def_sym, table)
     assert table.lookup("my_def")
-    odef_sym = DataSymbol("o_def", DeferredType(),
+    odef_sym = DataSymbol("o_def", UnresolvedType(),
                           interface=ImportInterface(csym))
     _add_precision_symbol(odef_sym, table)
     assert table.lookup("o_def")

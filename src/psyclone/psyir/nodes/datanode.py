@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 ''' This module contains the DataNode abstract node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.symbols.datatypes import DeferredType
+from psyclone.psyir.symbols.datatypes import UnresolvedType
 
 
 class DataNode(Node):
@@ -50,8 +50,8 @@ class DataNode(Node):
     def datatype(self):
         '''
         :returns: the data-type of this Node. Currently this base
-            implementation just returns DeferredType(). If a sub-class can do
+            implementation just returns UnresolvedType(). If a sub-class can do
             better then it must override this method.
-        :rtype: :py:class:`psyclone.psyir.symbols.DeferredType`
+        :rtype: :py:class:`psyclone.psyir.symbols.UnresolvedType`
         '''
-        return DeferredType()
+        return UnresolvedType()

@@ -91,7 +91,7 @@ $(F90)  ... -L$(PSYDATA_LIB_DIR)/extract/standalone/lfric -l_extract \
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2022, Science and Technology Facilities Council.
+Copyright (c) 2020-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

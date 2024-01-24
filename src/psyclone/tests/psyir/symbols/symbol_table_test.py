@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,9 +48,9 @@ from psyclone.psyir.nodes import (
     Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     AutomaticInterface, ImportInterface, ArgumentInterface, \
-    ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
+    ScalarType, ArrayType, UnresolvedType, REAL_TYPE, INTEGER_TYPE, Symbol, \
     SymbolError, RoutineSymbol, NoType, StructureType, DataTypeSymbol, \
-    UnknownFortranType, UnresolvedInterface, CommonBlockInterface
+    UnsupportedFortranType, UnresolvedInterface, CommonBlockInterface
 from psyclone.errors import InternalError
 
 
@@ -600,7 +600,7 @@ def test_check_for_clashes_cannot_rename():
     table1.add(DataSymbol("slab", INTEGER_TYPE))
     csym2 = ContainerSymbol("fleet")
     table2.add(csym2)
-    table2.add(DataSymbol("slab", DeferredType(),
+    table2.add(DataSymbol("slab", UnresolvedType(),
                           interface=ImportInterface(csym2)))
     # 'slab' in table1 can be renamed.
     table1.check_for_clashes(table2)
@@ -608,7 +608,7 @@ def test_check_for_clashes_cannot_rename():
     # be renamed because it is a routine argument.
     table1.add(DataSymbol("prostetnic", INTEGER_TYPE,
                           interface=ArgumentInterface()))
-    table2.add(DataSymbol("prostetnic", DeferredType(),
+    table2.add(DataSymbol("prostetnic", UnresolvedType(),
                           interface=ImportInterface(csym2)))
     for (tab1, tab2) in [(table1, table2), (table2, table1)]:
         with pytest.raises(SymbolError) as err:
@@ -1101,7 +1101,7 @@ def test_can_be_printed():
     sym_table.add(ex_mod)
     sym_table.add(DataSymbol("var1", REAL_TYPE))
     sym_table.add(DataSymbol("var2", INTEGER_TYPE))
-    sym_table.add(DataSymbol("var3", DeferredType(),
+    sym_table.add(DataSymbol("var3", UnresolvedType(),
                              interface=ImportInterface(ex_mod)))
 
     sym_table_text = str(sym_table)
@@ -1369,7 +1369,7 @@ def test_unresolved_datasymbols():
     sym_table.add(DataSymbol("s1", INTEGER_TYPE))
     # Check that we get an empty list if everything is defined
     assert sym_table.unresolved_datasymbols == []
-    # Add a symbol with a deferred interface
+    # Add a symbol with a UnresolvedInterface
     rdef = DataSymbol("r_def", INTEGER_TYPE,
                       interface=UnresolvedInterface())
     sym_table.add(rdef)
@@ -1427,7 +1427,7 @@ def test_copy_external_import():
 
     # Copy an imported_var
     container = ContainerSymbol("my_mod")
-    var = DataSymbol("a", DeferredType(),
+    var = DataSymbol("a", UnresolvedType(),
                      interface=ImportInterface(container))
     symtab.copy_external_import(var)
     assert "a" in symtab
@@ -1441,7 +1441,7 @@ def test_copy_external_import():
     # Copy a second imported_var with a reference to the same external
     # Container
     container2 = ContainerSymbol("my_mod")
-    var2 = DataSymbol("b", DeferredType(),
+    var2 = DataSymbol("b", UnresolvedType(),
                       interface=ImportInterface(container2))
     symtab.copy_external_import(var2)
     assert "b" in symtab
@@ -1456,18 +1456,18 @@ def test_copy_external_import():
         symtab.lookup("b").interface.container_symbol
 
     # The copy of imported_vars that already exist is supported
-    var3 = DataSymbol("b", DeferredType(),
+    var3 = DataSymbol("b", UnresolvedType(),
                       interface=ImportInterface(container2))
     symtab.copy_external_import(var3)
 
     # But if the symbol is different (e.g. points to a different container),
     # it should fail
     container3 = ContainerSymbol("my_other_mod")
-    var4 = DataSymbol("b", DeferredType(),
+    var4 = DataSymbol("b", UnresolvedType(),
                       interface=ImportInterface(container3))
     with pytest.raises(KeyError) as error:
         symtab.copy_external_import(var4)
-    assert "Couldn't copy 'b: DataSymbol<DeferredType, Import(container=" \
+    assert "Couldn't copy 'b: DataSymbol<UnresolvedType, Import(container=" \
            "'my_other_mod')>' into the SymbolTable. The name 'b' is already" \
            " used by another symbol." in str(error.value)
 
@@ -1478,7 +1478,7 @@ def test_copy_external_import():
 
     # If a tag is given but this is already used, it should fail
     symtab.add(Symbol("symbol"), tag="tag")
-    var5 = DataSymbol("c", DeferredType(),
+    var5 = DataSymbol("c", UnresolvedType(),
                       interface=ImportInterface(container3))
     with pytest.raises(KeyError) as error:
         symtab.copy_external_import(var5, "tag")
@@ -1496,7 +1496,7 @@ def test_copy_external_import():
 
     # If the tag does not already exist, the tag is associated with the new
     # symbol
-    var6 = DataSymbol("d", DeferredType(),
+    var6 = DataSymbol("d", UnresolvedType(),
                       interface=ImportInterface(container3))
     symtab.copy_external_import(var6, "newtag")
     assert symtab.lookup_with_tag("newtag").name == "d"
@@ -1750,7 +1750,7 @@ def test_new_symbol():
     # keyword parameters
     sym1 = symtab.new_symbol("routine",
                              symbol_type=RoutineSymbol,
-                             datatype=DeferredType(),
+                             datatype=UnresolvedType(),
                              visibility=Symbol.Visibility.PRIVATE)
     sym2 = symtab.new_symbol("data", symbol_type=DataSymbol,
                              datatype=INTEGER_TYPE,
@@ -1765,7 +1765,7 @@ def test_new_symbol():
     assert symtab.lookup("data_1") is sym2
     assert sym1.visibility is Symbol.Visibility.PRIVATE
     assert sym2.visibility is Symbol.Visibility.PRIVATE
-    assert isinstance(sym1.datatype, DeferredType)
+    assert isinstance(sym1.datatype, UnresolvedType)
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.initial_value is not None
     assert sym2.is_constant is True
@@ -1975,7 +1975,8 @@ def test_rename_symbol_errors():
             str(err.value))
 
     # Cannot rename an imported symbol.
-    isym = DataSymbol("mouse", DeferredType(), interface=ImportInterface(csym))
+    isym = DataSymbol("mouse", UnresolvedType(),
+                      interface=ImportInterface(csym))
     table.add(isym)
     with pytest.raises(SymbolError) as err:
         table.rename_symbol(isym, "rodent")
@@ -2144,7 +2145,7 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     subroutine.symbol_table.resolve_imports(
             symbol_target=subroutine.symbol_table.lookup('b_2'))
     assert isinstance(b_2, DataSymbol)
-    assert isinstance(b_2.datatype, UnknownFortranType)
+    assert isinstance(b_2.datatype, UnsupportedFortranType)
     assert isinstance(b_2.interface, ImportInterface)
     assert b_2.interface.container_symbol == \
            subroutine.symbol_table.lookup('b_mod')
@@ -2152,7 +2153,7 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     # referenced in the current symbol table and is brought in by a wildcard
     # import.
     subroutine.symbol_table.resolve_imports(
-        symbol_target=DataSymbol("not_used3", DeferredType()))
+        symbol_target=DataSymbol("not_used3", UnresolvedType()))
     notused3 = subroutine.symbol_table.lookup("not_used3")
     assert notused3.datatype == INTEGER_TYPE
     # We still haven't resolved anything about a_mod or other b_mod symbols
@@ -2381,7 +2382,7 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
     assert isinstance(symtab.lookup("my_type"), DataTypeSymbol)
     assert symtab.lookup("local1").datatype == symtab.lookup("my_type")
     # but we don't know anything about the imported type
-    assert isinstance(symtab.lookup("my_type").datatype, DeferredType)
+    assert isinstance(symtab.lookup("my_type").datatype, UnresolvedType)
     assert not isinstance(symtab.lookup("other_type"), DataTypeSymbol)
 
     # Set up include_path to import the proper modules and resolve symbols
@@ -2530,7 +2531,7 @@ def test_resolve_imports_from_child_symtab_uft(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine,
     resolve imports can resolve it from a parent module as an
-    UnknownFortranType as long as there are no wildcard imports in the
+    UnsupportedFortranType as long as there are no wildcard imports in the
     subroutine.
 
     '''
@@ -2565,7 +2566,7 @@ def test_resolve_imports_from_child_symtab_uft(
     symbol = mod.symbol_table.lookup("some_var")
     # pylint: disable=unidiomatic-typecheck
     assert type(symbol) is DataSymbol
-    assert isinstance(symbol.datatype, UnknownFortranType)
+    assert isinstance(symbol.datatype, UnsupportedFortranType)
     assert isinstance(symbol.interface, ImportInterface)
     assert symbol.interface.container_symbol.name == "a_mod"
 
@@ -2631,7 +2632,7 @@ def test_resolve_imports_from_child_symtabs_utf(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
     subroutine, resolve imports can resolve it from a parent module
-    where it is declared as an UnknownFortranType, as long as there
+    where it is declared as an UnsupportedFortranType, as long as there
     are no wildcard imports in the subroutine.  We also need to check
     that references to the new symbol still work when we remove
     (rather than move) the original symbol.
@@ -2672,7 +2673,7 @@ def test_resolve_imports_from_child_symtabs_utf(
     symbol = mod.symbol_table.lookup("some_var")
     # pylint: disable=unidiomatic-typecheck
     assert type(symbol) is DataSymbol
-    assert isinstance(symbol.datatype, UnknownFortranType)
+    assert isinstance(symbol.datatype, UnsupportedFortranType)
     assert isinstance(symbol.interface, ImportInterface)
     assert symbol.interface.container_symbol.name == "a_mod"
 
