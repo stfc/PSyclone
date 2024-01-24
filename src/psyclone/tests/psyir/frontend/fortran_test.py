@@ -45,7 +45,7 @@ from psyclone.psyir.nodes import (
     Routine, FileContainer, UnaryOperation, BinaryOperation, Literal,
     Assignment, CodeBlock, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    SymbolTable, DataSymbol, ScalarType, DeferredType)
+    SymbolTable, DataSymbol, ScalarType, UnresolvedType)
 
 
 # The 'contiguous' keyword is just valid with Fortran 2008
@@ -179,8 +179,8 @@ def test_fortran_psyir_from_expression_invalid(fortran_reader):
 def test_psyir_from_statement(fortran_reader):
     ''' Check the correct operation of the psyir_from_statement() method. '''
     table = SymbolTable()
-    table.new_symbol("a", symbol_type=DataSymbol, datatype=DeferredType())
-    table.new_symbol("b", symbol_type=DataSymbol, datatype=DeferredType())
+    table.new_symbol("a", symbol_type=DataSymbol, datatype=UnresolvedType())
+    table.new_symbol("b", symbol_type=DataSymbol, datatype=UnresolvedType())
     psyir = fortran_reader.psyir_from_statement("a=b", table)
     assert isinstance(psyir, Assignment)
     psyir = fortran_reader.psyir_from_statement("write(*,*) a", table.detach())
