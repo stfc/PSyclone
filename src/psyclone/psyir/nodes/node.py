@@ -1641,9 +1641,16 @@ class Node():
         line_span = "<unknown>"
         original_src = "<unknown>"
         filename = "<unknown>"
+        # Try to populate the line/src/filename using the ancestor Statement
         from psyclone.psyir.nodes.statement import Statement
-        node = self if isinstance(self, Statement) else self.ancestor(Statement)
-        # Try to populate the line/src/filename
+        node = self.ancestor(Statement, include_self=True)
+        # TODO #2062: The part below is tighly coupled to fparser tree
+        # structure and ideally should be moved the appropriate frontend,
+        # but we don't necessarely want to do all this string manipulation
+        # ahead of time as it is rarely needed. One option is for the frontend
+        # to provide a callable that this method will invoke to generate the
+        # string. Other frontends or PSyIR not comming from code could provide
+        # a completely different implementation in the Callable oject.
         if node and node._ast:
             if hasattr(node._ast, 'item') and node._ast.item:
                 if hasattr(node._ast.item, 'reader'):
