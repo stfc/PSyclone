@@ -69,7 +69,7 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, DeferredType, INTEGER_TYPE, ScalarType,
+    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE, ScalarType,
     Symbol, SymbolError)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
@@ -2525,9 +2525,9 @@ class ACCRoutineTrans(Transformation):
         refs = kernel_schedule.walk(Reference)
         for ref in refs:
             if ref.symbol.is_import:
-                # resolve_deferred does nothing if the Symbol type is known.
+                # resolve_type does nothing if the Symbol type is known.
                 try:
-                    ref.symbol.resolve_deferred()
+                    ref.symbol.resolve_type()
                 except SymbolError:
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
@@ -2930,8 +2930,8 @@ class KernelImportsToArguments(Transformation):
             # Resolve the data type information if it is not available
             # pylint: disable=unidiomatic-typecheck
             if (type(imported_var) is Symbol or
-                    isinstance(imported_var.datatype, DeferredType)):
-                updated_sym = imported_var.resolve_deferred()
+                    isinstance(imported_var.datatype, UnresolvedType)):
+                updated_sym = imported_var.resolve_type()
                 # If we have a new symbol then we must update the symbol table
                 if updated_sym is not imported_var:
                     kernel.symbol_table.swap(imported_var, updated_sym)
