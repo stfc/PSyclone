@@ -2529,7 +2529,7 @@ class ACCRoutineTrans(Transformation):
                 # resolve_deferred does nothing if the Symbol type is known.
                 try:
                     ref.symbol.resolve_deferred()
-                except SymbolError:
+                except (SymbolError, FileNotFoundError):
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
                 if (isinstance(ref.symbol, DataSymbol) and

@@ -625,7 +625,7 @@ class InlineTrans(Transformation):
         # TODO #924 allow for multiple routines (interfaces).
         try:
             routine = node.get_callees()[0]
-        except (NotImplementedError, SymbolError) as err:
+        except (NotImplementedError, FileNotFoundError) as err:
             raise TransformationError(
                 f"Cannot inline routine '{name}' because its source cannot be "
                 f"found: {err}") from err

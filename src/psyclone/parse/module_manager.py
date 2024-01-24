@@ -218,7 +218,7 @@ class ModuleManager:
             print(f"reading file {filename}...")
             source_code = file_in.read()
         mod_names = _MODULE_PATTERN.findall(source_code)
-        return mod_names
+        return [name.lower() for name in mod_names]
 
     # ------------------------------------------------------------------------
     def get_all_dependencies_recursively(self, all_mods):

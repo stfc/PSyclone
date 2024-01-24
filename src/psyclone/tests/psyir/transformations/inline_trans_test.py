@@ -1541,9 +1541,9 @@ def test_validate_calls_find_routine(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Failed to find the source code of the unresolved routine 'sub' "
-            "after trying wildcard imports from ['some_mod'] and all "
-            "routines that are not in containers." in str(err.value))
+    assert ("Cannot inline routine 'sub' because its source cannot be found: "
+            "Could not find source file for module 'some_mod' in any of the "
+            "directories ''" in str(err.value))
 
 
 def test_validate_return_stmt(fortran_reader):

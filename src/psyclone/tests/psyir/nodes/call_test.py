@@ -41,7 +41,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, BinaryOperation, Call, Literal, Reference,
+    ArrayReference, BinaryOperation, Call, Literal, Reference,
     Routine, Schedule)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
@@ -804,9 +804,10 @@ end module other_mod
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     # This should fail as it can't find the module.
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(FileNotFoundError) as err:
         _ = call.get_callees()
-    assert "" in str(err)
+    assert ("Could not find source file for module 'some_mod' in any of the "
+            "directories ''" in str(err))
     # Create the module containing the subroutine definition,
     # write it to file and set the search path so that PSyclone can find it.
     path = str(tmpdir)

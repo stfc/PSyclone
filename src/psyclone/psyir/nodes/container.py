@@ -210,7 +210,7 @@ class Container(ScopingNode, CommentableMixin):
             if routine_sym.is_import:
                 child_cntr_sym = routine_sym.interface.container_symbol
                 # Find the definition of the container.
-                container = child_cntr_sym.container
+                container = child_cntr_sym.container(local_node=self)
                 if not container:
                     return None
                 return container.get_routine_definition(rname)
@@ -221,7 +221,7 @@ class Container(ScopingNode, CommentableMixin):
         for child_cntr_sym in table.containersymbols:
             if child_cntr_sym.wildcard_import:
                 # Find the definition of the container.
-                container = child_cntr_sym.container
+                container = child_cntr_sym.container(local_node=self)
                 if not container:
                     continue
                 result = container.get_routine_definition(rname)

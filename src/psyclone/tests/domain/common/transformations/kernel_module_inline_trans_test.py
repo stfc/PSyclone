@@ -742,9 +742,9 @@ def test_psyir_mod_inline_fail_to_get_psyir(fortran_reader):
     call = psyir.walk(Call)[0]
     with pytest.raises(TransformationError) as err:
         intrans.validate(call)
-    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Failed "
-            "to find the source code of the unresolved routine 'my_sub' "
-            "after trying" in str(err.value))
+    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Could "
+            "not find source file for module 'my_mod' in any of the "
+            "directories ''." in str(err.value))
 
 
 def test_get_psyir_to_inline(monkeypatch):

@@ -213,7 +213,7 @@ class Symbol():
 
         module = self.interface.container_symbol
         try:
-            return module.container.symbol_table.lookup(
+            return module.container().symbol_table.lookup(
                 self.name, visibility=self.Visibility.PUBLIC)
         except KeyError as kerr:
             raise SymbolError(

@@ -117,7 +117,6 @@ class ContainerSymbol(Symbol):
         new_symbol.wildcard_import = self.wildcard_import
         return new_symbol
 
-    @property
     def container(self, local_node=None):
         ''' Returns the referenced container. If it is not available, use
         the interface to import the container
@@ -224,6 +223,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
         for candidate in psyir.walk(Container):
             if candidate.name.lower() == name.lower():
                 return candidate
+        # TODO - remove this now that search does not rely on naming convention?
         raise ValueError(
             f"Error importing the Fortran module '{name}' into a "
             f"PSyIR container. The file with filename "

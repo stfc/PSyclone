@@ -261,7 +261,8 @@ def test_get_routine_definition_recurse_wildcard(fortran_reader):
         f"end module inline_mod2\n")
     psyir = fortran_reader.psyir_from_source(code)
     call_node = psyir.walk(Call)[0]
-    container = psyir.get_container_definition(call_node.routine.interface.container_symbol)
+    container = call_node.routine.interface.container_symbol.container(
+        local_node=call_node)
     result = container.get_routine_definition(call_node.routine.name)
     assert isinstance(result, Routine)
     assert result.name == "sub"
@@ -280,8 +281,8 @@ def test_find_routine_in_container_private_routine_not_found(fortran_reader):
     code = f"{private_sub_in_module}{CALL_IN_SUB_USE}"
     psyir = fortran_reader.psyir_from_source(code)
     call_node = psyir.walk(Call)[0]
-    container = psyir.get_container_definition(
-        call_node.routine.interface.container_symbol)
+    container = call_node.routine.interface.container_symbol.container(
+        local_node=call_node)
     result = container.get_routine_definition(call_node.routine.name)
     assert result is None
 
@@ -294,8 +295,8 @@ def test_find_routine_in_container(fortran_reader):
     code = f"{SUB_IN_MODULE}{CALL_IN_SUB_USE}"
     psyir = fortran_reader.psyir_from_source(code)
     call_node = psyir.walk(Call)[0]
-    container = psyir.get_container_definition(
-        call_node.routine.interface.container_symbol)
+    container = call_node.routine.interface.container_symbol.container(
+        local_node=call_node)
     result = container.get_routine_definition(call_node.routine.name)
     assert isinstance(result, Routine)
     assert result.name == "sub"
