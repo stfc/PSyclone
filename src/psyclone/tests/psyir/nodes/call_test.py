@@ -634,10 +634,10 @@ end subroutine top'''
             "the search path is set to []" in str(err.value))
 
 
-def test_call_get_callees_unknown_type(fortran_reader):
+def test_call_get_callees_unsupported_type(fortran_reader):
     '''
     Check that get_callees() raises the expected error when the RoutineSymbol
-    is of UnknownFortranType (which happens when it is an interface).
+    is of UnsuppportedFortranType (which happens when it is an interface).
     '''
     code = '''
 module my_mod
@@ -668,7 +668,7 @@ end module my_mod
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
     assert ("RoutineSymbol 'bottom' exists in Container 'my_mod' but is of "
-            "UnknownFortranType:" in str(err.value))
+            "UnsupportedFortranType:" in str(err.value))
 
 
 def test_call_get_callees_file_container(fortran_reader):
@@ -1013,4 +1013,4 @@ def test_get_callees_interface_name(tmpdir, monkeypatch, fortran_reader):
     with pytest.raises(NotImplementedError) as err:
         call.get_callees()
     assert ("RoutineSymbol 'manna' exists in Container 'my_mod' but is of "
-            "UnknownFortranType:" in str(err.value))
+            "UnsupportedFortranType:" in str(err.value))

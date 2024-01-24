@@ -46,7 +46,7 @@ from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.symbols import (
-    RoutineSymbol, Symbol, SymbolError, UnknownFortranType)
+    RoutineSymbol, Symbol, SymbolError, UnsupportedFortranType)
 
 
 class Call(Statement, DataNode):
@@ -532,13 +532,13 @@ class Call(Statement, DataNode):
             rsym = cursor
             root_node = container
 
-        if isinstance(rsym.datatype, UnknownFortranType):
-            # TODO #924 - an UnknownFortranType here typically indices that
-            # the target is actually an interface.
+        if isinstance(rsym.datatype, UnsupportedFortranType):
+            # TODO #924 - an UnsupportedFortranType here typically indicates
+            # that the target is actually an interface.
             raise NotImplementedError(
                 f"RoutineSymbol '{rsym.name}' exists in "
-                f"{_location_txt(root_node)} but is of UnknownFortranType:\n"
-                f"{rsym.datatype.declaration}\n"
+                f"{_location_txt(root_node)} but is of "
+                f"UnsupportedFortranType:\n{rsym.datatype.declaration}\n"
                 f"Cannot currently module inline such a routine.")
 
         if isinstance(container, Container):
