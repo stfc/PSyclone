@@ -1790,7 +1790,7 @@ def test_dynkernelargument_idtp_integer_field():
     # Use one of the examples to create an instance of
     # DynKernelArgument that describes a field.
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.3_int_X_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.3_real_to_int_X_builtin.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     field_argument = psy.invokes.invoke_list[0].schedule.args[0]
@@ -1812,9 +1812,10 @@ def test_dynkernelargument_idtp_integer_field():
     arg = Arg("variable", None, None, ("field_type", None))
     with pytest.raises(GenerationError) as info:
         field_argument._init_data_type_properties(arg)
-    assert ("The metadata for argument 'f2' in kernel 'int_x' specifies "
-            "that this is an integer field, however it is declared as a "
-            "'field_type' in the algorithm code." in str(info.value))
+    assert ("The metadata for argument 'f2' in kernel 'real_to_int_x' "
+            "specifies that this is an integer field, however it is "
+            "declared as a 'field_type' in the algorithm code."
+            in str(info.value))
 
 
 def test_dynkernelargument_idtp_vector_field():
