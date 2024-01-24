@@ -46,6 +46,7 @@ import pytest
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
+from psyclone.parse import ModuleManager
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.tests.gocean_build import GOceanBuild
@@ -132,6 +133,15 @@ def config_fixture(monkeypatch):
     monkeypatch.setattr(Config, "_instance", new_config)
     yield new_config
     monkeypatch.undo()
+
+
+@pytest.fixture(name="clear_module_manager", scope="function", autouse=True)
+def modmanager_fixture(monkeypatch):
+    '''
+    A fixture that ensures every test gets a fresh ModuleManager instance as
+    otherwise changes to search paths or file creation/removal is not detected.
+    '''
+    monkeypatch.setattr(ModuleManager, '_instance', None)
 
 
 @pytest.fixture(scope="function", params=[False, True])
