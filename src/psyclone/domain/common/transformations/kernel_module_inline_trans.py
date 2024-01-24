@@ -387,11 +387,10 @@ class KernelModuleInlineTrans(Transformation):
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
-            container.symbol_table.add(
-                RoutineSymbol(
-                    callee_name, interface=DefaultModuleInterface(),
-                    visibility=Symbol.Visibility.PRIVATE)
-            )
+            routine_symbol = RoutineSymbol(
+                callee_name, interface=DefaultModuleInterface(),
+                visibility=Symbol.Visibility.PRIVATE)
+            container.symbol_table.add(routine_symbol)
             # 2) Insert the relevant code into the tree.
             container.addchild(code_to_inline.detach())
         else:
@@ -428,6 +427,13 @@ class KernelModuleInlineTrans(Transformation):
                                 f"the same name already exists and versioning "
                                 f"of module-inlined subroutines is not "
                                 f"implemented yet.")
+            # Finally, ensure that the RoutineSymbol for the inlined routine is
+            # in the correct symbol table.
+            routine_symbol = existing_symbol
+            table = routine_symbol.find_symbol_table(node)
+            if table.node is not container:
+                container.symbol_table.add(routine_symbol)
+                table.remove(routine_symbol)
 
         # We only modify the kernel call name after the equality check to
         # ensure the apply will succeed and we don't leave with an inconsistent
@@ -445,6 +451,7 @@ class KernelModuleInlineTrans(Transformation):
                     f"Cannot module-inline call to '{caller_name}' because its"
                     f" name does not match that of the callee: "
                     f"'{callee_name}'. TODO #924.")
+
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer
         # creation time, we could just remove it here instead of setting a

@@ -285,7 +285,15 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     routine = psyir.walk(Routine)[0]
     monkeypatch.setattr(kern_call, "_kern_schedule", routine)
 
+    container = kern_call.ancestor(Container)
+    assert "compute_cv_code" not in container.symbol_table
+
     inline_trans.apply(kern_call)
+
+    # A RoutineSymbol should have been added to the Container symbol table.
+    rsym = container.symbol_table.lookup("compute_cv_code")
+    assert isinstance(rsym, RoutineSymbol)
+    assert rsym.visibility == Symbol.Visibility.PRIVATE
 
 
 def test_validate_local_routine(fortran_reader):
@@ -766,19 +774,23 @@ def test_get_psyir_to_inline(monkeypatch):
             str(err.value))
 
 
+@pytest.mark.parametrize("mod_use, sub_use",
+                         [("use my_mod, only: my_sub, my_other_sub", ""),
+                          ("", "use my_mod, only: my_sub, my_other_sub")])
 def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
-                          monkeypatch):
+                          monkeypatch, mod_use, sub_use):
     '''
     Test module inlining a subroutine in generic PSyIR when the Call is
     within a Routine in a Container.
 
     '''
     intrans = KernelModuleInlineTrans()
-    code = '''\
+    code = f'''\
     module a_mod
-      use my_mod, only: my_sub, my_other_sub
+      {mod_use}
     contains
       subroutine a_sub()
+        {sub_use}
         real, dimension(10) :: a
         call my_sub(a)
         call my_other_sub(a)
@@ -814,7 +826,7 @@ def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
     assert len(routines) == 2
     assert routines[0].name in ["a_sub", "my_sub"]
     assert routines[1].name in ["a_sub", "my_sub"]
-    # Local copy of routine must be private.
+    # Local copy of routine must be private and in Container symbol table.
     rsym = container.symbol_table.lookup("my_sub")
     assert rsym.visibility == Symbol.Visibility.PRIVATE
     output = fortran_writer(psyir)
