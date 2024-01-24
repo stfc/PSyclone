@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Author S. Siso, STFC Daresbury Lab
 
 # This workflow will use a self-hosted runner to perform the more expensive
-# integration tests that are not run on GHA systems.
+# integrations tests that are not run on GHA systems.
 
 name: NEMO Integration Tests
 
