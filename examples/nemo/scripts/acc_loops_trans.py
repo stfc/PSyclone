@@ -73,6 +73,13 @@ def trans(psy):
             print("Skipping", invoke.name)
             continue
 
+        # S-0074-Illegal number or type of arguments to ubound [and lbound]
+        # - keyword argument array; and  NVFORTRAN-S-0082-Illegal substring
+        # expression for variable filtide
+        if invoke.name in ("bdytide_init", ):
+            print("Skipping", invoke.name)
+            continue
+
         # TODO #1841: These files have a bug in the array-range-to-loop
         # transformation. One leads to the following compiler error
         # NVFORTRAN-S-0083-Vector expression used where scalar expression
@@ -83,7 +90,7 @@ def trans(psy):
 
         # This are functions with scalar bodies, we don't want to parallelise
         # them, but we could:
-        # - Inine them
+        # - Inline them
         # - Annotate them with 'omp declare target' and allow to call from gpus
         if invoke.name in ("q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m",
                            "psi_h", "psi_m"):
