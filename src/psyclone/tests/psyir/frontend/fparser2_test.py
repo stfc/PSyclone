@@ -899,7 +899,7 @@ def test_process_declarations():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_process_declarations_unknownfortrantype():
+def test_process_declarations_unsupportedfortrantype():
     '''Test that process_declarations method of Fparser2Reader adds
     datatype information to an UnsupportedFortranType by calling the
     get_partial_datatype method, also from Fparser2Reader.

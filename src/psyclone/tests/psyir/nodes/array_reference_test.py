@@ -546,8 +546,8 @@ def test_array_datatype():
     bref = ArrayReference.create(not_quite_unsuppored_sym, [two.copy()])
     assert bref.datatype == REAL_SINGLE_TYPE
     # A sub-array of UnsupportedFortranType.
-    aref3 = ArrayReference.create(unsuppored_sym, [Range.create(two.copy(),
-                                                             four.copy())])
+    aref3 = ArrayReference.create(
+                unsuppored_sym, [Range.create(two.copy(), four.copy())])
     # We know the result is an ArrayType
     assert isinstance(aref3.datatype, ArrayType)
     assert aref3.datatype.shape[0].lower == one

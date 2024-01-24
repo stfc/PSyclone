@@ -193,7 +193,6 @@ def test_binaryop_scalar_datatype():
         DataSymbol("trouble",
                    UnsupportedFortranType("real, volatile :: trouble")))
     binop4 = BinaryOperation.create(oper, iref1.copy(), uref1)
-    # TODO #2419 - UnresolvedType should probably be UnsupportedType really.
     assert isinstance(binop4.datatype, UnresolvedType)
     binop5 = BinaryOperation.create(BinaryOperation.Operator.EQ,
                                     iref1.copy(), iref2.copy())

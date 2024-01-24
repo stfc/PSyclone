@@ -151,7 +151,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         self._datatype = symbol_in.datatype
 
     def resolve_type(self):
-        ''' If the symbol has am Unresolved datatype, find where it is defined
+        ''' If the symbol has an Unresolved datatype, find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
         :returns: this TypedSymbol with its properties updated. This is for \

@@ -232,8 +232,8 @@ def add_accessibility_to_unsupported_declaration(symbol):
     Utility that manipulates the UnsupportedFortranType declaration for the
     supplied Symbol so as to ensure that it has the correct accessibility
     specifier.
-    (This is required because we capture an UnknownFortranType declaration as
-    is and this may or may not include accessibility information.)
+    (This is required because we capture an UnsupportedFortranType declaration
+    as is and this may or may not include accessibility information.)
 
     :param symbol: the symbol for which the declaration is required.
     :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
