@@ -95,7 +95,7 @@ def trans(psy):
         # Could not find allocated-variable index for symbol - xxx
         # This all happen on characters arrays, e.g. cd_nat
         if invoke.name in ("lbc_nfd_2d_ptr", "lbc_nfd_3d_ptr",
-                           "lbc_nfd_4d_ptr", "bdy_dyn"):
+                           "lbc_nfd_4d_ptr", "bdy_dyn", "dia_obs_init"):
             print("Skipping", invoke.name)
             continue
 
