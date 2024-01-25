@@ -120,57 +120,61 @@ class LoopFuseTrans(LoopTrans):
                         f"{node1.view()}\n"
                         f"{node2.view()}"))
 
-        vars1 = VariablesAccessInfo(node1)
-        vars2 = VariablesAccessInfo(node2)
-
-        # Check if the loops have the same loop variable
-        loop_var1 = node1.variable
-        loop_var2 = node2.variable
-        if loop_var1 != loop_var2:
-            # If they don't have the same variable, find out if the one
-            # loop accesses the other loops variable symbol.
-            # If so, then for now we disallow this merge (though we could
-            # in theory allow using the unused one unless both use each others)
-            for signature in vars1:
+            vars1 = VariablesAccessInfo(node1)
+            vars2 = VariablesAccessInfo(node2)
+    
+            # Check if the loops have the same loop variable
+            loop_var1 = node1.variable
+            loop_var2 = node2.variable
+            if loop_var1 != loop_var2:
+                # If they don't have the same variable, find out if the one
+                # loop accesses the other loops variable symbol.
+                # If so, then for now we disallow this merge (though we could
+                # in theory allow using the unused one unless both use each others)
+                for signature in vars1:
+                    var_name = str(signature)
+                    if var_name == loop_var2.name:
+                        raise TransformationError(
+                            f"Error in {self.name} transformation. First "
+                            f"loop contains accesses to the second loop's "
+                            f"variable.")
+                for signature in vars2:
+                    var_name = str(signature)
+                    if var_name == loop_var1.name:
+                        raise TransformationError(
+                            f"Error in {self.name} transformation. Second "
+                            f"loop contains accesses to the first loop's "
+                            f"variable.")
+    
+            # Get all variables that occur in both loops. A variable
+            # that is only in one loop is not affected by fusion.
+            all_vars = set(vars1).intersection(vars2)
+            symbol_table = node1.scope.symbol_table
+    
+            for signature in all_vars:
                 var_name = str(signature)
-                if var_name == loop_var2.name:
-                    raise TransformationError(
-                        f"Error in {self.name} transformation. First loop "
-                        f"contains accesses to the second loop's variable.")
-            for signature in vars2:
-                var_name = str(signature)
+                # Ignore the loop variable
                 if var_name == loop_var1.name:
-                    raise TransformationError(
-                        f"Error in {self.name} transformation. Second loop "
-                        f"contains accesses to the first loop's variable.")
-
-        # Get all variables that occur in both loops. A variable
-        # that is only in one loop is not affected by fusion.
-        all_vars = set(vars1).intersection(vars2)
-        symbol_table = node1.scope.symbol_table
-
-        for signature in all_vars:
-            var_name = str(signature)
-            # Ignore the loop variable
-            if var_name == loop_var1.name:
-                continue
-            var_info1 = vars1[signature]
-            var_info2 = vars2[signature]
-
-            # Variables that are only read in both loops can always be fused
-            if var_info1.is_read_only() and var_info2.is_read_only():
-                continue
-
-            symbol = symbol_table.lookup(signature.var_name)
-            # TODO #1270 - the is_array_access function might be moved
-            is_array = symbol.is_array_access(access_info=var_info1)
-            if not ignore_dep_analysis:
-                if not is_array:
-                    LoopFuseTrans.validate_written_scalar(var_info1,
-                                                          var_info2)
-                else:
-                    LoopFuseTrans.validate_written_array(var_info1, var_info2,
-                                                         loop_var1)
+                    continue
+                var_info1 = vars1[signature]
+                var_info2 = vars2[signature]
+    
+                # Variables that are only read in both loops can always be
+                # fused
+                if var_info1.is_read_only() and var_info2.is_read_only():
+                    continue
+    
+                symbol = symbol_table.lookup(signature.var_name)
+                # TODO #1270 - the is_array_access function might be moved
+                is_array = symbol.is_array_access(access_info=var_info1)
+                if not ignore_dep_analysis:
+                    if not is_array:
+                        LoopFuseTrans.validate_written_scalar(var_info1,
+                                                              var_info2)
+                    else:
+                        LoopFuseTrans.validate_written_array(var_info1,
+                                                             var_info2,
+                                                             loop_var1)
 
     # -------------------------------------------------------------------------
     @staticmethod
