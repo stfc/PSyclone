@@ -72,9 +72,9 @@ from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Reference, ACCEnterDataDirective, ScopingNode
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
-                                    DeferredType, DataTypeSymbol,
+                                    UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
-                                    ArrayType, UnknownFortranType)
+                                    ArrayType, UnsupportedFortranType)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -1950,7 +1950,8 @@ class DynProxies(LFRicCollection):
                     self._add_symbol(new_name, tag, intrinsic_type, arg, 1)
             else:
                 # Make sure we're going to create a Symbol with a unique
-                # name (since this is hardwired into the UnknownFortranType).
+                # name (since this is hardwired into the
+                # UnsupportedFortranType).
                 new_name = self._symbol_table.next_available_name(
                     f"{arg.name}_{suffix}")
                 tag = f"{arg.name}:{suffix}"
@@ -1962,14 +1963,14 @@ class DynProxies(LFRicCollection):
         '''
         Creates a new DataSymbol representing either an LFRic field or
         operator and adds it to the SymbolTable associated with this class.
-        The Symbol is of UnknownFortranType because it is a pointer
+        The Symbol is of UnsupportedFortranType because it is a pointer
         to the internal data array and the PSyIR does not support pointers. The
         remainder of the type information is fully supplied in the
-        `partial_datatype` property of the UnknownFortranType.
+        `partial_datatype` property of the UnsupportedFortranType.
         The supplied Symbol name is assumed not to already exist in the
         SymbolTable (e.g. it is obtained with the `next_available_name` method
         of SymbolTable) because it is used in constructing the
-        UnknownFortranType which must be done before the Symbol is created.
+        UnsupportedFortranType which must be done before the Symbol is created.
 
         :param str name: the name of the new Symbol.
         :param str tag: the tag to associate with the new Symbol.
@@ -1990,9 +1991,9 @@ class DynProxies(LFRicCollection):
                 [ArrayType.Extent.DEFERRED]*rank)
 
         # Since the PSyIR doesn't have the pointer concept, we have
-        # to have an UnknownFortranType.
+        # to have an UnsupportedFortranType.
         index_str = ",".join(rank*[":"])
-        dtype = UnknownFortranType(
+        dtype = UnsupportedFortranType(
             f"{intrinsic_type}(kind={arg.precision}), pointer, "
             f"dimension({index_str}) :: {name} => null()",
             partial_datatype=array_type)
@@ -2442,7 +2443,7 @@ class DynCMAOperators(LFRicCollection):
                 LFRicTypes("LFRicRealScalarDataType")(precision),
                 [ArrayType.Extent.DEFERRED]*3)
             index_str = ",".join(3*[":"])
-            dtype = UnknownFortranType(
+            dtype = UnsupportedFortranType(
                 f"real(kind={arg.precision}), pointer, "
                 f"dimension({index_str}) :: {new_name} => null()",
                 partial_datatype=array_type)
@@ -2749,7 +2750,7 @@ class DynMeshes():
         # Create a TypeSymbol for the mesh type
         mtype_sym = self._symbol_table.find_or_create_tag(
             mtype, symbol_type=DataTypeSymbol,
-            datatype=DeferredType(),
+            datatype=UnresolvedType(),
             interface=ImportInterface(csym))
 
         name_list = []
@@ -6720,7 +6721,7 @@ class DynKernelArgument(KernelArgument):
             return root_table.find_or_create(
                     type_name,
                     symbol_type=DataTypeSymbol,
-                    datatype=DeferredType(),
+                    datatype=UnresolvedType(),
                     interface=ImportInterface(root_table.find_or_create(
                         mod_name,
                         symbol_type=ContainerSymbol)
