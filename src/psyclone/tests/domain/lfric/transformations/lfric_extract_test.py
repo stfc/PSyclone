@@ -420,9 +420,11 @@ def test_node_list_dynamo0p3():
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df=loop0_start,loop0_stop
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
         f5_data(df) = 0.0
       END DO
       DO df=loop1_start,loop1_stop
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
         f2_data(df) = 0.0
       END DO
       DO cell=loop2_start,loop2_stop
@@ -483,9 +485,11 @@ def test_dynamo0p3_builtin():
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df=loop0_start,loop0_stop
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
         f5_data(df) = 0.0
       END DO
       DO df=loop1_start,loop1_stop
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
         f2_data(df) = 0.0
       END DO
       DO cell=loop2_start,loop2_stop
@@ -533,6 +537,7 @@ def test_extract_single_builtin_dynamo0p3():
       CALL extract_psy_data%ProvideVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreEnd
       DO df=loop1_start,loop1_stop
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
         f2_data(df) = 0.0
       END DO
       CALL extract_psy_data%PostStart
@@ -570,6 +575,7 @@ def test_extract_single_builtin_dynamo0p3():
       CALL extract_psy_data%PreEnd
       !$omp parallel do default(shared), private(df), schedule(static)
       DO df=loop1_start,loop1_stop
+        ! Built-in: inc_aX_plus_Y (real-valued fields)
         f1_data(df) = 0.5_r_def * f1_data(df) + f2_data(df)
       END DO
       !$omp end parallel do
@@ -625,6 +631,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df=loop1_start,loop1_stop
+        ! Built-in: setval_c (set a real-valued field to a real scalar value)
         f2_data(df) = 0.0
       END DO
       DO cell=loop2_start,loop2_stop
