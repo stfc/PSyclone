@@ -39,7 +39,7 @@
 import pytest
 from psyclone.psyir.symbols import (
     RoutineSymbol, Symbol, UnresolvedInterface,
-    NoType, INTEGER_TYPE, DeferredType, DataTypeSymbol)
+    NoType, INTEGER_TYPE, UnresolvedType, DataTypeSymbol)
 
 
 def test_routinesymbol_init():
@@ -55,19 +55,19 @@ def test_routinesymbol_init():
                               visibility=Symbol.Visibility.PRIVATE)
     assert isinstance(ellie_sym, RoutineSymbol)
     assert ellie_sym.datatype == INTEGER_TYPE
-    isaac_sym = RoutineSymbol('isaac', DeferredType(),
+    isaac_sym = RoutineSymbol('isaac', UnresolvedType(),
                               interface=UnresolvedInterface())
     assert isinstance(isaac_sym, RoutineSymbol)
-    assert isinstance(isaac_sym.datatype, DeferredType)
+    assert isinstance(isaac_sym.datatype, UnresolvedType)
 
-    tam_type = DataTypeSymbol('tam_type', DeferredType())
+    tam_type = DataTypeSymbol('tam_type', UnresolvedType())
     tam_sym = RoutineSymbol('tam', tam_type)
     assert isinstance(tam_sym, RoutineSymbol)
     assert tam_sym.datatype is tam_type
     # Check that is_pure and is_elemental can be specified.
-    marvin_sym = RoutineSymbol('marvin', DeferredType(), is_pure=True)
+    marvin_sym = RoutineSymbol('marvin', UnresolvedType(), is_pure=True)
     assert marvin_sym.is_pure is True
-    paranoid_sym = RoutineSymbol('paranoid', DeferredType(),
+    paranoid_sym = RoutineSymbol('paranoid', UnresolvedType(),
                                  is_elemental=False)
     assert paranoid_sym.is_elemental is False
 
@@ -86,11 +86,11 @@ def test_routinesymbol_init_error():
     assert ("datatype of a RoutineSymbol must be specified using either a "
             "DataType or a DataTypeSymbol but got: 'str'" in str(error.value))
     with pytest.raises(TypeError) as error:
-        _ = RoutineSymbol("android", DeferredType(), is_pure="maybe")
+        _ = RoutineSymbol("android", UnresolvedType(), is_pure="maybe")
     assert ("is_pure for a RoutineSymbol must be a bool or None but got "
             "'str'" in str(error.value))
     with pytest.raises(TypeError) as error:
-        _ = RoutineSymbol("android", DeferredType(), is_elemental="maybe")
+        _ = RoutineSymbol("android", UnresolvedType(), is_elemental="maybe")
     assert ("is_elemental for a RoutineSymbol must be a bool or None but got "
             "'str'" in str(error.value))
 
@@ -131,7 +131,7 @@ def test_routinesymbol_str():
     assert (str(routine_symbol) ==
             "roo: RoutineSymbol<Scalar<INTEGER, UNDEFINED>, pure=unknown, "
             "elemental=unknown>")
-    type_sym = DataTypeSymbol("some_type", DeferredType())
+    type_sym = DataTypeSymbol("some_type", UnresolvedType())
     routine_symbol = RoutineSymbol("roo", type_sym, is_elemental=True,
                                    is_pure=True)
     assert (str(routine_symbol) ==
