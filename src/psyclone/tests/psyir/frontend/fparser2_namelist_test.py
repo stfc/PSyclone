@@ -42,7 +42,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import UnknownFortranType
+from psyclone.psyir.symbols import UnsupportedFortranType
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -63,7 +63,7 @@ def test_named_namelist():
 
     # There is a name1 namelist symbol
     namelist = symtab.lookup("_PSYCLONE_INTERNAL_NAMELIST")
-    assert isinstance(namelist.datatype, UnknownFortranType)
+    assert isinstance(namelist.datatype, UnsupportedFortranType)
     assert namelist.datatype.declaration == "NAMELIST /name1/ a, b, c"
 
 
@@ -85,13 +85,13 @@ def test_multiple_namelists_in_statement():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is a UnknownFortranType symbol containing each the namelist
+    # There is a UnsupportedFortranType symbol containing each the namelist
     namelist = symtab.lookup("_PSYCLONE_INTERNAL_NAMELIST")
-    assert isinstance(namelist.datatype, UnknownFortranType)
+    assert isinstance(namelist.datatype, UnsupportedFortranType)
     assert (namelist.datatype.declaration ==
             "NAMELIST /name1/ a, b, /name2/ c")
     namelist = symtab.lookup("_PSYCLONE_INTERNAL_NAMELIST_1")
-    assert isinstance(namelist.datatype, UnknownFortranType)
+    assert isinstance(namelist.datatype, UnsupportedFortranType)
     assert namelist.datatype.declaration == "NAMELIST /name2/ d"
 
 
@@ -111,9 +111,9 @@ def test_namelist_with_posterior_declaration():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is an UnknownFortranType symbol containing the namelist
+    # There is an UnsupportedFortranType symbol containing the namelist
     namelist = symtab.lookup("_PSYCLONE_INTERNAL_NAMELIST")
-    assert isinstance(namelist.datatype, UnknownFortranType)
+    assert isinstance(namelist.datatype, UnsupportedFortranType)
     assert namelist.datatype.declaration == "NAMELIST /name1/ a, b"
 
 
