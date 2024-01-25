@@ -69,6 +69,9 @@ class LoopFuseTrans(LoopTrans):
         :type node2: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to force parallelisation of the
+                                      target loop (i.e. ignore any dependence
+                                      analysis).
 
         :raises TransformationError: if one or both of the Nodes is/are not \
                                      a :py:class:`psyclone.psyir.nodes.Loop`.
@@ -79,9 +82,13 @@ class LoopFuseTrans(LoopTrans):
         :raises TransformationError: if the two Loops do not have the same \
                                      iteration space.
         '''
+        if not options:
+            options = {}
         # Check that the supplied Nodes are Loops
         super().validate(node1, options=options)
         super().validate(node2, options=options)
+        
+        ignore_dep_analysis = options.get("force", False)
 
         # Check loop1 and loop2 have the same parent
         if not node1.sameParent(node2):
@@ -157,12 +164,13 @@ class LoopFuseTrans(LoopTrans):
             symbol = symbol_table.lookup(signature.var_name)
             # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info1)
-
-            if not is_array:
-                LoopFuseTrans.validate_written_scalar(var_info1, var_info2)
-            else:
-                LoopFuseTrans.validate_written_array(var_info1, var_info2,
-                                                     loop_var1)
+            if not ignore_dep_analysis:
+                if not is_array:
+                    LoopFuseTrans.validate_written_scalar(var_info1,
+                                                          var_info2)
+                else:
+                    LoopFuseTrans.validate_written_array(var_info1, var_info2,
+                                                         loop_var1)
 
     # -------------------------------------------------------------------------
     @staticmethod
