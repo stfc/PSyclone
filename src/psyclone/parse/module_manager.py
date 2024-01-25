@@ -214,7 +214,9 @@ class ModuleManager:
     def get_modules_in_file(self, filename):
         '''
         '''
-        with open(filename, "r", encoding='utf-8') as file_in:
+        # Erndler is defined in parse/__init__.py
+        with open(filename, "r", encoding='utf-8',
+                  errors='file-error-handler') as file_in:
             print(f"reading file {filename}...")
             source_code = file_in.read()
         mod_names = _MODULE_PATTERN.findall(source_code)

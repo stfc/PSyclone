@@ -35,9 +35,30 @@
 
 '''This directory contains classes related to parsing Fortran.
 '''
+import codecs
 
 from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
 from psyclone.parse.module_manager import ModuleManager
+
+
+def log_decode_error_handler(err):
+    """
+    A custom error handler for use when reading files. Removes any
+    characters that cause decoding errors and logs the error.
+
+    :returns: 2-tuple containing replacement for bad chars (an empty string \
+              and the position from where encoding should continue.
+    :rtype: Tuple[str, int]
+
+    """
+    #message = f"character in input file. Error returned was {str(err)}."
+    # Log the fact that this character will be removed from the input file
+    #logging.getLogger(__name__).warning("Skipped bad %s", message)
+    return ("", err.end)
+
+
+codecs.register_error("file-error-handler", log_decode_error_handler)
+
 
 # For AutoAPI documentation generation.
 __all__ = [
