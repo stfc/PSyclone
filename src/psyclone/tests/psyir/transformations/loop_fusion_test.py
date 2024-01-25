@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -309,32 +309,6 @@ def test_fuse_incorrect_bounds_step(tmpdir, fortran_reader, fortran_writer):
               end subroutine sub'''
     out, _ = fuse_loops(code, fortran_reader, fortran_writer)
     assert Compile(tmpdir).string_compiles(out)
-
-
-# ----------------------------------------------------------------------------
-def test_fuse_different_loop_vars(fortran_reader, fortran_writer):
-    '''
-    Test that loop variables are verified to be identical.
-
-    '''
-    code = '''subroutine sub()
-              integer :: ji, jj, n
-              integer, dimension(10,10) :: s, t
-              do jj=1, n
-                 do ji=1, 10
-                    s(ji, jj)=t(ji, jj)+1
-                 enddo
-              enddo
-              do ji=1, n
-                 do jj=1, 10
-                    s(ji, jj)=t(ji, jj)+1
-                 enddo
-              enddo
-              end subroutine sub'''
-    with pytest.raises(TransformationError) as err:
-        fuse_loops(code, fortran_reader, fortran_writer)
-    assert ("Loop variables must be the same, but are 'jj' and 'ji'"
-            in str(err.value))
 
 
 # ----------------------------------------------------------------------------
@@ -763,3 +737,88 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     fuse.apply(loop1, loop2)
+
+
+def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
+    '''Test that fusing loops with different variables is possible, and
+    renaming works appropriately.'''
+    code = '''subroutine sub()
+    integer :: ji, jj, n, jk
+    integer, dimension(10, 10) :: s, t
+    do jj = 1, n
+      do ji = 1, 10
+        s(ji, jj) = t(ji, jj) + 1
+      end do
+      do jk = 1, 10
+        s(jk, jj) = t(jk, jj) + 1
+      end do
+    end do
+    end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.children[0].walk(Loop)
+    fuse = LoopFuseTrans()
+    fuse.apply(loops[1], loops[2])
+    out = fortran_writer(psyir)
+    correct = '''subroutine sub()
+  integer :: ji
+  integer :: jj
+  integer :: n
+  integer :: jk
+  integer, dimension(10,10) :: s
+  integer, dimension(10,10) :: t
+
+  do jj = 1, n, 1
+    do ji = 1, 10, 1
+      s(ji,jj) = t(ji,jj) + 1
+      s(ji,jj) = t(ji,jj) + 1
+    enddo
+  enddo
+
+end subroutine sub'''
+    assert correct in out
+
+
+def test_loop_fuse_different_variables_with_access(fortran_reader):
+    '''Test that fusing loops with different variables is disallowed when
+    either loop uses the other loops variable for any reason.'''
+    code = '''subroutine sub()
+    integer :: ji, jj, n, jk
+    integer, dimension(10, 10) :: s, t
+    do jj = 1, n
+      do ji = 1, 10
+        s(ji, jj) = t(ji, jj) + 1
+      end do
+      do jk = 1, 10
+        ji = jk
+        s(jk, jj) = t(jk, jj) + ji
+      end do
+    end do
+    end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.children[0].walk(Loop)
+    fuse = LoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        fuse.apply(loops[1], loops[2])
+    assert ("Error in LoopFuseTrans transformation. Second loop contains "
+            "accesses to the first loop's variable." in str(excinfo.value))
+
+    code = '''subroutine sub()
+    integer :: ji, jj, n, jk
+    integer, dimension(10, 10) :: s, t
+    do jj = 1, n
+      do ji = 1, 10
+        jk = ji
+        s(ji, jj) = t(ji, jj) + jk
+      end do
+      do jk = 1, 10
+        s(jk, jj) = t(jk, jj) + ji
+      end do
+    end do
+    end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.children[0].walk(Loop)
+    fuse = LoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        fuse.apply(loops[1], loops[2])
+    assert ("Error in LoopFuseTrans transformation. First loop contains "
+            "accesses to the second loop's variable." in str(excinfo.value))

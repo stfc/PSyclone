@@ -115,42 +115,10 @@ class NemoLoopFuseTrans(LoopFuseTrans):
             is_array = symbol.is_array_access(access_info=var_info1)
 
             if not is_array:
-                NemoLoopFuseTrans.validate_written_scalar(var_info1, var_info2)
+                LoopFuseTrans.validate_written_scalar(var_info1, var_info2)
             else:
-                NemoLoopFuseTrans.validate_written_array(var_info1, var_info2,
+                LoopFuseTrans.validate_written_array(var_info1, var_info2,
                                                          loop_var1)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def validate_written_scalar(var_info1, var_info2):
-        '''Validates if the accesses to a scalar that is at least written once
-        allows loop fusion. The accesses of the variable is contained in the
-        two parameters (which also include the name of the variable).
-
-        :param var_info1: access information for variable in the first loop.
-        :type var_info1: :py:class:`psyclone.core.var_info.VariableInfo`
-        :param var_info2: access information for variable in the second loop.
-        :type var_info2: :py:class:`psyclone.core.var_info.VariableInfo`
-
-        :raises TransformationError: a scalar variable is written in one \
-            loop, but only read in the other.
-
-        '''
-        # If a scalar variable is first written in both loops, that pattern
-        # is typically ok. Example:
-        # - inner loops (loop variable is written then read),
-        # - a=sqrt(j); b(j)=sin(a)*cos(a) - a scalar variable as 'constant'
-        # TODO #641: atm the variable access information has no details
-        # about a conditional access, so the test below could result in
-        # incorrectly allowing fusion. But the test is essential for many
-        # much more typical use cases (especially inner loops).
-        if var_info1[0].access_type == AccessType.WRITE and \
-                var_info2[0].access_type == AccessType.WRITE:
-            return
-
-        raise TransformationError(
-            f"Scalar variable '{var_info1.var_name}' is written in one loop, "
-            f"but only read in the other loop.")
 
     # -------------------------------------------------------------------------
     @staticmethod
