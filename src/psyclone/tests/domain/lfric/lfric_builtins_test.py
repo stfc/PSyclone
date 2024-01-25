@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and O. Brunt, Met Office
 # Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: by J. Henrichs, Bureau of Meteorology
 
@@ -60,7 +60,8 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (
     ArrayReference, Loop, Reference, UnaryOperation, Literal)
-from psyclone.psyir.symbols import ArrayType, ScalarType, UnknownFortranType
+from psyclone.psyir.symbols import (
+    ArrayType, ScalarType, UnsupportedFortranType)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -443,7 +444,8 @@ def test_builtin_args_not_same_space():
 def test_builtin_fld_args_different_data_type(monkeypatch):
     '''Check that we raise the correct error if we encounter a built-in
     that has has different data type of its field arguments and is not
-    one of the data type conversion built-ins ('int_X' and 'real_X').
+    one of the data type conversion built-ins ('real_to_int_X',
+    'real_to_real_X', and 'int_to_real_X').
 
     '''
     # Define the built-in name and test file
@@ -470,10 +472,11 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
         _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert (f"In the LFRic API only the data type conversion built-ins "
-            f"['int_X', 'real_X'] are allowed to have field arguments of "
-            f"different data types. However, found different data types "
-            f"['gh_integer', 'gh_real'] for field arguments to "
-            f"'{test_builtin_name.lower()}'." in str(excinfo.value))
+            f"['real_to_int_X', 'real_to_real_X', 'int_to_real_X'] are "
+            f"allowed to have field arguments of different data types. "
+            f"However, found different data types ['gh_integer', 'gh_real'] "
+            f"for field arguments to '{test_builtin_name.lower()}'."
+            in str(excinfo.value))
 
 
 def test_lfricbuiltincallfactory_str():
@@ -582,7 +585,7 @@ def test_get_indexed_field_argument_refs():
     assert len(refs) == 2
     for ref in refs:
         assert isinstance(ref, ArrayReference)
-        assert isinstance(ref.symbol.datatype, UnknownFortranType)
+        assert isinstance(ref.symbol.datatype, UnsupportedFortranType)
         assert isinstance(ref.symbol.datatype.partial_datatype, ArrayType)
         assert len(ref.symbol.datatype.partial_datatype.shape) == 1
         # The reference in a built-in will have a data type hard coded

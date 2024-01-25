@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council.
+! Copyright (c) 2021-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
+! Modified: O. Brunt, Met Office
 
 program single_invoke
 
@@ -45,6 +46,6 @@ program single_invoke
   type(integer_field_type) :: f2
   type(field_type)         :: f1
 
-  call invoke( int_X(f2, f1) )
+  call invoke( real_to_int_X(f2, f1) )
 
 end program single_invoke

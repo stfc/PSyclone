@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,17 +68,12 @@ class DataType(metaclass=abc.ABCMeta):
         return type(other) is type(self)
 
 
-class DeferredType(DataType):
+class UnresolvedType(DataType):
     # pylint: disable=too-few-public-methods
-    '''Indicates that the type is unknown at this point.'''
+    ''' Indicates that the type declaration has not been found yet. '''
 
     def __str__(self):
-        '''
-        :returns: a description of this deferred type.
-        :rtype: str
-
-        '''
-        return "DeferredType"
+        return "UnresolvedType"
 
 
 class NoType(DataType):
@@ -90,7 +85,7 @@ class NoType(DataType):
         return "NoType"
 
 
-class UnknownType(DataType, metaclass=abc.ABCMeta):
+class UnsupportedType(DataType, metaclass=abc.ABCMeta):
     '''
     Indicates that a variable declaration is not supported by the PSyIR.
     This class is abstract and must be subclassed for each language
@@ -105,7 +100,7 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
     def __init__(self, declaration_txt):
         if not isinstance(declaration_txt, str):
             raise TypeError(
-                f"UnknownType constructor expects the original variable "
+                f"UnsupportedType constructor expects the original variable "
                 f"declaration as a string but got an argument of type "
                 f"'{type(declaration_txt).__name__}'")
         self._declaration = declaration_txt
@@ -114,7 +109,7 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
     def __str__(self):
         ''' Abstract method that must be implemented in subclass. '''
 
-    # Note, an UnknownType is immutable so a declaration setter is not
+    # Note, an UnsupportedType is immutable so a declaration setter is not
     # allowed. This is to allow subclasses to extract and provide
     # parts of the declaration without worrying about their values
     # becoming invalid due to a change in the original declaration.
@@ -128,13 +123,13 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
         return self._declaration
 
 
-class UnknownFortranType(UnknownType):
+class UnsupportedFortranType(UnsupportedType):
     '''Indicates that a Fortran declaration is not supported by the PSyIR.
 
     :param str declaration_txt: string containing the original variable
         declaration.
-    :param partial_datatype: a subset of the unknown type if the
-        subset can form a valid PSyIR datatype.
+    :param partial_datatype: a PSyIR datatype representing the subset
+        of type attributes that are supported.
     :type partial_datatype: Optional[
         :py:class:`psyclone.psyir.symbols.DataType` or
         :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
@@ -148,7 +143,7 @@ class UnknownFortranType(UnknownType):
         if not isinstance(
                 partial_datatype, (type(None), DataType, DataTypeSymbol)):
             raise TypeError(
-                f"partial_datatype argument in UnknownFortranType "
+                f"partial_datatype argument in UnsupportedFortranType "
                 f"initialisation should be a DataType, DataTypeSymbol, or "
                 f"NoneType, but found '{type(partial_datatype).__name__}'.")
         # This holds a subset of the type in a datatype if it is
@@ -156,7 +151,7 @@ class UnknownFortranType(UnknownType):
         self._partial_datatype = partial_datatype
 
     def __str__(self):
-        return f"UnknownFortranType('{self._declaration}')"
+        return f"UnsupportedFortranType('{self._declaration}')"
 
     @property
     def partial_datatype(self):
@@ -174,12 +169,12 @@ class UnknownFortranType(UnknownType):
         parse tree to extract the type information. This is returned in
         text form and also cached.
 
-        TODO #2137 - alter Unknown(Fortran)Type so that it is only the
+        TODO #2137 - alter Unsupported(Fortran)Type so that it is only the
         type information that is stored as a string. i.e. remove the name
         of the variable being declared. Once that is done this method
         won't be required.
 
-        Note that UnknownFortranType is also used to hold things like
+        Note that UnsupportedFortranType is also used to hold things like
         'SAVE :: /my_common/' and thus it is not always possible/appropriate
         to extract a type expression.
 
@@ -208,9 +203,9 @@ class UnknownFortranType(UnknownType):
                 string_reader)
         except Exception as err:
             raise NotImplementedError(
-                f"Cannot extract the declaration part from UnknownFortranType "
-                f"'{self._declaration}' because parsing (attempting to match "
-                f"a Fortran2003.Specification_Part) failed.") from err
+                f"Cannot extract the declaration part from UnsupportedFortran"
+                f"Type '{self._declaration}' because parsing (attempting to "
+                f"match a Fortran2003.Specification_Part) failed.") from err
         node = ptree.children[0]
         if isinstance(node, (Fortran2003.Declaration_Construct,
                              Fortran2003.Type_Declaration_Stmt)):
@@ -221,8 +216,8 @@ class UnknownFortranType(UnknownType):
             self._type_text = "COMMON"
         else:
             raise NotImplementedError(
-                f"Cannot extract the declaration part from UnknownFortranType "
-                f"'{self._declaration}'. Only Declaration_Construct, "
+                f"Cannot extract the declaration part from UnsupportedFortran"
+                f"Type '{self._declaration}'. Only Declaration_Construct, "
                 f"Type_Declaration_Stmt, Save_Stmt and Common_Stmt are "
                 f"supported but got '{type(node).__name__}' from the parser.")
         return self._type_text
@@ -292,10 +287,10 @@ class ScalarType(DataType):
                 not (isinstance(precision.datatype, ScalarType) and
                      precision.datatype.intrinsic ==
                      ScalarType.Intrinsic.INTEGER) and
-                not isinstance(precision.datatype, DeferredType)):
+                not isinstance(precision.datatype, UnresolvedType)):
             raise ValueError(
                 f"A DataSymbol representing the precision of another "
-                f"DataSymbol must be of either 'deferred' or scalar, "
+                f"DataSymbol must be of either 'unresolved' or scalar, "
                 f"integer type but got: {precision}")
 
         self._intrinsic = intrinsic
@@ -433,7 +428,7 @@ class ArrayType(DataType):
                     "When creating an array of structures, the type of "
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
-            if not isinstance(datatype, (UnknownType, DeferredType)):
+            if not isinstance(datatype, (UnsupportedType, UnresolvedType)):
                 self._intrinsic = datatype.intrinsic
                 self._precision = datatype.precision
             else:
@@ -525,18 +520,19 @@ class ArrayType(DataType):
         implemented as a setter because the shape property is immutable.
 
         :param extents: list of extents, one for each array dimension.
-        :type extents: List[ \
-            :py:class:`psyclone.psyir.symbols.ArrayType.Extent` | int \
-            | :py:class:`psyclone.psyir.nodes.DataNode` | \
-            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode | \
+        :type extents: List[
+            :py:class:`psyclone.psyir.symbols.ArrayType.Extent` | int
+            | :py:class:`psyclone.psyir.nodes.DataNode` |
+            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode |
                   :py:class:`psyclone.psyir.symbols.ArrayType.Extent]]
 
         :raises TypeError: if extents is not a list.
-        :raises TypeError: if one or more of the supplied extents is a \
-            DataSymbol that is not a scalar integer or of Unknown/DeferredType.
-        :raises TypeError: if one or more of the supplied extents is not an \
+        :raises TypeError: if one or more of the supplied extents is a
+            DataSymbol that is not a scalar integer or of
+            Unsupported/UnresolvedType.
+        :raises TypeError: if one or more of the supplied extents is not an
             int, ArrayType.Extent or DataNode.
-        :raises TypeError: if the extents contain an invalid combination of \
+        :raises TypeError: if the extents contain an invalid combination of
             ATTRIBUTE/DEFERRED and known limits.
 
         '''
@@ -563,25 +559,25 @@ class ArrayType(DataType):
                 return
 
             # When issue #1799 is addressed then check that the
-            # datatype returned is an int (or is unknown). For the
+            # datatype returned is an int (or is Unsupported). For the
             # moment, just check that if the DataNode is a
             # Reference then the associated symbol is a scalar
-            # integer or is unknown.
+            # integer or is Unsupported.
             if isinstance(dim_node, Reference):
                 # Check the DataSymbol instance is a scalar
-                # integer or is unknown
+                # integer or is unsupported
                 dtype = dim_node.datatype
                 if isinstance(dtype, ArrayType) and dtype.shape:
                     raise TypeError(
                         f"If a DataSymbol is referenced in a dimension "
                         f"declaration then it should be a scalar but "
                         f"'{dim_node}' is not.")
-                if not (isinstance(dtype, (UnknownType, DeferredType)) or
+                if not (isinstance(dtype, (UnsupportedType, UnresolvedType)) or
                         dtype.intrinsic == ScalarType.Intrinsic.INTEGER):
                     raise TypeError(
                         f"If a DataSymbol is referenced in a dimension "
                         f"declaration then it should be an integer or "
-                        f"of UnknownType or DeferredType, but "
+                        f"of UnsupportedType or UnresolvedType, but "
                         f"'{dim_node.name}' is a '{dtype}'.")
                 # TODO #1089 - add check that any References are not to a
                 # local datasymbol that is not constant (as this would have
@@ -882,5 +878,5 @@ TYPE_MAP_TO_PYTHON = {ScalarType.Intrinsic.INTEGER: int,
 
 
 # For automatic documentation generation
-__all__ = ["UnknownType", "UnknownFortranType", "DeferredType", "ScalarType",
-           "ArrayType", "StructureType"]
+__all__ = ["UnsupportedType", "UnsupportedFortranType", "UnresolvedType",
+           "ScalarType", "ArrayType", "StructureType"]

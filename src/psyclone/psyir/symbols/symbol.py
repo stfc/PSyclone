@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -226,7 +226,7 @@ class Symbol():
               f"Error trying to resolve the properties of symbol "
               f"'{self.name}' in module '{module.name}': {err.value}") from err
 
-    def resolve_deferred(self):
+    def resolve_type(self):
         '''
         Update the properties of this Symbol by using the definition imported
         from the external Container. If this symbol does not have an
