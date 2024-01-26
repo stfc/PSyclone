@@ -66,6 +66,12 @@ class GlobalReduction(Statement):
         Node.__init__(self, children=[], parent=parent)
         import copy
         self._scalar = copy.copy(scalar)
+        # Check that the global sum argument is indeed a scalar
+        if not scalar.is_scalar:
+            raise InternalError(
+                f"GlobalReduction.init(): A global reduction argument "
+                f"should be a scalar but found argument of type "
+                f"'{scalar.argument_type}'.")
         if scalar:
             # Update scalar values appropriately
             # Here "readwrite" denotes how the class GlobalReduction
