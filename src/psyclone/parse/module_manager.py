@@ -40,12 +40,15 @@ which module is contained in which file (including full location). '''
 from collections import OrderedDict
 import copy
 import os
+import re
 
 from psyclone.errors import InternalError
 from psyclone.parse.module_info import ModuleInfo
-import re
 
-_MODULE_PATTERN = re.compile(r"^\s*module\s+([a-z]\S*).*$",
+
+# regex to find Fortran module names. Have to be careful not to match
+# e.g. "module procedure :: some_sub".
+_MODULE_PATTERN = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
                              flags=(re.IGNORECASE | re.MULTILINE))
 
 
@@ -213,13 +216,24 @@ class ModuleManager:
 
     def get_modules_in_file(self, filename):
         '''
+        Uses a regex search to find all modules defined in the file with the
+        supplied name.
+
+        :param str filename: the fully-qualified name of the file to check for
+                             Fortran modules.
+
+        :returns: the names of any modules present in the supplied file.
+        :rtype: list[str]
+
         '''
-        # Erndler is defined in parse/__init__.py
+        # Error handler is defined in parse/__init__.py. It simply skips any
+        # characters that result in decoding errors. (Comments in a code may
+        # contain all sorts of weird things.)
         with open(filename, "r", encoding='utf-8',
                   errors='file-error-handler') as file_in:
-            print(f"reading file {filename}...")
             source_code = file_in.read()
         mod_names = _MODULE_PATTERN.findall(source_code)
+
         return [name.lower() for name in mod_names]
 
     # ------------------------------------------------------------------------

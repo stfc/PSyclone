@@ -212,19 +212,6 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     assert isinstance(container, Container)
     assert container.name.lower() == "dummy_module"
 
-    # TODO remove this as module search no longer relies on naming convention?
-    # Import the wrong module, additionally it tests that the uppercase
-    # F90 extension is also being imported as it does not produce a file
-    # not found error.
-    #create_dummy_module(path, "different_name_module.F90")
-    #monkeypatch.setattr(ModuleManager, "_instance", None)
-    #with pytest.raises(FileNotFoundError) as error:
-    #    container = fminterface.import_container("different_name_module")
-    #assert ("Error importing the Fortran module 'different_name_module' "
-    #        "into a PSyIR container. The file with filename "
-    #        "'different_name_module.F90' does not contain the expected "
-    #        "module." in str(error.value))
-
 
 def test_containersymbol_wildcard_import():
     ''' Check the setter and getter for the wildcard_import property. '''

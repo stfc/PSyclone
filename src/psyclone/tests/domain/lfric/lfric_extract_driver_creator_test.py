@@ -47,7 +47,7 @@ from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
+from psyclone.psyir.tools import DependencyTools
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
