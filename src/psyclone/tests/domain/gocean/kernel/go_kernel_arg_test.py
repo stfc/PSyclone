@@ -51,7 +51,7 @@ from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import (Node, StructureReference, Member,
                                   StructureMember, Reference, Literal)
-from psyclone.psyir.symbols import (SymbolTable, DeferredType, DataSymbol,
+from psyclone.psyir.symbols import (SymbolTable, UnresolvedType, DataSymbol,
                                     ScalarType, INTEGER_TYPE, REAL_TYPE,
                                     ArgumentInterface, DataTypeSymbol)
 from psyclone.tests.utilities import get_base_path, get_invoke
@@ -291,11 +291,11 @@ def test_gokernelargument_type(monkeypatch):
     symbol_table.specify_argument_list([i_var, j_var])
     # Set the datatype of the first datasymbol to have an invalid type
     # in order to raise the required exception.
-    symbol_table._argument_list[0].datatype = DeferredType()
+    symbol_table._argument_list[0].datatype = UnresolvedType()
     with pytest.raises(GenerationError) as excinfo:
         symbol_table._check_gocean_conformity()
     assert ("GOcean API kernels first argument should be a scalar integer "
-            "but got 'DeferredType'." in str(excinfo.value))
+            "but got 'UnresolvedType'." in str(excinfo.value))
 
 
 def test_gokernelargument_invalid_type():
