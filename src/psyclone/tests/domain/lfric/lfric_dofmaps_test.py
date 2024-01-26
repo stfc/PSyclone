@@ -45,6 +45,7 @@ import pytest
 from psyclone.domain.lfric import LFRicDofmaps
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
+from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
@@ -98,6 +99,7 @@ def test_cma_asm_cbanded_dofmap_error():
         invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA operator argument "
             "for a CMA assembly kernel but found 2") in str(excinfo.value)
+    
 
 
 def test_cma_apply_indirection_dofmap_error():
@@ -123,6 +125,47 @@ def test_cma_apply_indirection_dofmap_error():
             "CMA operator but found 3") in str(excinfo.value)
 
 
+def test_cbanded_test_comments():
+    ''' Check that we raise expected internal error if LFRicDofmaps
+    encounters an assembly kernel that has more than one CMA op argument '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.0_cma_assembly.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=True).create(invoke_info)
+    code = str(psy.gen)
+    
+    output = (
+        "      !\n"
+        "      ! Look-up required column-banded dofmaps\n"
+        "      !\n"
+    )
+
+    assert output in code
+
+
+def test_unique_fs_comments():
+    ''' Check that we raise expected internal error if LFRicDofmaps
+    encounters an apply kernel that has more than one CMA op argument '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.1_cma_apply.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=True).create(invoke_info)
+    code = str(psy.gen)
+
+    output = (
+        "      !\n"
+        "      ! Look-up dofmaps for each function space\n"
+        "      !\n"
+    )
+
+    assert output in code
+
+
+
 # def test_dyndofmap_stubdecln():
 #     ''' Check that LFRicDofmaps._stub_declarations raises the expected errors
 #     if the stored CMA information is invalid. '''
@@ -133,22 +176,14 @@ def test_cma_apply_indirection_dofmap_error():
 #     dofmaps = LFRicDofmaps(psy.invokes.invoke_list[0])
 
 
-def test_cma_apply_indirection_dofmap():
+def test_stub_decl_dofmaps():
     ''' Check that we raise expected internal error if LFRicDofmaps
     encounters an apply kernel that has more than one CMA op argument '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "20.1_cma_apply.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=True).create(invoke_info)
-    code = str(psy.gen)
-    dofmaps = LFRicDofmaps(psy.invokes.invoke_list[0])
+    
+    result = generate(os.path.join(BASE_PATH,
+                                   "columnwise_op_asm_kernel_mod.F90"),
+                      api=TEST_API)
 
-    for _, cma in dofmaps._unique_indirection_maps.items():
-        if cma['direction'] == 'to':
-            assert cma['argument'].name + '_nrow' in code
-        if cma['direction'] == 'from':
-            assert cma['argument'].name + '_ncol' in code
+    assert ("INTEGER(KIND=i_def), intent(in) :: cma_op_2_nrow, cma_op_2_ncol"
+            in str(result))
 
-        assert "INTEGER(KIND=i_def) cma_op1_nrow, cma_op1_ncol" in code
