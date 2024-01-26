@@ -43,8 +43,6 @@ from __future__ import absolute_import, print_function
 
 import pytest
 
-from psyclone.domain.nemo.transformations import (NemoLoopFuseTrans,
-                                                  CreateNemoPSyTrans)
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
@@ -123,7 +121,7 @@ def test_fusetrans_error_not_same_parent():
 def fuse_loops(fortran_code, fortran_reader, fortran_writer):
     '''Helper function that fuses the first two nodes in the given
     Fortran code, and returns the fused Fortran code as string.
-    If an error is detected by the used NemoLoopFuseTrans transformation,
+    If an error is detected by the used LoopFuseTrans transformation,
     it will raise a TransformationError.
 
     :param str fortran_code: the Fortran code to loop fuse.
@@ -139,10 +137,8 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
 
     '''
     psyir = fortran_reader.psyir_from_source(fortran_code)
-    psy_trans = CreateNemoPSyTrans()
-    fuse = NemoLoopFuseTrans()
+    fuse = LoopFuseTrans()
     # Raise the language-level PSyIR to NEMO PSyIR
-    psy_trans.apply(psyir)
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     fuse.apply(loop1, loop2)
@@ -184,7 +180,7 @@ def test_fuse_ok(tmpdir, fortran_reader, fortran_writer):
     assert Compile(tmpdir).string_compiles(out)
 
     # Then fuse the inner ji loops
-    fuse = NemoLoopFuseTrans()
+    fuse = LoopFuseTrans()
     fuse.apply(psyir.children[0][0].loop_body[0],
                psyir.children[0][0].loop_body[1])
 
@@ -252,7 +248,7 @@ def test_fuse_incorrect_bounds_step(tmpdir, fortran_reader, fortran_writer):
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Lower loop bounds must be identical, but are" in str(err.value)
+    assert "Loops do not have the same iteration space" in str(err.value)
 
     # Upper loop boundary
     code = '''subroutine sub()
@@ -271,7 +267,7 @@ def test_fuse_incorrect_bounds_step(tmpdir, fortran_reader, fortran_writer):
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Upper loop bounds must be identical, but are" in str(err.value)
+    assert "Loops do not have the same iteration space" in str(err.value)
 
     # Test step size:
     code = '''subroutine sub()
@@ -290,7 +286,7 @@ def test_fuse_incorrect_bounds_step(tmpdir, fortran_reader, fortran_writer):
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Step size in loops must be identical, but are" in str(err.value)
+    assert "Loops do not have the same iteration space" in str(err.value)
 
     # Test step size - make sure it defaults to 1
     code = '''subroutine sub()
@@ -639,7 +635,7 @@ def test_fuse_no_symbol(fortran_reader, fortran_writer):
     enddo
   enddo""" in out
 
-    fuse = NemoLoopFuseTrans()
+    fuse = LoopFuseTrans()
     # Case 2: Symbol 't' is defined in outer module:
     code = '''
     module mymod
