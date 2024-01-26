@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ from psyclone.core import AccessType, Signature
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
-from psyclone.psyir.symbols.datatypes import DeferredType
+from psyclone.psyir.symbols.datatypes import UnresolvedType
 
 
 class Reference(DataNode):
@@ -196,7 +196,7 @@ class Reference(DataNode):
         # Use type() directly as we need to ignore inheritance.
         if type(self.symbol) is Symbol:
             # We don't even have a DataSymbol
-            return DeferredType()
+            return UnresolvedType()
         return self.symbol.datatype
 
 

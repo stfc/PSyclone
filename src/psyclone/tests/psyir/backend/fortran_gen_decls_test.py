@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,12 +41,11 @@ import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation,
                                   Container, Routine, Return)
-from psyclone.psyir.symbols import (Symbol, DataSymbol, DataTypeSymbol,
-                                    SymbolTable, ContainerSymbol, ScalarType,
-                                    DeferredType, StructureType, RoutineSymbol,
-                                    ImportInterface, UnresolvedInterface,
-                                    ArgumentInterface, INTEGER_TYPE, REAL_TYPE,
-                                    StaticInterface)
+from psyclone.psyir.symbols import (
+    Symbol, DataSymbol, DataTypeSymbol, SymbolTable, ContainerSymbol,
+    ScalarType, UnresolvedType, StructureType, RoutineSymbol,
+    ImportInterface, UnresolvedInterface, ArgumentInterface, INTEGER_TYPE,
+    REAL_TYPE, StaticInterface)
 
 
 def test_gen_param_decls_dependencies(fortran_writer):
@@ -128,7 +127,7 @@ def test_gen_decls(fortran_writer):
     '''
     symbol_table = SymbolTable()
     symbol_table.add(ContainerSymbol("my_module"))
-    use_statement = DataSymbol("my_use", DeferredType(),
+    use_statement = DataSymbol("my_use", UnresolvedType(),
                                interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
@@ -138,7 +137,7 @@ def test_gen_decls(fortran_writer):
         ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
     dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
-    grid_type = DataTypeSymbol("grid_type", DeferredType(),
+    grid_type = DataTypeSymbol("grid_type", UnresolvedType(),
                                interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(grid_type)

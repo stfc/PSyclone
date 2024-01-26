@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -630,8 +630,8 @@ def test_validate_matmat_with_same_mem(fortran_reader):
         trans.validate(assign.rhs)
     assert ("Transformation Error: Must have full type information for result "
             "and operands of MATMUL IntrinsicCall but found 'result: "
-            "DataSymbol<UnknownFortranType('REAL, DIMENSION(2, 2), POINTER :: "
-            "result')" in str(excinfo.value))
+            "DataSymbol<UnsupportedFortranType('REAL, DIMENSION(2, 2), "
+            "POINTER :: result')" in str(excinfo.value))
 
 
 def test_apply_matvect(tmpdir):

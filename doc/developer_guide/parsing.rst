@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@ Kernel-layer Fortran written by users consists of the kernel code
 itself and metadata describing the kernel code.  PSyclone needs this
 metadata to generate the PSy-layer code. The new approach takes the
 generic PSyIR representation of the kernel metadata (which is actually
-captured as a string within a PSyIR UnknownFortranType as the generic
+captured as a string within a PSyIR UnsupportedFortranType as the generic
 PSyIR does not understand its structure) and 'raises' this into
 domain-specific classes (using the ``RaisePSyIR2LFRicKernelTrans`` and
 ``RaisePSyIR2GOceanKernelTrans`` transformations for the LFRic and

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
                                   KernelSchedule, Literal, Reference)
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
-                                    DeferredType, ImportInterface,
+                                    UnresolvedType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
                                     REAL_TYPE, ScalarType, Symbol,
                                     UnresolvedInterface)
@@ -157,9 +157,9 @@ def test_reference_datatype():
     assert isinstance(reference.datatype, ScalarType)
     assert reference.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
-    # Use a normal symbol, which should result in a DeferredType
+    # Use a normal symbol, which should result in a UnresolvedType
     reference = Reference(Symbol("test"))
-    assert isinstance(reference.datatype, DeferredType)
+    assert isinstance(reference.datatype, UnresolvedType)
 
 
 def test_reference_accesses():

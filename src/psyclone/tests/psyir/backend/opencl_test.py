@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -247,7 +247,7 @@ def test_oclw_kernelschedule():
         "  return;\n" \
         "}\n\n"
 
-    # Add a symbol with a deferred interface and check that this raises the
+    # Add a symbol with an UnresolvedInterface and check that this raises the
     # expected error
     array_type = ArrayType(REAL_TYPE, [10, 10])
     kschedule.symbol_table.add(DataSymbol('broken', array_type,

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,9 +50,10 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
     StructureReference, FileContainer, CodeBlock, IntrinsicCall
-from psyclone.psyir.symbols import ArrayType, DataSymbol, RoutineSymbol, \
-    ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
-    INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, ScalarType
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, RoutineSymbol, ContainerSymbol,
+    UnsupportedFortranType, ArgumentInterface, ImportInterface,
+    INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, ScalarType)
 from psyclone.transformations import TransformationError
 
 
@@ -315,13 +316,13 @@ class GOOpenCLTrans(Transformation):
         # Declare local variables needed by an OpenCL PSy-layer invoke
         qlist = node.symbol_table.new_symbol(
             "cmd_queues", symbol_type=DataSymbol,
-            datatype=UnknownFortranType(
+            datatype=UnsupportedFortranType(
                 "integer(kind=c_intptr_t), pointer, save :: cmd_queues(:)"),
             tag="opencl_cmd_queues")
-        # 'first_time' needs to be an UnknownFortranType because it has SAVE
-        # and initial value
+        # 'first_time' needs to be an UnsupportedFortranType because it has
+        # SAVE and initial value
         first = DataSymbol("first_time",
-                           datatype=UnknownFortranType(
+                           datatype=UnsupportedFortranType(
                                "logical, save :: first_time = .true."))
         node.symbol_table.add(first, tag="first_time")
         flag = node.symbol_table.new_symbol(
@@ -329,11 +330,11 @@ class GOOpenCLTrans(Transformation):
             tag="opencl_error")
         global_size = node.symbol_table.new_symbol(
             "globalsize", symbol_type=DataSymbol,
-            datatype=UnknownFortranType(
+            datatype=UnsupportedFortranType(
                 "integer(kind=c_size_t), target :: globalsize(2)"))
         local_size = node.symbol_table.new_symbol(
             "localsize", symbol_type=DataSymbol,
-            datatype=UnknownFortranType(
+            datatype=UnsupportedFortranType(
                 "integer(kind=c_size_t), target :: localsize(2)"))
 
         # Bring all the boundaries at the beginning (since we are going to
@@ -367,7 +368,7 @@ class GOOpenCLTrans(Transformation):
             try:
                 kpointer = node.symbol_table.lookup_with_tag(name)
             except KeyError:
-                pointer_type = UnknownFortranType(
+                pointer_type = UnsupportedFortranType(
                     "INTEGER(KIND=c_intptr_t), TARGET, SAVE :: " + name)
                 kpointer = DataSymbol(name, datatype=pointer_type)
                 node.symbol_table.add(kpointer, tag=name)
@@ -408,7 +409,7 @@ class GOOpenCLTrans(Transformation):
                     except KeyError:
                         node.symbol_table.new_symbol(
                             name, tag=name, symbol_type=DataSymbol,
-                            datatype=UnknownFortranType(
+                            datatype=UnsupportedFortranType(
                                 "INTEGER(KIND=c_intptr_t) :: " + name))
 
         # Now call all the set_args routines because in some platforms (e.g.
@@ -758,7 +759,8 @@ class GOOpenCLTrans(Transformation):
         # declarations of other symbols (symtab.datasymbols).
         # pylint: disable=protected-access
         for sym in symtab.datasymbols:
-            # Not all types have the 'precision' attribute (e.g. DeferredType)
+            # Not all types have the 'precision' attribute (e.g.
+            # UnresolvedType)
             if (hasattr(sym.datatype, "precision") and
                     isinstance(sym.datatype.precision, DataSymbol)):
                 sym.datatype._precision = ScalarType.Precision.DOUBLE
@@ -960,7 +962,7 @@ class GOOpenCLTrans(Transformation):
         kobj = argsetter.symbol_table.new_symbol(
             "kernel_obj", symbol_type=DataSymbol,
             interface=ArgumentInterface(ArgumentInterface.Access.READ),
-            datatype=UnknownFortranType(
+            datatype=UnsupportedFortranType(
                 "INTEGER(KIND=c_intptr_t), TARGET :: kernel_obj"))
         arg_list.append(kobj)
 
@@ -971,16 +973,16 @@ class GOOpenCLTrans(Transformation):
 
             # This function requires 'TARGET' annotated declarations which are
             # not supported in the PSyIR, so we build them as
-            # UnknownFortranType for now.
+            # UnsupportedFortranType for now.
             if arg.is_scalar and arg.intrinsic_type == "real":
-                pointer_type = UnknownFortranType(
+                pointer_type = UnsupportedFortranType(
                     "REAL(KIND=go_wp), INTENT(IN), TARGET :: " + name)
             elif arg.is_scalar:
-                pointer_type = UnknownFortranType(
+                pointer_type = UnsupportedFortranType(
                     "INTEGER, INTENT(IN), TARGET :: " + name)
             else:
                 # Everything else is a cl_mem pointer (c_intptr_t)
-                pointer_type = UnknownFortranType(
+                pointer_type = UnsupportedFortranType(
                     "INTEGER(KIND=c_intptr_t), INTENT(IN), TARGET :: " + name)
 
             new_arg = DataSymbol(
