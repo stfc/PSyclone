@@ -54,6 +54,8 @@ class LoopFuseTrans(LoopTrans):
     PSyIR of a Schedule after performing validity checks for the supplied
     Nodes. Examples are given in the descriptions of any children classes.
 
+    If loops have different named loop variables, the loop variable of the
+    second loop will be renamed if possible before fusion.
     '''
     def __str__(self):
         return "Fuse two adjacent loops together"
@@ -69,18 +71,23 @@ class LoopFuseTrans(LoopTrans):
         :type node2: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param bool options["force"]: whether to force parallelisation of the
+        :param bool options["force"]: whether to force fusion of the
                                       target loop (i.e. ignore any dependence
-                                      analysis).
+                                      analysis). This only skips a limited 
+                                      number of the checks, and does not
+                                      fully force merging.
 
-        :raises TransformationError: if one or both of the Nodes is/are not \
+        :raises TransformationError: if one or both of the Nodes is/are not
                                      a :py:class:`psyclone.psyir.nodes.Loop`.
         :raises TransformationError: if one or both Nodes are not fully-formed.
         :raises TransformationError: if the Nodes do not have the same parent.
-        :raises TransformationError: if the Nodes are not next to each \
+        :raises TransformationError: if the Nodes are not next to each
                                      other in the tree.
-        :raises TransformationError: if the two Loops do not have the same \
+        :raises TransformationError: if the two Loops do not have the same
                                      iteration space.
+        :raises TransformationError: if either Loop contains a reference to
+                                     the other Loop's variable and the Loops
+                                     don't share a loop variable.
         '''
         if not options:
             options = {}
