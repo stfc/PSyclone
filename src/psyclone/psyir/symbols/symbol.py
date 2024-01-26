@@ -504,14 +504,6 @@ class Symbol():
         # does not indicate an array. In the latter case we still need to
         # test the symbol table, since the variable might be used in array
         # expressions only. Note that we cannot check for index variable usage
-        # in this case. If there is no type information available (i.e. `self`
-        # is just a Symbol, not a DataSymbol), the `is_array` function will
-        # raise an exception.
+        # in this case.
         # TODO #1213: check for wildcard imports
-        try:
-            return self.is_array
-        except ValueError:
-            # Generic symbols produce a ValueError, since this does not have
-            # a datatype and an Array access was not found, we don't consider
-            # it an array.
-            return False
+        return self.is_array
