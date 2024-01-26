@@ -44,9 +44,9 @@ from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
 
-class DynGlobalSum(GlobalReduction):
+class LFRicGlobalSum(LFRicGlobalReduction):
     '''
-    Dynamo specific global sum class which can be added to and
+    LFRic-specific global sum class which can be added to and
     manipulated in a schedule.
 
     :param scalar: the kernel argument for which to perform a global sum.
@@ -54,30 +54,14 @@ class DynGlobalSum(GlobalReduction):
     :param parent: the parent node of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
-    :raises GenerationError: if distributed memory is not enabled.
-    :raises InternalError: if the supplied argument is not a scalar.
-    :raises GenerationError: if the scalar is not of "real" intrinsic type.
-
     '''
     def __init__(self, scalar, parent=None):
-        # Check that distributed memory is enabled
-        if not Config.get().distributed_memory:
-            raise GenerationError(
-                "It makes no sense to create a DynGlobalSum object when "
-                "distributed memory is not enabled (dm=False).")
-        # Check scalar intrinsic types that this class supports (only
-        # "real" for now)
-        if scalar.intrinsic_type != "real":
-            raise GenerationError(
-                f"DynGlobalSum currently only supports real scalars, but "
-                f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
-                f"'{scalar.intrinsic_type}' intrinsic type.")
         # Initialise the parent class
         super().__init__(scalar, parent=parent)
 
     def gen_code(self, parent):
         '''
-        Dynamo-specific code generation for this class.
+        LFRic-specific code generation for this class.
 
         :param parent: f2pygen node to which to add AST nodes.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`

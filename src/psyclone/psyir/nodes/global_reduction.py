@@ -54,6 +54,8 @@ class GlobalReduction(Statement):
     :param parent: optional parent (default None) of this object.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
+    :raises InternalError: if the supplied argument is not a scalar.
+
     '''
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
@@ -147,6 +149,17 @@ class GlobalReduction(Statement):
             for call in red_call_list:
                 call.initialise_reduction_variable(parent)
             parent.add(CommentGen(parent, ""))
+
+    @abc.abstractmethod
+    def gen_code(self, parent):
+        '''
+        Generates global reduction code. This consists of declarations
+        and arguments for the relevant PSy-layer invocation.
+
+        :param parent: f2pygen node to which to add AST nodes.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
 
 # For AutoAPI documentation generation
 __all__ = ['GlobalReduction']
