@@ -59,9 +59,9 @@ from psyclone.psyir.nodes.array_of_structures_mixin import (
     ArrayOfStructuresMixin)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, ImportInterface, AutomaticInterface, NoType,
+    UnresolvedType, ImportInterface, AutomaticInterface, NoType,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
-    UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE,
+    UnsupportedFortranType, UnsupportedType, UnresolvedInterface, INTEGER_TYPE,
     StaticInterface, DefaultModuleInterface, UnknownInterface,
     CommonBlockInterface)
 
@@ -667,8 +667,8 @@ def _kind_find_or_create(name, symbol_table):
     contain a matching entry then it must be either a Symbol or a
     DataSymbol.
 
-    If it is a DataSymbol then it must have a datatype of
-    'integer', 'deferred' or 'unknown'. If it is deferred then the fact
+    If it is a DataSymbol then it must have a datatype of 'Integer',
+    'Unresolved' or 'Unsupported'. If it is Unresolved then the fact
     that we now know that this Symbol represents a KIND parameter means we
     can change the datatype to be 'integer' and mark it as constant.
 
@@ -686,7 +686,7 @@ def _kind_find_or_create(name, symbol_table):
     :raises TypeError: if the symbol table already contains an entry for \
             `name` but it is not an instance of Symbol or DataSymbol.
     :raises TypeError: if the symbol table already contains a DataSymbol \
-            for `name` and its datatype is not 'integer' or 'deferred'.
+            for `name` and its datatype is not 'Integer' or 'Unresolved'.
 
     '''
     lower_name = name.lower()
@@ -702,18 +702,18 @@ def _kind_find_or_create(name, symbol_table):
         elif isinstance(kind_symbol, DataSymbol):
 
             if not (isinstance(kind_symbol.datatype,
-                               (UnknownType, DeferredType)) or
+                               (UnsupportedType, UnresolvedType)) or
                     (isinstance(kind_symbol.datatype, ScalarType) and
                      kind_symbol.datatype.intrinsic ==
                      ScalarType.Intrinsic.INTEGER)):
                 raise TypeError(
                     f"SymbolTable already contains a DataSymbol for variable "
                     f"'{lower_name}' used as a kind parameter but it is not a "
-                    f"'deferred', 'unknown' or 'scalar integer' type.")
+                    f"'Unresolved', 'Unsupported' or 'scalar Integer' type.")
             # A KIND parameter must be of type integer so set it here if it
-            # was previously 'deferred'. We don't know what precision this is
+            # was previously 'Unresolved'. We don't know what precision this is
             # so set it to the default.
-            if isinstance(kind_symbol.datatype, DeferredType):
+            if isinstance(kind_symbol.datatype, UnresolvedType):
                 kind_symbol.datatype = default_integer_type()
                 kind_symbol.is_constant = True
         else:
@@ -782,10 +782,9 @@ def default_real_type():
 
 
 def get_literal_precision(fparser2_node, psyir_literal_parent):
-    '''Takes a Fortran2003 literal node as input and returns the
-    appropriate PSyIR precision type for that node. Adds a deferred
-    type DataSymbol in the SymbolTable if the precision is given by an
-    undefined symbol.
+    '''Takes a Fortran2003 literal node as input and returns the appropriat
+     PSyIR precision type for that node. Adds a UnresolvedType DataSymbol in
+    the SymbolTable if the precision is given by an undefined symbol.
 
     :param fparser2_node: the fparser2 literal node.
     :type fparser2_node: :py:class:`Fortran2003.Real_Literal_Constant` or \
@@ -875,11 +874,11 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
                                  Fortran2003.Function_Subprogram))
     # A subroutine has no type but a function does. However, we don't know what
-    # it is at this stage so we give all functions a DeferredType.
+    # it is at this stage so we give all functions a UnresolvedType.
     # TODO #1314 extend the frontend to ensure that the type of a Routine's
     # return_symbol matches the type of the associated RoutineSymbol.
     type_map = {Fortran2003.Subroutine_Subprogram: NoType,
-                Fortran2003.Function_Subprogram: DeferredType}
+                Fortran2003.Function_Subprogram: UnresolvedType}
 
     for routine in routines:
 
@@ -1281,7 +1280,7 @@ class Fparser2Reader():
         containing the lower and upper bound of that dimension. If any of the
         symbols encountered are instances of the generic Symbol class, they are
         specialised (in place) and become instances of DataSymbol with
-        DeferredType.
+        UnresolvedType.
 
         :param dimensions: fparser dimension attribute.
         :type dimensions: \
@@ -1337,15 +1336,15 @@ class Fparser2Reader():
                         # An entry for this symbol exists but it's only a
                         # generic Symbol and we now know it must be a
                         # DataSymbol.
-                        sym.specialise(DataSymbol, datatype=DeferredType())
-                    elif isinstance(sym.datatype, (UnknownType,
-                                                   DeferredType)):
-                        # Allow symbols of Unknown/DeferredType.
+                        sym.specialise(DataSymbol, datatype=UnresolvedType())
+                    elif isinstance(sym.datatype, (UnsupportedType,
+                                                   UnresolvedType)):
+                        # Allow symbols of Unknown/UnresolvedType.
                         pass
                     elif not (isinstance(sym.datatype, ScalarType) and
                               sym.datatype.intrinsic ==
                               ScalarType.Intrinsic.INTEGER):
-                        # It's not of Unknown/DeferredType and it's not an
+                        # It's not of Unknown/UnresolvedType and it's not an
                         # integer scalar.
                         raise NotImplementedError()
                 except KeyError:
@@ -1525,7 +1524,7 @@ class Fparser2Reader():
         "SAVE :: my_var") to determine which Symbols are static.
 
         Any common blocks referred to in a SAVE will result in Symbols of
-        UnknownFortranType being added to the symbol table associated with
+        UnsupportedFortranType being added to the symbol table associated with
         `parent`.
 
         :param nodes: nodes in the fparser2 parse tree describing a
@@ -1572,12 +1571,12 @@ class Fparser2Reader():
             explicit_save.add("*")
 
         # If there are any named Common blocks listed in a SAVE statement then
-        # we create Symbols of UnknownFortranType for them (so that the
+        # we create Symbols of UnsupportedFortranType for them (so that the
         # backend can recreate the necessary SAVE statement) and remove them
         # from the list returned by this method.
         for name in explicit_save.copy():
             if name.startswith("/"):
-                uftype = UnknownFortranType(f"SAVE :: {name}")
+                uftype = UnsupportedFortranType(f"SAVE :: {name}")
                 symbol_table.new_symbol(root_name="_PSYCLONE_INTERNAL_SAVE",
                                         symbol_type=DataSymbol,
                                         datatype=uftype)
@@ -1784,7 +1783,7 @@ class Fparser2Reader():
             if type(type_symbol) is Symbol:
                 # We do but we didn't know what kind of symbol it was. Create
                 # a DataTypeSymbol to replace it.
-                new_symbol = DataTypeSymbol(type_name, DeferredType(),
+                new_symbol = DataTypeSymbol(type_name, UnresolvedType(),
                                             interface=type_symbol.interface,
                                             visibility=type_symbol.visibility)
                 table = type_symbol.find_symbol_table(parent)
@@ -1799,7 +1798,7 @@ class Fparser2Reader():
 
         else:
             # Not a supported type specification. This will result in a
-            # CodeBlock or UnknownFortranType, depending on the context.
+            # CodeBlock or UnsupportedFortranType, depending on the context.
             raise NotImplementedError()
 
         return base_type, precision
@@ -2068,14 +2067,14 @@ class Fparser2Reader():
                                      initial_value=init_expr)
                 except ValueError:
                     # Error setting initial value have to be raised as
-                    # NotImplementedError in order to create an UnknownType
+                    # NotImplementedError in order to create an UnsupportedType
                     # Therefore, the Error doesn't need raise_from or message
                     # pylint: disable=raise-missing-from
                     if tag:
                         raise InternalError(
                             f"The fparser2 frontend does not support "
                             f"declarations where the routine name is of "
-                            f"UnknownType, but found this case in "
+                            f"UnsupportedType, but found this case in "
                             f"'{sym_name}'.")
                     raise NotImplementedError()
 
@@ -2107,7 +2106,7 @@ class Fparser2Reader():
 
         :raises SymbolError: if a Symbol already exists with the same name \
             as the derived type being defined and it is not a DataTypeSymbol \
-            or is not of DeferredType.
+            or is not of UnresolvedType.
 
         '''
         name = str(walk(decl.children[0], Fortran2003.Type_Name)[0]).lower()
@@ -2147,14 +2146,14 @@ class Fparser2Reader():
                     f"should be a 'DataTypeSymbol' (for the derived-type "
                     f"definition '{decl}')")
             # Since we are processing the definition of this symbol, the only
-            # permitted type for an existing symbol of this name is 'deferred'.
-            if not isinstance(tsymbol.datatype, DeferredType):
+            # permitted type for an existing symbol of this name is Unresolved
+            if not isinstance(tsymbol.datatype, UnresolvedType):
                 raise SymbolError(
                     f"Error processing definition of derived type '{name}'. "
                     f"The symbol table already contains a DataTypeSymbol with "
                     f"this name but it is of type "
                     f"'{type(tsymbol.datatype).__name__}' when it should be "
-                    f"of 'DeferredType'")
+                    f"of 'UnresolvedType'")
         else:
             # We don't already have an entry for this type so create one
             tsymbol = DataTypeSymbol(name, dtype, visibility=dtype_symbol_vis)
@@ -2194,8 +2193,8 @@ class Fparser2Reader():
 
         except NotImplementedError:
             # Support for this declaration is not fully implemented so
-            # set the datatype of the DataTypeSymbol to UnknownFortranType.
-            tsymbol.datatype = UnknownFortranType(str(decl))
+            # set the datatype of the DataTypeSymbol to UnsupportedFortranType.
+            tsymbol.datatype = UnsupportedFortranType(str(decl))
             tsymbol.interface = UnknownInterface()
 
     def _get_partial_datatype(self, node, scope, visibility_map):
@@ -2309,10 +2308,10 @@ class Fparser2Reader():
                         raise NotImplementedError(
                             f"Could not parse '{stmt}' because "
                             f"'{symbol.name}' is not a DataSymbol.")
-                    if isinstance(symbol.datatype, UnknownType):
+                    if isinstance(symbol.datatype, UnsupportedType):
                         raise NotImplementedError(
                             f"Could not parse '{stmt}' because "
-                            f"'{symbol.name}' has an UnknownType.")
+                            f"'{symbol.name}' has an UnsupportedType.")
 
                     # Parse its initialization into a dummy Assignment
                     # (but connected to the parent scope since symbols
@@ -2401,13 +2400,13 @@ class Fparser2Reader():
                     # This interface does not have a name so we store
                     # it as a RoutineSymbol with an internal name and
                     # with the content of the interface being kept
-                    # within an UnknownFortranType. As a result the
+                    # within an UnsupportedFortranType. As a result the
                     # visibility and interface details of the
                     # RoutineSymbol do not matter.
                     parent.symbol_table.new_symbol(
                         root_name="_psyclone_internal_interface",
                         symbol_type=RoutineSymbol,
-                        datatype=UnknownFortranType(str(node).lower()))
+                        datatype=UnsupportedFortranType(str(node).lower()))
                 else:
                     # This interface has a name.
                     name = node.children[0].children[0].string.lower()
@@ -2417,11 +2416,12 @@ class Fparser2Reader():
                     # RoutineSymbol. (There will be calls to it
                     # although there will be no corresponding
                     # implementation with that name.) We store its
-                    # definition using an UnknownFortranType.
+                    # definition using an UnsupportedFortranType.
                     try:
                         parent.symbol_table.add(
                             RoutineSymbol(
-                                name, UnknownFortranType(str(node).lower()),
+                                name,
+                                UnsupportedFortranType(str(node).lower()),
                                 interface=UnknownInterface(),
                                 visibility=vis))
                     except KeyError:
@@ -2431,13 +2431,13 @@ class Fparser2Reader():
                         # name is then the name of the type). However
                         # we still want to capture the interface so we
                         # store it in the PSyIR as an
-                        # UnknownFortranType with an internal name as
+                        # UnsupportedFortranType with an internal name as
                         # we do for unnamed interfaces.
                         parent.symbol_table.new_symbol(
                             root_name=f"_psyclone_internal_{name}",
                             symbol_type=RoutineSymbol,
                             interface=UnknownInterface(),
-                            datatype=UnknownFortranType(str(node).lower()),
+                            datatype=UnsupportedFortranType(str(node).lower()),
                             visibility=vis)
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
@@ -2446,10 +2446,10 @@ class Fparser2Reader():
                                         visibility_map, statics_list)
                 except NotImplementedError:
                     # Found an unsupported variable declaration. Create a
-                    # DataSymbol with UnknownType for each entity being
+                    # DataSymbol with UnsupportedType for each entity being
                     # declared. Currently this means that any symbols that come
                     # after an unsupported declaration will also have
-                    # UnknownType. This is the subject of Issue #791.
+                    # UnsupportedType. This is the subject of Issue #791.
                     specs = walk(node, Fortran2003.Access_Spec)
                     if specs:
                         decln_vis = _process_access_spec(specs[0])
@@ -2490,7 +2490,7 @@ class Fparser2Reader():
                         try:
                             parent.symbol_table.add(
                                 DataSymbol(
-                                    symbol_name, UnknownFortranType(
+                                    symbol_name, UnsupportedFortranType(
                                         str(node),
                                         partial_datatype=datatype),
                                     interface=UnknownInterface(),
@@ -2629,7 +2629,7 @@ class Fparser2Reader():
     def _process_common_blocks(nodes, psyir_parent):
         ''' Process the fparser2 common block declaration statements. This is
         done after the other declarations and it will keep the statement
-        as a UnknownFortranType and update the referenced symbols to a
+        as a UnsupportedFortranType and update the referenced symbols to a
         CommonBlockInterface.
 
         :param nodes: fparser2 AST nodes containing declaration statements.
@@ -2648,7 +2648,7 @@ class Fparser2Reader():
         '''
         for node in nodes:
             if isinstance(node, Fortran2003.Common_Stmt):
-                # Place the declaration statement into a UnknownFortranType
+                # Place the declaration statement into a UnsupportedFortranType
                 # (for now we just want to reproduce it). The name of the
                 # commonblock is not in the same namespace as the variable
                 # symbols names (and there may be multiple of them in a
@@ -2656,7 +2656,7 @@ class Fparser2Reader():
                 psyir_parent.symbol_table.new_symbol(
                     root_name="_PSYCLONE_INTERNAL_COMMONBLOCK",
                     symbol_type=DataSymbol,
-                    datatype=UnknownFortranType(str(node)))
+                    datatype=UnsupportedFortranType(str(node)))
 
                 # Get the names of the symbols accessed with the commonblock,
                 # they are already defined in the symbol table but they must
@@ -3656,7 +3656,7 @@ class Fparser2Reader():
                 if isinstance(child, Range):
                     symbol = _find_or_create_unresolved_symbol(
                         array, loop_vars[range_idx],
-                        symbol_type=DataSymbol, datatype=DeferredType())
+                        symbol_type=DataSymbol, datatype=UnresolvedType())
                     array.children[idx] = Reference(symbol)
                     range_idx += 1
 
@@ -3802,7 +3802,7 @@ class Fparser2Reader():
                 # The array access is to a symbol of ArrayType
                 symbol = _find_or_create_unresolved_symbol(
                     size_node, first_array.name, symbol_type=DataSymbol,
-                    datatype=DeferredType())
+                    datatype=UnresolvedType())
                 new_ref = Reference(symbol)
             size_node.addchild(new_ref)
             size_node.addchild(Literal(str(idx), integer_type,
@@ -3980,7 +3980,7 @@ class Fparser2Reader():
             # Base of reference is a scalar entity and must be a DataSymbol.
             base_sym = _find_or_create_unresolved_symbol(
                 parent, node.children[0].string.lower(),
-                symbol_type=DataSymbol, datatype=DeferredType())
+                symbol_type=DataSymbol, datatype=UnresolvedType())
             base_indices = []
             base_ref = StructureReference
 
@@ -3990,7 +3990,7 @@ class Fparser2Reader():
             part_ref = node.children[0]
             base_sym = _find_or_create_unresolved_symbol(
                 parent, part_ref.children[0].string.lower(),
-                symbol_type=DataSymbol, datatype=DeferredType())
+                symbol_type=DataSymbol, datatype=UnresolvedType())
             # Processing the array-index expressions requires access to the
             # symbol table so create an ArrayReference node.
             sched = parent.ancestor(Schedule, include_self=True)
@@ -4552,6 +4552,7 @@ class Fparser2Reader():
 
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
+        routine._ast = node
 
         # Deal with any arguments
         try:
@@ -4701,6 +4702,7 @@ class Fparser2Reader():
 
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent, is_program=True)
+        routine._ast = node
 
         try:
             prog_spec = _first_type_match(node.content,

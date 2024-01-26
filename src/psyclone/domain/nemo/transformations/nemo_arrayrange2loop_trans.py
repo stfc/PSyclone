@@ -269,7 +269,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         for reference in references:
             # As special case we always allow references to whole arrays as
             # part of the LBOUND and UBOUND intrinsics, regardless of the
-            # restrictions below (e.g. is a DeferredType reference).
+            # restrictions below (e.g. is a UnresolvedType reference).
             if isinstance(reference.parent, IntrinsicCall):
                 intrinsic = reference.parent.intrinsic
                 if intrinsic is IntrinsicCall.Intrinsic.LBOUND:
@@ -284,7 +284,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
             # We allow any references that have explicit array syntax
             # because we infer that they are not scalars from the context
-            # where they are found (even if they have DeferredType)
+            # where they are found (even if they have UnresolvedType)
             if isinstance(reference, (ArrayReference, ArrayMember)):
                 continue
 
