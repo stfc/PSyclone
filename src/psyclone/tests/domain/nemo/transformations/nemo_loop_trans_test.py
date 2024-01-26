@@ -39,9 +39,12 @@ from __future__ import absolute_import
 import inspect
 from importlib import import_module
 import pytest
+from psyclone.domain.nemo.transformations import NemoLoopFuseTrans, \
+                                                 CreateNemoPSyTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.transformations import LoopTrans
-from psyclone.domain.nemo.transformations import NemoLoopFuseTrans
+from psyclone.psyir.transformations.transformation_error import \
+        TransformationError
 from psyclone.tests.utilities import get_invoke
 
 
@@ -77,3 +80,34 @@ def test_all_nemo_loop_trans_base_validate(monkeypatch):
                     trans.validate(loop)
             assert "validate test exception" in str(err.value), \
                    f"{name}.validate() does not call LoopTrans.validate()"
+
+
+def test_fuse_different_loop_vars(fortran_reader, fortran_writer):
+    '''
+    Test that loop variables are verified to be identical.
+    '''
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do ji=1, n
+                 do jj=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    with pytest.raises(TransformationError) as err:
+        psyir = fortran_reader.psyir_from_source(code)
+        psy_trans = CreateNemoPSyTrans()
+        fuse = NemoLoopFuseTrans()
+        # Raise the language-level PSyIR to NEMO PSyIR
+        psy_trans.apply(psyir)
+        loop1 = psyir.children[0].children[0]
+        loop2 = psyir.children[0].children[1]
+        fuse.apply(loop1, loop2)
+    assert ("Loop variables must be the same, but are 'jj' and 'ji'"
+            in str(err.value))
