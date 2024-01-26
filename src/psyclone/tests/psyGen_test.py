@@ -69,7 +69,7 @@ from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, colored,
                                   Literal, Loop, Node, Schedule)
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
                                     ImportInterface, ContainerSymbol, Symbol,
-                                    INTEGER_TYPE, DeferredType, SymbolTable)
+                                    INTEGER_TYPE, UnresolvedType, SymbolTable)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.test_files import dummy_transformations
 from psyclone.tests.test_files.dummy_transformations import LocalTransformation
@@ -1210,9 +1210,11 @@ def test_argument_properties():
 
 
 def test_argument_infer_datatype():
-    ''' Check that a generic argument inferred datatype is a DeferredType. '''
+    '''
+    Check that a generic argument inferred datatype is a UnresolvedType.
+    '''
     arg = Argument(None, None, None)
-    assert isinstance(arg.infer_datatype(), DeferredType)
+    assert isinstance(arg.infer_datatype(), UnresolvedType)
 
 
 def test_argument_depends_on():

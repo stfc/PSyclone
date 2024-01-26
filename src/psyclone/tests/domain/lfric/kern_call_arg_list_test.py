@@ -48,7 +48,8 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
-from psyclone.psyir.symbols import ArrayType, ScalarType, UnknownFortranType
+from psyclone.psyir.symbols import (
+    ArrayType, ScalarType, UnsupportedFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
@@ -116,7 +117,7 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
 
     check_psyir_results(create_arg_list, fortran_writer)
     arg = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg.datatype, UnknownFortranType)
+    assert isinstance(arg.datatype, UnsupportedFortranType)
     assert isinstance(arg.datatype.partial_datatype, ArrayType)
     assert len(arg.datatype.partial_datatype.shape) == 1
 
@@ -151,7 +152,7 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
     array_1d = ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                          [ArrayType.Extent.DEFERRED])
     assert isinstance(create_arg_list.psyir_arglist[2].datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert (create_arg_list.psyir_arglist[2].datatype.partial_datatype ==
             array_1d)
     array_4d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
@@ -376,7 +377,7 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     assert (create_arg_list.psyir_arglist[2].datatype ==
             LFRicTypes("LFRicIntegerScalarDataType")())
     arg = create_arg_list.psyir_arglist[3]
-    assert isinstance(arg.datatype, UnknownFortranType)
+    assert isinstance(arg.datatype, UnsupportedFortranType)
     assert arg.datatype.partial_datatype.precision.name == "r_def"
     assert len(arg.datatype.partial_datatype.shape) == 3
 
@@ -408,14 +409,14 @@ def test_kerncallarglist_mixed_precision():
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_def"
     # Field.
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert isinstance(
         create_arg_list.psyir_arglist[3].datatype.partial_datatype, ArrayType)
     # operator: ncell_3d:
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     # operator: local_stencil
     arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype, UnsupportedFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
     assert len(arg5.datatype.partial_datatype.shape) == 3
 
@@ -424,25 +425,25 @@ def test_kerncallarglist_mixed_precision():
     assert (create_arg_list.psyir_arglist[2].datatype.precision.name ==
             "r_solver")
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert isinstance(
         create_arg_list.psyir_arglist[3].datatype.partial_datatype, ArrayType)
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype, UnsupportedFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[2])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_tran"
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert isinstance(
         create_arg_list.psyir_arglist[3].datatype.partial_datatype,
         ArrayType)
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype, UnsupportedFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[3])
@@ -452,19 +453,19 @@ def test_kerncallarglist_mixed_precision():
         create_arg_list.psyir_arglist[3].datatype.partial_datatype,
         ArrayType)
     arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype, UnsupportedFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[4])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_phys"
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert isinstance(
         create_arg_list.psyir_arglist[3].datatype.partial_datatype,
         ArrayType)
     arg5 = create_arg_list.psyir_arglist[5]
-    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype, UnsupportedFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
 
@@ -569,17 +570,18 @@ def test_indirect_dofmap(fortran_writer):
     dummy_sym_tab = LFRicSymbolTable()
     # Test all 1D real arrays:
     for i in [2, 3]:
-        # The datatype of a field reference is of UnknownFortranType because
-        # the PSyIR doesn't support pointers. However, its 'partial_datatype'
-        # is the type of the member accessed, i.e. it's the 1D real array.
-        assert isinstance(psyir_args[i].datatype, UnknownFortranType)
+        # The datatype of a field reference is of UnsupportedFortranType
+        # because the PSyIR doesn't support pointers. However, its
+        # 'partial_datatype' is the type of the member accessed, i.e. it's
+        # the 1D real array.
+        assert isinstance(psyir_args[i].datatype, UnsupportedFortranType)
         assert isinstance(psyir_args[i].datatype.partial_datatype,
                           ArrayType)
         assert (psyir_args[i].datatype.partial_datatype.intrinsic ==
                 ScalarType.Intrinsic.REAL)
 
     # Test all 3D real arrays:
-    assert isinstance(psyir_args[4].datatype, UnknownFortranType)
+    assert isinstance(psyir_args[4].datatype, UnsupportedFortranType)
     assert (psyir_args[4].datatype.partial_datatype.intrinsic ==
             ScalarType.Intrinsic.REAL)
     assert len(psyir_args[4].datatype.partial_datatype.shape) == 3
@@ -633,7 +635,7 @@ def test_ref_element_handling(fortran_writer):
     # The datatype of a field  reference is the type of the member
     # accessed, i.e. it's the 1D real array.
     arg = psyir_args[1]
-    assert isinstance(arg.datatype, UnknownFortranType)
+    assert isinstance(arg.datatype, UnsupportedFortranType)
     assert isinstance(arg.datatype.partial_datatype,
                       ArrayType)
     assert len(arg.datatype.partial_datatype.shape) == 1

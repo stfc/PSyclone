@@ -56,10 +56,11 @@ from psyclone.psyir.nodes import (ArrayReference, Call, Container, GlobalReducti
                                   Literal, Loop, Node, OMPDoDirective, Reference,
                                   Routine, Schedule, Statement)
 from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
-                                    ContainerSymbol, DataSymbol, DeferredType,
+                                    ContainerSymbol, DataSymbol,
+                                    UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     RoutineSymbol, Symbol)
-from psyclone.psyir.symbols.datatypes import UnknownFortranType
+from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -1770,11 +1771,11 @@ class CodedKern(Kern):
         # the kernel metadata.
         container_table = container.symbol_table
         for sym in container_table.datatypesymbols:
-            if isinstance(sym.datatype, UnknownFortranType):
+            if isinstance(sym.datatype, UnsupportedFortranType):
                 new_declaration = sym.datatype.declaration.replace(
                     orig_kern_name, new_kern_name)
                 # pylint: disable=protected-access
-                sym._datatype = UnknownFortranType(
+                sym._datatype = UnsupportedFortranType(
                     new_declaration,
                     partial_datatype=sym.datatype.partial_datatype)
                 # pylint: enable=protected-access
@@ -2252,13 +2253,13 @@ class Argument():
         '''
         Infer the datatype of this argument using the API rules. If no
         specialisation of this method has been provided make the type
-        `DeferredType` for now (it may be provided later in the execution).
+        UnresolvedType for now (it may be provided later in the execution).
 
         :returns: the datatype of this argument.
         :rtype: :py:class::`psyclone.psyir.symbols.DataType`
 
         '''
-        return DeferredType()
+        return UnresolvedType()
 
     def __str__(self):
         '''

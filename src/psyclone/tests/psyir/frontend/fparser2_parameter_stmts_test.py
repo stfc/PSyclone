@@ -152,7 +152,7 @@ def test_parameter_statements_with_unsupported_symbols():
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
-    # Test with a UnknownType declaration
+    # Test with a UnsupportedType declaration
     reader = FortranStringReader('''
         character*5 :: var1
         parameter (var1='hello')''')
@@ -161,7 +161,7 @@ def test_parameter_statements_with_unsupported_symbols():
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
     assert ("Could not parse 'PARAMETER(var1 = 'hello')' because 'var1' has "
-            "an UnknownType." in str(error.value))
+            "an UnsupportedType." in str(error.value))
 
     # Test with a symbol which is not a DataSymbol
     symtab.add(Symbol("var2"))
