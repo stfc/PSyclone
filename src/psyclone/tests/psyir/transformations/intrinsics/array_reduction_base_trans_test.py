@@ -235,6 +235,27 @@ def test_not_assignment(fortran_reader):
             "of an Assignment" in str(info.value))
 
 
+def test_validate_increment_with_unsupported_type(fortran_reader):
+    '''Check that the expected error is produced when the resulting code
+    needs a temporary variable but the lhs type can not be resolved.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "use othermod\n"
+        "real :: a(10)\n"
+        "x(1) = x(1) + maxval(a)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Maxval2LoopTrans()
+    node = psyir.walk(IntrinsicCall)[0]
+    with pytest.raises(TransformationError) as info:
+        trans.apply(node)
+    assert ("To loopify 'x(1) = x(1) + MAXVAL(a)' we need a temporary "
+            "variable, but the type of 'x(1)' can not be resolved or is "
+            "unsupported." in str(info.value))
+
+
 # apply
 
 @pytest.mark.parametrize("idim1,idim2,rdim11,rdim12,rdim21,rdim22",
@@ -452,7 +473,7 @@ def test_references(fortran_reader, fortran_writer, tmpdir):
         "zmax(1) = MAXVAL(ABS(sshn + ssh_ref * tmask), mask=tmask==1.0)\n"
         "end subroutine\n")
     expected = (
-        "  zmax(1) = -HUGE(zmax)\n"
+        "  zmax(1) = -HUGE(zmax(1))\n"
         "  do idx = 1, 10, 1\n"
         "    do idx_1 = 1, 10, 1\n"
         "      if (tmask(idx_1,idx) == 1.0) then\n"
@@ -481,7 +502,7 @@ def test_nemo_example(fortran_reader, fortran_writer, tmpdir):
         "zmax(1) = MAXVAL(ABS(sshn(:,:) + ssh_ref * tmask(:,:,1)))\n"
         "end subroutine\n")
     expected = (
-        "  zmax(1) = -HUGE(zmax)\n"
+        "  zmax(1) = -HUGE(zmax(1))\n"
         "  do idx = LBOUND(sshn, dim=2), UBOUND(sshn, dim=2), 1\n"
         "    do idx_1 = LBOUND(sshn, dim=1), UBOUND(sshn, dim=1), 1\n"
         "      zmax(1) = MAX(zmax(1), ABS(sshn(idx_1,idx) + ssh_ref * "
@@ -646,3 +667,82 @@ def test_increment(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir)
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_increment_with_accessor(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the expected code is produced when the variable being
+    assigned needs a temporary variable that is not the same type as the
+    lhs symbol because some accessor expression is used.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "real :: a(10)\n"
+        "real, dimension(1) :: x\n"
+        "x(1) = x(1) + maxval(a)\n"
+        "end subroutine\n")
+    expected_decl = "real :: tmp_var"
+    expected = (
+        "  tmp_var = -HUGE(tmp_var)\n"
+        "  do idx = 1, 10, 1\n"
+        "    tmp_var = MAX(tmp_var, a(idx))\n"
+        "  enddo\n"
+        "  x(1) = x(1) + tmp_var\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Maxval2LoopTrans()
+    node = psyir.walk(IntrinsicCall)[0]
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    assert expected_decl in result
+    assert expected in result
+    assert Compile(tmpdir).string_compiles(result)
+
+
+def test_reduce_to_struct_and_array_accessors(fortran_reader, fortran_writer):
+    '''Check that the expected code is produced when the variable being
+    assigned to is has array and structure accessors.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "use other\n"
+        "real :: a(10)\n"
+        "mystruct%x(3) = maxval(a)\n"
+        "end subroutine\n")
+    expected = (
+        "  mystruct%x(3) = -HUGE(mystruct%x(3))\n"
+        "  do idx = 1, 10, 1\n"
+        "    mystruct%x(3) = MAX(mystruct%x(3), a(idx))\n"
+        "  enddo\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Maxval2LoopTrans()
+    node = psyir.walk(IntrinsicCall)[0]
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    assert expected in result
+
+
+def test_range2loop_fails(fortran_reader, fortran_writer):
+    '''Check that the expected error and code is produced when the internal
+    range2loop transformation fails to convert the range into a loop construct.
+
+    '''
+    code = (
+        "subroutine test()\n"
+        "use othermod\n"
+        "real :: a(10,10)\n"
+        "real :: x\n"
+        "x = maxval(a(:,:undeclared))\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Maxval2LoopTrans()
+    node = psyir.walk(IntrinsicCall)[0]
+    code_before = fortran_writer(psyir)
+    with pytest.raises(TransformationError) as info:
+        trans.apply(node)
+    assert ("NemoAllArrayRange2LoopTrans could not convert the expression "
+            "'a(:,:undeclared) = a(:,:undeclared)\n' into a loop."
+            in str(info.value))
+    # Check that the failed transformation does not modify the code
+    code_after = fortran_writer(psyir)
+    assert code_before == code_after
