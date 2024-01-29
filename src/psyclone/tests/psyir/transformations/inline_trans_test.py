@@ -41,7 +41,6 @@ import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
 from psyclone.psyir.symbols import (
     DataSymbol, UnresolvedType, AutomaticInterface)
@@ -1543,8 +1542,10 @@ def test_validate_calls_find_routine(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Cannot inline routine 'sub' because its source cannot be found: "
-            "Could not find source file for module 'some_mod' in any of the "
-            "directories ''" in str(err.value))
+            "Failed to find the source code of the unresolved routine 'sub' - "
+            "looked at any routines in the same source file and attempted to "
+            "resolve the wildcard imports from ['some_mod']. However, failed "
+            "to find the source for ['some_mod']" in str(err.value))
 
 
 def test_validate_return_stmt(fortran_reader):
