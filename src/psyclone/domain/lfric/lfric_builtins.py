@@ -2912,6 +2912,8 @@ class LFRicRealToRealXKern(LFRicBuiltIn):
             IntrinsicCall.Intrinsic.REAL,
             [arg_refs[1], ("kind", Reference(r_precision))])
         assign = Assignment.create(arg_refs[0], rhs)
+        # Add a preceding comment to the Assignment
+        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
         return assign
