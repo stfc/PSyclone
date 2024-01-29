@@ -662,15 +662,18 @@ end module some_mod_somewhere
             "imports from ['some_mod_somewhere']." in str(err.value))
     mod_manager = ModuleManager.get()
     monkeypatch.setattr(mod_manager, "_instance", None)
-    with open(os.path.join(path, "that_file.f90"), "w") as ofile:
-        ofile.write('''\
-module some_mod_somewhere
-  use cannot_be_found, only: bottom
-end module some_mod_somewhere
-''')
+    code = '''
+subroutine top()
+  use another_mod, only: this_one
+  call this_one()
+end subroutine top'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert "halleluja" in str(err.value)
+    assert ("RoutineSymbol 'this_one' is imported from Container 'another_mod'"
+            " but the source defining that container could not be found. The "
+            "module search path is set to [" in str(err.value))
 
 
 def test_call_get_callees_unsupported_type(fortran_reader):

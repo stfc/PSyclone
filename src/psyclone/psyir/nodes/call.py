@@ -426,14 +426,13 @@ class Call(Statement, DataNode):
 
     def get_callees(self):
         '''
-        Searches for the implementation(s) of the routine that this Call
-        is to.
+        Searches for the implementation(s) of the target routine for this Call.
 
         :returns: the Routine(s) that this call targets.
         :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
-        :raises NotImplementedError: if the routine is not local and is not
-                                     explicitly imported.
+        :raises NotImplementedError: if the routine is not local and not found
+            in any containers in scope at the call site..
         '''
 
         def _location_txt(node):
@@ -517,12 +516,14 @@ class Call(Statement, DataNode):
             can_be_private = False
             while cursor.is_import:
                 csym = cursor.interface.container_symbol
-                container = csym.container(local_node=self)
-                if not container:
+                try:
+                    container = csym.container(local_node=self)
+                except FileNotFoundError:
                     raise NotImplementedError(
                         f"RoutineSymbol '{rsym.name}' is imported from "
                         f"Container '{csym.name}' but the source defining "
-                        f"that container could not be found.")
+                        f"that container could not be found. The module search"
+                        f" path is set to {Config.get().include_paths}")
                 imported_sym = container.symbol_table.lookup(cursor.name)
                 if imported_sym.visibility != Symbol.Visibility.PUBLIC:
                     # The required Symbol must be shadowed with a PRIVATE
