@@ -290,10 +290,11 @@ class CallTreeUtils():
                     psyir = \
                         mod_info.get_psyir().get_routine_psyir(routine_name)
                     todo.extend(self.get_non_local_symbols(psyir))
-        return self._outstanding_nonlocals(todo, read_write_info)
+        return self._resolve_calls_and_unknowns(todo, read_write_info)
 
     # -------------------------------------------------------------------------
-    def _outstanding_nonlocals(self, todo, read_write_info):
+    def _resolve_calls_and_unknowns(self, outstanding_nonlocals,
+                                    read_write_info):
         '''This function updates the list of non-local symbols by:
         1. replacing all subroutine calls with the list of their corresponding
             non-local symbols.
@@ -304,9 +305,9 @@ class CallTreeUtils():
         The actual non-local accesses will then be added to the ReadWriteInfo
         object.
 
-        :param todo: the information about symbol type, module_name,
-            symbol_name and access information
-        :type todo: List[Tuple[str,str, str,
+        :param outstanding_nonlocals: the information about symbol type,
+            module_name, symbol_name and access information
+        :type outstanding_nonlocals: List[Tuple[str,str, str,
                               :py:class:`psyclone.core.Signature`,str]]
         :param read_write_info: information about all input and output
             parameters.
@@ -320,8 +321,8 @@ class CallTreeUtils():
         # be filtered out.
         in_vars = set()
         out_vars = set()
-        while todo:
-            info = todo.pop()
+        while outstanding_nonlocals:
+            info = outstanding_nonlocals.pop()
             if info in done:
                 continue
             done.add(info)
@@ -334,26 +335,27 @@ class CallTreeUtils():
                     # For now ignore this
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._outstanding_nonlocals] Unknown "
-                          f"routine '{signature[0]} - ignored.")
+                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                          f"Unknown routine '{signature[0]} - ignored.")
                     continue
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
-                          f"find module '{module_name}' - ignored.")
+                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                          f"Cannot find module '{module_name}' - ignored.")
                     continue
                 routine = mod_info.get_psyir().get_routine_psyir(signature[0])
                 if routine:
                     # Add the list of non-locals to our todo list:
-                    todo.extend(self.get_non_local_symbols(routine))
+                    outstanding_nonlocals.extend(
+                        self.get_non_local_symbols(routine))
                 else:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
-                          f"find symbol '{signature[0]}' in module "
+                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                          f"Cannot find symbol '{signature[0]}' in module "
                           f"'{module_name}' - ignored.")
                 continue
 
@@ -365,16 +367,16 @@ class CallTreeUtils():
                 except FileNotFoundError:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
-                          f"find module '{module_name}' - ignoring "
+                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                          f"Cannot find module '{module_name}' - ignoring "
                           f"unknown symbol '{signature}'.")
                     continue
 
                 if mod_info.contains_routine(str(signature)):
                     # It is a routine, which we need to analyse for the use
                     # of non-local symbols:
-                    todo.append(("routine", module_name, signature,
-                                 access_info))
+                    outstanding_nonlocals.append(("routine", module_name,
+                                                  signature, access_info))
                     continue
                 # Otherwise fall through to the code that adds a reference:
 
