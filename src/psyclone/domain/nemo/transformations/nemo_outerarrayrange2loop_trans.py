@@ -115,7 +115,6 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         # Get deepest array in LHS (excluding inside Ranges)
         deepest_range = node.lhs.walk(Range, stop_type=Range)[-1]
         lhs_array_ref = deepest_range.parent
-        #lhs_array_ref = node.lhs.walk(ArrayMixin, stop_type=Range)[-1]
         index = lhs_array_ref.get_outer_range_index()
         nemo_arrayrange2loop = NemoArrayRange2LoopTrans()
         nemo_arrayrange2loop.apply(lhs_array_ref.children[index])
