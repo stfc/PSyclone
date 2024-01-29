@@ -218,6 +218,36 @@ def test_get_routine_definition_routine_not_found(fortran_reader):
     assert result is None
 
 
+def test_get_routine_missing_container(fortran_reader):
+    '''Test that None is returned when we cannot find the container from which
+    the required Routine is imported.
+
+    '''
+    code = (
+        "module inline_mod\n"
+        " use some_other_mod, only: my_sub\n"
+        "end module inline_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    result = container.get_routine_definition("my_sub")
+    assert result is None
+
+
+def test_get_routine_missing_container_wildcard(fortran_reader):
+    '''Test that None is returned when we cannot find the container from which
+    a wildcard import is performed.
+
+    '''
+    code = (
+        "module inline_mod\n"
+        " use some_other_mod\n"
+        "end module inline_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    result = container.get_routine_definition("my_sub")
+    assert result is None
+
+
 def test_get_routine_definition_recurse_named(fortran_reader):
     '''Test that when a container does not contain the required routine,
     any imported containers within this container are also

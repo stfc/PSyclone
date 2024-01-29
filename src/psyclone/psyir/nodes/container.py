@@ -207,22 +207,28 @@ class Container(ScopingNode, CommentableMixin):
         table = self.symbol_table
         try:
             routine_sym = table.lookup(rname)
-            if routine_sym.is_import:
-                child_cntr_sym = routine_sym.interface.container_symbol
-                # Find the definition of the container.
-                container = child_cntr_sym.container(local_node=self)
-                if not container:
-                    return None
-                return container.get_routine_definition(rname)
         except KeyError:
-            pass
+            # Routine does not exist in the SymbolTable.
+            routine_sym = None
+
+        if routine_sym and routine_sym.is_import:
+            child_cntr_sym = routine_sym.interface.container_symbol
+            # Find the definition of the container.
+            try:
+                container = child_cntr_sym.container(local_node=self)
+            except FileNotFoundError:
+                # TODO #11 log that we didn't find the Container from which
+                # the routine is imported.
+                return None
+            return container.get_routine_definition(rname)
 
         # Look in any wildcard imports.
         for child_cntr_sym in table.containersymbols:
             if child_cntr_sym.wildcard_import:
                 # Find the definition of the container.
-                container = child_cntr_sym.container(local_node=self)
-                if not container:
+                try:
+                    container = child_cntr_sym.container(local_node=self)
+                except FileNotFoundError:
                     continue
                 result = container.get_routine_definition(rname)
                 if result:
