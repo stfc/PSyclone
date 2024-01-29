@@ -88,7 +88,7 @@ class ModuleManager:
         directory, or a list of directories, each one a string.
 
         :param directories: the directory/directories to add.
-        :type directories: Union[str, List[str]]
+        :type directories: str | list[str]
 
         :param bool recursive: whether recursively all subdirectories should \
             be added to the search path.
@@ -155,7 +155,7 @@ class ModuleManager:
     # ------------------------------------------------------------------------
     def ignores(self):
         ''':returns: the set of modules to ignore.
-        :rtype: Set[str]
+        :rtype: set[str]
 
         '''
         return self._ignore_modules
@@ -214,7 +214,7 @@ class ModuleManager:
             of modules it contains.
 
         :returns: the list of all modules contained in the specified file.
-        :rtype: List[str]
+        :rtype: list[str]
 
         '''
         basename = os.path.basename(filename)
@@ -242,12 +242,12 @@ class ModuleManager:
         be ignored (i.e. not listed in any dependencies).
         # TODO 2120: allow a choice to abort or ignore.
 
-        :param Set[str] all_mods: the set of all modules for which to collect
+        :param set[str] all_mods: the set of all modules for which to collect
             module dependencies.
 
         :returns: a dictionary with all modules that are required (directly \
             or indirectly) for the modules in ``all_mods``.
-        :rtype: Dict[str, Set[str]]
+        :rtype: dict[str, set[str]]
 
         '''
         # This contains the mapping from each module name to the
@@ -312,10 +312,10 @@ class ModuleManager:
 
         :param module_dependencies: the list of modules required as keys, \
             with all their dependencies as value.
-        :type module_dependencies: Dict[str, Set[str]]
+        :type module_dependencies: dict[str, set[str]]
 
         :returns: the sorted list of modules.
-        :rtype: List[str]
+        :rtype: list[str]
 
         '''
         result = []

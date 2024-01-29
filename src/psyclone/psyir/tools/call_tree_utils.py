@@ -71,7 +71,7 @@ class CallTreeUtils():
         :type routine: :py:class:`psyclone.psyir.nodes.Routine`
 
         :returns: list of non-local references
-        :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`]]
+        :rtype: list[tuple[str, str, :py:class:`psyclone.core.Signature`]]
 
 
         '''
@@ -164,7 +164,7 @@ class CallTreeUtils():
             all input parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
         :type variables_info:
@@ -172,7 +172,7 @@ class CallTreeUtils():
         :param options: a dictionary with options for the CallTreeUtils
             which will also be used when creating the VariablesAccessInfo
             instance if required.
-        :type param: Optional[Dict[str, Any]]
+        :type param: Optional[dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
             set to a True value, arrays used as first parameter to the
             PSyIR operators lbound, ubound, or size will be reported as
@@ -201,7 +201,7 @@ class CallTreeUtils():
             output parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
@@ -209,7 +209,7 @@ class CallTreeUtils():
         :param options: a dictionary with options for the CallTreeUtils
             which will also be used when creating the VariablesAccessInfo
             instance if required.
-        :type param: Optional[Dict[str, Any]]
+        :type param: Optional[dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
             set to a True value, arrays used as first parameter to the
             PSyIR operators lbound, ubound, or size will be reported as
@@ -232,11 +232,11 @@ class CallTreeUtils():
         repeated computation of the variable usage.
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for the CallTreeUtils
             which will also be used when creating the VariablesAccessInfo
             instance if required.
-        :type options: Optional[Dict[str, Any]]
+        :type options: Optional[dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
             set to a True value, arrays used as first parameter to the
             PSyIR operators lbound, ubound, or size will be reported as
@@ -307,7 +307,7 @@ class CallTreeUtils():
 
         :param outstanding_nonlocals: the information about symbol type,
             module_name, symbol_name and access information
-        :type outstanding_nonlocals: List[Tuple[str,str, str,
+        :type outstanding_nonlocals: list[tuple[str, str, str,
                               :py:class:`psyclone.core.Signature`,str]]
         :param read_write_info: information about all input and output
             parameters.
@@ -412,7 +412,7 @@ class CallTreeUtils():
         :type routine: :py:class:`psyclone.psyir.nodes.Routine`
 
         :returns: the non-local accesses in this routine.
-        :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`,
+        :rtype: list[tuple[str, str, :py:class:`psyclone.core.Signature`,
             :py:class:`psyclone.core.SingleVariableAccessInfo`]]
 
         '''

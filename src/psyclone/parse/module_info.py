@@ -49,8 +49,8 @@ from fparser.two.parser import ParserFactory
 from fparser.two.utils import FortranSyntaxError, walk
 
 from psyclone.errors import InternalError, PSycloneError
-from psyclone.psyir.nodes import Container, FileContainer
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Container, FileContainer
 from psyclone.psyir.symbols import SymbolError
 
 
@@ -96,11 +96,11 @@ class ModuleInfo:
         self._psyir = None
 
         # A cache for the module dependencies: this is just a set
-        # of all modules used by this module. Type: Set[str]
+        # of all modules used by this module. Type: set[str]
         self._used_modules = None
 
         # This is a dictionary containing the sets of symbols imported from
-        # each module, indexed by the module names: Dict[str, Set(str)].
+        # each module, indexed by the module names: dict[str, set[str].
         self._used_symbols_from_module = None
 
         # This variable will be a set that stores the name of all routines
@@ -291,7 +291,7 @@ class ModuleInfo:
         pre-processor directives).
 
         :returns: a set with all imported module names.
-        :rtype: Set[str]
+        :rtype: set[str]
 
         '''
         if self._used_modules is None:
@@ -308,7 +308,7 @@ class ModuleInfo:
 
         :returns: a dictionary that gives for each module name the set \
             of symbols imported from it.
-        :rtype: Dict[str, Set[str]]
+        :rtype: dict[str, set[str]]
 
         '''
         if self._used_symbols_from_module is None:
@@ -333,7 +333,7 @@ class ModuleInfo:
         :type routine_name: Optional[str]
 
         :returns: PSyIR representing this module.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
         if self._psyir is None:
@@ -368,9 +368,10 @@ class ModuleInfo:
         :param str routine_name: the name of the routine to resolve
 
         :returns: list of routine name(s) that could be called.
-        :rtype: List[str]
+        :rtype: list[str]
 
         '''
+        # TODO #2422: once #2422 is done, this can be moved into the PSyIR
         if self._psyir is None:
             self.get_psyir()
         routine_name = routine_name.lower()
