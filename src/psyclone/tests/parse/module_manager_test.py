@@ -334,7 +334,6 @@ def test_mod_manager_ignore_modules():
     '''
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
-    mod_man.add_search_path("d2")
 
     # First finds a_mod, which will parse the first directory
     mod_man.ignore_module("a_mod")
@@ -342,5 +341,6 @@ def test_mod_manager_ignore_modules():
     assert mod_info is None
     assert "a_mod" in mod_man.ignores()
 
-    mod_info = mod_man.get_module_info("d_mod")
-    assert mod_info.filename == "d2/d_mod.X90"
+    # Just in case verify that other modules are not affected
+    mod_info = mod_man.get_module_info("b_mod")
+    assert mod_info.filename == "d1/d3/b_mod.F90"

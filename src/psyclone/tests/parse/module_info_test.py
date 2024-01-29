@@ -217,7 +217,16 @@ def test_mod_info_get_psyir():
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_generic_interface():
-    '''Tests that a generic interface works as expected.
+    '''Tests that a generic interface works as expected. This test relies on
+    the directories and files set up by `mod_man_test_setup_directories`:
+    the module `g_mod` contains:
+        interface myfunc
+            procedure myfunc1
+            procedure myfunc2
+        end interface myfunc
+    Therefore, the ModuleInfo object needs to contain `myfunc`, `myfunc1`, and
+    `myfunc2`
+
     '''
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
@@ -239,7 +248,17 @@ def test_generic_interface():
 def test_resolve_routine():
     '''Test resolve_routine functionality: a simple routine should return
     its name as the only member of a list, a routine name which is a generic
-    interface should return a list of all possible names.
+    interface should return a list of all possible names. This test relies on
+    the directories and file setup my `mod_man_test_setup_directories`:
+    the module `g_mod` contains:
+    interface myfunc
+        procedure myfunc1
+        procedure myfunc2
+    end interface myfunc
+    Therefore, resolving `myfunc` must return `myfunc1`, and `myfunc2`.
+    TODO #2478: this needs to be rewritten or (re)moved once we have support
+    for interfaces in the PSyIR.
+
     '''
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d2")
@@ -257,7 +276,13 @@ def test_resolve_routine():
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_module_info_contains_routine():
-    '''Test contains_routine.
+    '''Test contains_routine. It relies on the directories and file setup my
+    `mod_man_test_setup_directories`, `d2/g_mod` contains a function
+    `myfunc1`.
+
+    TODO #2422 This needs to be updated when the PSyIR supports generic
+    interfaces.
+
     '''
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d2")
@@ -269,6 +294,7 @@ def test_module_info_contains_routine():
 
     # Test handling of files that cannot be parsed
     # --------------------------------------------
+    # TODO #2120: Needs to be updated when error handling is implemented.
     mod_info = mod_man.get_module_info("error_mod")
     assert not mod_info.contains_routine("ERROR-CANNOT-BE-PARSED")
 
@@ -278,8 +304,13 @@ def test_module_info_contains_routine():
                          "mod_man_test_setup_directories")
 def test_module_info_extract_import_information_error():
     '''Test handling of files that cannot be parsed in
-    _extract_import_information.
+    _extract_import_information. This relies on the directories and file setup
+    my `mod_man_test_setup_directories`, which will create a file
+    `d2/error_mod.f90`, which is invalid Fortran.
+
     '''
+    # TODO 2120: Once proper error handling is implemented, this should
+    # likely just raise an exception.
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d2")
     mod_info = mod_man.get_module_info("error_mod")
