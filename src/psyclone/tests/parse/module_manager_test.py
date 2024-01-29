@@ -78,11 +78,23 @@ def test_mod_manager_instance():
 
 
 # ----------------------------------------------------------------------------
-def test_mod_manager_get_modules_in_file():
+def test_mod_manager_get_modules_in_file(tmpdir):
     '''Tests that file names are mapped as expected to the module they
     contain. '''
     mod_man = ModuleManager.get()
-    # TODO rewrite these tests.
+    # Check that any decoding errors are handled successfully. The e acute
+    # character (\xe9) in latin-1 cannot be decoded in utf-8 so we use that.
+    with open(os.path.join(tmpdir, "a_mod.F90"), "w",
+              encoding="latin-1") as f_out:
+        f_out.write(
+            "module utf_char_mod\n"
+            "contains\n"
+            "  subroutine my_sub()\n"
+            "    write(*,*) 'max (at the Equator) for e1=1\xe9)'\n"
+            "  end subroutine my_sub\n"
+            "end module utf_char_mod")
+    assert (mod_man.get_modules_in_file(os.path.join(tmpdir, "a_mod.F90")) ==
+            ["utf_char_mod"])
     # assert mod_man.get_modules_in_file("a_mod.f90") == ["a_mod"]
     # assert mod_man.get_modules_in_file("b_mod.F90") == ["b_mod"]
     # assert mod_man.get_modules_in_file("c_mod.x90") == ["c_mod"]
@@ -176,6 +188,10 @@ def test_mod_manager_add_files_from_dir():
     assert set(mod_man._mod_2_filename.keys()) == {"a_mod"}
     mod_man._add_all_files_from_dir("d1/d3")
     assert set(mod_man._mod_2_filename.keys()) == {"a_mod", "b_mod", "c_mod"}
+    mod_man._add_all_files_from_dir("d2/d4")
+    assert set(mod_man._mod_2_filename.keys()) == {"a_mod", "b_mod",
+                                                   "c_mod", "e_mod"}
+    # Providing the same directory a second time shouldn't change anything.
     mod_man._add_all_files_from_dir("d2/d4")
     assert set(mod_man._mod_2_filename.keys()) == {"a_mod", "b_mod",
                                                    "c_mod", "e_mod"}

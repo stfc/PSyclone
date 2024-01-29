@@ -471,26 +471,38 @@ class Call(Statement, DataNode):
             # Now check for any wildcard imports and see if they can
             # be used to resolve the symbol.
             wildcard_names = []
+            containers_not_found = []
             current_table = self.scope.symbol_table
             while current_table:
                 for container_symbol in current_table.containersymbols:
                     if container_symbol.wildcard_import:
                         wildcard_names.append(container_symbol.name)
-                        container = container_symbol.container(local_node=self) # self.get_container_definition(
-                            #container_symbol)
-                        if not container:
+                        try:
+                            container = container_symbol.container(
+                                local_node=self)
+                        except FileNotFoundError:
+                            containers_not_found.append(container_symbol.name)
                             continue
                         routine = container.get_routine_definition(rsym.name)
                         if routine:
                             return [routine]
                 current_table = current_table.parent_symbol_table()
+            if not wildcard_names:
+                wc_text = "there are no wildcard imports"
+            else:
+                if containers_not_found:
+                    wc_text = (
+                        f"attempted to resolve the wildcard imports from"
+                        f" {wildcard_names}. However, failed to find the "
+                        f"source for {containers_not_found}. The module search"
+                        f" path is set to {Config.get().include_paths}")
+                else:
+                    wc_text = (f"wildcard imports from {wildcard_names}")
             raise NotImplementedError(
-                f"Failed to find the source code of the unresolved "
-                f"routine '{rsym.name}' after trying wildcard imports from "
-                f"{wildcard_names} and all routines that are not in "
-                f"containers. Note that currently module filenames are "
-                f"constrained to follow the pattern <mod_name>.[fF]90 and "
-                f"the search path is set to {Config.get().include_paths}.")
+                f"Failed to find the source code of the unresolved routine "
+                f"'{rsym.name}' - looked at any routines in the same source "
+                f"file and {wc_text}. Searching for external routines "
+                f"that are only resolved at link time is not supported.")
 
         root_node = self.ancestor(Container)
         if not root_node:

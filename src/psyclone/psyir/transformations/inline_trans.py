@@ -610,18 +610,6 @@ class InlineTrans(Transformation):
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
 
-        # Check that the RoutineSymbol does not have a tag indicating that it
-        # is an internally-generated routine.
-        #sym = node.scope.symbol_table.lookup(name)
-        #table = sym.find_symbol_table(node)
-        #lookup = table.get_reverse_tags_dict()
-        #try:
-        #    if "psyclone_internal" in lookup[sym]:
-        #        raise TransformationError(
-        #            f"Cannot inline PSyclone-generated routine '{name}'")
-        #except KeyError:
-        #    pass
-
         # Check that we can find the source of the routine being inlined.
         # TODO #924 allow for multiple routines (interfaces).
         try:

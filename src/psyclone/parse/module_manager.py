@@ -41,6 +41,7 @@ from collections import OrderedDict
 import copy
 import os
 import re
+import codecs
 
 from psyclone.errors import InternalError
 from psyclone.parse.module_info import ModuleInfo
@@ -50,6 +51,22 @@ from psyclone.parse.module_info import ModuleInfo
 # e.g. "module procedure :: some_sub".
 _MODULE_PATTERN = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
                              flags=(re.IGNORECASE | re.MULTILINE))
+
+
+def log_decode_error_handler(err):
+    """
+    A custom error handler for use when reading files. Simply skips any
+    characters that cause decoding errors.
+
+    :returns: 2-tuple containing replacement for bad chars (an empty string
+              and the position from where encoding should continue).
+    :rtype: tuple[str, int]
+
+    """
+    return ("", err.end)
+
+
+codecs.register_error("file-error-handler", log_decode_error_handler)
 
 
 class ModuleManager:

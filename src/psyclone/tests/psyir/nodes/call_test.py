@@ -40,6 +40,7 @@ import os
 import pytest
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
+from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, Call, Literal, Reference,
     Routine, Schedule)
@@ -614,7 +615,7 @@ end module some_mod'''
     assert result == [psyir.walk(Routine)[1]]
 
 
-def test_call_get_callees_unresolved(fortran_reader):
+def test_call_get_callees_unresolved(fortran_reader, tmpdir, monkeypatch):
     '''
     Test that get_callees() raises the expected error if the called routine
     is unresolved.
@@ -628,10 +629,48 @@ end subroutine top'''
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
     assert ("Failed to find the source code of the unresolved routine 'bottom'"
-            " after trying wildcard imports from [] and all routines that are "
-            "not in containers. Note that currently module filenames are "
-            "constrained to follow the pattern <mod_name>.[fF]90 and "
-            "the search path is set to []" in str(err.value))
+            " - looked at any routines in the same source file and there are "
+            "no wildcard imports." in str(err.value))
+    # Repeat but in the presence of a wildcard import.
+    code = '''
+subroutine top()
+  use some_mod_somewhere
+  call bottom()
+end subroutine top'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call = psyir.walk(Call)[0]
+    with pytest.raises(NotImplementedError) as err:
+        _ = call.get_callees()
+    assert ("Failed to find the source code of the unresolved routine 'bottom'"
+            " - looked at any routines in the same source file and attempted "
+            "to resolve the wildcard imports from ['some_mod_somewhere']. "
+            "However, failed to find the source for ['some_mod_somewhere']. "
+            "The module search path is set to []" in str(err.value))
+    # Repeat but when some_mod_somewhere *is* resolved but doesn't help us
+    # find the routine we're looking for.
+    path = str(tmpdir)
+    monkeypatch.setattr(Config.get(), '_include_paths', [path])
+    with open(os.path.join(path, "that_file.f90"), "w") as ofile:
+        ofile.write('''\
+module some_mod_somewhere
+end module some_mod_somewhere
+''')
+    with pytest.raises(NotImplementedError) as err:
+        _ = call.get_callees()
+    assert ("Failed to find the source code of the unresolved routine 'bottom'"
+            " - looked at any routines in the same source file and wildcard "
+            "imports from ['some_mod_somewhere']." in str(err.value))
+    mod_manager = ModuleManager.get()
+    monkeypatch.setattr(mod_manager, "_instance", None)
+    with open(os.path.join(path, "that_file.f90"), "w") as ofile:
+        ofile.write('''\
+module some_mod_somewhere
+  use cannot_be_found, only: bottom
+end module some_mod_somewhere
+''')
+    with pytest.raises(NotImplementedError) as err:
+        _ = call.get_callees()
+    assert "halleluja" in str(err.value)
 
 
 def test_call_get_callees_unsupported_type(fortran_reader):
@@ -804,10 +843,11 @@ end module other_mod
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     # This should fail as it can't find the module.
-    with pytest.raises(FileNotFoundError) as err:
+    with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()
-    assert ("Could not find source file for module 'some_mod' in any of the "
-            "directories ''" in str(err))
+    assert ("Failed to find the source code of the unresolved routine "
+            "'just_do_it' - looked at any routines in the same source file"
+            in str(err.value))
     # Create the module containing the subroutine definition,
     # write it to file and set the search path so that PSyclone can find it.
     path = str(tmpdir)
