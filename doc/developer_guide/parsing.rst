@@ -58,7 +58,7 @@ Kernel-layer Fortran written by users consists of the kernel code
 itself and metadata describing the kernel code.  PSyclone needs this
 metadata to generate the PSy-layer code. The new approach takes the
 generic PSyIR representation of the kernel metadata (which is actually
-captured as a string within a PSyIR UnknownFortranType as the generic
+captured as a string within a PSyIR UnsupportedFortranType as the generic
 PSyIR does not understand its structure) and 'raises' this into
 domain-specific classes (using the ``RaisePSyIR2LFRicKernelTrans`` and
 ``RaisePSyIR2GOceanKernelTrans`` transformations for the LFRic and

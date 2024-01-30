@@ -47,9 +47,9 @@ from psyclone.psyir.nodes import (
     Reference, ArrayReference, Assignment,
     Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    ArrayType, DataSymbol, DataTypeSymbol, DeferredType, ScalarType,
+    ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, ScalarType,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, Symbol, INTEGER_TYPE,
-    UnknownFortranType)
+    UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
 
 
@@ -526,39 +526,40 @@ def test_array_datatype():
     code = upper.debug_string()
     assert code == "(4 - 2) / 1 + 1"
     # Reference to a single element of an array of structures.
-    stype = DataTypeSymbol("grid_type", DeferredType())
+    stype = DataTypeSymbol("grid_type", UnresolvedType())
     atype = ArrayType(stype, [10])
     asym = DataSymbol("aos", atype)
     aref = ArrayReference.create(asym, [two.copy()])
     assert aref.datatype is stype
-    # Reference to a single element of an array of UnknownType.
-    unknown_sym = DataSymbol(
-        "unknown",
-        UnknownFortranType("real, dimension(5), pointer :: unknown"))
-    aref = ArrayReference.create(unknown_sym, [two.copy()])
-    assert isinstance(aref.datatype, DeferredType)
-    # Reference to a single element of an array of UnknownType but with partial
-    # type information.
-    not_quite_unknown_sym = DataSymbol(
-        "unknown",
-        UnknownFortranType("real, dimension(5), pointer :: unknown",
-                           partial_datatype=ArrayType(REAL_SINGLE_TYPE, [5])))
-    bref = ArrayReference.create(not_quite_unknown_sym, [two.copy()])
+    # Reference to a single element of an array of UnsupportedType.
+    unsuppored_sym = DataSymbol(
+        "unsuppored",
+        UnsupportedFortranType("real, dimension(5), pointer :: unsuppored"))
+    aref = ArrayReference.create(unsuppored_sym, [two.copy()])
+    assert isinstance(aref.datatype, UnresolvedType)
+    # Reference to a single element of an array of UnsupportedType but with
+    # partial type information.
+    not_quite_unsuppored_sym = DataSymbol(
+        "unsuppored",
+        UnsupportedFortranType(
+            "real, dimension(5), pointer :: unsuppored",
+            partial_datatype=ArrayType(REAL_SINGLE_TYPE, [5])))
+    bref = ArrayReference.create(not_quite_unsuppored_sym, [two.copy()])
     assert bref.datatype == REAL_SINGLE_TYPE
-    # A sub-array of UnknownFortranType.
-    aref3 = ArrayReference.create(unknown_sym, [Range.create(two.copy(),
-                                                             four.copy())])
+    # A sub-array of UnsupportedFortranType.
+    aref3 = ArrayReference.create(
+                unsuppored_sym, [Range.create(two.copy(), four.copy())])
     # We know the result is an ArrayType
     assert isinstance(aref3.datatype, ArrayType)
     assert aref3.datatype.shape[0].lower == one
     upper = aref3.datatype.shape[0].upper
     assert isinstance(upper, BinaryOperation)
     # But we don't know the type of the array elements.
-    assert isinstance(aref3.datatype.intrinsic, DeferredType)
-    # A whole array of UnknownType should simply have the same datatype as
+    assert isinstance(aref3.datatype.intrinsic, UnresolvedType)
+    # A whole array of UnsupportedType should simply have the same datatype as
     # the original symbol.
-    aref4 = ArrayReference.create(not_quite_unknown_sym, [":"])
-    assert aref4.datatype == not_quite_unknown_sym.datatype
+    aref4 = ArrayReference.create(not_quite_unsuppored_sym, [":"])
+    assert aref4.datatype == not_quite_unsuppored_sym.datatype
     # When the Reference is just to a Symbol. Although `create` forbids this,
     # it is possible for the fparser2 frontend to create such a construct.
     generic_sym = Symbol("existential")

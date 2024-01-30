@@ -45,8 +45,8 @@ from psyclone.psyir.nodes import (
     Return, Literal, Assignment, StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, DataSymbol, DeferredType, INTEGER_TYPE,
-    StaticInterface, Symbol, SymbolError, UnknownInterface, UnknownType)
+    ArgumentInterface, ArrayType, DataSymbol, UnresolvedType, INTEGER_TYPE,
+    StaticInterface, Symbol, SymbolError, UnknownInterface, UnsupportedType)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -109,7 +109,8 @@ class InlineTrans(Transformation):
         * the routine contains an early Return statement;
         * the routine contains a variable with UnknownInterface;
         * the routine contains a variable with StaticInterface;
-        * the routine contains an UnknownType variable with ArgumentInterface;
+        * the routine contains an UnsupportedType variable with
+          ArgumentInterface;
         * the routine has a named argument;
         * the shape of any array arguments as declared inside the routine does
           not match the shape of the arrays being passed as arguments;
@@ -583,7 +584,7 @@ class InlineTrans(Transformation):
         :raises TransformationError: if any of the variables declared within \
             the called routine have a StaticInterface.
         :raises TransformationError: if any of the subroutine arguments is of \
-            UnknownType.
+            UnsupportedType.
         :raises TransformationError: if a symbol of a given name is imported \
             from different containers at the call site and within the routine.
         :raises TransformationError: if the routine accesses an un-resolved \
@@ -642,15 +643,15 @@ class InlineTrans(Transformation):
         routine_table = routine.symbol_table
 
         for sym in routine_table.datasymbols:
-            # We don't inline symbols that have an UnknownType and are
+            # We don't inline symbols that have an UnsupportedType and are
             # arguments since we don't know if a simple assingment if
             # enough (e.g. pointers)
             if isinstance(sym.interface, ArgumentInterface):
-                if isinstance(sym.datatype, UnknownType):
+                if isinstance(sym.datatype, UnsupportedType):
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"it contains a Symbol '{sym.name}' which is an "
-                        f"Argument of UnknownType: "
+                        f"Argument of UnsupportedType: "
                         f"'{sym.datatype.declaration}'")
             # We don't inline symbols that have an UnknownInterface, as we
             # don't know how they are brought into this scope.
@@ -774,11 +775,12 @@ class InlineTrans(Transformation):
             # type information on the actual argument.
             # TODO #924. It would be useful if the `datatype` property was
             # a method that took an optional 'resolve' argument to indicate
-            # that it should attempt to resolve any DeferredTypes.
-            if (isinstance(actual_arg.datatype, (DeferredType, UnknownType)) or
+            # that it should attempt to resolve any UnresolvedTypes.
+            if (isinstance(actual_arg.datatype,
+                           (UnresolvedType, UnsupportedType)) or
                 (isinstance(actual_arg.datatype, ArrayType) and
                  isinstance(actual_arg.datatype.intrinsic,
-                            (DeferredType, UnknownType)))):
+                            (UnresolvedType, UnsupportedType)))):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
                     f"the type of the actual argument "

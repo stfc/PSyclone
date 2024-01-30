@@ -548,7 +548,7 @@ the result is a boolean array.
 
 The PSyIR type system includes support for those situations where
 PSyclone is not able to fully understand a variable declaration.
-In such cases, the type is an instance of `UnknownFortranType` which
+In such cases, the type is an instance of `UnsupportedFortranType` which
 stores both the original declaration and, optionally, a `partial_datatype`
 holding the aspects of the type that can be represented in the PSyIR.
 The presence of a `partial_datatype` implies that we fully understand
@@ -828,7 +828,7 @@ Data Type of a Structure Access
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 In order to get the actual data type of a structure reference, PSyclone
 needs to have access to the declaration of all structures involved
-in the accessor expression. However, these are often DeferredType if the
+in the accessor expression. However, these are often UnresolvedType if the
 module where they are declared has not been processed. In the case of
 some domain-API arguments added by PSyclone to a kernel call (e.g. the
 indices in GOcean, or additional field information in LFRic), the type

@@ -44,10 +44,10 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, DeferredType,
-                                    UnknownFortranType, UnknownType,
-                                    DataTypeSymbol, ScalarType, Symbol,
-                                    INTEGER_TYPE)
+from psyclone.psyir.symbols import (DataSymbol, UnresolvedType,
+                                    UnsupportedFortranType, UnsupportedType,
+                                    DataTypeSymbol, ScalarType, ArrayType,
+                                    INTEGER_TYPE, Symbol)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -87,8 +87,9 @@ class ArrayReference(ArrayMixin, Reference):
                 f"indices argument in create method of ArrayReference class "
                 f"should be a list but found '{type(indices).__name__}'.")
         if not symbol.is_array:
-            # Deferred and Unknown types may still be arrays
-            if not isinstance(symbol.datatype, (DeferredType, UnknownType)):
+            # Deferred and Unsupported types may still be arrays
+            if not isinstance(symbol.datatype, (UnresolvedType,
+                                                UnsupportedType)):
                 raise GenerationError(
                     f"expecting the symbol '{symbol.name}' to be an array, but"
                     f" found '{symbol.datatype}'.")
@@ -137,7 +138,7 @@ class ArrayReference(ArrayMixin, Reference):
                 # We have full type information so we know the shape of the
                 # original declaration.
                 orig_shape = self.symbol.datatype.shape
-            elif (isinstance(self.symbol.datatype, UnknownFortranType) and
+            elif (isinstance(self.symbol.datatype, UnsupportedFortranType) and
                   self.symbol.datatype.partial_datatype):
                 # We have partial type information so we also know the shape
                 # of the original declaration.
@@ -155,14 +156,14 @@ class ArrayReference(ArrayMixin, Reference):
                 # of this method.)
                 return self.symbol.datatype
             if type(self.symbol) is Symbol or isinstance(self.symbol.datatype,
-                                                         UnknownType):
-                # Even if an Unknown(Fortran)Type has partial type
+                                                         UnsupportedType):
+                # Even if an Unsupported(Fortran)Type has partial type
                 # information, we can't easily use it here because we'd need
                 # to re-write the original Fortran declaration stored in the
                 # type. We could manipulate the shape in the fparser2 parse
                 # tree if need be but, at this point, we wouldn't know what
                 # the variable name should be (TODO #2137).
-                base_type = DeferredType()
+                base_type = UnresolvedType()
             else:
                 base_type = self.symbol.datatype
             # TODO #1857 - passing base_type as an instance of ArrayType
@@ -173,19 +174,19 @@ class ArrayReference(ArrayMixin, Reference):
         # Otherwise, we're accessing a single element of the array.
         if type(self.symbol) is Symbol:
             return DeferredType()
-        if isinstance(self.symbol.datatype, UnknownType):
-            if (isinstance(self.symbol.datatype, UnknownFortranType) and
+        if isinstance(self.symbol.datatype, UnsupportedType):
+            if (isinstance(self.symbol.datatype, UnsupportedFortranType) and
                     self.symbol.datatype.partial_datatype):
                 precision = self.symbol.datatype.partial_datatype.precision
                 intrinsic = self.symbol.datatype.partial_datatype.intrinsic
                 return ScalarType(intrinsic, precision)
             # Since we're accessing a single element of an array of
-            # UnknownType we have to create a new UnknownFortranType.
+            # UnsupportedType we have to create a new UnsupportedFortranType.
             # Ideally we would re-write the original Fortran
             # declaration stored in the type. We could remove the
             # shape in the fparser2 parse tree but, at this point, we
             # wouldn't know what the variable name should be (TODO #2137).
-            return DeferredType()
+            return UnresolvedType()
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return
