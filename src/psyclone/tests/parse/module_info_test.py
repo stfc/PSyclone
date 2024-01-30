@@ -179,7 +179,7 @@ def test_mod_info_get_used_symbols_from_modules():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_info_get_psyir():
+def test_mod_info_get_psyir(capsys):
     '''This tests the handling of PSyIR representation of the module.
     '''
 
@@ -211,6 +211,10 @@ def test_mod_info_get_psyir():
     assert broken_builtins_psyir.name == "invalid-module"
     assert isinstance(broken_builtins_psyir.parent, FileContainer)
     assert broken_builtins_psyir.parent.name == "broken_builtins_mod.f90"
+
+    out, _ = capsys.readouterr()
+    assert "Error trying to parse" in out
+    assert "Expecting name 'aX_plus_bY', got 'blah'" in out
 
 
 # -----------------------------------------------------------------------------
