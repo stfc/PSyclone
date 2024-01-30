@@ -3673,11 +3673,19 @@ class Fparser2Reader():
                              ("dim", Literal(str(idx+1), INTEGER_TYPE))])
                     else:
                         lbound = shape[range_idx].lower.copy()
-                    # Create the index expression:
-                    #    idx-expr = array-lower-bound + loop-idx - 1
-                    expr = BinaryOperation.create(
-                        add_op, lbound, Reference(symbol))
-                    expr2 = BinaryOperation.create(sub_op, expr, one.copy())
+                    # Create the index expression.
+                    if isinstance(lbound, Literal) and lbound.value == "1":
+                        # Lower bound is just unity so we can use the loop-idx
+                        # directly.
+                        expr2 = Reference(symbol)
+                    else:
+                        # We don't know what the lower bound is so have to
+                        # have an expression:
+                        #    idx-expr = array-lower-bound + loop-idx - 1
+                        expr = BinaryOperation.create(
+                            add_op, lbound, Reference(symbol))
+                        expr2 = BinaryOperation.create(sub_op, expr,
+                                                       one.copy())
                     array.children[idx] = expr2
                     range_idx += 1
 
@@ -3850,7 +3858,7 @@ class Fparser2Reader():
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
 
-            # This loop is over the shape of the mask and thus starts
+            # This loop is over the *shape* of the mask and thus starts
             # at unity. Each individual array access is then adjusted
             # according to the lower bound of that array.
             loop.addchild(Literal("1", integer_type))

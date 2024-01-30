@@ -327,7 +327,7 @@ def test_where_within_loop(fortran_reader):
     assert isinstance(where_loop.loop_body[0], IfBlock)
     assign = where_loop.loop_body[0].if_body[0]
     assert isinstance(assign, Assignment)
-    assert assign.lhs.indices[0].debug_string() == "1 + widx1 - 1"
+    assert assign.lhs.indices[0].debug_string() == "widx1"
     assert assign.lhs.indices[1].debug_string() == "jl"
     assert where_loop.start_expr.value == "1"
     assert (where_loop.stop_expr.debug_string() ==
@@ -359,7 +359,7 @@ def test_basic_where():
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
     assert (ifblock.condition.debug_string() ==
-            "dry(1 + widx1 - 1,1 + widx2 - 1,1 + widx3 - 1)")
+            "dry(widx1,widx2,widx3)")
 
 
 @pytest.mark.usefixtures("parser")
@@ -384,9 +384,9 @@ def test_where_array_subsections():
     # Check that the array reference is indexed correctly
     assign = ifblock.if_body[0]
     assert isinstance(assign, Assignment)
-    assert isinstance(assign.lhs.children[0], BinaryOperation)
-    assert assign.lhs.children[0].debug_string() == "1 + widx1 - 1"
-    assert assign.lhs.children[2].debug_string() == "1 + widx2 - 1"
+    assert isinstance(assign.lhs.children[0], Reference)
+    assert assign.lhs.children[0].debug_string() == "widx1"
+    assert assign.lhs.children[2].debug_string() == "widx2"
 
 
 def test_where_body_containing_sum_with_dim(fortran_reader, fortran_writer):
@@ -539,7 +539,7 @@ def test_elsewhere():
     assert isinstance(ifblock.condition, BinaryOperation)
     assert ifblock.condition.operator == BinaryOperation.Operator.GT
     assert (ifblock.condition.debug_string() ==
-            "ptsu(1 + widx1 - 1,1 + widx2 - 1,1 + widx3 - 1) > 10._wp")
+            "ptsu(widx1,widx2,widx3) > 10._wp")
     # Check that this IF block has an else body which contains another IF
     assert ifblock.else_body is not None
     ifblock2 = ifblock.else_body[0]
@@ -548,7 +548,7 @@ def test_elsewhere():
     assert isinstance(ifblock2.condition, BinaryOperation)
     assert ifblock2.condition.operator == BinaryOperation.Operator.LT
     assert (ifblock2.condition.debug_string() ==
-            "ptsu(1 + widx1 - 1,1 + widx2 - 1,1 + widx3 - 1) < 0.0_wp")
+            "ptsu(widx1,widx2,widx3) < 0.0_wp")
     # Check that this IF block too has an else body
     assert isinstance(ifblock2.else_body[0], Assignment)
     # Check that we have three assignments of the correct form and with the
@@ -560,7 +560,7 @@ def test_elsewhere():
         refs = assign.lhs.walk(Reference)
         assert len(refs) == 4
         assert (assign.lhs.debug_string() ==
-                "z1_st(1 + widx1 - 1,1 + widx2 - 1,1 + widx3 - 1)")
+                "z1_st(widx1,widx2,widx3)")
         assert isinstance(assign.parent.parent, IfBlock)
 
     assert isinstance(assigns[0].rhs, BinaryOperation)

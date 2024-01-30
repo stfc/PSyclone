@@ -546,10 +546,23 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 start = expr.lower
                 stop = expr.upper
                 step = Literal("1", INTEGER_TYPE)
-            minus = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                           stop.copy(), start.copy())
+            if (isinstance(start, IntrinsicCall) and
+                    start.intrinsic == IntrinsicCall.Intrinsic.LBOUND and
+                    isinstance(stop, IntrinsicCall) and
+                    stop.intrinsic == IntrinsicCall.Intrinsic.UBOUND and
+                    isinstance(start.children[0], Reference) and
+                    isinstance(stop.children[0], Reference) and
+                    start.children[0].symbol is stop.children[0].symbol and
+                    start.children[1] == stop.children[1]):
+                extent = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.SIZE,
+                    [stop.children[0].copy(),
+                     ("dim", stop.children[1].copy())])
+            else:
+                extent = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                                stop.copy(), start.copy())
             div = BinaryOperation.create(BinaryOperation.Operator.DIV,
-                                         minus, step.copy())
+                                         extent, step.copy())
             plus = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                           div, Literal("1", INTEGER_TYPE))
             return plus
