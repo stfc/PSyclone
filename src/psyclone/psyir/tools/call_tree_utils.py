@@ -285,6 +285,8 @@ class CallTreeUtils():
                           f"ignored.")
                     continue
 
+                # TODO #2435: once we have interface support, this will be
+                # handled by the container node.
                 all_possible_routines = mod_info.resolve_routine(kernel.name)
                 for routine_name in all_possible_routines:
                     psyir = \
