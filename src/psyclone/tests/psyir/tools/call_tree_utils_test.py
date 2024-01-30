@@ -187,7 +187,7 @@ def test_call_tree_get_used_symbols_from_modules():
             )
     assert non_locals_without_access == expected
 
-    # Check the handling of a symbol that is not found: _compute_non_locals
+    # Check the handling of a symbol that is not found: _compute_all_non_locals
     # should return None:
     ref = psyir.walk(Reference)[0]
     # Change the name of the symbol so that it is not in the symbol table:
@@ -347,7 +347,6 @@ def test_module_info_generic_interfaces():
     mod_man.add_search_path("d2")
     mod_info = mod_man.get_module_info("g_mod")
     ctu = CallTreeUtils()
-    # ctu.get_non_local_symbols(mod_info.get_psyir("myfunc"))
 
     all_routines = mod_info.resolve_routine("myfunc")
     all_non_locals = []
@@ -374,8 +373,8 @@ def test_module_info_generic_interfaces():
 
 
 # -----------------------------------------------------------------------------
-def test_call_tree_utils_inout_parameters_nemo(fortran_reader):
-    '''Test detection of input and output parameters in NEMO.
+def test_call_tree_utils_inout_parameters_generic(fortran_reader):
+    '''Test detection of input and output parameters in the generic PSyIR.
     '''
     source = '''program test
                 integer :: ji, jj, jpj
