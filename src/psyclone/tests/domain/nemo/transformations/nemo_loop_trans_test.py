@@ -70,11 +70,7 @@ def test_all_nemo_loop_trans_base_validate(monkeypatch):
             # The Loop fuse validation function requires two
             # parameters (the two loops to fuse), so it needs
             # to be tested separately:
-            if isinstance(trans, NemoLoopFuseTrans):
-                with pytest.raises(NotImplementedError) as err:
-                    trans.validate(loop, node2=loop)
-            else:
-                with pytest.raises(NotImplementedError) as err:
-                    trans.validate(loop)
+            with pytest.raises(NotImplementedError) as err:
+                trans.validate(loop)
             assert "validate test exception" in str(err.value), \
                    f"{name}.validate() does not call LoopTrans.validate()"
