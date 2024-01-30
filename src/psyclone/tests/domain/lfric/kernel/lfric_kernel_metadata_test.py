@@ -50,7 +50,7 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, REAL_TYPE, \
-    UnknownFortranType
+    UnsupportedFortranType
 
 # pylint: disable=too-many-statements
 
@@ -1004,7 +1004,7 @@ def test_create_from_psyir_error():
         _ = LFRicKernelMetadata.create_from_psyir(
             DataTypeSymbol("x", REAL_TYPE))
     assert ("Expected kernel metadata to be stored in the PSyIR as an "
-            "UnknownFortranType, but found ScalarType." in str(info.value))
+            "UnsupportedFortranType, but found ScalarType." in str(info.value))
 
 
 @pytest.mark.parametrize("procedure_format", ["", "code =>"])
@@ -1120,7 +1120,7 @@ def test_create_from_fparser2_error():
 
 
 def test_lower_to_psyir():
-    '''Test that the metadata can be lowered to an UnknownFortranType
+    '''Test that the metadata can be lowered to an UnsupportedFortranType
     symbol.
 
     '''
@@ -1128,7 +1128,7 @@ def test_lower_to_psyir():
     symbol = metadata.lower_to_psyir()
     assert isinstance(symbol, DataTypeSymbol)
     assert symbol.name == metadata.name
-    assert isinstance(symbol.datatype, UnknownFortranType)
+    assert isinstance(symbol.datatype, UnsupportedFortranType)
     assert symbol.datatype.declaration == metadata.fortran_string()
 
 

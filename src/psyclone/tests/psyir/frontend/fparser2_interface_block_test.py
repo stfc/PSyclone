@@ -42,12 +42,12 @@ import pytest
 
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
-    RoutineSymbol, Symbol, UnknownFortranType, DataTypeSymbol)
+    RoutineSymbol, Symbol, UnsupportedFortranType, DataTypeSymbol)
 
 
 def test_named_interface(fortran_reader):
-    ''' Test that the frontend creates a RoutineSymbol of UnknownFortranType
-    for a named interface block.'''
+    ''' Test that the frontend creates a RoutineSymbol of
+    UnsupportedFortranType for a named interface block.'''
     dummy_module = '''
     module dummy_mod
       private
@@ -74,7 +74,7 @@ def test_named_interface(fortran_reader):
     assert container.symbol_table.lookup("eos_insitu")
     eos = container.symbol_table.lookup("eos")
     assert isinstance(eos, RoutineSymbol)
-    assert isinstance(eos.datatype, UnknownFortranType)
+    assert isinstance(eos.datatype, UnsupportedFortranType)
     assert (eos.datatype.declaration == "interface eos\n"
             "  module procedure eos_insitu, eos_insitu_2d\n"
             "end interface")
@@ -83,7 +83,7 @@ def test_named_interface(fortran_reader):
 
 def test_named_interface_declared(fortran_reader):
     ''' Test that the frontend creates a RoutineSymbol of
-    UnknownFortranType for a named interface block when the symbol
+    UnsupportedFortranType for a named interface block when the symbol
     name has already been declared. '''
     test_module = '''
     module test_mod
@@ -108,7 +108,7 @@ def test_named_interface_declared(fortran_reader):
     assert container.symbol_table.lookup("_psyclone_internal_test")
     test_symbol = container.symbol_table.lookup("_psyclone_internal_test")
     assert isinstance(test_symbol, RoutineSymbol)
-    assert isinstance(test_symbol.datatype, UnknownFortranType)
+    assert isinstance(test_symbol.datatype, UnsupportedFortranType)
     assert (test_symbol.datatype.declaration == "interface test\n"
             "  module procedure test_code\n"
             "end interface test")
@@ -186,7 +186,7 @@ end module dummy_mod
     (ABSTRACT_INTERFACE_CODE, "abstract interface", "end interface")])
 def test_unnamed_interface(fortran_reader, code, start, end):
     ''' Test that the frontend creates a RoutineSymbol of
-    UnknownFortranType for the supplied unnamed interfaces. '''
+    UnsupportedFortranType for the supplied unnamed interfaces. '''
     file_container = fortran_reader.psyir_from_source(code)
     container = file_container.children[0]
     assert isinstance(container, Container)
@@ -194,7 +194,7 @@ def test_unnamed_interface(fortran_reader, code, start, end):
     interface_symbol = container.symbol_table.lookup(
         "_psyclone_internal_interface")
     assert isinstance(interface_symbol, RoutineSymbol)
-    assert isinstance(interface_symbol.datatype, UnknownFortranType)
+    assert isinstance(interface_symbol.datatype, UnsupportedFortranType)
     assert interface_symbol.datatype.declaration.startswith(start)
     assert interface_symbol.datatype.declaration.endswith(end)
     assert interface_symbol.visibility == Symbol.Visibility.PUBLIC

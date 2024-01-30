@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023, Science and Technology Facilities Council
+! Copyright (c) 2023-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,16 +33,17 @@
 !-------------------------------------------------------------------------------
 ! Author J. Henrichs, Bureau of Meteorology
 
+! A simple module that calls a kernel and also uses a builtin. This is used
+! for testing the basic functionality of extraction and driver creation
+
 module module_with_builtin
 
 contains
 
   subroutine sub_with_builtin
-    ! Description: single function specified in a named invoke call
     use constants_mod, only: r_def
     use field_mod,     only: field_type
     use testkern_import_symbols_mod,  only: testkern_import_symbols_type
-    use testkern_import_symbols_name_clash_mod,  only: testkern_import_symbols_name_clash_type
 
     implicit none
 

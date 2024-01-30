@@ -42,8 +42,8 @@ import pytest
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import colored, Container, FileContainer, \
-    KernelSchedule, Return, Routine
+from psyclone.psyir.nodes import (colored, Container, FileContainer,
+                                  KernelSchedule, Return, Routine)
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
 from psyclone.tests.utilities import check_links
 
@@ -181,8 +181,8 @@ def test_container_children_validation():
             "" in str(excinfo.value))
 
 
-def test_container_get_psyir():
-    '''Test that get_psyir works
+def test_container_get_routine_psyir():
+    '''Test that get_routine_psyir works
 
     '''
     symbol_table = SymbolTable()
