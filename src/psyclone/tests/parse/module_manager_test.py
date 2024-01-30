@@ -289,8 +289,7 @@ def test_mod_man_sort_modules(capsys):
     deps_sorted = mod_man.sort_modules(deps)
     assert deps_sorted == ["b", "c", "a"]
     out, _ = capsys.readouterr()
-    assert ("Module 'c' contains a dependency to 'netcdf', for which we "
-            "have no dependencies." in out)
+    assert "Cannot find module `netcdf` which is used by module 'c'." in out
 
     # Ignore the netcdf dependencies:
     deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}

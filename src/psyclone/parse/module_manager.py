@@ -337,8 +337,8 @@ class ModuleManager:
                 # Print a warning if this module is not supposed to be ignored
                 if dep not in self.ignores():
                     # TODO 2120: allow a choice to abort or ignore.
-                    print(f"Module '{module}' contains a dependency to "
-                          f"'{dep}', for which we have no dependencies.")
+                    print(f"Cannot find module `{dep}` which is used by "
+                          f"module '{module}'.")
                 dependencies.remove(dep)
 
         while todo:
