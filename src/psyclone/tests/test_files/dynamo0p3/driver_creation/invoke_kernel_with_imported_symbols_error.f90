@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023, Science and Technology Facilities Council
+! Copyright (c) 2023-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,9 +33,11 @@
 !-------------------------------------------------------------------------------
 ! Author J. Henrichs, Bureau of Meteorology
 
-program invoke_kernel_with_imported_symbols
+! A single program calling a kernel which imports symbols from a module that
+! cannot be parsed. Used for testing error handling.
 
-  ! Description: single function specified in a named invoke call
+program invoke_kernel_with_imported_symbols_error
+
   use constants_mod, only: r_def
   use field_mod,     only: field_type
   use testkern_import_symbols_error_mod,  only: testkern_import_symbols_error_type
@@ -47,4 +49,4 @@ program invoke_kernel_with_imported_symbols
 
   call invoke(testkern_import_symbols_error_type(a, f1, f2, m1, m2))
 
-end program invoke_kernel_with_imported_symbols
+end program invoke_kernel_with_imported_symbols_error
