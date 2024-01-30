@@ -52,8 +52,8 @@ from psyclone.psyir.symbols.datatypes import DataType, ScalarType, \
     ArrayType, TYPE_MAP_TO_PYTHON, REAL_TYPE, REAL_SINGLE_TYPE, \
     REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, \
     INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType, NoType
+    BOOLEAN_TYPE, CHARACTER_TYPE, UnresolvedType, UnsupportedType, \
+    UnsupportedFortranType, StructureType, NoType
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.symbols import DataSymbol'
@@ -67,7 +67,7 @@ __all__ = ['ArgumentInterface',
            'DataType',
            'DataTypeSymbol',
            'DefaultModuleInterface',
-           'DeferredType',
+           'UnresolvedType',
            'ImportInterface',
            'INTEGER_TYPE',
            'INTEGER_SINGLE_TYPE',
@@ -90,7 +90,7 @@ __all__ = ['ArgumentInterface',
            'SymbolTable',
            'TYPE_MAP_TO_PYTHON',
            'TypedSymbol',
-           'UnknownFortranType',
+           'UnsupportedFortranType',
            'UnknownInterface',
-           'UnknownType',
+           'UnsupportedType',
            'UnresolvedInterface']
