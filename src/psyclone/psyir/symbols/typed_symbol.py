@@ -191,7 +191,8 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
     @property
     def is_array(self):
         '''
-        :returns: True if this symbol is an array and False otherwise.
+        :returns: True if this symbol is an array and False if it is not or
+            there is not enough symbol information to determine it.
         :rtype: bool
 
         '''
