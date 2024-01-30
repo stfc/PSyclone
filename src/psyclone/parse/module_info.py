@@ -35,7 +35,7 @@
 
 '''This module contains the ModuleInfo class, which is used to store
 and cache information about a module: the filename, source code (if requested)
-and the fparser tree (if requested), and information about routine it
+and the fparser tree (if requested), and information about any routines it
 includes, and external symbol usage.
 '''
 
@@ -114,16 +114,6 @@ class ModuleInfo:
         # This map contains the list of routine names that are part
         # of the same generic interface.
         self._generic_interfaces = {}
-
-        # This is a dictionary that will cache non-local symbols used in
-        # each routine. The key is the lowercase routine name, and the
-        # value is a list of triplets:
-        # - the type ('subroutine', 'function', 'reference', 'unknown').
-        #   The latter is used for array references or function calls,
-        #   which we cannot distinguish till #1314 is done.
-        # - the name of the module (lowercase)
-        # - the name of the symbol (lowercase)
-        self._routine_non_locals = None
 
         self._processor = Fparser2Reader()
 
