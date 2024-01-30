@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1564,6 +1564,30 @@ def test_debug_string(monkeypatch):
     monkeypatch.setattr(DebugWriter, "__call__", lambda x, y: "CORRECT STRING")
     tnode = Node()
     assert tnode.debug_string() == "CORRECT STRING"
+
+
+def test_origin_string(fortran_reader):
+    ''' Test that the origin_string() method retrieves the original source
+    information available on the tree. If there isn't enough information it
+    still succeeds but returning <unknown> fields.
+    '''
+    base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             os.pardir, os.pardir, "test_files", "gocean1p0")
+    filename = os.path.join(base_path, "continuity_mod.f90")
+    psyir = fortran_reader.psyir_from_file(filename)
+
+    # If its a Statement from a file, it can return the PSyIR node type, the
+    # line number span, the filename and the original source line.
+    string = psyir.walk(Statement)[0].origin_string()
+    assert "Assignment from line (76, 76) of file" in string
+    assert "continuity_mod.f90" in string
+    assert "ssha(ji,jj) = 0.0_go_wp" in string
+
+    # If its not a Statement, the line span, filename and original source are
+    # currenlty unknown
+    string = psyir.walk(Routine)[0].origin_string()
+    assert ("Routine from line <unknown> of file '<unknown>':\n"
+            "> <unknown>" in string)
 
 
 def test_path_from(fortran_reader):

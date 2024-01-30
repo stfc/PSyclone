@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,12 +36,13 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
-from fparser.common.readfortran import FortranStringReader
+from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, pattern_tools
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from fparser.two.utils import NoMatchError
+from psyclone.configuration import Config
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Schedule, Assignment, Routine
 from psyclone.psyir.symbols import SymbolTable
@@ -209,8 +210,14 @@ class FortranReader():
         # place to implement caching in order to avoid repeating parsing steps
         # that have already been done before.
 
-        with open(file_path, "r", encoding="utf-8") as source:
-            return self.psyir_from_source(source.read(), free_form=free_form)
+        # Using the FortranFileReader instead of manually open the file allows
+        # fparser to keep the filename information in the tree
+        reader = FortranFileReader(file_path,
+                                   include_dirs=Config.get().include_paths)
+        reader.set_format(FortranFormat(free_form, False))
+        parse_tree = self._parser(reader)
+        psyir = self._processor.generate_psyir(parse_tree)
+        return psyir
 
 
 # For Sphinx AutoAPI documentation generation

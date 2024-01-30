@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import (
-    ScalarType, ArrayType, DeferredType, UnknownType, INTEGER_TYPE)
+    ScalarType, ArrayType, UnresolvedType, UnsupportedType, INTEGER_TYPE)
 
 
 class ArrayMixin(metaclass=abc.ABCMeta):
@@ -207,12 +207,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             else:
                 cnames.append(cursor.name.lower())
             # Continue to resolve datatype unless we hit an
-            # UnknownType or DeferredType.
+            # UnsupportedType or UnresolvedType.
             if isinstance(cursor_type, ArrayType):
                 cursor_type = cursor_type.intrinsic
             if isinstance(cursor_type, DataTypeSymbol):
                 cursor_type = cursor_type.datatype
-            if isinstance(cursor_type, (UnknownType, DeferredType)):
+            if isinstance(cursor_type, (UnsupportedType, UnresolvedType)):
                 continue
             cursor_type = cursor_type.components[cursor.name.lower()].datatype
 
@@ -389,7 +389,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         datatype = symbol.datatype
 
         if not isinstance(datatype, ArrayType):
-            # The declaration datatype could be of UnknownFortranType
+            # The declaration datatype could be of UnsupportedFortranType
             # if the symbol is of e.g. character type.
             return False
 

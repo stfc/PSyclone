@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,7 +67,7 @@ def test_init_var():
     '''Test that the _init_var method works as expected.'''
     trans = Maxval2LoopTrans()
     var_symbol = DataSymbol("var", REAL_TYPE)
-    result = trans._init_var(var_symbol)
+    result = trans._init_var(Reference(var_symbol))
     assert result.debug_string() == "-HUGE(var)"
 
 

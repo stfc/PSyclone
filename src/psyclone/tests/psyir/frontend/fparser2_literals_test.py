@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
 from psyclone.psyir.nodes import (
     Node, Literal, CodeBlock, Schedule, Assignment, Routine)
 from psyclone.psyir.symbols import (
-    ScalarType, DataSymbol, INTEGER_TYPE, UnknownFortranType,
+    ScalarType, DataSymbol, INTEGER_TYPE, UnsupportedFortranType,
     SymbolTable)
 
 
@@ -77,8 +77,8 @@ def test_handling_literal(code, dtype):
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
     # Ensure the symbol table has an entry for "x"
-    fake_parent.symbol_table.add(DataSymbol("x",
-                                            UnknownFortranType("blah :: x")))
+    fake_parent.symbol_table.add(
+        DataSymbol("x", UnsupportedFortranType("blah :: x")))
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
@@ -132,7 +132,8 @@ def test_literal_char_without_quotes_error():
     # Edit the resulting parse tree to remove the quotes
     astmt.children[2].items = ("hello", None)
     sched = Schedule()
-    sched.symbol_table.add(DataSymbol("x", UnknownFortranType("blah :: x")))
+    sched.symbol_table.add(
+        DataSymbol("x", UnsupportedFortranType("blah :: x")))
     processor = Fparser2Reader()
     with pytest.raises(InternalError) as err:
         processor.process_nodes(sched, [astmt])

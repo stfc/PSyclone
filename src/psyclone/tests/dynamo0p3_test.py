@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@ from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
                                   Reference, Routine)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
-                                    UnknownFortranType)
+                                    UnsupportedFortranType)
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -1449,7 +1449,7 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = second_arg.psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "f1_data"
-    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype, UnsupportedFortranType)
     assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
     assert (psyir.symbol.datatype.partial_datatype.intrinsic ==
             ScalarType.Intrinsic.REAL)
@@ -1491,7 +1491,7 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = kern.arguments.args[0].psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "mm_w0_local_stencil"
-    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype, UnsupportedFortranType)
     assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
     assert len(psyir.symbol.datatype.partial_datatype.shape) == 3
     # Test for a CMA operator argument.
@@ -1504,7 +1504,7 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = kern.arguments.args[1].psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "cma_op1_cma_matrix"
-    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype, UnsupportedFortranType)
     assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
     assert len(psyir.symbol.datatype.partial_datatype.shape) == 3
 
@@ -1790,7 +1790,7 @@ def test_dynkernelargument_idtp_integer_field():
     # Use one of the examples to create an instance of
     # DynKernelArgument that describes a field.
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "15.10.3_int_X_builtin.f90"),
+        os.path.join(BASE_PATH, "15.10.3_real_to_int_X_builtin.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     field_argument = psy.invokes.invoke_list[0].schedule.args[0]
@@ -1812,9 +1812,10 @@ def test_dynkernelargument_idtp_integer_field():
     arg = Arg("variable", None, None, ("field_type", None))
     with pytest.raises(GenerationError) as info:
         field_argument._init_data_type_properties(arg)
-    assert ("The metadata for argument 'f2' in kernel 'int_x' specifies "
-            "that this is an integer field, however it is declared as a "
-            "'field_type' in the algorithm code." in str(info.value))
+    assert ("The metadata for argument 'f2' in kernel 'real_to_int_x' "
+            "specifies that this is an integer field, however it is "
+            "declared as a 'field_type' in the algorithm code."
+            in str(info.value))
 
 
 def test_dynkernelargument_idtp_vector_field():
