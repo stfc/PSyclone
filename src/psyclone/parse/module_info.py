@@ -104,7 +104,7 @@ class ModuleInfo:
         self._used_symbols_from_module = None
 
         # This variable will be a set that stores the name of all routines
-        # (based on fparser), # so we can test is a routine is defined
+        # (based on fparser), so we can test is a routine is defined
         # without having to convert the AST to PSyIR. It is initialised with
         # None so we avoid trying to parse a file more than once (parsing
         # errors would cause routine_names to be empty, so we can test
