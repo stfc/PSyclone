@@ -1,0 +1,260 @@
+{# Added this as Jinja code so that it is understood that the
+   comment does not apply to THIS file. #}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
+{{ "! ================================================== !" }}
+
+{# This jinja template file creates a base class for kernel
+   extraction libraries. It produces the required ProvideVariable()
+   functions for the specified Fortran basic types. Any library
+   using this base class can provide the required Fortran basic
+   types (see ALL_TYPES below) and the list of array dimensions
+   (see ALL_DIMS) that need to be supported when processing this
+   template.
+
+   This Extraction base class depends on the PSyData base
+   class, which will provide the other Fortran-type-specific
+   functions for PreDeclarVariable(). Any function can obviously
+   be overwritten by a derived class.
+#}
+
+{% if ALL_DIMS is not defined -%}
+   {# Support 1 to 4 dimensional arrays if not specified #}
+   {% set ALL_DIMS = [1, 2, 3, 4] -%}
+{% endif -%}
+
+{# The types that are supported. The first entry of each tuple
+   is the name used when naming subroutines and in user messages.
+   The second entry is the Fortran declaration. The third entry
+   is the number of bits. There is slightly different code
+   required for 32 and 64 bit values (due to the fact that the
+   Fortran transfer(value, mould) function leaves undefined bits
+   when mould is larger than value.) #}
+
+{% if ALL_TYPES is not defined -%}
+   {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
+                        ("Real",   "real(kind=real32)",   32),
+                        ("Character",   "character(*)",    8),
+                        ("Long",   "real(kind=int64)",    64),
+                        ("Int",    "integer(kind=int32)", 32) ] %}
+{% endif -%}
+
+
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2022-2023, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: J. Henrichs, Bureau of Meteorology
+
+!> This module implements a simple stand-alone writer using the PSyData
+!! interface. A Fortran code instrumented with corresponding calls
+!! to the PSyData API and linked in with this library will create
+!! a binary file that contains all scalar values, and the dimensions
+!! and content for each array.
+
+module extract_standalone_base_mod
+
+    use psy_data_base_mod, only : PSyDataBaseType, is_enabled
+
+    use, intrinsic :: iso_fortran_env, only : int64, int32,   &
+                                              real32, real64, &
+                                              stderr => Error_Unit
+
+    implicit none
+
+    !> This is the data type that manages the information required
+    !! to write data to a file using the PSyData API. A
+    !! static instance of this type is created for each instrumented
+    !! region with PSyclone (and each region will write a separate
+    !! file).
+    type, extends(PSyDataBaseType), public :: ExtractStandaloneBaseType
+
+        !> The unit number to use for output
+        integer                            :: unit_number
+
+    contains
+
+        ! The various procedures used
+        procedure :: PreStart
+        procedure :: PostEnd
+
+        {# Collect and declare the various procedures for the same generic interface -#}
+        {# ------------------------------------------------------------------------- -#}
+        {% set all_declares=[] -%}
+        {% set all_provides=[] -%}
+        {% for name, type, bits in ALL_TYPES %}
+        procedure :: WriteScalar{{name}}
+          {{- all_provides.append("WriteScalar"~name) or "" }}
+          {% for dim in ALL_DIMS %}
+        procedure :: WriteArray{{dim}}d{{name}}
+            {{- all_provides.append("WriteArray"~dim~"d"~name) or "" }}
+          {% endfor %}
+        {% endfor %}
+
+        {% set indent="            " %}
+        {% if GENERIC_PROVIDE %}
+        !> The generic interface for providing the value of variables:
+        generic, public :: ProvideVariable => &
+            {{all_provides|join(", &\n"+indent) }}
+        {% endif %}
+
+    end type ExtractStandaloneBaseType
+
+contains
+
+    ! -------------------------------------------------------------------------
+    !> @brief This is a one-time init function. It is not required for the kernel
+    !! extraction and is therefore empty.
+    subroutine extract_PSyDataInit()
+        implicit none
+    end subroutine extract_PSyDataInit
+
+    ! -------------------------------------------------------------------------
+    !> @brief This is a one-time shutdown function. It is not required for the kernel
+    !! extraction and is therefore empty.
+    subroutine extract_PSyDataShutdown()
+        implicit none
+    end subroutine extract_PSyDataShutdown
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine is the first function called when data is written out
+    !! before an instrumented region of code.
+    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !! @param[in] module_name The name of the module of the instrumented
+    !!            region.
+    !! @param[in] region_name The name of the instrumented region.
+    !! @param[in] num_pre_vars The number of variables that are declared and
+    !!            written before the instrumented region.
+    !! @param[in] num_post_vars The number of variables that are also declared
+    !!            before an instrumented region of code, but are written after
+    !!            this region.
+    subroutine PreStart(this, module_name, region_name, num_pre_vars, &
+                        num_post_vars)
+
+        implicit none
+
+        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        character(*), intent(in)                            :: module_name, &
+                                                               region_name
+        integer, intent(in)                                 :: num_pre_vars, &
+                                                               num_post_vars
+
+        integer :: retval
+
+        call this%PSyDataBaseType%PreStart(module_name, region_name, &
+                                           num_pre_vars, num_post_vars)
+
+        open(newunit=this%unit_number, access='sequential',  &
+             form="unformatted", file=module_name//"-"//region_name//".binary")
+
+    end subroutine PreStart
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine is called after the instrumented region has been
+    !! executed and all values of variables after the instrumented
+    !! region have been provided. This will close the file.
+    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    subroutine PostEnd(this)
+
+        implicit none
+
+        class(ExtractStandaloneBaseType), intent(inout), target :: this
+
+        close(this%unit_number)
+        call this%PSyDataBaseType%PostEnd()
+
+    end subroutine PostEnd
+
+{% for name, type, bits in ALL_TYPES %}
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine writes the value of a scalar {{type}}
+    !! variable to the file. It takes the variable id from the
+    !! corresponding declaration.
+    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine WriteScalar{{name}}(this, name, value)
+
+        implicit none
+
+        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        character(*), intent(in)                                :: name
+        {{type}}, intent(in)                                    :: value
+        integer                                                 :: retval
+
+        write(this%unit_number) value
+        call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
+
+    end subroutine WriteScalar{{name}}
+
+  {# Now provide the array implementations #}
+  {# ------------------------------------- #}
+  {% for dim in ALL_DIMS %}
+    {# Create the ':,:,:,:' string
+       We repeat the list [":"] DIM-times, which is then joined #}
+    {% set DIMENSION=([":"]*dim)|join(",") %}
+
+    {# Create list of variables: "dimid1, dimid2, dimid3, dimid4" #}
+    {% set vars = "dimid"~range(1,dim+1)|join(", dimid") %}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine writes a {{dim}}D array of {{type}}
+    !! to the file.
+    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine WriteArray{{dim}}d{{name}}(this, name, value)
+
+        implicit none
+
+        class(ExtractStandaloneBaseType), intent(inout), target :: this
+        character(*), intent(in)                                :: name
+        {{type}}, dimension({{DIMENSION}}), intent(in)          :: value
+
+        integer :: retval
+
+        if (.not. is_enabled) return
+        {% for i in range(1, dim+1) %}
+        write(this%unit_number) size(value, {{i}})
+        {% endfor %}
+        write(this%unit_number) value
+
+        call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
+
+    end subroutine WriteArray{{dim}}d{{name}}
+
+    {% endfor -%}  {# for dim in ALL_DIMS #}
+
+{%- endfor -%}  {# for name, type, bits in ALL_TYPES #}
+
+end module extract_standalone_base_mod

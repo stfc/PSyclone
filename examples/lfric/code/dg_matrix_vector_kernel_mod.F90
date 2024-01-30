@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -45,7 +45,7 @@ module dg_matrix_vector_kernel_mod
                                 GH_FIELD, GH_OPERATOR,      &
                                 GH_REAL, GH_READ, GH_WRITE, &
                                 ANY_DISCONTINUOUS_SPACE_1,  &
-                                ANY_SPACE_1,                &
+                                ANY_SPACE_1, GH_READWRITE,  &
                                 CELL_COLUMN
 
   use constants_mod,     only : r_def, i_def

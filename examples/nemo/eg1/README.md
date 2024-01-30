@@ -4,13 +4,21 @@
 **Modified by:** R. W. Ford, STFC Daresbury Lab
 **Modified by:** S. Siso, STFC Daresbury Lab
 
-This directory contains the PSyclone example scripts: `openmp_trans.py` and
-`openmp_gpu_trans.py`, that demonstrates the use of PSyclone to parallelise
-all loops over levels for the `tra_adv.F90` code, using OpenMP. Once you have
-installed PSyclone, these scripts may be run by doing:
+This directory contains the PSyclone example scripts:
+`openmp_cpu_levels_trans.py` and `openmp_gpu_levels_trans.py`,
+that demonstrates the use of PSyclone to parallelise all loops over
+levels for the `tra_adv.F90` code, using OpenMP. It also contains
+Makefile rules to generate parallel versions of the file with the
+../scripts/ OpenMP scripts.
+
+Once you have installed PSyclone, these scripts may be run by doing:
 
 ```sh
-psyclone -api nemo -s ./openmp_{gpu_}trans.py ../code/traadv.f90
+psyclone -api nemo -s ./openmp_[cpu|gpu]_levels_trans.py ../code/traadv.f90
+```
+or
+```sh
+psyclone -api nemo -s ../scripts/omp_[cpu|gpu]_trans.py ../code/traadv.f90
 ```
 
 This will output the generated Fortran code with the OpenMP directives added.
@@ -26,7 +34,7 @@ directory.
 
 BSD 3-Clause License
 
-Copyright (c) 2018-2021, Science and Technology Facilities Council
+Copyright (c) 2018-2024, Science and Technology Facilities Council
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

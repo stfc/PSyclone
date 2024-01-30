@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,14 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: L. Turner and O. Brunt, Met Office
 
 ''' This module contains pytest tests for the LFRicLoopBounds collection
 class. '''
 
-from __future__ import absolute_import
 import os
 
-from psyclone.dynamo0p3 import LFRicLoopBounds
+from psyclone.domain.lfric import LFRicLoopBounds
 from psyclone.f2pygen import SubroutineGen, ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -54,7 +54,7 @@ TEST_API = "dynamo0.3"
 
 def test_lbounds_construction():
     ''' Check that we can create an LFRicLoopBounds object. '''
-    # We need a valid DynInvoke node and the easiest way to get one of
+    # We need a valid LFRicInvoke node and the easiest way to get one of
     # those is to create one from code.
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),

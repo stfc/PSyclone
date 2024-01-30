@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,18 +36,18 @@
 
 ''' Module containing tests for generating PSyData hooks'''
 
-from __future__ import absolute_import
-
 import re
 import pytest
+
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
-from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, Routine, \
-        CodeBlock
+from psyclone.psyir.nodes import (
+    PSyDataNode, Schedule, Return, Routine, CodeBlock)
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
-from psyclone.psyir.symbols import ContainerSymbol, ImportInterface, \
-    SymbolTable, DataTypeSymbol, DeferredType, DataSymbol, UnknownFortranType
+from psyclone.psyir.symbols import (
+    ContainerSymbol, ImportInterface, SymbolTable, DataTypeSymbol,
+    UnresolvedType, DataSymbol, UnsupportedFortranType)
 from psyclone.tests.utilities import get_invoke
 
 
@@ -60,7 +60,9 @@ def test_psy_data_node_constructor():
     assert psy_node._var_name == ""
     assert psy_node._module_name is None
     assert psy_node._region_name is None
+    assert psy_node.options == {}
     psy_node = PSyDataNode(options={"prefix": "profile"})
+    assert psy_node.options == {"prefix": "profile"}
     assert psy_node._prefix == "profile_"
     assert psy_node.fortran_module == "profile_psy_data_mod"
     assert psy_node.type_name == "profile_PSyDataType"
@@ -84,6 +86,23 @@ def test_psy_data_node_constructor():
         PSyDataNode(options={"prefix": "not-a-valid-prefix"})
     assert ("Invalid 'prefix' parameter: found 'not-a-valid-prefix', "
             "expected" in str(err.value))
+
+
+def test_psy_data_node_equality():
+    ''' Check the __eq__ member of the PSyDataNode.'''
+    options1 = {"prefix": "profile", "region_name": ("a_routine", "ref1")}
+    options2 = {"prefix": "extract", "region_name": ("a_routine", "ref1")}
+    options3 = {"prefix": "profile", "region_name": ("a_routine1", "ref1")}
+    options4 = {"prefix": "profile", "region_name": ("a_routine", "ref2")}
+    psy_node1 = PSyDataNode(options=options1)
+    psy_node1_1 = PSyDataNode(options=options1)
+    psy_node2 = PSyDataNode(options=options2)
+    psy_node3 = PSyDataNode(options=options3)
+    psy_node4 = PSyDataNode(options=options4)
+    assert psy_node1 == psy_node1_1
+    assert psy_node1 != psy_node2
+    assert psy_node1 != psy_node3
+    assert psy_node1 != psy_node4
 
 
 # -----------------------------------------------------------------------------
@@ -231,14 +250,14 @@ def test_psy_data_generate_symbols():
     typesymbol = routine.symbol_table.lookup("PSyDataType")
     assert isinstance(typesymbol, DataTypeSymbol)
     assert isinstance(typesymbol.interface, ImportInterface)
-    assert isinstance(typesymbol.datatype, DeferredType)
+    assert isinstance(typesymbol.datatype, UnresolvedType)
     assert routine.symbol_table.lookup_with_tag("PSyDataType") == typesymbol
 
     # - The instantiated object
     assert "psy_data" in routine.symbol_table
     objectsymbol = routine.symbol_table.lookup("psy_data")
     assert isinstance(objectsymbol, DataSymbol)
-    assert isinstance(objectsymbol.datatype, UnknownFortranType)
+    assert isinstance(objectsymbol.datatype, UnsupportedFortranType)
 
     # Executing it again doesn't add anything new
     psy_data.generate_symbols(routine.symbol_table)
@@ -251,7 +270,7 @@ def test_psy_data_generate_symbols():
     assert "psy_data_1" in routine.symbol_table
     objectsymbol = routine.symbol_table.lookup("psy_data_1")
     assert isinstance(objectsymbol, DataSymbol)
-    assert isinstance(objectsymbol.datatype, UnknownFortranType)
+    assert isinstance(objectsymbol.datatype, UnsupportedFortranType)
 
 
 # -----------------------------------------------------------------------------
@@ -330,8 +349,8 @@ def test_psy_data_node_options():
     # 1) Test that the listed variables will appear in the list
     # ---------------------------------------------------------
     mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={"pre_var_list": ["a"],
-                                     "post_var_list": ["b"]})
+    data_node.gen_code(mod, options={"pre_var_list": [("", "a")],
+                                     "post_var_list": [("", "b")]})
 
     out = "\n".join([str(i.root) for i in mod.children])
     expected = ['CALL psy_data%PreDeclareVariable("a", a)',
@@ -345,8 +364,8 @@ def test_psy_data_node_options():
     # 2) Test that variables suffixes are added as expected
     # -----------------------------------------------------
     mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={"pre_var_list": ["a"],
-                                     "post_var_list": ["b"],
+    data_node.gen_code(mod, options={"pre_var_list": [("", "a")],
+                                     "post_var_list": [("", "b")],
                                      "pre_var_postfix": "_pre",
                                      "post_var_postfix": "_post"})
 
@@ -455,8 +474,8 @@ def test_psy_data_node_lower_to_language_level_with_options():
     data_trans.apply(schedule[0].loop_body)
     data_node = schedule[0].loop_body[0]
 
-    data_node.lower_to_language_level(options={"pre_var_list": ["a"],
-                                               "post_var_list": ["b"]})
+    data_node.lower_to_language_level(options={"pre_var_list": [("", "a")],
+                                               "post_var_list": [("", "b")]})
 
     codeblocks = schedule.walk(CodeBlock)
     expected = ['CALL psy_data % PreStart("invoke_0", "r0", 1, 1)',
@@ -481,8 +500,8 @@ def test_psy_data_node_lower_to_language_level_with_options():
     data_trans.apply(schedule[0].loop_body)
     data_node = schedule[0].loop_body[0]
 
-    data_node.lower_to_language_level(options={"pre_var_list": ["a"],
-                                               "post_var_list": ["b"],
+    data_node.lower_to_language_level(options={"pre_var_list": [("", "a")],
+                                               "post_var_list": [("", "b")],
                                                "pre_var_postfix": "_pre",
                                                "post_var_postfix": "_post"})
 

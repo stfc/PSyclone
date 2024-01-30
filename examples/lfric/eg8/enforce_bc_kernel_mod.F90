@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! Copyright (c) 2017-2024,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
@@ -43,7 +43,7 @@
 
 !> @brief Applies boundary conditions to a field
 !> @details Wrapper code for applying boundary conditions to a field
-!>          When the Psyclone api is updated to correctly deal with
+!>          When the PSyclone api is updated to correctly deal with
 !>          boundary dofs this can be removed
 module enforce_bc_kernel_mod
 

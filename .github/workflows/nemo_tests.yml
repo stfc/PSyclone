@@ -1,0 +1,224 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2023, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author S. Siso, STFC Daresbury Lab
+
+# This workflow will use a self-hosted runner to perform the more expensive
+# integrations tests that are not run on GHA systems.
+
+name: NEMO Integration Tests
+
+on:
+  push
+
+jobs:
+  run_if_on_mirror:
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
+    runs-on: self-hosted
+    env:
+      HDF5_VERSION: 1.14.3
+      NETCDF_C_VERSION: 4.9.2
+      NETCDF_FORTRAN_VERSION: 4.6.1
+      NVFORTRAN_VERSION: 23.7
+      ONEAPI_VERSION: 2024.0.0
+      PERL_VERSION: 5.38.2
+      PYTHON_VERSION: 3.12.1
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        # This is required to get the commit history for merge commits for
+        # the ci-skip check below.
+        fetch-depth: '0'
+    - name: Check for [skip ci] in commit message
+      uses: mstachniuk/ci-skip@v1
+      with:
+        # This setting causes the tests to 'fail' if [skip ci] is specified
+        fail-fast: true
+        commit-filter: '[skip ci]'
+    - name: Install dependencies
+      run: |
+        module load python/${PYTHON_VERSION}
+        python -m venv .runner_venv
+        . .runner_venv/bin/activate
+        python -m pip install --upgrade pip
+        pip install external/fparser
+        pip install .[test]
+        # Compile nvidia profiling tools
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        cd lib/profiling/nvidia/
+        F90=nvfortran make
+
+    # PSyclone passthrough for MetOffice NEMO
+    - name: NEMO MetOffice Passthrough
+      run: |
+        . .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export NEMO_DIR=${HOME}/NEMO
+        cd $PSYCLONE_NEMO_DIR
+        make -j 4 passthrough
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load perl/${PERL_VERSION}
+        make -j 4 compile-passthrough
+
+    # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
+    - name: NEMO MetOffice OpenMP for GPU
+      run: |
+        . .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export NEMO_DIR=${HOME}/NEMO
+        cd $PSYCLONE_NEMO_DIR
+        make -j 4 openmp_gpu
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load perl/${PERL_VERSION}
+        make -j 4 compile-openmp_gpu
+        export NV_ACC_POOL_THRESHOLD=75
+        make run-openmp_gpu |& tee output.txt
+        # Check the output is as expected for the first 6 digits
+        tail -n 1 output.txt | grep -q " it :      10"
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
+        tail -n 1 output.txt | grep -q "S_min:  0.482686"
+        tail -n 1 output.txt | grep -q "S_max:  0.407622"
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_gpu
+
+    - name: Upload NEMO OpenMP GPU results
+      uses: exuanbo/actions-deploy-gist@v1
+      with:
+        token: ${{ secrets.GIST_TOKEN }}
+        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
+        file_path: ../../../../store_results/performance_history_openmp_gpu
+
+    # PSyclone, compile and run MetOffice NEMO with OpenACC kernels for GPUs
+    - name: NEMO MetOffice OpenACC kernels for GPU
+      run: |
+        . .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export NEMO_DIR=${HOME}/NEMO
+        cd $PSYCLONE_NEMO_DIR
+        make -j 4 openacc_kernels
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load perl/${PERL_VERSION}
+        COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_kernels
+        export NV_ACC_POOL_THRESHOLD=75
+        make run-openacc_kernels |& tee output.txt
+        # Check the output is as expected for the first 6 digits
+        tail -n 1 output.txt | grep -q " it :      10"
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
+        tail -n 1 output.txt | grep -q "S_min:  0.482686"
+        tail -n 1 output.txt | grep -q "S_max:  0.407622"
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_kernels_gpu
+        # Upload the results into a Github Gist
+
+    - name: Upload NEMO OpenACC kernels GPU results
+      uses: exuanbo/actions-deploy-gist@v1
+      with:
+        token: ${{ secrets.GIST_TOKEN }}
+        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
+        file_path: ../../../../store_results/performance_history_openacc_kernels_gpu
+
+    # PSyclone, compile and run MetOffice NEMO with OpenACC loops for GPUs
+    - name: NEMO MetOffice OpenACC loops for GPU
+      run: |
+        . .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export NEMO_DIR=${HOME}/NEMO
+        cd $PSYCLONE_NEMO_DIR
+        make -j 4 openacc_loops
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load perl/${PERL_VERSION}
+        COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_loops
+        export NV_ACC_POOL_THRESHOLD=75
+        make run-openacc_loops |& tee output.txt
+        # Check the output is as expected for the first 6 digits
+        tail -n 1 output.txt | grep -q " it :      10"
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
+        tail -n 1 output.txt | grep -q "S_min:  0.482686"
+        tail -n 1 output.txt | grep -q "S_max:  0.407622"
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_loops_gpu
+        # Upload the results into a Github Gist
+
+    - name: Upload NEMO OpenACC loops GPU results
+      uses: exuanbo/actions-deploy-gist@v1
+      with:
+        token: ${{ secrets.GIST_TOKEN }}
+        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
+        file_path: ../../../../store_results/performance_history_openacc_loops_gpu
+        
+    # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs. This uses
+    # the Intel compiler and does not disable MPI. Therefore we have to ensure
+    # that we provide the path to the header files for Intel MPI.
+    - name: NEMO ECMWF OpenMP for CPU
+      run: |
+        . .runner_venv/bin/activate
+        module load oneapi/${ONEAPI_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
+        module load perl/${PERL_VERSION}
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export NEMO_DIR=${HOME}/NEMOGCM_V40
+        export COMPILER_ARCH=linux_intel
+        export ADD_KEYS="IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
+        export DEL_KEYS="key_iomput"
+        export MODEL_DIR=/archive/ssiso/ecmwf_eORCA1_GO8/
+        export NAMELISTS_DIR=${NEMO_DIR}/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
+        export MPI_INC_DIR=${I_MPI_ROOT}/include
+        cd $PSYCLONE_NEMO_DIR
+        make -j 4 openmp_cpu
+        make -j 4 compile-openmp_cpu
+        export OMP_NUM_THREADS=4
+        make run-openmp_cpu |& tee output.txt
+        # Check the output is as expected for the first 6 digits
+        tail -n 1 output.txt | grep -q " it :      10"
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.199714"
+        tail -n 1 output.txt | grep -q "|U|_max:  0.148409"
+        tail -n 1 output.txt | grep -q "S_min:  0.108530"
+        tail -n 1 output.txt | grep -q "S_max:  0.404045"
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        echo  $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_cpu
+
+    - name: Upload NEMO OpenMP CPU results
+      uses: exuanbo/actions-deploy-gist@v1
+      with:
+        token: ${{ secrets.GIST_TOKEN }}
+        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
+        file_path: ../../../../store_results/performance_history_openmp_cpu

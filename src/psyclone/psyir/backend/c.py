@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
 # Modified by: J. Henrichs, Bureau of Meteorology
-#              A. R. Porter and R. W. Ford, STFC Daresbury Lab
+#              A. R. Porter, R. W. Ford and N. Nobre, STFC Daresbury Lab
 #              A. B. G. Chalk, STFC Daresbury Lab
 
 
@@ -42,11 +42,9 @@ Currently limited to just a few PSyIR nodes to support the OpenCL generation,
 it needs to be extended for generating pure C code.
 
 '''
-import six
-
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import BinaryOperation, UnaryOperation
+from psyclone.psyir.nodes import BinaryOperation, UnaryOperation, IntrinsicCall
 from psyclone.psyir.symbols import ScalarType
 
 
@@ -78,10 +76,10 @@ class CWriter(LanguageWriter):
     def __init__(self, skip_nodes=False, indent_string="  ",
                  initial_indent_depth=0, check_global_constraints=True):
 
-        super(CWriter, self).__init__(("[", "]"), ".", skip_nodes,
-                                      indent_string,
-                                      initial_indent_depth,
-                                      check_global_constraints)
+        super().__init__(("[", "]"), ".", skip_nodes,
+                         indent_string,
+                         initial_indent_depth,
+                         check_global_constraints)
 
     def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
@@ -109,7 +107,7 @@ class CWriter(LanguageWriter):
 
         for dimension, child in enumerate(indices):
             expression = self._visit(child)
-            dim_str = "{0}LEN{1}".format(var_name, dimension+1)
+            dim_str = f"{var_name}LEN{dimension+1}"
             if multiplicator:
                 summands.append(expression + " * " + multiplicator)
                 multiplicator = multiplicator + " * " + dim_str
@@ -121,7 +119,6 @@ class CWriter(LanguageWriter):
         return [" + ".join(summands)]
 
     def gen_declaration(self, symbol):
-        # pylint: disable=no-self-use
         '''
         Generates string representing the C declaration of the symbol. In C
         declarations can be found inside the argument list or with the
@@ -141,10 +138,9 @@ class CWriter(LanguageWriter):
             intrinsic = symbol.datatype.intrinsic
             code = code + TYPE_MAP_TO_C[intrinsic] + " "
         except (AttributeError, KeyError) as err:
-            raise six.raise_from(NotImplementedError(
-                "Could not generate the C definition for the variable '{0}', "
-                "type '{1}' is currently not supported."
-                "".format(symbol.name, symbol.datatype)), err)
+            raise NotImplementedError(
+                f"Could not generate C definition for variable '{symbol.name}'"
+                f", type '{symbol.datatype}' is not yet supported.") from err
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
@@ -164,7 +160,7 @@ class CWriter(LanguageWriter):
         :returns: C languague declaration of a local variable.
         :rtype: str
         '''
-        return "{0}{1};\n".format(self._nindent, self.gen_declaration(symbol))
+        return f"{self._nindent}{self.gen_declaration(symbol)};\n"
 
     def assignment_node(self, node):
         '''This method is called when an Assignment instance is found in the
@@ -180,11 +176,10 @@ class CWriter(LanguageWriter):
         lhs = self._visit(node.lhs)
         rhs = self._visit(node.rhs)
 
-        result = "{0}{1} = {2};\n".format(self._nindent, lhs, rhs)
+        result = f"{self._nindent}{lhs} = {rhs};\n"
         return result
 
     def literal_node(self, node):
-        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -216,8 +211,8 @@ class CWriter(LanguageWriter):
         '''
         if len(node.children) < 2:
             raise VisitorError(
-                "IfBlock malformed or incomplete. It should have at least "
-                "2 children, but found {0}.".format(len(node.children)))
+                f"IfBlock malformed or incomplete. It should have at least "
+                f"2 children, but found {len(node.children)}.")
 
         condition = self._visit(node.condition)
 
@@ -234,18 +229,16 @@ class CWriter(LanguageWriter):
 
         if else_body:
             result = (
-                "{0}if ({1}) {{\n"
-                "{2}"
-                "{0}}} else {{\n"
-                "{3}"
-                "{0}}}\n"
-                "".format(self._nindent, condition, if_body, else_body))
+                f"{self._nindent}if ({condition}) {{\n"
+                f"{if_body}"
+                f"{self._nindent}}} else {{\n"
+                f"{else_body}"
+                f"{self._nindent}}}\n")
         else:
             result = (
-                "{0}if ({1}) {{\n"
-                "{2}"
-                "{0}}}\n"
-                "".format(self._nindent, condition, if_body))
+                f"{self._nindent}if ({condition}) {{\n"
+                f"{if_body}"
+                f"{self._nindent}}}\n")
         return result
 
     def unaryoperation_node(self, node):
@@ -265,9 +258,8 @@ class CWriter(LanguageWriter):
         '''
         if len(node.children) != 1:
             raise VisitorError(
-                "UnaryOperation malformed or incomplete. It "
-                "should have exactly 1 child, but found {0}."
-                "".format(len(node.children)))
+                f"UnaryOperation malformed or incomplete. It should "
+                f"have exactly 1 child, but found {len(node.children)}.")
 
         def operator_format(operator_str, expr_str):
             '''
@@ -279,41 +271,12 @@ class CWriter(LanguageWriter):
             '''
             return "(" + operator_str + expr_str + ")"
 
-        def function_format(function_str, expr_str):
-            '''
-            :param str function_str: Name of the function.
-            :param str expr_str: String representation of the operand.
-
-            :returns: C language unary function expression.
-            :rtype: str
-            '''
-            return function_str + "(" + expr_str + ")"
-
-        def cast_format(type_str, expr_str):
-            '''
-            :param str type_str: Name of the new type.
-            :param str expr_str: String representation of the operand.
-
-            :returns: C language unary casting expression.
-            :rtype: str
-            '''
-            return "(" + type_str + ")" + expr_str
-
         # Define a map with the operator string and the formatter function
         # associated with each UnaryOperation.Operator
         opmap = {
             UnaryOperation.Operator.MINUS: ("-", operator_format),
             UnaryOperation.Operator.PLUS: ("+", operator_format),
             UnaryOperation.Operator.NOT: ("!", operator_format),
-            UnaryOperation.Operator.SIN: ("sin", function_format),
-            UnaryOperation.Operator.COS: ("cos", function_format),
-            UnaryOperation.Operator.TAN: ("tan", function_format),
-            UnaryOperation.Operator.ASIN: ("asin", function_format),
-            UnaryOperation.Operator.ACOS: ("acos", function_format),
-            UnaryOperation.Operator.ATAN: ("atan", function_format),
-            UnaryOperation.Operator.ABS: ("abs", function_format),
-            UnaryOperation.Operator.REAL: ("float", cast_format),
-            UnaryOperation.Operator.SQRT: ("sqrt", function_format),
             }
 
         # If the instance operator exists in the map, use its associated
@@ -322,9 +285,9 @@ class CWriter(LanguageWriter):
         try:
             opstring, formatter = opmap[node.operator]
         except KeyError as err:
-            raise six.raise_from(NotImplementedError(
-                "The C backend does not support the '{0}' operator."
-                "".format(node.operator)), err)
+            raise NotImplementedError(
+                f"The C backend does not support the '{node.operator}' "
+                f"operator.") from err
 
         return formatter(opstring, self._visit(node.children[0]))
 
@@ -345,9 +308,8 @@ class CWriter(LanguageWriter):
         '''
         if len(node.children) != 2:
             raise VisitorError(
-                "BinaryOperation malformed or incomplete. It "
-                "should have exactly 2 children, but found {0}."
-                "".format(len(node.children)))
+                f"BinaryOperation malformed or incomplete. It should "
+                f"have exactly 2 children, but found {len(node.children)}.")
 
         def operator_format(operator_str, expr1, expr2):
             '''
@@ -378,7 +340,6 @@ class CWriter(LanguageWriter):
             BinaryOperation.Operator.SUB: ("-", operator_format),
             BinaryOperation.Operator.MUL: ("*", operator_format),
             BinaryOperation.Operator.DIV: ("/", operator_format),
-            BinaryOperation.Operator.REM: ("%", operator_format),
             BinaryOperation.Operator.POW: ("pow", function_format),
             BinaryOperation.Operator.EQ: ("==", operator_format),
             BinaryOperation.Operator.NE: ("!=", operator_format),
@@ -388,7 +349,6 @@ class CWriter(LanguageWriter):
             BinaryOperation.Operator.GE: (">=", operator_format),
             BinaryOperation.Operator.AND: ("&&", operator_format),
             BinaryOperation.Operator.OR: ("||", operator_format),
-            BinaryOperation.Operator.SIGN: ("copysign", function_format),
             }
 
         # If the instance operator exists in the map, use its associated
@@ -397,13 +357,97 @@ class CWriter(LanguageWriter):
         try:
             opstring, formatter = opmap[node.operator]
         except KeyError as err:
-            raise six.raise_from(VisitorError(
-                "The C backend does not support the '{0}' operator."
-                "".format(node.operator)), err)
+            raise VisitorError(
+                f"The C backend does not support the '{node.operator}' "
+                f"operator.") from err
 
         return formatter(opstring,
                          self._visit(node.children[0]),
                          self._visit(node.children[1]))
+
+    def intrinsiccall_node(self, node):
+        '''This method is called when an IntrinsicCall node is found in
+        the PSyIR tree.
+
+        :param node: An IntrinsicCall PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        :returns: The C code as a string.
+        :rtype: str
+
+        '''
+        def binary_operator_format(operator_str, expr_str):
+            '''
+            :param str operator_str: String representing the operator.
+            :param List[str] expr_str: String representation of the operands.
+
+            :returns: C language operator expression.
+            :rtype: str
+
+            :raise VisitorError: unexpected number of children.
+            '''
+            if len(expr_str) != 2:
+                raise VisitorError(
+                    f"The C Writer binary_operator formatter for IntrinsicCall"
+                    f" only supports intrinsics with 2 children, but found "
+                    f"'{operator_str}' with '{len(expr_str)}' children.")
+            return f"({expr_str[0]} {operator_str} {expr_str[1]})"
+
+        def function_format(function_str, expr_str):
+            '''
+            :param str function_str: Name of the function.
+            :param List[str] expr_str: String representation of the operands.
+
+            :returns: C language unary function expression.
+            :rtype: str
+            '''
+            return function_str + "(" + ", ".join(expr_str) + ")"
+
+        def cast_format(type_str, expr_str):
+            '''
+            :param str type_str: Name of the new type.
+            :param List[str] expr_str: String representation of the operands.
+
+            :returns: C language unary casting expression.
+            :rtype: str
+
+            :raise VisitorError: unexpected number of children.
+            '''
+            if len(expr_str) != 1:
+                raise VisitorError(
+                    f"The C Writer IntrinsicCall cast-style formatter "
+                    f"only supports intrinsics with 1 child, but found "
+                    f"'{type_str}' with '{len(expr_str)}' children.")
+            return "(" + type_str + ")" + expr_str[0]
+
+        # Define a map with the intrinsic string and the formatter function
+        # associated with each Intrinsic
+        intrinsic_map = {
+            IntrinsicCall.Intrinsic.MOD: ("%", binary_operator_format),
+            IntrinsicCall.Intrinsic.SIGN: ("copysign", function_format),
+            IntrinsicCall.Intrinsic.SIN: ("sin", function_format),
+            IntrinsicCall.Intrinsic.COS: ("cos", function_format),
+            IntrinsicCall.Intrinsic.TAN: ("tan", function_format),
+            IntrinsicCall.Intrinsic.ASIN: ("asin", function_format),
+            IntrinsicCall.Intrinsic.ACOS: ("acos", function_format),
+            IntrinsicCall.Intrinsic.ATAN: ("atan", function_format),
+            IntrinsicCall.Intrinsic.ABS: ("abs", function_format),
+            IntrinsicCall.Intrinsic.REAL: ("float", cast_format),
+            IntrinsicCall.Intrinsic.INT: ("int", cast_format),
+            IntrinsicCall.Intrinsic.SQRT: ("sqrt", function_format),
+            }
+
+        # If the intrinsic exists in the map, use its associated
+        # operator and formatter to generate the code, otherwise raise
+        # an Error.
+        try:
+            opstring, formatter = intrinsic_map[node.intrinsic]
+        except KeyError as err:
+            raise VisitorError(
+                f"The C backend does not support the '{node.intrinsic.name}' "
+                f"intrinsic.") from err
+
+        return formatter(opstring, [self._visit(ch) for ch in node.children])
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in
@@ -416,10 +460,9 @@ class CWriter(LanguageWriter):
         :rtype: str
 
         '''
-        return "{0}return;\n".format(self._nindent)
+        return f"{self._nindent}return;\n"
 
     def codeblock_node(self, _):
-        # pylint: disable=no-self-use
         '''This method is called when a CodeBlock instance is found in the
         PSyIR tree. At the moment all CodeBlocks contain Fortran fparser
         code.
@@ -451,11 +494,9 @@ class CWriter(LanguageWriter):
             body += self._visit(child)
         self._depth -= 1
 
-        return "{0}for({1}={2}; {1}<={3}; {1}+={4})\n"\
-               "{0}{{\n"\
-               "{5}"\
-               "{0}}}\n".format(self._nindent, variable_name,
-                                start, stop, step, body)
+        return f"{self._nindent}for({variable_name}={start}; "\
+               f"{variable_name}<={stop}; {variable_name}+={step})\n"\
+               f"{self._nindent}{{\n{body}{self._nindent}}}\n"
 
     def regiondirective_node(self, node):
         '''This method is called when an RegionDirective instance is found in
@@ -470,14 +511,27 @@ class CWriter(LanguageWriter):
 
         '''
         # Note that {{ is replaced with a single { in the format call
-        result_list = ["{0}#pragma {1}\n{{\n".format(self._nindent,
-                                                     node.begin_string())]
+        result_list = [f"{self._nindent}#pragma {node.begin_string()}"]
+
+        clause_list = []
+        for clause in node.clauses:
+            val = self._visit(clause)
+            # Some clauses return empty strings if they should not
+            # generate any output (e.g. private clause with no children).
+            if val != "":
+                clause_list.append(val)
+        # Add a space only if there are clauses
+        if len(clause_list) > 0:
+            result_list.append(" ")
+        result_list.append(", ".join(clause_list))
+        result_list.append(f"\n{self._nindent}{{\n")
+
         self._depth += 1
         for child in node.dir_body:
             result_list.append(self._visit(child))
         self._depth -= 1
         # Note that }} is replaced with a single } in the format call
-        result_list.append("{0}}}\n".format(self._nindent))
+        result_list.append(f"{self._nindent}}}\n")
         return "".join(result_list)
 
     def standalonedirective_node(self, node):
@@ -492,7 +546,21 @@ class CWriter(LanguageWriter):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
-        result_list = ["{0}#pragma {1}\n".format(self._nindent,
-                                                 node.begin_string())]
+        result_list = [f"{self._nindent}#pragma {node.begin_string()}\n"]
         return "".join(result_list)
+
+    def filecontainer_node(self, node):
+        '''This method is called when a FileContainer instance is found in
+        the PSyIR tree.
+
+        :param node: a Container PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+        :returns: the C code.
+        :rtype: str
+
+        '''
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result

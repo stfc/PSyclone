@@ -1,11 +1,11 @@
-# PSyclone and NEMO - Tutorial 1 #
+# PSyclone for existing code - Tutorial 1 #
 
-Welcome to the first part of the tutorial on using PSyclone with the
-NEMO ocean model (www.nemo-ocean.eu). For this tutorial we will be
+Welcome to the first part of the tutorial on using PSyclone with existing
+Fortran code via its 'nemo' API. For this tutorial we will be
 using a standalone, single-source-file mini-app (tra_adv.F90) based on
-a tracer-advection routine that has been extracted from the full NEMO
-source. The original version of this mini-app was kindly provided by
-Silvia Mocavero of CMCC.
+a tracer-advection routine that has been extracted from the full source of
+the NEMO ocean model (www.nemo-ocean.eu). The original version of this
+mini-app was kindly provided by Silvia Mocavero of CMCC.
 
 ## Prerequisites ##
 
@@ -45,8 +45,8 @@ available on
 ## 1. Processing NEMO Fortran code with PSyclone ##
 
 The configuration file distributed with PSyclone sets the default API
-to be LFRic. In order to specify that we are processing NEMO code we
-must specify `-api nemo`:
+to be LFRic. In order to specify that we are processing existing code
+(i.e. that is not written in a DSL) we must supply `-api nemo`:
 
 ```bash
     $ psyclone -api nemo tra_adv.F90
@@ -65,13 +65,16 @@ and then re-generating it and writing it to stdout:
       ...
 ```
 
-Note that there is no algorithm code because NEMO does not follow the
-PSyKAl separation of concerns (see the [User
+Note that there is no algorithm code because the input code does not
+follow the PSyKAl separation of concerns (see the [User
 Guide](https://psyclone.readthedocs.io/en/stable/introduction.html#introduction)
 for a description of PSyKAl). Instead, PSyclone treats each subroutine
-(or program) as though it is a manually-written PSy layer.
+(or program) as though it is a manually-written PSy layer. (An
+unfortunate consequence of PSyclone's initial PSyKAl-focused development
+is that each subroutine is called an 'invoke'. This will be improved in
+future releases.)
 
-In order to compile the Fortran that is output by PSyclone we need it
+In order to compile the Fortran that is output by PSyclone, we need it
 to be written to a file instead of stdout. This is achieved with the
 `-opsy` flag so that doing:
 
@@ -128,15 +131,15 @@ mini-app:
     Performing   10 iterations
     Mini-app finished.
 
-At this point we have succeeded in processing some NEMO Fortran code
+At this point we have succeeded in processing some Fortran code
 with PSyclone, generating new code and then compiling and running the
 result. However, since we have not applied any transformations, the
 generated code is functionally identical to that which was input.  In
-order to apply transformations we have to understand the Internal
+order to apply transformations, we have to understand the Internal
 Representation that PSyclone constructs for the supplied Fortran - the
 PSyIR.
 
-## 2. Obtaining the PSyIR for NEMO Code ##
+## 2. Obtaining the PSyIR ##
 
 In order to examine the PSyIR for the mini-app we will supply PSyclone
 with a transformation script, `schedule_view_trans.py`. This is done
@@ -148,7 +151,7 @@ otherwise PSyclone will be unable to find the script):
     $ psyclone -api nemo -l output -opsy psy.f90 -s ./schedule_view_trans.py ./tra_adv.F90
 ```
 
-This should report that it has found one invoke named `tra_adv` (the
+This should report that it has found one 'invoke' named `tra_adv` (the
 name of the Fortran program) and proceed to display a text view of the
 PSyIR of that invoke. This will be a lot of output, beginning with:
 
@@ -157,23 +160,24 @@ PSyIR of that invoke. This will be a lot of output, beginning with:
     tra_adv
 
     NemoInvokeSchedule[invoke='tra_adv']
-        0: CodeBlock[[<class 'fparser.two.....]]
-        1: Assignment[]
-	    Reference[name:'r']
+        0: Call[name='get_environment_variable']
+            Literal[value:'JPI', Scalar<CHARACTER, UNDEFINED>]
+            Reference[name:'env']
+        1: CodeBlock[[<class 'fparser.two.Fortran2003.Read_Stmt'>]]
         ...
 ```
 
-(Note that if you have the `termcolor` Python package installed then
-the PSyIR will be displayed with colour highlighting.) Since the
-tracer-advection mini-app consists of a single program unit, it is
-represented in PSyclone by a single Invoke. The content of the program
-(the sequence of executable statements) is described by a
-`NemoInvokeSchedule` in the PSyIR (a subclass of `Schedule`).
+(Note that if you have the `termcolor` Python package installed
+[`pip install termcolor`] then the PSyIR will be displayed with colour
+highlighting.) Since the tracer-advection mini-app consists of a single
+program unit, it is represented in PSyclone by a single `Invoke`. The
+content of the program (the sequence of executable statements) is
+described by a `NemoInvokeSchedule` in the PSyIR (a subclass of `Schedule`).
 
 
 ## 3. Interpreting the PSyIR ##
 
-The structure and means of navigating the PSyIR are covered in the
+The basic structure and means of navigating the PSyIR are covered in the
 PSyIR part of the
 [tutorial](../../../notebooks/psyir/psyir_example2.ipynb). In
 summary, all nodes in the PSyIR have `parent` and `children`
@@ -183,22 +187,21 @@ Node also support semantic navigation. For instance, the Loop node has
 `loop_body`, the If node has `condition`, `if_body` and `else_body`
 and the Directive node has `directive_body`.
 
-The first child node of the `NemoInvokeSchedule` obtained for the
-mini-app is a `CodeBlock`. This is an important node type since it
-makes it possible for the PSyIR to represent arbitrary Fortran code
-without requiring that it be fully understood. Since PSyclone uses
-fparser2 to parse Fortran, a `CodeBlock` stores the nodes of the
-underlying fparser2 parse tree that cannot be represented in the
-PSyIR. For more information on fparser2 see the associated
-[tutorial](../../../notebooks/fparser2/parsing_fortran.ipynb) or the [User
-Guide](https://fparser.readthedocs.io/en/latest/).
+If you examine the PSyIR output for the mini-app, you will see that
+the second child node of the `NemoInvokeSchedule` is a
+`CodeBlock`. This is an important node type since it makes it possible
+for the PSyIR to represent arbitrary Fortran code without requiring
+that it be fully understood. Since PSyclone uses fparser2 to parse
+Fortran, a `CodeBlock` stores the nodes of the underlying fparser2
+parse tree that cannot be represented in the PSyIR. For more
+information on fparser2 see the associated
+[tutorial](../../../notebooks/fparser2/parsing_fortran.ipynb) or the
+[User Guide](https://fparser.readthedocs.io/en/latest/).
 
-We can see from the fparser2 node types printed in the description of
-the `CodeBlock` that this particular node represents various
-subroutine calls (those querying the values of the environment
-variables), reads, writes and the allocate statements. None of these
-are computationally significant and therefore are not interesting from
-a performance point of view.
+We can see from the fparser2 node type printed in the description of
+the `CodeBlock` that this particular node represents a Fortran `READ`
+statement. This is not computationally significant and therefore is not
+interesting from a performance point of view.
 
 1. Modify the transformation script so that it breaks-out into the Python
    debugger once it has obtained the `Schedule` of the Invoke:
@@ -224,7 +227,7 @@ a performance point of view.
 
    ```python
    (Pdb) sched.children
-   [<psyclone.psyir.nodes.codeblock.CodeBlock object at 0x7fee49247790>, ...]
+   [<psyclone.psyir.nodes.call.Call object at 0x7fa00a6a0d90>, <psyclone.psyir.nodes.codeblock.CodeBlock object at 0x7fa00a6a0be0>, ...]
    (Pdb) cblocks = sched.walk(CodeBlock)
    (Pdb) cblocks
    [<psyclone.psyir.nodes.codeblock.CodeBlock object at 0x7fee49247790>, <psyclone.psyir.nodes.codeblock.CodeBlock ...]
@@ -249,11 +252,11 @@ From a computational-performance standpoint, the most important nodes
 are [`Loop`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyir_1_1nodes_1_1loop_1_1Loop.html) and
 [`InlinedKern`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyGen_1_1InlinedKern.html). The NEMO API makes heavy use of
 `InlinedKern` rather than the `Kern` used in other PSyclone APIs. This is
-because the NEMO source code does not follow the PSyKAl separation of concerns.
-Instead, in constructing the PSyIR, the input code is treated conceptually as a
-manually-written PSy layer in which calls to kernels have been in-lined.
-Therefore an `InlinedKern` corresponds to the body of a loop in the original
-source code.
+because it works with source code that does not follow the PSyKAl separation
+of concerns. Instead, in constructing the PSyIR, the input code is treated
+conceptually as a manually-written PSy layer in which calls to kernels have
+been in-lined. Therefore an `InlinedKern` corresponds to the body of a loop
+in the original source code.
 
 3. Modify the transformation script to obtain a list of all of the
    `InlinedKern` nodes:
@@ -268,13 +271,13 @@ source code.
    which Fortran loop body this corresponds to, e.g.:
 
    ```python
-   kernels[0].view()
+   print(kernels[0].view())
    ```
 
 ## 4. Conclusion
 
 Congratulations, you have now completed this section of the tutorial.
 At this point you should be able to run PSyclone on a Fortran source
-containing NEMO-style code, use a transformation script to access the
-PSyIR of the code and be able to understand the structure of the PSyIR
-and how it relates to the original Fortran.
+file, use a transformation script to access the PSyIR of the code and
+be able to understand the structure of the PSyIR and how it relates to
+the original Fortran.

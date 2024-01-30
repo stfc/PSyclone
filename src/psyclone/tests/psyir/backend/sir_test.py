@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,15 +37,17 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.sir module'''
 
-from __future__ import absolute_import
 import pytest
 
-from psyclone.nemo import NemoKern
+from fparser.common.readfortran import FortranStringReader
+
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Schedule, Assignment, Node
-from fparser.common.readfortran import FortranStringReader
+from psyclone.psyir.nodes import (
+    Assignment, BinaryOperation, IfBlock, Literal, Loop,
+    Node, Schedule, UnaryOperation)
+from psyclone.psyir.symbols import INTEGER_TYPE
 
 
 # pylint: disable=redefined-outer-name
@@ -92,29 +94,8 @@ def get_schedule(parser, code):
     return psy.invokes.invoke_list[0].schedule
 
 
-def get_kernel(parser, code):
-    '''Utility function that returns the Kernel in code similar to that
-    specified in the CODE string.
-
-    :param parser: the parser class.
-    :type parser: :py:class:`fparser.two.Fortran2003.Program`
-    :param str code: the code as a string.
-
-    :returns: a kernel from the supplied code.
-    :rtype: :py:class:`psyclone.nemo.NemoKern`
-
-    '''
-    schedule = get_schedule(parser, code)
-    loop1 = schedule.children[0]
-    loop2 = loop1.loop_body.children[0]
-    loop3 = loop2.loop_body.children[0]
-    kernel = loop3.loop_body.children[0]
-    assert isinstance(kernel, NemoKern)
-    return kernel
-
-
 def get_assignment(parser, code):
-    '''Utility function that returns the assigment (x=y) in code similar
+    '''Utility function that returns the assignment (x=y) in code similar
     to that specified in the CODE string.
 
     :param parser: the parser class.
@@ -125,15 +106,14 @@ def get_assignment(parser, code):
     :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
     '''
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    assignment = kernel_schedule.children[0]
+    schedule = get_schedule(parser, code)
+    assignment = schedule.walk(Assignment)[0]
     assert isinstance(assignment, Assignment)
     return assignment
 
 
 def get_lhs(parser, code):
-    '''Utility function that returns the left hand side of an assigment
+    '''Utility function that returns the left hand side of an assignment
     (x=y) in code similar to that specified in the CODE string.
 
     :param parser: the parser class.
@@ -149,7 +129,7 @@ def get_lhs(parser, code):
 
 
 def get_rhs(parser, code):
-    '''Utility function that returns the left hand side of an assigment
+    '''Utility function that returns the left hand side of an assignment
     (x=y) in code similar to that specified in the CODE string.
 
     :param parser: the parser class.
@@ -177,7 +157,7 @@ def test_gen_stencil_1(parser):
                            (" i + 1 , j , k - 1 ", "[1, 0, -1]"),
                            ("i+1,j-2,k+3,l-4", "[1, -2, 3, -4]"),
                            ("i+(1), j-(2)", "[1, -2]")]:
-        code = CODE.replace("a(i,j,k)", "a({0})".format(form))
+        code = CODE.replace("a(i,j,k)", f"a({form})")
         lhs = get_lhs(parser, code)
         result = gen_stencil(lhs)
         assert result == expected
@@ -204,7 +184,7 @@ def test_gen_stencil_3(parser):
 
     '''
     for form in ["1", "1+i", "-1+i", "i+j", "i+1+1", "i+(1+1)", "i*2"]:
-        code = CODE.replace("a(i,j,k)", "a({0},j,k)".format(form))
+        code = CODE.replace("a(i,j,k)", f"a({form},j,k)")
         lhs = get_lhs(parser, code)
         with pytest.raises(VisitorError) as excinfo:
             _ = gen_stencil(lhs)
@@ -322,14 +302,9 @@ def test_sirwriter_nemoloop_node_2(parser, sir_writer):
     exception if the first child of a loop is not a loop.
     '''
     code = CODE.replace(
-        "      do j=1,n\n"
-        "        do k=1,n\n"
-        "          a(i,j,k) = 1.0\n"
-        "        end do\n"
-        "      end do\n",
+        "      do j=1,n\n",
         "      a(i,1,1) = 1.0\n"
-        "      do j=1,n\n"
-        "      end do\n")
+        "      do j=1,n\n")
     schedule = get_schedule(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
@@ -397,15 +372,13 @@ def test_sirwriter_nemoloop_node_5(parser, sir_writer):
     schedule = get_schedule(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
-    assert ("Child of child of loop should be a single loop"
-            in str(excinfo.value))
+    assert "Only triply-nested loops are supported" in str(excinfo.value)
 
 
 # (6/6) Method nemoloop_node
 def test_sirwriter_nemoloop_node_6(parser, sir_writer):
     '''Check the nemoloop_node method of the SIRWriter class raises an
-    exception if the content of the triply nested loop is not a
-    NemoKern.
+    exception if the content of the triply nested loop is another loop.
 
     '''
     code = CODE.replace("          a(i,j,k) = 1.0\n",
@@ -416,24 +389,22 @@ def test_sirwriter_nemoloop_node_6(parser, sir_writer):
     schedule = get_schedule(parser, code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
-    assert ("Child of child of child of loop should be a NemoKern."
+    assert ("Only triply-nested loops are supported."
             in str(excinfo.value))
 
 
-# (1/1) Method nemokern_node
-def test_sirwriter_nemokern_node(parser, sir_writer):
-    '''Check the nemokern_node method of the SIRWriter class correctly
-    calls the children of the schedule associated with the supplied
-    kernel.
+def test_sirwriter_nemoloop_node_not_compute(parser, sir_writer):
+    '''Check the nemoloop_node method of the SIRWriter class raises an
+    exception if the content of the triply nested loop is not computation.
 
     '''
-    kernel = get_kernel(parser, CODE)
-    result = sir_writer.nemokern_node(kernel)
-    assert (
-        "make_assignment_stmt(\n"
-        "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
-        "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
-        "  \"=\")," in result)
+    code = CODE.replace("          a(i,j,k) = 1.0\n",
+                        "          write(*,*) a(i,j,k)\n")
+    schedule = get_schedule(parser, code)
+    with pytest.raises(VisitorError) as excinfo:
+        _ = sir_writer(schedule)
+    assert ("A loop nest containing a CodeBlock cannot be translated to SIR"
+            in str(excinfo.value))
 
 
 # (1/2) Method nemoinvokeschedule_node
@@ -464,7 +435,8 @@ def test_sirwriter_nemoinvokeschedule_node_1(parser, sir_writer):
 
 
 # (2/2) Method nemoinvokeschedule_node
-def test_sirwriter_nemoinvokeschedule_node_2(parser, sir_writer):
+def test_sirwriter_nemoinvokeschedule_node_2(parser, sir_writer,
+                                             monkeypatch):
     '''Check the nemoinvokeschedule_node method of the SIRWriter class
     outputs the expected SIR code when there is a scalar variable.
 
@@ -472,6 +444,10 @@ def test_sirwriter_nemoinvokeschedule_node_2(parser, sir_writer):
     code = CODE.replace("\n    integer ::", "\n    real :: b\n    integer ::")
     code = code.replace("a(i,j,k) = 1.0", "b = a(i,j,k)")
     schedule = get_schedule(parser, code)
+    loops = schedule.walk(Loop)
+    # Writing to a shared scalar is not parallel so monkeypatch the check to
+    # allow it through.
+    monkeypatch.setattr(loops[2], "independent_iterations", lambda: True)
     result = sir_writer(schedule)
     assert (
         "# PSyclone autogenerated SIR Python\n"
@@ -520,15 +496,15 @@ def test_sirwriter_binaryoperation_node_1(parser, sir_writer, oper):
     code = CODE.replace("\n    integer ::",
                         "\n    real :: b, c\n    integer ::")
     code = code.replace(
-        "a(i,j,k) = 1.0", "a(i,j,k) = b {0} c".format(oper))
+        "a(i,j,k) = 1.0", f"a(i,j,k) = b {oper} c")
     rhs = get_rhs(parser, code)
     result = sir_writer.binaryoperation_node(rhs)
     assert (
-        "make_binary_operator(\n"
-        "  make_field_access_expr(\"b\"),\n"
-        "  \"{0}\",\n"
-        "  make_field_access_expr(\"c\")\n"
-        "  )\n".format(oper) in result)
+        f"make_binary_operator(\n"
+        f"  make_field_access_expr(\"b\"),\n"
+        f"  \"{oper}\",\n"
+        f"  make_field_access_expr(\"c\")\n"
+        f"  )\n" in result)
 
 
 # (2/4) Method binaryoperation_node
@@ -545,19 +521,17 @@ def test_sirwriter_binaryoperation_node_2(parser, sir_writer, foper, soper):
     code = CODE.replace("\n    integer ::",
                         "\n    real :: b, c\n    integer ::")
     code = code.replace(
-        "a(i,j,k) = 1.0", "if (b {0} c) then\na(i,j,k) = 1.0\nend if"
-        "".format(foper))
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement = kernel_schedule.children[0]
+        "a(i,j,k) = 1.0", f"if (b {foper} c) then\na(i,j,k) = 1.0\nend if")
+    sched = get_schedule(parser, code)
+    if_statement = sched.walk(IfBlock)[0]
     if_condition = if_statement.condition
     result = sir_writer.binaryoperation_node(if_condition)
     assert (
-        "make_binary_operator(\n"
-        "  make_field_access_expr(\"b\"),\n"
-        "  \"{0}\",\n"
-        "  make_field_access_expr(\"c\")\n"
-        "  )\n".format(soper) in result)
+        f"make_binary_operator(\n"
+        f"  make_field_access_expr(\"b\"),\n"
+        f"  \"{soper}\",\n"
+        f"  make_field_access_expr(\"c\")\n"
+        f"  )\n" in result)
 
 
 # (3/4) Method binaryoperation_node
@@ -587,21 +561,32 @@ def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
         "  )" in result)
 
 
-# (4/4) Method binaryoperation_node
-def test_sirwriter_binaryoperation_node_4(parser, sir_writer):
-    '''Check the binaryoperation_node method of the SIRWriter class raises
-    the expected exception if an unsupported binary operator is found.
+def test_sirwriter_binaryoperator_not_supported(sir_writer):
+    ''' Check that unsupported BinaryOperators produce a relevant error. '''
+    operation = BinaryOperation.create(
+        BinaryOperation.Operator.REM,
+        Literal("1", INTEGER_TYPE),
+        Literal("2", INTEGER_TYPE))
+    with pytest.raises(VisitorError) as excinfo:
+        sir_writer.binaryoperation_node(operation)
+    assert ("Method binaryoperation_node in class SIRWriter, unsupported "
+            "operator 'Operator.REM' found." in str(excinfo.value))
+
+
+def test_sirwriter_intrinsiccall_node(parser, sir_writer):
+    '''Check the intrinsiccall_node method of the SIRWriter class raises
+    the expected exception if an unsupported intrinsic is found.
 
     '''
     code = CODE.replace("\n    integer ::",
                         "\n    real :: b, c\n    integer ::")
-    # Choose the sign function as there is no direct support for it in
+    # Choose the matmul function as there is no direct support for it in
     # in the SIR and no mapping is currently provided.
-    code = code.replace("a(i,j,k) = 1.0", "a(i,j,k) = sign(b, c)")
+    code = code.replace("a(i,j,k) = 1.0", "a(i,j,k) = matmul(b, c)")
     rhs = get_rhs(parser, code)
     with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer.binaryoperation_node(rhs)
-    assert "unsupported operator 'Operator.SIGN' found" in str(excinfo.value)
+        _ = sir_writer.intrinsiccall_node(rhs)
+    assert "unsupported intrinsic 'MATMUL' found" in str(excinfo.value)
 
 
 # (1/2) Method reference_node
@@ -682,8 +667,8 @@ def test_sirwriter_literal_node_error(parser, sir_writer, value, datatype):
     with pytest.raises(VisitorError) as excinfo:
         sir_writer.literal_node(rhs)
     assert (
-        "PSyIR type 'Scalar<{0}, UNDEFINED>' has no representation in "
-        "the SIR backend.".format(datatype) in str(excinfo.value))
+        f"PSyIR type 'Scalar<{datatype}, UNDEFINED>' has no representation in "
+        f"the SIR backend." in str(excinfo.value))
 
 
 # (1/5) Method unaryoperation_node
@@ -694,26 +679,11 @@ def test_sirwriter_unaryoperation_node_1(parser, sir_writer):
 
     '''
     for oper in ["-"]:  # Currently only one supported mapping
-        code = CODE.replace("1.0", "{0}1.0".format(oper))
+        code = CODE.replace("1.0", f"{oper}1.0")
         rhs = get_rhs(parser, code)
         result = sir_writer.unaryoperation_node(rhs)
         assert ("make_literal_access_expr(\"-1.0\", BuiltinType.Float)"
                 in result)
-
-
-# (2/5) Method unaryoperation_node
-def test_sirwriter_unary_node_2(parser, sir_writer):
-    '''Check the unaryoperation_node method of the SIRWriter class raises
-    the expected exception if an unsupported unary operator is found.
-
-    '''
-    # Choose the sin function as there are no examples of its
-    # use in the SIR so no mapping is currently provided.
-    code = CODE.replace("1.0", "sin(1.0)")
-    rhs = get_rhs(parser, code)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer.unaryoperation_node(rhs)
-    assert "unsupported operator 'Operator.SIN' found" in str(excinfo.value)
 
 
 # (3/5) Method unaryoperation_node
@@ -728,8 +698,8 @@ def test_sirwriter_unary_node_3(parser, sir_writer, value, datatype):
     code = CODE.replace("1.0", value)
     rhs = get_rhs(parser, code)
     result = sir_writer.unaryoperation_node(rhs)
-    assert ("make_literal_access_expr(\"{0}\", BuiltinType.{1})"
-            "".format(value, datatype) in result)
+    assert (f"make_literal_access_expr(\"{value}\", BuiltinType.{datatype})"
+            in result)
 
 
 # (4/5) Method unaryoperation_node
@@ -773,6 +743,17 @@ def test_sirwriter_unary_node_5(parser, sir_writer):
         ")\n")
 
 
+def test_sirwriter_unaryoperator_not_supported(sir_writer):
+    ''' Check that unsupported UnaryOperators produce a relevant error. '''
+    operation = UnaryOperation.create(
+        UnaryOperation.Operator.NOT,
+        Literal("1", INTEGER_TYPE))
+    with pytest.raises(VisitorError) as excinfo:
+        sir_writer.unaryoperation_node(operation)
+    assert ("Method unaryoperation_node in class SIRWriter, unsupported "
+            "operator 'Operator.NOT' found." in str(excinfo.value))
+
+
 # (1/4) Method ifblock_node
 def test_sirwriter_ifblock_node_1(parser, sir_writer):
     '''Check the ifblock_node method of the SIRWriter class
@@ -784,9 +765,8 @@ def test_sirwriter_ifblock_node_1(parser, sir_writer):
                         "\n    integer :: b, c\n    integer ::")
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_statement = sched.walk(IfBlock)[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
         "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
@@ -810,9 +790,8 @@ def test_sirwriter_ifblock_node_2(parser, sir_writer):
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nelse\n"
         "a(i,j,k) = 0.0\nend if")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_statement = sched.walk(IfBlock)[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
         "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
@@ -839,11 +818,11 @@ def test_sirwriter_ifblock_node_3(parser, sir_writer):
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if\n"
         "if (c .ge. 0.5) then\na(i,j,k) = -1.0\nend if\n")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement_0 = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_stmts = sched.walk(IfBlock)
+    if_statement_0 = if_stmts[0]
     result_0 = sir_writer.ifblock_node(if_statement_0)
-    if_statement_1 = kernel_schedule.children[1]
+    if_statement_1 = if_stmts[1]
     result_1 = sir_writer.ifblock_node(if_statement_1)
     assert (
         "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
@@ -886,9 +865,8 @@ def test_sirwriter_ifblock_node_4(parser, sir_writer):
         "    a(i,j,k) = -1.0\n"
         "  end if\n"
         "end if")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_statement = sched.walk(IfBlock)[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
         "make_if_stmt(make_expr_stmt(make_binary_operator(\n"
@@ -927,9 +905,8 @@ def test_sirwriter_schedule_node_1(parser, sir_writer):
                         "\n    integer :: b, c\n    integer ::")
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
-    kernel = get_kernel(parser, code)
-    kernel_schedule = kernel.get_kernel_schedule()
-    if_statement = kernel_schedule.children[0]
+    sched = get_schedule(parser, code)
+    if_statement = sched.walk(IfBlock)[0]
     schedule = if_statement.if_body
     assert isinstance(schedule, Schedule)
     schedule_result = sir_writer.schedule_node(schedule)
@@ -941,5 +918,53 @@ def test_sirwriter_schedule_node_1(parser, sir_writer):
         "  make_field_access_expr(\"a\", [0, 0, 0]),\n"
         "  make_literal_access_expr(\"1.0\", BuiltinType.Float),\n"
         "  \"=\")," in schedule_result)
+
+
+def test_sirwriter_intrinsiccall_node_2(parser, sir_writer):
+    '''Check the intrinsiccall_node method of the SIRWriter class
+    outputs the expected SIR code for a supported intrinsic with
+    1 argument.
+
+    '''
+    code = CODE.replace("1.0", "abs(1.0)")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.intrinsiccall_node(rhs)
+    assert ("make_fun_call_expr(\"math::fabs\", [make_literal_access_expr("
+            "\"1.0\", BuiltinType.Float)])" in result)
+
+
+@pytest.mark.parametrize("intrinsic", ["min", "max"])
+def test_sirwriter_intrinsiccall_node_3(parser, sir_writer, intrinsic):
+    '''Check the intrinsiccall_node method of the SIRWriter class
+    outputs the expected SIR code for a supported intrinsic with 2
+    arguments.
+
+    '''
+    code = CODE.replace("1.0", f"{intrinsic}(1.0, 2.0)")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.intrinsiccall_node(rhs)
+    assert (f"make_fun_call_expr(\"math::{intrinsic}\", ["
+            f"make_literal_access_expr(\"1.0\", BuiltinType.Float)], "
+            f"[make_literal_access_expr(\"2.0\", BuiltinType.Float)])"
+            in result)
+
+
+def test_sirwriter_intrinsiccall_sign_node(parser, sir_writer):
+    '''Check the intrinsiccall_node method of the SIRWriter class
+    outputs the expected SIR code for the sign intrinsic.
+    This is a special case as the sign intrinsic is
+    implemented differently in the PSyIR (Fortran implementation) and
+    SIR (C implementation).
+
+    '''
+    code = CODE.replace("1.0", "sign(1.0, 2.0)")
+    rhs = get_rhs(parser, code)
+    result = sir_writer.intrinsiccall_node(rhs)
+    assert ("make_binary_operator(make_fun_call_expr(\"math::fabs\", "
+            "[make_literal_access_expr(\"1.0\", BuiltinType.Float)]), "
+            "\"*\", make_fun_call_expr(\"math::sign\", "
+            "[make_literal_access_expr(\"2.0\", BuiltinType.Float)]))"
+            in result)
+
 
 # Class SIRWriter end

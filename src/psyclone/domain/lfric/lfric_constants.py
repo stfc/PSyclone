@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,34 +33,37 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
-# Modified: R. W. Ford, STFC Daresbury Lab
+#           A. R. Porter, STFC Daresbury Laboratory
+#           R. W. Ford, STFC Daresbury Laboratory
 
 '''
 This module provides a class with all LFRic related constants.
 '''
 
-# Imports
-from __future__ import print_function, absolute_import
-
 from collections import OrderedDict
 
 from psyclone.configuration import Config
+from psyclone.errors import InternalError
 
 
 # pylint: disable=too-few-public-methods
-class LFRicConstants(object):
+class LFRicConstants():
     '''This class stores all LFRic constants. Note that some constants
     depend on values in the config file, so this class can only be
     used after the config file has been read.
     It stores all values in class variables (to avoid re-evaluating them).
-    '''
 
+    '''
     HAS_BEEN_INITIALISED = False
 
     def __init__(self):
         # pylint: disable=too-many-statements
         if LFRicConstants.HAS_BEEN_INITIALISED:
             return
+
+        if not Config.has_config_been_initialised():
+            raise InternalError("LFRicConstants is being created before the "
+                                "config file is loaded")
 
         LFRicConstants.HAS_BEEN_INITIALISED = True
         api_config = Config.get().api_conf("dynamo0.3")
@@ -83,6 +86,14 @@ class LFRicConstants(object):
             LFRicConstants.VALID_OPERATOR_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
+        # Mapping from argument type to the suffix used when creating
+        # pointers to actual data arrays (and the associated symbol tags).
+        LFRicConstants.ARG_TYPE_SUFFIX_MAPPING = {
+            "gh_field": "data",
+            "gh_operator": "local_stencil",
+            "gh_columnwise_operator": "cma_matrix"
+            }
+
         # Supported API argument data types ('gh_real', 'gh_integer'
         # and 'gh_logical')
         LFRicConstants.VALID_ARG_DATA_TYPES = \
@@ -93,6 +104,19 @@ class LFRicConstants(object):
         LFRicConstants.VALID_OPERATOR_DATA_TYPES = ["gh_real"]
 
         # pylint: disable=too-many-instance-attributes
+
+        # Supported access types
+        # gh_sum for scalars is restricted to iterates_over == 'dof'
+        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read", "gh_sum"]
+        LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
+            "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
+        LFRicConstants.VALID_OPERATOR_ACCESS_TYPES = [
+            "gh_read", "gh_write", "gh_readwrite"]
+        LFRicConstants.VALID_ACCESS_TYPES = [
+            "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
+
+        LFRicConstants.WRITE_ACCESSES = [
+            "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_sum"]
 
         # Supported LFRic API stencil types and directions
         LFRicConstants.VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross",
@@ -125,13 +149,19 @@ class LFRicConstants(object):
         LFRicConstants.VALID_INTRINSIC_TYPES = supported_fortran_datatypes
 
         # Valid intrinsic types for field kernel argument data
-        # ('real' and 'integer').
-        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer"]
+        # ('real', 'integer', and 'logical').
+        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer",
+                                                      "logical"]
 
         # ---------- Mapping from metadata data_type to Fortran intrinsic type
         LFRicConstants.MAPPING_DATA_TYPES = \
             OrderedDict(zip(LFRicConstants.VALID_ARG_DATA_TYPES,
                             LFRicConstants.VALID_INTRINSIC_TYPES))
+
+        # ---------- Mapping from Fortran intrinsic type to metadata data_type
+        LFRicConstants.MAPPING_INTRINSIC_TYPES = \
+            OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
+                            LFRicConstants.VALID_ARG_DATA_TYPES))
 
         # ---------- Loops (bounds, types, names) -----------------------------
         # These are loop bound names which identify positions in a field's
@@ -271,6 +301,15 @@ class LFRicConstants(object):
         LFRicConstants.VALID_METAFUNC_NAMES = \
             LFRicConstants.VALID_EVALUATOR_NAMES
 
+        # Valid Reference Element names
+        LFRicConstants.VALID_REF_ELEMENT_NAMES = [
+            "normals_to_horizontal_faces", "normals_to_vertical_faces",
+            "normals_to_faces", "outward_normals_to_horizontal_faces",
+            "outward_normals_to_vertical_faces", "outward_normals_to_faces"]
+
+        # Valid mesh names
+        LFRicConstants.VALID_MESH_NAMES = ["adjacent_face"]
+
         # ---------- Map from scalar intrinsic type to its precision ----------
         LFRicConstants.SCALAR_PRECISION_MAP = \
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
@@ -302,6 +341,24 @@ class LFRicConstants(object):
                                "proxy_type": "r_solver_field_proxy_type",
                                "intrinsic": "real",
                                "kind": "r_solver"},
+            # 'real'-valued field with data of kind 'r_tran'
+            "r_tran_field": {"module": "r_tran_field_mod",
+                             "type": "r_tran_field_type",
+                             "proxy_type": "r_tran_field_proxy_type",
+                             "intrinsic": "real",
+                             "kind": "r_tran"},
+            # 'real'-valued field with data of kind 'r_bl'
+            "r_bl_field": {"module": "r_bl_field_mod",
+                           "type": "r_bl_field_type",
+                           "proxy_type": "r_bl_field_proxy_type",
+                           "intrinsic": "real",
+                           "kind": "r_bl"},
+            # 'real'-valued field with data of kind 'r_phys'
+            "r_phys_field": {"module": "r_phys_field_mod",
+                             "type": "r_phys_field_type",
+                             "proxy_type": "r_phys_field_proxy_type",
+                             "intrinsic": "real",
+                             "kind": "r_phys"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",
@@ -316,18 +373,34 @@ class LFRicConstants(object):
                          "kind": "r_def"},
             # 'real'-valued operator with data of kind 'r_solver'
             "r_solver_operator": {
-                "module": "operator_mod",
+                "module": "r_solver_operator_mod",
                 "type": "r_solver_operator_type",
                 "proxy_type": "r_solver_operator_proxy_type",
                 "intrinsic": "real",
                 "kind": "r_solver"},
+            # 'real'-valued operator with data of kind 'r_tran'
+            "r_tran_operator": {
+                "module": "r_tran_operator_mod",
+                "type": "r_tran_operator_type",
+                "proxy_type": "r_tran_operator_proxy_type",
+                "intrinsic": "real",
+                "kind": "r_tran"},
             # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
-                "module": "operator_mod",
+                "module": "columnwise_operator_mod",
                 "type": "columnwise_operator_type",
                 "proxy_type": "columnwise_operator_proxy_type",
                 "intrinsic": "real",
                 "kind": "r_solver"}}
+
+        # Mapping from a vector type used in the algorithm-layer to
+        # the actual type used in the PSy-layer.
+        LFRicConstants.FIELD_VECTOR_TO_FIELD_MAP = {
+            "field_vector_type": "field_type",
+            "r_solver_field_vector_type": "r_solver_field_type",
+            "r_tran_field_vector_type": "r_tran_field_type",
+            "r_bl_field_vector_type": "r_bl_field_type",
+            "r_phys_field_vector_type": "r_phys_field_type"}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.
@@ -387,6 +460,69 @@ class LFRicConstants(object):
             "constants": {"module": "constants_mod"},
             # Logging module (used for runtime checks)
             "logging": {"module": "log_mod"}}
+
+    @staticmethod
+    def specific_function_space(name):
+        '''
+        Maps from a valid kernel metadata function-space name to one
+        that exists within the LFRic infrastructure. This is necessary
+        because meta-data can contain 'generic' names such as 'any_w2' but,
+        when generating code, we need the name of a specific function space
+        that is recognised by the LFRic infrastructure.
+
+        :param str name: the name of the function space in metadata.
+
+        :returns: the name of a specific function space.
+        :rtype: str
+
+        :raises ValueError: if the supplied name is not a valid LFRic \
+                            function-space name.
+        :raises InternalError: if an unrecognised wildcard function-space \
+                               name is supplied.
+        '''
+        space = name.lower()
+        if space not in LFRicConstants.VALID_FUNCTION_SPACE_NAMES:
+            raise ValueError(
+                f"'{space}' is not a recognised LFRic function space (one of "
+                f"{LFRicConstants.VALID_FUNCTION_SPACE_NAMES}).")
+
+        # TODO #1709 - make this mapping configurable rather than
+        # hardwiring it here.
+        if not space.startswith("any_"):
+            return space
+        if space == "any_w2":
+            return "w2"
+        if space.startswith("any_space_"):
+            return LFRicConstants.CONTINUOUS_FUNCTION_SPACES[0]
+        if space.startswith("any_discontinuous_space_"):
+            return LFRicConstants.DISCONTINUOUS_FUNCTION_SPACES[0]
+
+        raise InternalError(f"Error mapping from meta-data function space "
+                            f"to actual space: cannot handle '{space}'")
+
+    def precision_for_type(self, data_type):
+        '''This function returns the precision required for the various
+        LFRic types.
+
+        :param str data_type: the name of the data type.
+
+        :returns: the precision as defined in domain.lfric.lfric_types
+            (one of R_SOLVER, R_TRAN, R_DEF).
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises InternalError: if an unknown data_type is specified.
+
+        '''
+        for module_info in self.DATA_TYPE_MAP.values():
+            if module_info["type"] == data_type:
+                # pylint: disable=import-outside-toplevel
+                from psyclone.domain.lfric.lfric_types import LFRicTypes
+                return LFRicTypes(module_info["kind"].upper())
+
+        valid = [module_info["type"]
+                 for module_info in self.DATA_TYPE_MAP.values()]
+        raise InternalError(f"Unknown data type '{data_type}', expected one "
+                            f"of {valid}.")
 
 
 # =============================================================================

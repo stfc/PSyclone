@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -59,9 +59,10 @@ Kernel Data Extraction:
   to all input variables before, and output variables after a kernel
   invocation. This can be used to automatically create tests for
   a kernel, or to write a stand-alone driver that just calls one
-  kernel, which can be used for performance tuning. An example
-  library that extracts input and output data into a NetCDF file
-  is included with PSyclone (see :ref:`psyke_netcdf`).
+  kernel, which can be used for performance tuning. Two example
+  libraries that extract input and output data into either a Fortran
+  binary or a NetCDF file are included with PSyclone (see
+  :ref:`extraction_libraries`).
 
 Access Verification:
   The callbacks can be used to make sure a field declared as read-only

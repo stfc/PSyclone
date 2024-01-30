@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,14 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. Transforms all kernels in the invoke
 to have them compiled for an OpenACC accelerator. '''
 
-from __future__ import print_function
-from psyclone.transformations import ACCParallelTrans, \
-    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans
+from psyclone.transformations import (
+    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans)
 from psyclone.psyir.nodes import Loop
 
 
@@ -53,7 +53,7 @@ def trans(psy):
 
     invoke = psy.invokes.get('invoke_0_inc_field')
     schedule = invoke.schedule
-    schedule.view()
+    print(schedule.view())
 
     # Apply the OpenACC Loop transformation to *every* loop
     # nest in the schedule
@@ -75,5 +75,5 @@ def trans(psy):
         # for the fparser2 AST (issue #229).
         # itrans.apply(kern)
 
-    schedule.view()
+    print(schedule.view())
     return psy

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR DOT_PRODUCT operator
 to PSyIR code. This could be useful if the DOT_PRODUCT operator is not
@@ -42,14 +43,14 @@ better than the intrinsic.
 
 # pylint: disable=too-many-locals
 
-from __future__ import absolute_import
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range, Routine
+    Loop, Literal, ArrayReference, Range, Routine, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType, ScalarType
-from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-    Operator2CodeTrans
+from psyclone.psyir.transformations.transformation_error \
+    import TransformationError
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
+    Intrinsic2CodeTrans
 
 
 def _get_array_bound(vector1, vector2):
@@ -98,17 +99,17 @@ def _get_array_bound(vector1, vector2):
     # array so use the LBOUND and UBOUND intrinsics.
     symbol = vector1.symbol
     my_dim = symbol.shape[0]
-    lower_bound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(symbol),
-        Literal("1", INTEGER_TYPE))
-    upper_bound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(symbol),
-        Literal("1", INTEGER_TYPE))
+    lower_bound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
+    upper_bound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 
 
-class DotProduct2CodeTrans(Operator2CodeTrans):
+class DotProduct2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR DOT_PRODUCT Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
@@ -133,7 +134,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.nodes import BinaryOperation
+    >>> from psyclone.psyir.nodes import IntrinsicCall
     >>> from psyclone.psyir.transformations import DotProduct2CodeTrans
     >>> code = ("subroutine dot_product_test(v1,v2)\\n"
     ...         "real,intent(in) :: v1(10), v2(10)\\n"
@@ -142,7 +143,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
     ...         "end subroutine\\n")
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> trans = DotProduct2CodeTrans()
-    >>> trans.apply(psyir.walk(BinaryOperation)[0])
+    >>> trans.apply(psyir.walk(IntrinsicCall)[0])
     >>> print(FortranWriter()(psyir))
     subroutine dot_product_test(v1, v2)
       real, dimension(10), intent(in) :: v1
@@ -163,9 +164,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
     '''
     def __init__(self):
         super().__init__()
-        self._operator_name = "DOTPRODUCT"
-        self._classes = (BinaryOperation,)
-        self._operators = (BinaryOperation.Operator.DOT_PRODUCT,)
+        self._intrinsic = IntrinsicCall.Intrinsic.DOT_PRODUCT
 
     def validate(self, node, options=None):
         '''Perform checks to ensure that it is valid to apply the
@@ -201,7 +200,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                     f"The DotProduct2CodeTrans transformation only supports "
                     f"the transformation of a dotproduct intrinsic if its "
                     f"arguments are plain arrays, but found "
-                    f"{self._writer(arg)} in {self._writer(node)}.")
+                    f"{arg.debug_string()} in {node.debug_string()}.")
 
         for arg in node.children:
             # The argument should be a 1D array if the argument does
@@ -210,15 +209,15 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
             if arg.__class__ is Reference:
                 symbol = arg.symbol
                 # This symbol should be a 1D array
-                if not(isinstance(symbol, DataSymbol) and symbol.is_array and
-                       len(symbol.shape) == 1):
+                if not (isinstance(symbol, DataSymbol) and symbol.is_array and
+                        len(symbol.shape) == 1):
                     raise TransformationError(
                         f"The DotProduct2CodeTrans transformation only "
                         f"supports the transformation of a dotproduct "
                         f"intrinsic with an argument not containing an array "
                         f"slice if the argument is a 1D array, but found "
-                        f"{self._writer(arg)} with {len(symbol.shape)} "
-                        f"dimensions in {self._writer(node)}.")
+                        f"{arg.debug_string()} with {len(symbol.shape)} "
+                        f"dimensions in {node.debug_string()}.")
 
         for arg in node.children:
             # If the argument does provide array slice information
@@ -232,8 +231,8 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                         f"supports the transformation of a dotproduct "
                         f"intrinsic with an argument containing an array "
                         f"slice if the array slice is for the 1st dimension "
-                        f"of the array, but found {self._writer(arg)} in "
-                        f"{self._writer(node)}.")
+                        f"of the array, but found {arg.debug_string()} in "
+                        f"{node.debug_string()}.")
 
                 if not arg.is_full_range(0):
                     raise TransformationError(
@@ -242,18 +241,18 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                         f"intrinsic with an argument containing an array "
                         f"slice if the argument is for the 1st dimension "
                         f"of the array and is for the full range of that "
-                        f"dimension, but found {self._writer(arg)} in "
-                        f"{self._writer(node)}.")
+                        f"dimension, but found {arg.debug_string()} in "
+                        f"{node.debug_string()}.")
 
         # Both arguments should be real (as other intrinsic datatypes
-        # are not suported).
+        # are not supported).
         for arg in node.children:
             if arg.symbol.datatype.intrinsic != ScalarType.Intrinsic.REAL:
                 raise TransformationError(
                     f"The DotProduct2CodeTrans transformation only supports "
-                    f"arrays of real data, but found {self._writer(arg)} of "
+                    f"arrays of real data, but found {arg.debug_string()} of "
                     f"type {arg.symbol.datatype.intrinsic.name} in "
-                    f"{self._writer(node)}.")
+                    f"{node.debug_string()}.")
 
     def apply(self, node, options=None):
         '''Apply the DOT_PRODUCT intrinsic conversion transformation to the

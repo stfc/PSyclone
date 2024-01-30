@@ -6,6 +6,8 @@
 # -----------------------------------------------------------------------------
 # Author D. Ham Imperial College
 # Modified by R. Ford and A. R. Porter, STFC Daresbury Laboratory
+# Modified by J. Henrichs, Bureau of Meteorology
+
 
 ''' A simple Fortran expression parser. Note that this does not parse Fortran,
 only legal Fortran expressions. '''
@@ -15,7 +17,7 @@ import pyparsing as pparse
 pparse.ParserElement.enablePackrat()
 
 
-class ExpressionNode(object):
+class ExpressionNode():
     '''Base class for all expression tree nodes'''
 
     # pylint: disable=too-few-public-methods
@@ -29,16 +31,6 @@ class ExpressionNode(object):
 
         # Keep the list of toks for future reference.
         self.toks = toks
-
-    def walk_skipping_name(self):
-        ''' Generator for depth-first walk of this expression, skipping
-        the name part of the walk. '''
-        for tok in self.toks:
-            if isinstance(tok, ExpressionNode):
-                for index, i in enumerate(tok.walk_skipping_name()):
-                    if index > 0:
-                        yield i
-        yield self
 
 
 class Grouping(ExpressionNode):
@@ -227,14 +219,11 @@ class NamedArg(ExpressionNode):
     def __repr__(self):
         if self._quote:
             if self._quote == "'":
-                _str = "NamedArg(['{0}', '=', \"'{1}'\"])".format(self._name,
-                                                                  self._value)
+                _str = f"NamedArg(['{self._name}', '=', \"'{self._value}'\"])"
             else:
-                _str = 'NamedArg(["{0}", "=", \'"{1}"\'])'.format(self._name,
-                                                                  self._value)
+                _str = f'NamedArg(["{self._name}", "=", \'"{self._value}"\'])'
         else:
-            _str = "NamedArg(['{0}', '=', '{1}'])".format(self._name,
-                                                          self._value)
+            _str = f"NamedArg(['{self._name}', '=', '{self._value}'])"
         return _str
 
     def __str__(self):

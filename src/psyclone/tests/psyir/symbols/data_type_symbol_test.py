@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,29 +32,30 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains pytest tests for the DataTypeSymbol class. '''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import DataTypeSymbol, DeferredType, Symbol, \
+from psyclone.psyir.symbols import DataTypeSymbol, UnresolvedType, Symbol, \
     UnresolvedInterface, ArrayType, REAL_SINGLE_TYPE
 
 
 def test_create_datatypesymbol():
     ''' Check that a basic DataTypeSymbol can be created with the expected
     properties. '''
-    sym = DataTypeSymbol("my_type", DeferredType())
+    sym = DataTypeSymbol("my_type", UnresolvedType())
     assert sym.name == "my_type"
-    assert isinstance(sym.datatype, DeferredType)
-    assert str(sym) == "my_type : DataTypeSymbol"
+    assert isinstance(sym.datatype, UnresolvedType)
+    assert str(sym) == "my_type: DataTypeSymbol"
 
 
 def test_create_datatypesymbol_wrong_datatype():
     ''' Check that attempting to specify the type of a DataTypeSymbol with an
     invalid type results in the expected error. '''
-    sym = DataTypeSymbol("my_type", DeferredType())
+    sym = DataTypeSymbol("my_type", UnresolvedType())
     with pytest.raises(TypeError) as err:
         sym.datatype = "integer"
     assert ("datatype of a DataTypeSymbol must be specified using a "
@@ -63,13 +64,13 @@ def test_create_datatypesymbol_wrong_datatype():
 
 def test_datatypesymbol_copy():
     ''' Check that a DataTypeSymbol can be copied. '''
-    symbol = DataTypeSymbol("my_type", DeferredType(),
+    symbol = DataTypeSymbol("my_type", UnresolvedType(),
                             visibility=Symbol.Visibility.PRIVATE,
                             interface=UnresolvedInterface())
     new_symbol = symbol.copy()
     assert new_symbol is not symbol
     assert new_symbol.name == "my_type"
-    assert isinstance(new_symbol.datatype, DeferredType)
+    assert isinstance(new_symbol.datatype, UnresolvedType)
     assert new_symbol.visibility == Symbol.Visibility.PRIVATE
     assert isinstance(new_symbol.interface, UnresolvedInterface)
 
@@ -77,7 +78,7 @@ def test_datatypesymbol_copy():
 def test_data_type_symbol_copy_properties():
     ''' Check that the copy_properties() method works as expected. '''
     symbol = DataTypeSymbol("origin", ArrayType(REAL_SINGLE_TYPE, [1, 2]))
-    new_sym = DataTypeSymbol("new_name", DeferredType())
+    new_sym = DataTypeSymbol("new_name", UnresolvedType())
 
     new_sym.copy_properties(symbol)
 
@@ -86,6 +87,7 @@ def test_data_type_symbol_copy_properties():
     assert new_sym.datatype == symbol.datatype
     assert isinstance(new_sym.datatype, ArrayType)
     assert new_sym.datatype.intrinsic.name == "REAL"
+    assert new_sym.datatype.shape[1] == symbol.datatype.shape[1]
 
     with pytest.raises(TypeError) as err:
         new_sym.copy_properties(REAL_SINGLE_TYPE)

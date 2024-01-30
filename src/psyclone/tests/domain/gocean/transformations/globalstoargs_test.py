@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 ''' Tests the KernelImportsToArguments Transformation for the GOcean
 1.0 API.'''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse.algorithm import parse
@@ -131,11 +130,11 @@ def test_kernelimportstoargumentstrans(monkeypatch):
     notkernel = invoke.schedule.children[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch resolve_deferred to avoid module searching and importing
+    # Monkeypatch resolve_type to avoid module searching and importing
     # in this test. In this case we assume it is a REAL
     def set_to_real(variable):
         variable._datatype = REAL_TYPE
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_real)
+    monkeypatch.setattr(DataSymbol, "resolve_type", set_to_real)
 
     # Test with invalid node
     with pytest.raises(TransformationError) as err:
@@ -205,16 +204,17 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch resolve_deferred to avoid module searching and importing
+    # Monkeypatch resolve_type to avoid module searching and importing
     # in this test. In this case we assume it is a constant INTEGER
     def create_data_symbol(arg):
         symbol = DataSymbol(arg.name, INTEGER_TYPE,
                             interface=arg.interface,
-                            constant_value=Literal("1", INTEGER_TYPE))
+                            is_constant=True,
+                            initial_value=Literal("1", INTEGER_TYPE))
         return symbol
 
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", create_data_symbol)
-    monkeypatch.setattr(Symbol, "resolve_deferred", create_data_symbol)
+    monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
+    monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
 
     # Test transforming a single kernel
     trans.apply(kernel)
@@ -247,7 +247,7 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
         symbol = DataSymbol(arg.name, CHARACTER_TYPE,
                             interface=arg.interface)
         return symbol
-    monkeypatch.setattr(Symbol, "resolve_deferred", create_data_symbol)
+    monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
 
     # Test transforming a single kernel
     with pytest.raises(TypeError) as err:
@@ -286,14 +286,14 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
         ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)",
          "real, intent(inout) :: rdt"]]
 
-    # Monkeypatch the resolve_deferred() methods to avoid searching and
+    # Monkeypatch the resolve_type() methods to avoid searching and
     # importing of module during this test.
     def create_data_symbol(arg):
         symbol = DataSymbol(arg.name, REAL_TYPE,
                             interface=arg.interface)
         return symbol
-    monkeypatch.setattr(Symbol, "resolve_deferred", create_data_symbol)
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", create_data_symbol)
+    monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
+    monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
 
     for num, kernel in enumerate(invoke.schedule.coded_kernels()):
         kschedule = kernel.get_kernel_schedule()
@@ -363,13 +363,13 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch Symbol.resolve_deferred to avoid module searching and
+    # Monkeypatch Symbol.resolve_type to avoid module searching and
     # importing in this test. In this case we assume the symbol is a
     # DataSymbol of REAL type.
     def create_real(variable):
         return DataSymbol(variable.name, REAL_TYPE,
                           interface=variable.interface)
-    monkeypatch.setattr(Symbol, "resolve_deferred", create_real)
+    monkeypatch.setattr(Symbol, "resolve_type", create_real)
 
     # Add 'rdt' into the symbol table
     kernel.ancestor(InvokeSchedule).symbol_table.add(
@@ -378,6 +378,6 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
     # Test transforming a single kernel
     with pytest.raises(KeyError) as err:
         trans.apply(kernel)
-    assert ("Couldn't copy 'rdt: <Scalar<REAL, UNDEFINED>, "
+    assert ("Couldn't copy 'rdt: DataSymbol<Scalar<REAL, UNDEFINED>, "
             "Import(container='model_mod')>' into the SymbolTable. The name "
             "'rdt' is already used by another symbol." in str(err.value))

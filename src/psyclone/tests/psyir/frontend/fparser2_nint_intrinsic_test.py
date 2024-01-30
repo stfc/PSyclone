@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Laboratory
 
 ''' Module containing pytest tests for the handling of the NINT intrinsic
 in the PSyIR. '''
 
-from __future__ import absolute_import
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import (Assignment, IntrinsicCall,
+                                  BinaryOperation, Routine)
 
 TEST_CODE = '''
  PROGRAM my_test
@@ -58,17 +60,16 @@ def test_nint(parser):
     in the PSyIR.
 
     '''
-    from psyclone.psyir.nodes import Assignment, UnaryOperation, \
-        BinaryOperation
     processor = Fparser2Reader()
     reader = FortranStringReader(TEST_CODE)
     ptree = parser(reader)
-    sched = processor.generate_schedule("my_test", ptree)
+    psyir = processor.generate_psyir(ptree)
+    sched = psyir.walk(Routine)[0]
     assert isinstance(sched[0], Assignment)
-    assert isinstance(sched[0].rhs, UnaryOperation)
-    assert sched[0].rhs.operator == UnaryOperation.Operator.NINT
+    assert isinstance(sched[0].rhs, IntrinsicCall)
+    assert sched[0].rhs.intrinsic == IntrinsicCall.Intrinsic.NINT
     assert isinstance(sched[0].rhs.children[0], BinaryOperation)
     assert isinstance(sched[1], Assignment)
     assert isinstance(sched[1].rhs, BinaryOperation)
-    assert isinstance(sched[1].rhs.children[1], UnaryOperation)
-    assert sched[1].rhs.children[1].operator == UnaryOperation.Operator.NINT
+    assert isinstance(sched[1].rhs.children[1], IntrinsicCall)
+    assert sched[1].rhs.children[1].intrinsic == IntrinsicCall.Intrinsic.NINT

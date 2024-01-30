@@ -4,4 +4,6 @@
 *_alg_mod_psy.f90
 *.txt
 time_evolution
+time_evolution*.nc
+time_evolution*.binary
 main-update.nc

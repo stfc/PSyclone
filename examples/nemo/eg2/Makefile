@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,9 @@ transform: omp_levels
 
 omp_levels:
 	${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py ../code/traldf_iso.F90
+	${PSYCLONE} -api nemo -s ../scripts/omp_cpu_trans.py ../code/traldf_iso.F90
+	${PSYCLONE} -api nemo -s ../scripts/omp_gpu_trans.py ../code/traldf_iso.F90
+
 
 compile: transform
 	@echo "No compilation supported for nemo/eg2"

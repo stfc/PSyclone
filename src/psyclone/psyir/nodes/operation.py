@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,16 +39,17 @@
 ''' This module contains the implementation of the Operation class and its
 sub-classes.'''
 
-import abc
+from abc import ABCMeta
 from enum import Enum
-import six
 
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.symbols.datatypes import (
+    ArrayType, BOOLEAN_TYPE, UnresolvedType, ScalarType,
+    UnsupportedFortranType, UnsupportedType)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Operation(DataNode):
+class Operation(DataNode, metaclass=ABCMeta):
     '''
     Abstract base class for PSyIR nodes representing operators.
 
@@ -66,13 +67,11 @@ class Operation(DataNode):
     # Must be overridden in sub-class to hold an Enumeration of the Operators
     # that it can represent.
     Operator = object
-    _non_elemental_ops = []
-    # Textual description of the node.
-    _text_name = "Operation"
+    # Colour of the node in a view tree.
     _colour = "blue"
 
     def __init__(self, operator, parent=None):
-        super(Operation, self).__init__(parent=parent)
+        super().__init__(parent=parent)
 
         if not isinstance(operator, self.Operator):
             raise TypeError(
@@ -80,6 +79,21 @@ class Operation(DataNode):
                 f"{type(self).__name__}.Operator but found "
                 f"{type(operator).__name__}.")
         self._operator = operator
+
+    def __eq__(self, other):
+        '''Checks whether two Operations are equal. Operations are equal
+        if they are the same type, have the same operator and if the inherited
+        equality is True.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.operator == other.operator
+
+        return is_eq
 
     @property
     def operator(self):
@@ -94,6 +108,16 @@ class Operation(DataNode):
         '''
         return self._operator
 
+    def __str__(self):
+        result = f"{self.node_str(False)}\n"
+        for entity in self._children:
+            result += f"{str(entity)}\n"
+
+        # Delete last line break
+        if result[-1] == "\n":
+            result = result[:-1]
+        return result
+
     def node_str(self, colour=True):
         '''
         Construct a text representation of this node, optionally with control
@@ -107,25 +131,6 @@ class Operation(DataNode):
         return self.coloured_name(colour) + \
             "[operator:'" + self._operator.name + "']"
 
-    def is_elemental(self):
-        '''
-        :returns: whether this operation is elemental (provided with an input \
-            array it will apply the operation individually to each of the \
-            array elements and return an array with the results).
-        :rtype: bool
-        '''
-        return self.operator not in self._non_elemental_ops
-
-    def __str__(self):
-        result = self.node_str(False) + "\n"
-        for entity in self._children:
-            result += str(entity) + "\n"
-
-        # Delete last line break
-        if result[-1] == "\n":
-            result = result[:-1]
-        return result
-
 
 class UnaryOperation(Operation):
     '''
@@ -134,22 +139,16 @@ class UnaryOperation(Operation):
     '''
     # Textual description of the node.
     _children_valid_format = "DataNode"
-    _text_name = "UnaryOperation"
 
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10', 'SUM',
+        'MINUS', 'PLUS',
         # Logical Operators
         'NOT',
-        # Trigonometric Operators
-        'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
-        # Other Maths Operators
-        'ABS', 'CEIL',
-        # Casting Operators
-        'REAL', 'INT', 'NINT'
         ])
 
-    _non_elemental_ops = [Operator.SUM]
+    # The numeric operators.
+    _numeric_ops = (Operator.MINUS, Operator.PLUS)
 
     @staticmethod
     def _validate_child(position, child):
@@ -165,13 +164,16 @@ class UnaryOperation(Operation):
         return position == 0 and isinstance(child, DataNode)
 
     @staticmethod
-    def create(oper, child):
-        '''Create a UnaryOperation instance given oper and child instances.
+    def create(operator, operand):
+        '''Create a UnaryOperation instance given an operator and operand.
 
-        :param oper: the specified operator.
-        :type oper: :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
-        :param child: the PSyIR node that oper operates on.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
+        :param operator: the specified operator.
+        :type operator: \
+            :py:class:`psyclone.psyir.nodes.UnaryOperation.Operator`
+        :param operand: the PSyIR node that oper operates on, or a tuple \
+            containing the name of the argument and the PSyIR node.
+        :type operand: Union[:py:class:`psyclone.psyir.nodes.Node` | \
+            Tuple[str, :py:class:``psyclone.psyir.nodes.Node``]]
 
         :returns: a UnaryOperation instance.
         :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
@@ -180,15 +182,25 @@ class UnaryOperation(Operation):
             are not of the expected type.
 
         '''
-        if not isinstance(oper, UnaryOperation.Operator):
+        if not isinstance(operator, Enum) or \
+           operator not in UnaryOperation.Operator:
             raise GenerationError(
-                f"oper argument in create method of UnaryOperation class "
+                f"operator argument in create method of UnaryOperation class "
                 f"should be a PSyIR UnaryOperation Operator but found "
-                f"'{type(oper).__name__}'.")
+                f"'{type(operator).__name__}'.")
 
-        unary_op = UnaryOperation(oper)
-        unary_op.children = [child]
+        unary_op = UnaryOperation(operator)
+        unary_op.addchild(operand)
         return unary_op
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of the result of this UnaryOperation.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        '''
+        return self.children[0].datatype
 
 
 class BinaryOperation(Operation):
@@ -199,98 +211,17 @@ class BinaryOperation(Operation):
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)
-        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW', 'SUM',
+        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
         # Relational Operators
         'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
         # Logical Operators
-        'AND', 'OR',
-        # Other Maths Operators
-        'SIGN', 'MIN', 'MAX',
-        # Casting operators
-        'REAL', 'INT', 'CAST',
-        # Array Query Operators
-        'SIZE', 'LBOUND', 'UBOUND',
-        # Matrix and Vector Operators
-        'MATMUL', 'DOT_PRODUCT'
+        'AND', 'OR', 'EQV', 'NEQV',
         ])
-    _non_elemental_ops = [Operator.SUM, Operator.MATMUL, Operator.SIZE,
-                          Operator.LBOUND, Operator.UBOUND,
-                          Operator.DOT_PRODUCT]
-    '''Arithmetic operators:
-
-    .. function:: POW(arg0, arg1) -> type(arg0)
-
-       :returns: `arg0` raised to the power of `arg1`.
-
-    Array query operators:
-
-    .. function:: SIZE(array, index) -> int
-
-       :returns: the size of the `index` dimension of `array`.
-
-    .. function:: LBOUND(array, index) -> int
-
-       :returns: the value of the lower bound of the `index` dimension of \
-                 `array`.
-
-    .. function:: UBOUND(array, index) -> int
-
-       :returns: the value of the upper bound of the `index` dimension of \
-                 `array`.
-
-    Casting Operators:
-
-    .. function:: REAL(arg0, precision)
-
-       :returns: `arg0` converted to a floating point number of the \
-                 specified precision.
-
-    .. function:: INT(arg0, precision)
-
-       :returns: `arg0` converted to an integer number of the specified \
-                  precision.
-
-    .. function:: CAST(arg0, mold)
-
-       :returns: `arg0` with the same bitwise representation but interpreted \
-                 with the same type as the specified `mold` argument.
-
-    Matrix and Vector Operators:
-
-    .. function:: MATMUL(array1, array2) -> array
-
-       :returns: the result of performing a matrix multiply with a \
-                 matrix (`array1`) and a matrix or a vector
-                 (`array2`).
-
-    .. note:: `array1` must be a 2D array. `array2` may be a 2D array
-        or a 1D array (vector). The size of the second dimension of
-        `array1` must be the same as the first dimension of
-        `array1`. If `array2` is 2D then the resultant array will be
-        2D with the size of its first dimension being the same as the
-        first dimension of `array1` and the size of its second
-        dimension being the same as second dimension of `array2`. If
-        `array2` is a vector then the resultant array is a vector with
-        the its size being the size of the first dimension of
-        `array1`.
-
-    .. note:: The type of data in `array1` and `array2` must be the
-        same and the resultant data will also have the same
-        type. Currently only REAL data is supported.
-
-    .. function:: DOT_PRODUCT(vector1, vector2) -> scalar
-
-       :returns: the result of performing a dot product on two equal \
-           sized vectors.
-
-    .. note:: The type of data in `vector1` and `vector2` must be the
-        same and the resultant data will also have the same
-        type. Currently only REAL data is supported.
-
-    '''
+    # The numeric operators.
+    _numeric_ops = (Operator.ADD, Operator.SUB, Operator.MUL, Operator.DIV,
+                    Operator.REM, Operator.POW)
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
-    _text_name = "BinaryOperation"
 
     @staticmethod
     def _validate_child(position, child):
@@ -306,107 +237,215 @@ class BinaryOperation(Operation):
         return position in (0, 1) and isinstance(child, DataNode)
 
     @staticmethod
-    def create(oper, lhs, rhs):
+    def create(operator, lhs, rhs):
         '''Create a BinaryOperator instance given an operator and lhs and rhs
-        child instances.
+        child instances with optional names.
 
         :param operator: the operator used in the operation.
-        :type operator: \
+        :type operator:
             :py:class:`psyclone.psyir.nodes.BinaryOperation.Operator`
-        :param lhs: the PSyIR node containing the left hand side of \
-            the assignment.
-        :type lhs: :py:class:`psyclone.psyir.nodes.Node`
-        :param rhs: the PSyIR node containing the right hand side of \
-            the assignment.
-        :type rhs: :py:class:`psyclone.psyir.nodes.Node`
+        :param lhs: the PSyIR node containing the left hand side of
+            the assignment, or a tuple containing the name of the
+            argument and the PSyIR node.
+        :type lhs: Union[:py:class:`psyclone.psyir.nodes.Node`,
+            Tuple[str, :py:class:`psyclone.psyir.nodes.Node`]]
+        :param rhs: the PSyIR node containing the right hand side of
+            the assignment, or a tuple containing the name of the
+            argument and the PSyIR node.
+        :type rhs: Union[:py:class:`psyclone.psyir.nodes.Node`,
+            Tuple[str, :py:class:`psyclone.psyir.nodes.Node`]]
 
         :returns: a BinaryOperator instance.
         :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
-        :raises GenerationError: if the arguments to the create method \
+        :raises GenerationError: if the arguments to the create method
             are not of the expected type.
 
         '''
-        if not isinstance(oper, BinaryOperation.Operator):
+        if (not isinstance(operator, Enum) or
+                operator not in BinaryOperation.Operator):
             raise GenerationError(
-                f"oper argument in create method of BinaryOperation class "
+                f"operator argument in create method of BinaryOperation class "
                 f"should be a PSyIR BinaryOperation Operator but found "
-                f"'{type(oper).__name__}'.")
-
-        binary_op = BinaryOperation(oper)
-        binary_op.children = [lhs, rhs]
+                f"'{type(operator).__name__}'.")
+        binary_op = BinaryOperation(operator)
+        binary_op.addchild(lhs)
+        binary_op.addchild(rhs)
         return binary_op
 
-
-class NaryOperation(Operation):
-    '''
-    Node representing a n-ary operation expression. The n operands are the
-    stored as the 0 - n-1th children of this node and the type of the operator
-    is held in an attribute.
-    '''
-    # Textual description of the node.
-    _children_valid_format = "[DataNode]+"
-    _text_name = "NaryOperation"
-
-    Operator = Enum('Operator', [
-        # Arithmetic Operators
-        'MAX', 'MIN', 'SUM'
-        ])
-    _non_elemental_ops = [Operator.SUM]
-
-    @staticmethod
-    def _validate_child(position, child):
+    def _get_result_precision(self, precisions):
         '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
+        Compares the two precisions to determine the precision of the result
+        of the operation.
 
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
+        If the two precisions are the same, then that value is returned.
+        Otherwise, Section 7.1.9.3 of the Fortran2008 standard says that in
+        this case, the precision of the result is the greater of the two.
+        If the precision cannot be determined then
+        `ScalarType.Precision.UNDEFINED` is returned.
+
+        :param precisions: the precision of the two operands.
+        :type precisions: list[int |
+            :py:class:`psyclone.psyir.symbols.ScalarType.Precision |
+            :py:class:`psyclone.psyir.nodes.Reference`]
+
+        :returns: the precision of the result of the operation.
+        :rtype: int | :py:class:`psyclone.psyir.symbols.ScalarType.Precision
+
+        :raises InternalError: if an unsupported Precision value is encountered
+            (this is to defend against any future extension of
+            ScalarType.Precision).
 
         '''
-        # pylint: disable=unused-argument
-        return isinstance(child, DataNode)
+        if precisions[0] == precisions[1]:
+            return precisions[0]
 
-    @staticmethod
-    def create(oper, children):
-        '''Create an NaryOperator instance given an operator and a list of
-        Node instances.
+        # Operands have different precisions.
+        if all(isinstance(prec, int) for prec in precisions):
+            # Both precisions are integer.
+            return max(precisions)
 
-        :param operator: the operator used in the operation.
-        :type operator: :py:class:`psyclone.psyir.nodes.NaryOperation.Operator`
-        :param children: a list of PSyIR nodes that the operator \
-            operates on.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        if all(isinstance(prec, ScalarType.Precision) for
+               prec in precisions):
+            # Both precisions are of ScalarType.Precision type.
+            if ScalarType.Precision.UNDEFINED in precisions:
+                return ScalarType.Precision.UNDEFINED
+            if ScalarType.Precision.DOUBLE in precisions:
+                return ScalarType.Precision.DOUBLE
+            raise InternalError(
+                f"Operation._get_result_precision: got unsupported Precision "
+                f"value(s) '{precisions[0]}' and '{precisions[1]}' for "
+                f"operands '{self.children[0].debug_string()}' and "
+                f"'{self.children[1].debug_string()}'")
 
-        :returns: an NaryOperator instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
+        # We can't reason about the precision of the result.
+        return ScalarType.Precision.UNDEFINED
 
-        :raises GenerationError: if the arguments to the create method \
-            are not of the expected type.
+    def _get_result_scalar_type(self, argtypes):
+        '''
+        Examines the two operand types to determine the base type of the
+        operation using the rules in Section 7.2 of the Fortran2008 standard.
+        If the type cannot be determined then an instance of `UnresolvedType`
+        is returned.
+
+        :param argtypes: the types of the two operands.
+        :type argtypes: list[:py:class:`psyclone.psyir.symbols.DataType`,
+                             :py:class:`psyclone.psyir.symbols.DataType`]
+
+        :returns: the base type of the result of the operation.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        :raises TypeError: if an unexpected intrinsic type is found for
+                           either of the operands to a numeric operation.
 
         '''
-        if not isinstance(oper, NaryOperation.Operator):
-            raise GenerationError(
-                f"oper argument in create method of NaryOperation class "
-                f"should be a PSyIR NaryOperation Operator but found "
-                f"'{type(oper).__name__}'.")
-        if not isinstance(children, list):
-            raise GenerationError(
-                f"children argument in create method of NaryOperation class "
-                f"should be a list but found '{type(children).__name__}'.")
+        if self.operator not in self._numeric_ops:
+            # Must be a relational or logical operator. Intrinsic type of
+            # result will be boolean.
+            return BOOLEAN_TYPE
 
-        nary_op = NaryOperation(oper)
-        nary_op.children = children
-        return nary_op
+        # We have a numerical operation.
+        if any(isinstance(atype.intrinsic, UnresolvedType)
+               for atype in argtypes):
+            # datatype of a numerical operation on a UnresolvedType is a
+            # UnresolvedType.
+            return UnresolvedType()
 
+        base_type = None
 
-# TODO #658 this can be removed once we have support for determining the
-# type of a PSyIR expression.
-#: Those operators that perform a reduction on an array.
-REDUCTION_OPERATORS = [UnaryOperation.Operator.SUM,
-                       BinaryOperation.Operator.SUM,
-                       NaryOperation.Operator.SUM]
+        # If either of the operands has REAL intrinsic type then the result
+        # must also be REAL.
+        if argtypes[0].intrinsic == argtypes[1].intrinsic:
+            # Operands are of the same intrinsic type.
+            precision = self._get_result_precision([argtypes[0].precision,
+                                                    argtypes[1].precision])
+            base_type = ScalarType(argtypes[0].intrinsic, precision)
+        elif argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
+            base_type = argtypes[0]
+        elif argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
+            base_type = argtypes[1]
+
+        # Check that the type of the result is consistent with a numerical
+        # operation.
+        if not base_type or base_type.intrinsic not in (
+                ScalarType.Intrinsic.INTEGER,
+                ScalarType.Intrinsic.REAL):
+            for atype in argtypes:
+                if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
+                                           ScalarType.Intrinsic.REAL):
+                    raise TypeError(
+                        f"Invalid argument of type '{atype.intrinsic}' to "
+                        f"numerical operation '{self.operator}' in "
+                        f"'{self.debug_string()}'. Currently only "
+                        f"ScalarType.Intrinsic.REAL/INTEGER are "
+                        f"supported (TODO #1590)")
+        return base_type
+
+    @property
+    def datatype(self):
+        '''
+        Determines the datatype of this operation. If it cannot be determined
+        for any reason then an instance of UnresolvedType is returned.
+
+        :returns: the datatype of the result of this BinaryOperation.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
+        :raises InternalError: if the operands are both arrays but are of
+                               different shapes.
+        '''
+        # Get the types of the operands.
+        argtypes = []
+        for child in self.children:
+            # If the operand is itself an operation this will recurse.
+            dtype = child.datatype
+            if isinstance(dtype, UnsupportedFortranType):
+                if dtype.partial_datatype:
+                    # We are still OK provided we have partial type information
+                    # since that means the intrinsic type can be handled in the
+                    # PSyIR.
+                    dtype = dtype.partial_datatype
+                else:
+                    return UnresolvedType()
+            if isinstance(dtype, UnresolvedType):
+                # If either operand is of UnresolvedType then we can't do
+                # any better.
+                return UnresolvedType()
+            if isinstance(dtype, ArrayType):
+                # We know this is an array but do we know its intrinsic type?
+                if isinstance(dtype.intrinsic, UnresolvedType):
+                    dtype = ArrayType(UnresolvedType(), shape=dtype.shape)
+                if isinstance(dtype.intrinsic, UnsupportedType):
+                    if (isinstance(dtype.intrinsic, UnsupportedFortranType) and
+                            dtype.intrinsic.partial_datatype):
+                        dtype = ArrayType(dtype.intrinsic.partial_datatype,
+                                          shape=dtype.shape)
+                    else:
+                        dtype = ArrayType(UnresolvedType(), shape=dtype.shape)
+
+            argtypes.append(dtype)
+
+        # Determine the base (scalar) type of the result.
+        base_type = self._get_result_scalar_type(argtypes)
+        if (isinstance(base_type, UnresolvedType) or
+                all(isinstance(atype, ScalarType) for atype in argtypes)):
+            # Both operands are of scalar type.
+            return base_type
+
+        if all(isinstance(atype, ArrayType) for atype in argtypes):
+            # Both operands are of array type.
+            if len(argtypes[0].shape) != len(argtypes[1].shape):
+                raise InternalError(
+                    f"Binary operation '{self.debug_string()}' has operands "
+                    f"of different shape: '{self.children[0].debug_string()}' "
+                    f"has rank {len(argtypes[0].shape)} and "
+                    f"'{self.children[1].debug_string()}' has rank "
+                    f"{len(argtypes[1].shape)}")
+            # In general there is no way we can check that the extents of each
+            # dimension match so we have to assume that they do.
+        shape = (argtypes[0].shape if isinstance(argtypes[0], ArrayType) else
+                 argtypes[1].shape)
+        return ArrayType(base_type, shape=shape)
+
 
 # For automatic API documentation generation
-__all__ = ["Operation", "UnaryOperation", "BinaryOperation", "NaryOperation"]
+__all__ = ["Operation", "UnaryOperation", "BinaryOperation"]

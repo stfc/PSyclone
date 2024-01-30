@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,16 +32,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic, O. Brunt and L. Turner, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
-''' This module contains tests for the multi-grid part of the Dynamo 0.3 API
+''' This module contains tests for the inter-grid part of the LFRic API
     using pytest. '''
-
-from __future__ import absolute_import, print_function
-# Since this is a file containing tests which often have to get in and
-# change the internal state of objects we disable pylint's warning
-# about such accesses
 
 import os
 import pytest
@@ -49,17 +44,20 @@ import fparser
 
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynHaloExchange, DynKernMetadata, HaloReadAccess
+from psyclone.domain.lfric import LFRicConstants, LFRicKernMetadata
+from psyclone.dynamo0p3 import LFRicHaloExchange, HaloReadAccess
 from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Node, Loop
+from psyclone.psyir.symbols import Symbol
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import check_intergrid, Dynamo0p3ColourTrans, \
-        DynamoOMPParallelLoopTrans, TransformationError
+from psyclone.transformations import (ACCEnterDataTrans, ACCKernelsTrans,
+                                      check_intergrid, Dynamo0p3ColourTrans,
+                                      DynamoOMPParallelLoopTrans,
+                                      TransformationError)
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -90,7 +88,7 @@ end module restrict_mod
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -109,7 +107,7 @@ def test_invalid_mesh_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("mesh_arg must be one of ['gh_coarse', "
             "'gh_fine'] but got gh_rubbish" in str(excinfo.value))
 
@@ -122,7 +120,7 @@ def test_invalid_mesh_specifier():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("mesh_ar=gh_coarse is not a valid mesh identifier" in
             str(excinfo.value))
 
@@ -136,21 +134,23 @@ def test_all_args_same_mesh_error():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     const = LFRicConstants()
-    assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
-            "one field argument on each of the mesh types ({0}). However, "
-            "kernel restrict_kernel_type has arguments only on ['gh_fine']".
-            format(const.VALID_MESH_TYPES) in str(excinfo.value))
+    assert (f"Inter-grid kernels in the LFRic API must have at least "
+            f"one field argument on each of the mesh types "
+            f"({const.VALID_MESH_TYPES}). However, "
+            f"kernel restrict_kernel_type has arguments only on ['gh_fine']"
+            in str(excinfo.value))
     # Both on coarse mesh
     code = RESTRICT_MDATA.replace("GH_FINE", "GH_COARSE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
-            "one field argument on each of the mesh types ({0}). However, "
-            "kernel restrict_kernel_type has arguments only on ['gh_coarse']".
-            format(const.VALID_MESH_TYPES) in str(excinfo.value))
+        _ = LFRicKernMetadata(ast, name=name)
+    assert (f"Inter-grid kernels in the LFRic API must have at least "
+            f"one field argument on each of the mesh types "
+            f"({const.VALID_MESH_TYPES}). However, kernel "
+            f"restrict_kernel_type has arguments only on ['gh_coarse']"
+            in str(excinfo.value))
 
 
 def test_all_fields_have_mesh():
@@ -167,11 +167,11 @@ def test_all_fields_have_mesh():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels in the Dynamo 0.3 API must specify which "
-            "mesh each field argument "
-            "is on but kernel restrict_kernel_type has at least one field "
-            "argument for which mesh_arg is missing." in str(excinfo.value))
+        _ = LFRicKernMetadata(ast, name=name)
+    assert ("Inter-grid kernels in the LFRic API must specify which mesh "
+            "each field argument is on but kernel restrict_kernel_type has "
+            "at least one field argument for which 'mesh_arg' is missing." in
+            str(excinfo.value))
 
 
 def test_args_same_space_error():
@@ -184,7 +184,7 @@ def test_args_same_space_error():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("inter-grid kernels must be on different function spaces if "
             "they are on different meshes. However kernel "
             "restrict_kernel_type has a field on function space(s)"
@@ -208,8 +208,8 @@ def test_only_field_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels in the Dynamo 0.3 API are only permitted to "
+        _ = LFRicKernMetadata(ast, name=name)
+    assert ("Inter-grid kernels in the LFRic API are only permitted to "
             "have field arguments but kernel restrict_kernel_type also has "
             "arguments of type ['gh_scalar']" in str(excinfo.value))
 
@@ -222,13 +222,13 @@ def test_field_vector():
     code = RESTRICT_MDATA.replace("GH_FIELD,", "GH_FIELD*2,", 2)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     for arg in dkm.arg_descriptors:
         assert arg.vector_size == 2
     # Change only one of the arguments to be a vector
     code = RESTRICT_MDATA.replace("GH_FIELD,", "GH_FIELD*3,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     assert dkm.arg_descriptors[0].vector_size == 3
     assert dkm.arg_descriptors[1].vector_size == 1
 
@@ -245,11 +245,36 @@ def test_two_grid_types(monkeypatch):
     ast = fpapi.parse(RESTRICT_MDATA, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(InternalError) as err:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("The implementation of inter-grid support in the LFRic "
             "API assumes there are exactly two mesh types but "
             "LFRicConstants.VALID_MESH_TYPES contains 3: "
             "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value))
+
+
+def test_dynintergrid():
+    '''Check the setters and getters for colour information in DynIntergrid
+    work as expected. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.0_intergrid_prolong.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # Get the DynIntergrid object from the tree:
+    dyn_intergrid = list(psy.invokes.invoke_list[0].meshes.
+                         intergrid_kernels.values())[0]
+    # The objects will not get initialised before `gen` is called, so all
+    # values should be None initially:
+    assert dyn_intergrid.colourmap_symbol is None
+    assert dyn_intergrid.last_cell_var_symbol is None
+    assert dyn_intergrid.ncolours_var_symbol is None
+    # Now set some symbols and check that they are correct (note that
+    # there is no individual setter for these attributes).
+    dyn_intergrid.set_colour_info(Symbol("cmap"),
+                                  Symbol("ncolours"),
+                                  Symbol("last_cell"))
+    assert dyn_intergrid.colourmap_symbol.name == "cmap"
+    assert dyn_intergrid.ncolours_var_symbol.name == "ncolours"
+    assert dyn_intergrid.last_cell_var_symbol.name == "last_cell"
 
 
 def test_field_prolong(tmpdir, dist_mem):
@@ -335,8 +360,8 @@ def test_field_prolong(tmpdir, dist_mem):
     expected = (
         "        CALL prolong_test_kernel_code(nlayers, "
         "cell_map_field2(:,:,cell), ncpc_field1_field2_x, "
-        "ncpc_field1_field2_y, ncell_field1, field1_proxy%data, "
-        "field2_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
+        "ncpc_field1_field2_y, ncell_field1, field1_data, "
+        "field2_data, ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,cell))\n"
         "      END DO\n")
     assert expected in gen_code
@@ -376,6 +401,10 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
 
     defs2 = (
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: field2_data => "
+        "null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: field1_data => "
+        "null()\n"
         "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: "
         "map_aspc1_field1(:,:) => null(), map_aspc2_field2(:,:) => null()\n"
@@ -467,7 +496,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         "        CALL restrict_test_kernel_code(nlayers, "
         "cell_map_field1(:,:,cell), ncpc_field2_field1_x, "
         "ncpc_field2_field1_y, ncell_field2, "
-        "field1_proxy%data, field2_proxy%data, undf_aspc1_field1, "
+        "field1_data, field2_data, undf_aspc1_field1, "
         "map_aspc1_field1(:,cell), ndf_aspc2_field2, undf_aspc2_field2, "
         "map_aspc2_field2)\n"
         "      END DO\n"
@@ -477,6 +506,34 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     if dist_mem:
         set_dirty = "      CALL field1_proxy%set_dirty()\n"
         assert set_dirty in output
+
+
+def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
+    '''
+    Test that we generate correct code for an invoke containing a
+    single restriction operation (read from field on a fine mesh,
+    write to field on a coarse mesh) when the field is on a continuous
+    function space but has GH_WRITE access (so that there is no need
+    to perform redundant computation to get the correct values for
+    annexed dofs).
+
+    '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1.1_intergrid_cont_restrict.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    output = str(psy.gen)
+    if dist_mem:
+        assert "loop0_stop = mesh_field1%get_last_edge_cell()" in output
+    else:
+        assert "loop0_stop = field1_proxy%vspace%get_ncell()" in output
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_restrict_prolong_chain(tmpdir, dist_mem):
@@ -498,23 +555,27 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
     if dist_mem:
         expected += (
             "      max_halo_depth_mesh_fld_m = mesh_fld_m%get_halo_depth()\n"
-            "      mesh_fld_c => fld_c_proxy%vspace%get_mesh()\n"
-            "      max_halo_depth_mesh_fld_c = mesh_fld_c%get_halo_depth()\n"
+            "      mesh_cmap_fld_c => cmap_fld_c_proxy%vspace%get_mesh()\n"
+            "      max_halo_depth_mesh_cmap_fld_c = "
+            "mesh_cmap_fld_c%get_halo_depth()\n"
             )
     else:
-        expected += "      mesh_fld_c => fld_c_proxy%vspace%get_mesh()\n"
+        expected += ("      mesh_cmap_fld_c => "
+                     "cmap_fld_c_proxy%vspace%get_mesh()\n")
     expected += (
-        "      mmap_fld_m_fld_c => mesh_fld_c%get_mesh_map(mesh_fld_m)\n"
-        "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n")
+        "      mmap_fld_m_cmap_fld_c => "
+        "mesh_cmap_fld_c%get_mesh_map(mesh_fld_m)\n"
+        "      cell_map_cmap_fld_c => "
+        "mmap_fld_m_cmap_fld_c%get_whole_cell_map()\n")
 
     assert expected in output
 
     if dist_mem:
         expected = (
             "      ncell_fld_m = mesh_fld_m%get_last_halo_cell(depth=2)\n"
-            "      ncpc_fld_m_fld_c_x = mmap_fld_m_fld_c%"
+            "      ncpc_fld_m_cmap_fld_c_x = mmap_fld_m_cmap_fld_c%"
             "get_ntarget_cells_per_source_x()\n"
-            "      ncpc_fld_m_fld_c_y = mmap_fld_m_fld_c%"
+            "      ncpc_fld_m_cmap_fld_c_y = mmap_fld_m_cmap_fld_c%"
             "get_ntarget_cells_per_source_y()\n"
             "      mesh_fld_f => fld_f_proxy%vspace%get_mesh()\n"
             "      max_halo_depth_mesh_fld_f = mesh_fld_f%get_halo_depth()\n"
@@ -528,10 +589,10 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
     else:
         expected = (
             "      ncell_fld_m = fld_m_proxy%vspace%get_ncell()\n"
-            "      ncpc_fld_m_fld_c_x = mmap_fld_m_fld_c%get_ntarget_cells_"
-            "per_source_x()\n"
-            "      ncpc_fld_m_fld_c_y = mmap_fld_m_fld_c%get_ntarget_cells_"
-            "per_source_y()\n"
+            "      ncpc_fld_m_cmap_fld_c_x = "
+            "mmap_fld_m_cmap_fld_c%get_ntarget_cells_per_source_x()\n"
+            "      ncpc_fld_m_cmap_fld_c_y = "
+            "mmap_fld_m_cmap_fld_c%get_ntarget_cells_per_source_y()\n"
             "      mesh_fld_f => fld_f_proxy%vspace%get_mesh()\n"
             "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map(mesh_fld_f)\n"
             "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map()\n"
@@ -555,13 +616,13 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "        CALL fld_m_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
-            "      IF (fld_c_proxy%is_dirty(depth=1)) THEN\n"
-            "        CALL fld_c_proxy%halo_exchange(depth=1)\n"
+            "      IF (cmap_fld_c_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL cmap_fld_c_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
             "      DO cell=loop0_start,loop0_stop")
         assert expected in output
-        assert "loop0_stop = mesh_fld_c%get_last_halo_cell(1)\n" in output
+        assert "loop0_stop = mesh_cmap_fld_c%get_last_halo_cell(1)\n" in output
         # Since we loop into L1 halo of the coarse mesh, the L1 halo
         # of the fine(r) mesh will now be clean. Therefore, no halo
         # swap before the next prolongation required for fld_m
@@ -607,42 +668,43 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                     "        !\n"
                     "        CALL restrict_test_kernel_code")
         assert expected in output
-        assert "loop3_stop = mesh_fld_c%get_last_halo_cell(1)\n" in output
+        assert "loop3_stop = mesh_cmap_fld_c%get_last_halo_cell(1)\n" in output
     else:
-        assert "loop0_stop = fld_c_proxy%vspace%get_ncell()\n" in output
+        assert "loop0_stop = cmap_fld_c_proxy%vspace%get_ncell()\n" in output
         assert "loop1_stop = fld_m_proxy%vspace%get_ncell()\n" in output
         assert "loop2_stop = fld_m_proxy%vspace%get_ncell()\n" in output
-        assert "loop3_stop = fld_c_proxy%vspace%get_ncell()\n" in output
+        assert "loop3_stop = cmap_fld_c_proxy%vspace%get_ncell()\n" in output
         expected = (
             "      DO cell=loop0_start,loop0_stop\n"
             "        !\n"
-            "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            "(:,:,cell), ncpc_fld_m_fld_c_x, ncpc_fld_m_fld_c_y, ncell_fld_m, "
-            "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
-            "undf_w2, map_w2(:,cell))\n"
+            "        CALL prolong_test_kernel_code(nlayers, "
+            "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
+            "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, fld_m_data, "
+            "cmap_fld_c_data, ndf_w1, undf_w1, map_w1, undf_w2, "
+            "map_w2(:,cell))\n"
             "      END DO\n"
             "      DO cell=loop1_start,loop1_stop\n"
             "        !\n"
             "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-            "fld_f_proxy%data, fld_m_proxy%data, ndf_w1, undf_w1, map_w1, "
+            "fld_f_data, fld_m_data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
             "      END DO\n"
             "      DO cell=loop2_start,loop2_stop\n"
             "        !\n"
             "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-            "fld_m_proxy%data, fld_f_proxy%data, undf_aspc1_fld_m, "
+            "fld_m_data, fld_f_data, undf_aspc1_fld_m, "
             "map_aspc1_fld_m(:,cell), ndf_aspc2_fld_f, undf_aspc2_fld_f, "
             "map_aspc2_fld_f)\n"
             "      END DO\n"
             "      DO cell=loop3_start,loop3_stop\n"
             "        !\n"
-            "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_c"
-            "(:,:,cell), ncpc_fld_m_fld_c_x, ncpc_fld_m_fld_c_y, ncell_fld_m, "
-            "fld_c_proxy%data, fld_m_proxy%data, undf_aspc1_fld_c, "
-            "map_aspc1_fld_c(:,cell), ndf_aspc2_fld_m, undf_aspc2_fld_m, "
-            "map_aspc2_fld_m)\n")
+            "        CALL restrict_test_kernel_code(nlayers, "
+            "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
+            "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, cmap_fld_c_data, "
+            "fld_m_data, undf_aspc1_cmap_fld_c, map_aspc1_cmap_fld_c"
+            "(:,cell), ndf_aspc2_fld_m, undf_aspc2_fld_m, map_aspc2_fld_m)\n")
         assert expected in output
 
 
@@ -655,7 +717,7 @@ def test_fine_halo_read():
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     hexch = schedule.children[5]
-    assert isinstance(hexch, DynHaloExchange)
+    assert isinstance(hexch, LFRicHaloExchange)
     assert hexch._compute_halo_depth() == '2'
     call = schedule.children[6]
     field = call.args[1]
@@ -697,28 +759,26 @@ def test_prolong_vector(tmpdir):
     assert " field1%" not in output
     assert " field2%" not in output
     assert ("ncpc_field1_field2_x, ncpc_field1_field2_y, ncell_field1, "
-            "field1_proxy(1)%data, field1_proxy(2)%data, field1_proxy(3)%data,"
-            " field2_proxy(1)%data, field2_proxy(2)%data, "
-            "field2_proxy(3)%data, ndf_w1" in output)
+            "field1_1_data, field1_2_data, field1_3_data, field2_1_data, "
+            "field2_2_data, field2_3_data, ndf_w1" in output)
     for idx in [1, 2, 3]:
         assert (
-            "      IF (field2_proxy({0})%is_dirty(depth=1)) THEN\n"
-            "        CALL field2_proxy({0})%halo_exchange(depth=1)\n"
-            "      END IF\n".format(idx) in output)
-        assert ("field1_proxy({0}) = field1({0})%get_proxy()".format(idx) in
-                output)
-        assert "CALL field1_proxy({0})%set_dirty()".format(idx) in output
-        assert "CALL field1_proxy({0})%set_clean(1)".format(idx) in output
+            f"      IF (field2_proxy({idx})%is_dirty(depth=1)) THEN\n"
+            f"        CALL field2_proxy({idx})%halo_exchange(depth=1)\n"
+            f"      END IF\n" in output)
+        assert f"field1_proxy({idx}) = field1({idx})%get_proxy()" in output
+        assert f"CALL field1_proxy({idx})%set_dirty()" in output
+        assert f"CALL field1_proxy({idx})%set_clean(1)" in output
 
 
 def test_no_stub_gen():
     ''' Check that the kernel-stub generator refuses to attempt to create
-    a kernel stub if the meta-data contains mesh information. '''
+    a kernel stub if the metadata contains mesh information. '''
     with pytest.raises(NotImplementedError) as excinfo:
         generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.f90"),
                  api="dynamo0.3")
-    assert ('prolong_test_kernel_code is an inter-grid kernel and stub '
-            'generation is not yet supported for inter-grid kernels'
+    assert ("'prolong_test_kernel_code' is an inter-grid kernel and stub "
+            "generation is not yet supported for inter-grid kernels"
             in str(excinfo.value))
 
 
@@ -761,7 +821,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "        !\n"
         "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,:,cell), "
         "ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-        "fld_m_proxy%data, fld_f_proxy%data, undf_adspc1_fld_m, "
+        "fld_m_data, fld_f_data, undf_adspc1_fld_m, "
         "map_adspc1_fld_m(:,cell), ndf_adspc2_fld_f, "
         "undf_adspc2_fld_f, map_adspc2_fld_f)\n"
         "      END DO\n")
@@ -776,7 +836,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     # Now do some transformations
     otrans = DynamoOMPParallelLoopTrans()
     ctrans = Dynamo0p3ColourTrans()
-    # Apply OMP to the first restrict kernel
+    # Apply OMP to the first restrict kernel.
     otrans.apply(schedule[0])
     # Apply colouring and OMP to the first prolong kernel
     ctrans.apply(schedule[4])
@@ -794,7 +854,8 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "      DO colour=loop2_start,loop2_stop\n"
         "        !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "        DO cell=loop3_start,last_cell_all_colours_fld_c(colour,1)\n"
+        "        DO cell=loop3_start,"
+        "last_halo_cell_all_colours_fld_c(colour,1)\n"
         "          !\n"
         "          CALL prolong_test_kernel_code")
     assert expected in output
@@ -804,3 +865,43 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         ctrans.apply(schedule.children[1])
     assert ("Loops iterating over a discontinuous function space "
             "are not currently supported." in str(excinfo.value))
+
+
+def test_restrict_prolong_chain_acc(tmpdir):
+    ''' Test that we generate correct OpenACC code for an invoke containing
+    a chain of discontinuous restrictions and continuous prolongations.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.2_intergrid_3levels.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    enter_data_trans = ACCEnterDataTrans()
+    kernel_trans = ACCKernelsTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    const = LFRicConstants()
+
+    for loop in schedule.walk(Loop):
+        if (loop.iteration_space == "cell_column" and
+                loop.field_space.orig_name not in
+                const.VALID_DISCONTINUOUS_NAMES):
+            ctrans.apply(loop)
+    for loop in schedule.walk(Loop):
+        if loop.loop_type not in ["colours", "null"]:
+            kernel_trans.apply(loop)
+
+    enter_data_trans.apply(schedule)
+    output = str(psy.gen)
+    assert "acc enter data" in output
+    for line in output.split("\n"):
+        # There should be no indexing into arrays within the enter-data
+        # directive.
+        if line.lstrip().startswith("!$acc enter data"):
+            assert "(:,:,cell)" not in line
+            assert "cmap(colour,cell)" not in line
+            assert ",cmap_cmap_fld_c," in line
+            assert ",cmap_fld_m," in line
+            break
+    # Check compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)

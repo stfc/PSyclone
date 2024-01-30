@@ -1,0 +1,87 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2023, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author A. R. Porter, STFC Daresbury Lab
+
+# This workflow pushes any changes to a private mirror that runs the
+# test suite using a self-hosted runner. 
+name: Push to private
+
+on:
+  workflow_dispatch:
+
+env:
+  # Use the same ssh-agent socket value across all jobs
+  # Useful when a GH action is using SSH behind-the-scenes
+  SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+
+jobs:
+  build:
+    if: github.repository == 'stfc/PSyclone'
+    runs-on: ubuntu-latest
+    environment: integration
+    steps:
+    - run: echo "REPOSITORY_NAME=${{ github.repository }}"
+      shell: bash
+    - uses: actions/checkout@master
+      with:
+        fetch-depth: '0'
+    # Start ssh-agent but set it to use the same ssh_auth_sock value.
+    # The agent will be running in all steps after this, so it
+    # should be one of the first.
+    - name: Setup SSH passphrase
+      env:
+        SSH_PASSPHRASE: ${{secrets.STFC_PRIVATE_MIRROR_PASSPHRASE}}
+        SSH_PRIVATE_KEY: ${{secrets.STFC_PRIVATE_MIRROR_KEY}}
+      run: |
+        ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+        echo 'echo $SSH_PASSPHRASE' > ~/.ssh_askpass && chmod +x ~/.ssh_askpass
+        echo "$SSH_PRIVATE_KEY" | tr -d '\r' | DISPLAY=None SSH_ASKPASS=~/.ssh_askpass ssh-add - >/dev/null
+
+    # Debug print out the added identities. This will prove SSH_AUTH_SOCK
+    # is persisted across job steps
+    - name: Print ssh-add identities
+      run: ssh-add -l
+
+    - name: Set username
+      run: |
+        git config --local user.email "${{ secrets.EMAIL }}"
+        git config --local user.name "${{ secrets.USERNAME }}"
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        ssh: true
+        force: true
+        tags: false
+        branch: ${{ github.ref }}
+        repository: stfc/PSyclone-mirror

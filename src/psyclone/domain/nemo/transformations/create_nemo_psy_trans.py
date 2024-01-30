@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+
 
 '''Module providing a transformation from a generic PSyIR representation of
    a PSy layer into a NEMO-specific one.
@@ -42,7 +44,7 @@ from psyclone.transformations import Transformation, TransformationError
 from psyclone.psyir.nodes import Routine, Loop, Node
 from psyclone.domain.nemo.transformations import \
     CreateNemoInvokeScheduleTrans, \
-    CreateNemoKernelTrans, CreateNemoLoopTrans
+    CreateNemoLoopTrans
 
 
 class CreateNemoPSyTrans(Transformation):
@@ -64,22 +66,21 @@ class CreateNemoPSyTrans(Transformation):
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoPSyTrans()
     >>> trans.apply(psyir)
-    >>> psyir.view()
-    FileContainer[None]
-        NemoInvokeSchedule[invoke='sub']
-            0: Loop[type='lon', field_space='None', it_space='None']
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                Schedule[]
-                    0: InlinedKern[]
-                        Schedule[]
-                            0: Assignment[]
-                                ArrayReference[name:'tmp']
-                                    Reference[name:'ji']
-                                BinaryOperation[operator:'MUL']
-                                    Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-                                    Reference[name:'ji']
+    >>> print(psyir.view(colour=False, indent="   "))
+    FileContainer[]
+       NemoInvokeSchedule[invoke='sub']
+          0: Loop[type='lon', field_space='None', it_space='None']
+             Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+             Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+             Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+             Schedule[]
+                0: Assignment[]
+                   ArrayReference[name:'tmp']
+                      Reference[name:'ji']
+                   BinaryOperation[operator:'MUL']
+                      Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                      Reference[name:'ji']
+    <BLANKLINE>
 
     The result of this transformation is that the root `Routine` has
     been converted into a `NemoInvokeSchedule`, the `Loop` is now a
@@ -108,16 +109,16 @@ class CreateNemoPSyTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a PSyIR node.
 
         '''
         if not isinstance(node, Node):
             raise TransformationError(
-                "Error in CreateNemoPSyTrans transformation. The supplied node"
-                " should be a PSyIR Node but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in CreateNemoPSyTrans transformation. The supplied "
+                f"node should be a PSyIR Node but found "
+                f"'{type(node).__name__}'")
 
         super(CreateNemoPSyTrans, self).validate(node, options=options)
 
@@ -134,36 +135,27 @@ class CreateNemoPSyTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(psyir, options=options)
 
         invoke_trans = CreateNemoInvokeScheduleTrans()
-        kern_trans = CreateNemoKernelTrans()
         loop_trans = CreateNemoLoopTrans()
 
         # Since the transformations replace nodes in the tree, we apply
         # them 'depth first':
 
-        # First, transform suitable Loop bodies into Kernels
         loops = psyir.walk(Loop)
         # Reverse the list so that we transform the deepest loop bodies first
         # so as to try to reduce repeated walking of the tree.
         loops.reverse()
 
-        for loop in loops:
-            try:
-                kern_trans.apply(loop.loop_body)
-            except TransformationError:
-                # Not all loop bodies are valid kernels (e.g. if they do IO)
-                pass
-
-        # Second, transform generic Loops into NemoLoops
+        # First, transform generic Loops into NemoLoops
         for loop in loops:
             loop_trans.apply(loop)
 
-        # Third, transform any Routines into NemoInvokeSchedules. Have to
+        # Second, transform any Routines into NemoInvokeSchedules. Have to
         # allow for the supplied top-level node being a Routine and therefore
         # being replaced.
         for routine in psyir.walk(Routine):

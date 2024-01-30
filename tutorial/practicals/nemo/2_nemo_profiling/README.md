@@ -1,8 +1,8 @@
-# Using Profiling with PSyclone and NEMO - Tutorial 2 #
+# Using Profiling with PSyclone - Tutorial 2 #
 
 This tutorial follows on from Tutorial 1 (../1_nemo_psyir/README.md) and
 assumes that you are comfortable with the topics covered there. It uses
-the same tracer-advection mini-app although for this tutorial it has
+the same tracer-advection mini-app, although for this tutorial it has
 been refactored so that the mini-app itself is called from a separate
 driver program. The reason for this will become clear as you work
 through the tutorial.
@@ -28,22 +28,26 @@ demonstration purposes we will be using the 'simple-timing' library
 distributed with PSyclone since that has no dependencies. (PSyclone
 currently provides wrapper libraries for profiling tools such as
 [dl_timer](https://bitbucket.org/apeg/dl_timer/src/master/), DrHook
-(from ECMWF) and NVIDIA's nvtx. You may wish to investigate these if
-you have time at the end of this session.)
+(from ECMWF), [tau](https://www.cs.uoregon.edu/research/tau) and NVIDIA's
+nvtx. You may wish to investigate these if you have time at the end of
+this session.)
 
 1. Use the supplied Makefile to generate a version of the mini-app with
-   profiling automatically inserted around each routine:
+   profiling calipers inserted at the beginning and end of each routine:
 
-       $ make
+       $ make transform
 
-   When examining the generated Fortran code (in `psy.f90`), you
+   When examining the generated Fortran code (in `psy_1.f90`), you
    should see that PSyclone has added `USE profile_psy_data_mod, ONLY:
    profile_PSyDataType` as well as calls to
    `profile_psy_data0%PreStart` and `profile_psy_data0%PostEnd`.
    Since the code now depends upon the PSyData API, the location of a
    suitable wrapper library must be provided when compiling the
    mini-app.  The supplied Makefile will build the 'simple_timing'
-   implementation of this library and link our mini-app against it.
+   implementation of this library and link our mini-app against it:
+
+       $ make allclean
+       $ make tra_adv.exe
 
    At this point, the compiled application can be run (ensure you have
    the necessary environment variables set first - see
@@ -68,7 +72,7 @@ you have time at the end of this session.)
    fine without it but this way the manual modifications are made to
    a separate file.)
 
-   Rebuild the application (`make`) and run it. You should now
+   Rebuild the application (`make tra_adv.exe`) and run it. You should now
    see timing information printed to the terminal, e.g.:
 
        ===========================================
@@ -80,22 +84,14 @@ you have time at the end of this session.)
    of a single subroutine.
 
    If you examine the Makefile, you will see that PSyclone has been run with
-   the `--profile invokes` option and it is this that causes the subroutine
-   to be instrumented for profiling.
+   the `--profile routines` option and it is this that causes the subroutine
+   to be instrumented for profiling:
 
-3. Edit the Makefile so that the line invoking PSyclone uses the
-   `--profile kernels` option instead. Rebuild (you'll need to do a
-   `make clean` to ensure that a new `psy.f90` is generated) and run
-   the mini-app. You should now see timing for four regions that have
-   been identified as kernels by PSyclone:
-   
-       ===========================================
-       module::region   count	sum		min		average         max
-       tra_adv::r0        1    3.12500000E-02   3.12500000E-02 	3.12500000E-02 	3.12500000E-02
-       tra_adv::r1        1    0.00000000       0.00000000     	0.00000000     	0.00000000
-       tra_adv::r2        1    0.00000000       0.00000000     	0.00000000     	0.00000000    
-       tra_adv::r3        1    0.343750000      0.343750000     0.343750000     0.343750000
-       ===========================================
+   ```make
+   psy.f90: tra_adv_mod.F90
+   	$(PSYCLONE) --profile routines -api nemo \
+                     -opsy psy.f90 -l output tra_adv_mod.F90
+   ```
 
 ## 2. User-specified Profiling ##
 
@@ -103,9 +99,9 @@ Profiling is a good way to get used to using PSyclone transformation scripts
 so we will now use a script to achieve the same result as the first step
 in this tutorial.
 
-1. Alter the Makefile so that the `psyclone` command uses the provided
-   `profile_trans.py` script instead of the `--profile` option (or
-   run psyclone separately on the command line). If you look at the
+1. Alter the Makefile so that the `psyclone` command that creates `psy.f90`
+   uses the provided `profile_trans.py` script instead of the `--profile`
+   option (or run psyclone separately on the command line). If you look at the
    script, you will see that it encloses all child nodes of the
    Schedule within a single profiling region.
 
@@ -125,8 +121,10 @@ in this tutorial.
     NemoInvokeSchedule[invoke='tra_adv']
         0: Profile[]
             Schedule[]
-                0: CodeBlock[[<class 'fparser.two....]]
-                1: If[annotations='was_single_stmt']
+                0: Call[name='get_environment_variable']
+                    Literal[value:'JPI', Scalar<CHARACTER, UNDEFINED>]
+                    Reference[name:'env']
+                1: CodeBlock[[<class 'fparser.two.Fortran2003.Read_Stmt'>]]
                 ...
    ```
 
@@ -179,7 +177,7 @@ transformation script to perform finer-grained profiling.
 
 2. Many PSyclone transformations allow additional options to be supplied
    via a dictionary argument to the `apply()` method. The
-   profiling transformation for instance allows the user to supply a
+   profiling transformation, for instance, allows the user to supply a
    specific name for the region that is being created. Try using the
    "region_name" option to configure the names given to the regions,
    e.g.:
@@ -201,7 +199,7 @@ transformation script to perform finer-grained profiling.
 ## 4. Conclusion
 
 Congratulations, you have now completed this part of the tutorial. We
-have now used a PSyclone transformation to add profiling
+have used a PSyclone transformation to add profiling
 instrumentation to the tracer-advection mini-app. In subsequent
 tutorials we will look at using PSyclone transformations to
 parallelise the code.

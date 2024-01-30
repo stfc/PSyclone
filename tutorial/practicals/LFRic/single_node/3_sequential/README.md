@@ -83,7 +83,7 @@ a different index value.
 
 ## Fortran intrinsics ##
 
-In certain cases it might be useful to replace Fortran instrinsic
+In certain cases it might be useful to replace Fortran intrinsic
 functions in kernels with inline code. In this case we are going to
 replace a matrix-multiply call with inline matrix-vector code.
 

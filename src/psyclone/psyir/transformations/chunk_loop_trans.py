@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
-# Modified S. Siso, STFC Daresbury Lab
+# Modified S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides the ChunkLoopTrans, which transforms a Loop into a
@@ -41,7 +41,7 @@ chunked implementation of the Loop'''
 from psyclone.core import VariablesAccessInfo, Signature, AccessType
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Reference, \
-        Literal, Loop, Schedule, CodeBlock
+        Literal, Loop, Schedule, CodeBlock, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -94,7 +94,7 @@ class ChunkLoopTrans(LoopTrans):
         :param node: the loop to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
@@ -217,7 +217,7 @@ class ChunkLoopTrans(LoopTrans):
         :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
@@ -241,7 +241,7 @@ class ChunkLoopTrans(LoopTrans):
         # so our ancestors cannot use these variables.
 
         # Store the node's parent for replacing later and the start and end
-        # indicies
+        # indices
         start = node.start_expr
         stop = node.stop_expr
 
@@ -255,8 +255,8 @@ class ChunkLoopTrans(LoopTrans):
                         BinaryOperation.Operator.SUB,
                         Literal(f"{chunk_size}", node.variable.datatype),
                         Literal("1", node.variable.datatype)))
-            minop = BinaryOperation.create(BinaryOperation.Operator.MIN, add,
-                                           stop.copy())
+            minop = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                         [add, stop.copy()])
             inner_loop_end = Assignment.create(Reference(end_inner_loop),
                                                minop)
         # For negative steps we do:
@@ -269,8 +269,8 @@ class ChunkLoopTrans(LoopTrans):
                         BinaryOperation.Operator.ADD,
                         Literal(f"{chunk_size}", node.variable.datatype),
                         Literal("1", node.variable.datatype)))
-            maxop = BinaryOperation.create(BinaryOperation.Operator.MAX, sub,
-                                           stop.copy())
+            maxop = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                         [sub, stop.copy()])
             inner_loop_end = Assignment.create(Reference(end_inner_loop),
                                                maxop)
             # chunk_size needs to be negative if we're reducing
@@ -281,16 +281,13 @@ class ChunkLoopTrans(LoopTrans):
         start.replace_with(Reference(outer_loop_variable))
         stop.replace_with(Reference(end_inner_loop))
 
-        # Create the outerloop of the same type and loop_type
-        outerloop = Loop(variable=outer_loop_variable,
-                         valid_loop_types=node.valid_loop_types)
+        # Create the outerloop as a bare Loop construct
+        outerloop = Loop(variable=outer_loop_variable)
         outerloop.children = [start, stop,
                               Literal(f"{chunk_size}",
                                       outer_loop_variable.datatype),
                               Schedule(parent=outerloop,
                                        children=[inner_loop_end])]
-        if node.loop_type is not None:
-            outerloop.loop_type = node.loop_type
         # Add the chunked annotation
         outerloop.annotations.append('chunked')
         node.annotations.append('chunked')

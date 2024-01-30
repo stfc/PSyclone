@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford, N. Nobre and S. Siso STFC Daresbury Lab
 
 '''Module providing a transformation that transforms a constant index
 access to an array (i.e. one that does not contain a loop iterator) to
@@ -41,13 +41,9 @@ array index should be transformed.
 
 '''
 
-from __future__ import absolute_import
-
 from psyclone.configuration import Config
 from psyclone.core import SymbolicMaths
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
-    import CreateNemoKernelTrans
-from psyclone.nemo import NemoLoop, NemoKern
+from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Node, Schedule, Loop
@@ -117,7 +113,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
@@ -154,14 +150,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
                 # This is not a nested access e.g. a(b(n)).
                 array.indices[array_index] = Reference(loop_variable_symbol)
 
-        # Determine the loop body and where to add the loop.
-        nemo_kern = assignment.ancestor(NemoKern)
-        if nemo_kern:
-            # This assignment is inside a NemoKern
-            loop_body = nemo_kern
-        else:
-            # There is no parent NemoKern
-            loop_body = assignment
+        loop_body = assignment
         loc_parent = loop_body.parent
         loc_index = loop_body.position
 
@@ -174,14 +163,6 @@ class NemoArrayAccess2LoopTrans(Transformation):
         # modified assignment.
         loc_parent.children.insert(loc_index, loop)
 
-        # Add a NemoKern if required.
-        if not nemo_kern and not assignment.walk(Range):
-            # This was not previously a NemoKern (as it contained no
-            # loops). However, we have now created a loop so, provided
-            # there are no range nodes, we must create an inlined
-            # kernel.
-            CreateNemoKernelTrans().apply(assignment.parent)
-
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
         NemoArrayAccess2LoopTrans transformation to the supplied PSyIR Node.
@@ -192,54 +173,54 @@ class NemoArrayAccess2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # Not a PSyIR node
         if not isinstance(node, Node):
             raise TransformationError(
-                "Error in NemoArrayAccess2LoopTrans transformation. The "
-                "supplied node argument should be a PSyIR Node, but found "
-                "'{0}'.".format(type(node).__name__))
+                f"Error in NemoArrayAccess2LoopTrans transformation. The "
+                f"supplied node argument should be a PSyIR Node, but found "
+                f"'{type(node).__name__}'.")
         # Not within an array reference
         if not node.parent or not isinstance(node.parent, ArrayReference):
             raise TransformationError(
-                "Error in NemoArrayAccess2LoopTrans transformation. The "
-                "supplied node argument should be within an ArrayReference "
-                "node, but found '{0}'.".format(type(node.parent).__name__))
+                f"Error in NemoArrayAccess2LoopTrans transformation. The "
+                f"supplied node argument should be within an ArrayReference "
+                f"node, but found '{type(node.parent).__name__}'.")
         array_ref = node.parent
         # Array reference not within an assignment
         if not array_ref.parent or not isinstance(array_ref.parent,
                                                   Assignment):
             raise TransformationError(
-                "Error in NemoArrayAccess2LoopTrans transformation. The "
-                "supplied node argument should be within an ArrayReference "
-                "node that is within an Assignment node, but found '{0}' "
-                "instead of an Assignment."
-                .format(type(array_ref.parent).__name__))
+                f"Error in NemoArrayAccess2LoopTrans transformation. The "
+                f"supplied node argument should be within an ArrayReference "
+                f"node that is within an Assignment node, but found "
+                f"'{type(array_ref.parent).__name__}' instead of an "
+                f"Assignment.")
         assignment = array_ref.parent
         # Array reference not on lhs of the assignment
         if assignment.lhs is not array_ref:
             raise TransformationError(
-                "Error in NemoArrayAccess2LoopTrans transformation. The "
-                "supplied node argument should be within an ArrayReference "
-                "node that is within the left-hand-side of an Assignment "
-                "node, but '{0}' is on the right-hand-side of '{1}'."
-                "".format(self._writer(array_ref), self._writer(assignment)))
+                f"Error in NemoArrayAccess2LoopTrans transformation. The "
+                f"supplied node argument should be within an ArrayReference "
+                f"node that is within the left-hand-side of an Assignment "
+                f"node, but '{array_ref.debug_string()}' is on the "
+                f"right-hand-side of '{assignment.debug_string()}'.")
 
         # Contains a range node
         if node.walk(Range):
             raise TransformationError(
-                "Error in NemoArrayAccess2LoopTrans transformation. The "
-                "supplied node should not be or contain a Range node "
-                "(array notation) as it should be single valued, but found "
-                "'{0}'.".format(self._writer(node)))
+                f"Error in NemoArrayAccess2LoopTrans transformation. The "
+                f"supplied node should not be or contain a Range node "
+                f"(array notation) as it should be single valued, but found "
+                f"'{node.debug_string()}'.")
 
         # Capture loop iterator symbols in order
         iterator_symbols = []
         location = node.parent.parent
         while (isinstance(location.parent, Schedule) and
-               isinstance(location.parent.parent, (Loop, NemoKern))):
+               isinstance(location.parent.parent, Loop)):
             location = location.parent.parent
             if isinstance(location, Loop):
                 iterator_symbols.append(location.variable)
@@ -255,12 +236,11 @@ class NemoArrayAccess2LoopTrans(Transformation):
             if (loop_variable_name.lower() in [
                     var.name.lower() for var in iterator_symbols]):
                 raise TransformationError(
-                    "Error in NemoArrayAccess2LoopTrans transformation. The "
-                    "NEMO API expects index {0} to use the '{1}' iterator "
-                    "variable, but it is already being used in another index "
-                    "'{2}'.".format(
-                        node.position, loop_variable_name.lower(),
-                        self._writer(assignment.lhs)))
+                    f"Error in NemoArrayAccess2LoopTrans transformation. The "
+                    f"NEMO API expects index {node.position} to use the "
+                    f"'{loop_variable_name.lower()}' iterator variable, but "
+                    f"it is already being used in another index "
+                    f"'{assignment.lhs.debug_string()}'.")
         except IndexError:
             # There is no defined iterator name for this index
             pass
@@ -284,11 +264,10 @@ class NemoArrayAccess2LoopTrans(Transformation):
                 continue
             if not sym_maths.equal(array_reference.children[index_pos], node):
                 raise TransformationError(
-                    "Expected index '{0}' for rhs array '{1}' to be the same "
-                    "as that for the lhs array '{2}', but they differ in "
-                    "'{3}'.".format(
-                        index_pos, array_reference.symbol.name,
-                        node.parent.name, self._writer(assignment)))
+                    f"Expected index '{index_pos}' for rhs array "
+                    f"'{array_reference.symbol.name}' to be the same "
+                    f"as that for the lhs array '{node.parent.name}', but "
+                    f"they differ in '{assignment.debug_string()}'.")
 
     def __str__(self):
         return (

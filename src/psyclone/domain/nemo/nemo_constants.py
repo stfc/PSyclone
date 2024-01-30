@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ from psyclone.configuration import Config
 
 
 # pylint: disable=too-few-public-methods
-class NemoConstants(object):
+class NemoConstants():
     '''This class stores all Nemo constants.
     It stores all values in class variables (to avoid re-evaluating them).
     At this stage it only contains the variables that might be used in

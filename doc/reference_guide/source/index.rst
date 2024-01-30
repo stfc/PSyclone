@@ -32,7 +32,7 @@ Doxygen-generated Documentation
 .. raw:: html
 
    <p>
-   If you would prefer to see the Doxgen-generated pages then they are 
+   If you would prefer to see the Doxygen-generated pages then they are 
    <a  href="_static/html/index.html">here.</a> Since these are generated
    separately there are no links back to this Sphinx-generated content - you
    will need to use the back button on your browser.

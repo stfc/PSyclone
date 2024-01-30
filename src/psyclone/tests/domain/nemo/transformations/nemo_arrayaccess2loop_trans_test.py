@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,14 +36,11 @@
 '''Module containing tests for the NemoArrayAccess2LoopTrans
 transformation.'''
 
-from __future__ import absolute_import
-
 import os
 import pytest
 
 from psyclone.domain.nemo.transformations import NemoArrayAccess2LoopTrans, \
     CreateNemoPSyTrans
-from psyclone.nemo import NemoKern
 from psyclone.psyGen import Transformation, InlinedKern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -81,8 +78,8 @@ def check_transformation(tmpdir, code, expected_result, index=0, statement=0):
         Defaults to 0.
 
     '''
-    input_code = "program test\n{0}end program test\n".format(code)
-    output_code = "program test\n{0}end program test\n".format(expected_result)
+    input_code = f"program test\n{code}end program test\n"
+    output_code = f"program test\n{expected_result}end program test\n"
     reader = FortranReader()
     psyir = reader.psyir_from_source(input_code)
     assignment = psyir.walk(Assignment)[statement]
@@ -291,91 +288,14 @@ def test_apply_ranges(tmpdir):
     check_transformation(tmpdir, code, expected_result, index=2)
 
 
-def test_apply_inline_kern(tmpdir):
-    '''Check that the transformation places a loop innermost where there
-    is a Nemo-specific inlined kern node. We create such a node by
-    using the CreateNemoPSyTrans() transformation. A subsequent
-    transformation would be needed to put the loops in ji,jj,jk form
-    if needed.
-
-    '''
-    input_code = (
-        "program test\n"
-        "  real :: a(10,10,10)\n"
-        "  integer :: ji,jj,jpk,n\n"
-        "  do jj=1,n\n"
-        "    do ji=1,n\n"
-        "      a(ji,jj,jpk) = 0.0e0\n"
-        "    end do\n"
-        "  end do\n"
-        "end program test\n")
-    expected_result = (
-        "  do jj = 1, n, 1\n"
-        "    do ji = 1, n, 1\n"
-        "      do jk = jpk, jpk, 1\n"
-        "        a(ji,jj,jk) = 0.0e0\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(input_code)
-    assert not psyir.walk(NemoKern)
-    nemo_trans = CreateNemoPSyTrans()
-    nemo_trans.apply(psyir)
-    assert len(psyir.walk(NemoKern)) == 1
-    index_node = psyir.walk(Assignment)[0].lhs.children[2]
-    trans_write_check(
-        psyir, index_node, expected_result, tmpdir, compiles=True)
-
-
-def test_inlined_kern(tmpdir):
-    '''Check that the apply() method creates an InlinedKern node if
-    appropriate.
-
-    '''
-    input_code = (
-        "program test\n"
-        "  real :: a(10,10,10)\n"
-        "  integer :: jpi,jpj,jpk\n"
-        "  a(jpi,jpj,jpk) = 0.0e0\n"
-        "end program test\n")
-    expected_result = (
-        "program test\n"
-        "  real, dimension(10,10,10) :: a\n"
-        "  integer :: jpi\n  integer :: jpj\n  integer :: jpk\n"
-        "  integer :: jj\n  integer :: ji\n\n"
-        "  do jj = jpj, jpj, 1\n"
-        "    do ji = jpi, jpi, 1\n"
-        "      a(ji,jj,jpk) = 0.0e0\n"
-        "    enddo\n"
-        "  enddo\n\n"
-        "end program test\n")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(input_code)
-    # No InlinedKern
-    assert not psyir.walk(InlinedKern)
-    # Turn an array access to a loop
-    index_node = psyir.walk(Assignment)[0].lhs.children[1]
-    trans = NemoArrayAccess2LoopTrans()
-    trans.apply(index_node)
-    # InlinedKern has been added
-    assert len(psyir.walk(InlinedKern)) == 1
-    assert isinstance(psyir.children[0][0].loop_body[0], InlinedKern)
-    # Turn another array access to a loop
-    index_node = psyir.walk(Assignment)[0].lhs.children[0]
-    trans_write_check(psyir, index_node, expected_result, tmpdir)
-    # Still only one InlinedKern
-    assert len(psyir.walk(InlinedKern)) == 1
-
-
 def test_apply_calls_validate():
     '''Check that the apply() method calls the validate method.'''
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in NemoArrayAccess2LoopTrans transformation. The supplied "
-           "node argument should be a PSyIR Node, but found 'NoneType'."
-           in str(info.value))
+    assert ("Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+            "node argument should be a PSyIR Node, but found 'NoneType'."
+            in str(info.value))
 
 
 def test_apply_multi_iterator(tmpdir):
@@ -493,9 +413,9 @@ def test_validate_arg():
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert("Error in NemoArrayAccess2LoopTrans transformation. The "
-           "supplied node argument should be a PSyIR Node, but "
-           "found 'NoneType'." in str(info.value))
+    assert ("Error in NemoArrayAccess2LoopTrans transformation. The "
+            "supplied node argument should be a PSyIR Node, but "
+            "found 'NoneType'." in str(info.value))
 
 
 def test_validate_array_ref():
@@ -506,8 +426,8 @@ def test_validate_array_ref():
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(Node())
-    assert("The supplied node argument should be within an ArrayReference "
-           "node, but found 'NoneType'." in str(info.value))
+    assert ("The supplied node argument should be within an ArrayReference "
+            "node, but found 'NoneType'." in str(info.value))
 
 
 def test_validate_structure_error():
@@ -548,7 +468,7 @@ def test_validate_assignment():
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(dim_access)
-    assert(
+    assert (
         "Error in NemoArrayAccess2LoopTrans transformation. The supplied node "
         "argument should be within an ArrayReference node that is within an "
         "Assignment node, but found 'NoneType' instead of an Assignment."
@@ -570,7 +490,7 @@ def test_validate_lhs_assignment():
     trans = NemoArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(dim_access)
-    assert(
+    assert (
         "Error in NemoArrayAccess2LoopTrans transformation. The supplied "
         "node argument should be within an ArrayReference node that is "
         "within the left-hand-side of an Assignment node, but 'y(1)' is on "
@@ -608,7 +528,7 @@ def test_validate_iterator_name():
         "  end do\n")
     with pytest.raises(TransformationError) as info:
         check_transformation(None, input_code, None, index=1)
-    assert(
+    assert (
         "The NEMO API expects index 1 to use the 'jj' iterator variable, "
         "but it is already being used in another index 'a(jj,10)'."
         in str(info.value))
@@ -627,7 +547,7 @@ def test_validate_iterator():
         "  end do\n")
     with pytest.raises(TransformationError) as info:
         check_transformation(None, input_code, None)
-    assert(
+    assert (
         "The supplied node should not be or contain a loop iterator, it "
         "should be single valued." in str(info.value))
 
@@ -657,7 +577,7 @@ def test_validate_same_index_error(tmpdir):
         "  a(n+1) = b(n)\n")
     with pytest.raises(TransformationError) as info:
         check_transformation(None, input_code, None)
-    assert(
+    assert (
         "Expected index '0' for rhs array 'b' to be the same as that for "
         "the lhs array 'a', but they differ in 'a(n + 1) = b(n)\n'."
         in str(info.value))
@@ -690,7 +610,7 @@ def test_validate_indirection(tmpdir):
         "  a(lookup(n)) = b(lookup(1))\n")
     with pytest.raises(TransformationError) as info:
         check_transformation(None, input_code, None)
-    assert(
+    assert (
         "Expected index '0' for rhs array 'b' to be the same as that for the "
         "lhs array 'a', but they differ in 'a(lookup(n)) = b(lookup(1))\n'."
         in str(info.value))

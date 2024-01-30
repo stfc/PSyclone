@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,15 +37,14 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.c module'''
 
-from __future__ import absolute_import
-
 import pytest
 
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import ArrayReference, Assignment, BinaryOperation, \
     CodeBlock, IfBlock, Literal, Node, Reference, Return, Schedule, \
-    UnaryOperation
+    UnaryOperation, Loop, OMPTaskloopDirective, OMPMasterDirective, \
+    OMPParallelDirective, IntrinsicCall
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
     BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_TYPE, REAL_TYPE
 
@@ -71,7 +70,9 @@ def test_cw_gen_declaration():
     assert result == "bool dummy1"
 
     # Array argument
-    array_type = ArrayType(REAL_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                       ArrayType.Extent.ATTRIBUTE,
+                                       ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
@@ -79,7 +80,7 @@ def test_cw_gen_declaration():
     assert result == "double * restrict dummy2"
 
     # Array with unknown access
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    array_type = ArrayType(INTEGER_TYPE, [2, 4, 2])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
@@ -90,8 +91,8 @@ def test_cw_gen_declaration():
     symbol._datatype = "invalid"
     with pytest.raises(NotImplementedError) as error:
         _ = cwriter.gen_declaration(symbol)
-    assert "Could not generate the C definition for the variable 'dummy2', " \
-        "type 'invalid' is currently not supported." in str(error.value)
+    assert "Could not generate C definition for variable 'dummy2', " \
+        "type 'invalid' is not yet supported." in str(error.value)
 
 
 def test_cw_gen_local_variable(monkeypatch):
@@ -201,15 +202,15 @@ def test_cw_ifblock():
     cwriter = CWriter()
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
-    assert("IfBlock malformed or incomplete. It should have "
-           "at least 2 children, but found 0." in str(err.value))
+    assert ("IfBlock malformed or incomplete. It should have "
+            "at least 2 children, but found 0." in str(err.value))
 
     # Add the if condition
     ifblock.addchild(Reference(DataSymbol('a', REAL_TYPE)))
     with pytest.raises(VisitorError) as err:
         _ = cwriter(ifblock)
-    assert("IfBlock malformed or incomplete. It should have "
-           "at least 2 children, but found 1." in str(err.value))
+    assert ("IfBlock malformed or incomplete. It should have "
+            "at least 2 children, but found 1." in str(err.value))
 
     # Fill the if_body
     ifblock.addchild(Schedule(parent=ifblock))
@@ -275,8 +276,8 @@ def test_cw_unaryoperator():
     unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     with pytest.raises(VisitorError) as err:
         _ = cwriter(unary_operation)
-    assert("UnaryOperation malformed or incomplete. It should have "
-           "exactly 1 child, but found 0." in str(err.value))
+    assert ("UnaryOperation malformed or incomplete. It should have "
+            "exactly 1 child, but found 0." in str(err.value))
 
     # Add child
     ref1 = Literal("a", CHARACTER_TYPE, unary_operation)
@@ -286,23 +287,14 @@ def test_cw_unaryoperator():
     # Test all supported Operators
     test_list = ((UnaryOperation.Operator.PLUS, '(+a)'),
                  (UnaryOperation.Operator.MINUS, '(-a)'),
-                 (UnaryOperation.Operator.SQRT, 'sqrt(a)'),
-                 (UnaryOperation.Operator.NOT, '(!a)'),
-                 (UnaryOperation.Operator.COS, 'cos(a)'),
-                 (UnaryOperation.Operator.SIN, 'sin(a)'),
-                 (UnaryOperation.Operator.TAN, 'tan(a)'),
-                 (UnaryOperation.Operator.ACOS, 'acos(a)'),
-                 (UnaryOperation.Operator.ASIN, 'asin(a)'),
-                 (UnaryOperation.Operator.ATAN, 'atan(a)'),
-                 (UnaryOperation.Operator.ABS, 'abs(a)'),
-                 (UnaryOperation.Operator.REAL, '(float)a'))
+                 (UnaryOperation.Operator.NOT, '(!a)'))
 
     for operator, expected in test_list:
         unary_operation._operator = operator
         assert cwriter(unary_operation) in expected
 
     # Test that an unsupported operator raises an error
-    class Unsupported(object):
+    class Unsupported():
         ''' Mock Unsupported object '''
 
     unary_operation._operator = Unsupported
@@ -323,8 +315,8 @@ def test_cw_binaryoperator():
     binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     with pytest.raises(VisitorError) as err:
         _ = cwriter(binary_operation)
-    assert("BinaryOperation malformed or incomplete. It should have "
-           "exactly 2 children, but found 0." in str(err.value))
+    assert ("BinaryOperation malformed or incomplete. It should have "
+            "exactly 2 children, but found 0." in str(err.value))
 
     # Test with children
     ref1 = Reference(DataSymbol("a", REAL_TYPE))
@@ -338,7 +330,6 @@ def test_cw_binaryoperator():
                  (BinaryOperation.Operator.SUB, '(a - b)'),
                  (BinaryOperation.Operator.MUL, '(a * b)'),
                  (BinaryOperation.Operator.DIV, '(a / b)'),
-                 (BinaryOperation.Operator.REM, '(a % b)'),
                  (BinaryOperation.Operator.POW, 'pow(a, b)'),
                  (BinaryOperation.Operator.EQ, '(a == b)'),
                  (BinaryOperation.Operator.NE, '(a != b)'),
@@ -346,16 +337,15 @@ def test_cw_binaryoperator():
                  (BinaryOperation.Operator.GE, '(a >= b)'),
                  (BinaryOperation.Operator.LT, '(a < b)'),
                  (BinaryOperation.Operator.LE, '(a <= b)'),
-                 (BinaryOperation.Operator.AND, '(a && b)'),
                  (BinaryOperation.Operator.OR, '(a || b)'),
-                 (BinaryOperation.Operator.SIGN, 'copysign(a, b)'))
+                 (BinaryOperation.Operator.AND, '(a && b)'))
 
     for operator, expected in test_list:
         binary_operation._operator = operator
         assert cwriter(binary_operation) == expected
 
     # Test that an unsupported operator raises a error
-    class Unsupported(object):
+    class Unsupported():
         '''Dummy class'''
         def __init__(self):
             pass
@@ -364,6 +354,59 @@ def test_cw_binaryoperator():
         _ = cwriter(binary_operation)
     assert "The C backend does not support the '" in str(err.value)
     assert "' operator." in str(err.value)
+
+
+def test_cw_intrinsiccall():
+    '''Check the CWriter class intrinsiccall method correctly prints out
+    the C representation of any given Intrinsic.
+
+    '''
+    cwriter = CWriter()
+
+    # Test all supported Intrinsics with 1 argument
+    test_list = ((IntrinsicCall.Intrinsic.SQRT, 'sqrt(a)'),
+                 (IntrinsicCall.Intrinsic.COS, 'cos(a)'),
+                 (IntrinsicCall.Intrinsic.SIN, 'sin(a)'),
+                 (IntrinsicCall.Intrinsic.TAN, 'tan(a)'),
+                 (IntrinsicCall.Intrinsic.ACOS, 'acos(a)'),
+                 (IntrinsicCall.Intrinsic.ASIN, 'asin(a)'),
+                 (IntrinsicCall.Intrinsic.ATAN, 'atan(a)'),
+                 (IntrinsicCall.Intrinsic.ABS, 'abs(a)'),
+                 (IntrinsicCall.Intrinsic.REAL, '(float)a'))
+    ref1 = Reference(DataSymbol("a", REAL_TYPE))
+    icall = IntrinsicCall.create(IntrinsicCall.Intrinsic.SQRT, [ref1])
+    for intrinsic, expected in test_list:
+        icall._intrinsic = intrinsic
+        assert cwriter(icall) == expected
+
+    # Check that operator-style formatting with a number of children different
+    # than 2 produces an error
+    with pytest.raises(VisitorError) as err:
+        icall._intrinsic = IntrinsicCall.Intrinsic.MOD
+        _ = cwriter(icall)
+    assert ("The C Writer binary_operator formatter for IntrinsicCall only "
+            "supports intrinsics with 2 children, but found '%' with '1' "
+            "children." in str(err.value))
+
+    # Test all supported Intrinsics with 2 arguments
+    test_list = (
+                 (IntrinsicCall.Intrinsic.MOD, '(a % b)'),
+                 (IntrinsicCall.Intrinsic.SIGN, 'copysign(a, b)'),
+    )
+    ref1 = Reference(DataSymbol("a", REAL_TYPE))
+    ref2 = Reference(DataSymbol("b", REAL_TYPE))
+    icall = IntrinsicCall.create(IntrinsicCall.Intrinsic.MOD, [ref1, ref2])
+    for intrinsic, expected in test_list:
+        icall._intrinsic = intrinsic
+        assert cwriter(icall) == expected
+
+    # Check that casts with more than one children produce an error
+    with pytest.raises(VisitorError) as err:
+        icall._intrinsic = IntrinsicCall.Intrinsic.REAL
+        _ = cwriter(icall)
+    assert ("The C Writer IntrinsicCall cast-style formatter only supports "
+            "intrinsics with 1 child, but found 'float' with '2' children."
+            in str(err.value))
 
 
 def test_cw_loop(fortran_reader):
@@ -397,19 +440,20 @@ def test_cw_loop(fortran_reader):
     assert correct in result
 
 
-def test_cw_size():
-    ''' Check the CWriter class SIZE method raises the expected error since
+def test_cw_unsupported_intrinsiccall():
+    ''' Check the CWriter class SIZE intrinsic raises the expected error since
     there is no C equivalent. '''
     cwriter = CWriter()
     arr = ArrayReference(DataSymbol('a', INTEGER_TYPE))
     lit = Literal('1', INTEGER_TYPE)
-    size = BinaryOperation.create(BinaryOperation.Operator.SIZE, arr, lit)
+    size = IntrinsicCall.create(IntrinsicCall.Intrinsic.SIZE,
+                                [arr, ("dim", lit)])
     lhs = Reference(DataSymbol('length', INTEGER_TYPE))
     assignment = Assignment.create(lhs, size)
 
     with pytest.raises(VisitorError) as excinfo:
         cwriter(assignment)
-    assert ("C backend does not support the 'Operator.SIZE' operator"
+    assert ("The C backend does not support the 'SIZE' intrinsic."
             in str(excinfo.value))
 
 
@@ -495,3 +539,44 @@ def test_cw_arraystructureref(fortran_reader):
         _ = cwriter._visit(array_ref)
     assert "An ArrayOfStructuresReference must have a Member as its first " \
            "child but found 'Literal'" in str(err.value)
+
+
+def test_cw_directive_with_clause(fortran_reader):
+    '''Test that a PSyIR directive with clauses is translated to
+    the required C code.
+
+    '''
+    cwriter = CWriter()
+    # Generate PSyIR from Fortran code.
+    code = (
+        "program test\n"
+        "  integer, parameter :: n=20\n"
+        "  integer :: i\n"
+        "  real :: a(n)\n"
+        "  do i=1,n\n"
+        "    a(i) = 0.0\n"
+        "  end do\n"
+        "end program test")
+    container = fortran_reader.psyir_from_source(code)
+    schedule = container.children[0]
+    loops = schedule.walk(Loop)
+    loop = loops[0].detach()
+    directive = OMPTaskloopDirective(children=[loop], num_tasks=32,
+                                     nogroup=True)
+    master = OMPMasterDirective(children=[directive])
+    parallel = OMPParallelDirective.create(children=[master])
+    schedule.addchild(parallel, 0)
+    assert '''#pragma omp parallel default(shared), private(i)
+{
+  #pragma omp master
+  {
+    #pragma omp taskloop num_tasks(32), nogroup
+    {
+      for(i=1; i<=n; i+=1)
+      {
+        a[i] = 0.0;
+      }
+    }
+  }
+}
+''' in cwriter(schedule.children[0])

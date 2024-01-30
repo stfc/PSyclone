@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -40,15 +40,12 @@
 
 '''
 
-from __future__ import absolute_import
 import abc
-import six
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
-@six.add_metaclass(abc.ABCMeta)
-class TypedSymbol(Symbol):
+class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
     '''
     Abstract base class for those Symbols that have an associated datatype.
 
@@ -82,8 +79,8 @@ class TypedSymbol(Symbol):
         if "datatype" in kwargs:
             self.datatype = kwargs.pop("datatype")
         elif not hasattr(self, '_datatype'):
-            raise AttributeError("Missing mandatory 'datatype' attribute for "
-                                 "symbol '{0}'.".format(self.name))
+            raise AttributeError(f"Missing mandatory 'datatype' attribute for "
+                                 f"symbol '{self.name}'.")
 
         super(TypedSymbol, self)._process_arguments(**kwargs)
 
@@ -95,7 +92,8 @@ class TypedSymbol(Symbol):
     def datatype(self):
         '''
         :returns: datatype of the TypedSymbol.
-        :rtype: str
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType` or \
+                :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         '''
         return self._datatype
 
@@ -116,9 +114,9 @@ class TypedSymbol(Symbol):
         from psyclone.psyir.symbols.datatypes import DataType
         if not isinstance(value, (DataType, DataTypeSymbol)):
             raise TypeError(
-                "The datatype of a {0} must be specified using either "
-                "a DataType or a DataTypeSymbol but got: '{1}'".format(
-                    type(self).__name__, type(value).__name__))
+                f"The datatype of a {type(self).__name__} must be specified "
+                f"using either a DataType or a DataTypeSymbol but got: "
+                f"'{type(value).__name__}'")
         self._datatype = value
 
     def copy(self):
@@ -147,13 +145,13 @@ class TypedSymbol(Symbol):
 
         '''
         if not isinstance(symbol_in, TypedSymbol):
-            raise TypeError("Argument should be of type 'TypedSymbol' but "
-                            "found '{0}'.".format(type(symbol_in).__name__))
+            raise TypeError(f"Argument should be of type 'TypedSymbol' but "
+                            f"found '{type(symbol_in).__name__}'.")
         super(TypedSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
 
-    def resolve_deferred(self):
-        ''' If the symbol has a deferred datatype, find where it is defined
+    def resolve_type(self):
+        ''' If the symbol has an Unresolved datatype, find where it is defined
         (i.e. an external container) and obtain the properties of the symbol.
 
         :returns: this TypedSymbol with its properties updated. This is for \
@@ -165,8 +163,8 @@ class TypedSymbol(Symbol):
         # This import has to be local to this method to avoid circular
         # dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import DeferredType
-        if isinstance(self.datatype, DeferredType):
+        from psyclone.psyir.symbols.datatypes import UnresolvedType
+        if isinstance(self.datatype, UnresolvedType):
             # Copy all the symbol properties but the interface and
             # visibility (the latter is determined by the current
             # scoping unit)
@@ -193,29 +191,41 @@ class TypedSymbol(Symbol):
     @property
     def is_array(self):
         '''
-        :returns: True if this symbol is an array and False otherwise.
+        :returns: True if this symbol is an array and False if it is not or
+            there is not enough symbol information to determine it.
         :rtype: bool
 
         '''
         # This import has to be local to this method to avoid circular
         # dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import ArrayType
-        return isinstance(self.datatype, ArrayType)
+        from psyclone.psyir.symbols.datatypes import (
+            ArrayType, UnsupportedFortranType)
+        if isinstance(self.datatype, ArrayType):
+            return True
+        return (isinstance(self.datatype, UnsupportedFortranType) and
+                isinstance(self.datatype.partial_datatype, ArrayType))
 
     @property
     def shape(self):
         '''
-        :returns: shape of the symbol in column-major order (leftmost \
-                  index is contiguous in memory). Each entry represents \
-                  an array dimension. If it is 'None' the extent of that \
-                  dimension is unknown, otherwise it holds an integer \
-                  literal or a reference to an integer symbol with the \
-                  extent. If it is an empty list then the symbol \
+        :returns: shape of the symbol in column-major order (leftmost
+                  index is contiguous in memory). Each entry represents
+                  an array dimension. If it is 'None' the extent of that
+                  dimension is unknown, otherwise it holds an integer
+                  literal or a reference to an integer symbol with the
+                  extent. If it is an empty list then the symbol
                   represents a scalar.
-        :rtype: list
+        :rtype: List[Optional[:py:class:`psyclone.psyir.nodes.Literal` |
+                              :py:class:`psyclone.psyir.nodes.Reference`]]
 
         '''
         if self.is_array:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
+            if isinstance(self.datatype, UnsupportedFortranType):
+                # An UnsupportedFortranType that has is_array True must have a
+                # partial_datatype.
+                return self._datatype.partial_datatype.shape
             return self._datatype.shape
         return []

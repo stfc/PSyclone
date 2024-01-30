@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2022, Science and Technology Facilities Council.
+   Copyright (c) 2017-2024, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,10 @@
    ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
-   Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+   Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 
+.. _psyir-backends:
 
 PSyIR Back-ends
 ###############
@@ -159,10 +160,10 @@ class hierarchy, the following code can be written::
         def node_node(self, node):
         ''' This method is called if no specific methods have been
             written. '''
-            print("[ {0} start]".format(type(node).__name__))
+            print(f"[ {type(node).__name__} start]")
             for child in node.children:
                 self._visit(child)
-            print("[ {0} end]".format(type(node).__name__))
+            print(f"[ {type(node).__name__} end]")
 
     print_hierarchy = PrintHierarchy()
     print_hierarchy._visit(psyir_tree)
@@ -180,10 +181,10 @@ previous example using strings would give the following::
 
         def node_node(self, node):
             ''' This method is called if the visitor finds a loop '''
-            result = "[ {0} start ]".format(type(node).__name__)
+            result = f"[ {type(node).__name__} start ]"
             for child in node.children:
                 result += self._visit(child)
-            result += "[ {0} end ]".format(type(node).__name__)
+            result += f"[ {type(node).__name__} end ]"
             return result
 
     print_hierarchy = PrintHierarchy()
@@ -214,14 +215,12 @@ writing the following::
 
         def node_node(self, node):
             ''' This method is called if the visitor finds a loop '''
-            result = "{0}[ {1} start ]\n".format(self._nindent,
-                                                 type(node).__name__)
+            result = f"{self._nindent}[ {type(node).__name__} start ]\n"
         self._depth += 1
         for child in node.children:
             result += self._visit(child)
         self._depth -= 1
-        result += "{0}[ {1} end ]\n".format(self._nindent,
-                                            type(node).__name__)
+        result += f"{self._nindent}[ {type(node).__name__} end ]\n"
         return result
 
     print_hierarchy = PrintHierarchy()
@@ -256,11 +255,6 @@ is commented out::
     print_hierarchy = PrintHierarchy()
     # print(print_hierarchy(psyir_tree))
     psyir_tree.walk(APIHaloExchange)
-
-.. warning::
-    The OpenCL backend does not use a `__call__` method with lowering. This
-    is because OpenCL currently uses a GOcean specific property, this should
-    be fixed in #1134 and OpenCL should use the generic `__call__`
 
 .. note::
     The property of not having side effects is implemented by making a copy

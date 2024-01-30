@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Tests for the f2pygen module of PSyclone '''
 
-from __future__ import absolute_import, print_function
 import pytest
-from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
-    CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
-    CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen, PSyIRGen
-from psyclone.errors import InternalError
+from psyclone.configuration import Config
+from psyclone.f2pygen import (
+    adduse, AssignGen, AllocateGen, BaseGen, CallGen, CharDeclGen, CommentGen,
+    DeallocateGen, DeclGen, DirectiveGen, DoGen, IfThenGen, ImplicitNoneGen,
+    ModuleGen, PSyIRGen, SelectionGen, SubroutineGen, TypeDeclGen, UseGen)
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import Node, Return
 from psyclone.tests.utilities import Compile, count_lines, line_number
 
@@ -282,7 +283,7 @@ def test_mod_no_implicit_none():
     assert "IMPLICIT NONE" not in str(module.root)
 
 
-def test_failed_module_inline():
+def test_invalid_add_raw_subroutine_argument():
     ''' test that an error is thrown if the wrong type of object
     is passed to the add_raw_subroutine method '''
     module = ModuleGen(name="test")
@@ -615,7 +616,6 @@ def test_ompdirective_type():
 def test_basegen_add_auto():
     ''' Check that attempting to call add on BaseGen raises an error if
     position is "auto"'''
-    from psyclone.f2pygen import BaseGen
     parent = Node()
     bgen = BaseGen(parent, parent)
     obj = Node()
@@ -627,7 +627,6 @@ def test_basegen_add_auto():
 def test_basegen_add_invalid_posn():
     '''Check that attempting to call add on BaseGen with an invalid
     position argument raises an error'''
-    from psyclone.f2pygen import BaseGen
     parent = Node()
     bgen = BaseGen(parent, parent)
     obj = Node()
@@ -651,7 +650,6 @@ def test_basegen_append():
 def test_basegen_append_default():
     ''' Check if no position argument is supplied to BaseGen.add() then it
     defaults to appending '''
-    from psyclone.f2pygen import BaseGen
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
@@ -910,7 +908,6 @@ def test_adduse_empty_only():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
-    from psyclone.f2pygen import adduse
     # Add a use statement with only=True but an empty list of entities
     adduse("fred", sub.root, only=True, funcnames=[])
     assert count_lines(sub.root, "USE fred") == 1
@@ -925,7 +922,6 @@ def test_adduse():
     module.add(sub)
     call = CallGen(sub, name="testcall", args=["a", "b"])
     sub.add(call)
-    from psyclone.f2pygen import adduse
     adduse("fred", call.root, only=True, funcnames=["astaire"])
     gen = str(sub.root)
     expected = ("    SUBROUTINE testsubroutine()\n"
@@ -941,7 +937,6 @@ def test_adduse_default_funcnames():
     module.add(sub)
     call = CallGen(sub, name="testcall", args=["a", "b"])
     sub.add(call)
-    from psyclone.f2pygen import adduse
     adduse("fred", call.root)
     gen = str(sub.root)
     expected = ("    SUBROUTINE testsubroutine()\n"
@@ -1035,7 +1030,7 @@ def test_decl_save(tmpdir):
                         entity_decls=["ufld"]))
     gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
-        assert "{0}, save :: var".format(dtype.lower()) in gen
+        assert f"{dtype.lower()}, save :: var" in gen
     assert "character(len=10), save :: varchar" in gen
     assert "type(field_type), save :: ufld" in gen
     # Check that the generated code compiles (if enabled). We have to
@@ -1059,7 +1054,7 @@ def test_decl_target(tmpdir):
                         entity_decls=["ufld"]))
     gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
-        assert "{0}, target :: var".format(dtype.lower()) in gen
+        assert f"{dtype.lower()}, target :: var" in gen
     assert "character(len=10), target :: varchar" in gen
     assert "type(field_type), target :: ufld" in gen
     # Check that the generated code compiles (if enabled). We
@@ -1081,7 +1076,7 @@ def test_decl_private(tmpdir):
                            entity_decls=["ufld"]))
     gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
-        assert "{0}, private :: var".format(dtype.lower()) in gen
+        assert f"{dtype.lower()}, private :: var" in gen
     assert "character(len=10), private :: varchar" in gen
     assert "type(field_type), private :: ufld" in gen
     # Check that the generated code compiles (if enabled). We
@@ -1188,8 +1183,8 @@ def test_declgen_wrong_type(monkeypatch):
     dgen = DeclGen(sub, datatype="integer", entity_decls=["my_int"])
     with pytest.raises(InternalError) as err:
         dgen._check_initial_values("complex", ["1"])
-    assert ("internal error: unsupported type 'complex' - should be one "
-            "of {0}".format(dgen.SUPPORTED_TYPES) in str(err.value))
+    assert (f"internal error: unsupported type 'complex' - should be one "
+            f"of {dgen.SUPPORTED_TYPES}" in str(err.value))
     # Check that we get an internal error if the supplied type is in the
     # list of those supported but has not actually been implemented.
     # We have to monkeypatch the list of supported types...
@@ -1359,7 +1354,6 @@ def test_declgen_multiple_use2():
 @pytest.mark.xfail(reason="No way to add body of DEFAULT clause")
 def test_selectiongen():
     ''' Check that SelectionGen works as expected '''
-    from psyclone.f2pygen import SelectionGen
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
@@ -1383,7 +1377,6 @@ def test_selectiongen():
 def test_selectiongen_addcase():
     ''' Check that SelectionGen.addcase() works as expected when no
     content is supplied'''
-    from psyclone.f2pygen import SelectionGen
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
@@ -1401,7 +1394,6 @@ def test_selectiongen_addcase():
 @pytest.mark.xfail(reason="Adding a CASE to a SELECT TYPE does not work")
 def test_typeselectiongen():
     ''' Check that SelectionGen works as expected for a type '''
-    from psyclone.f2pygen import SelectionGen
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
@@ -1523,3 +1515,34 @@ def test_psyirgen_multiple_fparser_nodes():
   END MODULE testmodule'''
 
     assert generated_code == expected
+
+
+def test_psyirgen_backendchecks(monkeypatch):
+    '''Check that PSyIRGen uses the configuration object to determine
+    whether or not to disable checks in the PSyIR backend.
+    '''
+    config = Config.get()
+
+    module = ModuleGen(name="testmodule")
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+    node = Return()
+
+    # monkeypatch the `validate_global_constraints` method of the Return node
+    # so that it always raises an error.
+    def fake_validate():
+        raise GenerationError("This is just a test")
+
+    monkeypatch.setattr(node, "validate_global_constraints", fake_validate)
+
+    # monkeypatch Config to turn off validation checks.
+    monkeypatch.setattr(config, "_backend_checks_enabled", False)
+    # Constructing the PSyIRGen node should succed.
+    pgen = PSyIRGen(subroutine, node)
+    assert isinstance(pgen, PSyIRGen)
+    # monkeypatch Config to turn on validation checks.
+    monkeypatch.setattr(config, "_backend_checks_enabled", True)
+    # Construction should now fail.
+    with pytest.raises(GenerationError) as err:
+        PSyIRGen(subroutine, node)
+    assert "This is just a test" in str(err.value)

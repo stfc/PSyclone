@@ -82,7 +82,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'PSyclone'
-copyright = '2017-2022, STFC Daresbury Laboratory'
+copyright = '2017-2023, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -242,7 +242,7 @@ latex_elements = {
 latex_documents = [
     ('index', 'psyclone.tex', 'PSyclone Documentation',
      'Andrew Coughtrie, Rupert Ford, Joerg Henrichs, Iva Kavcic,\\\\ '
-     'Andrew Porter and Sergi Siso', 'manual'),
+     'Andrew Porter, Sergi Siso and Joseph Wallwork', 'manual'),
 ]
 
 # Set maximum depth for the nested lists to prevent LaTeX
@@ -286,8 +286,8 @@ latex_elements = {
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'psyclone', u'PSyclone Documentation',
-     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi '
-      'Siso'], 1)
+     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi '
+      'Siso and Joseph Wallwork'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -301,7 +301,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     ('index', 'psyclone', u'psyclone Documentation',
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso',
+     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi Siso and'
+     'Joseph Wallwork',
      'psyclone',
      'A domain-specific compiler for Finite-Element/Volume/Difference models.',
      'Miscellaneous'),
@@ -321,10 +322,10 @@ texinfo_documents = [
 
 # Bibliographic Dublin Core info.
 epub_title = u'PSyclone'
-epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and ' \
-    'Sergi Siso'
-epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter ' \
-    'and Sergi Siso'
+epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, ' \
+    'Sergi Siso and Joseph Wallwork'
+epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, ' \
+    'Sergi Siso and Joseph Wallwork'
 epub_copyright = copyright
 
 # The language of the text. It defaults to the language option
@@ -365,10 +366,17 @@ epub_copyright = copyright
 # -- Options for linkcheck -------------------------------------------------
 
 linkcheck_anchors = True
+# We need to ignore this anchor (used a couple of times in examples.rst)
+# because it seems that GitHub's JavaScript-generated page defeats the
+# link checker.
+linkcheck_anchors_ignore = ['user-content-netcdf-library-lfric-examples']
 
-# puma is using an old https server and that causes errors in linkcheck.
-# Despite its name 'collab.metoffice.../twiki' requires authenticated access.
-linkcheck_ignore = [r'https://puma.nerc.ac.uk/trac/GOcean',
+# MyBinder fails on a very regular basis so we skip those links.
+linkcheck_ignore = [r'^https://mybinder.org/v2/gh/stfc/psyclone',
+# Shpinx has problems wiht Github anchors, so we skip the links to anchors to
+# the main README
+                    r'^https://github.com/stfc/PSyclone#',
+# Requires authentication
                     r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/'
                     r'LFRicDocumentationPapers/lfric_documentation.pdf']
 
@@ -378,5 +386,6 @@ linkcheck_ignore = [r'https://puma.nerc.ac.uk/trac/GOcean',
 # is set earlier and depends on whether the docs are being built as part
 # of a CI run or not.
 intersphinx_mapping = {
-    'http://docs.python.org/': None,
-    'dev_guide': (dev_guide_base, None)}
+    'python': ('http://docs.python.org/', None),
+    'dev_guide': (dev_guide_base, None),
+    'psyad': ('https://psyclone-adjoint.readthedocs.io/en/latest', None)}

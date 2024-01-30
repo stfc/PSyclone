@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,20 @@ def test_container_init():
     assert container._name == "test"
     assert container._parent is None
     assert isinstance(container._symbol_table, SymbolTable)
+
+
+def test_container_equality():
+    '''Test the __eq__ method of the container class.'''
+    # Subclasses of ScopingNode need to have the same SymbolTable
+    symboltable = SymbolTable()
+    container1 = Container("test")
+    container2 = Container("test")
+    container3 = Container("not_test")
+    container1._symbol_table = symboltable
+    container2._symbol_table = symboltable
+    container3._symbol_table = symboltable
+    assert container1 == container2
+    assert container1 != container3
 
 
 def test_container_init_parent():

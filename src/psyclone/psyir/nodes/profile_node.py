@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Lab
+# Modified: A. R. Porter, S. Siso, R. W. Ford and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for adding profiling to code
@@ -55,7 +55,7 @@ class ProfileNode(PSyDataNode):
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
         this node. '''
-        result = "ProfileStart[var={0}]\n".format(self._var_name)
+        result = f"ProfileStart[var={self._var_name}]\n"
         result += str(self.psy_data_body)+"\n"
         return result+"ProfileEnd"
 

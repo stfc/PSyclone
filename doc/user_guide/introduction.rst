@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -90,6 +90,6 @@ system can help a user to optimise the code for a particular architecture
 or alternatively, generate the PSy layer automatically.
 
 PSyclone is also being extended to support an API being developed in
-the `GOcean project <https://puma.nerc.ac.uk/trac/GOcean>`_ for two finite
+the `GOcean project <https://www.hartree.stfc.ac.uk/publications/case-studies/2016/07/15/developing-next-generation-ocean-modelling-techniques>` for two finite
 difference ocean model benchmarks, one of which is based on the
 `NEMO <https://www.nemo-ocean.eu/>`_ ocean model.

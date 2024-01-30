@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,16 +39,13 @@
 
 '''
 
-from __future__ import print_function, absolute_import
-
 import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
-from psyclone.gocean1p0 import GOACCEnterDataDirective
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.nodes import ACCDataDirective
+from psyclone.psyir.nodes import ACCDataDirective, Schedule, Routine
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
 
@@ -186,13 +183,14 @@ def test_multi_data():
     gen_code = str(psy.gen)
 
     assert ("  do jk = 1, jpkm1, 1\n"
-            "    !$acc data copyin(ptb,wmask) copyout(zdk1t,zdkt)\n"
+            "    !$acc data copyin(ptb,wmask), copyout(zdk1t,zdkt)\n"
             "    do jj = 1, jpj, 1") in gen_code
 
     assert ("    end if\n"
             "    !$acc end data\n"
             "    !$acc data copyin(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
-            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv) copyout(zftu) copy(pta)\n"
+            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv), copyout(zftu), "
+            "copy(pta)\n"
             "    do jj = 1, jpjm1, 1") in gen_code
 
     assert ("    enddo\n"
@@ -249,7 +247,7 @@ END subroutine data_ref
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    assert "!$acc data copyin(a) copyout(prof,prof%npind)" in gen_code
+    assert "!$acc data copyin(a), copyout(prof,prof%npind)" in gen_code
 
 
 def test_data_ref_read(parser):
@@ -273,6 +271,60 @@ def test_data_ref_read(parser):
     assert "copyin(fld,fld%data)" in gen_code
 
 
+def test_multi_array_derived_type(fortran_reader, fortran_writer):
+    '''
+    Check that we generate the correct clause if the derived-type contains
+    more than one array access but only one is iterated over.
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "program dtype_read\n"
+        "use field_mod, only: fld_type\n"
+        "integer, parameter :: jpj = 10\n"
+        "type(fld_type), dimension(5) :: small_holding\n"
+        "real, dimension(jpj) :: sto_tmp\n"
+        "integer :: ji\n"
+        "do ji = 1,jpj\n"
+        "  sto_tmp(ji) = small_holding(2)%data(ji) + 1.0\n"
+        "end do\n"
+        "end program dtype_read\n")
+    schedule = psyir.walk(Schedule)[0]
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    acc_trans.apply(schedule.children)
+    gen_code = fortran_writer(psyir)
+    assert ("!$acc data copyin(small_holding,small_holding(2)%data), "
+            "copyout(sto_tmp)" in gen_code)
+
+
+def test_multi_array_derived_type_error(fortran_reader):
+    '''
+    Check that we raise the expected error if the derived-type contains
+    more than one array access and they are both iterated over.
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "program dtype_read\n"
+        "use field_mod, only: fld_type\n"
+        "integer, parameter :: jpj = 10\n"
+        "type(fld_type), dimension(5) :: small_holding\n"
+        "real, dimension(jpj) :: sto_tmp\n"
+        "integer :: ji, jf\n"
+        "sto_tmp(:) = 0.0\n"
+        "do jf = 1, 5\n"
+        "do ji = 1,jpj\n"
+        "  sto_tmp(ji) = sto_tmp(ji) + small_holding(3)%grid(jf)%data(ji)\n"
+        "end do\n"
+        "end do\n"
+        "end program dtype_read\n")
+    schedule = psyir.walk(Schedule)[0]
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    with pytest.raises(TransformationError) as err:
+        acc_trans.apply(schedule.children)
+    assert ("Data region contains a structure access 'small_holding(3)%"
+            "grid(jf)%data(ji)' where component 'grid' is an array and is "
+            "iterated over (variable 'jf'). Deep copying of data for "
+            "structures is only supported where the deepest component is the "
+            "one being iterated over." in str(err.value))
+
+
 def test_array_section():
     '''Check code generation with a arrays accessed via an array section.
 
@@ -282,7 +334,7 @@ def test_array_section():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen).lower()
-    assert "!$acc data copyin(b,c) copyout(a)" in gen_code
+    assert "!$acc data copyin(b,c), copyout(a)" in gen_code
 
 
 def test_kind_parameter(parser):
@@ -306,35 +358,34 @@ def test_kind_parameter(parser):
     assert "copyin(wp)" not in gen_code.lower()
 
 
-def test_no_copyin_intrinsics(parser):
-    ''' Check that we don't generate a copyin/out for Fortran instrinsic
+def test_no_copyin_intrinsics(fortran_reader, fortran_writer):
+    ''' Check that we don't generate a copyin/out for Fortran intrinsic
     functions (i.e. we don't mistake them for array accesses). '''
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     for intrinsic in ["cos(ji)", "sin(ji)", "tan(ji)", "atan(ji)",
                       "mod(ji, 5)"]:
-        reader = FortranStringReader(
-            "program call_intrinsic\n"
-            "use kind_params_mod\n"
-            "integer :: ji, jpj\n"
-            "real(kind=wp) :: sto_tmp(5)\n"
-            "do ji = 1,jpj\n"
-            "sto_tmp(ji) = {0}\n"
-            "end do\n"
-            "end program call_intrinsic\n".format(intrinsic))
-        code = parser(reader)
-        psy = PSyFactory(API, distributed_memory=False).create(code)
-        schedule = psy.invokes.invoke_list[0].schedule
+        code = (f"program call_intrinsic\n"
+                f"use kind_params_mod\n"
+                f"integer :: ji, jpj\n"
+                f"real(kind=wp) :: sto_tmp(5)\n"
+                f"do ji = 1,jpj\n"
+                f"sto_tmp(ji) = {intrinsic}\n"
+                f"end do\n"
+                f"end program call_intrinsic\n")
+        psy = fortran_reader.psyir_from_source(code)
+        schedule = psy.walk(Routine)[0]
         acc_trans.apply(schedule.children[0:1])
-        gen_code = str(psy.gen)
+        gen_code = fortran_writer(psy)
         idx = intrinsic.index("(")
-        assert "copyin({0})".format(intrinsic[0:idx]) not in gen_code.lower()
+        assert f"copyin({intrinsic[0:idx]})" not in gen_code.lower()
 
 
 def test_no_code_blocks(parser):
     ''' Check that we refuse to include CodeBlocks (i.e. code that we
     don't recognise) within a data region. '''
     reader = FortranStringReader("program write_out\n"
-                                 " integer :: ji, jpj\n"
+                                 "integer, parameter :: wp = kind(1.0)\n"
+                                 "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
                                  "read(*,*) sto_tmp(ji)\n"
@@ -394,10 +445,8 @@ def test_no_enter_data(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    # We don't yet support ACCEnterDataTrans for the NEMO API (Issue 310)
-    # so manually insert a GOACCEnterDataDirective in the Schedule.
-    directive = GOACCEnterDataDirective(children=[])
-    schedule.children.insert(0, directive)
+    enter_data_trans = TransInfo().get_trans_name('ACCEnterDataTrans')
+    enter_data_trans.apply(schedule)
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children)
     assert ("Cannot add an OpenACC data region to a schedule that already "
@@ -432,8 +481,9 @@ def test_array_access_in_ifblock(parser):
 
 
 def test_array_access_loop_bounds(parser):
-    ''' Check that we raise the expected error if our code that identifies
-    read and write accesses misses an array access. '''
+    ''' Check that the correct data-movement statement is generated when
+    the region contains a loop that has an array-access as one of its
+    bounds. '''
     code = ("program do_bound\n"
             "  use kind_params_mod\n"
             "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"

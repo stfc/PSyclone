@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,11 +38,16 @@
 
 ''' This module contains the implementation of the ArrayReference node. '''
 
-from __future__ import absolute_import
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import DataSymbol
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import (DataSymbol, UnresolvedType,
+                                    UnsupportedFortranType, UnsupportedType,
+                                    DataTypeSymbol, ScalarType, ArrayType,
+                                    INTEGER_TYPE)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -58,12 +63,13 @@ class ArrayReference(ArrayMixin, Reference):
     @staticmethod
     def create(symbol, indices):
         '''Create an ArrayReference instance given a symbol and a list of Node
-        array indices.
+        array indices. The special value ":" can be used as an index to
+        create the corresponding PSyIR Range that represents ":".
 
         :param symbol: the symbol that this array is associated with.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param indices: a list of Nodes describing the array indices.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param indices: a list of Nodes or ":" describing the array indices.
+        :type indices: List[Union[:py:class:`psyclone.psyir.nodes.Node`,":"]]
 
         :returns: an ArrayReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
@@ -74,34 +80,113 @@ class ArrayReference(ArrayMixin, Reference):
         '''
         if not isinstance(symbol, DataSymbol):
             raise GenerationError(
-                "symbol argument in create method of ArrayReference class "
-                "should be a DataSymbol but found '{0}'.".format(
-                    type(symbol).__name__))
+                f"symbol argument in create method of ArrayReference class "
+                f"should be a DataSymbol but found '{type(symbol).__name__}'.")
         if not isinstance(indices, list):
             raise GenerationError(
-                "indices argument in create method of ArrayReference class "
-                "should be a list but found '{0}'."
-                "".format(type(indices).__name__))
+                f"indices argument in create method of ArrayReference class "
+                f"should be a list but found '{type(indices).__name__}'.")
         if not symbol.is_array:
+            # Deferred and Unsupported types may still be arrays
+            if not isinstance(symbol.datatype, (UnresolvedType,
+                                                UnsupportedType)):
+                raise GenerationError(
+                    f"expecting the symbol '{symbol.name}' to be an array, but"
+                    f" found '{symbol.datatype}'.")
+        elif len(symbol.shape) != len(indices):
             raise GenerationError(
-                "expecting the symbol to be an array, not a scalar.")
-        if len(symbol.shape) != len(indices):
-            raise GenerationError(
-                "the symbol should have the same number of dimensions as "
-                "indices (provided in the 'indices' argument). "
-                "Expecting '{0}' but found '{1}'.".format(
-                    len(indices), len(symbol.shape)))
+                f"the symbol '{symbol.name}' should have the same number of "
+                f"dimensions as indices (provided in the 'indices' argument). "
+                f"Expecting '{len(indices)}' but found '{len(symbol.shape)}'.")
 
         array = ArrayReference(symbol)
-        for child in indices:
-            array.addchild(child)
+        for ind, child in enumerate(indices):
+            if child == ":":
+                lbound = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.LBOUND,
+                    [Reference(symbol),
+                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                ubound = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.UBOUND,
+                    [Reference(symbol),
+                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                my_range = Range.create(lbound, ubound)
+                array.addchild(my_range)
+            else:
+                array.addchild(child)
         return array
 
     def __str__(self):
-        result = super(ArrayReference, self).__str__() + "\n"
+        result = super().__str__() + "\n"
         for entity in self._children:
             result += str(entity) + "\n"
         return result
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of the accessed array element(s).
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        '''
+        shape = self._get_effective_shape()
+        if shape:
+            if isinstance(self.symbol.datatype, ArrayType):
+                # We have full type information so we know the shape of the
+                # original declaration.
+                orig_shape = self.symbol.datatype.shape
+            elif (isinstance(self.symbol.datatype, UnsupportedFortranType) and
+                  self.symbol.datatype.partial_datatype):
+                # We have partial type information so we also know the shape
+                # of the original declaration.
+                orig_shape = self.symbol.datatype.partial_datatype.shape
+            else:
+                # We don't have any information on the shape of the original
+                # delcaration.
+                orig_shape = []
+            if (len(shape) == len(orig_shape) and
+                    all(self.is_full_range(idx) for idx in range(len(shape)))):
+                # Although this access has a shape, it is in fact for the
+                # whole array and therefore the type of the result is just
+                # that of the base symbol. (This wouldn't be true for a
+                # StructureReference but they have their own implementation
+                # of this method.)
+                return self.symbol.datatype
+            if isinstance(self.symbol.datatype, UnsupportedType):
+                # Even if an Unknown(Fortran)Type has partial type
+                # information, we can't easily use it here because we'd need
+                # to re-write the original Fortran declaration stored in the
+                # type. We could manipulate the shape in the fparser2 parse
+                # tree if need be but, at this point, we wouldn't know what
+                # the variable name should be (TODO #2137).
+                base_type = UnresolvedType()
+            else:
+                base_type = self.symbol.datatype
+            # TODO #1857 - passing base_type as an instance of ArrayType
+            # only works because the ArrayType constructor just pulls out
+            # the intrinsic and precision properties of the type.
+            return ArrayType(base_type, shape)
+
+        # Otherwise, we're accessing a single element of the array.
+        if isinstance(self.symbol.datatype, UnsupportedType):
+            if (isinstance(self.symbol.datatype, UnsupportedFortranType) and
+                    self.symbol.datatype.partial_datatype):
+                precision = self.symbol.datatype.partial_datatype.precision
+                intrinsic = self.symbol.datatype.partial_datatype.intrinsic
+                return ScalarType(intrinsic, precision)
+            # Since we're accessing a single element of an array of
+            # UnsupportedType we have to create a new UnsupportedFortranType.
+            # Ideally we would re-write the original Fortran
+            # declaration stored in the type. We could remove the
+            # shape in the fparser2 parse tree but, at this point, we
+            # wouldn't know what the variable name should be (TODO #2137).
+            return UnresolvedType()
+        if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
+            return self.symbol.datatype.intrinsic
+        # TODO #1857: Really we should just be able to return
+        # self.symbol.datatype here but currently arrays of scalars are
+        # handled in a different way to all other types of array.
+        return ScalarType(self.symbol.datatype.intrinsic,
+                          self.symbol.datatype.precision)
 
 
 # For AutoAPI documentation generation

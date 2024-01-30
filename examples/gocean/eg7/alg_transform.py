@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,4 +50,4 @@ def trans(psy):
 def trans_alg(psyir):
     '''Output algorithm layer invoke information.'''
     for invoke in psyir.walk(AlgorithmInvokeCall):
-        invoke.view()
+        print(invoke.view())

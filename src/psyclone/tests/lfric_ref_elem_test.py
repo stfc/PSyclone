@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,28 +32,31 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 # Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''
 Module containing pytest tests for the reference-element functionality
 of the Dynamo0.3 API.
 '''
 
-from __future__ import absolute_import, print_function
-import os
 import pytest
 import fparser
+
 from fparser import api as fpapi
+
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.domain.lfric import LFRicKernMetadata
+from psyclone.dynamo0p3 import RefElementMetaData
+from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import Kern
+from psyclone.psyir.symbols import DataSymbol
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.tests.utilities import get_invoke
 
 # Constants
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
 
 REF_ELEM_MDATA = '''
@@ -84,18 +87,17 @@ end module testkern_refelem_mod
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
 def test_mdata_parse():
     ''' Check that we get the correct list of reference-element properties. '''
-    from psyclone.dynamo0p3 import RefElementMetaData
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = REF_ELEM_MDATA
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     assert dkm.reference_element.properties == \
         [RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES,
          RefElementMetaData.Property.NORMALS_TO_HORIZONTAL_FACES,
@@ -105,13 +107,12 @@ def test_mdata_parse():
 def test_mdata_invalid_property():
     ''' Check that we raise the expected error if an unrecognised property
     is requested. '''
-    from psyclone.parse.utils import ParseError
     code = REF_ELEM_MDATA.replace("normals_to_vertical_faces",
                                   "not_a_property")
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("property: 'not_a_property'. Supported values are: "
             "['NORMALS_TO_FACES', 'NORMALS_TO_HORIZONTAL_FACES'"
             in str(err.value))
@@ -120,13 +121,12 @@ def test_mdata_invalid_property():
 def test_mdata_wrong_arg_count():
     ''' Check that we raise the expected error if the wrong dimension value
     is specified for the meta_reference_element array. '''
-    from psyclone.parse.utils import ParseError
     code = REF_ELEM_MDATA.replace("element_data_type), dimension(3)",
                                   "element_data_type), dimension(4)")
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("'meta_reference_element' metadata, the number of items in" in
             str(err.value))
 
@@ -134,13 +134,12 @@ def test_mdata_wrong_arg_count():
 def test_mdata_wrong_name():
     ''' Check that we raise the expected error if the array holding properties
     of the reference_element is given the wrong name. '''
-    from psyclone.parse.utils import ParseError
     code = REF_ELEM_MDATA.replace("meta_reference_element =",
                                   "meta_ref_elem =")
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("No variable named 'meta_reference_element' found"
             in str(err.value))
 
@@ -148,14 +147,13 @@ def test_mdata_wrong_name():
 def test_mdata_wrong_type_var():
     ''' Check that we raise the expected error if the array holding properties
     of the reference element contains an item of the wrong type. '''
-    from psyclone.parse.utils import ParseError
     code = REF_ELEM_MDATA.replace(
         "reference_element_data_type(outward_normals_to",
         "ref_element_data_type(outward_normals_to")
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("'meta_reference_element' metadata must consist of an array of "
             "structure constructors, all of type 'reference_element_data_type'"
             " but found: ['ref_element_data_type'," in str(err.value))
@@ -164,7 +162,6 @@ def test_mdata_wrong_type_var():
 def test_mdata_duplicate_var():
     ''' Check that we raise the expected error if the array holding properties
     of the reference element contains a duplicate item. '''
-    from psyclone.parse.utils import ParseError
     code = REF_ELEM_MDATA.replace(
         "reference_element_data_type(normals_to_horizontal_faces)",
         "reference_element_data_type(normals_to_vertical_faces)")
@@ -172,7 +169,7 @@ def test_mdata_duplicate_var():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_refelem_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("Duplicate reference-element property found: "
             "'Property.NORMALS_TO_VERTICAL_FACES'." in str(err.value))
 
@@ -182,10 +179,8 @@ def test_mdata_duplicate_var():
 def test_refelem_arglist_err():
     ''' Check that the KernCallArgList.ref_element_properties method raises
     the expected error if it encounters an unsupported property. '''
-    from psyclone.psyGen import Kern, InternalError
-    _, invoke_info = parse(os.path.join(BASE_PATH, "23.1_ref_elem_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("23.1_ref_elem_invoke.f90", TEST_API,
+                        dist_mem=False, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     # Get hold of the Kernel object
     kernels = sched.walk(Kern)
@@ -204,9 +199,8 @@ def test_refelem_arglist_err():
 def test_refelem_gen(tmpdir):
     ''' Basic test for code-generation for an invoke containing a single
     kernel requiring reference-element properties. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "23.1_ref_elem_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("23.1_ref_elem_invoke.f90", TEST_API,
+                        dist_mem=False, idx=0)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
@@ -227,8 +221,8 @@ def test_refelem_gen(tmpdir):
     assert ("call reference_element%get_normals_to_vertical_faces("
             "normals_to_vert_faces)" in gen)
     # The kernel call
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_code(nlayers, a, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
@@ -237,10 +231,8 @@ def test_refelem_gen(tmpdir):
 def test_duplicate_refelem_gen(tmpdir):
     ''' Test for code-generation for an invoke containing two kernels that
     require the same properties of the reference-element. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "23.2_multi_ref_elem_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("23.2_multi_ref_elem_invoke.f90", TEST_API,
+                        dist_mem=False, idx=0)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
@@ -257,13 +249,13 @@ def test_duplicate_refelem_gen(tmpdir):
                      "normals_to_horiz_faces)") == 1
     assert gen.count("call reference_element%get_normals_to_vertical_faces("
                      "normals_to_vert_faces)") == 1
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_code(nlayers, a, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
-    assert ("call testkern_ref_elem_code(nlayers, a, f3_proxy%data, "
-            "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_code(nlayers, a, f3_data, "
+            "f4_data, m3_data, m4_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
@@ -272,10 +264,8 @@ def test_duplicate_refelem_gen(tmpdir):
 def test_union_refelem_gen(tmpdir):
     ''' Check that code generation works for an invoke with kernels that
     only have a sub-set of reference-element properties in common. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "23.3_shared_ref_elem_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("23.3_shared_ref_elem_invoke.f90", TEST_API,
+                        dist_mem=False, idx=0)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
@@ -292,13 +282,13 @@ def test_union_refelem_gen(tmpdir):
         "normals_to_vert_faces)\n"
         "      call reference_element%get_outward_normals_to_vertical_faces("
         "out_normals_to_vert_faces)\n" in gen)
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_code(nlayers, a, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
-    assert ("call testkern_ref_elem_out_code(nlayers, a, f3_proxy%data, "
-            "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_out_code(nlayers, a, f3_data, "
+            "f4_data, m3_data, m4_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re_v, nfaces_re_h, "
             "out_normals_to_vert_faces, normals_to_vert_faces, "
@@ -309,10 +299,8 @@ def test_all_faces_refelem_gen(tmpdir):
     ''' Test for code-generation for an invoke containing a single kernel
     requiring all faces of reference-element (also check that only one
     number of faces is passed to the kernel). '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "23.4_ref_elem_all_faces_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("23.4_ref_elem_all_faces_invoke.f90", TEST_API,
+                        dist_mem=False, idx=0)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
@@ -323,8 +311,8 @@ def test_all_faces_refelem_gen(tmpdir):
         "      call reference_element%get_normals_to_faces(normals_to_faces)\n"
         "      call reference_element%get_outward_normals_to_faces("
         "out_normals_to_faces)\n" in gen)
-    assert ("call testkern_ref_elem_all_faces_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_all_faces_code(nlayers, a, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re, out_normals_to_faces, "
             "normals_to_faces)" in gen)
@@ -338,10 +326,23 @@ def test_refelem_no_rdef(tmpdir):
     field of type r_solver.
 
     '''
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH, "23.5_ref_elem_mixed_prec.f90"), api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    psy, _ = get_invoke("23.5_ref_elem_mixed_prec.f90", TEST_API,
+                        dist_mem=False, idx=0)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
     gen = str(psy.gen).lower()
-    assert "use constants_mod, only: r_def, i_def" in gen
+    assert "use constants_mod, only: r_solver, r_def, i_def" in gen
+
+
+def test_ref_element_symbols():
+    '''Tests that the correct set of symbols are returned.
+    '''
+    psy, _ = get_invoke("23.5_ref_elem_mixed_prec.f90",
+                        TEST_API, dist_mem=False, idx=0)
+    ref_element = psy.invokes.invoke_list[0].reference_element_properties
+    args_symbols = ref_element.kern_args_symbols()
+    args_str = ref_element.kern_args()
+    assert args_str == [symbol.name for symbol in args_symbols]
+
+    for symbol in args_symbols:
+        assert isinstance(symbol, DataSymbol)

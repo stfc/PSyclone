@@ -1,0 +1,6 @@
+example_openacc
+main_alg.f90
+main_psy.f90
+testkern_w0_kernel_0_mod.f90
+other_alg_mod_alg.f90
+other_alg_mod_psy.f90

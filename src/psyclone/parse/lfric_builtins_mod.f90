@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council
+! Copyright (c) 2017-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Modified: I. Kavcic and O. Brunt, Met Office
 !
 !> @brief Meta-data for the LFRic API built-in operations.
 !> @details This meta-data is purely to provide PSyclone with a
@@ -247,6 +247,30 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: inc_a_minus_X_code
   end type inc_a_minus_X
 
+  !> field2 = field1 - scalar
+  type, public, extends(kernel_type) :: X_minus_a
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              )         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: X_minus_a_code
+  end type X_minus_a
+
+  !> field = field - scalar
+  type, public, extends(kernel_type) :: inc_X_minus_a
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ                  )     &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: inc_X_minus_a_code
+  end type inc_X_minus_a
 
   !> field3 = scalar*field1 - field2
   type, public, extends(kernel_type) :: aX_minus_Y
@@ -404,6 +428,32 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: inc_X_divideby_Y_code
   end type inc_X_divideby_Y
 
+  !> field2 = field1/scalar
+  type, public, extends(kernel_type) :: X_divideby_a
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              )         &
+
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: X_divideby_a_code
+  end type X_divideby_a
+
+  !> field = field/scalar
+  type, public, extends(kernel_type) :: inc_X_divideby_a
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1),    &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ                  )     &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: inc_X_divideby_a_code
+  end type inc_X_divideby_a
+
 ! ------------------------------------------------------------------- !
 ! ============== Inverse scaling of real fields ===================== !
 ! ------------------------------------------------------------------- !
@@ -489,6 +539,17 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: setval_X_code
   end type setval_X
 
+  !> field = random()
+  type, public, extends(kernel_type) :: setval_random
+     private
+     type(arg_type) :: meta_args(1) = (/                              &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1)          &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: setval_random_code
+  end type setval_random
+
 ! ------------------------------------------------------------------- !
 ! ============== Inner product of real fields ======================= !
 ! ------------------------------------------------------------------- !
@@ -552,11 +613,69 @@ use argument_mod,  only : arg_type,            &
   end type sign_X
 
 ! ------------------------------------------------------------------- !
+! ============== Maximum of (real scalar, real field elements) ====== !
+! ------------------------------------------------------------------- !
+
+  !> field2 = MAX(scalar, field1)
+  type, public, extends(kernel_type) :: max_aX
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: max_aX_code
+  end type max_aX
+
+  !> field = MAX(scalar, field)
+  type, public, extends(kernel_type) :: inc_max_aX
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1)     &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: inc_max_aX_code
+  end type inc_max_aX
+
+! ------------------------------------------------------------------- !
+! ============== Minimum of (real scalar, real field elements) ====== !
+! ------------------------------------------------------------------- !
+
+  !> field2 = MIN(scalar, field1)
+  type, public, extends(kernel_type) :: min_aX
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, ANY_SPACE_1),        &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1)         &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: min_aX_code
+  end type min_aX
+
+  !> field = MIN(scalar, field)
+  type, public, extends(kernel_type) :: inc_min_aX
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_REAL, GH_READ              ),        &
+          arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_SPACE_1)     &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: inc_min_aX_code
+  end type inc_min_aX
+
+! ------------------------------------------------------------------- !
 ! ============== Converting real to integer field elements ========== !
 ! ------------------------------------------------------------------- !
 
-  !> ifield2 = int(field1, i_def)
-  type, public, extends(kernel_type) :: int_X
+  !> ifield2 = int(field1, i_<prec>)
+  type, public, extends(kernel_type) :: real_to_int_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_INTEGER, GH_WRITE, ANY_SPACE_1),      &
@@ -564,8 +683,24 @@ use argument_mod,  only : arg_type,            &
           /)
      integer :: operates_on = DOF
    contains
-     procedure, nopass :: int_X_code
-  end type int_X
+     procedure, nopass :: real_to_int_X_code
+  end type real_to_int_X
+
+! ------------------------------------------------------------------- !
+! ============== Converting real to real field elements ============= !
+! ------------------------------------------------------------------- !
+
+  !> field2 = real(field1, r_<prec>)
+  type, public, extends(kernel_type) :: real_to_real_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: real_to_real_X_code
+  end type real_to_real_X
 
 ! ******************************************************************* !
 ! ************** Built-ins for integer-valued fields **************** !
@@ -679,6 +814,31 @@ use argument_mod,  only : arg_type,            &
      procedure, nopass :: int_inc_a_minus_X_code
   end type int_inc_a_minus_X
 
+  !> ifield2 = ifield1 - iscalar
+  type, public, extends(kernel_type) :: int_X_minus_a
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_SPACE_1),     &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              )      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_X_minus_a_code
+  end type int_X_minus_a
+
+  !> ifield = ifield - iscalar
+  type, public, extends(kernel_type) :: int_inc_X_minus_a
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READWRITE, ANY_SPACE_1), &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              )      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_inc_X_minus_a_code
+  end type int_inc_X_minus_a
+
 ! ------------------------------------------------------------------- !
 ! ============== Multiplying integer fields ========================= !
 ! ------------------------------------------------------------------- !
@@ -783,11 +943,69 @@ use argument_mod,  only : arg_type,            &
   end type int_sign_X
 
 ! ------------------------------------------------------------------- !
+! ======== Maximum of (integer scalar, integer field elements) ====== !
+! ------------------------------------------------------------------- !
+
+  !> ifield2 = MAX(iscalar, ifield1)
+  type, public, extends(kernel_type) :: int_max_aX
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              ),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_SPACE_1)      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_max_aX_code
+  end type int_max_aX
+
+  !> ifield = MAX(iscalar, ifield)
+  type, public, extends(kernel_type) :: int_inc_max_aX
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              ),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READWRITE, ANY_SPACE_1)  &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_inc_max_aX_code
+  end type int_inc_max_aX
+
+! ------------------------------------------------------------------- !
+! ======== Minimum of (integer scalar, integer field elements) ====== !
+! ------------------------------------------------------------------- !
+
+  !> ifield2 = MIN(iscalar, ifield1)
+  type, public, extends(kernel_type) :: int_min_aX
+     private
+     type(arg_type) :: meta_args(3) = (/                              &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_SPACE_1),     &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              ),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_SPACE_1)      &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_min_aX_code
+  end type int_min_aX
+
+  !> ifield = MIN(iscalar, ifield)
+  type, public, extends(kernel_type) :: int_inc_min_aX
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_SCALAR, GH_INTEGER, GH_READ              ),     &
+          arg_type(GH_FIELD,  GH_INTEGER, GH_READWRITE, ANY_SPACE_1)  &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: int_inc_min_aX_code
+  end type int_inc_min_aX
+
+! ------------------------------------------------------------------- !
 ! ============== Converting integer to real field elements ========== !
 ! ------------------------------------------------------------------- !
 
-  !> field2 = real(ifield1, r_def)
-  type, public, extends(kernel_type) :: real_X
+  !> field2 = real(ifield1, r_<prec>)
+  type, public, extends(kernel_type) :: int_to_real_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_REAL,    GH_WRITE, ANY_SPACE_1),      &
@@ -795,8 +1013,8 @@ use argument_mod,  only : arg_type,            &
           /)
      integer :: operates_on = DOF
    contains
-     procedure, nopass :: real_X_code
-  end type real_X
+     procedure, nopass :: int_to_real_X_code
+  end type int_to_real_X
 
 contains
 
@@ -845,6 +1063,12 @@ contains
   subroutine inc_a_minus_X_code()
   end subroutine inc_a_minus_X_code
 
+  subroutine X_minus_a_code()
+  end subroutine X_minus_a_code
+
+  subroutine inc_X_minus_a_code()
+  end subroutine inc_X_minus_a_code
+
   subroutine aX_minus_Y_code()
   end subroutine aX_minus_Y_code
 
@@ -882,6 +1106,12 @@ contains
   subroutine inc_X_divideby_Y_code()
   end subroutine inc_X_divideby_Y_code
 
+  subroutine X_divideby_a_code()
+  end subroutine X_divideby_a_code
+
+  subroutine inc_X_divideby_a_code()
+  end subroutine inc_X_divideby_a_code
+
   ! Dividing a real scalar by elements of a
   ! real field (inverse scaling of fields)
   subroutine a_divideby_X_code()
@@ -897,13 +1127,16 @@ contains
   subroutine inc_X_powint_n_code()
   end subroutine inc_X_powint_n_code
 
-  ! Setting real field elements to a real scalar
-  ! or other real field's values
+  ! Setting real field elements to real values (from a scalar, another
+  ! field or pseudo-random sequence).
   subroutine setval_c_code()
   end subroutine setval_c_code
 
   subroutine setval_X_code()
   end subroutine setval_X_code
+
+  subroutine setval_random_code()
+  end subroutine setval_random_code
 
   ! Inner product of real fields
   subroutine X_innerproduct_Y_code()
@@ -920,9 +1153,27 @@ contains
   subroutine sign_X_code()
   end subroutine sign_X_code
 
+  ! Maximum of (real scalar, real field elements)
+  subroutine max_aX_code()
+  end subroutine max_aX_code
+
+  subroutine inc_max_aX_code()
+  end subroutine inc_max_aX_code
+
+  ! Minimum of (real scalar, real field elements)
+  subroutine min_aX_code()
+  end subroutine min_aX_code
+
+  subroutine inc_min_aX_code()
+  end subroutine inc_min_aX_code
+
   ! Converting real to integer field elements
-  subroutine int_X_code()
-  end subroutine int_X_code
+  subroutine real_to_int_X_code()
+  end subroutine real_to_int_X_code
+
+  ! Converting real to real field elements
+  subroutine real_to_real_X_code()
+  end subroutine real_to_real_X_code
 
   ! ***** Integer-valued fields ***** !
   ! Adding integer fields
@@ -951,6 +1202,12 @@ contains
   subroutine int_inc_a_minus_X_code()
   end subroutine int_inc_a_minus_X_code
 
+  subroutine int_X_minus_a_code()
+  end subroutine int_X_minus_a_code
+
+  subroutine int_inc_X_minus_a_code()
+  end subroutine int_inc_X_minus_a_code
+
   ! Multiplying integer fields
   subroutine int_X_times_Y_code()
   end subroutine int_X_times_Y_code
@@ -978,8 +1235,22 @@ contains
   subroutine int_sign_X_code()
   end subroutine int_sign_X_code
 
+  ! Maximum of (integer scalar, integer field elements)
+  subroutine int_max_aX_code()
+  end subroutine int_max_aX_code
+
+  subroutine int_inc_max_aX_code()
+  end subroutine int_inc_max_aX_code
+
+  ! Minimum of (integer scalar, integer field elements)
+  subroutine int_min_aX_code()
+  end subroutine int_min_aX_code
+
+  subroutine int_inc_min_aX_code()
+  end subroutine int_inc_min_aX_code
+
   ! Converting integer to real field elements
-  subroutine real_X_code()
-  end subroutine real_X_code
+  subroutine int_to_real_X_code()
+  end subroutine int_to_real_X_code
 
 end module lfric_builtins_mod

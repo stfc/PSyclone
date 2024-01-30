@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,9 @@
 
 include ../../common.mk
 
-SCRIPTS = $(wildcard *.py)
+# Get all psyclone scripts in this folder, which are all python files excluding
+# the compare_output.py script
+SCRIPTS = $(filter-out compare_ouput.py, $(wildcard *.py))
 
 transform: ${SCRIPTS}
 

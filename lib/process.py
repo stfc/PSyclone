@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,6 @@ in DIMENSIONS and each type listed in ALL_TYPES. PREFIX can be
 used to add a prefix to static functions defined in the template.
 
 '''
-from __future__ import print_function
 import argparse
 import sys
 from jinja2 import Environment
@@ -59,7 +58,8 @@ parser = argparse.ArgumentParser(
 parser.add_argument('template_name',
                     help="Name of the template file to process.")
 parser.add_argument('-types', help="Comma-separated list of types, "
-                                   "e.g. real,int,double (no spaces).",
+                                   "e.g. real,int,double,char,logical,long "
+                                   "(no spaces).",
                     default="real,int,double")
 parser.add_argument("-dims", help="Comma-separated list of dimensions, "
                                   "e.g. 1,2,4 (no spaces)",
@@ -79,7 +79,7 @@ parser.add_argument("-prefix", help="Prefix to add to the generated PSyData "
 # implement functions for the the GOCean-specific field type, and rely on
 # the base class to provide the implementations for all standard Fortran
 # types).
-# In order to support this, the `process.py` sript provides two options
+# In order to support this, the `process.py` script provides two options
 # to control the creation of the `DeclareXXX` and `ProvideXXX` generic
 # interfaces, which control if a base class specifies that the `declareXXX`
 # and `provideXXX` functions are part of the generic interface or not.
@@ -105,6 +105,8 @@ args = parser.parse_args()
 TYPE_DATA = {"real": ("Real", "real(kind=real32)", 32),
              "double": ("Double", "real(kind=real64)", 64),
              "int": ("Int", "integer(kind=int32)", 32),
+             "char": ("Char", "character(*)", 8),
+             "logical": ("Logical", "Logical(kind=4)", 4),
              "long": ("Long", "integer(kind=int64)", 64)}
 
 # ---------------------------------------------------------
@@ -118,9 +120,9 @@ if types == ['']:
 
 for my_type in types:
     if my_type not in TYPE_DATA:
-        print("Type '{0}' is not supported.".format(my_type), file=sys.stderr)
-        print("Use one or more of {0}"
-              .format(",".join(list(TYPE_DATA.keys()))), file=sys.stderr)
+        print(f"Type '{my_type}' is not supported.", file=sys.stderr)
+        valid_str = ",".join(list(TYPE_DATA.keys()))
+        print(f"Use one or more of {valid_str}", file=sys.stderr)
         sys.exit(-1)
 all_types = [TYPE_DATA[my_type] for my_type in types]
 
@@ -136,17 +138,17 @@ for dim in dims:
     try:
         int_dim = int(dim)
     except ValueError:
-        print("Dimension value '{0}' is not valid.".format(dim),
+        print(f"Dimension value '{dim}' is not valid.",
               file=sys.stderr)
         sys.exit(-1)
     if int_dim < 1 or int_dim > 7:
-        print("Dimension value '{0}' is not between 1 and 7.".format(dim),
+        print(f"Dimension value '{dim}' is not between 1 and 7.",
               file=sys.stderr)
         sys.exit(-1)
 
 dims = [int(dim) for dim in dims]
 # ---------------------------------------------------------
-with open(args.template_name, "r") as file:
+with open(args.template_name, "r", encoding='utf-8') as file:
     template_string = "".join(file.readlines())
 
 env = Environment(trim_blocks=True, lstrip_blocks=True)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
-#           A. R. Porter, STFC Daresbury Lab
+# Modified: I. Kavcic and L. Turner, Met Office
+#           A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 ''' Contains a Python function to generate an empty kernel
     subroutine with the required arguments and datatypes (which we
@@ -45,7 +45,7 @@ from __future__ import print_function
 import os
 
 import fparser
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
@@ -77,13 +77,11 @@ def generate(filename, api=""):
         api = Config.get().default_stub_api
     if api not in Config.get().supported_stub_apis:
         raise GenerationError(
-            "Kernel stub generator: Unsupported API '{0}' specified. "
-            "Supported APIs are {1}.".
-            format(api, Config.get().supported_stub_apis))
+            f"Kernel stub generator: Unsupported API '{api}' specified. "
+            f"Supported APIs are {Config.get().supported_stub_apis}.")
 
     if not os.path.isfile(filename):
-        raise IOError("Kernel stub generator: File '{0}' not found.".
-                      format(filename))
+        raise IOError(f"Kernel stub generator: File '{filename}' not found.")
 
     # Drop cache
     fparser.one.parsefortran.FortranParser.cache.clear()
@@ -92,11 +90,11 @@ def generate(filename, api=""):
         ast = fparser.api.parse(filename, ignore_comments=False)
 
     except (fparser.common.utils.AnalyzeError, AttributeError) as error:
-        raise ParseError("Kernel stub generator: Code appears to be invalid "
-                         "Fortran: {0}.".format(str(error)))
+        raise ParseError(f"Kernel stub generator: Code appears to be invalid "
+                         f"Fortran: {error}.")
 
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
 
     return kernel.gen_stub

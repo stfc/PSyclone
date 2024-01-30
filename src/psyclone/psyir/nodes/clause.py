@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. B. G. Chalk, STFC Daresbury Lab
+# Author: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the Clause abstract node implementation '''
+''' This module contains the Clause abstract node implementation. '''
 
 import abc
 from psyclone.psyir.nodes.node import Node
@@ -45,15 +46,31 @@ class Clause(Node, metaclass=abc.ABCMeta):
     Base abstract class for all clauses.
     '''
     _children_valid_format = None
-    _text_name = "Clause"
+    _colour = "green"
     # The base string for this clause, e.g. nowait or private
     _clause_string = None
 
     @property
     def clause_string(self):
         '''
-        Returns the clause string for this Clause
-
+        :returns: the base clause string for this Clause.
         :rtype: str
         '''
         return self._clause_string
+
+
+class OperandClause(Clause, metaclass=abc.ABCMeta):
+    '''
+    Base abstract class for all clauses that have an operand.
+    '''
+
+    _operand = None
+
+    @property
+    def operand(self):
+        '''
+        Returns the operand string for this Clause.
+
+        :rtype: str
+        '''
+        return self._operand

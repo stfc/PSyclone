@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for Column-Matrix-Assembly operators in
-the Dynamo 0.3 API using pytest. '''
+the LFRic (Dynamo 0.3) API using pytest. '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 import fparser
@@ -47,8 +46,9 @@ from fparser import api as fpapi
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import DynDofmaps, DynKernMetadata
+from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
+                                   LFRicKernMetadata)
+from psyclone.dynamo0p3 import DynDofmaps
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.gen_kernel_stub import generate
@@ -91,18 +91,18 @@ end module testkern_cma
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
 def test_cma_mdata_assembly():
-    ''' Check that we can parse meta-data entries relating to Column-Matrix
+    ''' Check that we can parse metadata entries relating to Column-Matrix
     Assembly. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_ASSEMBLE
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     cma_op_desc = dkm.arg_descriptors[1]
 
     # Assert correct string representation from LFRicArgDescriptor
@@ -142,12 +142,12 @@ def test_cma_mdata_invalid_data_type():
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API the 2nd argument of a 'meta_arg' "
-            "entry should be a valid data type (one of {0}), but found "
-            "'gh_unreal' in 'arg_type(gh_columnwise_operator, gh_unreal, "
-            "gh_write, any_space_1, any_space_2)'.".
-            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
+        _ = LFRicKernMetadata(ast, name=name)
+    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' "
+            f"entry should be a valid data type (one of "
+            f"{const.VALID_SCALAR_DATA_TYPES}), but found 'gh_unreal' "
+            f"in 'arg_type(gh_columnwise_operator, gh_unreal, "
+            f"gh_write, any_space_1, any_space_2)'." in str(excinfo.value))
 
 
 def test_cma_mdata_init_wrong_argument_type():
@@ -155,12 +155,12 @@ def test_cma_mdata_init_wrong_argument_type():
     is passed to the LFRicArgDescriptor._init_operator() method. '''
     ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
     name = "testkern_cma_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     # Get an argument which is not an operator
     wrong_arg = metadata._inits[3]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
+            wrong_arg, metadata.iterates_over, 0)._init_operator(wrong_arg)
     assert ("Expected an operator argument but got an argument of type "
             "'gh_scalar'." in str(excinfo.value))
 
@@ -170,23 +170,22 @@ def test_cma_mdata_init_wrong_data_type():
     is passed to the LFRicArgDescriptor._init_operator() method. '''
     ast = fpapi.parse(CMA_ASSEMBLE, ignore_comments=False)
     name = "testkern_cma_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     # Get a column-wise operator argument descriptor and set a wrong data type
     cma_op_arg = metadata._inits[1]
     cma_op_arg.args[1].name = "gh_integer"
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
-            cma_op_arg, metadata.iterates_over)._init_operator(cma_op_arg)
+            cma_op_arg, metadata.iterates_over, 0)._init_operator(cma_op_arg)
     const = LFRicConstants()
-    assert ("In the LFRic API the allowed data types for operator arguments "
-            "are one of {0}, but found 'gh_integer' in 'arg_type(gh_columnwise"
-            "_operator, gh_integer, gh_write, any_space_1, any_space_2)'.".
-            format(const.VALID_OPERATOR_DATA_TYPES) in
-            str(excinfo.value))
+    assert (f"In the LFRic API the allowed data types for operator arguments "
+            f"are one of {const.VALID_OPERATOR_DATA_TYPES}, but found "
+            f"'gh_integer' in 'arg_type(gh_columnwise_operator, gh_integer, "
+            f"gh_write, any_space_1, any_space_2)'." in str(excinfo.value))
 
 
 def test_cma_mdata_assembly_missing_op():
-    ''' Check that we raise the expected error if the supplied meta-data
+    ''' Check that we raise the expected error if the supplied metadata
     is assembling a gh_columnwise_operator but doesn't have a read-only
     gh_operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -197,7 +196,7 @@ def test_cma_mdata_assembly_missing_op():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("Kernel 'testkern_cma_type' has a single column-wise operator "
             "argument but does not conform to the rules for an Assembly "
             "kernel because it does not have any read-only LMA operator "
@@ -205,7 +204,7 @@ def test_cma_mdata_assembly_missing_op():
 
 
 def test_cma_mdata_multi_writes():
-    ''' Check that we raise the expected error if the supplied meta-data
+    ''' Check that we raise the expected error if the supplied metadata
     specifies more than one CMA operator that is written to '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Replace the field arg with another CMA operator that is written to
@@ -219,7 +218,7 @@ def test_cma_mdata_multi_writes():
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("An LFRic kernel cannot update more than one CMA "
                 "(column-wise) operator but kernel 'testkern_cma_type' "
                 "updates 2") in str(excinfo.value)
@@ -230,14 +229,14 @@ def test_cma_mdata_multi_writes():
         code = code.replace("meta_args(4) = ", "meta_args(5) = ", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("An LFRic kernel cannot update more than one CMA "
                 "(column-wise) operator but kernel 'testkern_cma_type' "
                 "updates 3") in str(excinfo.value)
 
 
 def test_cma_mdata_mutable_op():
-    ''' Check that we raise the expected error if the supplied meta-data
+    ''' Check that we raise the expected error if the supplied metadata
     is assembling a gh_columnwise_operator but doesn't have a read-only
     gh_operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -251,14 +250,14 @@ def test_cma_mdata_mutable_op():
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("Kernel 'testkern_cma_type' writes to a column-wise operator "
                 "but also writes to ['gh_operator'] argument(s). This is "
                 "not allowed.") in str(excinfo.value)
 
 
 def test_cma_mdata_writes_lma_op():
-    ''' Check that we raise the expected error if the supplied meta-data
+    ''' Check that we raise the expected error if the supplied metadata
     is assembling a gh_columnwise_operator but also writes to a
     gh_operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -273,14 +272,14 @@ def test_cma_mdata_writes_lma_op():
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("Kernel 'testkern_cma_type' writes to a column-wise operator "
                 "but also writes to ['gh_operator'] argument(s). This is "
                 "not allowed.") in str(excinfo.value)
 
 
 def test_cma_mdata_assembly_diff_spaces():
-    ''' Check that we successfully parse the supplied meta-data if it
+    ''' Check that we successfully parse the supplied metadata if it
     is assembling a gh_columnwise_operator but the to/from spaces don't
     match those of the supplied 'gh_operator'.
 
@@ -292,7 +291,7 @@ def test_cma_mdata_assembly_diff_spaces():
         "arg_type(gh_operator, gh_real, gh_read, any_space_3,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[0])
     expected = (
         "LFRicArgDescriptor object\n"
@@ -317,7 +316,7 @@ def test_cma_mdata_asm_vector_error():
         "arg_type(gh_field*3, gh_real, gh_read, any_space_1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("Kernel 'testkern_cma_type' takes a CMA operator but has a "
             "vector argument 'gh_field*3'. This is forbidden."
             in str(excinfo.value))
@@ -327,7 +326,7 @@ def test_cma_mdata_asm_vector_error():
         "gh_columnwise_operator,", "gh_columnwise_operator*2,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("In the LFRic API, vector notation is only supported "
             "for ['gh_field'] argument types but found "
             "'gh_columnwise_operator * 2'." in str(excinfo.value))
@@ -344,7 +343,7 @@ def test_cma_mdata_asm_fld_stencil_error():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("Kernel 'testkern_cma_type' takes a CMA operator but has an "
             "argument with a stencil access ('x1d'). This is forbidden."
             in str(excinfo.value))
@@ -405,7 +404,7 @@ def test_cma_operator_arg_lfricconst_properties(monkeypatch):
     kernel = schedule.kernels()[0]
     cma_op_arg = kernel.arguments.args[2]
 
-    assert cma_op_arg.module_name == "operator_mod"
+    assert cma_op_arg.module_name == "columnwise_operator_mod"
     assert cma_op_arg.data_type == "columnwise_operator_type"
     assert cma_op_arg.proxy_data_type == "columnwise_operator_proxy_type"
     assert cma_op_arg.intrinsic_type == "real"
@@ -446,13 +445,13 @@ end module testkern_cma_apply
 
 
 def test_cma_mdata_apply():
-    ''' Check that we can parse meta-data entries relating to the
+    ''' Check that we can parse metadata entries relating to the
     application of Column-Matrix operators. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_APPLY
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[1])
     expected = (
         "LFRicArgDescriptor object\n"
@@ -488,7 +487,7 @@ def test_cma_mdata_apply_too_many_ops():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("a kernel that applies a CMA operator must only have one such "
             "operator in its list of arguments but found 2"
             in str(excinfo.value))
@@ -507,7 +506,7 @@ def test_cma_mdata_apply_too_many_flds():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("a kernel that applies a CMA operator must have 3 arguments "
             "(the operator and two fields) but kernel 'testkern_cma_type' "
             "has 4") in str(excinfo.value)
@@ -524,7 +523,7 @@ def test_cma_mdata_apply_no_read_fld():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("has a read-only CMA operator. In order to apply it the kernel "
             "must have one read-only field argument") in str(excinfo.value)
 
@@ -541,7 +540,7 @@ def test_cma_mdata_apply_no_write_fld():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("has a read-only CMA operator. In order to apply it the kernel "
             "must write to one field argument") in str(excinfo.value)
 
@@ -558,7 +557,7 @@ def test_cma_mdata_apply_wrong_spaces():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("applies a CMA operator but the function space of the field "
             "argument it writes to ('any_space_3') does not match the 'to' "
             "space of the operator ('any_space_1')") in str(excinfo.value)
@@ -569,7 +568,7 @@ def test_cma_mdata_apply_wrong_spaces():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("applies a CMA operator but the function space of the field "
             "argument it reads from ('any_space_3') does not match the 'from' "
             "space of the operator ('any_space_2')") in str(excinfo.value)
@@ -587,7 +586,7 @@ def test_cma_mdata_apply_vector_error():
         "arg_type(GH_FIELD*3, GH_REAL, GH_INC,  ANY_SPACE_1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("Kernel 'testkern_cma_type' takes a CMA operator but has a "
             "vector argument 'gh_field*3'. This is forbidden."
             in str(excinfo.value))
@@ -597,7 +596,7 @@ def test_cma_mdata_apply_vector_error():
                              "GH_COLUMNWISE_OPERATOR*4,", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("In the LFRic API, vector notation is only supported "
             "for ['gh_field'] argument types but found "
             "'gh_columnwise_operator * 4'." in str(excinfo.value))
@@ -614,7 +613,7 @@ def test_cma_mdata_apply_fld_stencil_error():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("Kernel 'testkern_cma_type' takes a CMA operator but has an "
             "argument with a stencil access ('x1d'). This is "
             "forbidden.") in str(excinfo.value)
@@ -631,7 +630,7 @@ def test_cma_mdata_apply_invalid_field_data_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("In the LFRic API a kernel that takes a CMA operator argument "
             "must only have field arguments with 'gh_real' data type but "
             "kernel 'testkern_cma_type' has a field argument with "
@@ -662,13 +661,13 @@ end module testkern_cma_matrix_matrix
 
 
 def test_cma_mdata_matrix_prod():
-    ''' Check that we can parse meta-data entries relating to a kernel
+    ''' Check that we can parse metadata entries relating to a kernel
     that performs a product of two CMA operators. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     dkm_str = str(dkm.arg_descriptors[2])
     expected = (
         "LFRicArgDescriptor object\n"
@@ -684,7 +683,7 @@ def test_cma_mdata_matrix_prod():
 
 def test_cma_mdata_matrix_too_few_args():
     ''' Check that we raise the expected error when there are too few
-    arguments specified in meta-data '''
+    arguments specified in metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.split("\n")
     # Remove read-only cma operators
@@ -694,7 +693,7 @@ def test_cma_mdata_matrix_too_few_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("has a single column-wise operator argument but does not conform "
             "to the rules for an Assembly kernel because it does not have "
             "any read-only LMA operator arguments") in str(excinfo.value)
@@ -712,14 +711,14 @@ def test_cma_mdata_matrix_field_arg():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("A column-wise matrix-matrix kernel must have only column-wise "
             "operators and scalars as arguments but kernel "
             "'testkern_cma_type' has: ['gh_field', ") in str(excinfo.value)
 
 
 def test_cma_mdata_matrix_no_scalar_arg():
-    ''' Check that we successfully parse meta-data for a matrix-matrix kernel
+    ''' Check that we successfully parse metadata for a matrix-matrix kernel
     that has no scalar arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
@@ -728,12 +727,12 @@ def test_cma_mdata_matrix_no_scalar_arg():
         "ANY_SPACE_2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     assert dkm._cma_operation == "matrix-matrix"
 
 
 def test_cma_mdata_matrix_2_scalar_args():
-    ''' Check that we successfully parse meta-data for a matrix-matrix kernel
+    ''' Check that we successfully parse metadata for a matrix-matrix kernel
     that has 2 scalar arguments. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CMA_MATRIX.replace(
@@ -743,7 +742,7 @@ def test_cma_mdata_matrix_2_scalar_args():
         1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     assert dkm._cma_operation == "matrix-matrix"
 
 
@@ -760,7 +759,7 @@ def test_cma_mdata_matrix_2_writes():
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name=name)
+            _ = LFRicKernMetadata(ast, name=name)
         assert ("An LFRic kernel cannot update more than one CMA "
                 "(column-wise) operator but kernel 'testkern_cma_type' "
                 "updates 2") in str(excinfo.value)
@@ -776,7 +775,7 @@ def test_cma_mdata_stencil_invalid():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("In the LFRic API argument 5 of a 'meta_arg' operator entry must "
             "be a valid function-space name") in str(excinfo.value)
     code = CMA_MATRIX.replace(
@@ -785,12 +784,11 @@ def test_cma_mdata_stencil_invalid():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_cma_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
 
     const = LFRicConstants()
-    assert ("each 'meta_arg' entry must have 5 arguments if its first "
-            "argument is an operator (one of {0})".
-            format(const.VALID_OPERATOR_NAMES)
+    assert (f"each 'meta_arg' entry must have 5 arguments if its first "
+            f"argument is an operator (one of {const.VALID_OPERATOR_NAMES})"
             in str(excinfo.value))
 
 
@@ -807,7 +805,7 @@ def test_cma_mdata_matrix_vector_error():
         1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("In the LFRic API, vector notation is only supported "
             "for ['gh_field'] argument types but found "
             "'gh_columnwise_operator * 3'." in str(excinfo.value))
@@ -848,12 +846,18 @@ def test_cma_asm(tmpdir, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type") \
-        in code
+    output = (
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE columnwise_operator_mod, ONLY: columnwise_operator_type, "
+        "columnwise_operator_proxy_type\n")
+    assert output in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
+    assert ("REAL(KIND=r_def), pointer, dimension(:,:,:) :: "
+            "lma_op1_local_stencil => null()" in code)
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert ("REAL(KIND=r_solver), pointer, dimension(:,:,:) :: "
+            "cma_op1_cma_matrix => null()" in code)
     assert "TYPE(mesh_type), pointer :: mesh => null()" in code
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert ("INTEGER(KIND=i_def), pointer :: cbanded_map_adspc1_lma_op1(:,:) "
@@ -861,10 +865,10 @@ def test_cma_asm(tmpdir, dist_mem):
     assert "ncell_2d = mesh%get_ncells_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
-            "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
-            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
-            "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_adspc1_lma_op1, cbanded_map_adspc1_lma_op1, "
+            "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
+            "cma_op1_cma_matrix, cma_op1_nrow, cma_op1_ncol, "
+            "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
+            "cma_op1_gamma_p, ndf_adspc1_lma_op1, cbanded_map_adspc1_lma_op1, "
             "ndf_adspc2_lma_op1, cbanded_map_adspc2_lma_op1)") in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -883,9 +887,11 @@ def test_cma_asm_field(tmpdir, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type"
-            in code)
+    output = (
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE columnwise_operator_mod, ONLY: columnwise_operator_type, "
+        "columnwise_operator_proxy_type\n")
+    assert output in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
@@ -898,8 +904,8 @@ def test_cma_asm_field(tmpdir, dist_mem):
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = (
         "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, "
-        "afield_proxy%data, lma_op1_proxy%ncell_3d, "
-        "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+        "afield_data, lma_op1_proxy%ncell_3d, "
+        "lma_op1_local_stencil, cma_op1_cma_matrix, cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
         "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
         "undf_aspc1_afield, map_aspc1_afield(:,cell), "
@@ -925,9 +931,11 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type"
-            in code)
+    output = (
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE columnwise_operator_mod, ONLY: columnwise_operator_type, "
+        "columnwise_operator_proxy_type\n")
+    assert output in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
@@ -939,7 +947,7 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = ("CALL columnwise_op_asm_kernel_scalar_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
-                "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+                "lma_op1_local_stencil, cma_op1_cma_matrix, cma_op1_nrow, "
                 "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha_1, "
                 "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
                 "cma_op1_alpha, ndf_aspc1_lma_op1, cbanded_map_aspc1_lma_op1, "
@@ -965,9 +973,11 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
 
-    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-            "columnwise_operator_type, columnwise_operator_proxy_type"
-            in code)
+    output = (
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
+        "    USE columnwise_operator_mod, ONLY: columnwise_operator_type, "
+        "columnwise_operator_proxy_type\n")
+    assert output in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
     assert ("TYPE(columnwise_operator_type), intent(in) :: cma_op1"
             in code)
@@ -987,8 +997,8 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
     assert "DO cell=loop0_start,loop0_stop\n" in code
     expected = ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
-                "lma_op1_proxy%local_stencil, afield_proxy%data, "
-                "cma_op1_matrix, cma_op1_nrow, cma_op1_bandwidth, "
+                "lma_op1_local_stencil, afield_data, "
+                "cma_op1_cma_matrix, cma_op1_nrow, cma_op1_bandwidth, "
                 "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
                 "cma_op1_gamma_p, ndf_aspc1_lma_op1, undf_aspc1_lma_op1, "
                 "map_aspc1_lma_op1(:,cell), ndf_aspc2_lma_op1, "
@@ -1050,7 +1060,7 @@ def test_cma_apply(tmpdir, dist_mem):
     assert ("cma_indirection_map_aspc2_field_b => "
             "cma_op1_proxy%indirection_dofmap_from") in code
     assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
-            "field_a_proxy%data, field_b_proxy%data, cma_op1_matrix, "
+            "field_a_data, field_b_data, cma_op1_cma_matrix, "
             "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_aspc1_field_a, undf_aspc1_field_a, "
@@ -1110,8 +1120,8 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
 
     # Check any_discontinuous_space_1
     assert ("CALL columnwise_op_app_anydspace_kernel_code(cell, "
-            "ncell_2d, field_a_proxy%data, field_b_proxy%data, "
-            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+            "ncell_2d, field_a_data, field_b_data, "
+            "cma_op1_cma_matrix, cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
             "cma_op1_gamma_m, cma_op1_gamma_p, ndf_adspc1_field_a, "
             "undf_adspc1_field_a, map_adspc1_field_a(:,cell), "
@@ -1120,7 +1130,7 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
             "cma_indirection_map_aspc1_field_b") in code
     # Check w2v
     assert ("CALL columnwise_op_app_w2v_kernel_code(cell, ncell_2d, "
-            "field_c_proxy%data, field_d_proxy%data, cma_op2_matrix, "
+            "field_c_data, field_d_data, cma_op2_cma_matrix, "
             "cma_op2_nrow, cma_op2_ncol, cma_op2_bandwidth, cma_op2_alpha, "
             "cma_op2_beta, cma_op2_gamma_m, cma_op2_gamma_p, ndf_w2v, "
             "undf_w2v, map_w2v(:,cell), cma_indirection_map_w2v, "
@@ -1164,8 +1174,8 @@ def test_cma_apply_same_space(dist_mem, tmpdir):
     assert ("cma_indirection_map_aspc2_field_a => "
             "cma_op1_proxy%indirection_dofmap_to") in code
     assert ("CALL columnwise_op_app_same_fs_kernel_code(cell, ncell_2d, "
-            "field_a_proxy%data, field_b_proxy%data, "
-            "cma_op1_matrix, cma_op1_nrow, "
+            "field_a_data, field_b_data, "
+            "cma_op1_cma_matrix, cma_op1_nrow, "
             "cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_aspc2_field_a, undf_aspc2_field_a, "
@@ -1202,13 +1212,13 @@ def test_cma_matrix_matrix(tmpdir, dist_mem):
 
     assert ("CALL columnwise_op_mul_kernel_code(cell, "
             "ncell_2d, "
-            "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
+            "cma_opa_cma_matrix, cma_opa_nrow, cma_opa_ncol, "
             "cma_opa_bandwidth, cma_opa_alpha, "
             "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
-            "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
+            "cma_opb_cma_matrix, cma_opb_nrow, cma_opb_ncol, "
             "cma_opb_bandwidth, cma_opb_alpha, "
             "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
-            "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
+            "cma_opc_cma_matrix, cma_opc_nrow, cma_opc_ncol, "
             "cma_opc_bandwidth, cma_opc_alpha, "
             "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
     if dist_mem:
@@ -1241,15 +1251,15 @@ def test_cma_matrix_matrix_2scalars(tmpdir, dist_mem):
 
     assert ("CALL columnwise_op_mul_2scalars_kernel_code(cell, "
             "ncell_2d, "
-            "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
+            "cma_opa_cma_matrix, cma_opa_nrow, cma_opa_ncol, "
             "cma_opa_bandwidth, cma_opa_alpha, "
             "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
             "alpha, "
-            "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
+            "cma_opb_cma_matrix, cma_opb_nrow, cma_opb_ncol, "
             "cma_opb_bandwidth, cma_opb_alpha, "
             "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
             "beta, "
-            "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
+            "cma_opc_cma_matrix, cma_opc_nrow, cma_opc_ncol, "
             "cma_opc_bandwidth, cma_opc_alpha, "
             "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
     if dist_mem:
@@ -1271,14 +1281,18 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
     code = str(psy.gen)
 
     assert ("      afield_proxy = afield%get_proxy()\n"
+            "      afield_data => afield_proxy%data\n"
             "      lma_op1_proxy = lma_op1%get_proxy()\n"
+            "      lma_op1_local_stencil => lma_op1_proxy%local_stencil\n"
             "      cma_op1_proxy = cma_op1%get_proxy()\n"
             "      field_a_proxy = field_a%get_proxy()\n"
+            "      field_a_data => field_a_proxy%data\n"
             "      field_b_proxy = field_b%get_proxy()\n"
+            "      field_b_data => field_b_proxy%data\n"
             "      cma_opb_proxy = cma_opb%get_proxy()\n"
             "      cma_opc_proxy = cma_opc%get_proxy()\n") in code
 
-    assert "cma_op1_matrix => cma_op1_proxy%columnwise_matrix\n" in code
+    assert "cma_op1_cma_matrix => cma_op1_proxy%columnwise_matrix\n" in code
     assert "cma_op1_ncol = cma_op1_proxy%ncol\n" in code
     assert "cma_op1_nrow = cma_op1_proxy%nrow\n" in code
     assert "cma_op1_bandwidth = cma_op1_proxy%bandwidth\n" in code
@@ -1309,15 +1323,15 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
                 in code)
 
     assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
-            "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "
-            "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+            "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
+            "lma_op1_local_stencil, cma_op1_cma_matrix, cma_op1_nrow, "
             "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
             "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
             "undf_aspc1_afield, map_aspc1_afield(:,cell), "
             "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
             "cbanded_map_aspc2_lma_op1)") in code
     assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
-            "field_a_proxy%data, field_b_proxy%data, cma_op1_matrix, "
+            "field_a_data, field_b_data, cma_op1_cma_matrix, "
             "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_aspc1_field_a, undf_aspc1_field_a, "
@@ -1326,12 +1340,14 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
             "map_aspc2_field_b(:,cell), "
             "cma_indirection_map_aspc2_field_b)\n") in code
     assert ("CALL columnwise_op_mul_kernel_code(cell, ncell_2d, "
-            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
-            "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-            "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, cma_opb_bandwidth, "
-            "cma_opb_alpha, cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
-            "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, cma_opc_bandwidth, "
-            "cma_opc_alpha, cma_opc_beta, cma_opc_gamma_m, "
+            "cma_op1_cma_matrix, cma_op1_nrow, cma_op1_ncol, "
+            "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
+            "cma_op1_gamma_p, "
+            "cma_opb_cma_matrix, cma_opb_nrow, cma_opb_ncol, "
+            "cma_opb_bandwidth, cma_opb_alpha, cma_opb_beta, cma_opb_gamma_m, "
+            "cma_opb_gamma_p, "
+            "cma_opc_cma_matrix, cma_opc_nrow, cma_opc_ncol, "
+            "cma_opc_bandwidth, cma_opc_alpha, cma_opc_beta, cma_opc_gamma_m, "
             "cma_opc_gamma_p)") in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

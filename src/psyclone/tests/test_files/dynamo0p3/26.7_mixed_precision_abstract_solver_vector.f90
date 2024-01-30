@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021-2022, Science and Technology Facilities Council
+! Copyright (c) 2021-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,8 +43,6 @@ module vector_type
   use field_vector_mod, only : field_vector_type
   use field_mod,        only : field_type
   use testkern_mod,     only : testkern_type
-
-contains
 
   type :: some_type
      type(field_vector_type) :: vec_type(10)

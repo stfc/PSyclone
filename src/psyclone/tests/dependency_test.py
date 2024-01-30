@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,25 +33,22 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: A. R. Porter and R. W. Ford  STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 
 
 ''' Module containing py.test tests for dependency analysis.'''
 
-from __future__ import print_function, absolute_import
 import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallAccArgList, KernStubArgList
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import CodedKern, PSyFactory
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
-from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
 
 # Constants
 API = "nemo"
@@ -320,8 +317,8 @@ def test_goloop_field_accesses():
     assert len(p_fld.all_accesses) == 9
 
 
-def test_dynamo():
-    ''' Test the handling of an LFRic (Dynamo0.3) loop. Note that the variable
+def test_lfric():
+    ''' Test the handling of an LFRic loop. Note that the variable
     accesses are reported based on the user's point of view, not the code
     actually created by PSyclone, e.g. it shows a dependency on 'some_field',
     but not on some_field_proxy etc. Also the dependency is at this stage taken
@@ -342,11 +339,49 @@ def test_dynamo():
     # pylint: disable=pointless-statement
     psy.gen
     var_accesses = VariablesAccessInfo(schedule)
-    assert (str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "
-            "f2: READ, loop0_start: READ, loop0_stop: READ, m1: READ, "
-            "m2: READ, map_w1: READ, map_w2: READ, "
-            "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
-            "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
+    assert str(var_accesses) == (
+        "a: READ, cell: READ+WRITE, f1_data: READ+WRITE, f2_data: READ, "
+        "loop0_start: READ, loop0_stop: READ, m1_data: READ, "
+        "m2_data: READ, map_w1: READ, map_w2: READ, "
+        "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
+        "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
+
+
+def test_lfric_kern_cma_args():
+    ''' Test the handling of LFRic kernel arguments.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "27.access_tests.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
+    invoke_read = psy.invokes.get('invoke_read')
+    invoke_write = psy.invokes.get('invoke_write')
+    var_accesses_read = VariablesAccessInfo(invoke_read.schedule)
+    var_accesses_write = VariablesAccessInfo(invoke_write.schedule)
+
+    # Check the parameters that will change access type according to read or
+    # write declaration of the argument:
+    assert (var_accesses_read[Signature("cma_op1_cma_matrix")][0].access_type
+            == AccessType.READ)
+    assert (var_accesses_write[Signature("cma_op1_cma_matrix")][0].access_type
+            == AccessType.WRITE)
+
+    # All other parameters are read-only (e.g. sizes, ... - they will not
+    # be modified, even if the actual data is written):
+    for name in ["nrow", "bandwidth", "alpha", "beta", "gamma_m",
+                 "gamma_p"]:
+        assert (var_accesses_read[Signature(f"cma_op1_{name}")][0].access_type
+                == AccessType.READ)
+        assert (var_accesses_write[Signature(f"cma_op1_{name}")][0].access_type
+                == AccessType.READ)
 
 
 def test_location(parser):
@@ -471,6 +506,8 @@ def test_lfric_operator():
     # pylint: disable=pointless-statement
     psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "f0_data: READ+WRITE" in var_info
+    assert "cmap_data: READ" in var_info
     assert "basis_w0_on_w0: READ" in var_info
     assert "diff_basis_w1_on_w0: READ" in var_info
 
@@ -494,13 +531,13 @@ def test_lfric_cma():
     assert "cma_op1_beta: READ" in var_info
     assert "cma_op1_gamma_m: READ" in var_info
     assert "cma_op1_gamma_p: READ" in var_info
-    assert "cma_op1_matrix: WRITE" in var_info
+    assert "cma_op1_cma_matrix: WRITE" in var_info
     assert "cma_op1_ncol: READ" in var_info
     assert "cma_op1_nrow: READ," in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
     assert "cbanded_map_adspc2_lma_op1: READ" in var_info
-    assert "op1_proxy%local_stencil: WRITE" in var_info
-    assert "op1_proxy%ncell_3d: READ" in var_info
+    assert "lma_op1_local_stencil: READ" in var_info
+    assert "lma_op1_proxy%ncell_3d: READ" in var_info
 
 
 def test_lfric_cma2():
@@ -616,8 +653,8 @@ def test_lfric_stub_args():
 
     '''
     ast = get_ast("dynamo0.3", "testkern_stencil_multi_mod.f90")
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
@@ -652,8 +689,8 @@ def test_lfric_stub_args2():
 
     '''
     ast = get_ast("dynamo0.3", "testkern_mesh_prop_face_qr_mod.F90")
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
@@ -672,8 +709,8 @@ def test_lfric_stub_args3():
     '''
     ast = get_ast("dynamo0.3",
                   "testkern_any_discontinuous_space_op_1_mod.f90")
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
@@ -691,8 +728,8 @@ def test_lfric_stub_boundary_dofs():
 
     '''
     ast = get_ast("dynamo0.3", "enforce_bc_kernel_mod.f90")
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
@@ -705,8 +742,8 @@ def test_lfric_stub_field_vector():
 
     '''
     ast = get_ast("dynamo0.3", "testkern_stencil_vector_mod.f90")
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
@@ -726,8 +763,8 @@ def test_lfric_stub_basis():
 
     '''
     ast = get_ast("dynamo0.3", "testkern_qr_eval_mod.F90")
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
@@ -747,8 +784,8 @@ def test_lfric_stub_cma_operators():
 
     '''
     ast = get_ast("dynamo0.3", "columnwise_op_mul_2scalars_kernel_mod.F90")
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
@@ -771,8 +808,8 @@ def test_lfric_stub_banded_dofmap():
 
     '''
     ast = get_ast("dynamo0.3", "columnwise_op_asm_kernel_mod.F90")
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
@@ -786,8 +823,8 @@ def test_lfric_stub_indirection_dofmap():
     '''Check variable usage detection in indirection dofmap.
     '''
     ast = get_ast("dynamo0.3", "columnwise_op_app_kernel_mod.F90")
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
@@ -803,92 +840,10 @@ def test_lfric_stub_boundary_dofmap():
 
     '''
     ast = get_ast("dynamo0.3", "enforce_operator_bc_kernel_mod.F90")
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     var_accesses = VariablesAccessInfo()
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     assert "boundary_dofs_op_1: READ" in str(var_accesses)
-
-
-def test_lfric_acc():
-    '''Check variable usage detection when OpenACC is used.
-
-    '''
-    # Use the OpenACC transforms to enclose the kernels
-    # with OpenACC directives.
-    acc_par_trans = ACCParallelTrans()
-    acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
-                           name="invoke_0_testkern_type", dist_mem=False)
-    sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
-    acc_enter_trans.apply(sched)
-
-    # Find the first kernel:
-    kern = invoke.schedule.walk(CodedKern)[0]
-    create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
-    create_acc_arg_list.generate(var_accesses=var_accesses)
-    var_info = str(var_accesses)
-    assert "f1: READ+WRITE" in var_info
-    assert "f2: READ" in var_info
-    assert "m1: READ" in var_info
-    assert "m2: READ" in var_info
-    assert "undf_w1: READ" in var_info
-    assert "map_w1: READ" in var_info
-    assert "undf_w2: READ" in var_info
-    assert "map_w2: READ" in var_info
-    assert "undf_w3: READ" in var_info
-    assert "map_w3: READ" in var_info
-
-
-def test_lfric_acc_operator():
-    '''Check variable usage detection when OpenACC is used with
-    a kernel that uses an operator.
-
-    '''
-    # Use the OpenACC transforms to enclose the kernels
-    # with OpenACC directives.
-    acc_par_trans = ACCParallelTrans()
-    acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("20.0_cma_assembly.f90", "dynamo0.3",
-                           idx=0, dist_mem=False)
-    sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
-    acc_enter_trans.apply(sched)
-
-    # Find the first kernel:
-    kern = invoke.schedule.walk(CodedKern)[0]
-    create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
-    create_acc_arg_list.generate(var_accesses=var_accesses)
-    var_info = str(var_accesses)
-    assert "lma_op1_proxy%ncell_3d: READ" in var_info
-    assert "lma_op1_proxy%local_stencil: WRITE" in var_info
-
-
-def test_lfric_stencil():
-    '''Check variable usage detection when OpenACC is used with a
-    kernel that uses a stencil.
-
-    '''
-    # Use the OpenACC transforms to create the required kernels
-    acc_par_trans = ACCParallelTrans()
-    acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("14.4_halo_vector.f90", "dynamo0.3",
-                           idx=0, dist_mem=False)
-    sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
-    acc_enter_trans.apply(sched)
-
-    # Find the first kernel:
-    kern = invoke.schedule.walk(CodedKern)[0]
-    create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
-    create_acc_arg_list.generate(var_accesses=var_accesses)
-    var_info = str(var_accesses)
-    assert "f1: READ+WRITE" in var_info
-    assert "f2: READ" in var_info
-    assert "f2_stencil_dofmap: READ" in var_info

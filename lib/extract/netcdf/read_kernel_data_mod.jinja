@@ -1,0 +1,311 @@
+{# Added this as Jinja code so that it is understood that the
+   comment does not apply to THIS file. #}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
+{{ "! ================================================== !" }}
+
+{# This jinja template file creates a class that allows reading
+   in data from an extracted kernel. It is used by the drivers
+   created by the kernel extraction transformation. It is
+   independent of the API used, since any driver will only use
+   basic Fortran types.
+#}
+
+{% if ALL_DIMS is not defined -%}
+   {# Support 1 to 4 dimensional arrays if not specified #}
+   {% set ALL_DIMS = [1, 2, 3, 4] -%}
+{% endif -%}
+
+{# The types that are supported. The first entry of each tuple
+   is the name used when naming subroutines and in user messages.
+   The second entry is the Fortran declaration. The third entry
+   is the number of bits. There is slightly different code
+   required for 32 and 64 bit values (due to the fact that the
+   Fortran transfer(value, mould) function leaves undefined bits
+   when mould is larger than value.) #}
+
+{% if ALL_TYPES is not defined -%}
+   {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
+                        ("Real",   "real(kind=real32)",   32),
+                        ("Char",   "character(*)",        8),
+                        ("Logical","integer(kind=real32)",32),
+                        ("Int",    "integer(kind=int32)", 32) ] %}
+{% endif -%}
+
+
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2022-2023, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: J. Henrichs, Bureau of Meteorology
+
+!> This module implements a simple NetCDF reader. It provides the functions:
+!! OpenRead:      opens a file for reading
+!! ReadScalar...:           reads the specified scalar value
+!! ReadArray1dDouble, ... : allocates and reads the specified array type.
+
+module read_kernel_data_mod
+
+    use, intrinsic :: iso_fortran_env, only : int64, int32,   &
+                                              real32, real64, &
+                                              stderr => Error_Unit
+
+    implicit none
+
+    !> This is the data type that manages the information required
+    !! to read data from a NetCDF file.
+
+    type, public :: ReadKernelDataType
+
+        !> The NetCDF ID used for this file.
+        integer                            :: ncid
+
+    contains
+
+        ! The various procedures used
+        procedure :: OpenRead
+
+        {# Collect and declare the various procedures for the same generic interface -#}
+        {# ------------------------------------------------------------------------- -#}
+        {% set all_reads=[] -%}
+        {% for name, type, bits in ALL_TYPES %}
+        procedure :: ReadScalar{{name}}
+          {{- all_reads.append("ReadScalar"~name) or "" }}
+          {% for dim in ALL_DIMS %}
+        procedure :: ReadArray{{dim}}d{{name}}
+            {{- all_reads.append("ReadArray"~dim~"d"~name) or "" }}
+          {% endfor %}
+        {% endfor %}
+
+        {% set indent="            " %}
+        !> The generic interface for reading the value of variables.
+        !! This is not part of the official PSyData API, but is used in
+        !! the drivers created by PSyclone.
+        generic, public :: ReadVariable => &
+            {{all_reads|join(", &\n"+indent) }}
+
+    end type ReadKernelDataType
+
+contains
+
+    ! -------------------------------------------------------------------------
+    !> @brief Checks if the return value from a NetCDF call indicates an error.
+    !! If so, print the corresponding error message and aborts the program.
+    !! It is typically used as a wrapper around NetCDF calls:
+    !! retval = CheckError(nf90_close(ncid))
+    !! @param[in] retval The return value from a NetCDF operation.
+    !! Returns the return value.
+    function CheckError(retval)
+
+        use netcdf, only : nf90_noerr, nf90_strerror
+
+        implicit none
+
+        integer, intent(in) :: retval
+        integer             :: CheckError
+
+        if (retval /= nf90_noerr) then
+            write(stderr, *) "NetCDF Error:"
+            write(stderr, *) trim(nf90_strerror(retval))
+            stop
+        endif
+        CheckError = retval
+
+    end function CheckError
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine is called to open a NetCDF file for reading. The
+    !! filename is based on the module and kernel name. This is used by a
+    !! driver program that will read a NetCDF file previously created by the
+    !! PSyData API.
+    !! @param[in,out] this The instance of the ReadKernelDataType.
+    !! @param[in] module_name The name of the module of the instrumented
+    !!            region.
+    !! @param[in] region_name The name of the instrumented region.
+    subroutine OpenRead(this, module_name, region_name)
+
+        use netcdf, only : nf90_open, NF90_NOWRITE
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target :: this
+        character(*), intent(in)                         :: module_name, &
+                                                            region_name
+        integer :: retval
+
+        retval = CheckError(nf90_open(module_name//"-"//region_name//".nc", &
+                                        NF90_NOWRITE, this%ncid))
+
+    end subroutine OpenRead
+
+{# This defines a mapping of the 'userfriendly' names to the NetCDF data types. #}
+{% set NCDF_TYPE_MAPPING = { "Double": "NF90_DOUBLE",
+                             "Real":   "NF90_REAL",
+                             "Logical":"NF90_INT",
+                             "Int":    "NF90_INT"} -%}
+
+{% for name, type, bits in ALL_TYPES %}
+    {% set NETCDF_TYPE = NCDF_TYPE_MAPPING[name] %}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the value of a scalar {{type}}
+    !! variable from the NetCDF file and returns it to the user. Note that
+    !! this function is not part of the PSyData API, but it is convenient to
+    !! have these functions together here. The driver can then be linked with
+    !! this  PSyData library and will be able to read the files.
+    !! @param[in,out] this The instance of the ReadKernelDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value The read value is stored here.
+    subroutine ReadScalar{{name}}(this, name, value)
+
+        use netcdf, only : nf90_inq_varid, nf90_get_var
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target :: this
+        character(*), intent(in)                         :: name
+        {{type}}, intent(out)                            :: value
+
+        integer                                          :: retval, varid
+        {% if name == "Logical" %}
+        integer                                          :: tmp
+        {% endif %}
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        {% if name == "Logical" %}
+        retval = CheckError(nf90_get_var(this%ncid, varid, tmp))
+        value = tmp .eq. 1
+        {% else %}
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        {% endif %}
+
+    end subroutine ReadScalar{{name}}
+
+  {# Now provide the array implementations #}
+  {# ------------------------------------- #}
+  {% for dim in ALL_DIMS %}
+    {# Create the ':,:,:,:' string
+       We repeat the list [":"] DIM-times, which is then joined #}
+    {% set DIMENSION=([":"]*dim)|join(",") %}
+
+    {# Create list of variables: "dimid1, dimid2, dimid3, dimid4" #}
+    {% set vars = "dimid"~range(1,dim+1)|join(", dimid") %}
+    {# Create a string "size(value,1), size(value,2)...", which  #}
+    {# will be used to declare a temporary array when converting #}
+    {# logical to integer values before writing them out.        #}
+    {% set SIZES = "size(value,"~range(1,dim+1)|join("), size(value,")~")" %}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a {{dim}}D array of {{type}}
+    !! It allocates memory for the allocatable parameter 'value' to store the
+    !! read values which is then returned to the caller. If the memory for the
+    !! array cannot be allocated, the application will be stopped.
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !!             which is allocated here and stores the values read.
+    subroutine ReadArray{{dim}}d{{name}}(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target             :: this
+        character(*), intent(in)                                     :: name
+        {{type}}, dimension({{DIMENSION}}), allocatable, intent(out) :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        {# Create list of variables: "dimid1,dimid2,dimid3,dimid4" #}
+        {% set dim_sizes = "dim_size"~range(1,dim+1)|join(",dim_size") %}
+        integer        :: {{dim_sizes}}
+        integer        :: ierr
+        {% if name == "Logical" %}
+        integer, dimension({{DIMENSION}}), allocatable :: tmp
+        {% endif %}
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        {% for i in range(1, dim+1) %}
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%{{i}}"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size{{i}}))
+        {% endfor %}
+
+        ! Allocate enough space to store the values to be read:
+        allocate(value({{dim_sizes}}), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate array for ", name, &
+                            " of size ", {{dim_sizes}}, &
+                            " in ReadArray{{dim}}d{{name}}."
+            stop
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        {% if name == "Logical" %}
+        ! We cannot read logical directly, so read an int array.
+        ! Allocate enough space to store the values to be read:
+        allocate(tmp({{dim_sizes}}), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate int-array for ", name, &
+                            " of size ", {{dim_sizes}}, &
+                            " in ReadArray{{dim}}d{{name}}."
+            stop
+        endif
+        retval = CheckError(nf90_get_var(this%ncid, varid, tmp))
+        ! Then convert each '1' in this array to .true., everything else
+        ! to .false.
+        value = tmp == 1
+        deallocate(tmp)
+        {% else %}
+        {% if name == "Char" %}
+        ! Initialise the whole array with "".
+        value = ""
+        {% else %}
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
+        {% endif %}
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+        {% endif %}
+
+    end subroutine ReadArray{{dim}}d{{name}}
+
+    {% endfor -%}  {# for dim in ALL_DIMS #}
+
+{%- endfor -%}  {# for name, type, bits in ALL_TYPES #}
+
+end module read_kernel_data_mod

@@ -13,7 +13,7 @@
 <g id="node1" class="node">
 <title>20</title>
 <polygon fill="none" stroke="#000000" points="171.5,-122.5 171.5,-267.5 344.5,-267.5 344.5,-122.5 171.5,-122.5"/>
-<text text-anchor="middle" x="258" y="-252.3" font-family="Times,serif" font-size="14.00" fill="#000000">DynInvoke</text>
+<text text-anchor="middle" x="258" y="-252.3" font-family="Times,serif" font-size="14.00" fill="#000000">LFRicInvoke</text>
 <polyline fill="none" stroke="#000000" points="171.5,-244.5 344.5,-244.5 "/>
 <polyline fill="none" stroke="#000000" points="171.5,-220.5 344.5,-220.5 "/>
 <text text-anchor="start" x="179.5" y="-205.3" font-family="Times,serif" font-size="14.00" fill="#000000">arg_for_funcspace()</text>

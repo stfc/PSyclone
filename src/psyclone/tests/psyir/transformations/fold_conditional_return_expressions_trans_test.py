@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,9 +58,9 @@ def test_validation():
     trans = FoldConditionalReturnExpressionsTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in FoldConditionalReturnExpressionsTrans transformation. "
-           "This transformation can only be applied to 'Routine' nodes, but "
-           "found 'NoneType'." in str(info.value))
+    assert ("Error in FoldConditionalReturnExpressionsTrans transformation. "
+            "This transformation can only be applied to 'Routine' nodes, but "
+            "found 'NoneType'." in str(info.value))
 
 
 SUB_IN1 = (

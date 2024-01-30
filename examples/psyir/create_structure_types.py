@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''A Python script showing how to create and manipulate symbols of structure
 type within the PSyIR. In order to use it you must first install PSyclone.
@@ -42,14 +43,13 @@ Once you have psyclone installed, this script may be run by doing:
 >>> python create_structure_types.py
 
 '''
-from __future__ import print_function
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
     StructureReference, ArrayOfStructuresReference, Assignment, \
-    BinaryOperation, Range
+    IntrinsicCall, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
-    ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, DataTypeSymbol,\
+    ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
     ImportInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
-    DeferredType, Symbol
+    UnresolvedType, Symbol, DataTypeSymbol
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
@@ -57,15 +57,16 @@ from psyclone.psyir.backend.fortran import FortranWriter
 CONTAINER_SYMBOL_TABLE = SymbolTable()
 REAL_KIND = CONTAINER_SYMBOL_TABLE.new_symbol(
         root_name="RKIND", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-        constant_value=8)
+        is_constant=True, initial_value=8)
 
 # Shorthand for a scalar type with REAL_KIND precision
 SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
 
 # Derived-type definition in container
 GRID_TYPE = StructureType.create([
-    ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
-    ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
+    ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC, None),
+    ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC,
+     Literal("1.0", SCALAR_TYPE))])
 GRID_TYPE_SYMBOL = DataTypeSymbol("grid_type", GRID_TYPE)
 CONTAINER_SYMBOL_TABLE.add(GRID_TYPE_SYMBOL)
 
@@ -75,17 +76,17 @@ SYMBOL_TABLE = SymbolTable()
 CONT = ContainerSymbol("kernel_mod")
 SYMBOL_TABLE.add(CONT)
 
-DTYPE_SYMBOL = DataTypeSymbol("other_type", DeferredType(),
+DTYPE_SYMBOL = DataTypeSymbol("other_type", UnresolvedType(),
                               interface=ImportInterface(CONT))
 SYMBOL_TABLE.add(DTYPE_SYMBOL)
 
 # Create the definition of the 'field_type'
 FIELD_TYPE_DEF = StructureType.create(
-    [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
-     ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
+    [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC, None),
+     ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC, None),
      ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
-      Symbol.Visibility.PUBLIC),
-     ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC)])
+      Symbol.Visibility.PUBLIC, None),
+     ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC, None)])
 FIELD_TYPE_SYMBOL = DataTypeSymbol("field_type", FIELD_TYPE_DEF)
 CONTAINER_SYMBOL_TABLE.add(FIELD_TYPE_SYMBOL)
 
@@ -129,12 +130,12 @@ FLAG_REF = StructureReference.create(FIELD_SYMBOL, ["flag"])
 DX_REF = StructureReference.create(FIELD_SYMBOL, ["grid", "dx"])
 
 # Array reference to component of derived type using a range
-LBOUND = BinaryOperation.create(
-    BinaryOperation.Operator.LBOUND,
-    StructureReference.create(FIELD_SYMBOL, ["data"]), int_one())
-UBOUND = BinaryOperation.create(
-    BinaryOperation.Operator.UBOUND,
-    StructureReference.create(FIELD_SYMBOL, ["data"]), int_one())
+LBOUND = IntrinsicCall.create(
+    IntrinsicCall.Intrinsic.LBOUND,
+    [StructureReference.create(FIELD_SYMBOL, ["data"]), ("dim", int_one())])
+UBOUND = IntrinsicCall.create(
+    IntrinsicCall.Intrinsic.UBOUND,
+    [StructureReference.create(FIELD_SYMBOL, ["data"]), ("dim", int_one())])
 MY_RANGE = Range.create(LBOUND, UBOUND)
 
 DATA_REF = StructureReference.create(FIELD_SYMBOL, [("data", [MY_RANGE])])
@@ -160,7 +161,7 @@ KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE, ASSIGNMENTS)
 # Container
 CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
                              [KERNEL_SCHEDULE])
-CONTAINER.view()
+print(CONTAINER.view())
 
 # Write out the code as Fortran.
 WRITER = FortranWriter()

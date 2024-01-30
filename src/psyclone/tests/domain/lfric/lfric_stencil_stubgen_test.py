@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,34 +32,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the LFRic kernel-stub generator for using pytest. '''
 
-# imports
-from __future__ import absolute_import, print_function
 
 import os
 
-import pytest
 from fparser import api as fpapi
 
-from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield()
-    Config._instance = None
 
 
 def test_stub_stencil_extent():
@@ -69,8 +57,8 @@ def test_stub_stencil_extent():
     '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     result1 = (
@@ -96,8 +84,8 @@ def test_stub_cross2d_stencil():
                                    "testkern_stencil_cross2d_mod.f90"),
                       ignore_comments=False)
 
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     print(generated_code)
@@ -125,8 +113,8 @@ def test_stub_stencil_direction():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_xory1d_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     result1 = (
@@ -151,8 +139,8 @@ def test_stub_stencil_vector():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_vector_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     result1 = (
@@ -177,8 +165,8 @@ def test_stub_stencil_multi():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_stencil_multi_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     result1 = (

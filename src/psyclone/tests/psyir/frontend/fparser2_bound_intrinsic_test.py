@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-23, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Laboratory
 
 ''' Module containing pytest tests for the handling of the U/LBOUND intrinsics
 in the PSyIR. '''
 
-from __future__ import absolute_import
-
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import Execution_Part
+from psyclone.psyir.nodes import (
+    Schedule, Assignment, BinaryOperation, Reference, Literal, IntrinsicCall)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -55,20 +57,17 @@ def test_bound_intrinsics(bound, expression):
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
-        Reference, Literal
     fake_parent = Schedule()
     processor = Fparser2Reader()
     reader = FortranStringReader(expression.format(bound))
     fp2intrinsic = Execution_Part(reader).content[0]
     processor.process_nodes(fake_parent, [fp2intrinsic])
     assert isinstance(fake_parent[0], Assignment)
-    assert isinstance(fake_parent[0].rhs, BinaryOperation)
+    assert isinstance(fake_parent[0].rhs, IntrinsicCall)
     if bound == "ubound":
-        assert fake_parent[0].rhs.operator == BinaryOperation.Operator.UBOUND
+        assert fake_parent[0].rhs.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     else:
-        assert fake_parent[0].rhs.operator == BinaryOperation.Operator.LBOUND
+        assert fake_parent[0].rhs.intrinsic == IntrinsicCall.Intrinsic.LBOUND
     assert isinstance(fake_parent[0].rhs.children[0], Reference)
     assert isinstance(fake_parent[0].rhs.children[1],
                       (Literal, BinaryOperation))

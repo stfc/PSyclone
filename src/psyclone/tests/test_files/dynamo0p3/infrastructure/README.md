@@ -8,6 +8,27 @@ be executed.
 
 TODO #968: the copyright statements might need to be updated.
 
+## Preprocessing
+PSyclone only supports pre-processed files, any preprocessor directive
+will cause parsing failures or create incorrect parse trees.
+In LFRic, all files will be pre-processed before PSyclone is invoked.
+In order to allow tests to work with this infrastructure library
+without requiring pre-processing, the pre-processed files are added
+in addition to the original files to the repository. This is only done
+in order to make sure that our tests work in an environment (e.g. github
+actions) where there might be no pre-processor installed. The Makefile
+contains a target 'preprocess' which will process all ``.F90``
+files and create the corresponding ``.f90`` files. Since the Makefile
+relies on time-stamps, you need to provide the ``-B`` flag to ``make``
+in order to enforce pre-processing of all files. The environment
+variable ``CPP`` can be used to define the preprocessor to use, and
+the variable ``FPPFLAGS`` can be used to specify any macros required if
+you want to setup any non-default settings, e.g.:
+
+```shell
+FPPFLAGS="-DRDEF_PRECISION=32" make -B preprocess
+```
+
 ## Usage in ``pytest``
 The file ``<PSYCLONEHOME>/src/psyclone/tests/lfric_build.py`` contains
 the list of files required for compilation testing (see

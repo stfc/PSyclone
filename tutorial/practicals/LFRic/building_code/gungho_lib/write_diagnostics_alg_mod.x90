@@ -1,0 +1,100 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2020-2024, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: I. Kavcic, Met Office
+!
+! -----------------------------------------------------------------------------
+! Calls IO routine to output the coordinate and diagnostic field data
+! for plotting.
+! -----------------------------------------------------------------------------
+module write_diagnostics_mod
+
+  ! Infrastructure
+  use constants_mod,                only : i_def, r_def, str_short, &
+                                           str_max_filename
+  use log_mod,                      only : log_event, &
+                                           LOG_LEVEL_INFO
+  use field_mod,                    only : field_type
+  ! I/O and field mapping
+  use write_methods_mod,            only : nodal_write_field
+
+  implicit none
+
+  private
+
+  public :: write_diagnostics
+
+contains
+
+  !> @brief Output coordinate and diagnostic fields to a text file
+  !> @param[in] diag_field Scalar diagnostic field to output
+  !> @param[in] chi Coordinate fields
+  !> @param[in] tstep Time-step value to create the output file name from
+  subroutine write_diagnostics(diag_field, chi, tstep)
+
+    implicit none
+
+    type(field_type),    intent(in) :: diag_field
+    type(field_type),    intent(in) :: chi(3)
+    integer(kind=i_def), intent(in) :: tstep
+
+    type(field_type)            :: diag_write_field(3)
+    character(len=str_short)    :: tstr
+    character(str_max_filename) :: filename
+    integer(kind=i_def)         :: dim_fs, i, output_unit
+
+    ! Convert time-step value to string and create output filename
+    write(tstr, '(I5)') tstep  ! Convert integer time-step to string
+    filename = "model_state_tstep_"//trim(adjustl(tstr))//".txt"
+    ! Set output unit number
+    output_unit = 10 + tstep
+
+    ! Get vector dimension of the diagnostic field (1 for scalar-valued
+    ! field and 3 for vector-valued field)
+    dim_fs  = diag_field%vspace%get_dim_space()
+    ! Populate components of the temporary output diagnostic field (all
+    ! same here)
+    do i = 1, dim_fs
+       call diag_field%copy_field_properties(diag_write_field(i))
+       call invoke( setval_X(diag_write_field(i), diag_field) )
+    end do
+
+    ! Output data
+    call log_event( "write_diagnostics: Outputting coordinate and "// &
+                    "diagnostic field data to file '"//trim(filename)//"'", &
+                    LOG_LEVEL_INFO )
+    call nodal_write_field(chi, diag_write_field, dim_fs, output_unit, filename)
+
+  end subroutine write_diagnostics
+
+end module write_diagnostics_mod

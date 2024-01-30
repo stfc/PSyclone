@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2020, Science and Technology Facilities Council.
+! Copyright (c) 2018-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,8 @@
 ! Author A. R. Porter, STFC Daresbury Lab
 
 program implicit_do
-  implicit none
   use some_mod, only: ptr_sjk
+  implicit none
   integer, parameter :: jpi=10, jpj=10, jpk=10, jpn=2
   integer :: ji, jk, jn
   real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: umask
