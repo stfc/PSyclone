@@ -130,7 +130,9 @@ class ArrayReference(ArrayMixin, Reference):
         shape = self._get_effective_shape()
         if shape:
             if type(self.symbol) is Symbol:
-                orig_shape = []
+                # We don't have any information on the shape of the original
+                # declaration.
+                orig_shape = None
             elif isinstance(self.symbol.datatype, ArrayType):
                 # We have full type information so we know the shape of the
                 # original declaration.
@@ -143,8 +145,8 @@ class ArrayReference(ArrayMixin, Reference):
             else:
                 # We don't have any information on the shape of the original
                 # declaration.
-                orig_shape = []
-            if (len(shape) == len(orig_shape) and
+                orig_shape = None
+            if (orig_shape is not None and len(shape) == len(orig_shape) and
                     all(self.is_full_range(idx) for idx in range(len(shape)))):
                 # Although this access has a shape, it is in fact for the
                 # whole array and therefore the type of the result is just
