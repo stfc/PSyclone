@@ -268,6 +268,8 @@ class CallTreeUtils():
         todo = []
         mod_manager = ModuleManager.get()
         for node in node_list:
+            # TODO #2494 - we need to support calls in order to work for
+            # generic PSyIR.
             for kernel in node.walk(Kern):
                 if isinstance(kernel, BuiltIn):
                     # Builtins don't have non-local accesses
