@@ -173,7 +173,7 @@ class ArrayReference(ArrayMixin, Reference):
 
         # Otherwise, we're accessing a single element of the array.
         if type(self.symbol) is Symbol:
-            return DeferredType()
+            return UnresolvedType()
         if isinstance(self.symbol.datatype, UnsupportedType):
             if (isinstance(self.symbol.datatype, UnsupportedFortranType) and
                     self.symbol.datatype.partial_datatype):

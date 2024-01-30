@@ -532,23 +532,23 @@ def test_array_datatype():
     aref = ArrayReference.create(asym, [two.copy()])
     assert aref.datatype is stype
     # Reference to a single element of an array of UnsupportedType.
-    unsuppored_sym = DataSymbol(
-        "unsuppored",
-        UnsupportedFortranType("real, dimension(5), pointer :: unsuppored"))
-    aref = ArrayReference.create(unsuppored_sym, [two.copy()])
+    unsupported_sym = DataSymbol(
+        "unsupported",
+        UnsupportedFortranType("real, dimension(5), pointer :: unsupported"))
+    aref = ArrayReference.create(unsupported_sym, [two.copy()])
     assert isinstance(aref.datatype, UnresolvedType)
     # Reference to a single element of an array of UnsupportedType but with
     # partial type information.
-    not_quite_unsuppored_sym = DataSymbol(
-        "unsuppored",
+    not_quite_unsupported_sym = DataSymbol(
+        "unsupported",
         UnsupportedFortranType(
-            "real, dimension(5), pointer :: unsuppored",
+            "real, dimension(5), pointer :: unsupported",
             partial_datatype=ArrayType(REAL_SINGLE_TYPE, [5])))
-    bref = ArrayReference.create(not_quite_unsuppored_sym, [two.copy()])
+    bref = ArrayReference.create(not_quite_unsupported_sym, [two.copy()])
     assert bref.datatype == REAL_SINGLE_TYPE
     # A sub-array of UnsupportedFortranType.
     aref3 = ArrayReference.create(
-                unsuppored_sym, [Range.create(two.copy(), four.copy())])
+                unsupported_sym, [Range.create(two.copy(), four.copy())])
     # We know the result is an ArrayType
     assert isinstance(aref3.datatype, ArrayType)
     assert aref3.datatype.shape[0].lower == one
@@ -558,18 +558,18 @@ def test_array_datatype():
     assert isinstance(aref3.datatype.intrinsic, UnresolvedType)
     # A whole array of UnsupportedType should simply have the same datatype as
     # the original symbol.
-    aref4 = ArrayReference.create(not_quite_unsuppored_sym, [":"])
-    assert aref4.datatype == not_quite_unsuppored_sym.datatype
+    aref4 = ArrayReference.create(not_quite_unsupported_sym, [":"])
+    assert aref4.datatype == not_quite_unsupported_sym.datatype
     # When the Reference is just to a Symbol. Although `create` forbids this,
     # it is possible for the fparser2 frontend to create such a construct.
     generic_sym = Symbol("existential")
     aref5 = ArrayReference(generic_sym)
     aref5.addchild(two.copy())
-    assert isinstance(aref5.datatype, DeferredType)
+    assert isinstance(aref5.datatype, UnresolvedType)
     aref5.addchild(Range.create(two.copy(), four.copy()))
     dtype5 = aref5.datatype
     assert isinstance(dtype5, ArrayType)
-    assert isinstance(dtype5.intrinsic, DeferredType)
+    assert isinstance(dtype5.intrinsic, UnresolvedType)
     assert dtype5.shape[0].lower.value == "1"
     assert dtype5.shape[0].upper.debug_string() == "(4 - 2) / 1 + 1"
 
