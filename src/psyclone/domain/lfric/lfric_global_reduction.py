@@ -62,7 +62,7 @@ class LFRicGlobalReduction(GlobalReduction):
         # Check that distributed memory is enabled
         if not Config.get().distributed_memory:
             raise GenerationError(
-                "It makes no sense to create an LFRicGlobalReductio"
+                "It makes no sense to create an LFRicGlobalReduction "
                 "object when distributed memory is not enabled (dm=False).")
         # Check scalar intrinsic types that this class supports (only
         # "real" for now)
