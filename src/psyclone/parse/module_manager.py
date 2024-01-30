@@ -144,7 +144,7 @@ class ModuleManager:
                         self._mod_2_filename[module] = mod_info
 
     # ------------------------------------------------------------------------
-    def ignore_module(self, module_name):
+    def add_ignore_module(self, module_name):
         '''Adds the specified module name to the modules to be ignored.
 
         :param str module_name: name of the module to ignore.

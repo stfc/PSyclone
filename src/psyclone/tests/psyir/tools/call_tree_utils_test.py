@@ -271,7 +271,7 @@ def test_get_non_local_read_write_info(capsys):
             in rw_info.write_list)
 
     # Check that we can ignore a module:
-    mod_man.ignore_module("constants_mod")
+    mod_man.add_ignore_module("constants_mod")
     rw_info = ReadWriteInfo()
     ctu.get_non_local_read_write_info(schedule, rw_info)
     out, _ = capsys.readouterr()

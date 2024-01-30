@@ -262,7 +262,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
 
     # Instruct the module manager to ignore a_mod, which means
     # it should only have b_mod and c_mod in its dependencies:
-    mod_man.ignore_module("a_mod")
+    mod_man.add_ignore_module("a_mod")
     all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
     assert "a_mod" not in all_c
     assert "b_mod" in all_c
@@ -293,7 +293,7 @@ def test_mod_man_sort_modules(capsys):
 
     # Ignore the netcdf dependencies:
     deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
-    mod_man.ignore_module("netcdf")
+    mod_man.add_ignore_module("netcdf")
     deps_sorted = mod_man.sort_modules(deps)
     assert deps_sorted == ["b", "c", "a"]
     out, _ = capsys.readouterr()
@@ -320,7 +320,7 @@ def test_mod_man_sort_modules(capsys):
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_ignore_modules():
+def test_mod_manager_add_ignore_modules():
     '''Tests that ignoring modules work. We use the standard
     directory and file setup (see mod_man_test_setup_directories).
     tmp/d1/a_mod.f90
@@ -335,7 +335,7 @@ def test_mod_manager_ignore_modules():
     mod_man.add_search_path("d1")
 
     # First finds a_mod, which will parse the first directory
-    mod_man.ignore_module("a_mod")
+    mod_man.add_ignore_module("a_mod")
     mod_info = mod_man.get_module_info("a_mod")
     assert mod_info is None
     assert "a_mod" in mod_man.ignores()
