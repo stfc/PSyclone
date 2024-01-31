@@ -147,6 +147,8 @@
 	53) PR #2439 for #2105. Use maxval2loop and atomics to parallelise
 	NEMO stpctl.f90.
 
+	54) PR #2493 for #2492. Fix bug in NemoOuterArrayRange2LoopTrans
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
