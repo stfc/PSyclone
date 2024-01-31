@@ -41,7 +41,6 @@ not support array ranges.
 
 '''
 
-from psyclone.core import SymbolicMaths
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
     Assignment, Call, IntrinsicCall

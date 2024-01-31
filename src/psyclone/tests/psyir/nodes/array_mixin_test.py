@@ -566,8 +566,8 @@ def test_get_outer_range_index_error():
         _ = array.get_outer_range_index()
 
 
-def test_same_range(fortran_reader):
-    '''Test that the same_range method behaves in the expected way.'''
+def test_same_range_error(fortran_reader):
+    ''' Test that the same_range method produces the expected errors. '''
 
     array1 = fortran_reader.psyir_from_statement("a(i) = 0").lhs
     array2 = fortran_reader.psyir_from_statement("b(j) = 0").lhs
@@ -612,7 +612,12 @@ def test_same_range(fortran_reader):
             "'0' should be a Range node, but found 'Reference'"
             in str(info.value))
 
+
+def test_same_range(fortran_reader):
+    '''Test that the same_range method produces the expected results. '''
+
     array2 = fortran_reader.psyir_from_statement("b(:) = 0").lhs
+    array1 = fortran_reader.psyir_from_statement("a(:) = 0").lhs
 
     # lower bounds both use lbound, upper bounds both use ubound and
     # step is the same so everything matches.

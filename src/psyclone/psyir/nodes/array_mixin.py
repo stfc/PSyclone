@@ -133,8 +133,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :type expr: :py:class:`psyclone.psyir.nodes.Node`
         :param bound_operator: the particular bound operation.
         :type bound_operator:
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.LBOUND |
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.UBOUND
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.LBOUND` |
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.UBOUND`
         :param int index: the bounds index.
 
         :returns: True if the expr is in the expected form and False otherwise.
@@ -599,10 +599,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         raise IndexError
 
     def same_range(self, index: int, array2, index2: int) -> bool:
-        ''' This method compares the range length of this array node
-        at a given index with the range length of a second array at
-        a second index. This is useful to verify if array operations
-        are valid, e.g.: A(3,:,5) + B(:,2,2).
+        ''' This method compares the range of this array node at a given index
+        with the range of a second array at a second index. This is useful to
+        verify if array operations are valid, e.g.: A(3,:,5) + B(:,2,2).
 
         Note that this check supports symbolic comparisons, e.g.:
         A(3:4) has the same range as B(2+1:5-1),
@@ -612,6 +611,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         TODO #2485. This method has false negatives: cases when the range
         is the same but it can not be proved, so we return False.
 
+        TODO #2004. This method currently compares exact ranges, not just the
+        length of them, which could be done with "(upper-lower)/step" symbolic
+        comparisons. This is because arrayrange2loop does not account for
+        arrays declared with different lbounds, but this could be improved.
+
         :param index: the index indicating the location of a range node in
             this array.
         :param array2: the array accessor that we want to compare it to.
@@ -619,11 +623,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             array2.
 
         :returns: True if the ranges are the same and False if they are not
-        the same, or if it is not possible to determine.
+            the same, or if it is not possible to determine.
 
         :raises: TypeError if any of the arguments are of the wrong type.
 
         '''
+        # pylint: disable=too-many-branches
         if not isinstance(index, int):
             raise TypeError(
                 f"The 'index' argument of the same_range() method should be an"
