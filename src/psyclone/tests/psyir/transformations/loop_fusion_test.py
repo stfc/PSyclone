@@ -796,7 +796,7 @@ def test_loop_fuse_different_variables_with_access(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         fuse.apply(loops[1], loops[2])
     assert ("Error in LoopFuseTrans transformation. Second loop contains "
-            "accesses to the first loop's variable." in str(excinfo.value))
+            "accesses to the first loop's variable: ji." in str(excinfo.value))
 
     code = '''subroutine sub()
     integer :: ji, jj, n, jk
@@ -817,4 +817,5 @@ def test_loop_fuse_different_variables_with_access(fortran_reader):
     with pytest.raises(TransformationError) as excinfo:
         fuse.apply(loops[1], loops[2])
     assert ("Error in LoopFuseTrans transformation. First loop contains "
-            "accesses to the second loop's variable." in str(excinfo.value))
+            "accesses to the second loop's variable: jk."
+            in str(excinfo.value))

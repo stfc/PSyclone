@@ -82,26 +82,20 @@ FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuseTrans')
 
 # fuse all outer loops
 FUSE_TRANS.apply(SCHEDULE.children[0],
-                 SCHEDULE.children[1],
-                 options={"force": True})
+                 SCHEDULE.children[1])
 FUSE_TRANS.apply(SCHEDULE.children[0],
-                 SCHEDULE.children[1],
-                 options={"force": True})
+                 SCHEDULE.children[1])
 FUSE_TRANS.apply(SCHEDULE.children[0],
-                 SCHEDULE.children[1],
-                 options={"force": True})
+                 SCHEDULE.children[1])
 print(SCHEDULE.view())
 
 # fuse all inner loops
 FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
-                 SCHEDULE.children[0].loop_body[1],
-                 options={"force": True})
+                 SCHEDULE.children[0].loop_body[1])
 FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
-                 SCHEDULE.children[0].loop_body[1],
-                 options={"force": True})
+                 SCHEDULE.children[0].loop_body[1])
 FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
-                 SCHEDULE.children[0].loop_body[1],
-                 options={"force": True})
+                 SCHEDULE.children[0].loop_body[1])
 print(SCHEDULE.view())
 
 print(PSY.gen)

@@ -56,6 +56,9 @@ class LoopFuseTrans(LoopTrans):
 
     If loops have different named loop variables, the loop variable of the
     second loop will be renamed if possible before fusion.
+
+    Note that the validation of tthis transformation still has several
+    shortcomings, especially for domain API loops. Use at your own risk.
     '''
     def __str__(self):
         return "Fuse two adjacent loops together"
@@ -73,7 +76,7 @@ class LoopFuseTrans(LoopTrans):
         :type options: Optional[Dict[str, Any]]
         :param bool options["force"]: whether to force fusion of the
                                       target loop (i.e. ignore any dependence
-                                      analysis). This only skips a limited 
+                                      analysis). This only skips a limited
                                       number of the checks, and does not
                                       fully force merging.
 
@@ -85,16 +88,16 @@ class LoopFuseTrans(LoopTrans):
                                      other in the tree.
         :raises TransformationError: if the two Loops do not have the same
                                      iteration space.
-        :raises TransformationError: if either Loop contains a reference to
-                                     the other Loop's variable and the Loops
-                                     don't share a loop variable.
+        :raises TransformationError: if the two Loops don't share the same
+                                     iteration variable, but make use of the
+                                     other loop's variable in their body.
         '''
         if not options:
             options = {}
         # Check that the supplied Nodes are Loops
         super().validate(node1, options=options)
         super().validate(node2, options=options)
-        
+
         ignore_dep_analysis = options.get("force", False)
 
         # Check loop1 and loop2 have the same parent
@@ -120,16 +123,21 @@ class LoopFuseTrans(LoopTrans):
             if not (SymbolicMaths.equal(node1.start_expr, node2.start_expr) and
                     SymbolicMaths.equal(node1.stop_expr, node2.stop_expr) and
                     SymbolicMaths.equal(node1.step_expr, node2.step_expr)):
+                # TODO #257: This transformation assumes that all domain loop
+                # bodies have only POINTWISE accesses to fields and does not
+                # perform any dependency analysis.
+                # This is wrong and it will generate incorrect code for any
+                # kernel with STENCIL access.
                 raise TransformationError(LazyString(
                     lambda node1=node1, node2=node2:
                         f"Error in {self.name} transformation. Loops do not "
                         f"have the same iteration space:\n"
-                        f"{node1.view()}\n"
-                        f"{node2.view()}"))
+                        f"{node1.debug_string()}\n"
+                        f"{node2.debug_string()}"))
 
             vars1 = VariablesAccessInfo(node1)
             vars2 = VariablesAccessInfo(node2)
-    
+
             # Check if the loops have the same loop variable
             loop_var1 = node1.variable
             loop_var2 = node2.variable
@@ -137,27 +145,28 @@ class LoopFuseTrans(LoopTrans):
                 # If they don't have the same variable, find out if the one
                 # loop accesses the other loops variable symbol.
                 # If so, then for now we disallow this merge (though we could
-                # in theory allow using the unused one unless both use each others)
+                # in theory allow using the unused one unless both use each
+                # others)
                 for signature in vars1:
                     var_name = str(signature)
                     if var_name == loop_var2.name:
                         raise TransformationError(
                             f"Error in {self.name} transformation. First "
                             f"loop contains accesses to the second loop's "
-                            f"variable.")
+                            f"variable: {loop_var2.name}.")
                 for signature in vars2:
                     var_name = str(signature)
                     if var_name == loop_var1.name:
                         raise TransformationError(
                             f"Error in {self.name} transformation. Second "
                             f"loop contains accesses to the first loop's "
-                            f"variable.")
-    
+                            f"variable: {loop_var1.name}.")
+
             # Get all variables that occur in both loops. A variable
             # that is only in one loop is not affected by fusion.
             all_vars = set(vars1).intersection(vars2)
             symbol_table = node1.scope.symbol_table
-    
+
             for signature in all_vars:
                 var_name = str(signature)
                 # Ignore the loop variable
@@ -165,12 +174,12 @@ class LoopFuseTrans(LoopTrans):
                     continue
                 var_info1 = vars1[signature]
                 var_info2 = vars2[signature]
-    
+
                 # Variables that are only read in both loops can always be
                 # fused
                 if var_info1.is_read_only() and var_info2.is_read_only():
                     continue
-    
+
                 symbol = symbol_table.lookup(signature.var_name)
                 # TODO #1270 - the is_array_access function might be moved
                 is_array = symbol.is_array_access(access_info=var_info1)
@@ -286,6 +295,12 @@ class LoopFuseTrans(LoopTrans):
         ''' Fuses two loops represented by `psyclone.psyir.nodes.Node` objects
         after performing validity checks.
 
+        If the two loops don't have the same loop variable, the second loop's
+        variable (and references to it inside the loop) will be changed to be
+        references to the first loop's variable before merging. This has the
+        side effect that the second loop's variable will no longer have its
+        value modified, with the expectation that that value isn't used after.
+
         :param node1: the first Node that is being checked.
         :type node1: :py:class:`psyclone.psyir.nodes.Node`
         :param node2: the second Node that is being checked.
@@ -305,6 +320,8 @@ class LoopFuseTrans(LoopTrans):
 
         # If the loop variable isn't the same, we change all uses of the
         # second loop's variable to reference the first loop's variable.
+        # This has the side effect that loop_var2 will no longer have the
+        # same value after the loop, with the expectation that it isn't used.
         if loop_var1 != loop_var2:
             references = node2.loop_body.walk(Reference)
             for ref in references:
