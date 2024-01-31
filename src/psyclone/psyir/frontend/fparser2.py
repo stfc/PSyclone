@@ -3662,32 +3662,50 @@ class Fparser2Reader():
             # Replace the PSyIR Ranges with appropriate index expressions.
             range_idx = 0
             for idx, child in enumerate(array.indices):
-                if isinstance(child, Range):
-                    symbol = table.lookup(loop_vars[range_idx])
-                    if isinstance(shape[range_idx], ArrayType.Extent):
-                        # We don't know the bounds of this array so we have
-                        # to query using LBOUND.
+                if not isinstance(child, Range):
+                    continue
+                # We need the lower bound of the appropriate dimension of this
+                # array as we will index relative to it. Note that the 'shape'
+                # of the datatype only gives us extents, not the lower bounds
+                # of the declaration or slice.
+                if isinstance(shape[range_idx], ArrayType.Extent):
+                    # We don't know the bounds of this array so we have
+                    # to query using LBOUND.
+                    lbound = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.LBOUND,
+                        [base_ref.copy(),
+                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+                else:
+                    if array.is_full_range(idx):
+                        # The access to this index is to the full range of
+                        # the array.
+                        # TODO #949 - ideally we would try to find the lower
+                        # bound of the array by interrogating `array.symbol.
+                        # datatype` but the fparser2 frontend doesn't currently
+                        # support array declarations with explicit lower bounds
                         lbound = IntrinsicCall.create(
                             IntrinsicCall.Intrinsic.LBOUND,
                             [base_ref.copy(),
                              ("dim", Literal(str(idx+1), INTEGER_TYPE))])
                     else:
-                        lbound = shape[range_idx].lower.copy()
-                    # Create the index expression.
-                    if isinstance(lbound, Literal) and lbound.value == "1":
-                        # Lower bound is just unity so we can use the loop-idx
-                        # directly.
-                        expr2 = Reference(symbol)
-                    else:
-                        # We don't know what the lower bound is so have to
-                        # have an expression:
-                        #    idx-expr = array-lower-bound + loop-idx - 1
-                        expr = BinaryOperation.create(
-                            add_op, lbound, Reference(symbol))
-                        expr2 = BinaryOperation.create(sub_op, expr,
-                                                       one.copy())
-                    array.children[idx] = expr2
-                    range_idx += 1
+                        # We need the lower bound of this access.
+                        lbound = child.start.copy()
+
+                # Create the index expression.
+                symbol = table.lookup(loop_vars[range_idx])
+                if isinstance(lbound, Literal) and lbound.value == "1":
+                    # Lower bound is just unity so we can use the loop-idx
+                    # directly.
+                    expr2 = Reference(symbol)
+                else:
+                    # We don't know what the lower bound is so have to
+                    # have an expression:
+                    #    idx-expr = array-lower-bound + loop-idx - 1
+                    expr = BinaryOperation.create(
+                        add_op, lbound, Reference(symbol))
+                    expr2 = BinaryOperation.create(sub_op, expr, one.copy())
+                array.children[idx] = expr2
+                range_idx += 1
 
     def _where_construct_handler(self, node, parent):
         '''
