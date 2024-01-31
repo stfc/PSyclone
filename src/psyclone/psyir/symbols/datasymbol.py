@@ -169,11 +169,11 @@ class DataSymbol(TypedSymbol):
         '''
         if (value and not (self.is_import or self.is_unresolved) and
                 self.initial_value is None):
-            # A Symbol of UnknownType could have initialisation within its
+            # A Symbol of UnsupportedType could have initialisation within its
             # original declaration.
             # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.symbols.datatypes import UnknownType
-            if not isinstance(self.datatype, UnknownType):
+            from psyclone.psyir.symbols.datatypes import UnsupportedType
+            if not isinstance(self.datatype, UnsupportedType):
                 raise ValueError(
                     f"DataSymbol '{self.name}' cannot be a constant because it"
                     f" does not have an initial value or an import or "
@@ -215,7 +215,7 @@ class DataSymbol(TypedSymbol):
         from psyclone.psyir.nodes import (Node, Literal, Operation, Reference,
                                           CodeBlock, IntrinsicCall)
         from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
-                                                      UnknownType)
+                                                      UnsupportedType)
 
         if new_value is not None:
             if self.is_argument:
@@ -224,11 +224,11 @@ class DataSymbol(TypedSymbol):
                     f"A DataSymbol with an ArgumentInterface can not have an "
                     f"initial value.")
             if not isinstance(self.datatype,
-                              (ScalarType, ArrayType, UnknownType)):
+                              (ScalarType, ArrayType, UnsupportedType)):
                 raise ValueError(
                     f"Error setting initial value for symbol '{self.name}'. "
                     f"A DataSymbol with an initial value must be a scalar or "
-                    f"an array or of UnknownType but found "
+                    f"an array or of UnsupportedType but found "
                     f"'{type(self.datatype).__name__}'.")
 
             if isinstance(new_value, Node):

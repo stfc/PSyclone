@@ -56,7 +56,7 @@ from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     generate_lfric_adjoint_harness)
 from psyclone.psyir import nodes
 from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, BOOLEAN_TYPE,
-                                    ArrayType, DataTypeSymbol, DeferredType,
+                                    ArrayType, DataTypeSymbol, UnresolvedType,
                                     INTEGER_TYPE, ContainerSymbol,
                                     ImportInterface, ScalarType, SymbolTable)
 
@@ -129,7 +129,7 @@ def test_compute_field_inner_products(fortran_writer, type_map):
                             symbol_type=ContainerSymbol)
     fld_type = table.new_symbol(type_map["field"]["type"],
                                 symbol_type=DataTypeSymbol,
-                                datatype=DeferredType(),
+                                datatype=UnresolvedType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
                             datatype=fld_type)
@@ -162,7 +162,7 @@ def test_compute_field_vector_inner_products(fortran_writer, type_map):
                             symbol_type=ContainerSymbol)
     fld_type = table.new_symbol(type_map["field"]["type"],
                                 symbol_type=DataTypeSymbol,
-                                datatype=DeferredType(),
+                                datatype=UnresolvedType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
                             datatype=ArrayType(fld_type, [3]))
@@ -196,7 +196,7 @@ def test_compute_field_inner_products_errors(type_map):
                             symbol_type=ContainerSymbol)
     fld_type = table.new_symbol(type_map["field"]["type"],
                                 symbol_type=DataTypeSymbol,
-                                datatype=DeferredType(),
+                                datatype=UnresolvedType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
                             datatype=ArrayType(fld_type, [3]))
@@ -228,7 +228,7 @@ def test_init_fields_random(type_map):
     '''Check that the _init_fields_random() routine works as expected.'''
     table = LFRicSymbolTable()
     fld_type = DataTypeSymbol(type_map["field"]["type"],
-                              datatype=DeferredType())
+                              datatype=UnresolvedType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=fld_type)
     fields = [fld1]
@@ -257,7 +257,7 @@ def test_init_fields_random_vector(type_map):
     idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
 
     fld_type = DataTypeSymbol(type_map["field"]["type"],
-                              datatype=DeferredType())
+                              datatype=UnresolvedType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=ArrayType(fld_type, [3]))
     fields = [fld1]
@@ -304,7 +304,7 @@ def test_init_operators_random(type_map):
     '''Check that the _init_operators_random() routine works as expected.'''
     table = LFRicSymbolTable()
     op_type = DataTypeSymbol(type_map["operator"]["type"],
-                             datatype=DeferredType())
+                             datatype=UnresolvedType())
     table.add(op_type)
     op1 = DataSymbol("op1", datatype=op_type)
     op2 = DataSymbol("op2", datatype=op_type)
