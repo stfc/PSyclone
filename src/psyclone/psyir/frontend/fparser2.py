@@ -2536,10 +2536,10 @@ class Fparser2Reader():
                         f"declarations not supported but found '{node}'")
 
             elif isinstance(node, Fortran2003.Namelist_Stmt):
-                # Place the declaration statement into a using an internal
-                # symbol name. In case that we need more details (e.g. to
-                # update symbol information), the following code loops over
-                # namelist and each symbol:
+                # Place the declaration statement into the symbol table using
+                # an internal symbol name. In case that we need more details
+                # (e.g. to update symbol information), the following code
+                # loops over namelist and each symbol:
                 # for namelist_object in node.children:
                 #    for symbol_name in namelist_object[1].items:
                 parent.symbol_table.new_symbol(
