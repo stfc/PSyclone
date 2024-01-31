@@ -491,7 +491,7 @@ def test_aref_get_full_range_unknown_size(extent):
 # _get_effective_shape
 
 
-def test_get_effective_shape(fortran_reader, fortran_writer):
+def test_get_effective_shape(fortran_reader):
     '''Tests for the _get_effective_shape() method.'''
     code = (
         "subroutine test()\n"
@@ -514,13 +514,11 @@ def test_get_effective_shape(fortran_reader, fortran_writer):
     shape = routine.children[1].lhs._get_effective_shape()
     assert len(shape) == 2
     assert isinstance(shape[0], BinaryOperation)
-    code = fortran_writer(shape[0])
     # An ArrayType does not store the number of elements, just lower and upper
     # bounds. Therefore, we end up recursively computing the no. of elements.
     # The answer is still "2" though!
-    assert code == "((3 - 2) / 1 + 1 - 1) / 1 + 1"
-    code = fortran_writer(shape[1])
-    assert code == "(5 - 2) / 1 + 1"
+    assert shape[0].debug_string() == "3 - 2 + 1 - 1 + 1"
+    assert shape[1].debug_string() == "5 - 2 + 1"
     # An indirect array slice can only be 1D.
     with pytest.raises(InternalError) as err:
         _ = routine.children[2].lhs._get_effective_shape()

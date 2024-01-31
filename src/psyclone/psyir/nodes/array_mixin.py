@@ -530,10 +530,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             is given by (stop - start)/step + 1.
 
             :param expr: the range for which to compute the number of elements.
-            :type expr: :py:class:`psyclone.psyir.nodes.Range` or \
+            :type expr: :py:class:`psyclone.psyir.nodes.Range` or
                 :py:class:`psyclone.psyir.symbols.ArrayType.ArrayBounds`
 
-            :returns: the PSyIR expression for the number of elements in the \
+            :returns: the PSyIR expression for the number of elements in the
                       supplied range.
             :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
@@ -561,11 +561,16 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             else:
                 extent = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                                 stop.copy(), start.copy())
-            div = BinaryOperation.create(BinaryOperation.Operator.DIV,
-                                         extent, step.copy())
-            plus = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                          div, Literal("1", INTEGER_TYPE))
-            return plus
+            if not (isinstance(step, Literal) and step.value == "1"):
+                result = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                                extent, step.copy())
+            else:
+                result = extent
+            if not isinstance(extent, IntrinsicCall):
+                return BinaryOperation.create(
+                    BinaryOperation.Operator.ADD,
+                    result, Literal("1", INTEGER_TYPE))
+            return result
 
         shape = []
         for idx_expr in self.indices:

@@ -507,6 +507,7 @@ def test_array_datatype():
     one = Literal("1", INTEGER_TYPE)
     two = Literal("2", INTEGER_TYPE)
     four = Literal("4", INTEGER_TYPE)
+    six = Literal("6", INTEGER_TYPE)
     # Reference to a single element of an array.
     aref = ArrayReference.create(test_sym, [one])
     assert aref.datatype == REAL_TYPE
@@ -524,7 +525,20 @@ def test_array_datatype():
     assert isinstance(upper, BinaryOperation)
     # The easiest way to check the expression is to use debug_string()
     code = upper.debug_string()
-    assert code == "(4 - 2) / 1 + 1"
+    assert code == "4 - 2 + 1"
+    # Reference to a non-contiguous 1D sub-array of a 2D array.
+    ucref = ArrayReference.create(test_sym2d, [two.copy(),
+                                               Range.create(two.copy(),
+                                                            six.copy(),
+                                                            two.copy())])
+    assert isinstance(ucref.datatype, ArrayType)
+    assert ucref.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert len(ucref.datatype.shape) == 1
+    # The sub-array will have a lower bound of one.
+    assert ucref.datatype.shape[0].lower == one
+    # Upper bound must be computed as (stop - start)/step + 1
+    upper = ucref.datatype.shape[0].upper
+    assert upper.debug_string() == "(6 - 2) / 2 + 1"
     # Reference to a single element of an array of structures.
     stype = DataTypeSymbol("grid_type", UnresolvedType())
     atype = ArrayType(stype, [10])
@@ -571,7 +585,7 @@ def test_array_datatype():
     assert isinstance(dtype5, ArrayType)
     assert isinstance(dtype5.intrinsic, UnresolvedType)
     assert dtype5.shape[0].lower.value == "1"
-    assert dtype5.shape[0].upper.debug_string() == "(4 - 2) / 1 + 1"
+    assert dtype5.shape[0].upper.debug_string() == "4 - 2 + 1"
 
 
 def test_array_create_colon(fortran_writer):

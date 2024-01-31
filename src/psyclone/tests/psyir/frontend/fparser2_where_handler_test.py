@@ -45,9 +45,9 @@ from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
-    Schedule, CodeBlock, Loop, ArrayReference, Assignment, Literal, Reference,
-    UnaryOperation, BinaryOperation, IfBlock, Call, Routine, Container, Range,
-    ArrayMember, StructureReference, IntrinsicCall)
+    Schedule, Call, CodeBlock, Loop, ArrayReference, Assignment, IfBlock,
+    IntrinsicCall, Literal, Reference, UnaryOperation, BinaryOperation,
+    Routine, Container, Range, ArrayMember)
 from psyclone.psyir.symbols import (
     DataSymbol, ArrayType, ScalarType, REAL_TYPE, INTEGER_TYPE,
     UnresolvedInterface)
@@ -330,8 +330,7 @@ def test_where_within_loop(fortran_reader):
     assert assign.lhs.indices[0].debug_string() == "widx1"
     assert assign.lhs.indices[1].debug_string() == "jl"
     assert where_loop.start_expr.value == "1"
-    assert (where_loop.stop_expr.debug_string() ==
-            "(UBOUND(var, dim=1) - LBOUND(var, dim=1)) / 1 + 1")
+    assert where_loop.stop_expr.debug_string() == "SIZE(var, dim=1)"
 
 
 @pytest.mark.usefixtures("parser")
@@ -352,14 +351,12 @@ def test_basic_where():
         assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     assert isinstance(loops[0].start_expr, Literal)
-    assert (loops[0].stop_expr.debug_string() ==
-            "(UBOUND(dry, dim=3) - LBOUND(dry, dim=3)) / 1 + 1")
+    assert loops[0].stop_expr.debug_string() == "SIZE(dry, dim=3)"
 
     ifblock = loops[2].loop_body[0]
     assert isinstance(ifblock, IfBlock)
     assert "was_where" in ifblock.annotations
-    assert (ifblock.condition.debug_string() ==
-            "dry(widx1,widx2,widx3)")
+    assert ifblock.condition.debug_string() == "dry(widx1,widx2,widx3)"
 
 
 @pytest.mark.usefixtures("parser")
@@ -689,9 +686,8 @@ def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     assert len(loops) == 2
-    assert isinstance(loops[1].stop_expr, BinaryOperation)
-    assert (loops[1].stop_expr.debug_string() ==
-            f"(UBOUND({size_arg}, dim=1) - LBOUND({size_arg}, dim=1)) / 1 + 1")
+    assert isinstance(loops[1].stop_expr, IntrinsicCall)
+    assert loops[1].stop_expr.debug_string() == f"SIZE({size_arg}, dim=1)"
     assert isinstance(loops[1].loop_body[0], IfBlock)
     # All Range nodes should have been replaced
     assert not loops[0].walk(Range)

@@ -347,7 +347,7 @@ class StructureReference(Reference):
                 else:
                     # No indices so it is an access to a whole array.
                     cursor_shape = cursor_type.shape
-                if cursor_shape and shape != cursor_shape:
+                if cursor_shape and len(shape) != len(cursor_shape):
                     # This ultimate access is an array but we've already
                     # encountered one or more slices earlier in the access
                     # expression.
