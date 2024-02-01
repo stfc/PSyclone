@@ -274,7 +274,7 @@ class LFRicStencils(LFRicCollection):
     def _declare_unique_max_branch_length_vars(self, parent):
         '''
         Declare all unique max branch length arguments as integers with intent
-        in and add the declaration as a child of the parent argument passed
+        'in' and add the declaration as a child of the parent argument passed
         in.
 
         :param parent: the node in the f2pygen AST to which to add the
@@ -318,7 +318,7 @@ class LFRicStencils(LFRicCollection):
                   invoke or kernel call.
         :rtype: list of str
 
-        :raises InternalError: if neither self._kernel or self._invoke are set.
+        :raises InternalError: if neither 'self._kernel' or 'self._invoke' are set.
 
         '''
         if self._invoke:
@@ -328,17 +328,17 @@ class LFRicStencils(LFRicCollection):
             names = [self.dofmap_size_symbol(self._symbol_table, arg).name
                      for arg in self._unique_extent_args]
         else:
-            raise InternalError("_unique_extent_vars: have neither Invoke "
-                                "or Kernel. Should be impossible.")
+            raise InternalError("LFRicStencils._unique_extent_vars: have neither "
+                                "Invoke or Kernel. Should be impossible.")
         return names
 
     def _declare_unique_extent_vars(self, parent):
         '''
-        Declare all unique extent arguments as integers with intent in and
+        Declare all unique extent arguments as integers with intent 'in' and
         add the declaration as a child of the parent argument passed
         in.
 
-        :param parent: the node in the f2pygen AST to which to add the \
+        :param parent: the node in the f2pygen AST to which to add the
                        declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
@@ -371,9 +371,10 @@ class LFRicStencils(LFRicCollection):
     @property
     def _unique_direction_vars(self):
         '''
-        :returns: a list of all the unique direction argument names in this \
+        :returns: a list of all the unique direction argument names in this
                   invoke call.
         :rtype: list of str
+        
         '''
         names = []
         for arg in self._unique_direction_args:
@@ -385,11 +386,11 @@ class LFRicStencils(LFRicCollection):
 
     def _declare_unique_direction_vars(self, parent):
         '''
-        Declare all unique direction arguments as integers with intent in
+        Declare all unique direction arguments as integers with intent 'in'
         and add the declaration as a child of the parent argument
         passed in.
 
-        :param parent: the node in the f2pygen AST to which to add the \
+        :param parent: the node in the f2pygen AST to which to add the
                        declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
@@ -405,9 +406,10 @@ class LFRicStencils(LFRicCollection):
     @property
     def unique_alg_vars(self):
         '''
-        :returns: list of the names of the extent and direction arguments \
+        :returns: list of the names of the extent and direction arguments
                   supplied to the PSy routine from the Algorithm layer.
         :rtype: list of str
+        
         '''
         return self._unique_extent_vars + self._unique_direction_vars
 
@@ -426,7 +428,7 @@ class LFRicStencils(LFRicCollection):
 
     def _stub_declarations(self, parent):
         '''
-        Declare all stencil-related quanitites for a Kernel stub.
+        Declares all stencil-related quanitites for a Kernel stub.
 
         :param parent: node in the f2pygen AST to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
@@ -446,6 +448,7 @@ class LFRicStencils(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises GenerationError: if an unsupported stencil type is encountered.
+        
         '''
         if not self._kern_args:
             return
@@ -648,5 +651,5 @@ class LFRicStencils(LFRicCollection):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for (See https://psyclone-ref.readthedocs.io).
 __all__ = ['LFRicStencils']
