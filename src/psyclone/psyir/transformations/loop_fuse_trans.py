@@ -149,20 +149,16 @@ class LoopFuseTrans(LoopTrans):
                 # If so, then for now we disallow this merge (though we could
                 # in theory allow using the unused one unless both use each
                 # others)
-                for signature in vars1:
-                    var_name = str(signature)
-                    if var_name == loop_var2.name:
-                        raise TransformationError(
-                            f"Error in {self.name} transformation. First "
-                            f"loop contains accesses to the second loop's "
-                            f"variable: {loop_var2.name}.")
-                for signature in vars2:
-                    var_name = str(signature)
-                    if var_name == loop_var1.name:
-                        raise TransformationError(
-                            f"Error in {self.name} transformation. Second "
-                            f"loop contains accesses to the first loop's "
-                            f"variable: {loop_var1.name}.")
+                if Signature(loop_var2.name) in vars1:
+                    raise TransformationError(
+                        f"Error in {self.name} transformation. First "
+                        f"loop contains accesses to the second loop's "
+                        f"variable: {loop_var2.name}.")
+                if Signature(loop_var1.name) in vars2:
+                    raise TransformationError(
+                        f"Error in {self.name} transformation. Second "
+                        f"loop contains accesses to the first loop's "
+                        f"variable: {loop_var1.name}.")
 
             # Get all variables that occur in both loops. A variable
             # that is only in one loop is not affected by fusion.
