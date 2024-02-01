@@ -516,66 +516,74 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     f"expression but found '{type(child).__name__}'")
         return self.children
 
+    def _extent(self, idx):
+        '''
+        Create PSyIR for the number of elements in dimension `idx` of this
+        array access. It is given by (stop - start)/step + 1 or, if it is for
+        the full range, by the SIZE intrinsic.
+
+        :param int idx: the array index for which to compute the number of
+                        elements.
+
+        :returns: the PSyIR expression for the number of elements in the
+                  specified array index.
+        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation` |
+                :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        :raises InternalError: if the supplied array index does not correspond
+                               to a range.
+        '''
+        expr = self.indices[idx]
+
+        if isinstance(expr, Range):
+            start = expr.start
+            stop = expr.stop
+            step = expr.step
+        elif isinstance(expr, ArrayType.ArrayBounds):
+            start = expr.lower
+            stop = expr.upper
+            step = Literal("1", INTEGER_TYPE)
+        else:
+            raise InternalError(
+                f"ArrayMixin._extent: array index {idx} of {self.name} is not "
+                f"a 'Range' or 'ArrayType.ArrayBounds'.")
+
+        if self.is_full_range(idx) and (isinstance(start, IntrinsicCall) and
+                                        isinstance(stop, IntrinsicCall)):
+            # Access is to full range but start and stop are expressed in terms
+            # of LBOUND and UBOUND. Therefore, it's simpler to use SIZE.
+            extent = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.SIZE,
+                [start.children[0].copy(),
+                 ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+        else:
+            extent = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                            stop.copy(), start.copy())
+        if not (isinstance(step, Literal) and step.value == "1"):
+            # Step is not unity so have to divide range by it.
+            result = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                            extent, step.copy())
+        else:
+            result = extent
+        if not isinstance(extent, IntrinsicCall):
+            # Extent is currently 'start - stop' so we have to add a '+ 1'
+            return BinaryOperation.create(
+                BinaryOperation.Operator.ADD,
+                result, Literal("1", INTEGER_TYPE))
+        return result
+
     def _get_effective_shape(self):
         '''
         :returns: the shape of the array access represented by this node.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.DataNode`]
+        :rtype: list[:py:class:`psyclone.psyir.nodes.DataNode`]
 
         :raises NotImplementedError: if any of the array-indices involve a
                                      function call or an expression.
         '''
-        def _num_elements(expr):
-            '''
-            Create PSyIR for the number of elements in this range. It
-            is given by (stop - start)/step + 1.
-
-            :param expr: the range for which to compute the number of elements.
-            :type expr: :py:class:`psyclone.psyir.nodes.Range` or
-                :py:class:`psyclone.psyir.symbols.ArrayType.ArrayBounds`
-
-            :returns: the PSyIR expression for the number of elements in the
-                      supplied range.
-            :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
-
-            '''
-            if isinstance(expr, Range):
-                start = expr.start
-                stop = expr.stop
-                step = expr.step
-            elif isinstance(expr, ArrayType.ArrayBounds):
-                start = expr.lower
-                stop = expr.upper
-                step = Literal("1", INTEGER_TYPE)
-            if (isinstance(start, IntrinsicCall) and
-                    start.intrinsic == IntrinsicCall.Intrinsic.LBOUND and
-                    isinstance(stop, IntrinsicCall) and
-                    stop.intrinsic == IntrinsicCall.Intrinsic.UBOUND and
-                    isinstance(start.children[0], Reference) and
-                    isinstance(stop.children[0], Reference) and
-                    start.children[0].symbol is stop.children[0].symbol and
-                    start.children[1] == stop.children[1]):
-                extent = IntrinsicCall.create(
-                    IntrinsicCall.Intrinsic.SIZE,
-                    [stop.children[0].copy(),
-                     ("dim", stop.children[1].copy())])
-            else:
-                extent = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                                stop.copy(), start.copy())
-            if not (isinstance(step, Literal) and step.value == "1"):
-                result = BinaryOperation.create(BinaryOperation.Operator.DIV,
-                                                extent, step.copy())
-            else:
-                result = extent
-            if not isinstance(extent, IntrinsicCall):
-                return BinaryOperation.create(
-                    BinaryOperation.Operator.ADD,
-                    result, Literal("1", INTEGER_TYPE))
-            return result
-
         shape = []
-        for idx_expr in self.indices:
+        for idx, idx_expr in enumerate(self.indices):
             if isinstance(idx_expr, Range):
-                shape.append(_num_elements(idx_expr))
+                shape.append(self._extent(idx))
 
             elif isinstance(idx_expr, Reference):
                 dtype = idx_expr.datatype
@@ -589,7 +597,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                             f"another array must be 1D but '{idx_expr.name}' "
                             f"used to index into '{self.name}' has "
                             f"{len(indirect_array_shape)} dimensions.")
-                    shape.append(_num_elements(dtype.shape[0]))
+                    shape.append(idx_expr._extent(idx))
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function
                 # call or Operation - TODO #1799.

@@ -517,7 +517,7 @@ def test_get_effective_shape(fortran_reader):
     # An ArrayType does not store the number of elements, just lower and upper
     # bounds. Therefore, we end up recursively computing the no. of elements.
     # The answer is still "2" though!
-    assert shape[0].debug_string() == "3 - 2 + 1 - 1 + 1"
+    assert shape[0].debug_string() == "3 - 2 + 1"
     assert shape[1].debug_string() == "5 - 2 + 1"
     # An indirect array slice can only be 1D.
     with pytest.raises(InternalError) as err:
