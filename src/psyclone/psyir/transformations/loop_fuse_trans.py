@@ -91,6 +91,8 @@ class LoopFuseTrans(LoopTrans):
         :raises TransformationError: if the two Loops don't share the same
                                      iteration variable, but make use of the
                                      other loop's variable in their body.
+        :raises TransformationError: if there are dependencies between the
+                                     loops that prevent the loop fusion.
         '''
         if not options:
             options = {}
@@ -185,16 +187,16 @@ class LoopFuseTrans(LoopTrans):
                 is_array = symbol.is_array_access(access_info=var_info1)
                 if not ignore_dep_analysis:
                     if not is_array:
-                        LoopFuseTrans.validate_written_scalar(var_info1,
-                                                              var_info2)
+                        type(self)._validate_written_scalar(var_info1,
+                                                            var_info2)
                     else:
-                        LoopFuseTrans.validate_written_array(var_info1,
-                                                             var_info2,
-                                                             loop_var1)
+                        type(self)._validate_written_array(var_info1,
+                                                           var_info2,
+                                                           loop_var1)
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def validate_written_scalar(var_info1, var_info2):
+    def _validate_written_scalar(var_info1, var_info2):
         '''Validates if the accesses to a scalar that is at least written once
         allows loop fusion. The accesses of the variable is contained in the
         two parameters (which also include the name of the variable).
@@ -226,7 +228,7 @@ class LoopFuseTrans(LoopTrans):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def validate_written_array(var_info1, var_info2, loop_variable):
+    def _validate_written_array(var_info1, var_info2, loop_variable):
         '''Validates if the accesses to an array, which is at least written
         once, allows loop fusion. The access pattern to this array is
         specified in the two parameters `var_info1` and `var_info2`.
