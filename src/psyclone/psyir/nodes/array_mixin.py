@@ -133,8 +133,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :type expr: :py:class:`psyclone.psyir.nodes.Node`
         :param bound_operator: the particular bound operation.
         :type bound_operator:
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.LBOUND |
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.UBOUND
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.LBOUND` |
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.UBOUND`
         :param int index: the bounds index.
 
         :returns: True if the expr is in the expected form and False otherwise.
@@ -597,6 +597,126 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             if isinstance(child, Range):
                 return child.position
         raise IndexError
+
+    def same_range(self, index: int, array2, index2: int) -> bool:
+        ''' This method compares the range of this array node at a given index
+        with the range of a second array at a second index. This is useful to
+        verify if array operations are valid, e.g.: A(3,:,5) + B(:,2,2).
+
+        Note that this check supports symbolic comparisons, e.g.:
+        A(3:4) has the same range as B(2+1:5-1),
+        and will consider compile-time unknown dimensions as equal, e.g.:
+        A(:) has the same range as B(:).
+
+        TODO #2485. This method has false negatives: cases when the range
+        is the same but it can not be proved, so we return False.
+
+        TODO #2004. This method currently compares exact ranges, not just the
+        length of them, which could be done with "(upper-lower)/step" symbolic
+        comparisons. This is because arrayrange2loop does not account for
+        arrays declared with different lbounds, but this could be improved.
+
+        :param index: the index indicating the location of a range node in
+            this array.
+        :param array2: the array accessor that we want to compare it to.
+        :param index2: the index indicating the location of a range node in
+            array2.
+
+        :returns: True if the ranges are the same and False if they are not
+            the same, or if it is not possible to determine.
+
+        :raises: TypeError if any of the arguments are of the wrong type.
+
+        '''
+        # pylint: disable=too-many-branches
+        if not isinstance(index, int):
+            raise TypeError(
+                f"The 'index' argument of the same_range() method should be an"
+                f" int but found '{type(index).__name__}'.")
+        if not isinstance(array2, ArrayMixin):
+            raise TypeError(
+                f"The 'array2' argument of the same_range() method should be "
+                f"an ArrayMixin but found '{type(array2).__name__}'.")
+        if not isinstance(index2, int):
+            raise TypeError(
+                f"The 'index2' argument of the same_range() method should be "
+                f"an int but found '{type(index2).__name__}'.")
+        if not index < len(self.children):
+            raise IndexError(
+                f"The value of the 'index' argument of the same_range() method"
+                f" is '{index}', but it should be less than the number of "
+                f"dimensions in the associated array, which is "
+                f"'{len(self.children)}'.")
+        if not index2 < len(array2.children):
+            raise IndexError(
+                f"The value of the 'index2' argument of the same_range() "
+                f"method is '{index2}', but it should be less than the number"
+                f" of dimensions in the associated array 'array2', which is "
+                f"'{len(array2.children)}'.")
+        if not isinstance(self.children[index], Range):
+            raise TypeError(
+                f"The child of the first array argument at the specified index"
+                f" '{index}' should be a Range node, but found "
+                f"'{type(self.children[index]).__name__}'.")
+        if not isinstance(array2.children[index2], Range):
+            raise TypeError(
+                f"The child of the second array argument at the specified "
+                f"index '{index2}' should be a Range node, but found "
+                f"'{type(array2.children[index2]).__name__}'.")
+
+        range1 = self.children[index]
+        range2 = array2.children[index2]
+
+        sym_maths = SymbolicMaths.get()
+        # compare lower bounds
+        if self.is_lower_bound(index) and array2.is_lower_bound(index2):
+            # Both self and array2 use the lbound() intrinsic to
+            # specify the lower bound of the array dimension. We may
+            # not be able to determine what the lower bounds of these
+            # arrays are statically but at runtime the code will fail
+            # if the ranges do not match so we assume that the lower
+            # bounds are consistent.
+            pass
+        elif self.is_lower_bound(index) or array2.is_lower_bound(index2):
+            # One and only one of self and array2 use the lbound()
+            # intrinsic to specify the lower bound of the array
+            # dimension. In this case assume that the ranges are
+            # different (although they could potentially be the same).
+            return False
+        elif not sym_maths.equal(range1.start, range2.start):
+            # Neither self nor array2 use the lbound() intrinsic to
+            # specify the lower bound of the array dimension. Try to
+            # determine if they are the same by matching the
+            # text. Use symbolic maths to do the comparison.
+            return False
+
+        # compare upper bounds
+        if self.is_upper_bound(index) and array2.is_upper_bound(index2):
+            # Both self and array2 use the ubound() intrinsic to
+            # specify the upper bound of the array dimension. We may
+            # not be able to determine what the upper bounds of these
+            # arrays are statically but at runtime the code will fail
+            # if the ranges do not match so we assume that the upper
+            # bounds are consistent.
+            pass
+        elif self.is_upper_bound(index) or array2.is_upper_bound(index2):
+            # One and only one of self and array2 use the ubound()
+            # intrinsic to specify the upper bound of the array
+            # dimension. In this case assume that the ranges are
+            # different (although they could potentially be the same).
+            return False
+        elif not sym_maths.equal(range1.stop, range2.stop):
+            # Neither self nor array2 use the ubound() intrinsic to
+            # specify the upper bound of the array dimension. Use
+            # symbolic maths to check if they are equal.
+            return False
+
+        # compare steps
+        if not sym_maths.equal(range1.step, range2.step):
+            return False
+
+        # Everything matches.
+        return True
 
 
 # For AutoAPI documentation generation

@@ -564,3 +564,132 @@ def test_get_outer_range_index_error():
     array = ArrayReference.create(symbol, [Literal("2", INTEGER_TYPE)])
     with pytest.raises(IndexError):
         _ = array.get_outer_range_index()
+
+
+def test_same_range_error(fortran_reader):
+    ''' Test that the same_range method produces the expected errors. '''
+
+    array1 = fortran_reader.psyir_from_statement("a(i) = 0").lhs
+    array2 = fortran_reader.psyir_from_statement("b(j) = 0").lhs
+
+    with pytest.raises(TypeError) as info:
+        array1.same_range(None, None, None)
+    assert ("The 'index' argument of the same_range() method should be an "
+            "int but found 'NoneType'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        array1.same_range(1, None, None)
+    assert ("The 'array2' argument of the same_range() method should be an "
+            "ArrayMixin but found 'NoneType'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        array1.same_range(1, array2, None)
+    assert ("The 'index2' argument of the same_range() method should be an "
+            "int but found 'NoneType'." in str(info.value))
+
+    with pytest.raises(IndexError) as info:
+        array1.same_range(1, array2, 2)
+    assert ("The value of the 'index' argument of the same_range() method "
+            "is '1', but it should be less than the number of dimensions "
+            "in the associated array, which is '1'." in str(info.value))
+
+    with pytest.raises(IndexError) as info:
+        array1.same_range(0, array2, 2)
+    assert ("The value of the 'index2' argument of the same_range() method "
+            "is '2', but it should be less than the number of dimensions in "
+            "the associated array 'array2', which is '1'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        array1.same_range(0, array2, 0)
+    assert ("The child of the first array argument at the specified index '0' "
+            "should be a Range node, but found 'Reference'" in str(info.value))
+
+    array1 = fortran_reader.psyir_from_statement("a(:) = 0").lhs
+
+    with pytest.raises(TypeError) as info:
+        array1.same_range(0, array2, 0)
+    assert ("The child of the second array argument at the specified index "
+            "'0' should be a Range node, but found 'Reference'"
+            in str(info.value))
+
+
+def test_same_range(fortran_reader):
+    '''Test that the same_range method produces the expected results. '''
+
+    array2 = fortran_reader.psyir_from_statement("b(:) = 0").lhs
+    array1 = fortran_reader.psyir_from_statement("a(:) = 0").lhs
+
+    # lower bounds both use lbound, upper bounds both use ubound and
+    # step is the same so everything matches.
+    assert array1.same_range(0, array2, 0) is True
+
+    # Check if steps are different
+    array2.children[0].step = Literal("2", INTEGER_TYPE)
+    assert array1.same_range(0, array2, 0) is False
+
+    # one of upper bounds uses ubound, other does not
+    array2 = fortran_reader.psyir_from_statement("b(:4) = 0").lhs
+    assert array1.same_range(0, array2, 0) is False
+
+    # both have an specific ubound and are different
+    array1 = fortran_reader.psyir_from_statement("a(:3) = 0").lhs
+    assert array1.same_range(0, array2, 0) is False
+
+    # one of lower bounds uses lbound, other does not
+    array2 = fortran_reader.psyir_from_statement("b(2:) = 0").lhs
+    assert array1.same_range(0, array2, 0) is False
+
+    # both have an specific lbound and are different
+    array1 = fortran_reader.psyir_from_statement("a(3:) = 0").lhs
+    assert array1.same_range(0, array2, 0) is False
+
+    # Both have lower and upper bound but are symbolically equal
+    array1 = fortran_reader.psyir_from_statement("a(3:5) = 0").lhs
+    array2 = fortran_reader.psyir_from_statement("a(2+1:6-1) = 0").lhs
+    assert array1.same_range(0, array2, 0) is True
+
+    # One uses bound and the other does not, but the compile time known
+    # shape is the same
+    code = '''
+    subroutine test()
+        real, dimension(4, 5-1, 2:5) :: A
+        real, dimension(4,   4,   4) :: B
+        A(:,:,:) = B(1:4,1:4, 1:4)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    array1, array2 = psyir.walk(Assignment)[0].children
+    assert array1.same_range(0, array2, 0) is True
+    assert array1.same_range(1, array2, 1) is True
+    assert array1.same_range(2, array2, 2) is True
+
+    # The asserts below are incorrect
+    pytest.xfail("issue #2485: same_range still has problems")
+
+    # Full-ranges but the compile time known shape is not the same
+    code = '''
+    subroutine test()
+        real, dimension(4, 5-1, 2:5) :: A
+        real, dimension(5,   5,   5) :: B
+        A(:,:,:) = B(:,:,:)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    array1, array2 = psyir.walk(Assignment)[0].children
+    assert array1.same_range(0, array2, 0) is False
+    assert array1.same_range(1, array2, 1) is False
+    assert array1.same_range(2, array2, 2) is False
+
+    # Same range length, but shifted
+    code = '''
+    subroutine test()
+        real, dimension(4, 5-1, 2:5) :: A
+        real, dimension(5,   5,   5) :: B
+        A(2:4,2:4,2:4) = B(3:5,3:5,3:5)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    array1, array2 = psyir.walk(Assignment)[0].children
+    assert array1.same_range(0, array2, 0) is True
+    assert array1.same_range(1, array2, 1) is True
+    assert array1.same_range(2, array2, 2) is True
