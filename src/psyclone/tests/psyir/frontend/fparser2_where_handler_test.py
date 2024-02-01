@@ -449,7 +449,7 @@ def test_where_mask_is_slice(fortran_reader, fortran_writer):
       use some_mod
       WHERE( picefr(2:4,jstart:jstop) > 1.e-10 )
         zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) / picefr(:,:)
-      ELSEWHERE
+      ELSEWHERE ( picefr(1:3,jstart:jstop) > 4.e-10)
         zevap_ice(:,:,1) = 0.0
       END WHERE
     end program my_sub
@@ -464,6 +464,9 @@ def test_where_mask_is_slice(fortran_reader, fortran_writer):
     assert "if (picefr(2 + widx1 - 1,jstart + widx2 - 1) > 1.e-10)" in out
     assert ("zevap_ice(LBOUND(zevap_ice, dim=1) + widx1 - 1,"
             "LBOUND(zevap_ice, dim=2) + widx2 - 1,1) = 0.0" in out)
+    # If the lower bound of the slice is unity then we can use the loop
+    # index directly.
+    assert "if (picefr(widx1,jstart + widx2 - 1) > 4.e-10)" in out
 
 
 def test_where_body_containing_sum_with_dim(fortran_reader, fortran_writer):
