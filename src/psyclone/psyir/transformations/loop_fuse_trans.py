@@ -40,7 +40,8 @@
 class for all API-specific loop fusion transformations.
 '''
 
-from psyclone.core import AccessType, SymbolicMaths, VariablesAccessInfo
+from psyclone.core import AccessType, SymbolicMaths, VariablesAccessInfo, \
+    Signature
 from psyclone.psyir.tools import DependencyTools
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir.nodes import Reference
