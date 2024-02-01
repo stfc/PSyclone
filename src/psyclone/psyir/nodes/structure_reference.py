@@ -46,8 +46,8 @@ from psyclone.psyir.nodes.array_of_structures_member import (
     ArrayOfStructuresMember)
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
-                                    DataTypeSymbol, DeferredType, ScalarType,
-                                    StructureType, UnknownType)
+                                    DataTypeSymbol, UnresolvedType, ScalarType,
+                                    StructureType, UnsupportedType)
 from psyclone.errors import InternalError
 
 
@@ -174,7 +174,7 @@ class StructureReference(Reference):
 
         '''
         if not isinstance(symbol_type, (StructureType, DataTypeSymbol,
-                                        DeferredType, UnknownType)):
+                                        UnresolvedType, UnsupportedType)):
             raise TypeError(
                 f"A StructureReference must refer to a symbol that is (or "
                 f"could be) a structure, however symbol '{symbol.name}' has "
@@ -300,10 +300,10 @@ class StructureReference(Reference):
         if isinstance(dtype, DataTypeSymbol):
             dtype = dtype.datatype
 
-        if isinstance(dtype, (DeferredType, UnknownType)):
+        if isinstance(dtype, (UnresolvedType, UnsupportedType)):
             # We don't know the type of the symbol that defines the type
             # of this structure.
-            return DeferredType()
+            return UnresolvedType()
 
         # We do have the definition of this structure - walk down it.
         cursor = self
@@ -326,8 +326,8 @@ class StructureReference(Reference):
             if isinstance(cursor_type, DataTypeSymbol):
                 cursor_type = cursor_type.datatype
             cursor_type = cursor_type.components[cursor.name].datatype
-            if isinstance(cursor_type, (UnknownType, DeferredType)):
-                return DeferredType()
+            if isinstance(cursor_type, (UnsupportedType, UnresolvedType)):
+                return UnresolvedType()
             if isinstance(cursor, ArrayMixin):
                 # pylint: disable=protected-access
                 shape.extend(cursor._get_effective_shape())

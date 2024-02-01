@@ -75,7 +75,7 @@ from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
+from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
 
 # pylint: disable=too-many-lines
 # pylint: disable=too-many-instance-attributes
@@ -698,13 +698,13 @@ class LFRicKernelMetadata(CommonMetadata):
 
         datatype = symbol.datatype
 
-        if not isinstance(datatype, UnknownFortranType):
+        if not isinstance(datatype, UnsupportedFortranType):
             raise InternalError(
                 f"Expected kernel metadata to be stored in the PSyIR as "
-                f"an UnknownFortranType, but found "
+                f"an UnsupportedFortranType, but found "
                 f"{type(datatype).__name__}.")
 
-        # In an UnknownFortranType, the declaration is stored as a
+        # In an UnsupportedFortranType, the declaration is stored as a
         # string, so use create_from_fortran_string()
         return LFRicKernelMetadata.create_from_fortran_string(
             datatype.declaration)
@@ -789,7 +789,7 @@ class LFRicKernelMetadata(CommonMetadata):
 
         '''
         return DataTypeSymbol(
-            str(self.name), UnknownFortranType(self.fortran_string()))
+            str(self.name), UnsupportedFortranType(self.fortran_string()))
 
     @staticmethod
     def _get_procedure_name(spec_part):

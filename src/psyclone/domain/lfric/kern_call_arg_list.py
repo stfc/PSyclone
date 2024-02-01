@@ -52,7 +52,7 @@ from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, DeferredType,
+    DataSymbol, DataTypeSymbol, UnresolvedType,
     ContainerSymbol, ImportInterface, ScalarType)
 
 # psyir has classes created at runtime
@@ -123,7 +123,7 @@ class KernCallArgList(ArgOrdering):
         user_type_symbol = mod_sym_tab.find_or_create(
             user_type,
             symbol_type=DataTypeSymbol,
-            datatype=DeferredType(),
+            datatype=UnresolvedType(),
             interface=ImportInterface(module))
         # Declare the actual user symbol in the local symbol table, using
         # the datatype from the root table:
