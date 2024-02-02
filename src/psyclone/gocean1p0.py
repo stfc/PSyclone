@@ -1193,8 +1193,13 @@ class GOKern(CodedKern):
                     # In case of an array for now add an arbitrary array
                     # reference to (i,j) so it is properly recognised as
                     # an array access.
+                    sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
+                    symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
+                    symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
+                    i_expr = GOKern._create_psyir_for_access(symbol_i, 0, 0)
+                    j_expr = GOKern._create_psyir_for_access(symbol_j, 0, 0)
                     var_accesses.add_access(signature, arg.access,
-                                            self, ["i", "j"])
+                                            self, [i_expr, j_expr])
         super().reference_accesses(var_accesses)
         var_accesses.next_location()
 

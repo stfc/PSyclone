@@ -52,6 +52,7 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern, GOKernelSchedule
+from psyclone.psyir.nodes import Reference
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import get_invoke
@@ -191,6 +192,19 @@ def test_gok_access_info_scalar_and_property():
     assert (str(vai) == "p_fld: READWRITE, "
             "p_fld%grid%subdomain%internal%xstop: READ, "
             "p_fld%grid%tmask: READ")
+
+    # Check that the derived type using tmask has the corresponding component
+    # indices specified. No indices for p_fld and grid:
+    tmask = vai[Signature("p_fld%grid%tmask")]
+    comp_ind = tmask[0].component_indices
+    assert comp_ind[0] == []
+    assert comp_ind[1] == []
+
+    # And it should have PSyIR expressions for (i,j) as the last component:
+    assert isinstance(comp_ind[2][0], Reference)
+    assert isinstance(comp_ind[2][1], Reference)
+    assert comp_ind[2][0].symbol.name == "i"
+    assert comp_ind[2][1].symbol.name == "j"
 
 
 # -----------------------------------------------------------------------------
