@@ -41,3 +41,102 @@ import pytest
 from fparser.two import Fortran2003
 
 from psyclone.domain.lfric.kernel import ArrayArgMetadata
+
+
+@pytest.mark.parametrize("datatype, access, array_ndims", [
+    ("GH_REAL", "GH_READ", "1"), ("gh_real", "gh_read", "1")])
+def test_create(datatype, access, array_ndims):
+    '''Test that an instance of ArrayArgMetadata can be created
+    successfully. Also test that the arguments are case insensitive.
+
+    '''
+    array_arg = ArrayArgMetadata(datatype, access, array_ndims)
+    assert isinstance(array_arg, ArrayArgMetadata)
+    assert array_arg.form == "gh_array"
+    assert array_arg._datatype == "gh_real"
+    assert array_arg._access == "gh_read"
+    assert array_arg._array_ndims == "1"
+
+
+def test_init_invalid_an():
+    '''Test that an invalid array_size supplied to the constructor
+    raises the expected exception.
+
+    '''
+    with pytest.raises(TypeError) as info:
+        _ = ArrayArgMetadata("GH_REAL", "GH_READ", None)
+    assert ("The 'array_size' value should be of type str, but found "
+            "'NoneType'." in str(info.value))
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [("arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*2)")])
+def test_get_metadata(metadata):
+    '''Test that the _get_metadata class method works as expected
+
+    '''
+    fparser2_tree = ArrayArgMetadata.create_fparser2(
+        metadata, Fortran2003.Part_Ref)
+    datatype, access, array_ndims  = ArrayArgMetadata._get_metadata(
+        fparser2_tree)
+    assert datatype == "GH_REAL"
+    assert access == "GH_READ"
+    assert array_ndims == "2"
+
+
+@pytest.mark.parametrize("fortran_string", [
+    "arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*5)"])
+def test_fortran_string(fortran_string):
+    '''Test that the fortran_string method works as expected. Test with
+    and without a stencil.
+
+    '''
+    array_arg = ArrayArgMetadata.create_from_fortran_string(fortran_string)
+    result = array_arg.fortran_string()
+    assert result == fortran_string.lower()
+
+
+def test_check_datatype():
+    '''Test the check_datatype method works as expected.''' #expand to test gh_integer and gh_logical
+    ArrayArgMetadata.check_datatype("GH_REAL")
+    with pytest.raises(ValueError) as info:
+        ArrayArgMetadata.check_datatype("invalid")
+    assert ("The 'datatype descriptor' metadata should be a recognised value "
+            "(one of ['gh_real', 'gh_integer', 'gh_logical']) but found "
+            "'invalid'." in str(info.value))
+
+
+def test_check_access():
+    '''Test the check_access method works as expected.'''
+    ArrayArgMetadata.check_access("GH_READ")
+    with pytest.raises(ValueError) as info:
+        ArrayArgMetadata.check_access("invalid")
+    assert ("The 'access descriptor' metadata should be a recognised value "
+            "(one of ['gh_read']) but found 'invalid'." in str(info.value))
+
+
+# def test_function_space_setter_getter():
+#     '''Test that the function space setter and getter work as expected,
+#     including raising an exception if the value is invalid.
+
+#     '''
+#     array_arg = ArrayArgMetadata("GH_REAL", "GH_READ", "W0")
+#     with pytest.raises(ValueError) as info:
+#         array_arg.function_space = "invalid"
+#     assert ("The 'function space' metadata should be a recognised value (one "
+#             "of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
+#             "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
+#             "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
+#             "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
+#             "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "
+#             "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
+#             "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
+#             "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
+#             "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
+#             "'any_discontinuous_space_10']) but found 'invalid'."
+#             in str(info.value))
+#     array_arg.function_space = "w3"
+#     assert array_arg.function_space == "w3"
+#     array_arg.function_space = "W3"
+#     assert array_arg.function_space == "w3"

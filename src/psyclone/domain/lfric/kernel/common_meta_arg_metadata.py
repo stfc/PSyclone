@@ -61,6 +61,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
     datatype_arg_index = 1
     access_arg_index = 2
     function_space_arg_index = 3
+    array_size_arg_index = 3
     form = ""
     check_name = ""
     nargs = 1
@@ -199,6 +200,39 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
                 f"'form*vector_length' but found '{vector_datatype}'.")
         vector_length = components[1].strip()
         return vector_length
+
+    @classmethod
+    def get_array_ndims(cls, fparser2_tree):
+        '''Retrieves the array ndims metadata value found within the
+        supplied fparser2 tree and checks that it is valid.
+
+        :param fparser2_tree: fparser2 tree capturing the required metadata.
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
+
+        :returns: the array ndims value extracted from the fparser2 tree.
+        :rtype: str
+
+        :raises TypeError: if the array ndims metadata is not in the \
+            expected form.
+
+        '''
+        array_datatype = CommonArgMetadata.get_arg(
+            fparser2_tree, cls.array_size_arg_index)
+        components = array_datatype.split("*")
+        print(components)
+        if len(components) != 2:
+            raise TypeError(
+                f"The array size metadata should be in the form "
+                f"'keyword*array_ndims' but found '{array_datatype}'.")
+        if components[0].lower().strip() != "NRANKS".lower():
+            raise ParseError(
+                f"In the LFRic API, the 4th argument of a 'meta_arg' "
+                f"entry must use 'NRANKS' as the keyword in the format "
+                f"'NRANKS*n' if the 1st argument is 'GH_ARRAY', but "
+                f"found '{components[0]}' as the keyword "
+                f"in '{arg_type}'.")
+        array_ndims = components[1].strip()
+        return array_ndims
 
     @property
     def datatype(self):

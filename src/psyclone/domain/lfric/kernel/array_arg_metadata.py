@@ -48,7 +48,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
     argument.
 
     :param str datatype: the datatype of this array (GH_INTEGER, ...).
-    :param str access: the way the kernel accesses this array (GH_WRITE, ...).
+    :param str access: the way the kernel accesses this array (GH_READ).
     :param str function_space: the function space that this array is \
         on (W0, ...).
 
@@ -69,9 +69,10 @@ class ArrayArgMetadata(ScalarArgMetadata):
     # max values).
     nargs = (4)
 
-    def __init__(self, datatype, access, array_size):
-        super().__init__(datatype, access)                  #SHARKS (needs test coverage)
-        self.array_size = array_size                    #SHARKS (needs test coverage)
+    def __init__(self, datatype, access, array_ndims): #the information that is given
+        super().__init__(datatype, access)              #SHARKS (needs test coverage)
+     #   self.array_size = array_size                    #SHARKS (needs test coverage)
+        self.array_ndims = array_ndims
 
     @classmethod
     def _get_metadata(cls, fparser2_tree):
@@ -91,8 +92,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
 
         '''
         datatype, access = super()._get_metadata(fparser2_tree)
-        array_size = cls.get_array_dimension(fparser2_tree)
-        return (datatype, access, array_size)
+        array_ndims = cls.get_array_ndims(fparser2_tree)
+        return (datatype, access, array_ndims)
 
     def fortran_string(self):
         '''
@@ -100,7 +101,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :rtype: str
         '''
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "    #SHARKS (needs test coverage)
-                f"{self.array_size})")
+                f"{self.array_ndims})") # how to check for full NRANKS*n here?
 
     @staticmethod
     def check_datatype(value):
@@ -130,7 +131,49 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :returns: the array size for this array argument.
         :rtype: str
         '''
-        return self.array_size                                             #SHARKS (needs test coverage)
+        return self._array_size                                             #SHARKS (needs test coverage)
+
+    @array_size.setter
+    def array_size(self, value):
+        '''
+        :param str value: set the function space to the \
+            specified value.
+        '''
+        #const = LFRicConstants()
+        #FieldArgMetadata.validate_scalar_value(
+        #    value, const.VALID_FUNCTION_SPACE_NAMES, "function space")
+        #self._array_ndims = cls.get_array_ndims(fparser2_tree)
+        self._array_size = value.lower()
+
+    @property
+    def array_ndims(self):
+        '''
+        :returns: the array size for this array argument.
+        :rtype: str
+        '''
+        return self._array_ndims                                             #SHARKS (needs test coverage)
+    
+    @array_ndims.setter
+    def array_ndims(self, value):
+        '''
+        :param str value: set the function space to the \
+            specified value.
+        '''
+        if not isinstance(value, str):
+            raise TypeError(f"The 'array_size' value should be of type str, "
+                            f"but found '{type(value).__name__}'.")
+        try:
+            int_value = int(value)
+        except ValueError as info:
+            raise ValueError(
+                f"The array size should be a string containing an integer, "
+                f"but found '{value}'.") from info
+
+        if int_value < 1:
+            raise ValueError(f"The array size should be an integer greater "
+                             f"than or equal to 1 but found {value}.")
+#        self._array_size = value.lower()
+        self._array_ndims = value
 
 
 __all__ = ["ArrayArgMetadata"]
