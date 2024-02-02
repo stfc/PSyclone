@@ -496,7 +496,9 @@ def test_arraymixin_extent(fortran_reader):
     asym = DataSymbol("array", atype)
     # Access to single array element just has extent of 1.
     ref = ArrayReference.create(asym, [Literal("1", INTEGER_TYPE)])
-    ref._extent(0).value == "1"
+    assert ref._extent(0).value == "1"
+    ref2 = ArrayReference.create(asym, [ref.get_full_range(0)])
+    assert ref2._extent(0).debug_string() == "10"
 
 # _get_effective_shape
 
@@ -526,7 +528,8 @@ def test_get_effective_shape(fortran_reader):
     child_idx = 0
     shape = routine.children[child_idx].lhs._get_effective_shape()
     assert len(shape) == 1
-    assert isinstance(shape[0], BinaryOperation)
+    assert isinstance(shape[0], Literal)
+    assert shape[0].value == "10"
     # Array slice with non-unit step.
     child_idx += 1
     shape = routine.children[child_idx].lhs._get_effective_shape()

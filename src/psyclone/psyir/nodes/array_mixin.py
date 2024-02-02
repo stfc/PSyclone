@@ -531,41 +531,42 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         '''
         expr = self.indices[idx]
+        one = Literal("1", INTEGER_TYPE)
 
         if isinstance(expr, Range):
             start = expr.start
             stop = expr.stop
             step = expr.step
-        #elif isinstance(expr, ArrayType.ArrayBounds):
-        #    start = expr.lower
-        #    stop = expr.upper
-        #    step = Literal("1", INTEGER_TYPE)
         else:
-            return Literal("1", INTEGER_TYPE)
+            # No range so just a single element is accessed.
+            return one
 
         if (isinstance(start, IntrinsicCall) and
                 isinstance(stop, IntrinsicCall) and self.is_full_range(idx)):
-            # Access is to full range but start and stop are expressed in terms
+            # Access is to full range and start and stop are expressed in terms
             # of LBOUND and UBOUND. Therefore, it's simpler to use SIZE.
-            extent = IntrinsicCall.create(
+            return IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.SIZE,
                 [start.children[0].copy(),
                  ("dim", Literal(str(idx+1), INTEGER_TYPE))])
-        else:
-            extent = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                            stop.copy(), start.copy())
-        if not (isinstance(step, Literal) and step.value == "1"):
+
+        if start == one and step == one:
+            # The range starts at 1 and the step is 1 so the extent is just
+            # the upper bound.
+            return stop.copy()
+
+        extent = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                        stop.copy(), start.copy())
+        if step != one:
             # Step is not unity so have to divide range by it.
             result = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                             extent, step.copy())
         else:
             result = extent
-        if not isinstance(extent, IntrinsicCall):
-            # Extent is currently 'start - stop' so we have to add a '+ 1'
-            return BinaryOperation.create(
-                BinaryOperation.Operator.ADD,
-                result, Literal("1", INTEGER_TYPE))
-        return result
+        # Extent is currently 'stop-start' or '(stop-start)/step' so we have
+        # to add a '+ 1'
+        return BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                      result, one.copy())
 
     def _get_effective_shape(self):
         '''
@@ -592,7 +593,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                             f"another array must be 1D but '{idx_expr.name}' "
                             f"used to index into '{self.name}' has "
                             f"{len(indirect_array_shape)} dimensions.")
+                    # pylint: disable=protected-access
                     shape.append(idx_expr._extent(idx))
+
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function
                 # call or Operation - TODO #1799.
