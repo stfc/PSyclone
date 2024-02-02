@@ -87,7 +87,7 @@ class ArrayReference(ArrayMixin, Reference):
                 f"indices argument in create method of ArrayReference class "
                 f"should be a list but found '{type(indices).__name__}'.")
         if not symbol.is_array:
-            # Deferred and Unsupported types may still be arrays
+            # Unresolved and Unsupported types may still be arrays
             if not isinstance(symbol.datatype, (UnresolvedType,
                                                 UnsupportedType)):
                 raise GenerationError(

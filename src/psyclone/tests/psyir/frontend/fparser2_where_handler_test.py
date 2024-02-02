@@ -45,9 +45,9 @@ from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
-    Schedule, Call, CodeBlock, Loop, ArrayReference, Assignment, IfBlock,
-    IntrinsicCall, Literal, Reference, UnaryOperation, BinaryOperation,
-    Routine, Container, Range, ArrayMember)
+    ArrayMember, ArrayReference, Assignment, BinaryOperation, Call, CodeBlock,
+    Container, IfBlock, IntrinsicCall, Literal, Loop, Range, Routine, Schedule,
+    UnaryOperation)
 from psyclone.psyir.symbols import (
     DataSymbol, ArrayType, ScalarType, REAL_TYPE, INTEGER_TYPE,
     UnresolvedInterface)
@@ -399,7 +399,7 @@ def test_where_mask_starting_value(fortran_reader, fortran_writer):
 
     # TODO #949 - we can't currently take advantage of any knowledge of the
     # declared lower bounds of arrays because the fparser2 frontend doesn't yet
-    # capture this information (we get an UnknownFortranType).
+    # capture this information (we get an UnsupportedFortranType).
     '''
     code = '''\
     program my_sub
