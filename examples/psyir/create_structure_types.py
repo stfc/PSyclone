@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
     ImportInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
-    DeferredType, Symbol, DataTypeSymbol
+    UnresolvedType, Symbol, DataTypeSymbol
 from psyclone.psyir.backend.fortran import FortranWriter
 
 
@@ -76,7 +76,7 @@ SYMBOL_TABLE = SymbolTable()
 CONT = ContainerSymbol("kernel_mod")
 SYMBOL_TABLE.add(CONT)
 
-DTYPE_SYMBOL = DataTypeSymbol("other_type", DeferredType(),
+DTYPE_SYMBOL = DataTypeSymbol("other_type", UnresolvedType(),
                               interface=ImportInterface(CONT))
 SYMBOL_TABLE.add(DTYPE_SYMBOL)
 

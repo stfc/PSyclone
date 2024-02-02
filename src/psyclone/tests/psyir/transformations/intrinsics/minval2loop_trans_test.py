@@ -67,7 +67,7 @@ def test_init_var():
     '''Test that the _init_var method works as expected.'''
     trans = Minval2LoopTrans()
     var_symbol = DataSymbol("var", REAL_TYPE)
-    result = trans._init_var(var_symbol)
+    result = trans._init_var(Reference(var_symbol))
     # As 'huge' is not yet part of an expression, the 'debug_string()'
     # method incorrectly assumes it is a call.
     assert result.debug_string() == "call HUGE(var)\n"

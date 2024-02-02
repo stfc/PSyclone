@@ -290,7 +290,7 @@ def test_fw_routine_flatten_tables(fortran_reader, fortran_writer):
     # Add an import to this symbol table that will clash with symbols already
     # declared in the routine table.
     csym = symbols.ContainerSymbol("the_clash")
-    ssym = symbols.DataSymbol("strummer", datatype=symbols.DeferredType(),
+    ssym = symbols.DataSymbol("strummer", datatype=symbols.UnresolvedType(),
                               interface=symbols.ImportInterface(csym))
     # Add a variable to this table that will clash with a Container symbol
     # in the routine table.
