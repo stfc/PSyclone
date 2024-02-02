@@ -54,7 +54,8 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_parallel = OMPParallelLoopTrans()
+    omp_parallel = OMPParallelLoopTrans(omp_schedule="static")
+    omp_parallel.omp_schedule = "dynamic"
     inline = KernelModuleInlineTrans()
 
     invoke = psy.invokes.get("invoke_compute")
