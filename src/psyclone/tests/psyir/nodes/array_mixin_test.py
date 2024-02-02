@@ -488,6 +488,16 @@ def test_aref_get_full_range_unknown_size(extent):
             "less than the number of dimensions '2'." in str(excinfo.value))
 
 
+# _extent
+
+def test_arraymixin_extent(fortran_reader):
+    '''Tests for the _extent() method.'''
+    atype = ArrayType(INTEGER_TYPE, [10])
+    asym = DataSymbol("array", atype)
+    # Access to single array element just has extent of 1.
+    ref = ArrayReference.create(asym, [Literal("1", INTEGER_TYPE)])
+    ref._extent(0).value == "1"
+
 # _get_effective_shape
 
 

@@ -529,9 +529,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                   specified array index.
         :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation` |
                 :py:class:`psyclone.psyir.nodes.IntrinsicCall`
-
-        :raises InternalError: if the supplied array index does not correspond
-                               to a range.
         '''
         expr = self.indices[idx]
 
@@ -539,17 +536,15 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             start = expr.start
             stop = expr.stop
             step = expr.step
-        elif isinstance(expr, ArrayType.ArrayBounds):
-            start = expr.lower
-            stop = expr.upper
-            step = Literal("1", INTEGER_TYPE)
+        #elif isinstance(expr, ArrayType.ArrayBounds):
+        #    start = expr.lower
+        #    stop = expr.upper
+        #    step = Literal("1", INTEGER_TYPE)
         else:
-            raise InternalError(
-                f"ArrayMixin._extent: array index {idx} of {self.name} is not "
-                f"a 'Range' or 'ArrayType.ArrayBounds'.")
+            return Literal("1", INTEGER_TYPE)
 
-        if self.is_full_range(idx) and (isinstance(start, IntrinsicCall) and
-                                        isinstance(stop, IntrinsicCall)):
+        if (isinstance(start, IntrinsicCall) and
+                isinstance(stop, IntrinsicCall) and self.is_full_range(idx)):
             # Access is to full range but start and stop are expressed in terms
             # of LBOUND and UBOUND. Therefore, it's simpler to use SIZE.
             extent = IntrinsicCall.create(
