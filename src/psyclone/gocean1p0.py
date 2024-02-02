@@ -71,7 +71,8 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Literal, Schedule, KernelSchedule, StructureReference, IntrinsicCall,
     Reference, Call, Assignment, ACCEnterDataDirective, ACCParallelDirective,
-    ACCKernelsDirective, Container, ACCUpdateDirective, Routine)
+    ACCKernelsDirective, Container, ACCUpdateDirective, Routine,
+    BinaryOperation)
 from psyclone.psyir.symbols import (
     ScalarType, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
     UnresolvedType, DataTypeSymbol, UnresolvedInterface, BOOLEAN_TYPE,
@@ -1092,27 +1093,34 @@ class GOKern(CodedKern):
         self._index_offset = call.ktype.index_offset
 
     @staticmethod
-    def _format_access(var_name, var_value, depth):
-        '''This function creates an index-expression: if the value is
-        negative, it returns 'varname-depth', if the value is positive,
-        it returns 'varname+depth', otherwise it just returns 'varname'.
+    def _create_psyir_for_access(symbol, var_value, depth):
+        '''This function creates the PSyIR of an index-expression:
+        - if `var_value` is negative, it returns 'symbol-depth'.
+        - if `var_value` is positive, it returns 'symbol+depth`
+        - otherwise it just returns a Reference to `symbol`.
         This is used to create artificial stencil accesses for GOKernels.
-        TODO #845: Return a proper PSyIR expression instead of a string.
 
-        :param str var_name: name of the variable.
+        :param symbol: the symbol to use.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param int var_value: value of the variable, which determines the \
             direction (adding or subtracting depth).
         :param int depth: the depth of the access (>0).
 
         :returns: the index expression for an access in the given direction.
-        :rtype: str
+        :rtype: union[:py:class:`psyclone.psyir.nodes.Reference`,
+                      :py:class:`psyclone.psyir.nodes.BinaryOperation`]
 
         '''
-        if var_value < 0:
-            return var_name + str(-depth)
+        if var_value == 0:
+            return Reference(symbol)
         if var_value > 0:
-            return var_name + "+" + str(depth)
-        return var_name
+            operator = BinaryOperation.Operator.ADD
+        else:
+            operator = BinaryOperation.Operator.SUB
+
+        return BinaryOperation.create(operator,
+                                      Reference(symbol),
+                                      Literal(str(depth), INTEGER_TYPE))
 
     def _record_stencil_accesses(self, signature, arg, var_accesses):
         '''This function adds accesses to a field depending on the
@@ -1129,15 +1137,22 @@ class GOKern(CodedKern):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
+        symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
+        symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
         # Query each possible stencil direction and add a corresponding
-        # variable accesses. Note that if (i,j) is accessed, the depth
-        # returned will be 1, so one access to (i,j) is added.
+        # variable accesses. Note that if (i,j) itself is accessed, the
+        # depth will be 1, so one access to (i,j) is then added.
         for j in [-1, 0, 1]:
             for i in [-1, 0, 1]:
                 depth = arg.stencil.depth(i, j)
                 for current_depth in range(1, depth+1):
-                    i_expr = GOKern._format_access("i", i, current_depth)
-                    j_expr = GOKern._format_access("j", j, current_depth)
+                    # Create PSyIR expressions for the required
+                    # i+/- and j+/- expressions
+                    i_expr = GOKern._create_psyir_for_access(symbol_i, i,
+                                                             current_depth)
+                    j_expr = GOKern._create_psyir_for_access(symbol_j, j,
+                                                             current_depth)
                     var_accesses.add_access(signature, arg.access,
                                             self, [i_expr, j_expr])
 
