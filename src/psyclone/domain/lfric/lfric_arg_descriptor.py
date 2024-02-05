@@ -325,7 +325,6 @@ class LFRicArgDescriptor(Descriptor):
                 f"'{arg_type}'.") from err
 
         # ... or it is less than 1 (1 is the default for all fields)...
-        const = LFRicConstants()
         if array_ndims < 1:
             raise ParseError(
                 f"In the LFRic API, the array notation must be in "
@@ -714,7 +713,6 @@ class LFRicArgDescriptor(Descriptor):
         rev_access_mapping = api_config.get_reverse_access_mapping()
         if self._access_type not in array_accesses:
             api_specific_name = rev_access_mapping[self._access_type]
-            valid_reductions = AccessType.get_valid_reduction_names()
             raise ParseError(
                 f"In the LFRic API array arguments must have read-only "
                 f"('gh_read') access but found '{api_specific_name}' "

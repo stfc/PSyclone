@@ -84,7 +84,7 @@ def test_get_metadata(metadata):
     assert access == "GH_READ"
     assert array_ndims == "2"
 
-#GET THIS WORKING
+# GET THIS WORKING
 # @pytest.mark.parametrize("fortran_string", [
 #     "arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*5)"])
 # def test_fortran_string(fortran_string):
@@ -98,7 +98,7 @@ def test_get_metadata(metadata):
 
 
 def test_check_datatype():
-    '''Test the check_datatype method works as expected.''' #expand to test gh_integer and gh_logical
+    '''Test the check_datatype method works as expected.'''                  # expand to test gh_integer and gh_logical
     ArrayArgMetadata.check_datatype("GH_REAL")
     with pytest.raises(ValueError) as info:
         ArrayArgMetadata.check_datatype("invalid")

@@ -69,9 +69,9 @@ class ArrayArgMetadata(ScalarArgMetadata):
     # max values).
     nargs = (4)
 
-    def __init__(self, datatype, access, array_ndims): #the information that is given
-        super().__init__(datatype, access)              #SHARKS (needs test coverage)
-     #   self.array_size = array_size                    #SHARKS (needs test coverage)
+    def __init__(self, datatype, access, array_ndims):                       # the information that is given
+        super().__init__(datatype, access)                                   # SHARKS (needs test coverage)
+    #    self.array_size = array_size                                        # SHARKS (needs test coverage)
         self.array_ndims = array_ndims
 
     @classmethod
@@ -100,8 +100,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
         '''
-        return (f"arg_type({self.form}, {self.datatype}, {self.access}, "    #SHARKS (needs test coverage)
-                f"{self.array_ndims})") # how to check for full NRANKS*n here?
+        return (f"arg_type({self.form}, {self.datatype}, {self.access}, "    # SHARKS (needs test coverage)
+                f"{self.array_ndims})")                                      # how to check for full NRANKS*n here?
 
     @staticmethod
     def check_datatype(value):
@@ -112,8 +112,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
             datatype descriptor.
 
         '''
-        const = LFRicConstants()                                             #SHARKS (needs test coverage)
-        ArrayArgMetadata.validate_scalar_value(                              #SHARKS (needs test coverage)
+        const = LFRicConstants()                                             # SHARKS (needs test coverage)
+        ArrayArgMetadata.validate_scalar_value(                              # SHARKS (needs test coverage)
             value, const.VALID_ARRAY_DATA_TYPES, "datatype descriptor")
 
     @staticmethod
@@ -121,8 +121,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
         '''
         :param str value: the access descriptor to validate.
         '''
-        const = LFRicConstants()                                             #SHARKS (needs test coverage)
-        ArrayArgMetadata.validate_scalar_value(                              #SHARKS (needs test coverage)
+        const = LFRicConstants()                                             # SHARKS (needs test coverage)
+        ArrayArgMetadata.validate_scalar_value(                              # SHARKS (needs test coverage)
             value, const.VALID_ARRAY_ACCESS_TYPES, "access descriptor")
 
     @property
@@ -131,7 +131,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :returns: the array size for this array argument.
         :rtype: str
         '''
-        return self._array_size                                             #SHARKS (needs test coverage)
+        return self._array_size                                              # SHARKS (needs test coverage)
 
     @array_size.setter
     def array_size(self, value):
@@ -139,10 +139,10 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :param str value: set the function space to the \
             specified value.
         '''
-        #const = LFRicConstants()
-        #FieldArgMetadata.validate_scalar_value(
-        #    value, const.VALID_FUNCTION_SPACE_NAMES, "function space")
-        #self._array_ndims = cls.get_array_ndims(fparser2_tree)
+        # const = LFRicConstants()
+        # FieldArgMetadata.validate_scalar_value(
+        #     value, const.VALID_FUNCTION_SPACE_NAMES, "function space")
+        # self._array_ndims = cls.get_array_ndims(fparser2_tree)
         self._array_size = value.lower()
 
     @property
@@ -151,8 +151,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :returns: the array size for this array argument.
         :rtype: str
         '''
-        return self._array_ndims                                             #SHARKS (needs test coverage)
-    
+        return self._array_ndims                                             # SHARKS (needs test coverage)
+
     @array_ndims.setter
     def array_ndims(self, value):
         '''
