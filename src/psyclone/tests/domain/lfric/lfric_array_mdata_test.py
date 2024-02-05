@@ -281,7 +281,7 @@ def test_arg_descriptor_array(array_ind, array_type, array_ndims):
     # Check LFRicArgDescriptor argument properties
     assert array_descriptor.argument_type == "gh_array"
     assert array_descriptor.data_type == array_type
-    assert array_descriptor._array_ndims == array_ndims
+    assert array_descriptor.array_ndims == array_ndims
     assert array_descriptor.function_spaces == [None]
     assert str(array_descriptor.access) == "READ"
     assert array_descriptor.mesh is None

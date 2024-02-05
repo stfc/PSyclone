@@ -214,8 +214,10 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         :returns: the array ndims value extracted from the fparser2 tree.
         :rtype: str
 
-        :raises TypeError: if the array ndims metadata is not in the \
+        :raises TypeError: if the array ndims metadata is not in the
             expected form.
+        :raises ParseError: if the array ndims metadata does not use the
+            expected keyword.
 
         '''
         array_datatype = CommonArgMetadata.get_arg(
