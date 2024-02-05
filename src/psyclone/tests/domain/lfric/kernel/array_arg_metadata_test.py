@@ -73,9 +73,7 @@ def test_init_invalid_an():
     "metadata",
     [("arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*2)")])
 def test_get_metadata(metadata):
-    '''Test that the _get_metadata class method works as expected
-
-    '''
+    '''Test that the _get_metadata class method works as expected '''
     fparser2_tree = ArrayArgMetadata.create_fparser2(
         metadata, Fortran2003.Part_Ref)
     datatype, access, array_ndims  = ArrayArgMetadata._get_metadata(
@@ -88,10 +86,7 @@ def test_get_metadata(metadata):
 # @pytest.mark.parametrize("fortran_string", [
 #     "arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*5)"])
 # def test_fortran_string(fortran_string):
-#     '''Test that the fortran_string method works as expected. Test with
-#     and without a stencil.
-
-#     '''
+#     '''Test that the fortran_string method works as expected.'''
 #     array_arg = ArrayArgMetadata.create_from_fortran_string(fortran_string)
 #     result = array_arg.fortran_string()
 #     assert result == fortran_string.lower()
@@ -114,6 +109,30 @@ def test_check_access():
         ArrayArgMetadata.check_access("invalid")
     assert ("The 'access descriptor' metadata should be a recognised value "
             "(one of ['gh_read']) but found 'invalid'." in str(info.value))
+
+
+# def test_array_size_setter():
+
+
+def test_array_ndims_setter_getter():
+    '''Test that the array_ndims setter and getter work as expected,
+    including raising an exception if the value is invalid.
+
+    '''
+    array_arg = ArrayArgMetadata("GH_REAL", "GH_READ", "2")
+
+    with pytest.raises(ValueError) as info:
+        array_arg.array_ndims = "invalid"
+    assert ("The array size should be a string containing an integer, "
+            "but found 'invalid'." in str(info.value))
+
+    with pytest.raises(ValueError) as info:
+        array_arg.array_ndims = "0"
+    assert ("The array size should be an integer greater than or equal to "
+            "1 but found 0." in str(info.value))
+
+    array_arg.array_ndims = "3"
+    assert array_arg.array_ndims == "3"
 
 
 # def test_function_space_setter_getter():

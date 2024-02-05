@@ -112,8 +112,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
             datatype descriptor.
 
         '''
-        const = LFRicConstants()                                             # SHARKS (needs test coverage)
-        ArrayArgMetadata.validate_scalar_value(                              # SHARKS (needs test coverage)
+        const = LFRicConstants()
+        ArrayArgMetadata.validate_scalar_value(
             value, const.VALID_ARRAY_DATA_TYPES, "datatype descriptor")
 
     @staticmethod
@@ -121,8 +121,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
         '''
         :param str value: the access descriptor to validate.
         '''
-        const = LFRicConstants()                                             # SHARKS (needs test coverage)
-        ArrayArgMetadata.validate_scalar_value(                              # SHARKS (needs test coverage)
+        const = LFRicConstants()
+        ArrayArgMetadata.validate_scalar_value(
             value, const.VALID_ARRAY_ACCESS_TYPES, "access descriptor")
 
     @property
@@ -143,7 +143,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         # FieldArgMetadata.validate_scalar_value(
         #     value, const.VALID_FUNCTION_SPACE_NAMES, "function space")
         # self._array_ndims = cls.get_array_ndims(fparser2_tree)
-        self._array_size = value.lower()
+        self._array_size = value.lower()                                     # SHARKS (needs test coverage)
 
     @property
     def array_ndims(self):
@@ -165,12 +165,11 @@ class ArrayArgMetadata(ScalarArgMetadata):
         try:
             int_value = int(value)
         except ValueError as info:
-            raise ValueError(
-                f"The array size should be a string containing an integer, "
-                f"but found '{value}'.") from info
+            raise ValueError(f"The array size should be a string containing " # SHARKS (needs test coverage)
+                             f"an integer, but found '{value}'.") from info
 
         if int_value < 1:
-            raise ValueError(f"The array size should be an integer greater "
+            raise ValueError(f"The array size should be an integer greater " # SHARKS (needs test coverage)
                              f"than or equal to 1 but found {value}.")
 #        self._array_size = value.lower()
         self._array_ndims = value

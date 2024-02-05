@@ -229,7 +229,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
                 f"The array size metadata should be in the form "
                 f"'NRANKS*array_ndims' but found '{array_datatype}'.")
         if components[0].lower().strip() != "NRANKS".lower():
-            raise ParseError(
+            raise ParseError(                                                # SHARKS (needs test coverage)
                 f"In the LFRic API, the 4th argument of a 'meta_arg' "
                 f"entry must use 'NRANKS' as the keyword in the format "
                 f"'NRANKS*n' if the 1st argument is 'GH_ARRAY', but "
