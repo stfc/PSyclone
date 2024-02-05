@@ -152,7 +152,7 @@ class ArrayReference(ArrayMixin, Reference):
                 # of this method.)
                 return self.symbol.datatype
             if isinstance(self.symbol.datatype, UnsupportedType):
-                # Even if an Unknown(Fortran)Type has partial type
+                # Even if an Unsupported(Fortran)Type has partial type
                 # information, we can't easily use it here because we'd need
                 # to re-write the original Fortran declaration stored in the
                 # type. We could manipulate the shape in the fparser2 parse

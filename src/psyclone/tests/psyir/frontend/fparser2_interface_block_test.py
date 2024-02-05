@@ -200,7 +200,7 @@ def test_named_interface_with_body(fortran_reader, mod_procedure):
     '''
     Test that an INTERFACE that does not exclusively use
     '[MODULE] PROCEDURE :: name-list' is captured as a RoutineSymbol of
-    UnknownFortranType. We test for the cases where an interface contains
+    UnsupportedFortranType. We test for the cases where an interface contains
     only subroutine definitions and when it contains a mixture of procedure
     statements and subroutine definitions.
     '''
