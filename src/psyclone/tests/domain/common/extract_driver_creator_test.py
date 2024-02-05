@@ -528,7 +528,7 @@ def test_driver_creation_import_modules(fortran_reader):
     assert str(all_symbols["my_module"]) == \
         "my_module: ContainerSymbol<not linked>"
     mod_func = all_symbols["mod_func"]
-    assert str(mod_func) == ("mod_func: RoutineSymbol<DeferredType, "
+    assert str(mod_func) == ("mod_func: RoutineSymbol<UnresolvedType, "
                              "pure=unknown, elemental=unknown>")
 
 

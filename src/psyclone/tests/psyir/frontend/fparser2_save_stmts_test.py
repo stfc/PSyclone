@@ -41,7 +41,7 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Routine, Literal
 from psyclone.psyir.symbols import (StaticInterface, DefaultModuleInterface,
-                                    AutomaticInterface, UnknownFortranType,
+                                    AutomaticInterface, UnsupportedFortranType,
                                     UnknownInterface, INTEGER_TYPE)
 
 
@@ -187,7 +187,7 @@ def test_save_and_unsupported_attr(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     symtab = psyir.walk(Routine)[0].symbol_table
     var1 = symtab.lookup("var1")
-    assert isinstance(var1.datatype, UnknownFortranType)
+    assert isinstance(var1.datatype, UnsupportedFortranType)
     assert isinstance(var1.interface, UnknownInterface)
 
 
@@ -215,18 +215,19 @@ def test_save_common_module(fortran_reader):
     var3 = symtab.lookup("var3")
     assert isinstance(var3.interface, StaticInterface)
     for sym in symtab.symbols:
-        if isinstance(sym.datatype, UnknownFortranType):
+        if isinstance(sym.datatype, UnsupportedFortranType):
             assert sym.name.lower().startswith("_psyclone_internal_save")
             assert sym.datatype._declaration == "SAVE :: /my_common/"
             break
     else:  # pragma: no cover
-        assert False, "No Symbol of UnknownFortranType found"
+        assert False, "No Symbol of UnsupportedFortranType found"
 
     sub = psyir.walk(Routine)[0]
     for sym in sub.symbol_table.symbols:
-        if isinstance(sym.datatype, UnknownFortranType):
+        if isinstance(sym.datatype, UnsupportedFortranType):
             assert sym.name.lower().startswith("_psyclone_internal_save")
             assert sym.datatype._declaration == "SAVE :: /some_other_common/"
             break
     else:  # pragma: no cover
-        assert False, "No Symbol of UnknownFortranType found in nested table"
+        assert False, ("No Symbol of UnsupportedFortranType found in nested"
+                       "table")

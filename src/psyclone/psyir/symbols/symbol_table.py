@@ -1238,7 +1238,8 @@ class SymbolTable():
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
         for sym in self.datasymbols:
-            # Not all types have the 'precision' attribute (e.g. DeferredType)
+            # Not all types have the 'precision' attribute (e.g.
+            # UnresolvedType)
             if (hasattr(sym.datatype, "precision") and
                     isinstance(sym.datatype.precision, DataSymbol)):
                 precision_symbols.add(sym.datatype.precision)

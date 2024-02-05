@@ -51,8 +51,8 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DeferredType, GenericInterfaceSymbol, IntrinsicSymbol, RoutineSymbol,
-    ScalarType, StructureType, Symbol, SymbolTable, UnknownFortranType,
-    UnknownType, UnresolvedInterface)
+    ScalarType, StructureType, Symbol, SymbolTable, UnresolvedInterface,
+    UnresolvedType, UnsupportedFortranType, UnsupportedType, )
 
 
 # Mapping from PSyIR types to Fortran data types. Simply reverse the
@@ -227,12 +227,13 @@ def precedence(fortran_operator):
     raise KeyError()
 
 
-def add_accessibility_to_unknown_declaration(symbol):
+def add_accessibility_to_unsupported_declaration(symbol):
     '''
-    Utility that manipulates the unknown Fortran declaration for the supplied
-    Symbol so as to ensure that it has the correct accessibility specifier.
-    (This is required because we capture an 'unknown' Fortran declaration as
-    is and this may or may not include accessibility information.)
+    Utility that manipulates the UnsupportedFortranType declaration for the
+    supplied Symbol so as to ensure that it has the correct accessibility
+    specifier.
+    (This is required because we capture an UnsupportedFortranType declaration
+    as is and this may or may not include accessibility information.)
 
     :param symbol: the symbol for which the declaration is required.
     :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -242,7 +243,7 @@ def add_accessibility_to_unknown_declaration(symbol):
     :rtype: str
 
     :raises TypeError: if the supplied argument is not a Symbol of \
-        UnknownFortranType.
+        UnsupportedFortranType.
     :raises InternalError: if the declaration associated with the Symbol is \
         empty.
     :raises NotImplementedError: if the original declaration does not use \
@@ -255,13 +256,13 @@ def add_accessibility_to_unknown_declaration(symbol):
     if not isinstance(symbol, Symbol):
         raise TypeError(f"Expected a Symbol but got '{type(symbol).__name__}'")
 
-    if not isinstance(symbol.datatype, UnknownFortranType):
-        raise TypeError(f"Expected a Symbol of UnknownFortranType but symbol "
-                        f"'{symbol.name}' has type '{symbol.datatype}'")
+    if not isinstance(symbol.datatype, UnsupportedFortranType):
+        raise TypeError(f"Expected a Symbol of UnsupportedFortranType but "
+                        f"symbol '{symbol.name}' has type '{symbol.datatype}'")
 
     if not symbol.datatype.declaration:
         raise InternalError(
-            f"Symbol '{symbol.name}' is of UnknownFortranType but the "
+            f"Symbol '{symbol.name}' is of UnsupportedFortranType but the "
             f"associated declaration text is empty.")
 
     # The original declaration text is obtained from fparser2 and will
@@ -269,8 +270,8 @@ def add_accessibility_to_unknown_declaration(symbol):
     first_line = symbol.datatype.declaration.split("\n")[0]
     if "::" not in first_line:
         raise NotImplementedError(
-            f"Cannot add accessibility information to an UnknownFortranType "
-            f"that does not have '::' in its original declaration: "
+            f"Cannot add accessibility information to an UnsupportedFortran"
+            f"Type that does not have '::' in its original declaration: "
             f"'{symbol.datatype.declaration}'")
 
     parts = symbol.datatype.declaration.split("::")
@@ -279,17 +280,19 @@ def add_accessibility_to_unknown_declaration(symbol):
         if "public" not in first_part:
             if "private" in first_part:
                 raise InternalError(
-                    f"Symbol '{symbol.name}' of UnknownFortranType has public "
-                    f"visibility but its associated declaration specifies that"
-                    f" it is private: '{symbol.datatype.declaration}'")
+                    f"Symbol '{symbol.name}' of UnsupportedFortranType has "
+                    f"public visibility but its associated declaration "
+                    f"specifies that it is private: "
+                    f"'{symbol.datatype.declaration}'")
             first_part = first_part.rstrip() + ", public "
     else:
         if "private" not in first_part:
             if "public" in first_part:
                 raise InternalError(
-                    f"Symbol '{symbol.name}' of UnknownFortranType has private"
-                    f" visibility but its associated declaration specifies "
-                    f"that it is public: '{symbol.datatype.declaration}'")
+                    f"Symbol '{symbol.name}' of UnsupportedFortranType has "
+                    f"private visibility but its associated declaration "
+                    f"specifies that it is public: "
+                    f"'{symbol.datatype.declaration}'")
             first_part = first_part.rstrip() + ", private "
     return "::".join([first_part]+parts[1:])
 
@@ -502,9 +505,9 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
-        :raises VisitorError: if the symbol is of DeferredType.
-        :raises VisitorError: if the symbol is of UnknownType other than
-            UnknownFortranType.
+        :raises VisitorError: if the symbol is of UnresolvedType.
+        :raises VisitorError: if the symbol is of UnsupportedType other than
+            UnsupportedFortranType.
         :raises VisitorError: if the symbol is of known type but does not
             specify a variable declaration (it is not a local declaration or
             an argument declaration).
@@ -512,16 +515,16 @@ class FortranWriter(LanguageWriter):
             have a StaticInterface.
         :raises InternalError: if the symbol is a ContainerSymbol or an import.
         :raises InternalError: if the symbol is a RoutineSymbol other than
-            UnknownFortranType.
+            UnsupportedFortranType.
         :raises InternalError: if visibility is to be included but is not
             either PUBLIC or PRIVATE.
 
         '''
         # pylint: disable=too-many-branches
-        if isinstance(symbol.datatype, DeferredType):
-            raise VisitorError(f"Symbol '{symbol.name}' has a DeferredType "
+        if isinstance(symbol.datatype, UnresolvedType):
+            raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
                                f"and we can not generate a declaration for "
-                               f"DeferredTypes.")
+                               f"UnresolvedTypes.")
         if isinstance(symbol, ContainerSymbol) or \
                 isinstance(symbol, Symbol) and symbol.is_import:
             raise InternalError(f"Symbol '{symbol.name}' is brought into scope"
@@ -529,10 +532,10 @@ class FortranWriter(LanguageWriter):
                                 f"generated by 'gen_use' instead of "
                                 f"'gen_vardecl'.")
         if (isinstance(symbol, RoutineSymbol) and
-                not isinstance(symbol.datatype, UnknownFortranType)):
+                not isinstance(symbol.datatype, UnsupportedFortranType)):
             raise InternalError(f"Symbol '{symbol.name}' is a RoutineSymbol "
                                 f"which is not imported or of "
-                                f"UnknownFortranType. This is already "
+                                f"UnsupportedFortranType. This is already "
                                 f"implicitly declared by the routine itself "
                                 f"and should not be provided to 'gen_vardecl'."
                                 )
@@ -544,8 +547,8 @@ class FortranWriter(LanguageWriter):
         else:
             array_shape = []
 
-        if isinstance(symbol.datatype, UnknownType):
-            if isinstance(symbol.datatype, UnknownFortranType):
+        if isinstance(symbol.datatype, UnsupportedType):
+            if isinstance(symbol.datatype, UnsupportedFortranType):
 
                 if (include_visibility and
                         not isinstance(symbol, RoutineSymbol) and
@@ -553,12 +556,14 @@ class FortranWriter(LanguageWriter):
                     # We don't attempt to add accessibility to RoutineSymbols
                     # or to those created by PSyclone to handle named common
                     # blocks appearing in SAVE statements.
-                    decln = add_accessibility_to_unknown_declaration(symbol)
+                    decln = add_accessibility_to_unsupported_declaration(
+                                symbol)
                     return f"{self._nindent}{decln}\n"
 
                 decln = symbol.datatype.declaration
                 return f"{self._nindent}{decln}\n"
-            # The Fortran backend only handles unknown *Fortran* declarations.
+            # The Fortran backend only handles UnsupportedFortranType
+            # declarations.
             raise VisitorError(
                 f"{type(symbol).__name__} '{symbol.name}' is of "
                 f"'{type(symbol.datatype).__name__}' type. This is not "
@@ -673,18 +678,18 @@ class FortranWriter(LanguageWriter):
 
         :param symbol: the derived-type to declare.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-        :param bool include_visibility: whether or not to include visibility \
+        :param bool include_visibility: whether or not to include visibility
             information in the declaration. (Default is True.)
 
         :returns: the Fortran declaration of the derived type.
         :rtype: str
 
         :raises VisitorError: if the supplied symbol is not a DataTypeSymbol.
-        :raises VisitorError: if the datatype of the symbol is of UnknownType \
-            but is not of UnknownFortranType.
-        :raises InternalError: if include_visibility is True and the \
+        :raises VisitorError: if the datatype of the symbol is of
+            UnsupportedType but is not of UnsupportedFortranType.
+        :raises InternalError: if include_visibility is True and the
             visibility of the symbol is not of the correct type.
-        :raises VisitorError: if the supplied symbol is of DeferredType.
+        :raises VisitorError: if the supplied symbol is of UnresolvedType.
 
         '''
         if not isinstance(symbol, DataTypeSymbol):
@@ -692,12 +697,13 @@ class FortranWriter(LanguageWriter):
                 f"gen_typedecl expects a DataTypeSymbol as argument but "
                 f"got: '{type(symbol).__name__}'")
 
-        if isinstance(symbol.datatype, UnknownType):
-            if isinstance(symbol.datatype, UnknownFortranType):
-                # This is a declaration of unknown type. We have to ensure
+        if isinstance(symbol.datatype, UnsupportedType):
+            if isinstance(symbol.datatype, UnsupportedFortranType):
+                # This is a declaration of UnsupportedType. We have to ensure
                 # that its visibility is correctly specified though.
                 if include_visibility:
-                    decln = add_accessibility_to_unknown_declaration(symbol)
+                    decln = add_accessibility_to_unsupported_declaration(
+                                symbol)
                 else:
                     decln = symbol.datatype.declaration
                 return f"{self._nindent}{decln}\n"
@@ -720,9 +726,9 @@ class FortranWriter(LanguageWriter):
                     f"type '{type(symbol.visibility).__name__}'")
         result += f" :: {symbol.name}\n"
 
-        if isinstance(symbol.datatype, DeferredType):
+        if isinstance(symbol.datatype, UnresolvedType):
             raise VisitorError(
-                f"Local Symbol '{symbol.name}' is of DeferredType and "
+                f"Local Symbol '{symbol.name}' is of UnresolvedType and "
                 f"therefore no declaration can be created for it. Should it "
                 f"have an ImportInterface?")
 
@@ -747,8 +753,8 @@ class FortranWriter(LanguageWriter):
         to ensure the correct visibility of symbols that have been imported
         into the current module from another one using a wildcard import
         (i.e. a `use` without an `only` clause) and also for those Symbols
-        that are of UnknownFortranType (because their declaration may or may
-        not include visibility information).
+        that are of UnsupportedFortranType (because their declaration may or
+        may not include visibility information).
 
         :returns: text containing the access statement line.
         :rtype: str
@@ -993,7 +999,7 @@ class FortranWriter(LanguageWriter):
                 declarations += self.gen_interfacedecl(
                     sym, include_visibility=is_module_scope)
             if isinstance(sym, RoutineSymbol):
-                if isinstance(sym.datatype, UnknownType):
+                if isinstance(sym.datatype, UnsupportedType):
                     declarations += self.gen_vardecl(
                         sym, include_visibility=is_module_scope)
                 elif sym.is_modulevar or sym.is_automatic:

@@ -61,13 +61,13 @@ used with ``RoutineSymbols`` when the corresponding routine has no
 return type (such as Fortran subroutines).
 
 There are two other types that are used in situations where the full
-type information is not currently available: ``UnknownType`` means
+type information is not currently available: ``UnsupportedType`` means
 that the type-declaration is not supported by the PSyIR (or the PSyIR
-frontend) and ``DeferredType`` means that the type of a particular
-symbol has not yet been resolved. Since ``UnknownType`` captures the
+frontend) and ``UnresolvedType`` means that the type of a particular
+symbol has not yet been resolved. Since ``UnsupportedType`` captures the
 original, unsupported symbol declaration, it is subclassed for each
 language for which a PSyIR frontend exists. Currently therefore this
-is limited to ``UnknownFortranType``.
+is limited to ``UnsupportedFortranType``.
 
 The support for Fortran declaration constructs in the ``fparser2``
 frontend is summarised in the following table (any attributes not
@@ -223,7 +223,7 @@ optional argument. This would probably require a separate `setter` and
 Specialising Symbols
 ====================
 
-When code is translated into PSyIR there may be symbols with unknown
+When code is translated into PSyIR there may be symbols with unresolved
 types, perhaps due to symbols being declared in different files. For
 example, in the following declaration it is not possible to know the
 type of symbol `fred` without knowing the contents of the `my_module`
@@ -334,7 +334,7 @@ name of this symbol is `_psyclone_internal_<generic-name>`, or
 internal PSyclone name. The root name should not clash with any other
 symbol names as names should not start with `_`, but providing a root
 name ensures that unique names are used in any case.
-As such interfaces are captured as text in an `UnknownFortranType` the
+As such interfaces are captured as text in an `UnsupportedFortranType` the
 `RoutineSymbol` name is not used in the Fortran backend; the text
-stored in `UnknownFortranType` is simply output.
+stored in the `UnsupportedFortranType` is simply output.
 

@@ -55,8 +55,8 @@ from psyclone.psyir.symbols.datatypes import (
     DataType, ScalarType, ArrayType, TYPE_MAP_TO_PYTHON, REAL_TYPE,
     REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE,
     INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, UnknownType,
-    UnknownFortranType, StructureType, NoType)
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, UnsupportedType,
+    UnsupportedFortranType, StructureType, NoType)
 
 # For auto documentation generation.
 __all__ = ['ArgumentInterface',
@@ -69,7 +69,6 @@ __all__ = ['ArgumentInterface',
            'DataType',
            'DataTypeSymbol',
            'DefaultModuleInterface',
-           'DeferredType',
            'GenericInterfaceSymbol',
            'ImportInterface',
            'INTEGER_TYPE',
@@ -93,7 +92,8 @@ __all__ = ['ArgumentInterface',
            'SymbolTable',
            'TYPE_MAP_TO_PYTHON',
            'TypedSymbol',
-           'UnknownFortranType',
+           'UnsupportedFortranType',
            'UnknownInterface',
-           'UnknownType',
-           'UnresolvedInterface']
+           'UnsupportedType',
+           'UnresolvedInterface',
+           'UnresolvedType']

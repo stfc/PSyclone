@@ -43,11 +43,10 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation,
                                   Container, Routine, Return)
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, GenericInterfaceSymbol, ImportInterface,
-    INTEGER_TYPE, REAL_TYPE,
-    RoutineSymbol, Symbol, SymbolTable, ScalarType, StaticInterface,
-    StructureType, UnresolvedInterface)
+    DataSymbol, DataTypeSymbol,ContainerSymbol, GenericInterfaceSymbol,
+    RoutineSymbol, ScalarType, Symbol, SymbolTable, UnresolvedType,
+    StructureType, ImportInterface, UnresolvedInterface, ArgumentInterface,
+    INTEGER_TYPE, REAL_TYPE, StaticInterface)
 
 
 def test_gen_param_decls_dependencies(fortran_writer):
@@ -129,7 +128,7 @@ def test_gen_decls(fortran_writer):
     '''
     symbol_table = SymbolTable()
     symbol_table.add(ContainerSymbol("my_module"))
-    use_statement = DataSymbol("my_use", DeferredType(),
+    use_statement = DataSymbol("my_use", UnresolvedType(),
                                interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(use_statement)
@@ -139,7 +138,7 @@ def test_gen_decls(fortran_writer):
         ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
     dtype_variable = DataTypeSymbol("field", dtype)
     symbol_table.add(dtype_variable)
-    grid_type = DataTypeSymbol("grid_type", DeferredType(),
+    grid_type = DataTypeSymbol("grid_type", UnresolvedType(),
                                interface=ImportInterface(
                                    symbol_table.lookup("my_module")))
     symbol_table.add(grid_type)
