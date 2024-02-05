@@ -1339,12 +1339,12 @@ class Fparser2Reader():
                         sym.specialise(DataSymbol, datatype=UnresolvedType())
                     elif isinstance(sym.datatype, (UnsupportedType,
                                                    UnresolvedType)):
-                        # Allow symbols of Unknown/UnresolvedType.
+                        # Allow symbols of Unsupported/UnresolvedType.
                         pass
                     elif not (isinstance(sym.datatype, ScalarType) and
                               sym.datatype.intrinsic ==
                               ScalarType.Intrinsic.INTEGER):
-                        # It's not of Unknown/UnresolvedType and it's not an
+                        # It's not of Unsupported/UnresolvedType and it's not an
                         # integer scalar.
                         raise NotImplementedError()
                 except KeyError:
@@ -2332,7 +2332,7 @@ class Fparser2Reader():
         Processes a Fortran2003.Interface_Block. If the interface is named
         and consists only of [module] procedure :: <procedure-list> then a
         GenericInterfaceSymbol is created. Otherwise, a RoutineSymbol of
-        UnknownFortranType is created.
+        UnsupportedFortranType is created.
 
         :param node: the parse tree for the interface block.
         :type node: :py:class:`fparser.two.Fortran2003.Interface_Block`
@@ -2353,13 +2353,13 @@ class Fparser2Reader():
                           Fortran2003.Name):
             # This interface does not have a name. Therefore we store it as a
             # RoutineSymbol with an internal name and with the content of the
-            # interface being kept within an UnknownFortranType. As a result
-            # the visibility and interface details of the RoutineSymbol do not
-            # matter.
+            # interface being kept within an UnsupportedFortranType. As a
+            # result the visibility and interface details of the RoutineSymbol
+            # do not matter.
             symbol_table.new_symbol(
                 root_name="_psyclone_internal_interface",
                 symbol_type=RoutineSymbol,
-                datatype=UnknownFortranType(str(node).lower()))
+                datatype=UnsupportedFortranType(str(node).lower()))
             return
 
         # This interface has a name.
@@ -2395,7 +2395,7 @@ class Fparser2Reader():
                     rsymbols.append((rsym, is_module))
             else:
                 # Interface block contains an unsupported entry so
-                # we'll create a symbol of UnknownFortranType.
+                # we'll create a symbol of UnsupportedFortranType.
                 rsymbols = []
 
         try:
@@ -2409,21 +2409,21 @@ class Fparser2Reader():
             else:
                 # We've not been able to determine the list of
                 # RoutineSymbols that this interface maps to so we just
-                # create a RoutineSymbol of UnknownFortranType.
+                # create a RoutineSymbol of UnsupportedFortranType.
                 symbol_table.add(RoutineSymbol(
-                    name, datatype=UnknownFortranType(str(node).lower()),
+                    name, datatype=UnsupportedFortranType(str(node).lower()),
                     visibility=vis))
         except KeyError:
             # This symbol has already been declared. This can happen when
-            # an interface overloads a constructor for a type (as the
-            # interface name is then the name of the type). However we
-            # still want to capture the interface so we store it in the
-            # PSyIR as an UnknownFortranType with an internal name as we do
+            # an interface overloads a constructor for a type (as the interface
+            # name is then the name of the type). However we still want to
+            # capture the interface so we store it in the PSyIR as an
+            # UnsupportedFortranType with an internal name as we do
             # for unnamed interfaces.
             symbol_table.new_symbol(
                 root_name=f"_psyclone_internal_{name}",
                 symbol_type=RoutineSymbol,
-                datatype=UnknownFortranType(str(node).lower()),
+                datatype=UnsupportedFortranType(str(node).lower()),
                 visibility=vis)
 
     def process_declarations(self, parent, nodes, arg_list,

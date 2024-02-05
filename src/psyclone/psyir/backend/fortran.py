@@ -993,7 +993,7 @@ class FortranWriter(LanguageWriter):
         for sym in all_symbols[:]:
             # Interfaces to module or other external procedures are captured
             # by the frontend as either GenericInterfaceSymbols or
-            # RoutineSymbols of UnknownFortranType. These must therefore be
+            # RoutineSymbols of UnsupportedFortranType. These must therefore be
             # declared.
             if isinstance(sym, GenericInterfaceSymbol):
                 declarations += self.gen_interfacedecl(

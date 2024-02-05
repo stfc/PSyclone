@@ -43,7 +43,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation,
                                   Container, Routine, Return)
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol,ContainerSymbol, GenericInterfaceSymbol,
+    DataSymbol, DataTypeSymbol, ContainerSymbol, GenericInterfaceSymbol,
     RoutineSymbol, ScalarType, Symbol, SymbolTable, UnresolvedType,
     StructureType, ImportInterface, UnresolvedInterface, ArgumentInterface,
     INTEGER_TYPE, REAL_TYPE, StaticInterface)
