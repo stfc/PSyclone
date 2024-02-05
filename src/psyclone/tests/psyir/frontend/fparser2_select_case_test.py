@@ -546,7 +546,8 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
 
     # Check that the interface new names are internally consistent
     assert '''interface psyclone_internal_cmp_1
-    procedure :: psyclone_cmp_int_1, psyclone_cmp_logical_1, psyclone_cmp_char_1
+    procedure :: psyclone_cmp_int_1, psyclone_cmp_logical_1, \
+psyclone_cmp_char_1
   end interface psyclone_internal_cmp_1''' in fortran_writer(container)
 
     # And that from now on the tag refers to the new symbol
