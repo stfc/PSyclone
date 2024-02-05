@@ -43,6 +43,7 @@ from abc import ABC, abstractmethod
 
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
 
 
 class CommonMetaArgMetadata(CommonArgMetadata, ABC):
