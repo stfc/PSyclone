@@ -3604,15 +3604,17 @@ class Fparser2Reader():
         '''
         Utility function that modifies each ArrayReference object in the
         supplied PSyIR fragment so that they are indexed using the supplied
-        loop variables rather than having colon array notation.
+        loop variables rather than having colon array notation. This indexing
+        is always done relative to the declared lower bound of the array being
+        accessed.
 
-        :param parent: root of PSyIR sub-tree to search for Array \
+        :param parent: root of PSyIR sub-tree to search for Array
                        references to modify.
         :type parent:  :py:class:`psyclone.psyir.nodes.Node`
         :param loop_vars: the variable names for the array indices.
         :type loop_vars: list of str
 
-        :raises NotImplementedError: if array sections of differing ranks are \
+        :raises NotImplementedError: if array sections of differing ranks are
                                      found.
         '''
         assigns = parent.walk(Assignment)
@@ -3629,6 +3631,8 @@ class Fparser2Reader():
         # PSyIR (using e.g. the Fortran backend) will not
         # compile. We need to implement robust identification of the
         # types of all symbols in the PSyIR fragment.
+        table = parent.scope.symbol_table
+        one = Literal("1", INTEGER_TYPE)
         arrays = parent.walk(ArrayMixin)
         first_rank = None
         for array in arrays:
@@ -3650,15 +3654,58 @@ class Fparser2Reader():
             else:
                 first_rank = rank
 
-            # Replace the PSyIR Ranges with the loop variables
+            base_ref = _copy_full_base_reference(array)
+            array_ref = array.ancestor(Reference, include_self=True)
+            shape = array_ref.datatype.shape
+            add_op = BinaryOperation.Operator.ADD
+            sub_op = BinaryOperation.Operator.SUB
+            # Replace the PSyIR Ranges with appropriate index expressions.
             range_idx = 0
             for idx, child in enumerate(array.indices):
-                if isinstance(child, Range):
-                    symbol = _find_or_create_unresolved_symbol(
-                        array, loop_vars[range_idx],
-                        symbol_type=DataSymbol, datatype=UnresolvedType())
-                    array.children[idx] = Reference(symbol)
-                    range_idx += 1
+                if not isinstance(child, Range):
+                    continue
+                # We need the lower bound of the appropriate dimension of this
+                # array as we will index relative to it. Note that the 'shape'
+                # of the datatype only gives us extents, not the lower bounds
+                # of the declaration or slice.
+                if isinstance(shape[range_idx], ArrayType.Extent):
+                    # We don't know the bounds of this array so we have
+                    # to query using LBOUND.
+                    lbound = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.LBOUND,
+                        [base_ref.copy(),
+                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+                else:
+                    if array.is_full_range(idx):
+                        # The access to this index is to the full range of
+                        # the array.
+                        # TODO #949 - ideally we would try to find the lower
+                        # bound of the array by interrogating `array.symbol.
+                        # datatype` but the fparser2 frontend doesn't currently
+                        # support array declarations with explicit lower bounds
+                        lbound = IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.LBOUND,
+                            [base_ref.copy(),
+                             ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+                    else:
+                        # We need the lower bound of this access.
+                        lbound = child.start.copy()
+
+                # Create the index expression.
+                symbol = table.lookup(loop_vars[range_idx])
+                if isinstance(lbound, Literal) and lbound.value == "1":
+                    # Lower bound is just unity so we can use the loop-idx
+                    # directly.
+                    expr2 = Reference(symbol)
+                else:
+                    # We don't know what the lower bound is so have to
+                    # have an expression:
+                    #    idx-expr = array-lower-bound + loop-idx - 1
+                    expr = BinaryOperation.create(
+                        add_op, lbound, Reference(symbol))
+                    expr2 = BinaryOperation.create(sub_op, expr, one.copy())
+                array.children[idx] = expr2
+                range_idx += 1
 
     def _where_construct_handler(self, node, parent):
         '''
@@ -3678,7 +3725,7 @@ class Fparser2Reader():
             WHERE(logical-mask) statement
 
         :param node: node in the fparser2 parse tree representing the WHERE.
-        :type node: :py:class:`fparser.two.Fortran2003.Where_Construct` or \
+        :type node: :py:class:`fparser.two.Fortran2003.Where_Construct` |
                     :py:class:`fparser.two.Fortran2003.Where_Stmt`
         :param parent: parent node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -3686,11 +3733,42 @@ class Fparser2Reader():
         :returns: the top-level Loop object in the created loop nest.
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
-        :raises InternalError: if the parse tree does not have the expected \
-                               structure.
-        :raises NotImplementedError: if the logical mask of the WHERE does \
-                                     not use array notation.
+        :raises InternalError: if the parse tree does not have the expected
+            structure.
+        :raises NotImplementedError: if the parse tree contains a Fortran
+            intrinsic that performs a reduction but still returns an array.
+        :raises NotImplementedError: if the logical mask of the WHERE does
+            not use array notation.
+
         '''
+        def _contains_intrinsic_reduction(pnodes):
+            '''
+            Utility to check for Fortran intrinsics that perform a reduction
+            but result in an array.
+
+            :param pnodes: node(s) in the parse tree to check.
+            :type pnodes: list[:py:class:`fparser.two.utils.Base`] |
+                          :py:class:`fparser.two.utils.Base`
+
+            :returns: whether or not the supplied node(s) in the parse tree
+                      contain a call to an intrinsic that performs a reduction
+                      into an array.
+            :rtype: bool
+
+            '''
+            intr_nodes = walk(pnodes, Fortran2003.Intrinsic_Function_Reference)
+            for intr in intr_nodes:
+                if (intr.children[0].string in
+                        Fortran2003.Intrinsic_Name.array_reduction_names):
+                    # These intrinsics are only a problem if they return an
+                    # array rather than a scalar.
+                    arg_specs = walk(intr.children[1],
+                                     Fortran2003.Actual_Arg_Spec)
+                    if any(spec.children[0].string == 'dim'
+                           for spec in arg_specs):
+                        return True
+            return False
+
         if isinstance(node, Fortran2003.Where_Stmt):
             # We have a Where statement. Check that the parse tree has the
             # expected structure.
@@ -3704,6 +3782,11 @@ class Fparser2Reader():
                     f"Expected the second entry of a Fortran2003.Where_Stmt "
                     f"items tuple to be an Assignment_Stmt but found: "
                     f"{type(node.items[1]).__name__}")
+            if _contains_intrinsic_reduction(node.items[1]):
+                raise NotImplementedError(
+                    f"TODO #1960 - WHERE statements which contain array-"
+                    f"reduction intrinsics are not supported but found "
+                    f"'{node}'")
             was_single_stmt = True
             annotations = ["was_where", "was_single_stmt"]
             logical_expr = [node.items[0]]
@@ -3717,6 +3800,11 @@ class Fparser2Reader():
             if not isinstance(node.content[-1], Fortran2003.End_Where_Stmt):
                 raise InternalError(f"Failed to find closing end where "
                                     f"statement in: {node}")
+            if _contains_intrinsic_reduction(node.content[1:-1]):
+                raise NotImplementedError(
+                    f"TODO #1960 - WHERE constructs which contain an array-"
+                    f"reduction intrinsic are not supported but found "
+                    f"'{node}'")
             was_single_stmt = False
             annotations = ["was_where"]
             logical_expr = node.content[0].items
@@ -3728,6 +3816,12 @@ class Fparser2Reader():
         # to find out the rank of `a`. For the moment we limit support to
         # the NEMO style where the fact that `a` is an array is made
         # explicit using the colon notation, e.g. `a(:, :) < 0.0`.
+
+        if _contains_intrinsic_reduction(logical_expr):
+            raise NotImplementedError(
+                f"TODO #1960 - WHERE constructs which contain an array-"
+                f"reduction intrinsic in their logical expression are not "
+                f"supported but found '{logical_expr}'")
 
         # For this initial processing of the logical-array expression we
         # use a temporary parent as we haven't yet constructed the PSyIR
@@ -3742,10 +3836,11 @@ class Fparser2Reader():
             # because the code doesn't use explicit array syntax. At least one
             # variable in the logical-array expression must be an array for
             # this to be a valid WHERE().
-            # TODO #717. Look-up the shape of the array in the SymbolTable.
+            # TODO #1799. Look-up the shape of the array in the SymbolTable.
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation (e.g. "
                 f"my_array(:,:)) are supported but found '{logical_expr}'.")
+
         for array in arrays:
             if any(isinstance(idx, Range) for idx in array.indices):
                 first_array = array
@@ -3753,12 +3848,14 @@ class Fparser2Reader():
         else:
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation "
-                f"including ranges (e.g. my_array(1,:) are supported but "
+                f"including ranges (e.g. 'my_array(1,:)') are supported but "
                 f"found '{logical_expr}'")
 
-        # All array sections in a Fortran WHERE must have the same rank so
-        # just look at the first array.
-        rank = self._array_notation_rank(first_array)
+        array_ref = first_array.ancestor(Reference, include_self=True)
+        mask_shape = array_ref.datatype.shape
+        # All array sections in a Fortran WHERE must have the same shape so
+        # just look at that of the mask.
+        rank = len(mask_shape)
         # Create a list to hold the names of the loop variables as we'll
         # need them to index into the arrays.
         loop_vars = rank*[""]
@@ -3778,35 +3875,23 @@ class Fparser2Reader():
                         annotations=annotations)
             # Point to the original WHERE statement in the parse tree.
             loop.ast = node
-            # Add loop lower bound
-            loop.addchild(Literal("1", integer_type))
-            # Add loop upper bound - we use the SIZE operator to query the
-            # extent of the current array dimension
-            size_node = IntrinsicCall(IntrinsicCall.Intrinsic.SIZE,
-                                      parent=loop)
-            loop.addchild(size_node)
 
-            # Create the first argument to the SIZE operator
-            if isinstance(first_array, Member):
-                # The array access is a member of some derived type
-                parent_ref = first_array.ancestor(Reference)
-                new_ref = parent_ref.copy()
-                orig_member = parent_ref.member
-                member = new_ref.member
-                while orig_member is not first_array:
-                    member = member.member
-                    orig_member = orig_member.member
-                member.parent.children[0] = Member(first_array.name,
-                                                   parent=member.parent)
+            # This loop is over the *shape* of the mask and thus starts
+            # at unity. Each individual array access is then adjusted
+            # according to the lower bound of that array.
+            loop.addchild(Literal("1", integer_type))
+            # Add loop upper bound using the shape of the mask.
+            if isinstance(mask_shape[idx-1], ArrayType.Extent):
+                # We don't have an explicit value for the upper bound so we
+                # have to query it using SIZE.
+                loop.addchild(
+                    IntrinsicCall.create(IntrinsicCall.Intrinsic.SIZE,
+                                         [array_ref.copy(),
+                                          ("dim", Literal(str(idx),
+                                                          integer_type))]))
             else:
-                # The array access is to a symbol of ArrayType
-                symbol = _find_or_create_unresolved_symbol(
-                    size_node, first_array.name, symbol_type=DataSymbol,
-                    datatype=UnresolvedType())
-                new_ref = Reference(symbol)
-            size_node.addchild(new_ref)
-            size_node.addchild(Literal(str(idx), integer_type,
-                                       parent=size_node))
+                loop.addchild(mask_shape[idx-1].upper.copy())
+
             # Add loop increment
             loop.addchild(Literal("1", integer_type))
             # Fourth child of a Loop must be a Schedule
@@ -3822,6 +3907,7 @@ class Fparser2Reader():
                 # handler returns
                 root_loop = loop
             new_parent = sched
+
         # Now we have the loop nest, add an IF block to the innermost
         # schedule
         ifblock = IfBlock(parent=new_parent, annotations=annotations)
