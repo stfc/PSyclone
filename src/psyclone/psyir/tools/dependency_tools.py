@@ -96,7 +96,11 @@ class Message:
 
     # ------------------------------------------------------------------------
     def __str__(self):
-        return self._message
+        if len(self._var_names) == 0:
+            return self._message
+        if len(self._var_names) == 1:
+            return f"{self._message} Variable: '{self._var_names[0]}'."
+        return f"{self._message} Variables: '{self._var_names}'."
 
     # ------------------------------------------------------------------------
     @property
@@ -627,17 +631,13 @@ class DependencyTools():
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,
                             onode=other_access.node:
-                                (f"The write access to "
+                                (f"The write access in "
                                  f"'{wnode.debug_string()}' "
-                                 f"and to '{onode.debug_string()}"
+                                 f"and in '{onode.debug_string()}"
                                  f"' are dependent and cannot be "
                                  f"parallelised.")),
                             DTCode.ERROR_DEPENDENCY,
-                            [LazyString(lambda wnode=write_access.node:
-                                        f"{wnode.debug_string()}"
-                                        ),
-                             LazyString(lambda onode=other_access.node:
-                                        f"{onode.debug_string()}")])
+                            [str(var_info.var_name)])
 
                     return False
         return True

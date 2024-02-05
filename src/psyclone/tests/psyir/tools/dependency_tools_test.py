@@ -63,7 +63,7 @@ def test_messages():
     dep_tools._add_message("info-test", DTCode.INFO_MIN+1,
                            ["a", "b"])
     msg = dep_tools.get_all_messages()[0]
-    assert str(msg) == "Info: info-test"
+    assert str(msg) == "Info: info-test. Variables: ['a', 'b']"
     assert msg.code == DTCode.INFO_MIN + 1
     assert msg.var_names == ["a", "b"]
 
@@ -180,11 +180,11 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(ji,jj)' and to 'mask(ji,jj + 1)' are "
-            "dependent and cannot be parallelised."
+    assert ("The write access in 'mask(ji,jj)' and in 'mask(ji,jj + 1)' are "
+            "dependent and cannot be parallelised. Variable: 'mask'."
             in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
-    assert msg.var_names == ["mask(ji,jj)", "mask(ji,jj + 1)"]
+    assert msg.var_names == ["mask"]
 
 
 # -----------------------------------------------------------------------------
@@ -585,10 +585,11 @@ def test_derived_type(fortran_reader):
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'a%b(ji,jj)' and to 'a%b(ji,jj - 1)' are "
-            "dependent and cannot be parallelised." in str(msg))
+    assert ("The write access in 'a%b(ji,jj)' and in 'a%b(ji,jj - 1)' are "
+            "dependent and cannot be parallelised. Variable: 'a%b'." in
+            str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
-    assert msg.var_names == ["a%b(ji,jj)", "a%b(ji,jj - 1)"]
+    assert msg.var_names == ["a%b"]
 
     parallel = dep_tools.can_loop_be_parallelised(loops[1],
                                                   test_all_variables=True)
@@ -596,14 +597,16 @@ def test_derived_type(fortran_reader):
     # Now we must have two messages, one for each of the two assignments
     assert len(dep_tools.get_all_messages()) == 2
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'a%b(ji,jj)' and to 'a%b(ji,jj - 1)' are "
-            "dependent and cannot be parallelised." in str(msg))
-    assert msg.var_names == ["a%b(ji,jj)", "a%b(ji,jj - 1)"]
+    assert ("The write access in 'a%b(ji,jj)' and in 'a%b(ji,jj - 1)' are "
+            "dependent and cannot be parallelised. Variable: 'a%b'." in
+            str(msg))
+    assert msg.var_names == ["a%b"]
     msg = dep_tools.get_all_messages()[1]
-    assert ("The write access to 'b%b(ji,jj)' and to 'b%b(ji,jj - 1)' are "
-            "dependent and cannot be parallelised." in str(msg))
+    assert ("The write access in 'b%b(ji,jj)' and in 'b%b(ji,jj - 1)' are "
+            "dependent and cannot be parallelised. Variable: 'b%b'." in
+            str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
-    assert msg.var_names == ["b%b(ji,jj)", "b%b(ji,jj - 1)"]
+    assert msg.var_names == ["b%b"]
 
     # Test that variables are ignored as expected.
     parallel = dep_tools.\
@@ -612,10 +615,11 @@ def test_derived_type(fortran_reader):
     assert parallel is False
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("he write access to 'b%b(ji,jj)' and to 'b%b(ji,jj - 1)' are "
-            "dependent and cannot be parallelised" in str(msg))
+    assert ("he write access in 'b%b(ji,jj)' and in 'b%b(ji,jj - 1)' are "
+            "dependent and cannot be parallelised. Variable: 'b%b'." in
+            str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
-    assert msg.var_names == ["b%b(ji,jj)", "b%b(ji,jj - 1)"]
+    assert msg.var_names == ["b%b"]
 
     # If both derived types are ignored, the loop should be marked
     # to be parallelisable
@@ -780,8 +784,8 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(ji,lambda)' and to "
-            "'mask(ji,lambda + 1)' are dependent and cannot be parallelised."
-            in str(msg))
+    assert ("The write access in 'mask(ji,lambda)' and in "
+            "'mask(ji,lambda + 1)' are dependent and cannot be parallelised. "
+            "Variable: 'mask'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
-    assert msg.var_names == ["mask(ji,lambda)", "mask(ji,lambda + 1)"]
+    assert msg.var_names == ["mask"]
