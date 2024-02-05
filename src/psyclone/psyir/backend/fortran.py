@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
     Operation, Range, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, GenericInterfaceSymbol, IntrinsicSymbol, RoutineSymbol,
+    GenericInterfaceSymbol, IntrinsicSymbol, RoutineSymbol,
     ScalarType, StructureType, Symbol, SymbolTable, UnresolvedInterface,
     UnresolvedType, UnsupportedFortranType, UnsupportedType, )
 

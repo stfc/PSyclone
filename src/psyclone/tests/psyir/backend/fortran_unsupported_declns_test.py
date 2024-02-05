@@ -127,7 +127,7 @@ def test_fw_unsupportedtype_routine_symbols_error(fortran_writer):
     with pytest.raises(InternalError) as err:
         fortran_writer.gen_decls(container.symbol_table)
     assert ("Symbol 'eos' is a RoutineSymbol which is not imported or of "
-            "interface (UnsupportedFortranType). This is already implicitly "
+            "UnsupportedFortranType. This is already implicitly "
             "declared by the routine itself and should not be provided "
             "to 'gen_vardecl'." in str(err.value))
 

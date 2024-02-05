@@ -231,7 +231,7 @@ def test_named_interface_with_body(fortran_reader, mod_procedure):
     table = container.symbol_table
     test_symbol = table.lookup("test")
     assert isinstance(test_symbol, RoutineSymbol)
-    assert isinstance(test_symbol.datatype, UnknownFortranType)
+    assert isinstance(test_symbol.datatype, UnsupportedFortranType)
     extra = f"  {mod_procedure}" if mod_procedure else ""
     assert test_symbol.datatype.declaration == (
         "interface test\n" +
