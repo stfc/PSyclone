@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modifier L. Turner, Met Office
 
 '''Module containing the abstract CommonMetaArgMetadata class which
 captures the metadata associated with an LFRic meta_arg
@@ -224,14 +225,14 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         if len(components) != 2:
             raise TypeError(
                 f"The array size metadata should be in the form "
-                f"'keyword*array_ndims' but found '{array_datatype}'.")
+                f"'NRANKS*array_ndims' but found '{array_datatype}'.")
         if components[0].lower().strip() != "NRANKS".lower():
             raise ParseError(
                 f"In the LFRic API, the 4th argument of a 'meta_arg' "
                 f"entry must use 'NRANKS' as the keyword in the format "
                 f"'NRANKS*n' if the 1st argument is 'GH_ARRAY', but "
-                f"found '{components[0]}' as the keyword "
-                f"in '{arg_type}'.")
+                f"found '{components[0]}' as the keyword in "
+                f"'{array_datatype}'.")
         array_ndims = components[1].strip()
         return array_ndims
 
