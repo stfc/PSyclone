@@ -1553,8 +1553,8 @@ def test_process_save_attribute_declarations(parser):
     assert isinstance(fake_parent.symbol_table.lookup("var4").interface,
                       StaticInterface)
 
-    # Test when is part of an UnknownDataType (target attribute in this case)
-    # it becomes an UnknownInterface
+    # Test that when it is part of an UnsupportedType (target attribute in
+    # this case) it becomes an UnknownInterface.
     reader = FortranStringReader("integer, target :: var5")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
