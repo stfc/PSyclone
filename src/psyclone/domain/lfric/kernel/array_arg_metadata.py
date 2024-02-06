@@ -98,7 +98,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
         '''
-        return (f"arg_type({self.form}, {self.datatype}, {self.access}, "    # SHARKS (needs test coverage)
+        return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
                 f"nranks*{self.array_ndims})")
 
     @staticmethod
@@ -126,25 +126,6 @@ class ArrayArgMetadata(ScalarArgMetadata):
         const = LFRicConstants()
         ArrayArgMetadata.validate_scalar_value(
             value, const.VALID_ARRAY_ACCESS_TYPES, "access descriptor")
-
-    @property
-    def array_size(self):
-        '''
-        :returns: the array size for this array argument.
-        :rtype: str
-        '''
-        return self._array_size                                              # SHARKS (needs test coverage)
-
-    @array_size.setter
-    def array_size(self, value):
-        '''
-        :param str value: set the function space to the
-            specified value.
-        '''
-        if not isinstance(value, str):
-            raise TypeError(f"The 'array_size' value should be of type str, "
-                            f"but found '{type(value).__name__}'.")
-        self._array_size = value.lower()                                     # SHARKS (needs test coverage)
 
     @property
     def array_ndims(self):

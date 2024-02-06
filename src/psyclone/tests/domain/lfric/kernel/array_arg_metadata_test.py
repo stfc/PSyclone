@@ -69,8 +69,7 @@ def test_init_invalid_an():
             "'NoneType'." in str(info.value))
 
 
-@pytest.mark.parametrize(
-    "metadata",
+@pytest.mark.parametrize("metadata",
     ["arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*2)"])
 def test_get_metadata(metadata):
     '''Test that the _get_metadata class method works as expected '''
@@ -82,7 +81,7 @@ def test_get_metadata(metadata):
     assert access == "GH_READ"
     assert array_ndims == "2"
 
-# GET THIS WORKING
+
 @pytest.mark.parametrize("fortran_string", [
     "arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*5)"])
 def test_fortran_string(fortran_string):
@@ -110,9 +109,6 @@ def test_check_access():
         ArrayArgMetadata.check_access("invalid")
     assert ("The 'access descriptor' metadata should be a recognised value "
             "(one of ['gh_read']) but found 'invalid'." in str(info.value))
-
-
-# def test_array_size_setter():
 
 
 def test_array_ndims_setter_getter():
