@@ -989,26 +989,24 @@ class FortranWriter(LanguageWriter):
         # As a convention, we will declare the variables in the following
         # order:
 
-        # 1: Routines (Interfaces)
+        # 1: Routine declarations and interfaces. (Note that accessibility
+        #    statements are generated in gen_access_stmts().)
         for sym in all_symbols[:]:
-            # Interfaces to module or other external procedures are captured
-            # by the frontend as either GenericInterfaceSymbols or
-            # RoutineSymbols of UnsupportedFortranType. These must therefore be
-            # declared.
+            if not isinstance(sym, RoutineSymbol):
+                continue
+            # Interfaces can be GenericInterfaceSymbols or RoutineSymbols
+            # of UnsupportedFortranType.
             if isinstance(sym, GenericInterfaceSymbol):
                 declarations += self.gen_interfacedecl(
                     sym, include_visibility=is_module_scope)
-            if isinstance(sym, RoutineSymbol):
-                if isinstance(sym.datatype, UnsupportedType):
-                    declarations += self.gen_vardecl(
+            elif isinstance(sym.datatype, UnsupportedType):
+                declarations += self.gen_vardecl(
                         sym, include_visibility=is_module_scope)
-                elif sym.is_modulevar or sym.is_automatic:
-                    pass
-                else:
-                    raise VisitorError(
-                        f"Routine symbol '{sym.name}' has '{sym.interface}'. "
-                        f"This is not supported by the Fortran back-end.")
-                all_symbols.remove(sym)
+            elif not (sym.is_modulevar or sym.is_automatic):
+                raise VisitorError(
+                    f"Routine symbol '{sym.name}' has '{sym.interface}'. "
+                    f"This is not supported by the Fortran back-end.")
+            all_symbols.remove(sym)
 
         # 2: Constants.
         declarations += self._gen_parameter_decls(symbol_table,

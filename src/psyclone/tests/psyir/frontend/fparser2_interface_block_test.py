@@ -38,6 +38,7 @@
 ''' Performs py.test tests on the handling of interface blocks in the fparser2
     PSyIR front-end. '''
 
+import itertools
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -195,8 +196,7 @@ def test_named_interface_wrong_symbol_type(f2008_parser):
             str(err.value))
 
 
-@pytest.mark.parametrize("mod_procedure", ["", "module procedure other_sub\n"])
-def test_named_interface_with_body(fortran_reader, mod_procedure):
+def test_named_interface_with_body(fortran_reader):
     '''
     Test that an INTERFACE that does not exclusively use
     '[MODULE] PROCEDURE :: name-list' is captured as a RoutineSymbol of
@@ -204,17 +204,31 @@ def test_named_interface_with_body(fortran_reader, mod_procedure):
     only subroutine definitions and when it contains a mixture of procedure
     statements and subroutine definitions.
     '''
-    test_module = f'''
-    module test_mod
-      implicit none
-      interface test
-         {mod_procedure}
+    mod_procedure = "procedure :: other_sub\n"
+    routine1 = '''\
          subroutine test_code(arg)
            real, intent(in) :: arg
          end subroutine test_code
+'''
+    routine2 = '''\
          subroutine test_code2d(arg)
-           real, dimension(:,:), intent(in) :: arg
+           real, dimension(:, :), intent(in) :: arg
          end subroutine test_code2d
+'''
+    # Generate the various orderings of the three components that will
+    # make up the interface body.
+    body_parts = [mod_procedure, routine1, routine2]
+    perms = list(itertools.permutations(body_parts))
+    # Add the case where there is no 'procedure' statement at all.
+    perms.append(["", routine1, routine2])
+    for parts in perms:
+        test_code = f'''
+    module test_mod
+      implicit none
+      interface test
+         {parts[0]}
+         {parts[1]}
+         {parts[2]}
       end interface test
     contains
       subroutine some_sub()
@@ -224,25 +238,29 @@ def test_named_interface_with_body(fortran_reader, mod_procedure):
         complex :: arg
       end subroutine other_sub
     end module test_mod
-    '''
-    file_container = fortran_reader.psyir_from_source(test_module)
-    container = file_container.children[0]
-    assert isinstance(container, Container)
-    table = container.symbol_table
-    test_symbol = table.lookup("test")
-    assert isinstance(test_symbol, RoutineSymbol)
-    assert isinstance(test_symbol.datatype, UnsupportedFortranType)
-    extra = f"  {mod_procedure}" if mod_procedure else ""
-    assert test_symbol.datatype.declaration == (
-        "interface test\n" +
-        extra +
-        "  subroutine test_code(arg)\n"
-        "    real, intent(in) :: arg\n"
-        "  end subroutine test_code\n"
-        "  subroutine test_code2d(arg)\n"
-        "    real, dimension(:, :), intent(in) :: arg\n"
-        "  end subroutine test_code2d\n"
-        "end interface test")
+'''
+        file_container = fortran_reader.psyir_from_source(test_code)
+        container = file_container.children[0]
+        assert isinstance(container, Container)
+        table = container.symbol_table
+        if mod_procedure in parts:
+            # Should have a RoutineSymbol named 'other_sub' because of the
+            # procedure statement in the interface body.
+            sub_sym = table.lookup("other_sub")
+            assert isinstance(sub_sym, RoutineSymbol)
+        test_symbol = table.lookup("test")
+        assert isinstance(test_symbol, RoutineSymbol)
+        assert isinstance(test_symbol.datatype, UnsupportedFortranType)
+        # Check that the stored declaration text is correct.
+        decln_lines = test_symbol.datatype.declaration.split("\n")
+        body_lines = (
+            f"interface test\n"
+            f"{parts[0]}"
+            f"{parts[1]}"
+            f"{parts[2]}"
+            f"end interface test").split("\n")
+        for stored, expected in zip(decln_lines, body_lines):
+            assert stored.strip() == expected.strip()
 
 
 GENERIC_INTERFACE_CODE = '''

@@ -2371,7 +2371,10 @@ class Fparser2Reader():
         #     [MODULE] PROCEDURE :: <name-list>
         # to specify these.
         rsymbols = []
-
+        # This flag will be set to False in the loop below if an unsupported
+        # feature is found.
+        supported_interface = True
+        # Loop over the child nodes of the Interface definition.
         for child in node.children:
             if isinstance(child, (Fortran2003.Interface_Stmt,
                                   Fortran2003.End_Interface_Stmt)):
@@ -2395,11 +2398,11 @@ class Fparser2Reader():
                     rsymbols.append((rsym, is_module))
             else:
                 # Interface block contains an unsupported entry so
-                # we'll create a symbol of UnsupportedFortranType.
-                rsymbols = []
+                # we'll create a symbol of UnsupportedFortranType (below).
+                supported_interface = False
 
         try:
-            if rsymbols:
+            if supported_interface:
                 # A named interface block corresponds to a
                 # GenericInterfaceSymbol. (There will be calls to it
                 # although there will be no corresponding implementation
