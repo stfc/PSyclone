@@ -47,7 +47,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (DataSymbol, UnresolvedType,
                                     UnsupportedFortranType, UnsupportedType,
                                     DataTypeSymbol, ScalarType, ArrayType,
-                                    INTEGER_TYPE)
+                                    INTEGER_TYPE, Symbol)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -87,7 +87,7 @@ class ArrayReference(ArrayMixin, Reference):
                 f"indices argument in create method of ArrayReference class "
                 f"should be a list but found '{type(indices).__name__}'.")
         if not symbol.is_array:
-            # Deferred and Unsupported types may still be arrays
+            # Unresolved and Unsupported types may still be arrays
             if not isinstance(symbol.datatype, (UnresolvedType,
                                                 UnsupportedType)):
                 raise GenerationError(
@@ -130,7 +130,11 @@ class ArrayReference(ArrayMixin, Reference):
         '''
         shape = self._get_effective_shape()
         if shape:
-            if isinstance(self.symbol.datatype, ArrayType):
+            if type(self.symbol) is Symbol:
+                # We don't have any information on the shape of the original
+                # declaration.
+                orig_shape = None
+            elif isinstance(self.symbol.datatype, ArrayType):
                 # We have full type information so we know the shape of the
                 # original declaration.
                 orig_shape = self.symbol.datatype.shape
@@ -141,9 +145,9 @@ class ArrayReference(ArrayMixin, Reference):
                 orig_shape = self.symbol.datatype.partial_datatype.shape
             else:
                 # We don't have any information on the shape of the original
-                # delcaration.
-                orig_shape = []
-            if (len(shape) == len(orig_shape) and
+                # declaration.
+                orig_shape = None
+            if (orig_shape is not None and len(shape) == len(orig_shape) and
                     all(self.is_full_range(idx) for idx in range(len(shape)))):
                 # Although this access has a shape, it is in fact for the
                 # whole array and therefore the type of the result is just
@@ -151,8 +155,9 @@ class ArrayReference(ArrayMixin, Reference):
                 # StructureReference but they have their own implementation
                 # of this method.)
                 return self.symbol.datatype
-            if isinstance(self.symbol.datatype, UnsupportedType):
-                # Even if an Unknown(Fortran)Type has partial type
+            if type(self.symbol) is Symbol or isinstance(self.symbol.datatype,
+                                                         UnsupportedType):
+                # Even if an Unsupported(Fortran)Type has partial type
                 # information, we can't easily use it here because we'd need
                 # to re-write the original Fortran declaration stored in the
                 # type. We could manipulate the shape in the fparser2 parse
@@ -167,6 +172,8 @@ class ArrayReference(ArrayMixin, Reference):
             return ArrayType(base_type, shape)
 
         # Otherwise, we're accessing a single element of the array.
+        if type(self.symbol) is Symbol:
+            return UnresolvedType()
         if isinstance(self.symbol.datatype, UnsupportedType):
             if (isinstance(self.symbol.datatype, UnsupportedFortranType) and
                     self.symbol.datatype.partial_datatype):
