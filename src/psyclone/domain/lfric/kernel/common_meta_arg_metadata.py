@@ -233,7 +233,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
                 f"In the LFRic API, the 4th argument of a 'meta_arg' "
                 f"entry must use 'NRANKS' as the keyword in the format "
                 f"'NRANKS*n' if the 1st argument is 'GH_ARRAY', but "
-                f"found '{components[0]}' as the keyword in "
+                f"found '{components[0].strip()}' as the keyword in "
                 f"'{array_datatype}'.")
         array_ndims = components[1].strip()
         return array_ndims
