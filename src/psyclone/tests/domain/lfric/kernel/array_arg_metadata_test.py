@@ -53,9 +53,9 @@ def test_create(datatype, access, array_ndims):
     array_arg = ArrayArgMetadata(datatype, access, array_ndims)
     assert isinstance(array_arg, ArrayArgMetadata)
     assert array_arg.form == "gh_array"
-    assert array_arg._datatype == "gh_real"
-    assert array_arg._access == "gh_read"
-    assert array_arg._array_ndims == "1"
+    assert array_arg.datatype == "gh_real"
+    assert array_arg.access == "gh_read"
+    assert array_arg.array_ndims == "1"
 
 
 def test_init_invalid_an():
@@ -71,7 +71,7 @@ def test_init_invalid_an():
 
 @pytest.mark.parametrize(
     "metadata",
-    [("arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*2)")])
+    ["arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*2)"])
 def test_get_metadata(metadata):
     '''Test that the _get_metadata class method works as expected '''
     fparser2_tree = ArrayArgMetadata.create_fparser2(
@@ -83,13 +83,14 @@ def test_get_metadata(metadata):
     assert array_ndims == "2"
 
 # GET THIS WORKING
-# @pytest.mark.parametrize("fortran_string", [
-#     "arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*5)"])
-# def test_fortran_string(fortran_string):
-#     '''Test that the fortran_string method works as expected.'''
-#     array_arg = ArrayArgMetadata.create_from_fortran_string(fortran_string)
-#     result = array_arg.fortran_string()
-#     assert result == fortran_string.lower()
+@pytest.mark.parametrize("fortran_string", [
+    "arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*5)"])
+def test_fortran_string(fortran_string):
+    '''Test that the fortran_string method works as expected.'''
+    array_arg = ArrayArgMetadata.create_from_fortran_string(fortran_string)
+    result = array_arg.fortran_string()
+    fortranstring = fortran_string
+    assert result == fortran_string.lower()
 
 
 def test_check_datatype():
@@ -133,29 +134,3 @@ def test_array_ndims_setter_getter():
 
     array_arg.array_ndims = "3"
     assert array_arg.array_ndims == "3"
-
-
-# def test_function_space_setter_getter():
-#     '''Test that the function space setter and getter work as expected,
-#     including raising an exception if the value is invalid.
-
-#     '''
-#     array_arg = ArrayArgMetadata("GH_REAL", "GH_READ", "W0")
-#     with pytest.raises(ValueError) as info:
-#         array_arg.function_space = "invalid"
-#     assert ("The 'function space' metadata should be a recognised value (one "
-#             "of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', "
-#             "'w2', 'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi', "
-#             "'any_space_1', 'any_space_2', 'any_space_3', 'any_space_4', "
-#             "'any_space_5', 'any_space_6', 'any_space_7', 'any_space_8', "
-#             "'any_space_9', 'any_space_10', 'any_discontinuous_space_1', "
-#             "'any_discontinuous_space_2', 'any_discontinuous_space_3', "
-#             "'any_discontinuous_space_4', 'any_discontinuous_space_5', "
-#             "'any_discontinuous_space_6', 'any_discontinuous_space_7', "
-#             "'any_discontinuous_space_8', 'any_discontinuous_space_9', "
-#             "'any_discontinuous_space_10']) but found 'invalid'."
-#             in str(info.value))
-#     array_arg.function_space = "w3"
-#     assert array_arg.function_space == "w3"
-#     array_arg.function_space = "W3"
-#     assert array_arg.function_space == "w3"

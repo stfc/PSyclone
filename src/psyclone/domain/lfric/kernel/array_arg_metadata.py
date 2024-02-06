@@ -70,8 +70,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
     nargs = (4)
 
     def __init__(self, datatype, access, array_ndims):                       # the information that is given
-        super().__init__(datatype, access)                                   # SHARKS (needs test coverage)
-    #    self.array_size = array_size                                        # SHARKS (needs test coverage)
+        super().__init__(datatype, access)
         self.array_ndims = array_ndims
 
     @classmethod
@@ -86,7 +85,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: a tuple containing the datatype, access and array nranks \
+        :returns: a tuple containing the datatype, access and array ndims \
             metadata.
         :rtype: Tuple[str, str, str]
 
@@ -101,7 +100,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :rtype: str
         '''
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "    # SHARKS (needs test coverage)
-                f"{self.array_ndims})")                                      # how to check for full NRANKS*n here?
+                f"nranks*{self.array_ndims})")                                      # how to check for full NRANKS*n here?
 
     @staticmethod
     def check_datatype(value):
@@ -120,6 +119,10 @@ class ArrayArgMetadata(ScalarArgMetadata):
     def check_access(value):
         '''
         :param str value: the access descriptor to validate.
+
+        :raises ValueError: if the provided value is not a valid \
+            access  descriptor.
+
         '''
         const = LFRicConstants()
         ArrayArgMetadata.validate_scalar_value(
@@ -139,10 +142,9 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :param str value: set the function space to the \
             specified value.
         '''
-        # const = LFRicConstants()
-        # FieldArgMetadata.validate_scalar_value(
-        #     value, const.VALID_FUNCTION_SPACE_NAMES, "function space")
-        # self._array_ndims = cls.get_array_ndims(fparser2_tree)
+        if not isinstance(value, str):
+            raise TypeError(f"The 'array_size' value should be of type str, "
+                            f"but found '{type(value).__name__}'.")
         self._array_size = value.lower()                                     # SHARKS (needs test coverage)
 
     @property
@@ -151,7 +153,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :returns: the array size for this array argument.
         :rtype: str
         '''
-        return self._array_ndims                                             # SHARKS (needs test coverage)
+        return self._array_ndims
 
     @array_ndims.setter
     def array_ndims(self, value):
@@ -165,13 +167,12 @@ class ArrayArgMetadata(ScalarArgMetadata):
         try:
             int_value = int(value)
         except ValueError as info:
-            raise ValueError(f"The array size should be a string containing " # SHARKS (needs test coverage)
+            raise ValueError(f"The array size should be a string containing "
                              f"an integer, but found '{value}'.") from info
 
         if int_value < 1:
-            raise ValueError(f"The array size should be an integer greater " # SHARKS (needs test coverage)
+            raise ValueError(f"The array size should be an integer greater "
                              f"than or equal to 1 but found {value}.")
-#        self._array_size = value.lower()
         self._array_ndims = value
 
 
