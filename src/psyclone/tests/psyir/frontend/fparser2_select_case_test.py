@@ -462,7 +462,7 @@ def has_cmp_interface(code):
     assert '''interface psyclone_internal_cmp
     procedure :: psyclone_cmp_int, psyclone_cmp_logical, psyclone_cmp_char
   end interface psyclone_internal_cmp
-  private :: psyclone_internal_cmp''' in code
+''' in code
 
     # Check that the integer implementation is in the code
     assert '''function psyclone_cmp_int(op1, op2)
