@@ -1681,7 +1681,13 @@ class Fparser2Reader():
                         # There's already a symbol with this name
                         existing_symbol = parent.symbol_table.lookup(
                             sym_name)
-                        if not existing_symbol.is_import:
+                        if isinstance(existing_symbol, RoutineSymbol):
+                            # We already knew it was a RoutineSymbol (probably
+                            # because it is referenced by a Generic Interface)
+                            # but not where it came from so add an interface.
+                            existing_symbol.interface = ImportInterface(
+                                container, orig_name=orig_name)
+                        elif not existing_symbol.is_import:
                             raise SymbolError(
                                 f"Symbol '{sym_name}' is imported from module "
                                 f"'{mod_name}' but is already present in the "

@@ -1686,10 +1686,23 @@ def test_deep_copy():
 
     # Check that the internal links between ImportInterfaces and
     # ContainerSymbols have been updated
-    assert symtab2.lookup("symbol2").interface.container_symbol is \
-        symtab2.lookup("my_mod")
+    assert (symtab2.lookup("symbol2").interface.container_symbol is
+            symtab2.lookup("my_mod"))
     # Check that the orig_name is copied across.
     assert symtab2.lookup("symbol2").interface.orig_name == "altsym2"
+
+    # Check that the generic interface has been copied correctly.
+    gisym2 = symtab2.lookup("generic_sub")
+    assert isinstance(gisym2, symbols.GenericInterfaceSymbol)
+    assert gisym2 is not gisym
+    # Check that it references a copy of the original RoutineSymbol.
+    assert len(gisym2.routines) == 1
+    rsym2 = symtab2.lookup("my_sub")
+    assert isinstance(rsym2, symbols.RoutineSymbol)
+    assert rsym2 is not rsym
+    assert gisym2.routines[0].symbol is rsym2
+    assert (gisym2.routines[0].from_container ==
+            gisym.routines[0].from_container)
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table

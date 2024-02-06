@@ -156,10 +156,14 @@ def test_named_interface_no_routine_symbol(fortran_reader):
     '''
     file_container = fortran_reader.psyir_from_source(test_module)
     container = file_container.children[0]
-    isym = container.symbol_table.lookup("test")
+    table = container.symbol_table
+    isym = table.lookup("test")
     assert isinstance(isym, GenericInterfaceSymbol)
-    bsym = container.symbol_table.lookup("boundary")
+    bsym = table.lookup("boundary")
     assert isinstance(bsym, GenericInterfaceSymbol)
+    assert bsym.routines[0].symbol is table.lookup("other_routine")
+    for name in ["test_code_r4", "test_code_r8", "other_routine"]:
+        assert isinstance(table.lookup(name), RoutineSymbol)
 
 
 def test_named_interface_wrong_symbol_type(f2008_parser):
@@ -196,7 +200,8 @@ def test_named_interface_wrong_symbol_type(f2008_parser):
             str(err.value))
 
 
-def test_named_interface_with_body(fortran_reader):
+@pytest.mark.parametrize("use_stmt", ["use some_mod, only: other_sub", ""])
+def test_named_interface_with_body(fortran_reader, use_stmt):
     '''
     Test that an INTERFACE that does not exclusively use
     '[MODULE] PROCEDURE :: name-list' is captured as a RoutineSymbol of
@@ -215,6 +220,16 @@ def test_named_interface_with_body(fortran_reader):
            real, dimension(:, :), intent(in) :: arg
          end subroutine test_code2d
 '''
+    if not use_stmt:
+        other_sub_body = '''\
+      subroutine other_sub(arg)
+        complex :: arg
+      end subroutine other_sub
+'''
+    else:
+        # 'other_sub' brought in by use statement.
+        other_sub_body = ""
+
     # Generate the various orderings of the three components that will
     # make up the interface body.
     body_parts = [mod_procedure, routine1, routine2]
@@ -224,6 +239,7 @@ def test_named_interface_with_body(fortran_reader):
     for parts in perms:
         test_code = f'''
     module test_mod
+      {use_stmt}
       implicit none
       interface test
          {parts[0]}
@@ -234,9 +250,7 @@ def test_named_interface_with_body(fortran_reader):
       subroutine some_sub()
         call test_code(1.0)
       end subroutine some_sub
-      subroutine other_sub(arg)
-        complex :: arg
-      end subroutine other_sub
+      {other_sub_body}
     end module test_mod
 '''
         file_container = fortran_reader.psyir_from_source(test_code)
@@ -246,8 +260,11 @@ def test_named_interface_with_body(fortran_reader):
         if mod_procedure in parts:
             # Should have a RoutineSymbol named 'other_sub' because of the
             # procedure statement in the interface body.
-            sub_sym = table.lookup("other_sub")
-            assert isinstance(sub_sym, RoutineSymbol)
+            assert isinstance(table.lookup("other_sub"), RoutineSymbol)
+        elif use_stmt:
+            # Not mentioned in the interface body so not specialised to a
+            # RoutineSymbol.
+            assert type(table.lookup("other_sub")) is Symbol
         test_symbol = table.lookup("test")
         assert isinstance(test_symbol, RoutineSymbol)
         assert isinstance(test_symbol.datatype, UnsupportedFortranType)
