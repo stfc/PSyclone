@@ -318,7 +318,8 @@ class LFRicStencils(LFRicCollection):
                   invoke or kernel call.
         :rtype: list of str
 
-        :raises InternalError: if neither 'self._kernel' or 'self._invoke' are set.
+        :raises InternalError: if neither 'self._kernel' or 'self._invoke' are
+                               set.
 
         '''
         if self._invoke:
@@ -328,8 +329,9 @@ class LFRicStencils(LFRicCollection):
             names = [self.dofmap_size_symbol(self._symbol_table, arg).name
                      for arg in self._unique_extent_args]
         else:
-            raise InternalError("LFRicStencils._unique_extent_vars: have neither "
-                                "Invoke or Kernel. Should be impossible.")
+            raise InternalError("LFRicStencils._unique_extent_vars: have "
+                                "neither Invoke or Kernel. Should be "
+                                "impossible.")
         return names
 
     def _declare_unique_extent_vars(self, parent):
@@ -374,7 +376,7 @@ class LFRicStencils(LFRicCollection):
         :returns: a list of all the unique direction argument names in this
                   invoke call.
         :rtype: list of str
-        
+
         '''
         names = []
         for arg in self._unique_direction_args:
@@ -409,7 +411,7 @@ class LFRicStencils(LFRicCollection):
         :returns: list of the names of the extent and direction arguments
                   supplied to the PSy routine from the Algorithm layer.
         :rtype: list of str
-        
+
         '''
         return self._unique_extent_vars + self._unique_direction_vars
 
@@ -448,7 +450,7 @@ class LFRicStencils(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises GenerationError: if an unsupported stencil type is encountered.
-        
+
         '''
         if not self._kern_args:
             return
