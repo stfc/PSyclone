@@ -70,12 +70,12 @@ def test_init_invalid_an():
 
 
 @pytest.mark.parametrize("metadata",
-    ["arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*2)"])
+                         ["arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*2)"])
 def test_get_metadata(metadata):
     '''Test that the _get_metadata class method works as expected '''
     fparser2_tree = ArrayArgMetadata.create_fparser2(
         metadata, Fortran2003.Part_Ref)
-    datatype, access, array_ndims  = ArrayArgMetadata._get_metadata(
+    datatype, access, array_ndims = ArrayArgMetadata._get_metadata(
         fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
@@ -88,13 +88,12 @@ def test_fortran_string(fortran_string):
     '''Test that the fortran_string method works as expected.'''
     array_arg = ArrayArgMetadata.create_from_fortran_string(fortran_string)
     result = array_arg.fortran_string()
-    fortranstring = fortran_string
     assert result == fortran_string.lower()
 
 
 @pytest.mark.parametrize("datatype", ["GH_REAL", "GH_INTEGER", "GH_LOGICAL"])
 def test_check_datatype(datatype):
-    '''Test the check_datatype method works as expected.'''             # expand to test gh_integer and gh_logical
+    '''Test the check_datatype method works as expected.'''
     ArrayArgMetadata.check_datatype(datatype)
     with pytest.raises(ValueError) as info:
         ArrayArgMetadata.check_datatype("invalid")

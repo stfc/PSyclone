@@ -849,7 +849,7 @@ class LFRicArgDescriptor(Descriptor):
         :rtype: int
 
         '''
-        return self._array_ndims                 #SHARKS (needs test coverage)
+        return self._array_ndims
 
     def __str__(self):
         '''
