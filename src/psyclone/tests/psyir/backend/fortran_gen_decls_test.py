@@ -332,7 +332,8 @@ def test_procedure_interface(fortran_writer):
 def test_gen_interfacedecl(fortran_writer):
     '''
     Test the gen_interfacedecl() method directly. That it raises the expected
-    errors and generates the correct visibility statements.
+    error if not supplied with a GenericInterfaceSymbol but otherwise generates
+    correct Fortran.
 
     '''
     with pytest.raises(InternalError) as err:
@@ -341,30 +342,9 @@ def test_gen_interfacedecl(fortran_writer):
             "got 'str'" in str(err.value))
     isub = GenericInterfaceSymbol("subx", [(RoutineSymbol("sub1"), False),
                                            (RoutineSymbol("sub2"), True)])
-    # No visibility.
     out = fortran_writer.gen_interfacedecl(isub)
     assert (out == '''interface subx
   module procedure :: sub2
   procedure :: sub1
 end interface subx
 ''')
-    # With visibility.
-    out2 = fortran_writer.gen_interfacedecl(isub, include_visibility=True)
-    assert (out2 == '''interface subx
-  module procedure :: sub2
-  procedure :: sub1
-end interface subx
-public :: subx
-''')
-    isub.visibility = Symbol.Visibility.PRIVATE
-    out3 = fortran_writer.gen_interfacedecl(isub, include_visibility=True)
-    assert (out3 == '''interface subx
-  module procedure :: sub2
-  procedure :: sub1
-end interface subx
-private :: subx
-''')
-    isub._visibility = "wrong"
-    with pytest.raises(InternalError) as err:
-        fortran_writer.gen_interfacedecl(isub, include_visibility=True)
-    assert "but symbol 'subx' has visibility 'wrong'" in str(err.value)

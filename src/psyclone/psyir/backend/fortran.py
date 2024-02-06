@@ -622,21 +622,22 @@ class FortranWriter(LanguageWriter):
 
         return result + "\n"
 
-    def gen_interfacedecl(self, symbol, include_visibility=False):
+    def gen_interfacedecl(self, symbol):
         '''
         Generate the declaration for a generic interface.
 
+        Since a GenericInterfaceSymbol is a subclass of RoutineSymbol, any
+        necessary accessibility statement will be generated in
+        gen_access_stmts().
+
         :param symbol: the GenericInterfaceSymbol to be declared.
         :type symbol: :py:class:`psyclone.psyir.symbols.GenericInterfaceSymbol`
-        :param bool include_visibility: whether to include the visibility of
-            the interface in the generated declaration (default False).
 
         :returns: the corresponding Fortran declaration.
         :rtype: str
 
         :raises InternalError: if passed something that is not a
                                GenericInterfaceSymbol.
-        :raises InternalError: if the symbol has an unrecognised visibility.
 
         '''
         if not isinstance(symbol, GenericInterfaceSymbol):
@@ -656,19 +657,6 @@ class FortranWriter(LanguageWriter):
             decln += f"{self._nindent}procedure :: {routines}\n"
         self._depth -= 1
         decln += f"{self._nindent}end interface {symbol.name}\n"
-
-        if include_visibility:
-            # Visibility of an interface has to be supplied as a separate
-            # statement.
-            if symbol.visibility == Symbol.Visibility.PRIVATE:
-                decln += f"{self._nindent}private :: {symbol.name}\n"
-            elif symbol.visibility == Symbol.Visibility.PUBLIC:
-                decln += f"{self._nindent}public :: {symbol.name}\n"
-            else:
-                raise InternalError(
-                    f"The visibility of a Symbol must be one of "
-                    f"Symbol.Visibility.PUBLIC/PRIVATE but symbol "
-                    f"'{symbol.name}' has visibility '{symbol.visibility}'")
 
         return decln
 
@@ -997,8 +985,7 @@ class FortranWriter(LanguageWriter):
             # Interfaces can be GenericInterfaceSymbols or RoutineSymbols
             # of UnsupportedFortranType.
             if isinstance(sym, GenericInterfaceSymbol):
-                declarations += self.gen_interfacedecl(
-                    sym, include_visibility=is_module_scope)
+                declarations += self.gen_interfacedecl(sym)
             elif isinstance(sym.datatype, UnsupportedType):
                 declarations += self.gen_vardecl(
                         sym, include_visibility=is_module_scope)
