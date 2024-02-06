@@ -362,12 +362,12 @@ def try_kernels_trans(nodes):
                 # We put a COLLAPSE(2) clause on any perfectly-nested lat-lon
                 # loops that have a Literal value for their step. The latter
                 # condition is necessary to avoid compiler errors.
-                if loop.loop_type == "lat" and \
-                   isinstance(loop.step_expr, Literal) and \
-                   isinstance(loop.loop_body[0], Loop) and \
-                   loop.loop_body[0].loop_type == "lon" and \
-                   isinstance(loop.loop_body[0].step_expr, Literal) and \
-                   len(loop.loop_body.children) == 1:
+                if (loop.variable.name == "jj" and
+                        isinstance(loop.step_expr, Literal) and
+                        isinstance(loop.loop_body[0], Loop) and
+                        loop.loop_body[0].variable.name == "ji" and
+                        isinstance(loop.loop_body[0].step_expr, Literal) and
+                        len(loop.loop_body.children) == 1):
                     try:
                         ACC_LOOP_TRANS.apply(loop, {"collapse": 2})
                     except (TransformationError) as err:
