@@ -187,15 +187,27 @@ class KernelModuleInlineTrans(Transformation):
         for block in kernel_schedule.walk(CodeBlock):
             for name in block.get_symbol_names():
                 try:
+                    # Is this quantity declared within the kernel?
                     block.scope.symbol_table.lookup(
                         name, scope_limit=kernel_schedule)
                 except KeyError as err:
-                    if not block.scope.symbol_table.lookup(name).is_import:
+                    # It isn't declared in the kernel.
+                    try:
+                        # Can we find the corresponding symbol at all?
+                        sym = block.scope.symbol_table.lookup(name)
+                    except KeyError:
                         raise TransformationError(
-                            f"{kern_or_call} '{kname}' contains "
-                            f"accesses to '{name}' in a CodeBlock that is "
-                            f"declared in the same module scope. "
-                            f"Cannot inline such a {kern_or_call}.") from err
+                            f"{kern_or_call} '{kname}' contains accesses to "
+                            f"'{name}' in a CodeBlock but the origin of this "
+                            f"symbol is unknown.")
+                    # We found it in an outer scope - is it from an import or a
+                    # declaration?
+                    if not sym.is_import:
+                        raise TransformationError(
+                            f"{kern_or_call} '{kname}' contains accesses to "
+                            f"'{name}' in a CodeBlock that is declared in the "
+                            f"same module scope. Cannot inline such a "
+                            f"{kern_or_call}.") from err
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine

@@ -170,7 +170,8 @@ class Container(ScopingNode, CommentableMixin):
     def __str__(self):
         return f"Container[{self.name}]\n"
 
-    def get_routine_definition(self, name, allow_private=False):
+    def get_routine_definition(self, name, allow_private=False,
+                               check_wildcard_imports=False):
         '''
         Searches the Container for a definition of the named routine.
 
@@ -223,6 +224,9 @@ class Container(ScopingNode, CommentableMixin):
             return container.get_routine_definition(rname)
 
         # Look in any wildcard imports.
+        if not check_wildcard_imports:
+            return None
+
         for child_cntr_sym in table.containersymbols:
             if child_cntr_sym.wildcard_import:
                 # Find the definition of the container.
