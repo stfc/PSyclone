@@ -38,8 +38,8 @@
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
-from os import listdir, path
-from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+from psyclone.errors import InternalError
+from psyclone.psyir.symbols.symbol import Symbol
 from psyclone.psyir.symbols.interfaces import SymbolInterface
 from psyclone.configuration import Config
 
@@ -194,37 +194,43 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
     @staticmethod
     def import_container(name):
-        ''' Imports a Fortran module as a PSyIR container. The module is
-        expected to be found in a Fortran source file with the same name
-        as the module plus the '.[f|F]90' extension. The search
+        ''' Imports a Fortran module as a PSyIR container. The search
         locations are provided in-order by the Config include_paths
-        attribute ('-I' in the psyclone script).
+        attribute ('-I' argument to the 'psyclone' script).
 
         :param str name: name of the module to be imported.
 
         :returns: container associated with the given name.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-        :raises SymbolError: the given Fortran module is not found on the \
-            import path.
+        :raises NotImplementedError: if we can't get a Container because the
+            module has been placed in a CodeBlock (due to unsupported
+            features).
+        :raises InternalError: if a container of the supplied name isn't in
+            the parse tree obtained by the ModuleManager.
 
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.parse import ModuleManager
         from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+        from psyclone.psyir.nodes.codeblock import CodeBlock
         from psyclone.psyir.nodes.container import Container
         mod_manager = ModuleManager.get()
         mod_manager.add_search_path(Config.get().include_paths)
         minfo = mod_manager.get_module_info(name)
         ptree = minfo.get_parse_tree()
-        # Generate PSyIR from the parse tree.
+        # Generate PSyIR from the parse tree. #TODO this could be in
+        # ModuleManager?
         fp2reader = Fparser2Reader()
         psyir = fp2reader.generate_psyir(ptree.get_root())
         for candidate in psyir.walk(Container):
             if candidate.name.lower() == name.lower():
                 return candidate
-        # TODO - remove this now that search does not rely on naming convention?
-        raise ValueError(
+        if isinstance(psyir.children[0], CodeBlock):
+            raise NotImplementedError(
+                f"Cannot find Fortran module '{name}' because the "
+                f"file '{minfo.filename}' is not representable in PSyIR.")
+        raise InternalError(
             f"Error importing the Fortran module '{name}' into a "
             f"PSyIR container. The file with filename "
             f"'{minfo.filename}' does not contain the expected module.")
