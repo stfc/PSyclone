@@ -37,7 +37,7 @@
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 ''' This module implements the stencil information and code generation
-    associated with a PSy-layer routine or Kernel stub.  '''
+    associated with a PSy-layer routine or Kernel stub in the LFRic API.  '''
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
@@ -445,7 +445,7 @@ class LFRicStencils(LFRicCollection):
         '''
         Adds in the code to initialise stencil dofmaps to the PSy layer.
 
-        :param parent: the node in the f2pygen AST to which to add the \
+        :param parent: the node in the f2pygen AST to which to add the
                        initialisations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
@@ -530,11 +530,12 @@ class LFRicStencils(LFRicCollection):
         '''
         Declare all stencil maps in the PSy layer.
 
-        :param parent: the node in the f2pygen AST to which to add \
+        :param parent: the node in the f2pygen AST to which to add
                        declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises GenerationError: if an unsupported stencil type is encountered.
+
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
@@ -624,7 +625,7 @@ class LFRicStencils(LFRicCollection):
         '''
         Add declarations for all stencil maps to a kernel stub.
 
-        :param parent: the node in the f2pygen AST representing the kernel \
+        :param parent: the node in the f2pygen AST representing the kernel
                        stub routine.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
@@ -653,5 +654,5 @@ class LFRicStencils(LFRicCollection):
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for (See https://psyclone-ref.readthedocs.io).
+# documentation for (see https://psyclone-ref.readthedocs.io).
 __all__ = ['LFRicStencils']
