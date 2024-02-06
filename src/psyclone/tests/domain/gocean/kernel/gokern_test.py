@@ -141,7 +141,6 @@ def test_gok_reference_accesses(fortran_writer):
     vai = VariablesAccessInfo(kern1)
     assert str(vai) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
     p_fld = vai[Signature("p_fld")]
-    print(p_fld)
     # We can't have lists in a set, so we convert the lists to string
     # for easy comparison. Calling `to_fortran` also ensures that the
     # component indices are PSyIR nodes (not strings)

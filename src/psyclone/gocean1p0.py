@@ -1153,8 +1153,16 @@ class GOKern(CodedKern):
                                                              current_depth)
                     j_expr = GOKern._create_psyir_for_access(symbol_j, j,
                                                              current_depth)
-                    var_accesses.add_access(signature, arg.access,
-                                            self, [i_expr, j_expr])
+                    # Even if a GOKern argument is declared to be written, it
+                    # can only ever write to (i,j), so any other references
+                    # must be read:
+                    if i == 0 and j == 0:
+                        acc = arg.access
+                    else:
+                        acc = AccessType.READ
+
+                    var_accesses.add_access(signature, acc, self,
+                                            [i_expr, j_expr])
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. All accesses are marked
