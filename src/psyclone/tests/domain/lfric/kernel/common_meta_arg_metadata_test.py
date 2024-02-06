@@ -286,6 +286,7 @@ def test_get_array_ndims():
     vector_length = CheckArg.get_array_ndims(fparser_tree)
     assert vector_length == "3"
 
+
 def test_setter_getter():
     '''Test that the setters and getters in the CommonMetaArgMetadata
     class work as expected.

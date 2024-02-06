@@ -92,9 +92,10 @@ def test_fortran_string(fortran_string):
     assert result == fortran_string.lower()
 
 
-def test_check_datatype():
-    '''Test the check_datatype method works as expected.'''                  # expand to test gh_integer and gh_logical
-    ArrayArgMetadata.check_datatype("GH_REAL")
+@pytest.mark.parametrize("datatype", ["GH_REAL", "GH_INTEGER", "GH_LOGICAL"])
+def test_check_datatype(datatype):
+    '''Test the check_datatype method works as expected.'''             # expand to test gh_integer and gh_logical
+    ArrayArgMetadata.check_datatype(datatype)
     with pytest.raises(ValueError) as info:
         ArrayArgMetadata.check_datatype("invalid")
     assert ("The 'datatype descriptor' metadata should be a recognised value "
