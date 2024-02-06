@@ -162,12 +162,6 @@ The following transformations are specific to the NEMO API.
 
 ####
 
-.. autoclass:: psyclone.domain.nemo.transformations.NemoLoopFuseTrans
-    :noindex:
-    :members: apply, validate
-
-####
-
 .. autoclass:: psyclone.domain.nemo.transformations.NemoArrayRange2LoopTrans
     :noindex:
     :members: apply, validate
