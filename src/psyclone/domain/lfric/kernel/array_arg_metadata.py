@@ -39,8 +39,7 @@ and Fortran output of an Array argument.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.kernel.scalar_arg_metadata import \
-    ScalarArgMetadata
+from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
 
 class ArrayArgMetadata(ScalarArgMetadata):
@@ -69,7 +68,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
     # max values).
     nargs = (4)
 
-    def __init__(self, datatype, access, array_ndims):                       # the information that is given
+    def __init__(self, datatype, access, array_ndims):
         super().__init__(datatype, access)
         self.array_ndims = array_ndims
 
@@ -80,12 +79,12 @@ class ArrayArgMetadata(ScalarArgMetadata):
         form (but do not check the metadata values as that is done
         separately).
 
-        :param fparser2_tree: fparser2 tree containing the metadata \
+        :param fparser2_tree: fparser2 tree containing the metadata
             for this argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` |
             :py:class:`fparser.two.Fortran2003.Structure_Constructor`
 
-        :returns: a tuple containing the datatype, access and array ndims \
+        :returns: a tuple containing the datatype, access and array ndims
             metadata.
         :rtype: Tuple[str, str, str]
 
@@ -100,14 +99,14 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :rtype: str
         '''
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "    # SHARKS (needs test coverage)
-                f"nranks*{self.array_ndims})")                                      # how to check for full NRANKS*n here?
+                f"nranks*{self.array_ndims})")
 
     @staticmethod
     def check_datatype(value):
         '''
         :param str value: the datatype to check for validity.
 
-        :raises ValueError: if the provided value is not a valid \
+        :raises ValueError: if the provided value is not a valid
             datatype descriptor.
 
         '''
@@ -120,7 +119,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         '''
         :param str value: the access descriptor to validate.
 
-        :raises ValueError: if the provided value is not a valid \
+        :raises ValueError: if the provided value is not a valid
             access  descriptor.
 
         '''
@@ -139,7 +138,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
     @array_size.setter
     def array_size(self, value):
         '''
-        :param str value: set the function space to the \
+        :param str value: set the function space to the
             specified value.
         '''
         if not isinstance(value, str):
@@ -158,7 +157,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
     @array_ndims.setter
     def array_ndims(self, value):
         '''
-        :param str value: set the function space to the \
+        :param str value: set the function space to the
             specified value.
         '''
         if not isinstance(value, str):
