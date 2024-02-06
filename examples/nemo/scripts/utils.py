@@ -121,7 +121,9 @@ def enhance_tree_information(schedule):
                         ArrayType.Extent.ATTRIBUTE]))
         elif reference.symbol.name == "sbc_dcy":
             # The parser gets this wrong, it is a Call not an Array access
-            reference.symbol.specialise(RoutineSymbol)
+            if not isinstance(reference.symbol, RoutineSymbol):
+                # We haven't already specialised this Symbol.
+                reference.symbol.specialise(RoutineSymbol)
             call = Call(reference.symbol)
             for child in reference.children:
                 call.addchild(child.detach())
