@@ -99,8 +99,8 @@ class Message:
         if len(self._var_names) == 0:
             return self._message
         if len(self._var_names) == 1:
-            return f"{self._message} Variable: '{self._var_names[0]}'."
-        return f"{self._message} Variables: '{self._var_names}'."
+            return f"{self._message} Variable: '{self._var_names[0].strip()}'."
+        return f"{self._message} Variables: {self._var_names}."
 
     # ------------------------------------------------------------------------
     @property
@@ -609,13 +609,6 @@ class DependencyTools():
                                                         other_access):
                     # There is a dependency. Try to give precise error
                     # messages:
-                    # We need to use default parameters, since otherwise
-                    # the value of a variable might be different when
-                    # the message is actually evaluated.
-                    # Some pylint version complain here (because of the
-                    # above). The code is correct, so disable this
-                    # message:
-                    # pylint: disable=cell-var-from-loop
                     if write_access is other_access:
                         # The write access has a dependency on itself, e.g.
                         # a(3) = ...    or a((i-2)**2) = ...
@@ -628,16 +621,57 @@ class DependencyTools():
                             DTCode.ERROR_WRITE_WRITE_RACE,
                             [var_info.var_name])
                     else:
+                        # Circular dependency:
+                        # pylint: disable=import-outside-toplevel
+                        from psyclone.gocean1p0 import GOKern
+
+                        # If the node is a GOKern, the node.debug_string()
+                        # only contains '< kern call: NAME >', so no
+                        # information about the variable and its indices is
+                        # available. For GOKerns, 'reference_accesses' adds
+                        # artificial accesses to the component indices
+                        # depending on the declared stencil. Use these indices
+                        # and the signature to add additional info to the
+                        # error message that indicates which access exactly is
+                        # causing the problem:
+
+                        if isinstance(write_access.node, GOKern):
+                            comp_ind = write_access.component_indices
+                            write_str = var_info.signature.to_language(
+                                component_indices=comp_ind)
+                            write_add_info = f"to '{write_str}' "
+                        else:
+                            write_add_info = ""
+
+                        if isinstance(other_access.node, GOKern):
+                            comp_ind = other_access.component_indices
+                            write_str = var_info.signature.to_language(
+                                component_indices=comp_ind)
+                            # Also add information if the other access
+                            # is read or write:
+                            other_add_info = f"to '{write_str}' "
+                        else:
+                            other_add_info = ""
+
+                        # We need to use default parameters, since otherwise
+                        # the value of a variable might be different when
+                        # the message is actually evaluated.
+                        # Some pylint version complain here (because of the
+                        # above). The code is correct, so disable this
+                        # message:
+                        # pylint: disable=cell-var-from-loop
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,
                             onode=other_access.node:
-                                (f"The write access in "
-                                 f"'{wnode.debug_string()}' "
-                                 f"and in '{onode.debug_string()}"
-                                 f"' are dependent and cannot be "
+                                (f"The write access {write_add_info}in "
+                                 f"'{wnode.debug_string().strip()}' and the "
+                                 f"{str(other_access.access_type).lower()} "
+                                 f"access {other_add_info}in "
+                                 f"'{onode.debug_string().strip()}' "
+                                 f"are dependent and cannot be "
                                  f"parallelised.")),
                             DTCode.ERROR_DEPENDENCY,
-                            [str(var_info.var_name)])
+                            [var_info.var_name])
 
                     return False
         return True
