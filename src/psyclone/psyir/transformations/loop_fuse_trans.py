@@ -42,9 +42,9 @@ class for all API-specific loop fusion transformations.
 
 from psyclone.core import AccessType, SymbolicMaths, VariablesAccessInfo, \
     Signature
-from psyclone.psyir.tools import DependencyTools
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir.nodes import Reference
+from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError, LazyString
@@ -55,10 +55,13 @@ class LoopFuseTrans(LoopTrans):
     PSyIR of a Schedule after performing validity checks for the supplied
     Nodes. Examples are given in the descriptions of any children classes.
 
-    If loops have different named loop variables, the loop variable of the
-    second loop will be renamed if possible before fusion.
+    If loops have different named loop variables, when possible the loop
+    variable of the second loop will be renamed to be the same as the first
+    loop. This has the side effect that the second loop's variable will no
+    longer have its value modified, with the expectation that that value
+    isn't used anymore.
 
-    Note that the validation of tthis transformation still has several
+    Note that the validation of this transformation still has several
     shortcomings, especially for domain API loops. Use at your own risk.
     '''
     def __str__(self):
