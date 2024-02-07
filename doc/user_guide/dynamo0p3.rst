@@ -411,7 +411,7 @@ have different precision.
 The table below gives the currently supported datatypes, their
 associated kernel metadata description and their precision:
 
-.. tabularcolumns:: |l|l|l| #SHARKS update table to include GH_ARRAY
+.. tabularcolumns:: |l|l|l|
 
 +--------------------------+---------------------------------+-----------+
 | Data Type                | Kernel Metadata                 | Precision |
@@ -430,11 +430,21 @@ associated kernel metadata description and their precision:
 +--------------------------+---------------------------------+-----------+
 | LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL           | L_DEF     |
 +--------------------------+---------------------------------+-----------+
-|                          | GH_ARRAY, GH_REAL               |           | #SHARKS
+# How many of the below are relevant/used/etc? obviously can't use the same
+# Data Type names as above as need to differentiate between scalars and arrays
+| #SHARKS(R_DEF)           | GH_ARRAY, GH_REAL               | R_DEF     |
 +--------------------------+---------------------------------+-----------+
-|                          | GH_ARRAY, GH_INTEGER            |           | #SHARKS
+| #SHARKS(R_BL)            | GH_ARRAY, GH_REAL               | R_BL      |
 +--------------------------+---------------------------------+-----------+
-|                          | GH_ARRAY, GH_LOGICAL            |           | #SHARKS
+| #SHARKS(R_PHYS)          | GH_ARRAY, GH_REAL               | R_PHYS    |
++--------------------------+---------------------------------+-----------+
+| #SHARKS(R_SOLVER)        | GH_ARRAY, GH_REAL               | R_SOLVER  |
++--------------------------+---------------------------------+-----------+
+| #SHARKS(R_TRAN)          | GH_ARRAY, GH_REAL               | R_TRAN    |
++--------------------------+---------------------------------+-----------+
+| #SHARKS(I_DEF)           | GH_ARRAY, GH_INTEGER            | I_DEF     |
++--------------------------+---------------------------------+-----------+
+| #SHARKS(L_DEF)           | GH_ARRAY, GH_LOGICAL            | L_DEF     |
 +--------------------------+---------------------------------+-----------+
 | FIELD_TYPE               | GH_FIELD, GH_REAL               | R_DEF     |
 +--------------------------+---------------------------------+-----------+
@@ -1064,11 +1074,11 @@ of size 3.
 ::
 
   type(arg_type) :: meta_args(5) = (/                                  &
-       arg_type(GH_SCALAR,    GH_REAL,     ... ),                      &
-       arg_type(GH_ARRAY,     GH_LOGICAL,  ... ),                      &
-       arg_type(GH_FIELD,     GH_INTEGER,  ... ),                      &
-       arg_type(GH_FIELD*3,   GH_REAL,     ... ),                      &
-       arg_type(GH_OPERATOR,  GH_REAL,     ... )                       &
+       arg_type(GH_SCALAR, GH_REAL, ...),                              &
+       arg_type(GH_ARRAY, GH_LOGICAL, ...),                            &
+       arg_type(GH_FIELD, GH_INTEGER, ...),                            &
+       arg_type(GH_FIELD*3, GH_REAL, ...),                             &
+       arg_type(GH_OPERATOR, GH_REAL, ...)                             &
        /)
 
 The second item in a metadata entry describes the Fortran primitive
