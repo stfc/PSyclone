@@ -1044,26 +1044,28 @@ array will be of size 2 and there will be two ``arg_type`` entries::
        /)
 
 Argument metadata (information contained within the brackets of an
-``arg_type`` entry), describes either a **scalar**, a **field** or an
-**operator** (either LMA or CMA).
+``arg_type`` entry), describes either a **scalar**, an **array**, a **field**
+or an **operator** (either LMA or CMA).
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a scalar (``GH_SCALAR``), a field (``GH_FIELD``) or # SHARKS add array
-an operator (either ``GH_OPERATOR`` for LMA or ``GH_COLUMNWISE_OPERATOR``
-for CMA). This information is mandatory.
+being passed is for a scalar (``GH_SCALAR``), an array (``GH_ARRAY``), a # SHARKS add array
+field (``GH_FIELD``) or an operator (either ``GH_OPERATOR`` for LMA or
+``GH_COLUMNWISE_OPERATOR`` for CMA). This information is mandatory.
 
 Additionally, argument metadata can be used to describe a vector of
 fields (see the :ref:`lfric-field-vector` section for more
 details).
 
-As an example, the following ``meta_args`` metadata describes 4
-entries, the first is a scalar, the next two are fields and the
-fourth is an operator. The third entry is a field vector of size 3.
+As an example, the following ``meta_args`` metadata describes 5
+entries, the first is a scalar, the second is an array, the next two
+are fields and the fifth is an operator. The third entry is a field vector
+of size 3.
 
 ::
 # SHARKS add array
-  type(arg_type) :: meta_args(4) = (/                                  &
+  type(arg_type) :: meta_args(5) = (/                                  &
        arg_type(GH_SCALAR, GH_REAL, ...),                              &
+       arg_type(GH_ARRAY, GH_LOGICAL, ...),                            &
        arg_type(GH_FIELD, GH_INTEGER, ... ),                           &
        arg_type(GH_FIELD*3, GH_REAL, ... ),                            &
        arg_type(GH_OPERATOR, GH_REAL, ...)                             &
