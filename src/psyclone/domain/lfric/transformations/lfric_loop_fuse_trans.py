@@ -120,15 +120,24 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # Call the parent class validation first
 
         if not options:
-            options = {}
-        same_space = options.get("same_space", False)
+            my_options = {}
+        else:
+            my_options = options.copy()
+
+        # TODO #2498: access information for LFRic kernels do not have any
+        # index information for field accesses, and the loop fusion dependency
+        # tests will therefore fail. To avoid this, disable the dependency test
+        # in the generic loop fusion class for LFRic:
+        if "force" not in my_options:
+            my_options["force"] = True
+
+        same_space = my_options.get("same_space", False)
         if same_space and not isinstance(same_space, bool):
             raise TransformationError(
                 f"Error in {self.name} transformation: The value of the "
                 f"'same_space' flag must be either bool or None type, but the "
                 f"type of flag provided was '{type(same_space).__name__}'.")
-        super(LFRicLoopFuseTrans, self).validate(node1, node2,
-                                                 options=options)
+        super().validate(node1, node2, options=my_options)
         # Now test for Dynamo-specific constraints
 
         # 1) Check that we don't have an inter-grid kernel
