@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic, A. Coughtrie and O. Brunt Met Office
+.. Modified by I. Kavcic, A. Coughtrie, O. Brunt and L. Turner, Met Office
 
 .. highlight:: fortran
 
@@ -132,6 +132,13 @@ with ``GH_SCALAR`` metadata. Scalar arguments can have ``real``,
 in the :ref:`LFRic Built-ins <lfric-built-ins-dtype-access>`).
 
 .. _lfric-field:
+
+Array
++++++
+LFRic API scalar arrays, identified with ``GH_ARRAY`` metadata, represent.
+Array arguments can have ``real``, ``integer`` or ``logical`` data type in
+:ref:`user-defined Kernels <lfric-kernel-valid-data-type>`
+#SHARKS
 
 Field
 +++++
@@ -404,7 +411,7 @@ have different precision.
 The table below gives the currently supported datatypes, their
 associated kernel metadata description and their precision:
 
-.. tabularcolumns:: |l|l|l|
+.. tabularcolumns:: |l|l|l| #SHARKS update table to include GH_ARRAY
 
 +--------------------------+---------------------------------+-----------+
 | Data Type                | Kernel Metadata                 | Precision |
@@ -422,6 +429,12 @@ associated kernel metadata description and their precision:
 | INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER           | I_DEF     |
 +--------------------------+---------------------------------+-----------+
 | LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL           | L_DEF     |
++--------------------------+---------------------------------+-----------+
+|                          | GH_ARRAY, GH_REAL               |           | #SHARKS
++--------------------------+---------------------------------+-----------+
+|                          | GH_ARRAY, GH_INTEGER            |           | #SHARKS
++--------------------------+---------------------------------+-----------+
+|                          | GH_ARRAY, GH_LOGICAL            |           | #SHARKS
 +--------------------------+---------------------------------+-----------+
 | FIELD_TYPE               | GH_FIELD, GH_REAL               | R_DEF     |
 +--------------------------+---------------------------------+-----------+
@@ -537,6 +550,11 @@ PSyclone must therefore determine this information from the algorithm
 layer. The rules for whether PSyclone requires information for
 particular LFRic datatypes and what it does with or without this
 information are given below:
+
+Arrays
+++++++
+
+#SHARKS
 
 .. _lfric-mixed-precision-fields:
 
@@ -1003,20 +1021,20 @@ meta_args
 #########
 
 The ``meta_args`` array specifies information about data that the
-kernel code expects to be passed to it via its argument list. There is
-one entry in the ``meta_args`` array for each **scalar**, **field**,
+kernel code expects to be passed to it via its argument list. There is one
+entry in the ``meta_args`` array for each **scalar**, **array**, **field**,
 or **operator** passed into the Kernel and the order that these occur
 in the ``meta_args`` array must be the same as they are expected in
 the kernel code argument list. The entry must be of ``arg_type`` which
-itself contains metadata about the associated argument. The size of
-the ``meta_args`` array must correspond to the number of **scalars**,
+itself contains metadata about the associated argument. The size of the
+``meta_args`` array must correspond to the number of **scalars**, **arrays**
 **fields** and **operators** passed into the Kernel.
 
-.. note:: It makes no sense for a Kernel to have only **scalar** arguments
-          (because the PSy layer will call a Kernel for each point in the
-          spatial domain) and PSyclone will reject such Kernels.
+.. note:: It makes no sense for a Kernel to have only **scalar** or **array** #SHARKS scalar or scalar array
+          arguments (because the PSy layer will call a Kernel for each point
+          in the spatial domain) and PSyclone will reject such Kernels.
 
-For example, if there are a total of 2 **scalar** / **field** /
+For example, if there are a total of 2 **scalar** / **array** / **field** /
 **operator** entities being passed to the Kernel then the ``meta_args``
 array will be of size 2 and there will be two ``arg_type`` entries::
 
@@ -1030,7 +1048,7 @@ Argument metadata (information contained within the brackets of an
 **operator** (either LMA or CMA).
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a scalar (``GH_SCALAR``), a field (``GH_FIELD``) or
+being passed is for a scalar (``GH_SCALAR``), a field (``GH_FIELD``) or # SHARKS add array
 an operator (either ``GH_OPERATOR`` for LMA or ``GH_COLUMNWISE_OPERATOR``
 for CMA). This information is mandatory.
 
@@ -1043,7 +1061,7 @@ entries, the first is a scalar, the next two are fields and the
 fourth is an operator. The third entry is a field vector of size 3.
 
 ::
-
+# SHARKS add array
   type(arg_type) :: meta_args(4) = (/                                  &
        arg_type(GH_SCALAR, GH_REAL, ...),                              &
        arg_type(GH_FIELD, GH_INTEGER, ... ),                           &
@@ -1098,7 +1116,7 @@ combinations are specified later in this section (see
   are summed over calls to Kernel code.
 
 For example::
-
+# SHARKS add array
   type(arg_type) :: meta_args(6) = (/                            &
        arg_type(GH_OPERATOR, GH_REAL,    GH_READ,      ... ),    &
        arg_type(GH_FIELD*3,  GH_REAL,    GH_WRITE,     ... ),    &
@@ -1236,7 +1254,7 @@ argument type are given in the table below (please note that
 the :ref:`LFRic fields <lfric-field>`):
 
 .. tabularcolumns:: |l|l|
-
+# SHARKS add gh_array
 +------------------------+---------------------------------+
 | Argument Type          | Data Type                       |
 +========================+=================================+
@@ -1257,7 +1275,8 @@ Valid Access Modes
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations for each argument type in
 user-defined Kernels are summarised here. All argument types
-(``GH_SCALAR``, ``GH_FIELD``, ``GH_OPERATOR`` and
+(``GH_SCALAR``, ``GH_FIELD``, ``GH_OPERATOR`` and# SHARKS add gh_array
+
 ``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
 is specified in metadata using ``GH_READ``. At least one kernel
 argument must be listed as being modified. When data is *modified*
@@ -1267,6 +1286,7 @@ in a user-supplied Kernel (i.e. a Kernel that operates on a
 modes depend upon the argument type and the function space it is on:
 
 .. tabularcolumns:: |l|l|l|
+# SHARKS add gh_array
 
 +------------------------+------------------------------+--------------------+
 | Argument Type          | Function Space               | Access Type        |
@@ -1342,6 +1362,11 @@ discontinuous function spaces. In conjunction with this, PSyclone also
 checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
+
+Array sizes
+^^^^^^^^^^^
+# SHARKS
+
 
 .. _lfric-function-space:
 
