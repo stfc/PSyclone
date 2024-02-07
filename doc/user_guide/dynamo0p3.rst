@@ -1119,12 +1119,13 @@ combinations are specified later in this section (see
 
 For example::
 # SHARKS add array
-  type(arg_type) :: meta_args(6) = (/                            &
+  type(arg_type) :: meta_args(7) = (/                            &
        arg_type(GH_OPERATOR, GH_REAL,    GH_READ,      ... ),    &
        arg_type(GH_FIELD*3,  GH_REAL,    GH_WRITE,     ... ),    &
        arg_type(GH_FIELD,    GH_REAL,    GH_READWRITE, ... ),    &
        arg_type(GH_FIELD,    GH_INTEGER, GH_INC,       ... ),    &
        arg_type(GH_FIELD,    GH_REAL,    GH_READINC,   ... ),    &
+       arg_type(GH_ARRAY,    GH_LOGICAL, GH_READ,      ... ),    &
        arg_type(GH_SCALAR,   GH_REAL,    GH_SUM)                 &
        /)
 
@@ -1256,11 +1257,13 @@ argument type are given in the table below (please note that
 the :ref:`LFRic fields <lfric-field>`):
 
 .. tabularcolumns:: |l|l|
-# SHARKS add gh_array
+
 +------------------------+---------------------------------+
 | Argument Type          | Data Type                       |
 +========================+=================================+
 | GH_SCALAR              | GH_REAL, GH_INTEGER, GH_LOGICAL |
++------------------------+---------------------------------+
+| GH_ARRAY               | GH_REAL, GH_INTEGER, GH_LOGICAL |
 +------------------------+---------------------------------+
 | GH_FIELD               | GH_REAL, GH_INTEGER             |
 +------------------------+---------------------------------+
@@ -1288,12 +1291,13 @@ in a user-supplied Kernel (i.e. a Kernel that operates on a
 modes depend upon the argument type and the function space it is on:
 
 .. tabularcolumns:: |l|l|l|
-# SHARKS add gh_array
 
 +------------------------+------------------------------+--------------------+
 | Argument Type          | Function Space               | Access Type        |
 +========================+==============================+====================+
 | GH_SCALAR              | n/a                          | GH_READ            |
++------------------------+------------------------------+--------------------+
+| GH_ARRAY               | n/a #SHARKS                  | GH_READ            |
 +------------------------+------------------------------+--------------------+
 | GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
