@@ -554,7 +554,7 @@ information are given below:
 Arrays
 ++++++
 
-#SHARKS
+#SHARKS - array of scalars
 
 .. _lfric-mixed-precision-fields:
 
@@ -1030,7 +1030,7 @@ itself contains metadata about the associated argument. The size of the
 ``meta_args`` array must correspond to the number of **scalars**, **arrays**
 **fields** and **operators** passed into the Kernel.
 
-.. note:: It makes no sense for a Kernel to have only **scalar** or **array** #SHARKS scalar or scalar array
+.. note:: It makes no sense for a Kernel to have only **scalar** or **array**
           arguments (because the PSy layer will call a Kernel for each point
           in the spatial domain) and PSyclone will reject such Kernels.
 
@@ -1048,7 +1048,7 @@ Argument metadata (information contained within the brackets of an
 or an **operator** (either LMA or CMA).
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a scalar (``GH_SCALAR``), an array (``GH_ARRAY``), a # SHARKS add array
+being passed is for a scalar (``GH_SCALAR``), an array (``GH_ARRAY``), a
 field (``GH_FIELD``) or an operator (either ``GH_OPERATOR`` for LMA or
 ``GH_COLUMNWISE_OPERATOR`` for CMA). This information is mandatory.
 
@@ -1062,13 +1062,13 @@ are fields and the fifth is an operator. The third entry is a field vector
 of size 3.
 
 ::
-# SHARKS add array
+
   type(arg_type) :: meta_args(5) = (/                                  &
-       arg_type(GH_SCALAR, GH_REAL, ...),                              &
-       arg_type(GH_ARRAY, GH_LOGICAL, ...),                            &
-       arg_type(GH_FIELD, GH_INTEGER, ... ),                           &
-       arg_type(GH_FIELD*3, GH_REAL, ... ),                            &
-       arg_type(GH_OPERATOR, GH_REAL, ...)                             &
+       arg_type(GH_SCALAR,    GH_REAL,     ... ),                      &
+       arg_type(GH_ARRAY,     GH_LOGICAL,  ... ),                      &
+       arg_type(GH_FIELD,     GH_INTEGER,  ... ),                      &
+       arg_type(GH_FIELD*3,   GH_REAL,     ... ),                      &
+       arg_type(GH_OPERATOR,  GH_REAL,     ... )                       &
        /)
 
 The second item in a metadata entry describes the Fortran primitive
@@ -1118,7 +1118,7 @@ combinations are specified later in this section (see
   are summed over calls to Kernel code.
 
 For example::
-# SHARKS add array
+
   type(arg_type) :: meta_args(7) = (/                            &
        arg_type(GH_OPERATOR, GH_REAL,    GH_READ,      ... ),    &
        arg_type(GH_FIELD*3,  GH_REAL,    GH_WRITE,     ... ),    &
@@ -1280,8 +1280,7 @@ Valid Access Modes
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations for each argument type in
 user-defined Kernels are summarised here. All argument types
-(``GH_SCALAR``, ``GH_FIELD``, ``GH_OPERATOR`` and# SHARKS add gh_array
-
+(``GH_SCALAR``, ``GH_ARRAY``, ``GH_FIELD``, ``GH_OPERATOR`` and
 ``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
 is specified in metadata using ``GH_READ``. At least one kernel
 argument must be listed as being modified. When data is *modified*
@@ -1297,7 +1296,7 @@ modes depend upon the argument type and the function space it is on:
 +========================+==============================+====================+
 | GH_SCALAR              | n/a                          | GH_READ            |
 +------------------------+------------------------------+--------------------+
-| GH_ARRAY               | n/a #SHARKS                  | GH_READ            |
+| GH_ARRAY               | n/a                          | GH_READ            |
 +------------------------+------------------------------+--------------------+
 | GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
