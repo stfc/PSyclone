@@ -639,19 +639,21 @@ class DependencyTools():
                             comp_ind = write_access.component_indices
                             write_str = var_info.signature.to_language(
                                 component_indices=comp_ind)
-                            write_add_info = f"to '{write_str}' "
+                            write_info = (f"The write access to '{write_str}'"
+                                          " in")
                         else:
-                            write_add_info = ""
+                            write_info = "The write access to"
 
+                        # Get 'read' or 'write' etc
+                        access_type = str(other_access.access_type).lower()
                         if isinstance(other_access.node, GOKern):
                             comp_ind = other_access.component_indices
                             write_str = var_info.signature.to_language(
                                 component_indices=comp_ind)
-                            # Also add information if the other access
-                            # is read or write:
-                            other_add_info = f"to '{write_str}' "
+                            other_info = (f"{access_type} access to "
+                                          f"'{write_str}' in")
                         else:
-                            other_add_info = ""
+                            other_info = f"{access_type} access to"
 
                         # We need to use default parameters, since otherwise
                         # the value of a variable might be different when
@@ -663,10 +665,9 @@ class DependencyTools():
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,
                             onode=other_access.node:
-                                (f"The write access {write_add_info}in "
+                                (f"{write_info} "
                                  f"'{wnode.debug_string().strip()}' and the "
-                                 f"{str(other_access.access_type).lower()} "
-                                 f"access {other_add_info}in "
+                                 f"{other_info} "
                                  f"'{onode.debug_string().strip()}' "
                                  f"are dependent and cannot be "
                                  f"parallelised.")),

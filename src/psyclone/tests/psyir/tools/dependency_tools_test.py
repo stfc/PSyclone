@@ -180,7 +180,7 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access in 'mask(ji,jj)' and the read access in "
+    assert ("The write access to 'mask(ji,jj)' and the read access to "
             "'mask(ji,jj + 1)' are dependent and cannot be parallelised. "
             "Variable: 'mask'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
@@ -585,10 +585,9 @@ def test_derived_type(fortran_reader):
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access in 'a%b(ji,jj)' and the read access in "
-            "'a%b(ji,jj - 1)' are "
-            "dependent and cannot be parallelised. Variable: 'a%b'." in
-            str(msg))
+    assert ("The write access to 'a%b(ji,jj)' and the read access to "
+            "'a%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+            "Variable: 'a%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
     assert msg.var_names == ["a%b"]
 
@@ -598,13 +597,12 @@ def test_derived_type(fortran_reader):
     # Now we must have two messages, one for each of the two assignments
     assert len(dep_tools.get_all_messages()) == 2
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access in 'a%b(ji,jj)' and the read access "
-            "in 'a%b(ji,jj - 1)' are "
-            "dependent and cannot be parallelised. Variable: 'a%b'." in
-            str(msg))
+    assert ("The write access to 'a%b(ji,jj)' and the read access "
+            "to 'a%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+            "Variable: 'a%b'." in str(msg))
     assert msg.var_names == ["a%b"]
     msg = dep_tools.get_all_messages()[1]
-    assert ("The write access in 'b%b(ji,jj)' and the read access in "
+    assert ("The write access to 'b%b(ji,jj)' and the read access to "
             "'b%b(ji,jj - 1)' are dependent and cannot be parallelised. "
             "Variable: 'b%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
@@ -617,7 +615,7 @@ def test_derived_type(fortran_reader):
     assert parallel is False
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access in 'b%b(ji,jj)' and the read access in "
+    assert ("The write access to 'b%b(ji,jj)' and the read access to "
             "'b%b(ji,jj - 1)' are dependent and cannot be parallelised. "
             "Variable: 'b%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
@@ -786,8 +784,8 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access in 'mask(ji,lambda)' and "
-            "the read access in 'mask(ji,lambda + 1)' are "
+    assert ("The write access to 'mask(ji,lambda)' and "
+            "the read access to 'mask(ji,lambda + 1)' are "
             "dependent and cannot be parallelised. Variable: 'mask'."
             in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
