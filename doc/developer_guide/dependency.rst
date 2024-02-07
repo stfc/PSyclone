@@ -666,4 +666,4 @@ can be parallelised:
 .. testoutput::
     :hide:
 
-    Error: The write access to 'a(i,i)' and to 'a(i + 1,i + 1)' are dependent and cannot be parallelised.
+    Error: The write access in 'a(i,i)' and the read access in 'a(i + 1,i + 1)' are dependent and cannot be parallelised. Variable: 'a'.
