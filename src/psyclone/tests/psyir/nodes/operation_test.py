@@ -331,7 +331,7 @@ def test_binaryop_array_section_datatype():
     dtype1 = binaryoperation.datatype
     assert len(dtype1.shape) == 1
     assert dtype1.shape[0].lower.value == "1"
-    assert dtype1.shape[0].upper.debug_string() == "(3 - 2) / 1 + 1"
+    assert dtype1.shape[0].upper.debug_string() == "3 - 2 + 1"
     # Repeat but for a non-contiguous 1D section of a rank 2, integer array.
     ref3 = ArrayReference.create(
         DataSymbol("tmp3", iarrtype),
@@ -343,7 +343,7 @@ def test_binaryop_array_section_datatype():
     assert dtype3.intrinsic == REAL_SINGLE_TYPE.intrinsic
     assert len(dtype3.shape) == 1
     assert dtype3.shape[0].lower.value == "1"
-    assert dtype3.shape[0].upper.debug_string() == "(3 - 2) / 1 + 1"
+    assert dtype3.shape[0].upper.debug_string() == "3 - 2 + 1"
 
 
 def test_binaryop_datatype_recursion():
@@ -371,7 +371,7 @@ def test_binaryop_datatype_recursion():
     assert dtype1.intrinsic == REAL_SINGLE_TYPE.intrinsic
     assert len(dtype1.shape) == 1
     assert dtype1.shape[0].lower.value == "1"
-    assert dtype1.shape[0].upper.debug_string() == "(3 - 2) / 1 + 1"
+    assert dtype1.shape[0].upper.debug_string() == "3 - 2 + 1"
 
 
 def test_binaryop_structure_datatype():

@@ -303,7 +303,7 @@ class StructureReference(Reference):
         if isinstance(dtype, (UnresolvedType, UnsupportedType)):
             # We don't know the type of the symbol that defines the type
             # of this structure.
-            return UnresolvedType()
+            dtype = UnresolvedType()
 
         # We do have the definition of this structure - walk down it.
         cursor = self
@@ -325,9 +325,10 @@ class StructureReference(Reference):
                 cursor_type = cursor_type.intrinsic
             if isinstance(cursor_type, DataTypeSymbol):
                 cursor_type = cursor_type.datatype
-            cursor_type = cursor_type.components[cursor.name].datatype
-            if isinstance(cursor_type, (UnsupportedType, UnresolvedType)):
-                return UnresolvedType()
+            if not isinstance(cursor_type, (UnresolvedType, UnsupportedType)):
+                # Once we've hit an Unresolved/UnsupportedType the cursor_type
+                # will remain set to that as we can't do any better.
+                cursor_type = cursor_type.components[cursor.name].datatype
             if isinstance(cursor, ArrayMixin):
                 # pylint: disable=protected-access
                 shape.extend(cursor._get_effective_shape())
@@ -346,7 +347,7 @@ class StructureReference(Reference):
                 else:
                     # No indices so it is an access to a whole array.
                     cursor_shape = cursor_type.shape
-                if cursor_shape and shape != cursor_shape:
+                if cursor_shape and len(shape) != len(cursor_shape):
                     # This ultimate access is an array but we've already
                     # encountered one or more slices earlier in the access
                     # expression.
