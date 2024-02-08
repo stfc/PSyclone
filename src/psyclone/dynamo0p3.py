@@ -6203,7 +6203,6 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 __all__ = [
     'DynFuncDescriptor03',
     'DynamoPSy',
-    'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',
     'DynProxies',
