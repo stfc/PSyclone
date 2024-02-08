@@ -84,25 +84,29 @@ objects and their use are discussed in the following sections.
 
 ::
 
-  real(kind=r_def)           :: rscalar
-  integer(kind=i_def)        :: iscalar
-  logical(kind=l_def)        :: lscalar
-  integer(kind=i_def)        :: stencil_extent
-  type(field_type)           :: field1, field2, field3
-  type(field_type)           :: field5(3), field6(3)
-  type(integer_field_type)   :: field7
-  type(quadrature_type)      :: qr
-  type(operator_type)        :: operator1
-  type(columnwise_operator_type) :: cma_op1
+  real(kind=r_def)                         :: rscalar
+  integer(kind=i_def)                      :: iscalar
+  logical(kind=l_def)                      :: lscalar
+  real(kind=r_def),    dimension(50, 100)  :: real_array
+  integer(kind=i_def), dimension(10)       :: integer_array
+  logical(kind=l_def), dimension(2,5,10,8) :: logical_array
+  integer(kind=i_def)                      :: stencil_extent
+  type(field_type)                         :: field1, field2, field3
+  type(field_type)                         :: field5(3), field6(3)
+  type(integer_field_type)                 :: field7
+  type(quadrature_type)                    :: qr
+  type(operator_type)                      :: operator1
+  type(columnwise_operator_type)           :: cma_op1
   ...
-  call invoke( kernel1(field1, field2, operator1, qr),           &
-               builtin1(rscalar, field2, field3),                &
-               int_builtin2(iscalar, field7),                    &
-               kernel2(field1, stencil_extent, field3, lscalar), &
-               assembly_kernel(cma_op1, operator1),              &
-               name="some_calculation"                           &
+  call invoke( kernel1(field1, field2, operator1, real_array, qr),  &
+               builtin1(rscalar, field2, field3),                   &
+               int_builtin2(iscalar, field7),                       &
+               kernel2(field1, stencil_extent, field3, lscalar),    &
+               assembly_kernel(cma_op1, operator1),                 &
+               kernel3(field3, integer_array, logical_array),       &
+               name="some_calculation"                              &
              )
-  call invoke( prolong_kernel_type(field1, field4),              &
+  call invoke( prolong_kernel_type(field1, field4),                 &
                restrict_kernel_type(field5, field6)
              )
 
@@ -112,13 +116,13 @@ Please see the :ref:`algorithm-layer` section for a description of the
 Objects in the LFRic API can be categorised by their functionality
 as data structures and information that specifies supported operations on
 a particular data structure. These data structures are represented by the
-five LFRic (Dynamo 0.3) API argument types: :ref:`scalar <lfric-scalar>`,
-:ref:`field <lfric-field>`, :ref:`field vector <lfric-field-vector>`,
-:ref:`operator <lfric-operator>` and :ref:`column-wise operator
-<lfric-cma-operator>`. All of them except the field vector are
-represented in the above example. ``qr`` represents a quadrature object
-which provides information required by a kernel to operate on fields
-(see section :ref:`dynamo0.3-quadrature` for more details).
+six LFRic (Dynamo 0.3) API argument types: :ref:`scalar <lfric-scalar>`,
+:ref:`array <lfric-array>`,:ref:`field <lfric-field>`, :ref:`field vector
+<lfric-field-vector>`, :ref:`operator <lfric-operator>` and :ref:`column-wise
+operator <lfric-cma-operator>`. All of them are represented in the above
+example. ``qr`` represents a quadrature object which provides information
+required by a kernel to operate on fields (see section
+:ref:`dynamo0.3-quadrature` for more details).
 
 .. _lfric-scalar:
 
@@ -131,14 +135,17 @@ with ``GH_SCALAR`` metadata. Scalar arguments can have ``real``,
 <lfric-kernel-valid-data-type>` (``logical`` data type is not supported
 in the :ref:`LFRic Built-ins <lfric-built-ins-dtype-access>`).
 
-.. _lfric-field:
+.. _lfric-array:
 
 Array
 +++++
-LFRic API scalar arrays, identified with ``GH_ARRAY`` metadata, represent.
-Array arguments can have ``real``, ``integer`` or ``logical`` data type in
-:ref:`user-defined Kernels <lfric-kernel-valid-data-type>`
-#SHARKS
+
+In the LFRic API a scalar array represents a multi-valued Fortran array of
+scalars, identified with ``GH_ARRAY`` metadata. As with scalars, array arguments
+can have ``real``, ``integer`` or ``logical`` data type in :ref:`user-defined
+Kernels <lfric-kernel-valid-data-type>`.
+
+.. _lfric-field:
 
 Field
 +++++
@@ -430,21 +437,19 @@ associated kernel metadata description and their precision:
 +--------------------------+---------------------------------+-----------+
 | LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL           | L_DEF     |
 +--------------------------+---------------------------------+-----------+
-# How many of the below are relevant/used/etc? obviously can't use the same
-# Data Type names as above as need to differentiate between scalars and arrays
-| #SHARKS(R_DEF)           | GH_ARRAY, GH_REAL               | R_DEF     |
+| REAL(R_DEF)              | GH_ARRAY, GH_REAL               | R_DEF     |
 +--------------------------+---------------------------------+-----------+
-| #SHARKS(R_BL)            | GH_ARRAY, GH_REAL               | R_BL      |
+| REAL(R_BL)               | GH_ARRAY, GH_REAL               | R_BL      |
 +--------------------------+---------------------------------+-----------+
-| #SHARKS(R_PHYS)          | GH_ARRAY, GH_REAL               | R_PHYS    |
+| REAL(R_PHYS)             | GH_ARRAY, GH_REAL               | R_PHYS    |
 +--------------------------+---------------------------------+-----------+
-| #SHARKS(R_SOLVER)        | GH_ARRAY, GH_REAL               | R_SOLVER  |
+| REAL(R_SOLVER)           | GH_ARRAY, GH_REAL               | R_SOLVER  |
 +--------------------------+---------------------------------+-----------+
-| #SHARKS(R_TRAN)          | GH_ARRAY, GH_REAL               | R_TRAN    |
+| REAL(R_TRAN)             | GH_ARRAY, GH_REAL               | R_TRAN    |
 +--------------------------+---------------------------------+-----------+
-| #SHARKS(I_DEF)           | GH_ARRAY, GH_INTEGER            | I_DEF     |
+| INTEGER(I_DEF)           | GH_ARRAY, GH_INTEGER            | I_DEF     |
 +--------------------------+---------------------------------+-----------+
-| #SHARKS(L_DEF)           | GH_ARRAY, GH_LOGICAL            | L_DEF     |
+| LOGICAL(L_DEF)           | GH_ARRAY, GH_LOGICAL            | L_DEF     |
 +--------------------------+---------------------------------+-----------+
 | FIELD_TYPE               | GH_FIELD, GH_REAL               | R_DEF     |
 +--------------------------+---------------------------------+-----------+
@@ -472,7 +477,7 @@ capture all of the precision options. For example, from the metadata
 it is not possible to determine whether a ``REAL`` scalar, ``REAL`` field
 or ``REAL`` operator has precision ``R_DEF``, ``R_SOLVER`` or ``R_TRAN``.
 
-If a scalar, field, or operator is specified with a particular
+If a scalar, array, field, or operator is specified with a particular
 precision in the algorithm layer then any associated kernels that it
 is passed to must have been written so that they support this
 precision. If a kernel needs to support data that can be stored with
@@ -560,11 +565,6 @@ PSyclone must therefore determine this information from the algorithm
 layer. The rules for whether PSyclone requires information for
 particular LFRic datatypes and what it does with or without this
 information are given below:
-
-Arrays
-++++++
-
-#SHARKS - array of scalars
 
 .. _lfric-mixed-precision-fields:
 
@@ -1378,10 +1378,14 @@ checks (when generating the PSy layer) that any kernels which read
 operator values do not do so beyond the level-1 halo. If any such
 accesses are found then PSyclone aborts.
 
+.. _lfric-array-sizes:
+
 Array sizes
 ^^^^^^^^^^^
-# SHARKS
 
+The size of a :ref:`scalar array <lfric-array>` is described by ``NRANKS*<n>``,
+where *n > 0* is the number of Fortran ranks representing the dimension of the
+array.
 
 .. _lfric-function-space:
 
