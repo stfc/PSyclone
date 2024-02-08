@@ -43,11 +43,12 @@ import pytest
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
-    Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall
+from psyclone.psyir.nodes import (
+    Reference, ArrayReference, Assignment,
+    Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, ScalarType,
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE,
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, Symbol, INTEGER_TYPE,
     UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
 
@@ -506,6 +507,7 @@ def test_array_datatype():
     one = Literal("1", INTEGER_TYPE)
     two = Literal("2", INTEGER_TYPE)
     four = Literal("4", INTEGER_TYPE)
+    six = Literal("6", INTEGER_TYPE)
     # Reference to a single element of an array.
     aref = ArrayReference.create(test_sym, [one])
     assert aref.datatype == REAL_TYPE
@@ -523,7 +525,20 @@ def test_array_datatype():
     assert isinstance(upper, BinaryOperation)
     # The easiest way to check the expression is to use debug_string()
     code = upper.debug_string()
-    assert code == "(4 - 2) / 1 + 1"
+    assert code == "4 - 2 + 1"
+    # Reference to a non-contiguous 1D sub-array of a 2D array.
+    ucref = ArrayReference.create(test_sym2d, [two.copy(),
+                                               Range.create(two.copy(),
+                                                            six.copy(),
+                                                            two.copy())])
+    assert isinstance(ucref.datatype, ArrayType)
+    assert ucref.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert len(ucref.datatype.shape) == 1
+    # The sub-array will have a lower bound of one.
+    assert ucref.datatype.shape[0].lower == one
+    # Upper bound must be computed as (stop - start)/step + 1
+    upper = ucref.datatype.shape[0].upper
+    assert upper.debug_string() == "(6 - 2) / 2 + 1"
     # Reference to a single element of an array of structures.
     stype = DataTypeSymbol("grid_type", UnresolvedType())
     atype = ArrayType(stype, [10])
@@ -531,23 +546,23 @@ def test_array_datatype():
     aref = ArrayReference.create(asym, [two.copy()])
     assert aref.datatype is stype
     # Reference to a single element of an array of UnsupportedType.
-    unsuppored_sym = DataSymbol(
-        "unsuppored",
-        UnsupportedFortranType("real, dimension(5), pointer :: unsuppored"))
-    aref = ArrayReference.create(unsuppored_sym, [two.copy()])
+    unsupported_sym = DataSymbol(
+        "unsupported",
+        UnsupportedFortranType("real, dimension(5), pointer :: unsupported"))
+    aref = ArrayReference.create(unsupported_sym, [two.copy()])
     assert isinstance(aref.datatype, UnresolvedType)
     # Reference to a single element of an array of UnsupportedType but with
     # partial type information.
-    not_quite_unsuppored_sym = DataSymbol(
-        "unsuppored",
+    not_quite_unsupported_sym = DataSymbol(
+        "unsupported",
         UnsupportedFortranType(
-            "real, dimension(5), pointer :: unsuppored",
+            "real, dimension(5), pointer :: unsupported",
             partial_datatype=ArrayType(REAL_SINGLE_TYPE, [5])))
-    bref = ArrayReference.create(not_quite_unsuppored_sym, [two.copy()])
+    bref = ArrayReference.create(not_quite_unsupported_sym, [two.copy()])
     assert bref.datatype == REAL_SINGLE_TYPE
     # A sub-array of UnsupportedFortranType.
     aref3 = ArrayReference.create(
-                unsuppored_sym, [Range.create(two.copy(), four.copy())])
+                unsupported_sym, [Range.create(two.copy(), four.copy())])
     # We know the result is an ArrayType
     assert isinstance(aref3.datatype, ArrayType)
     assert aref3.datatype.shape[0].lower == one
@@ -557,8 +572,20 @@ def test_array_datatype():
     assert isinstance(aref3.datatype.intrinsic, UnresolvedType)
     # A whole array of UnsupportedType should simply have the same datatype as
     # the original symbol.
-    aref4 = ArrayReference.create(not_quite_unsuppored_sym, [":"])
-    assert aref4.datatype == not_quite_unsuppored_sym.datatype
+    aref4 = ArrayReference.create(not_quite_unsupported_sym, [":"])
+    assert aref4.datatype == not_quite_unsupported_sym.datatype
+    # When the Reference is just to a Symbol. Although `create` forbids this,
+    # it is possible for the fparser2 frontend to create such a construct.
+    generic_sym = Symbol("existential")
+    aref5 = ArrayReference(generic_sym)
+    aref5.addchild(two.copy())
+    assert isinstance(aref5.datatype, UnresolvedType)
+    aref5.addchild(Range.create(two.copy(), four.copy()))
+    dtype5 = aref5.datatype
+    assert isinstance(dtype5, ArrayType)
+    assert isinstance(dtype5.intrinsic, UnresolvedType)
+    assert dtype5.shape[0].lower.value == "1"
+    assert dtype5.shape[0].upper.debug_string() == "4 - 2 + 1"
 
 
 def test_array_create_colon(fortran_writer):
