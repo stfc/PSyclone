@@ -128,19 +128,27 @@ class LFRicLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        super().lower_to_language_level()
         if self._loop_type != "null":
             # Not a domain loop, i.e. there is a real loop
             # We need to copy the expressions, since the original ones are
             # attached to the original loop.
-            psy_loop = PSyLoop.create(self._variable,
-                                      self.start_expr.copy(),
-                                      self.stop_expr.copy(),
-                                      self.step_expr.copy(),
-                                      self.loop_body.pop_all_children())
+            psy_loop = PSyLoop.create(
+                          self._variable,
+                          self.start_expr.copy(),
+                          self.stop_expr.copy(),
+                          self.step_expr.copy(),
+                          [])
+            psy_loop.children[3] = self.loop_body.copy()
+            # In this case the children lowering needs
+            # to go AFTER the stop_expr call, because it some cases it looks
+            # for domian metadata from the kernel, and this is lost when
+            # lowering.
             self.replace_with(psy_loop)
+            for child in psy_loop.loop_body.children:
+                child.lower_to_language_level()
             return psy_loop
 
+        super().lower_to_language_level()
         # Domain loop, i.e. no need for a loop at all. Remove the loop
         # node (self), and insert its children directly
         pos = self.position

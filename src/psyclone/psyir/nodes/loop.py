@@ -470,6 +470,7 @@ class Loop(Statement):
         # info outside of do loop
         parent.add(do_stmt)
         for child in self.loop_body:
+            # import pdb; pdb.set_trace()
             shallow_copy = child
             child.validate_global_constraints()
             child = child.lower_to_language_level()
