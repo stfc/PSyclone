@@ -97,7 +97,7 @@ The explanation can be found [here](#explanation-for-supporting-mpi).
 
 
 ## Applying OpenMP (`3_applying_openmp`)
-In this example you will add transformation script to the PSyclone command line.
+In this example you will add a transformation script to the PSyclone command line.
 This script will apply OpenMP transformation to the loops. Add the option
 `-s omp.py` to the PSyclone command, i.e.:
 
@@ -213,9 +213,9 @@ the `use` statement in the algorithm layer is unchanged as well:
 This works with a compiler (assuming that the kernel is compiled before the algorithm
 file), since the compiler will create a compiler-specific file
 `summation_w0_to_w3_kernel_mod`, which stores the required information about this
-module. PSyclone does not have this information, and as such rely on the naming scheme
+module. PSyclone does not have this information, and as such relies on the naming scheme
 for finding the source files for modules. Therefore, PSyclone cannot find the source
-file for the kernel, and since the data in this kernel specify which kind of loop
+file for the kernel, and since the data in this kernel specifies which kind of loop
 to create, it cannot process the algorithm layer.
 
 Run PSyclone with the standard command:
