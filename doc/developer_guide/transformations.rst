@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -83,9 +83,8 @@ The top-level raising transformation creates NEMO PSy layer PSyIR:
 
 .. autoclass:: psyclone.domain.nemo.transformations.CreateNemoPSyTrans
 
-This transformation is itself implemented using three separate transformations:
+This transformation is itself implemented using two separate transformations:
 
-.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoKernelTrans
 .. autoclass:: psyclone.domain.nemo.transformations.CreateNemoLoopTrans
 .. autoclass:: psyclone.domain.nemo.transformations.CreateNemoInvokeScheduleTrans
 

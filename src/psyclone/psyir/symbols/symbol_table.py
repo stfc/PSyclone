@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -958,7 +958,7 @@ class SymbolTable():
         :type new_symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if either old/new_symbol are not Symbols.
-        :raises SymbolError: if `old_symbol` and `new_symbol` don't have \
+        :raises SymbolError: if `old_symbol` and `new_symbol` don't have
                              the same name (after normalising).
         '''
         if not isinstance(old_symbol, Symbol):
@@ -1206,7 +1206,8 @@ class SymbolTable():
         # Accumulate into a set so as to remove any duplicates
         precision_symbols = set()
         for sym in self.datasymbols:
-            # Not all types have the 'precision' attribute (e.g. DeferredType)
+            # Not all types have the 'precision' attribute (e.g.
+            # UnresolvedType)
             if (hasattr(sym.datatype, "precision") and
                     isinstance(sym.datatype.precision, DataSymbol)):
                 precision_symbols.add(sym.datatype.precision)

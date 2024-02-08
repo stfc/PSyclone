@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,14 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''Module containing tests for the sum2code transformation.'''
+'''Module containing tests for the product2loop transformation.'''
 
 import pytest
 
-from psyclone.psyir.nodes import Reference, ArrayReference
+from psyclone.psyir.nodes import Reference, Literal
 from psyclone.psyir.symbols import (
-    REAL_TYPE, DataSymbol, INTEGER_TYPE, ArrayType, ScalarType)
-from psyclone.psyir.transformations import Sum2CodeTrans, TransformationError
+    REAL_TYPE, DataSymbol, INTEGER_TYPE, ScalarType)
+from psyclone.psyir.transformations import (
+    Product2LoopTrans, TransformationError)
 from psyclone.tests.utilities import Compile
 
 
@@ -49,62 +50,35 @@ def test_initialise():
     _INTRINSIC_NAME is set up as expected.
 
     '''
-    trans = Sum2CodeTrans()
-    assert isinstance(trans, Sum2CodeTrans)
-    assert trans._INTRINSIC_NAME == "SUM"
+    trans = Product2LoopTrans()
+    assert isinstance(trans, Product2LoopTrans)
+    assert trans._INTRINSIC_NAME == "PRODUCT"
 
 
 def test_loop_body():
-    '''Test that the _loop_body method works as expected, without an array
-    reduction.
-
-    '''
-    trans = Sum2CodeTrans()
-    i_iterator = DataSymbol("i", INTEGER_TYPE)
-    j_iterator = DataSymbol("j", INTEGER_TYPE)
-    array_iterators = [j_iterator, i_iterator]
-    var_symbol = DataSymbol("var", REAL_TYPE)
-    array_symbol = DataSymbol("array", ArrayType(REAL_TYPE, [10, 10]))
-    array_ref = ArrayReference.create(
-        array_symbol, [Reference(i_iterator), Reference(j_iterator)])
-    result = trans._loop_body(False, array_iterators, var_symbol, array_ref)
-    assert result.debug_string() == "var = var + array(i,j)\n"
+    '''Test that the _loop_body method works as expected.'''
+    trans = Product2LoopTrans()
+    lhs = Reference(DataSymbol("i", REAL_TYPE))
+    rhs = Literal("1.0", REAL_TYPE)
+    result = trans._loop_body(lhs, rhs)
+    assert "i * 1.0" in result.debug_string()
 
 
-def test_loop_body_reduction():
-    '''Test that the _loop_body method works as expected, with an array
-    reduction.
-
-    '''
-    trans = Sum2CodeTrans()
-    i_iterator = DataSymbol("i", INTEGER_TYPE)
-    j_iterator = DataSymbol("j", INTEGER_TYPE)
-    k_iterator = DataSymbol("k", INTEGER_TYPE)
-    array_iterators = [i_iterator, k_iterator]
-    var_symbol = DataSymbol("var", ArrayType(REAL_TYPE, [10, 10]))
-    array_symbol = DataSymbol("array", ArrayType(REAL_TYPE, [10, 10, 10]))
-    array_ref = ArrayReference.create(
-        array_symbol, [Reference(i_iterator), Reference(j_iterator),
-                       Reference(k_iterator)])
-    result = trans._loop_body(True, array_iterators, var_symbol, array_ref)
-    assert result.debug_string() == "var(i,k) = var(i,k) + array(i,j,k)\n"
-
-
-@pytest.mark.parametrize("name,precision,zero", [
-    (ScalarType.Intrinsic.REAL, ScalarType.Precision.UNDEFINED, "0.0"),
-    (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.UNDEFINED, "0"),
+@pytest.mark.parametrize("name,precision,one", [
+    (ScalarType.Intrinsic.REAL, ScalarType.Precision.UNDEFINED, "1.0"),
+    (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.UNDEFINED, "1"),
     (ScalarType.Intrinsic.REAL, DataSymbol("r_def", INTEGER_TYPE),
-     "0.0_r_def")])
-def test_init_var(name, precision, zero):
+     "1.0_r_def")])
+def test_init_var(name, precision, one):
     '''Test that the _init_var method works as expected. Test with real,
     integer and with a specified precision.
 
     '''
-    trans = Sum2CodeTrans()
+    trans = Product2LoopTrans()
     datatype = ScalarType(name, precision)
     var_symbol = DataSymbol("var", datatype)
     result = trans._init_var(var_symbol)
-    assert result.debug_string() == zero
+    assert result.debug_string() == one
 
 
 def test_str():
@@ -112,8 +86,8 @@ def test_str():
     as expected.
 
     '''
-    trans = Sum2CodeTrans()
-    assert str(trans) == ("Convert the PSyIR SUM intrinsic to equivalent "
+    trans = Product2LoopTrans()
+    assert str(trans) == ("Convert the PSyIR PRODUCT intrinsic to equivalent "
                           "PSyIR code.")
 
 
@@ -122,8 +96,8 @@ def test_name():
     as expected.
 
     '''
-    trans = Sum2CodeTrans()
-    assert trans.name == "Sum2CodeTrans"
+    trans = Product2LoopTrans()
+    assert trans.name == "Product2LoopTrans"
 
 
 def test_validate():
@@ -131,10 +105,10 @@ def test_validate():
     works as expected.
 
     '''
-    trans = Sum2CodeTrans()
+    trans = Product2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert ("Error in Sum2CodeTrans transformation. The supplied node "
+    assert ("Error in Product2LoopTrans transformation. The supplied node "
             "argument is not an intrinsic, found 'NoneType'."
             in str(info.value))
 
@@ -145,31 +119,24 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
 
     '''
     code = (
-        "subroutine sum_test(array,n,m)\n"
+        "subroutine product_test(array,n,m)\n"
         "  integer :: n, m\n"
         "  real :: array(10,20)\n"
         "  real :: result\n"
-        "  result = sum(array)\n"
+        "  result = product(array)\n"
         "end subroutine\n")
     expected = (
-        "subroutine sum_test(array, n, m)\n"
-        "  integer :: n\n  integer :: m\n"
-        "  real, dimension(10,20) :: array\n"
-        "  real :: result\n  real :: sum_var\n"
-        "  integer :: i_0\n  integer :: i_1\n\n"
-        "  sum_var = 0.0\n"
-        "  do i_1 = 1, 20, 1\n"
-        "    do i_0 = 1, 10, 1\n"
-        "      sum_var = sum_var + array(i_0,i_1)\n"
+        "  result = 1.0\n"
+        "  do idx = 1, 20, 1\n"
+        "    do idx_1 = 1, 10, 1\n"
+        "      result = result * array(idx_1,idx)\n"
         "    enddo\n"
-        "  enddo\n"
-        "  result = sum_var\n\n"
-        "end subroutine sum_test\n")
+        "  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     intrinsic_node = psyir.children[0].children[0].children[1]
-    trans = Sum2CodeTrans()
+    trans = Product2LoopTrans()
     trans.apply(intrinsic_node)
     result = fortran_writer(psyir)
-    assert result == expected
+    assert expected in result
     assert Compile(tmpdir).string_compiles(result)

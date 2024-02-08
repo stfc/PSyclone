@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,13 +41,13 @@ import pytest
 
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoKern
+from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, CodeBlock, BinaryOperation, \
     Call, Range, Literal
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ArrayType, \
-    UnknownType, RoutineSymbol
+    UnsupportedType, RoutineSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
 
@@ -69,8 +69,7 @@ def test_transform():
 
 def test_apply_bounds(tmpdir):
     '''Check that the apply method uses the range bounds if these are specified
-    or the LBOUND, UBOUND expressions if they are not. Also check that the body
-    of the loop is placed in a NemoKern.
+    or the LBOUND, UBOUND expressions if they are not.
 
     '''
     _, invoke_info = get_invoke("implicit_do_slice.f90", api=API, idx=0)
@@ -91,8 +90,9 @@ def test_apply_bounds(tmpdir):
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in result)
-    # Check that a NemoKern has been added
-    assert schedule[0].walk(NemoKern)
+    assigns = schedule[0].walk(Assignment)
+    assert len(assigns) == 1
+    assert isinstance(assigns[0].parent.parent, NemoLoop)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -283,6 +283,30 @@ def test_apply_structure_of_arrays_multiple_arrays(fortran_reader,
         "  enddo\n" in result)
 
 
+def test_transform_apply_fixed():
+    '''Check that the PSyIR is transformed as expected for a lat,lon loop
+    when the lhs of the loop has known fixed bounds with the same
+    values for each index. There used to be a bug where the first
+    index was picked up in error instead of the second in the
+    arrayrange2loop validate method but this should now be fixed.
+
+    '''
+    _, invoke_info = get_invoke("fixed_lhs.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    range_node = assignment.lhs.children[1]
+    trans = NemoArrayRange2LoopTrans()
+    trans.apply(range_node)
+    writer = FortranWriter()
+    result = writer(schedule)
+    print(result)
+    expected = (
+        "  do idx = 6, 8, 1\n"
+        "    sshn(2:4,idx) = sshn(2:4,idx) + ssh_ref * tmask(2:4,idx)\n"
+        "  enddo\n")
+    assert expected in result
+
+
 def test_validate_unsupported_structure_of_arrays(fortran_reader):
     '''Check that nested structure_of_arrays are not supported. '''
     trans = NemoArrayRange2LoopTrans()
@@ -381,7 +405,7 @@ def test_validate_with_a_function_call():
 
 def test_validate_with_array_with_hidden_accessor():
     '''Check that the validation method of the transformation raises an
-    exception if there is a RHS array (or UnknownType) with the accessor
+    exception if there is a RHS array (or UnsupportedType) with the accessor
     expression missing.
     '''
     _, invoke_info = get_invoke("implicit_do_hidden_accessor.f90",
@@ -390,11 +414,11 @@ def test_validate_with_array_with_hidden_accessor():
     schedule = invoke_info.schedule
     assignment1 = schedule[0]
     assignment2 = schedule[1]
-    # This test expects arg1 is parsed as ArrayType and arg2 as UnknownType
+    # This test expects arg1 is parsed as ArrayType and arg2 as UnsupportedType
     assert isinstance(schedule.symbol_table.lookup("arg1").datatype,
                       ArrayType)
     assert isinstance(schedule.symbol_table.lookup("arg2").datatype,
-                      UnknownType)
+                      UnsupportedType)
 
     # The first one fails because we know the type of the RHS reference is
     # an array but we don't have explicit dimensions.
@@ -404,13 +428,13 @@ def test_validate_with_array_with_hidden_accessor():
             "'arg1' must be a DataSymbol of ScalarType, but it's a 'arg1: "
             "DataSymbol<Array<Scalar<REAL" in str(info.value))
 
-    # The second fails because it's an UnknownType and we don't know whether
-    # it's an scalar or an array.
+    # The second fails because it's an UnsupportedType and we don't know
+    # whether it's an scalar or an array.
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment2.lhs.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
             "'arg2' must be a DataSymbol of ScalarType, but it's a 'arg2: "
-            "DataSymbol<UnknownFortranType" in str(info.value))
+            "DataSymbol<UnsupportedFortranType" in str(info.value))
 
 
 def test_apply_different_num_dims():

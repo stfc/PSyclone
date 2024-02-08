@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -394,53 +394,6 @@ def test_lfric_driver_operator():
     # does not need any of the infrastructure files
     build = Compile(".")
     build.compile_file("driver-operator-test.F90")
-
-
-# ----------------------------------------------------------------------------
-@pytest.mark.parametrize("name, filename",
-                         [("x_innerproduct_x",
-                           "15.9.2_X_innerproduct_X_builtin.f90"),
-                          ("sum_x", "15.14.3_sum_setval_field_builtin.f90"),
-                          ("int_x", "15.10.3_int_X_builtin.f90"),
-                          ("real_x", "15.28.2_real_X_builtin.f90")
-                          ])
-def test_lfric_driver_unsupported_builtins(name, filename, capsys):
-    '''The following builtins do not have a proper lower_to_language_level
-    method to create the PSyIR, so they are not supported in the driver
-    creation: LFRicXInnerproductXKern, LFRicSumXKern, LFRicIntXKern,
-    LFRicRealXKern. This tests also the error handling of the functions
-    write_driver, get_driver_as_string, create. '''
-
-    _, invoke = get_invoke(filename, API, dist_mem=False, idx=0)
-
-    driver_creator = LFRicExtractDriverCreator()
-    read_write_info = ReadWriteInfo()
-
-    # The create method should raise an exception
-    # -------------------------------------------
-    with pytest.raises(NotImplementedError) as err:
-        # The parameters do not really matter
-        driver_creator.create(invoke.schedule, read_write_info, "extract",
-                              "_post", region_name=("region", "name"))
-    assert f"LFRic builtin '{name}' is not supported" in str(err.value)
-
-    # The get_driver_as_string method returns
-    # an empty string, but prints an error message
-    # --------------------------------------------
-    code = driver_creator.get_driver_as_string(invoke.schedule,
-                                               read_write_info, "extract",
-                                               "_post", ("region", "name"))
-    assert code == ""
-    out, _ = capsys.readouterr()
-    assert (f"Cannot create driver for 'region-name' because:\nLFRic builtin "
-            f"'{name}' is not supported" in out)
-
-    # write_driver prints an error message, and does not return an error
-    # ------------------------------------------------------------------
-    driver_creator.write_driver(invoke.schedule, read_write_info,
-                                "extract", "_post", ("region", "name"))
-    assert (f"Cannot create driver for 'region-name' because:\nLFRic builtin "
-            f"'{name}' is not supported" in out)
 
 
 # ----------------------------------------------------------------------------

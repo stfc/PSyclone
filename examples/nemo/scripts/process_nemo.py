@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,10 +78,8 @@ NOT_PERFORMANT = [
 # Files that we won't touch at all, either because PSyclone actually fails
 # or because it produces incorrect Fortran.
 NOT_WORKING = [
-    # Array accessed inside WHERE does not use array notation
+    # TODO #717 - array accessed inside WHERE does not use array notation
     "diurnal_bulk.f90",
-    # TODO #1960: There is a bug on a WHERE fparser2 frontend processing
-    "sbccpl.f90",
 ]
 
 
@@ -105,7 +103,7 @@ if __name__ == "__main__":
                         help="Add profiling instrumentation to any files that "
                         "are not being transformed (i.e. appear in the "
                         "NOT_PERFORMANT list)")
-    PARSER.add_argument('-I', dest='include_path')
+    PARSER.add_argument('-I', action='append', dest='include_path', default=[])
     ARGS = PARSER.parse_args()
 
     # Check whether the PSyclone command has been specified in an environment
@@ -144,8 +142,8 @@ if __name__ == "__main__":
             else:
                 print(f"Processing {file_name} (passthrough only)...")
 
-            if ARGS.include_path:
-                extra_args += ["-I", ARGS.include_path]
+            for ipath in ARGS.include_path:
+                extra_args += ["-I", ipath]
             extra_args += ["-oalg", "/dev/null",
                            "-opsy", out_file, ffile]
         # Since we're in Python we could call psyclone.generator.main()

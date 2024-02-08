@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,15 +33,14 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''Module containing tests for the minval2code transformation.'''
+'''Module containing tests for the maxval2loop transformation.'''
 
 import pytest
 
-from psyclone.psyir.nodes import Reference, ArrayReference
-from psyclone.psyir.symbols import (
-    REAL_TYPE, DataSymbol, INTEGER_TYPE, ArrayType)
+from psyclone.psyir.nodes import Reference, Literal
+from psyclone.psyir.symbols import REAL_TYPE, DataSymbol
 from psyclone.psyir.transformations import (
-    Minval2CodeTrans, TransformationError)
+    Maxval2LoopTrans, TransformationError)
 from psyclone.tests.utilities import Compile
 
 
@@ -50,61 +49,26 @@ def test_initialise():
     _INTRINSIC_NAME is set up as expected.
 
     '''
-    trans = Minval2CodeTrans()
-    assert isinstance(trans, Minval2CodeTrans)
-    assert trans._INTRINSIC_NAME == "MINVAL"
+    trans = Maxval2LoopTrans()
+    assert isinstance(trans, Maxval2LoopTrans)
+    assert trans._INTRINSIC_NAME == "MAXVAL"
 
 
 def test_loop_body():
-    '''Test that the _loop_body method works as expected, without an array
-    reduction.
-
-    '''
-    trans = Minval2CodeTrans()
-    i_iterator = DataSymbol("i", INTEGER_TYPE)
-    j_iterator = DataSymbol("j", INTEGER_TYPE)
-    array_iterators = [j_iterator, i_iterator]
-    var_symbol = DataSymbol("var", REAL_TYPE)
-    array_symbol = DataSymbol("array", ArrayType(REAL_TYPE, [10, 10]))
-    array_ref = ArrayReference.create(
-        array_symbol, [Reference(i_iterator), Reference(j_iterator)])
-    result = trans._loop_body(False, array_iterators, var_symbol, array_ref)
-    assert result.debug_string() == (
-        "if (var > array(i,j)) then\n"
-        "  var = array(i,j)\n"
-        "end if\n")
-
-
-def test_loop_body_reduction():
-    '''Test that the _loop_body method works as expected, with an array
-    reduction.
-
-    '''
-    trans = Minval2CodeTrans()
-    i_iterator = DataSymbol("i", INTEGER_TYPE)
-    j_iterator = DataSymbol("j", INTEGER_TYPE)
-    k_iterator = DataSymbol("k", INTEGER_TYPE)
-    array_iterators = [i_iterator, k_iterator]
-    var_symbol = DataSymbol("var", ArrayType(REAL_TYPE, [10, 10]))
-    array_symbol = DataSymbol("array", ArrayType(REAL_TYPE, [10, 10, 10]))
-    array_ref = ArrayReference.create(
-        array_symbol, [Reference(i_iterator), Reference(j_iterator),
-                       Reference(k_iterator)])
-    result = trans._loop_body(True, array_iterators, var_symbol, array_ref)
-    assert result.debug_string() == (
-        "if (var(i,k) > array(i,j,k)) then\n"
-        "  var(i,k) = array(i,j,k)\n"
-        "end if\n")
+    '''Test that the _loop_body method works as expected.'''
+    trans = Maxval2LoopTrans()
+    lhs = Reference(DataSymbol("i", REAL_TYPE))
+    rhs = Literal("1.0", REAL_TYPE)
+    result = trans._loop_body(lhs, rhs)
+    assert "MAX(i, 1.0)" in result.debug_string()
 
 
 def test_init_var():
     '''Test that the _init_var method works as expected.'''
-    trans = Minval2CodeTrans()
+    trans = Maxval2LoopTrans()
     var_symbol = DataSymbol("var", REAL_TYPE)
-    result = trans._init_var(var_symbol)
-    # As 'huge' is not yet part of an expression, the 'debug_string()'
-    # method incorrectly assumes it is a call.
-    assert result.debug_string() == "call HUGE(var)\n"
+    result = trans._init_var(Reference(var_symbol))
+    assert result.debug_string() == "-HUGE(var)"
 
 
 def test_str():
@@ -112,8 +76,8 @@ def test_str():
     as expected.
 
     '''
-    trans = Minval2CodeTrans()
-    assert str(trans) == ("Convert the PSyIR MINVAL intrinsic to equivalent "
+    trans = Maxval2LoopTrans()
+    assert str(trans) == ("Convert the PSyIR MAXVAL intrinsic to equivalent "
                           "PSyIR code.")
 
 
@@ -122,8 +86,8 @@ def test_name():
     as expected.
 
     '''
-    trans = Minval2CodeTrans()
-    assert trans.name == "Minval2CodeTrans"
+    trans = Maxval2LoopTrans()
+    assert trans.name == "Maxval2LoopTrans"
 
 
 def test_validate():
@@ -131,10 +95,10 @@ def test_validate():
     works as expected.
 
     '''
-    trans = Minval2CodeTrans()
+    trans = Maxval2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert ("Error in Minval2CodeTrans transformation. The supplied node "
+    assert ("Error in Maxval2LoopTrans transformation. The supplied node "
             "argument is not an intrinsic, found 'NoneType'."
             in str(info.value))
 
@@ -145,32 +109,31 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
 
     '''
     code = (
-        "subroutine minval_test(array,n,m)\n"
+        "subroutine maxval_test(array,n,m)\n"
         "  integer :: n, m\n"
         "  real :: array(10,20)\n"
         "  real :: result\n"
-        "  result = minval(array)\n"
+        "  result = maxval(array)\n"
         "end subroutine\n")
     expected = (
-        "subroutine minval_test(array, n, m)\n"
-        "  integer :: n\n  integer :: m\n"
+        "subroutine maxval_test(array, n, m)\n"
+        "  integer :: n\n"
+        "  integer :: m\n"
         "  real, dimension(10,20) :: array\n"
-        "  real :: result\n  real :: minval_var\n"
-        "  integer :: i_0\n  integer :: i_1\n\n"
-        "  minval_var = HUGE(minval_var)\n"
-        "  do i_1 = 1, 20, 1\n"
-        "    do i_0 = 1, 10, 1\n"
-        "      if (minval_var > array(i_0,i_1)) then\n"
-        "        minval_var = array(i_0,i_1)\n"
-        "      end if\n"
+        "  real :: result\n"
+        "  integer :: idx\n"
+        "  integer :: idx_1\n\n"
+        "  result = -HUGE(result)\n"
+        "  do idx = 1, 20, 1\n"
+        "    do idx_1 = 1, 10, 1\n"
+        "      result = MAX(result, array(idx_1,idx))\n"
         "    enddo\n"
-        "  enddo\n"
-        "  result = minval_var\n\n"
-        "end subroutine minval_test\n")
+        "  enddo\n\n"
+        "end subroutine maxval_test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     intrinsic_node = psyir.children[0].children[0].children[1]
-    trans = Minval2CodeTrans()
+    trans = Maxval2LoopTrans()
     trans.apply(intrinsic_node)
     result = fortran_writer(psyir)
     assert result == expected

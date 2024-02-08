@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2023, Science and Technology Facilities Council
+.. Copyright (c) 2017-2024, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -282,7 +282,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.Maxval2CodeTrans
+.. autoclass:: psyclone.psyir.transformations.Maxval2LoopTrans
       :members: apply
       :noindex:
 
@@ -299,7 +299,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.Minval2CodeTrans
+.. autoclass:: psyclone.psyir.transformations.Minval2LoopTrans
       :members: apply
       :noindex:
 
@@ -412,6 +412,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Product2LoopTrans
+      :members: apply
+      :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.ProfileTrans
     :members: apply
     :noindex:
@@ -449,7 +455,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.psyir.transformations.Sum2CodeTrans
+.. autoclass:: psyclone.psyir.transformations.Sum2LoopTrans
       :members: apply
       :noindex:
 

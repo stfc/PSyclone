@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -159,12 +159,6 @@ Transformations
 ---------------
 
 The following transformations are specific to the NEMO API.
-
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoLoopFuseTrans
-    :noindex:
-    :members: apply, validate
 
 ####
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
-    UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
+    UnsupportedFortranType, UnresolvedType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface,
     StructureType, DataTypeSymbol)
 
@@ -388,7 +388,7 @@ def test_array_notation_rank():
             "StructureReference but got 'Literal'" in str(err.value))
 
     # Structure reference containing no array access
-    symbol = DataSymbol("field", DeferredType())
+    symbol = DataSymbol("field", UnresolvedType())
     with pytest.raises(InternalError) as err:
         Fparser2Reader._array_notation_rank(
             StructureReference.create(symbol, ["first", "second"]))
@@ -894,14 +894,14 @@ def test_process_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     ptr_sym = fake_parent.symbol_table.lookup("dptr")
     assert isinstance(ptr_sym, DataSymbol)
-    assert isinstance(ptr_sym.datatype, UnknownFortranType)
+    assert isinstance(ptr_sym.datatype, UnsupportedFortranType)
     assert isinstance(ptr_sym.initial_value, CodeBlock)
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_process_declarations_unknownfortrantype():
+def test_process_declarations_unsupportedfortrantype():
     '''Test that process_declarations method of Fparser2Reader adds
-    datatype information to an UnknownFortranType by calling the
+    datatype information to an UnsupportedFortranType by calling the
     get_partial_datatype method, also from Fparser2Reader.
 
     '''
@@ -914,7 +914,7 @@ def test_process_declarations_unknownfortrantype():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     for varname in ("l1", "l2"):
         var_symbol = symtab.lookup(varname)
-        assert isinstance(var_symbol.datatype, UnknownFortranType)
+        assert isinstance(var_symbol.datatype, UnsupportedFortranType)
         assert isinstance(var_symbol.datatype.partial_datatype, ScalarType)
         assert (var_symbol.datatype.partial_datatype.intrinsic is
                 ScalarType.Intrinsic.INTEGER)
@@ -1073,7 +1073,7 @@ def test_process_multiple_access_statements():
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_unsupported_declarations(fortran_reader):
     ''' Check that the frontend handles unsupported declarations by
-    creating symbols of UnknownFortranType. '''
+    creating symbols of UnsupportedFortranType. '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
@@ -1082,10 +1082,10 @@ def test_process_unsupported_declarations(fortran_reader):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     dsym = fake_parent.symbol_table.lookup("d")
-    assert isinstance(dsym.datatype, UnknownFortranType)
+    assert isinstance(dsym.datatype, UnsupportedFortranType)
     assert dsym.datatype.declaration == "INTEGER, PRIVATE, POINTER :: d"
     esym = fake_parent.symbol_table.lookup("e")
-    assert isinstance(esym.datatype, UnknownFortranType)
+    assert isinstance(esym.datatype, UnsupportedFortranType)
     assert esym.datatype.declaration == "INTEGER, PRIVATE, POINTER :: e"
 
     # Multiple attributes
@@ -1094,11 +1094,11 @@ def test_process_unsupported_declarations(fortran_reader):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fsym = fake_parent.symbol_table.lookup("f")
-    assert isinstance(fsym.datatype, UnknownFortranType)
+    assert isinstance(fsym.datatype, UnsupportedFortranType)
     assert (fsym.datatype.declaration ==
             "INTEGER, PRIVATE, DIMENSION(3), POINTER :: f")
     gsym = fake_parent.symbol_table.lookup("g")
-    assert isinstance(gsym.datatype, UnknownFortranType)
+    assert isinstance(gsym.datatype, UnsupportedFortranType)
     assert (gsym.datatype.declaration ==
             "INTEGER, PRIVATE, DIMENSION(3), POINTER :: g")
 
@@ -1108,7 +1108,7 @@ def test_process_unsupported_declarations(fortran_reader):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     c2sym = fake_parent.symbol_table.lookup("c2")
-    assert isinstance(c2sym.datatype, UnknownFortranType)
+    assert isinstance(c2sym.datatype, UnsupportedFortranType)
     assert c2sym.datatype.declaration == "COMPLEX :: c2"
 
     # Char lengths are not supported
@@ -1116,12 +1116,12 @@ def test_process_unsupported_declarations(fortran_reader):
                                              "character :: l*4\n"
                                              "end program")
     assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     psyir = fortran_reader.psyir_from_source("program dummy\n"
                                              "character(len=4) :: l\n"
                                              "end program")
     assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
 
     # Test that CodeBlocks and refernces to variables initialised with a
     # CodeBlock are handled correctly
@@ -1186,22 +1186,22 @@ def test_unsupported_decln_initial_value(monkeypatch):
     assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert hsym.initial_value.value == "1"
     fbsym = fake_parent.symbol_table.lookup("fbsp")
-    assert isinstance(fbsym.datatype, UnknownFortranType)
+    assert isinstance(fbsym.datatype, UnsupportedFortranType)
     assert (fbsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
             "fbsp = SELECTED_REAL_KIND(6, 37)")
     sadsym = fake_parent.symbol_table.lookup("sad")
-    assert isinstance(sadsym.datatype, UnknownFortranType)
+    assert isinstance(sadsym.datatype, UnsupportedFortranType)
     assert (sadsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
             "sad = fbsp")
 
-    # Now do the same but the UnknownType constant_value is also the symbol
+    # Now do the same but the UnsupportedType constant_value is also the symbol
     # tagged as 'own_routine_symbol'. This is not recoverable.
     fake_parent = KernelSchedule("fbsp")
     with pytest.raises(InternalError) as err:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("The fparser2 frontend does not support declarations where the "
-            "routine name is of UnknownType, but found this case in 'fbsp'."
-            in str(err.value))
+            "routine name is of UnsupportedType, but found this case in "
+            "'fbsp'." in str(err.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1371,8 +1371,8 @@ def test_process_array_declarations():
     assert symbol.shape == [ArrayType.Extent.ATTRIBUTE,
                             ArrayType.Extent.ATTRIBUTE]
 
-    # Extent given by variable with UnknownFortranType
-    udim = DataSymbol("udim", UnknownFortranType("integer :: udim"),
+    # Extent given by variable with UnsupportedFortranType
+    udim = DataSymbol("udim", UnsupportedFortranType("integer :: udim"),
                       interface=UnresolvedInterface())
     fake_parent.symbol_table.add(udim)
     reader = FortranStringReader("integer :: l11(udim)")
@@ -1386,10 +1386,10 @@ def test_process_array_declarations():
     assert isinstance(reference, Reference)
     assert reference.name == "udim"
     assert reference.symbol is udim
-    assert isinstance(reference.symbol.datatype, UnknownFortranType)
+    assert isinstance(reference.symbol.datatype, UnsupportedFortranType)
 
-    # Extent given by variable with DeferredType
-    ddim = DataSymbol("ddim", DeferredType(),
+    # Extent given by variable with UnresolvedType
+    ddim = DataSymbol("ddim", UnresolvedType(),
                       interface=UnresolvedInterface())
     fake_parent.symbol_table.add(ddim)
     reader = FortranStringReader("integer :: l12(ddim)")
@@ -1403,7 +1403,7 @@ def test_process_array_declarations():
     reference = symbol.shape[0].upper
     assert reference.name == "ddim"
     assert reference.symbol is ddim
-    assert isinstance(reference.symbol.datatype, DeferredType)
+    assert isinstance(reference.symbol.datatype, UnresolvedType)
 
     # Extent given by range
     reader = FortranStringReader("integer :: var(2:4)")
@@ -1447,13 +1447,13 @@ def test_process_not_supported_declarations():
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("arg1").datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
 
     reader = FortranStringReader("real, allocatable :: p3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("p3").datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
 
     reader = FortranStringReader("class(my_type), intent(in) :: carg")
     # Set reader to free format (otherwise this is a comment in fixed format)
@@ -1461,7 +1461,7 @@ def test_process_not_supported_declarations():
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     sym = fake_parent.symbol_table.lookup("carg")
-    assert isinstance(sym.datatype, UnknownFortranType)
+    assert isinstance(sym.datatype, UnsupportedFortranType)
     assert (sym.datatype.declaration.lower() ==
             "class(my_type), intent(in) :: carg")
 
@@ -1488,7 +1488,7 @@ def test_process_not_supported_declarations():
                           fparser2spec.items[2])
     processor.process_declarations(fake_parent, [fparser2spec], [])
     l11sym = fake_parent.symbol_table.lookup("l11")
-    assert isinstance(l11sym.datatype, UnknownFortranType)
+    assert isinstance(l11sym.datatype, UnsupportedFortranType)
 
     # Assumed-size array with specified upper bound. fparser2 does spot that
     # this is invalid so we have to break the parse tree it produces for
@@ -1553,13 +1553,13 @@ def test_process_save_attribute_declarations(parser):
     assert isinstance(fake_parent.symbol_table.lookup("var4").interface,
                       StaticInterface)
 
-    # Test when is part of an UnknownDataType (target attribute in this case)
-    # it becomes an UnknownInterface
+    # Test that when it is part of an UnsupportedType (target attribute in
+    # this case) it becomes an UnknownInterface.
     reader = FortranStringReader("integer, target :: var5")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("var5").datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)
     assert isinstance(fake_parent.symbol_table.lookup("var5").interface,
                       UnknownInterface)
 
@@ -1938,21 +1938,21 @@ def test_use_stmt_error(monkeypatch):
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations_unrecognised_attribute():
     ''' Check that a declaration with an unrecognised attribute results in
-    a symbol with UnknownFortranType and the correct visibility. '''
+    a symbol with UnsupportedFortranType and the correct visibility. '''
     fake_parent = KernelSchedule("dummy")
     processor = Fparser2Reader()
     reader = FortranStringReader("integer, private, target :: idx1\n")
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.children, [])
     sym = fake_parent.symbol_table.lookup("idx1")
-    assert isinstance(sym.datatype, UnknownFortranType)
+    assert isinstance(sym.datatype, UnsupportedFortranType)
     assert sym.visibility == Symbol.Visibility.PRIVATE
     # No access statement so should be public (the default in Fortran)
     reader = FortranStringReader("integer, target :: idx2\n")
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.children, [])
     sym = fake_parent.symbol_table.lookup("idx2")
-    assert isinstance(sym.datatype, UnknownFortranType)
+    assert isinstance(sym.datatype, UnsupportedFortranType)
     assert sym.visibility == Symbol.Visibility.PUBLIC
     # No access statement so should pick up the default visibility supplied
     # to the symbol table.
@@ -1962,7 +1962,7 @@ def test_process_declarations_unrecognised_attribute():
     processor.process_declarations(
         fake_parent, fparser2spec.children, [], {})
     sym = fake_parent.symbol_table.lookup("idx3")
-    assert isinstance(sym.datatype, UnknownFortranType)
+    assert isinstance(sym.datatype, UnsupportedFortranType)
     assert sym.visibility == Symbol.Visibility.PRIVATE
     # No access statement but visibility provided in visibility_map argument
     # to process_declarations()
@@ -1972,7 +1972,7 @@ def test_process_declarations_unrecognised_attribute():
         fake_parent, fparser2spec.children, [],
         {"idx4": Symbol.Visibility.PUBLIC})
     sym = fake_parent.symbol_table.lookup("idx4")
-    assert isinstance(sym.datatype, UnknownFortranType)
+    assert isinstance(sym.datatype, UnsupportedFortranType)
     assert sym.visibility == Symbol.Visibility.PUBLIC
 
 
@@ -2974,7 +2974,7 @@ def test_structures(fortran_reader, fortran_writer):
         "    integer, public :: j\n"
         "  end type my_type\n" in result)
 
-    # type that extends another type (UnknownFortranType)
+    # type that extends another type (UnsupportedFortranType)
     test_code = (
         "module test_mod\n"
         "    use kernel_mod, only : kernel_type\n"
@@ -2986,14 +2986,14 @@ def test_structures(fortran_reader, fortran_writer):
     sym_table = psyir.children[0].symbol_table
     symbol = sym_table.lookup("my_type")
     assert isinstance(symbol, DataTypeSymbol)
-    assert isinstance(symbol.datatype, UnknownFortranType)
+    assert isinstance(symbol.datatype, UnsupportedFortranType)
     result = fortran_writer(psyir)
     assert (
         "  type, extends(kernel_type), public :: my_type\n"
         "  INTEGER :: i = 1\n"
         "END TYPE my_type\n" in result)
 
-    # type that contains a procedure (UnknownFortranType)
+    # type that contains a procedure (UnsupportedFortranType)
     test_code = (
         "module test_mod\n"
         "    type :: test_type\n"
@@ -3009,7 +3009,7 @@ def test_structures(fortran_reader, fortran_writer):
     sym_table = psyir.children[0].symbol_table
     symbol = sym_table.lookup("test_type")
     assert isinstance(symbol, DataTypeSymbol)
-    assert isinstance(symbol.datatype, UnknownFortranType)
+    assert isinstance(symbol.datatype, UnsupportedFortranType)
     result = fortran_writer(psyir)
     assert (
         "  type, public :: test_type\n"
@@ -3019,7 +3019,7 @@ def test_structures(fortran_reader, fortran_writer):
         "END TYPE test_type\n" in result)
 
     # type that creates an abstract type and contains a procedure
-    # (UnknownFortranType)
+    # (UnsupportedFortranType)
     test_code = (
         "module test_mod\n"
         "    type, abstract, private :: test_type\n"
@@ -3035,7 +3035,7 @@ def test_structures(fortran_reader, fortran_writer):
     sym_table = psyir.children[0].symbol_table
     symbol = sym_table.lookup("test_type")
     assert isinstance(symbol, DataTypeSymbol)
-    assert isinstance(symbol.datatype, UnknownFortranType)
+    assert isinstance(symbol.datatype, UnsupportedFortranType)
     result = fortran_writer(psyir)
     assert (
         "  type, abstract, private :: test_type\n"

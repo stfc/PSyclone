@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -93,22 +93,21 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import (DynStencils,
-                                        DynFunctionSpaces, DynDofmaps,
-                                        LFRicFields, DynLMAOperators,
+        from psyclone.dynamo0p3 import (DynFunctionSpaces, DynDofmaps,
+                                        DynLMAOperators, DynGlobalSum,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
                                         DynProxies, DynCellIterators,
                                         DynReferenceElement,
-                                        LFRicMeshProperties,
-                                        DynGlobalSum)
+                                        LFRicMeshProperties)
         from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
-                                           LFRicScalarArgs)
+                                           LFRicScalarArgs, LFRicFields,
+                                           LFRicStencils)
 
         self.scalar_args = LFRicScalarArgs(self)
 
         # Initialise our Invoke stencil information
-        self.stencil = DynStencils(self)
+        self.stencil = LFRicStencils(self)
 
         # Initialise our information on the function spaces used by this Invoke
         self.function_spaces = DynFunctionSpaces(self)

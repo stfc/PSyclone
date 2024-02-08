@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ class LFRicScalarArgs(LFRicCollection):
 
     :param node: the Invoke or Kernel stub for which to manage the scalar \
                  arguments.
-    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or \
                 :py:class:`psyclone.domain.lfric.LFRicInvoke`
 
     '''

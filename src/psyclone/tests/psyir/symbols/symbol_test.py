@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -341,17 +341,17 @@ def test_get_external_symbol(monkeypatch):
             str(err.value))
     # Add an entry for 'b' to the Container's symbol table
     ctable2.add(DataSymbol("b", INTEGER_SINGLE_TYPE))
-    new_sym = bsym.resolve_deferred()
+    new_sym = bsym.resolve_type()
     assert isinstance(new_sym, DataSymbol)
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
 
 
-def test_symbol_resolve_deferred(monkeypatch):
-    ''' Test the resolve_deferred method. '''
-    # resolve_deferred() for a local symbol has nothing to do so should
+def test_symbol_resolve_type(monkeypatch):
+    ''' Test the resolve_type method. '''
+    # resolve_type() for a local symbol has nothing to do so should
     # just return itself.
     asym = Symbol("a")
-    assert asym.resolve_deferred() is asym
+    assert asym.resolve_type() is asym
     # Now test for a symbol that is imported from another Container
     other_container = ContainerSymbol("some_mod")
     bsym = Symbol("b", visibility=Symbol.Visibility.PRIVATE,
@@ -360,28 +360,40 @@ def test_symbol_resolve_deferred(monkeypatch):
     # a new DataSymbol
     monkeypatch.setattr(bsym, "get_external_symbol",
                         lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
-    new_sym = bsym.resolve_deferred()
-    # We should have a brand new symbol but with some of the properties
-    # of the original 'bsym' symbol.
-    assert new_sym is not bsym
+    new_sym = bsym.resolve_type()
+    # The symbol should be the same instance as before but with properties and
+    # type obtained from the other table.
+    assert new_sym is bsym
+    assert isinstance(new_sym, DataSymbol)
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert new_sym.is_import
+    # Repeat but test when the imported Symbol is a parameter.
+    csym = Symbol("c", visibility=Symbol.Visibility.PRIVATE,
+                  interface=ImportInterface(other_container))
+    # Monkeypatch the get_external_symbol() method so that it just returns
+    # a new DataSymbol
+    monkeypatch.setattr(
+        csym, "get_external_symbol",
+        lambda: DataSymbol("c", INTEGER_SINGLE_TYPE,
+                           is_constant=True,
+                           initial_value=Literal("1", INTEGER_SINGLE_TYPE)))
+    new_sym = csym.resolve_type()
+    assert new_sym is csym
+    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.is_import
+    assert new_sym.is_constant
+    assert new_sym.initial_value == Literal("1", INTEGER_SINGLE_TYPE)
 
 
 def test_symbol_array_handling():
     '''Verifies the handling of arrays together with access information.
 
     '''
-    # Make sure that a normal `Symbol` raises an exception if it is tested
-    # if it is an array. A `Symbol` is only used if there is no type
-    # information is available, e.g. because it is imported from another
-    # module:
+    # Make sure that a generic `Symbol` (no datatype) does not claim to
+    # be an array
     asym = Symbol("a")
-    with pytest.raises(ValueError) as error:
-        _ = asym.is_array
-    assert "No array information is available for the symbol 'a'." \
-        in str(error.value)
+    assert asym.is_array is False
 
     # A generic symbol (no datatype) without an explicit array access
     # expression is not considered to have array access.

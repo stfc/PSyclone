@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -254,10 +254,12 @@ def test_kernels_around_where_construct(parser):
     assert isinstance(schedule[0].dir_body[0], Loop)
     new_code = str(psy.gen)
     assert ("  !$acc kernels\n"
-            "  do widx2 = 1, SIZE(a, 2), 1\n"
-            "    do widx1 = 1, SIZE(a, 1), 1\n"
-            "      if (a(widx1,widx2) < flag) then\n"
-            "        b(widx1,widx2) = 0.0\n"
+            "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
+            "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
+            "      if (a(LBOUND(a, dim=1) + widx1 - 1,"
+            "LBOUND(a, dim=2) + widx2 - 1) < flag) then\n"
+            "        b(LBOUND(b, dim=1) + widx1 - 1,"
+            "LBOUND(b, dim=2) + widx2 - 1) = 0.0\n"
             "      end if\n"
             "    enddo\n"
             "  enddo\n"
@@ -281,10 +283,12 @@ def test_kernels_around_where_stmt(parser):
     new_code = str(psy.gen)
     assert ("  a(:,:) = 1.0\n"
             "  !$acc kernels\n"
-            "  do widx2 = 1, SIZE(a, 2), 1\n"
-            "    do widx1 = 1, SIZE(a, 1), 1\n"
-            "      if (a(widx1,widx2) < flag) then\n"
-            "        b(widx1,widx2) = 0.0\n"
+            "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
+            "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
+            "      if (a(LBOUND(a, dim=1) + widx1 - 1,"
+            "LBOUND(a, dim=2) + widx2 - 1) < flag) then\n"
+            "        b(LBOUND(b, dim=1) + widx1 - 1,"
+            "LBOUND(b, dim=2) + widx2 - 1) = 0.0\n"
             "      end if\n"
             "    enddo\n"
             "  enddo\n"

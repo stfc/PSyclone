@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''This module implements a class that manages all of the data references
@@ -109,9 +109,9 @@ class KernCallAccArgList(KernCallArgList):
         '''
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_symbol(self._kern.root.symbol_table,
-                                             arg).name
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        var_name = LFRicStencils.dofmap_symbol(self._kern.root.symbol_table,
+                                               arg).name
         self.append(var_name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -147,9 +147,9 @@ class KernCallAccArgList(KernCallArgList):
         # The extent is not specified in the metadata so pass the value in
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_symbol(self._kern.root.symbol_table,
-                                              arg).name
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        name = LFRicStencils.dofmap_size_symbol(self._kern.root.symbol_table,
+                                                arg).name
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):

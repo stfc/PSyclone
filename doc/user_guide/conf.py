@@ -242,7 +242,7 @@ latex_elements = {
 latex_documents = [
     ('index', 'psyclone.tex', 'PSyclone Documentation',
      'Andrew Coughtrie, Rupert Ford, Joerg Henrichs, Iva Kavcic,\\\\ '
-     'Andrew Porter and Sergi Siso', 'manual'),
+     'Andrew Porter, Sergi Siso and Joseph Wallwork', 'manual'),
 ]
 
 # Set maximum depth for the nested lists to prevent LaTeX
@@ -286,8 +286,8 @@ latex_elements = {
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'psyclone', u'PSyclone Documentation',
-     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi '
-      'Siso'], 1)
+     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi '
+      'Siso and Joseph Wallwork'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -301,7 +301,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     ('index', 'psyclone', u'psyclone Documentation',
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso',
+     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi Siso and'
+     'Joseph Wallwork',
      'psyclone',
      'A domain-specific compiler for Finite-Element/Volume/Difference models.',
      'Miscellaneous'),
@@ -321,10 +322,10 @@ texinfo_documents = [
 
 # Bibliographic Dublin Core info.
 epub_title = u'PSyclone'
-epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and ' \
-    'Sergi Siso'
-epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter ' \
-    'and Sergi Siso'
+epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, ' \
+    'Sergi Siso and Joseph Wallwork'
+epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, ' \
+    'Sergi Siso and Joseph Wallwork'
 epub_copyright = copyright
 
 # The language of the text. It defaults to the language option
@@ -371,11 +372,11 @@ linkcheck_anchors = True
 linkcheck_anchors_ignore = ['user-content-netcdf-library-lfric-examples']
 
 # MyBinder fails on a very regular basis so we skip those links.
-# The puma site no longer exists but the GOcean documentation needs to be
-# updated (TODO #237).
-# Despite its name 'collab.metoffice.../twiki' requires authenticated access.
 linkcheck_ignore = [r'^https://mybinder.org/v2/gh/stfc/psyclone',
-                    r'https://puma.nerc.ac.uk/trac/GOcean',
+# Shpinx has problems wiht Github anchors, so we skip the links to anchors to
+# the main README
+                    r'^https://github.com/stfc/PSyclone#',
+# Requires authentication
                     r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/'
                     r'LFRicDocumentationPapers/lfric_documentation.pdf']
 

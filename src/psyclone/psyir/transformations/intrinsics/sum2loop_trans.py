@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,23 +34,23 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR SUM intrinsic to
-PSyIR code. This could be useful if the SUM intrinsic is not supported
-by the back-end, the required parallelisation approach, or if the
-performance in the inline code is better than the intrinsic.
+'''Module providing a transformation from a PSyIR SUM intrinsic to an
+equivalent PSyIR loop structure. This could be useful if the SUM
+intrinsic is not supported by the back-end, the required
+parallelisation approach, or if the performance in the inline code is
+better than the intrinsic.
 
 '''
-from psyclone.psyir.nodes import (
-    BinaryOperation, Assignment, Reference, Literal, ArrayReference)
+from psyclone.psyir.nodes import BinaryOperation, Literal, IntrinsicCall
 from psyclone.psyir.symbols import ScalarType
-from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
-    MMSBaseTrans)
+from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
+    import ArrayReductionBaseTrans
 
 
-class Sum2CodeTrans(MMSBaseTrans):
-    '''Provides a transformation from a PSyIR SUM IntrinsicCall node to
-    equivalent code in a PSyIR tree. Validity checks are also
-    performed.
+class Sum2LoopTrans(ArrayReductionBaseTrans):
+    '''Provides a transformation from a PSyIR SUM IntrinsicCall node to an
+    equivalent PSyIR loop structure that is suitable for running in
+    parallel on CPUs and GPUs. Validity checks are also performed.
 
     If SUM contains a single positional argument which is an array,
     all elements of that array are summed and the result returned in
@@ -70,27 +70,6 @@ class Sum2CodeTrans(MMSBaseTrans):
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             R = R + ARRAY(I,J)
 
-    If the dimension argument is provided then only that dimension is
-    summed:
-
-    .. code-block:: fortran
-
-        R = SUM(ARRAY, dimension=2)
-
-    If the array is two dimensional, the equivalent code
-    for real data is:
-
-    .. code-block:: fortran
-
-        R(:) = 0.0
-        DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
-          DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            R(I) = R(I) + ARRAY(I,J)
-
-    A restriction is that the value of dimension must be able to be
-    determined by PSyclone, either being a literal or a reference to
-    something with a known value.
-
     If the mask argument is provided then the mask is used to
     determine whether the sum is applied:
 
@@ -109,23 +88,29 @@ class Sum2CodeTrans(MMSBaseTrans):
             IF (MOD(ARRAY(I,J), 2.0)==1) THEN
               R = R + ARRAY(I,J)
 
-    The array passed to SUM may use array syntax, array notation or
-    array sections (or a mixture of the two), but scalar bounds are
-    not allowed:
+    The dimension argument is currently not supported and will result
+    in a TransformationError exception being raised.
+
+    .. code-block:: fortran
+
+        R = SUM(ARRAY, dimension=2)
+
+    The array passed to MAXVAL may use any combination of array
+    syntax, array notation, array sections and scalar bounds:
 
     .. code-block:: fortran
 
         R = SUM(ARRAY) ! array syntax
         R = SUM(ARRAY(:,:)) ! array notation
         R = SUM(ARRAY(1:10,lo:hi)) ! array sections
-        R = SUM(ARRAY(1:10,:)) ! mix of array sections and array notation
-        R = SUM(ARRAY(1:10,2)) ! NOT SUPPORTED as 2 is a scalar bound
+        R = SUM(ARRAY(1:10,:)) ! mix of array section and array notation
+        R = SUM(ARRAY(1:10,2)) ! mix of array section and scalar bound
 
     For example:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.transformations import Sum2CodeTrans
+    >>> from psyclone.psyir.transformations import Sum2LoopTrans
     >>> code = ("subroutine sum_test(array,n,m)\\n"
     ...         "  integer :: n, m\\n"
     ...         "  real :: array(10,10)\\n"
@@ -134,86 +119,60 @@ class Sum2CodeTrans(MMSBaseTrans):
     ...         "end subroutine\\n")
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> sum_node = psyir.children[0].children[0].children[1]
-    >>> Sum2CodeTrans().apply(sum_node)
+    >>> Sum2LoopTrans().apply(sum_node)
     >>> print(FortranWriter()(psyir))
     subroutine sum_test(array, n, m)
       integer :: n
       integer :: m
       real, dimension(10,10) :: array
       real :: result
-      real :: sum_var
-      integer :: i_0
-      integer :: i_1
+      integer :: idx
+      integer :: idx_1
     <BLANKLINE>
-      sum_var = 0.0
-      do i_1 = 1, 10, 1
-        do i_0 = 1, 10, 1
-          sum_var = sum_var + array(i_0,i_1)
+      result = 0.0
+      do idx = 1, 10, 1
+        do idx_1 = 1, 10, 1
+          result = result + array(idx_1,idx)
         enddo
       enddo
-      result = sum_var
     <BLANKLINE>
     end subroutine sum_test
     <BLANKLINE>
 
     '''
     _INTRINSIC_NAME = "SUM"
+    _INTRINSIC_TYPE = IntrinsicCall.Intrinsic.SUM
 
-    def _loop_body(self, array_reduction, array_iterators, var_symbol,
-                   array_ref):
-        '''Provide the body of the nested loop that computes the sum of an
-        array.
+    def _loop_body(self, lhs, rhs):
+        '''Provide the body of the nested loop that computes the sum
+        of the lhs and rhs.
 
-        :param bool array_reduction: True if the implementation should
-            provide a sum over a particular array dimension and False
-            if the sum is for all elements of the array.
-        :param array_iterators: a list of datasymbols containing the
-            loop iterators ordered from outermost loop symbol to innermost
-            loop symbol.
-        :type array_iterators:
-            List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        :param var_symbol: the symbol used to store the final result.
-        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param array_ref: a reference to the array for which the
-            sum is being determined.
-        :type array_ref: :py:class:`psyclone.psyir.nodes.ArrayReference`
+        :param lhs: the lhs value for the sum operation.
+        :type lhs: :py:class:`psyclone.psyir.nodes.Node`
+        :param rhs: the rhs value for the sum operation.
+        :type rhs: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: PSyIR for the body of the nested loop.
-        :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
+        :returns: the sum of the lhs and rhs.
+        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         '''
-        if array_reduction:
-            # sum_var(i,...) = sum_var(i,...) + array(i,...)
-            array_indices = [Reference(iterator)
-                             for iterator in array_iterators]
-            lhs = ArrayReference.create(var_symbol, array_indices)
-            array_indices = [Reference(iterator)
-                             for iterator in array_iterators]
-            rhs_child1 = ArrayReference.create(var_symbol, array_indices)
-        else:
-            # sum_var = sum_var + array(i,...)
-            lhs = Reference(var_symbol)
-            rhs_child1 = Reference(var_symbol)
+        # return lhs + rhs
+        return BinaryOperation.create(BinaryOperation.Operator.ADD, lhs, rhs)
 
-        rhs_child2 = array_ref
-        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, rhs_child1,
-                                     rhs_child2)
-        return Assignment.create(lhs, rhs)
-
-    def _init_var(self, var_symbol):
+    def _init_var(self, reference):
         '''The initial value for the variable that computes the sum
         of an array.
 
-        :param var_symbol: the symbol used to store the final result.
-        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param reference: the reference used to store the final result.
+        :type reference: :py:class:`psyclone.psyir.node.Reference`
 
         :returns: PSyIR for the value to initialise the variable that
             computes the sum.
         :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
-        intrinsic = var_symbol.datatype.intrinsic
-        precision = var_symbol.datatype.precision
+        intrinsic = reference.datatype.intrinsic
+        precision = reference.datatype.precision
         scalar_type = ScalarType(intrinsic, precision)
         if intrinsic == ScalarType.Intrinsic.REAL:
             value_str = "0.0"

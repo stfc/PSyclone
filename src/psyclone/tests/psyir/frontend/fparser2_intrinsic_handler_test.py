@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,9 +50,9 @@ from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, _get_arg_names, _canonicalise_minmaxsum)
 from psyclone.psyir.nodes import (
-    Schedule, Assignment, Reference, IntrinsicCall, CodeBlock)
+    Schedule, Assignment, Reference, IntrinsicCall, Literal, CodeBlock)
 from psyclone.psyir.symbols import (
-    REAL_TYPE, DataSymbol, UnknownFortranType, INTEGER_TYPE, SymbolTable,
+    REAL_TYPE, DataSymbol, UnsupportedFortranType, INTEGER_TYPE, SymbolTable,
     ArrayType, RoutineSymbol, AutomaticInterface)
 
 
@@ -378,18 +378,22 @@ def test_handling_nested_intrinsic():
     # Declare all the symbols needed by the test code.
     symtab = fake_parent.symbol_table
     symtab.add(DataSymbol("jk", INTEGER_TYPE))
-    symtab.add(DataSymbol("wp", INTEGER_TYPE))
+    symtab.add(DataSymbol("wp", INTEGER_TYPE,
+                          is_constant=True,
+                          initial_value=Literal("4", INTEGER_TYPE)))
     symtab.add(DataSymbol("rcpi", REAL_TYPE))
     symtab.add(DataSymbol("rLfus", REAL_TYPE))
     symtab.add(DataSymbol("ze_z", REAL_TYPE))
     symtab.add(DataSymbol("zbbb", REAL_TYPE))
     symtab.add(DataSymbol("zccc", REAL_TYPE))
     symtab.add(DataSymbol("ztmelts", REAL_TYPE))
-    symtab.add(DataSymbol("e1t", UnknownFortranType("blah :: e1t")))
-    symtab.add(DataSymbol("e2t", UnknownFortranType("blah :: e2t")))
-    symtab.add(DataSymbol("zav_tide", UnknownFortranType("blah :: zav_tide")))
-    symtab.add(DataSymbol("tmask_i", UnknownFortranType("blah :: tmask_i")))
-    symtab.add(DataSymbol("wmask", UnknownFortranType("blah :: wmask")))
+    symtab.add(DataSymbol("e1t", UnsupportedFortranType("blah :: e1t")))
+    symtab.add(DataSymbol("e2t", UnsupportedFortranType("blah :: e2t")))
+    symtab.add(DataSymbol(
+                   "zav_tide", UnsupportedFortranType("blah :: zav_tide")))
+    symtab.add(DataSymbol(
+                   "tmask_i", UnsupportedFortranType("blah :: tmask_i")))
+    symtab.add(DataSymbol("wmask", UnsupportedFortranType("blah :: wmask")))
     reader = FortranStringReader(
         "ze_z = SUM( e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk) * "
         "tmask_i(:,:) ) &\n"

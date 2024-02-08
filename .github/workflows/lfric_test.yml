@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ jobs:
     runs-on: self-hosted
     env:
       LFRIC_REV: 45376
-      PYTHON_VERSION: 3.12.0
+      PYTHON_VERSION: 3.12.1
 
     steps:
     - uses: actions/checkout@v3
@@ -69,7 +69,9 @@ jobs:
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip
-        pip install external/fparser
+        # Uncomment the below to use the submodule version of fparser rather
+        # than the latest release from pypi.
+        # pip install external/fparser
         pip install .[test]
         pip install jinja2
 
@@ -84,7 +86,7 @@ jobs:
         export CXX="g++"
         export FPP="cpp -traditional-cpp"
         export LDMPI="mpif90"
-        export FFLAGS="-I$(spack location -e lfric-gnu)/.spack-env/view/include"
+        export FFLAGS="-Wall -Werror=conversion -Werror=unused-variable -Werror=character-truncation -Werror=unused-value -Werror=tabs -I$(spack location -e lfric-gnu)/.spack-env/view/include"
         export LDFLAGS="-L$(spack location -e lfric-gnu)/.spack-env/view/lib"
         export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib"
         export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib64"

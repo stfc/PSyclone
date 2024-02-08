@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic, Met Office
+.. Modified by I. Kavcic and L. Turner, Met Office
 
 .. testsetup::
 
@@ -58,7 +58,7 @@ Kernel-layer Fortran written by users consists of the kernel code
 itself and metadata describing the kernel code.  PSyclone needs this
 metadata to generate the PSy-layer code. The new approach takes the
 generic PSyIR representation of the kernel metadata (which is actually
-captured as a string within a PSyIR UnknownFortranType as the generic
+captured as a string within a PSyIR UnsupportedFortranType as the generic
 PSyIR does not understand its structure) and 'raises' this into
 domain-specific classes (using the ``RaisePSyIR2LFRicKernelTrans`` and
 ``RaisePSyIR2GOceanKernelTrans`` transformations for the LFRic and
@@ -359,7 +359,7 @@ to `fparser2` in the future.
 The `KernelTypeFactory create` method is used for both coded kernels
 and built-in kernels to specify the API-specific class to use. As an
 example, in the case of the `dynamo0.3` API, the class is
-`DynKernMetadata` which is found in `psyclone.dynamo0p3`. Once this
+`LFRicKernMetadata` which is found in `psyclone.domain.lfric`. Once this
 instance has been created (by passing it an `fparser1` parse tree) it can
 return information about the metadata contained therein. Moving from
 `fparser1` to `fparser2` would required changing the parse code logic

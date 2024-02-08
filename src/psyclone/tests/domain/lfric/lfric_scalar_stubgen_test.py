@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,8 +46,8 @@ import os
 import pytest
 
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicConstants, LFRicScalarArgs
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
+                                   LFRicKernMetadata, LFRicScalarArgs)
 from psyclone.f2pygen import ModuleGen
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
@@ -70,8 +70,8 @@ def test_lfricscalars_stub_err():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]

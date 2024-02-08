@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -88,10 +88,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         the case then the outermost Range nodes within array
         references within the assignment are replaced with references
         to a loop index. A NemoLoop loop (with the same loop index) is
-        also placed around the modified assignment statement. If the
-        array reference on the left-hand-side of the assignment only
-        had one range node as an index (so now has none) then the
-        assignment is also placed within a NemoKern.
+        also placed around the modified assignment statement.
 
         The name of the loop index is taken from the PSyclone
         configuration file if a name exists for the particular array
@@ -116,7 +113,8 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         self.validate(node)
 
         # Get deepest array in LHS (excluding inside Ranges)
-        lhs_array_ref = node.lhs.walk(ArrayMixin, stop_type=Range)[-1]
+        deepest_range = node.lhs.walk(Range, stop_type=Range)[-1]
+        lhs_array_ref = deepest_range.parent
         index = lhs_array_ref.get_outer_range_index()
         nemo_arrayrange2loop = NemoArrayRange2LoopTrans()
         nemo_arrayrange2loop.apply(lhs_array_ref.children[index])

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,6 @@ to the equivalent explicit loop representation using a NemoLoop node.
 
 '''
 
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans import \
-    CreateNemoKernelTrans
 from psyclone.errors import LazyString, InternalError
 from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
@@ -91,7 +89,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
     '''
     def apply(self, node, options=None):
-        ''' Apply the transformation that given an assignment with an
+        ''' Apply the transformation such that, given an assignment with an
         ArrayReference Range in the LHS (equivalent to an array assignment
         statement in Fortran), it converts it to an explicit loop doing each
         of the individual element assignments separately.
@@ -100,8 +98,8 @@ class NemoArrayRange2LoopTrans(Transformation):
         to indicate which array index should be transformed. This can only
         be applied to the outermost Range of the ArrayReference.
 
-        This is currently specific to NEMO. It will create NemoLoops and
-        put the loop body inside a NemoKern to conform to the NEMO API.
+        This is currently specific to the 'nemo' API in that it will create
+        NemoLoops.
 
         :param node: a Range node.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
@@ -154,12 +152,6 @@ class NemoArrayRange2LoopTrans(Transformation):
         loop = NemoLoop.create(loop_variable_symbol, start, stop, step,
                                [assignment.detach()])
         parent.children.insert(position, loop)
-
-        if not assignment.lhs.walk(Range):
-            # All valid array ranges have been replaced with explicit
-            # loops. We now need to take the content of the loop and
-            # place it within a NemoKern (inlined kernel) node.
-            CreateNemoKernelTrans().apply(assignment.parent)
 
     def __str__(self):
         return (
@@ -277,7 +269,7 @@ class NemoArrayRange2LoopTrans(Transformation):
         for reference in references:
             # As special case we always allow references to whole arrays as
             # part of the LBOUND and UBOUND intrinsics, regardless of the
-            # restrictions below (e.g. is a DeferredType reference).
+            # restrictions below (e.g. is a UnresolvedType reference).
             if isinstance(reference.parent, IntrinsicCall):
                 intrinsic = reference.parent.intrinsic
                 if intrinsic is IntrinsicCall.Intrinsic.LBOUND:
@@ -292,7 +284,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
             # We allow any references that have explicit array syntax
             # because we infer that they are not scalars from the context
-            # where they are found (even if they have DeferredType)
+            # where they are found (even if they have UnresolvedType)
             if isinstance(reference, (ArrayReference, ArrayMember)):
                 continue
 
@@ -307,7 +299,7 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Is the Range node the outermost Range (as if not, the
         # transformation would be invalid)?
-        for child in node.parent.indices[node.parent.indices.index(node)+1:]:
+        for child in node.parent.indices[node.position+1:]:
             if isinstance(child, Range):
                 raise TransformationError(
                     "Error in NemoArrayRange2LoopTrans transformation. This "
