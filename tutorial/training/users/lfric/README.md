@@ -103,13 +103,12 @@ This script will apply OpenMP transformation to the loops. Add the option
 
     psyclone -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
-The script will combine the two loops for the two `setval_c`
-calls into a single loop, and then apply OpenMP parallelisation to all loops.
+The script will apply OpenMP parallelisation to all loops.
 Compare the PSy-layer files with the previously created files. What has changed?
 
 The explanation can be found [here](#explanation-for-applying-openmp).
 
-Optional: You can compile this example using `make comple`. Then set the environment
+Optional: You can compile this example using `make compile`. Then set the environment
 variable `$OMP_NUM_THREADS` to an appropriate value and execute the compiled binary.
 The kernel will print out which thread number is executing which column indices. More
 explanations in [this] (#explanation-for-applying-openmp) section.
@@ -206,7 +205,7 @@ the loop structure in more detail.
 ## Incorrect Naming Scheme (`8_incorrect_naming`)
 This example shows the importance of naming the files correctly. It is basically the same code
 as in the very first PSyclone example, but the kernel file has been renamed to
-`summation_w0_to_w3_mod.f90`, but the module name is still summation_w0_to_w3_kernel_mod and
+`summation_w0_to_w3_mod.f90`, while the module name is still summation_w0_to_w3_kernel_mod and
 the `use` statement in the algorithm layer is unchanged as well:
 
     use summation_w0_to_w3_kernel_mod, only: summation_w0_to_w3_kernel_type
@@ -221,7 +220,7 @@ to create, it cannot process the algorithm layer.
 
 Run PSyclone with the standard command:
 
-    psyclone -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 and look at the error message provided by PSyclone.
 
