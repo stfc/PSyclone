@@ -135,7 +135,6 @@ def test_field(tmpdir):
         "      ! Call our kernels\n"
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
         "        CALL testkern_code(nlayers, a, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
@@ -273,7 +272,6 @@ def test_field_deref(tmpdir, dist_mem):
             "      DO cell=loop0_start,loop0_stop\n")
         assert output in generated_code
     output = (
-        "        !\n"
         "        CALL testkern_code(nlayers, a, f1_data, est_f2_data, m1_data,"
         " est_m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
@@ -524,7 +522,6 @@ def test_field_fs(tmpdir):
         "      END IF\n"
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
         "        CALL testkern_fs_code(nlayers, f1_data, f2_data, "
         "m1_data, m2_data, f3_data, f4_data, "
         "m3_data, m4_data, f5_data, f6_data, "
@@ -882,7 +879,6 @@ def test_int_field_fs(tmpdir):
         "      END IF\n"
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
         "        CALL testkern_fs_int_field_code(nlayers, f1_data, "
         "f2_data, m1_data, m2_data, f3_data, "
         "f4_data, m3_data, m4_data, f5_data, "

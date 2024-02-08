@@ -311,8 +311,7 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
 
     assert (
         f"      DO colour=loop0_start,loop0_stop\n"
-        f"        DO cell=loop1_start,{lookup}\n"
-        f"          !\n"
+        f"        DO cell = loop1_start, {lookup}, 1\n"
         f"          CALL columnwise_op_asm_field_kernel_code("
         f"cmap(colour,") in gen
 

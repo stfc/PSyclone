@@ -965,6 +965,67 @@ class LFRicKern(CodedKern):
                 f"Unexpected argument type found for '{kern_code_arg.name}' in"
                 f" kernel '{self.name}'. Expecting a scalar or an array.")
 
+    def validate_global_constraints(self):
+        '''
+        Generates LFRic (Dynamo 0.3) specific PSy layer code for a call
+        to this user-supplied LFRic kernel.
+        :raises GenerationError: if this kernel does not have a supported \
+                        operates-on (currently only "cell_column").
+        :raises GenerationError: if the loop goes beyond the level 1 \
+                        halo and an operator is accessed.
+        :raises GenerationError: if a kernel in the loop has an inc access \
+                        and the loop is not coloured but is within an OpenMP \
+                        parallel region.
+        '''
+        # Check operates-on (iteration space) before generating code
+        const = LFRicConstants()
+        if self.iterates_over not in const.USER_KERNEL_ITERATION_SPACES:
+            raise GenerationError(
+                f"The LFRic API supports calls to user-supplied kernels that "
+                f"operate on one of {const.USER_KERNEL_ITERATION_SPACES}, but "
+                f"kernel '{self.name}' operates on '{self.iterates_over}'.")
+
+        # Get configuration for valid argument kinds
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        from psyclone.domain.lfric import LFRicLoop
+        parent_loop = self.ancestor(LFRicLoop)
+
+        # Check whether this kernel reads from an operator
+        op_args = parent_loop.args_filter(
+            arg_types=const.VALID_OPERATOR_NAMES,
+            arg_accesses=[AccessType.READ, AccessType.READWRITE])
+        if op_args:
+            # It does. We must check that our parent loop does not
+            # go beyond the L1 halo.
+            if parent_loop.upper_bound_name == "cell_halo" and \
+               parent_loop.upper_bound_halo_depth > 1:
+                raise GenerationError(
+                    f"Kernel '{self._name}' reads from an operator and "
+                    f"therefore cannot be used for cells beyond the level 1 "
+                    f"halo. However the containing loop goes out to level "
+                    f"{parent_loop.upper_bound_halo_depth}")
+
+        if not self.is_coloured():
+            # This kernel call has not been coloured
+            #  - is it OpenMP parallel, i.e. are we a child of
+            # an OpenMP directive?
+            if self.is_openmp_parallel():
+                try:
+                    # It is OpenMP parallel - does it have an argument
+                    # with INC access?
+                    arg = self.incremented_arg()
+                except FieldNotFoundError:
+                    arg = None
+                if arg:
+                    raise GenerationError(f"Kernel '{self._name}' has an "
+                                          f"argument with INC access and "
+                                          f"therefore must be coloured in "
+                                          f"order to be parallelised with "
+                                          f"OpenMP.")
+
+        super().validate_global_constraints()
+
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate

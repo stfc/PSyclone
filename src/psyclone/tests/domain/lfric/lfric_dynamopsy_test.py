@@ -172,7 +172,6 @@ def test_dynamopsy_gen(monkeypatch):
     result = str(dynamo_psy.gen)
     assert (
         "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
         "        CALL testkern_code(nlayers, ginger, f1_data, "
         "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "

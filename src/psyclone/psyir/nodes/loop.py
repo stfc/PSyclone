@@ -470,19 +470,15 @@ class Loop(Statement):
         # info outside of do loop
         parent.add(do_stmt)
         for child in self.loop_body:
-            from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
-            if isinstance(child, LFRicBuiltIn):
-                child.gen_code(do_stmt)
-            else:
-                shallow_copy = child
-                child.validate_global_constraints()
-                child = child.lower_to_language_level()
-                do_stmt.add(PSyIRGen(do_stmt, child))
-                # The KernelCall is still needed for the logic about when to
-                # set halo exchanges and fields to dirty state, so we leave the
-                # tree with the original node
-                if child is not shallow_copy:
-                    child.replace_with(shallow_copy)
+            shallow_copy = child
+            child.validate_global_constraints()
+            child = child.lower_to_language_level()
+            do_stmt.add(PSyIRGen(do_stmt, child))
+            # The KernelCall is still needed for the logic about when to
+            # set halo exchanges and fields to dirty state, so we leave the
+            # tree with the original node
+            if child is not shallow_copy:
+                child.replace_with(shallow_copy)
 
         kind = self.variable.datatype.precision.name
         if self.variable.name == "df":
