@@ -110,7 +110,7 @@ class KernelInterface(ArgOrdering):
         # TODO #1934 - we should not keep a reference to a SymbolTable here.
         # We should just be using the one associated with the kernel routine
         # but currently a Kern is not a Call to a Routine.
-        self._symtab = LFRicSymbolTable()
+        self._force_symtab = LFRicSymbolTable()
 
     def generate(self, var_accesses=None):
         '''Call the generate base class then add the argument list as it can't

@@ -80,17 +80,7 @@ class ArgOrdering:
         if kern:
             invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
 
-        # TODO #1934 - we should not keep a reference to a SymbolTable here
-        # as this creates a double reference (with
-        # self._kernel.ancestor(InvokeSchedule)._symbol_table) to that table
-        # and might go stale e.g. if the tree is copied.
-        # In fact, using the same symbol table as the Invoke is a bit odd as
-        # we are describing kernel *arguments* here so they will have a
-        # different interface to those in the Schedule of the invoke.
-        if invoke_sched:
-            self._symtab = invoke_sched.symbol_table
-        else:
-            self._symtab = LFRicSymbolTable()
+        self._force_symtab = None
 
         # TODO #1934 Completely remove the usage of strings, instead
         # use the PSyIR representation.
@@ -99,6 +89,23 @@ class ArgOrdering:
         # This stores the PSyIR representation of the arguments
         self._psyir_arglist = []
         self._arg_index_to_metadata_index = {}
+
+    @property
+    def _symtab(self):
+        # TODO #1934 - we should not keep a reference to a SymbolTable here
+        # as this creates a double reference (
+        # with self._kernel.ancestor(InvokeSchedule)._symbol_table)
+        # to that table and might go stale e.g. if the tree is copied.
+        # In fact, using the same symbol table as the Invoke is a bit odd as
+        # we are describing kernel *arguments* here so they will have a
+        # different interface to those in the Schedule of the invoke.
+        if self._force_symtab:
+            return self._force_symtab
+        elif self._kern and self._kern.ancestor(psyGen.InvokeSchedule):
+            return self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
+        else:
+            self._force_symtab = LFRicSymbolTable()
+            return self._force_symtab
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.

@@ -469,17 +469,22 @@ class Loop(Statement):
         # need to add do loop before children as children may want to add
         # info outside of do loop
         parent.add(do_stmt)
+
+        shallow_copy_original_contents = []
         for child in self.loop_body:
-            # import pdb; pdb.set_trace()
-            shallow_copy = child
+            shallow_copy_original_contents.append(child)
             child.validate_global_constraints()
             child = child.lower_to_language_level()
+
+        for child in self.loop_body:
             do_stmt.add(PSyIRGen(do_stmt, child))
-            # The KernelCall is still needed for the logic about when to
-            # set halo exchanges and fields to dirty state, so we leave the
-            # tree with the original node
-            if child is not shallow_copy:
-                child.replace_with(shallow_copy)
+
+        # The KernelCall is still needed for the logic about when to
+        # set halo exchanges and fields to dirty state, so we leave the
+        # tree with the original node
+        self.loop_body.pop_all_children()
+        for child in shallow_copy_original_contents:
+            self.loop_body.addchild(child)
 
         kind = self.variable.datatype.precision.name
         if self.variable.name == "df":

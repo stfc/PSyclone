@@ -1332,7 +1332,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      CALL a_proxy%set_dirty()\n"
             "      CALL f_proxy%set_dirty()\n")
-        assert set_dirty_str == code
+        assert set_dirty_str in code
         assert code.count("set_dirty()") == 2
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -5495,9 +5495,9 @@ def test_rc_colour(tmpdir):
     # but f1 is continuous and so the outermost halo depth (2) remains
     # dirty. This means that all of the halo is dirty apart from level
     # 1.
-    # assert (
-    #     "      CALL f1_proxy%set_dirty()\n"
-    #     "      CALL f1_proxy%set_clean(1)" in result)
+    assert (
+        "      CALL f1_proxy%set_dirty()\n"
+        "      CALL f1_proxy%set_clean(1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
