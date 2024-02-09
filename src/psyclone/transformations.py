@@ -2536,6 +2536,13 @@ class ACCRoutineTrans(Transformation):
                         ref.symbol.is_constant):
                     # An import of a compile-time constant is fine.
                     continue
+                if isinstance(ref.symbol, RoutineSymbol):
+                    raise TransformationError(
+                        f"{k_or_r} '{node.name}' calls the routine "
+                        f"'{ref.symbol.name}' which must therefore also have "
+                        f"'ACC routine' added to it. This is not yet "
+                        f"supported.")
+
                 raise TransformationError(
                     f"{k_or_r} '{node.name}' accesses the symbol "
                     f"'{ref.symbol}' which is imported. If this symbol "
