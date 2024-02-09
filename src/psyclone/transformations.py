@@ -70,8 +70,8 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE, ScalarType,
-    Symbol, SymbolError)
+    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE, RoutineSymbol,
+    ScalarType, Symbol, SymbolError)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \

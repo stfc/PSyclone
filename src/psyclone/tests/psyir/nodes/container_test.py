@@ -293,7 +293,13 @@ def test_get_routine_definition_recurse_wildcard(fortran_reader):
     call_node = psyir.walk(Call)[0]
     container = call_node.routine.interface.container_symbol.container(
         local_node=call_node)
+    # By default we don't follow wildcard imports and thus don't find
+    # the routine.
     result = container.get_routine_definition(call_node.routine.name)
+    assert result is None
+    # Repeat but include wildcard imports.
+    result = container.get_routine_definition(call_node.routine.name,
+                                              check_wildcard_imports=True)
     assert isinstance(result, Routine)
     assert result.name == "sub"
 
