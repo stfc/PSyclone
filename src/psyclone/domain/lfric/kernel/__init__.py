@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modifier L. Turner, Met Office
 
 '''Module for Kernels in the LFRic domain.'''
 
