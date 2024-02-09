@@ -3262,7 +3262,6 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      ! sum the partial results sequentially\n"
             "      !\n"
             "      DO th_idx=1,nthreads\n"
-            "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n"
@@ -3289,7 +3288,6 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      ! sum the partial results sequentially\n"
             "      !\n"
             "      DO th_idx=1,nthreads\n"
-            "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        asum = asum+l_asum(1,th_idx)\n"
             "      END DO\n"
             "      DEALLOCATE (l_asum)\n") in code
@@ -6578,11 +6576,13 @@ def test_accenterdata_builtin(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert ("!$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
-            "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
-            "nlayers,undf_w1,undf_w2,undf_w3)" in output)
+            "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+            "undf_w1,undf_w2,undf_w3)" in output)
     assert "loop2_stop = undf_aspc1_f1" in output
     assert ("      !$acc loop independent\n"
             "      do df=loop2_start,loop2_stop\n"
+            "        ! built-in: setval_c (set a real-valued field to "
+            "a real scalar value)\n"
             "        f1_data(df) = 0.0_r_def\n"
             "      end do\n"
             "      !$acc end parallel\n" in output)
