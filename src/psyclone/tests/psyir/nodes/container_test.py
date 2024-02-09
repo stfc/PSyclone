@@ -275,8 +275,8 @@ def test_get_routine_definition_recurse_named(fortran_reader):
 def test_get_routine_definition_recurse_wildcard(fortran_reader):
     '''Test that when a container does not contain the required routine,
     any imported containers within this container are also
-    searched. In this case the test is for a wildcard container within
-    the original container. The PSyIR of the routine is returned when
+    searched. In this case the test the import is from a container that
+    then has a wildcard import. The PSyIR of the routine is returned when
     it is found in the second container.
 
     '''
