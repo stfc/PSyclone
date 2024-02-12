@@ -13,7 +13,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import subprocess
-# import os
+import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
@@ -21,15 +21,26 @@ import subprocess
 # -- Project information -----------------------------------------------------
 
 project = 'Reference Guide'
-copyright = ('2019-2023, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
+copyright = ('2019-2024, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
              ' S. Siso')
 author = 'R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
 
+# We use the version module in src/psyclone. However, rather than importing
+# it (which would require that PSyclone be installed first), we read it
+# using execfile().
+# 'version' is the short X.Y version and 'release' is the full version,
+# including any alpha/beta/rc tags.
+# We are in the doc/reference_guide/source directory but need to read
+# version.py from src/psyclone
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+BASE_PATH = os.path.dirname(os.path.dirname(os.path.dirname(BASE_PATH)))
+with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
+          encoding="utf-8") as f:
+    exec(f.read())
 # The short X.Y version
-version = ''
+version = __SHORT_VERSION__
 # The full version, including alpha/beta/rc tags
-release = '2.4.0'
-
+release = __VERSION__
 
 # -- General configuration ---------------------------------------------------
 
