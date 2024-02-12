@@ -28,8 +28,6 @@ author = 'R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
 # We use the version module in src/psyclone. However, rather than importing
 # it (which would require that PSyclone be installed first), we read it
 # using execfile().
-# 'version' is the short X.Y version and 'release' is the full version,
-# including any alpha/beta/rc tags.
 # We are in the doc/reference_guide/source directory but need to read
 # version.py from src/psyclone
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -37,9 +35,9 @@ BASE_PATH = os.path.dirname(os.path.dirname(os.path.dirname(BASE_PATH)))
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
           encoding="utf-8") as f:
     exec(f.read())
-# The short X.Y version
+# The short X.Y version.
 version = __SHORT_VERSION__
-# The full version, including alpha/beta/rc tags
+# The full version, including alpha/beta/rc tags.
 release = __VERSION__
 
 # -- General configuration ---------------------------------------------------
