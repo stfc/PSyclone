@@ -70,7 +70,7 @@ run-default: $(EXE)
 	./$(EXE) $(GOL_DIR)/config.glider
 
 test-default: $(EXE)
-	make run | tail -n 13 | head -n 12 | diff - $(GOL_DIR)/glider.correct
+	make --no-print-directory  run | tail -n 12 | diff -b - $(GOL_DIR)/glider.correct
 
 clean-default:
 	rm -f *.o $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90
