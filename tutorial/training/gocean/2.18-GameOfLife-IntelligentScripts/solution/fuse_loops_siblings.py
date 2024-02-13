@@ -44,6 +44,69 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.gocean1p0 import GOKern, GOLoop
 
 
+def apply_all(node_list, transform):
+    '''This subroutine applies the specified transformation, which takes
+    two consecutive nodes (e.g. loop fusion), and applies it to a block
+    as large as possible. For example given six loops, of which the first
+    three and the last two can be fused, it would result in:
+    loop
+       1, 2, 3
+    loop
+       4
+    loop 5, 6
+
+    :param node_list: list of all candidate nodes.
+    :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
+    :param transform: the transformation to apply.
+    :type transform: :py:class:`psyclone.psyGen.Transformation`
+    '''
+
+    # Create a copy in case that the caller needs the original list
+    node_list = node_list[:]
+
+    # Then try to combine consecutive nodes as much as possible
+    while node_list:
+        # Get and remove the first kernel
+        current = node_list.pop(0)
+        # Important to make a copy, otherwise as we delete nodes we
+        # remove them from the PSyIR tree!!
+        siblings = current.siblings[:]
+
+        # The siblings list contains all siblings including the current node.
+        # Delete all previous siblings:
+        while siblings[0] is not current:
+            del siblings[0]
+
+        # Remove the current node, so we have only all following nodes:
+        del siblings[0]
+
+        # Now see if current and following sibling can be combined:
+        while siblings:
+            # If the next node is NOT an outer loop, don't even try to apply
+            # the transformation. We could also use isinstance(GOLoop) and
+            # loop_type, but using the existing list of all outer_loops is
+            # shorter:
+            if siblings[0] not in node_list:
+                break
+            # Create a string for user feedback, containing the names of all
+            # transformed kernels:
+            current_name = "+".join(i.name for i in current.walk(GOKern))
+            try:
+                print(f"Applying {transform.name} on '{current_name}' and "
+                      f"'{siblings[0].walk(GOKern)[0].name}'.")
+                transform.apply(current, siblings[0])
+            except TransformationError as err:
+                print("Cannot apply {transform.name} because", str(err.value))
+                break
+
+            # Remove the transformed sibling - first from the list of outer
+            # loops (we don't need to test transformed loops in the outer loopq
+            # again), then from the list of siblings, so the while loop
+            # will now try to transform the next sibling
+            node_list.remove(siblings[0])
+            del siblings[0]
+
+
 def trans(psy):
     '''
     Take the supplied psy object, and fuse the first two loops
@@ -70,44 +133,12 @@ def trans(psy):
             outer_loops.append(loop)
 
     fuse = GOceanLoopFuseTrans()
-    # Then try to combine consecutive nodes as much as possible
-    while outer_loops:
-        # Get and remove the first kernel
-        current = outer_loops.pop(0)
-        # Important to make a copy, otherwise as we delete nodes we
-        # remove them from the PSyIR tree!!
-        siblings = current.siblings[:]
+    apply_all(outer_loops, fuse)
 
-        # The siblings list contains all siblings including the current node.
-        # Delete all previous siblings:
-        while siblings[0] is not current:
-            del siblings[0]
-
-        # Remove the current node, so we have only all following nodes:
-        del siblings[0]
-
-        # Now see if current and following sibling can be combined:
-        while siblings:
-            # If the next node is NOT an outer loop, don't even try to fuse
-            # We could also use isinstance(GOLoop) and loop_type, but using
-            # the existing list of all outer_loops is shorter:
-            if siblings[0] not in outer_loops:
-                break
-            # Create a string for user feedback, containing the names of all
-            # fused kernels:
-            current_name =  "+".join(i.name for i in current.walk(GOKern))
-            try:
-                print(f"Fusing '{current_name}' and "
-                      f"'{siblings[0].walk(GOKern)[0].name}'.")
-                fuse.apply(current, siblings[0])
-            except TransformationError as err:
-                print("Cannot fuse because", str(err.value))
-                break
-
-            # Remove the fused sibling - first from the list of outer
-            # loops (we don't need to test fused loops in the outer loop
-            # again), then from the list of siblings, so the while loop
-            # will now try to fuse the next sibling
-            outer_loops.remove(siblings[0])
-            del siblings[0]
-
+    for outer in outer_loops:
+        # Note that some of the loops in outer_loops are not part of
+        # the tree anymore, since their loop body has been fused with
+        # the previous loop. Additionally, if a loop has only one
+        # child, no need to try fusing one child.
+        if len(outer.loop_body.children) > 1:
+            apply_all(outer.loop_body.children, fuse)

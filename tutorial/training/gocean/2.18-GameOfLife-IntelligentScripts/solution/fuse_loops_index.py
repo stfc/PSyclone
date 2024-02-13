@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,59 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.gocean1p0 import GOKern, GOLoop
 
 
+def apply_all(node_list, transform):
+    '''This subroutine applies the specified transformation, which takes
+    two consecutive nodes (e.g. loop fusion), and applies it to a block
+    as large as possible. For example given six loops, of which the first
+    three and the last two can be fused, it would result in:
+    loop
+       1, 2, 3
+    loop
+       4
+    loop 5, 6
+
+    :param node_list: list of all candidate nodes.
+    :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
+    :param transform: the transformation to apply.
+    :type transform: :py:class:`psyclone.psyGen.Transformation`
+    '''
+
+    # Create a copy in case that the caller needs the original list
+    node_list = node_list[:]
+
+    # Then try to combine consecutive nodes as much as possible
+    while node_list:
+        # Get and remove the first kernel
+        current = node_list.pop(0)
+
+        # Now check all 'next_node' nodes to see  if they can be transformed:
+        ind = current.position
+        while ind+1 < len(current.parent.children):
+            next_node = current.parent.children[ind+1]
+            # If next_node is NOT in the node list, don't even try
+            # apply the transformation, it must be a wrong type
+            if next_node not in node_list:
+                break
+
+            # Create a string for user feedback, containing the names of all
+            # transformed kernels so far:
+            current_name = "+".join(i.name for i in current.walk(GOKern))
+            try:
+                print(f"Applying {transform.name} on '{current_name}' and "
+                      f"'{next_node.walk(GOKern)[0].name}'.")
+                transform.apply(current, next_node)
+            except TransformationError as err:
+                print(f"Cannot apply {transform.name}:", str(err.value))
+                break
+
+            # Remove the transformed sibling, then keep on transforming
+            node_list.remove(next_node)
+            # Note that we don't need to increase `ind`: the previous `ind`
+            # loop has been removed from the parent, so `ind` is now already
+            # the next loop
+
+
+# -----------------------------------------------------------------------------
 def trans(psy):
     '''
     Take the supplied psy object, and fuse the first two loops
@@ -70,31 +123,12 @@ def trans(psy):
             outer_loops.append(loop)
 
     fuse = GOceanLoopFuseTrans()
-    # Then try to combine consecutive nodes as much as possible
-    while outer_loops:
-        # Get and remove the first kernel
-        current = outer_loops.pop(0)
+    apply_all(outer_loops, fuse)
 
-        # Now check all 'next' nodes to see  if they can be fused:
-        ind = current.position
-        while ind+1 < len(current.parent.children):
-            next = current.parent.children[ind+1]
-            # If the next node is NOT an outer loop, don't try to fuse
-            if next not in outer_loops:
-                break
-            # Create a string for user feedback, containing the names of all
-            # fused kernels:
-            current_name =  "+".join(i.name for i in current.walk(GOKern))
-            try:
-                print(f"Fusing '{current_name}' and "
-                      f"'{next.walk(GOKern)[0].name}'.")
-                fuse.apply(current, next)
-            except TransformationError as err:
-                print("Cannot fuse because", str(err.value))
-                break
-
-            # Remove the fused sibling, then keep on fusing
-            outer_loops.remove(next)
-            # Note that we don't need to increase ind: the previous 'ind'
-            # loop has been removed from the parent, so 'ind' is now already
-            # the next loop
+    for outer in outer_loops:
+        # Note that some of the loops in outer_loops are not part of
+        # the tree anymore, since their loop body has been fused with
+        # the previous loop. Additionally, if a loop has only one
+        # child, no need to try fusing one child.
+        if len(outer.loop_body.children) > 1:
+            apply_all(outer.loop_body.children, fuse)
