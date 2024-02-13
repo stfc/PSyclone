@@ -17,7 +17,7 @@ run: $(EXE)
 # sure we get a 2x2 domain decomposition, otherwise the job was not running properly
 # with MPI
 test: test-default
-	bash -c "if [[ $$(make run | grep -c 'go_decompose: using grid of   2x  2') != 1 ]]; then \
+	@bash -c "if [[ $$(make run | grep -c 'go_decompose: using grid of   2x  2') != 1 ]]; then \
 		echo 'Job is not running properly with MPI'; \
 	fi"
 
