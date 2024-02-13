@@ -56,6 +56,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Reference, IntrinsicCall)
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.utils import a_or_an
 
 # The name of the file containing the meta-data describing the
@@ -458,8 +459,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         table = self.scope.symbol_table
         # The symbol representing the loop index is created in the LFRicLoop
         # constructor.
-        return table.find_or_create_integer_symbol(
-            "df", tag="dof_loop_idx")
+        return table.find_or_create_tag(
+            tag="dof_loop_idx", root_name="df", symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE)
 
     def get_indexed_field_argument_references(self):
         '''

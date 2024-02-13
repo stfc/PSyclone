@@ -400,7 +400,7 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                      "      !\n")
     else:
         assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
-    expected += "      do cell=loop1_start,loop1_stop\n"
+    expected += "      do cell = loop1_start, loop1_stop, 1\n"
     assert expected in gen_code
 
     expected = (

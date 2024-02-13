@@ -45,13 +45,14 @@ from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCRegionDirective,
                                   OMPRegionDirective, Routine)
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 class LFRicLoop(PSyLoop):
@@ -98,8 +99,9 @@ class LFRicLoop(PSyLoop):
                     f"'colour', 'dof' or '' (for cell-columns).")
 
             symtab = self.scope.symbol_table
-            self.variable = symtab.find_or_create_integer_symbol(
-                suggested_name, tag)
+            self.variable = symtab.find_or_create_tag(
+                tag, root_name=suggested_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -128,21 +130,24 @@ class LFRicLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        # import pdb; pdb.set_trace()
         if self._loop_type != "null":
-            # Not a domain loop, i.e. there is a real loop
+            for child in self.loop_body.children:
+                child.validate_global_constraints()
+            # This is a domain loop, we start by getting the bound expressions
+            # because we need the domain kernels in the body of the loop to
+            # properly infer them.
             # We need to copy the expressions, since the original ones are
             # attached to the original loop.
+            # start, stop, step = self.start_expr, self.stop_expr, self.step_expr
             psy_loop = PSyLoop.create(
                           self._variable,
                           self.start_expr.copy(),
                           self.stop_expr.copy(),
                           self.step_expr.copy(),
                           [])
+            psy_loop.loop_body._symbol_table = self.loop_body.symbol_table.shallow_copy()
             psy_loop.children[3] = self.loop_body.copy()
-            # In this case the children lowering needs
-            # to go AFTER the stop_expr call, because it some cases it looks
-            # for domian metadata from the kernel, and this is lost when
-            # lowering.
             self.replace_with(psy_loop)
             for child in psy_loop.loop_body.children:
                 child.lower_to_language_level()

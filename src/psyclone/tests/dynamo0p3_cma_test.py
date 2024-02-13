@@ -994,7 +994,7 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in code
     else:
         assert "loop0_stop = cma_op1_proxy%fs_from%get_ncell()\n" in code
-    assert "DO cell=loop0_start,loop0_stop\n" in code
+    assert "DO cell = loop0_start, loop0_stop, 1\n" in code
     expected = ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
                 "lma_op1_local_stencil, afield_data, "

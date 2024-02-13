@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import Schedule, Literal
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import DoGen, DeclGen, PSyIRGen
+from psyclone.f2pygen import DoGen, DeclGen, PSyIRGen, UseGen
 
 
 class Loop(Statement):
@@ -456,11 +456,31 @@ class Loop(Statement):
         from psyclone.psyir.backend.fortran import FortranWriter
         # start/stop/step_expr are generated with the FortranWriter
         # backend, the rest of the loop with f2pygen.
+
+        # import pdb; pdb.set_trace()
+        parent.add(PSyIRGen(parent, self))
+
+        kind = self.variable.datatype.precision.name
+        if self.variable.name in ("df", ):
+            kind = None
+        my_decl = DeclGen(parent, datatype="integer",
+                          kind=kind,
+                          entity_decls=[self.variable.name])
+        parent.add(my_decl)
+
+        from psyclone.psyGen import CodedKern
+        for kernel in self.walk(CodedKern):
+            if not kernel.module_inline:
+                parent.add(UseGen(parent, name=kernel._module_name, only=True,
+                                  funcnames=[kernel._name]))
+        return
+
         fwriter = FortranWriter()
         if is_unit_literal(self.step_expr):
             step_str = None
         else:
             step_str = fwriter(self.step_expr)
+
 
         do_stmt = DoGen(parent, self.variable.name,
                         fwriter(self.start_expr),
@@ -486,11 +506,4 @@ class Loop(Statement):
         for child in shallow_copy_original_contents:
             self.loop_body.addchild(child)
 
-        kind = self.variable.datatype.precision.name
-        if self.variable.name == "df":
-            kind = None
 
-        my_decl = DeclGen(parent, datatype="integer",
-                          kind=kind,
-                          entity_decls=[self.variable.name])
-        parent.add(my_decl)

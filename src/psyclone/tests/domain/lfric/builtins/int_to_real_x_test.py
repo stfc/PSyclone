@@ -100,7 +100,7 @@ def test_int_to_real_x(tmpdir, monkeypatch, annexed, dist_mem):
 
     # Check built-in loop
     output = (
-        "      DO df=loop0_start,loop0_stop\n"
+        "      DO df = loop0_start, loop0_stop, 1\n"
         "        f2_data(df) = REAL(f1_data(df), kind=r_def)\n"
         "      END DO\n")
     assert output in code

@@ -52,8 +52,8 @@ from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, UnresolvedType,
-    ContainerSymbol, ImportInterface, ScalarType)
+    DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol, ImportInterface,
+    ScalarType, INTEGER_TYPE)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -933,11 +933,14 @@ class KernCallArgList(ArgOrdering):
         :rtype: Tuple[str, py:class:`psyclone.psyir.nodes.Reference`]
 
         '''
-        cell_sym = self._symtab.find_or_create_integer_symbol(
-            "cell", tag="cell_loop_idx")
+        cell_sym = self._symtab.find_or_create_tag(
+            tag="cell_loop_idx", root_name="cell", symbol_type=DataSymbol,
+            datatype=INTEGER_TYPE)
         if self._kern.is_coloured():
-            colour_sym = self._symtab.find_or_create_integer_symbol(
-                "colour", tag="colours_loop_idx")
+            colour_sym = self._symtab.find_or_create_tag(
+                tag="colours_loop_idx", root_name="colour", symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE)
+            
             if self._kern.is_intergrid:
                 tag = None
             else:

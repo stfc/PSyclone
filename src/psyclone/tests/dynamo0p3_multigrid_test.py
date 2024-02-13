@@ -352,7 +352,7 @@ def test_field_prolong(tmpdir, dist_mem):
             "        CALL field2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert expected in gen_code
     else:
         assert "loop0_stop = field2_proxy%vspace%get_ncell()\n" in gen_code
@@ -477,7 +477,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                 "        CALL field2_proxy%halo_exchange(depth=2)\n"
                 "      END IF\n"
                 "      !\n"
-                "      DO cell=loop0_start,loop0_stop\n")
+                "      DO cell = loop0_start, loop0_stop, 1\n")
         else:
             halo_exchs = (
                 "      ! Call kernels and communication routines\n"
@@ -486,7 +486,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                 "        CALL field2_proxy%halo_exchange(depth=2)\n"
                 "      END IF\n"
                 "      !\n"
-                "      DO cell=loop0_start,loop0_stop\n")
+                "      DO cell = loop0_start, loop0_stop, 1\n")
         assert halo_exchs in output
 
     # We pass the whole dofmap for the fine mesh (we are reading from).
@@ -619,7 +619,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "        CALL cmap_fld_c_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop")
+            "      DO cell = loop0_start, loop0_stop, 1")
         assert expected in output
         assert "loop0_stop = mesh_cmap_fld_c%get_last_halo_cell(1)\n" in output
         # Since we loop into L1 halo of the coarse mesh, the L1 halo
@@ -636,7 +636,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "        CALL fld_f_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
-            "      DO cell=loop1_start,loop1_stop\n")
+            "      DO cell = loop1_start, loop1_stop, 1\n")
         assert expected in output
         assert "loop1_stop = mesh_fld_m%get_last_halo_cell(1)\n" in output
         # Again the L1 halo for fld_f will now be clean but for restriction
@@ -649,7 +649,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                     "      !\n"
                     "      CALL fld_f_proxy%halo_exchange(depth=2)\n"
                     "      !\n"
-                    "      DO cell=loop2_start,loop2_stop\n"
+                    "      DO cell = loop2_start, loop2_stop, 1\n"
                     "        CALL restrict_test_kernel_code")
         assert expected in output
         assert "loop2_stop = mesh_fld_m%get_last_halo_cell(1)\n" in output
@@ -662,7 +662,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                     "      !\n"
                     "      CALL fld_m_proxy%halo_exchange(depth=2)\n"
                     "      !\n"
-                    "      DO cell=loop3_start,loop3_stop\n"
+                    "      DO cell = loop3_start, loop3_stop, 1\n"
                     "        CALL restrict_test_kernel_code")
         assert expected in output
         assert "loop3_stop = mesh_cmap_fld_c%get_last_halo_cell(1)\n" in output
@@ -672,27 +672,27 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         assert "loop2_stop = fld_m_proxy%vspace%get_ncell()\n" in output
         assert "loop3_stop = cmap_fld_c_proxy%vspace%get_ncell()\n" in output
         expected = (
-            "      DO cell=loop0_start,loop0_stop\n"
+            "      DO cell = loop0_start, loop0_stop, 1\n"
             "        CALL prolong_test_kernel_code(nlayers, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, fld_m_data, "
             "cmap_fld_c_data, ndf_w1, undf_w1, map_w1, undf_w2, "
             "map_w2(:,cell))\n"
             "      END DO\n"
-            "      DO cell=loop1_start,loop1_stop\n"
+            "      DO cell = loop1_start, loop1_stop, 1\n"
             "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
             "fld_f_data, fld_m_data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
             "      END DO\n"
-            "      DO cell=loop2_start,loop2_stop\n"
+            "      DO cell = loop2_start, loop2_stop, 1\n"
             "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
             "fld_m_data, fld_f_data, undf_aspc1_fld_m, "
             "map_aspc1_fld_m(:,cell), ndf_aspc2_fld_f, undf_aspc2_fld_f, "
             "map_aspc2_fld_f)\n"
             "      END DO\n"
-            "      DO cell=loop3_start,loop3_stop\n"
+            "      DO cell = loop3_start, loop3_stop, 1\n"
             "        CALL restrict_test_kernel_code(nlayers, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, cmap_fld_c_data, "
@@ -810,7 +810,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     expected = (
         "      ! Call kernels and communication routines\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,:,cell), "
         "ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
         "fld_m_data, fld_f_data, undf_adspc1_fld_m, "
@@ -837,12 +837,12 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     expected = (
         "      !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "      DO cell=loop0_start,loop0_stop\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL restrict_kernel_code")
     assert expected in output
     assert "loop0_stop = mesh_fld_m%get_last_edge_cell()\n" in output
     expected = (
-        "      DO colour=loop2_start,loop2_stop\n"
+        "      DO colour = loop2_start, loop2_stop, 1\n"
         "        !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
         "        DO cell = loop3_start, "

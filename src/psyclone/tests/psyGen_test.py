@@ -78,6 +78,7 @@ from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
                                       Dynamo0p3KernelConstTrans,
                                       Dynamo0p3OMPLoopTrans,
                                       Dynamo0p3ColourTrans, OMPParallelTrans)
+from psyclone.psyir.backend.visitor import VisitorError
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -550,7 +551,7 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     coded_kern.module_inline = True
 
     # Fail if local routine symbol does not already exist
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(VisitorError) as err:
         gen = str(psy.gen)
     assert ("Cannot generate this kernel call to 'ru_code' because it "
             "is marked as module-inline but no such subroutine exist in "

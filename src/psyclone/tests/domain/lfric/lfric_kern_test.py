@@ -58,6 +58,7 @@ from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE, ArrayType
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.psyir.backend.visitor import VisitorError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
                 os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -467,7 +468,7 @@ def test_kern_not_coloured_inc(monkeypatch):
     # Monkeypatch the Kernel so that it appears to be OpenMP parallel.
     monkeypatch.setattr(kern, "is_openmp_parallel", lambda: True)
     assert kern.is_openmp_parallel() is True
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(VisitorError) as err:
         _ = psy.gen
     assert ("Kernel 'testkern_code' has an argument with INC access and "
             "therefore must be coloured in order to be parallelised with "

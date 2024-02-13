@@ -134,7 +134,7 @@ def test_field(tmpdir):
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_code(nlayers, a, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
@@ -142,7 +142,7 @@ def test_field(tmpdir):
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE single_invoke_psy")
-    assert output in str(generated_code)
+    assert output == str(generated_code)
 
 
 def test_field_deref(tmpdir, dist_mem):
@@ -262,14 +262,14 @@ def test_field_deref(tmpdir, dist_mem):
             "        CALL est_m2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()\n" in generated_code
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     output = (
         "        CALL testkern_code(nlayers, a, f1_data, est_f2_data, m1_data,"
@@ -521,7 +521,7 @@ def test_field_fs(tmpdir):
         "        CALL m7_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_fs_code(nlayers, f1_data, f2_data, "
         "m1_data, m2_data, f3_data, f4_data, "
         "m3_data, m4_data, f5_data, f6_data, "
@@ -878,7 +878,7 @@ def test_int_field_fs(tmpdir):
         "        CALL m7_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_fs_int_field_code(nlayers, f1_data, "
         "f2_data, m1_data, m2_data, f3_data, "
         "f4_data, m3_data, m4_data, f5_data, "
