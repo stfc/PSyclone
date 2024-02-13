@@ -13,9 +13,7 @@ this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 
 ifeq ($(API), gocean1.0)
-	# For now till MPI support is merged into dl_esm_info and PSyclone is updated.
-	# INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
-	INF_DIR ?= $(HOME)/work/dl_esm_inf/finite_difference
+	INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
 	INF_INC = $(INF_DIR)/src
 	ifeq ($(MPI), yes)
 		INF_LIB ?= $(INF_DIR)/src/lib_dm_fd.a
