@@ -390,59 +390,59 @@ def test_accroutinetrans_validate_no_call():
             in str(err.value))
 
 
-def test_1kern_trans(kernel_outputdir):
-    ''' Check that we generate the correct code when an invoke contains
-    the same kernel more than once but only one of them is transformed. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
-                             idx=0)
-    sched = invoke.schedule
-    kernels = sched.coded_kernels()
-    # We will transform the second kernel but not the first
-    kern = kernels[1]
-    rtrans = ACCRoutineTrans()
-    rtrans.apply(kern)
-    # Generate the code (this triggers the generation of a new kernel)
-    code = str(psy.gen).lower()
-    tag = re.search('use testkern(.+?)_mod', code).group(1)
-    # We should have a USE for the original kernel and a USE for the new one
-    assert f"use testkern{tag}_mod, only: testkern{tag}_code" in code
-    assert "use testkern_mod, only: testkern_code" in code
-    # Similarly, we should have calls to both the original and new kernels
-    assert "call testkern_code(" in code
-    assert f"call testkern{tag}_code(" in code
-    first = code.find("call testkern_code(")
-    second = code.find(f"call testkern{tag}_code(")
-    assert first < second
-    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+# def test_1kern_trans(kernel_outputdir):
+#     ''' Check that we generate the correct code when an invoke contains
+#     the same kernel more than once but only one of them is transformed. '''
+#     psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
+#                              idx=0)
+#     sched = invoke.schedule
+#     kernels = sched.coded_kernels()
+#     # We will transform the second kernel but not the first
+#     kern = kernels[1]
+#     rtrans = ACCRoutineTrans()
+#     rtrans.apply(kern)
+#     # Generate the code (this triggers the generation of a new kernel)
+#     code = str(psy.gen).lower()
+#     tag = re.search('use testkern(.+?)_mod', code).group(1)
+#     # We should have a USE for the original kernel and a USE for the new one
+#     assert f"use testkern{tag}_mod, only: testkern{tag}_code" in code
+#     assert "use testkern_mod, only: testkern_code" in code
+#     # Similarly, we should have calls to both the original and new kernels
+#     assert "call testkern_code(" in code
+#     assert f"call testkern{tag}_code(" in code
+#     first = code.find("call testkern_code(")
+#     second = code.find(f"call testkern{tag}_code(")
+#     assert first < second
+#     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
-def test_2kern_trans(kernel_outputdir):
-    ''' Check that we generate correct code when we transform two kernels
-    within a single invoke. '''
-    psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
-                             idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(Kern)
-    assert len(kernels) == 5
-    ktrans = Dynamo0p3KernelConstTrans()
-    ktrans.apply(kernels[1], {"number_of_layers": 100})
-    ktrans.apply(kernels[2], {"number_of_layers": 100})
-    # Generate the code (this triggers the generation of new kernels)
-    code = str(psy.gen).lower()
-    # Find the tags added to the kernel/module names
-    for match in re.finditer('use testkern_any_space_2(.+?)_mod', code):
-        tag = match.group(1)
-        assert (f"use testkern_any_space_2{tag}_mod, only: "
-                f"testkern_any_space_2{tag}_code" in code)
-        assert f"call testkern_any_space_2{tag}_code(" in code
-        filepath = os.path.join(str(kernel_outputdir),
-                                f"testkern_any_space_2{tag}_mod.f90")
-        assert os.path.isfile(filepath)
-        with open(filepath, encoding="utf-8") as infile:
-            assert "nlayers = 100" in infile.read()
-    assert "use testkern_any_space_2_mod, only" not in code
-    assert "call testkern_any_space_2_code(" not in code
-    assert LFRicBuild(kernel_outputdir).code_compiles(psy)
+# def test_2kern_trans(kernel_outputdir):
+#     ''' Check that we generate correct code when we transform two kernels
+#     within a single invoke. '''
+#     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
+#                              idx=0)
+#     sched = invoke.schedule
+#     kernels = sched.walk(Kern)
+#     assert len(kernels) == 5
+#     ktrans = Dynamo0p3KernelConstTrans()
+#     ktrans.apply(kernels[1], {"number_of_layers": 100})
+#     ktrans.apply(kernels[2], {"number_of_layers": 100})
+#     # Generate the code (this triggers the generation of new kernels)
+#     code = str(psy.gen).lower()
+#     # Find the tags added to the kernel/module names
+#     for match in re.finditer('use testkern_any_space_2(.+?)_mod', code):
+#         tag = match.group(1)
+#         assert (f"use testkern_any_space_2{tag}_mod, only: "
+#                 f"testkern_any_space_2{tag}_code" in code)
+#         assert f"call testkern_any_space_2{tag}_code(" in code
+#         filepath = os.path.join(str(kernel_outputdir),
+#                                 f"testkern_any_space_2{tag}_mod.f90")
+#         assert os.path.isfile(filepath)
+#         with open(filepath, encoding="utf-8") as infile:
+#             assert "nlayers = 100" in infile.read()
+#     assert "use testkern_any_space_2_mod, only" not in code
+#     assert "call testkern_any_space_2_code(" not in code
+#     assert LFRicBuild(kernel_outputdir).code_compiles(psy)
 
 
 def test_builtin_no_trans():

@@ -42,11 +42,11 @@
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.nodes import Schedule, Literal
+from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import DoGen, DeclGen, PSyIRGen, UseGen
+from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
 
 
 class Loop(Statement):
@@ -464,5 +464,7 @@ class Loop(Statement):
         from psyclone.psyGen import CodedKern
         for kernel in self.walk(CodedKern):
             if not kernel.module_inline:
+                # if kernel.modified:
+                #     kernel.rename_and_write()
                 parent.add(UseGen(parent, name=kernel._module_name, only=True,
                                   funcnames=[kernel._name]))
