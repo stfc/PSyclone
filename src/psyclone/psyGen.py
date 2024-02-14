@@ -777,21 +777,10 @@ class InvokeSchedule(Routine):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # We operate on a copy of the container and invoke because the gen_code
-        # modifies its symbol tables, and we don't want the gen_code
-        # modifications to be permanent.
-        container_copy = self.root.copy()
-        invoke_copy = container_copy.children[self.position]
-
-        # The children gen_code may generate new symbols, so they need to be
-        # processed first.
-        for entity in invoke_copy.children:
-            entity.gen_code(parent)
-
         # Imported symbols promoted from Kernel imports are in the SymbolTable.
         # First aggregate all variables imported from the same module in a map.
         module_map = {}
-        for imported_var in invoke_copy.symbol_table.imported_symbols:
+        for imported_var in self.symbol_table.imported_symbols:
             module_name = imported_var.interface.container_symbol.name
             if module_name in module_map:
                 module_map[module_name].append(imported_var.name)
@@ -802,6 +791,9 @@ class InvokeSchedule(Routine):
         for module_name, var_list in module_map.items():
             parent.add(UseGen(parent, name=module_name, only=True,
                               funcnames=var_list))
+
+        for entity in self.children:
+            entity.gen_code(parent)
 
 
 class GlobalSum(Statement):
@@ -1947,6 +1939,8 @@ class Arguments():
     :type parent_call: sub-class of :py:class:`psyclone.psyGen.Kern`
     '''
     def __init__(self, parent_call):
+        # TODO #2503: This reference is not kept updated when copign the
+        # parent
         self._parent_call = parent_call
         # The container object holding information on all arguments
         # (derived from both kernel meta-data and the kernel call

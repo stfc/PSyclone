@@ -437,73 +437,32 @@ class Loop(Statement):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
 
-        def is_unit_literal(expr):
-            ''' Check if the given expression is equal to the literal '1'.
-
-            :param expr: a PSyIR expression.
-            :type expr: :py:class:`psyclone.psyir.nodes.Node`
-
-            :returns: True if it is equal to the literal '1', false otherwise.
-            '''
-            return isinstance(expr, Literal) and expr.value == '1'
-
         if not self.is_openmp_parallel():
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
-        # start/stop/step_expr are generated with the FortranWriter
-        # backend, the rest of the loop with f2pygen.
-
-        # import pdb; pdb.set_trace()
+        # Use the Fortran Backend from this point 
         parent.add(PSyIRGen(parent, self))
 
-        kind = self.variable.datatype.precision.name
-        if self.variable.name in ("df", ):
-            kind = None
-        my_decl = DeclGen(parent, datatype="integer",
-                          kind=kind,
-                          entity_decls=[self.variable.name])
-        parent.add(my_decl)
+        # The Fortran backend operates on a copy of the node so that the
+        # lowering changes are not reflected in the provided node. This is
+        # the correct behaviour but it means that the lowering changes to the
+        # ancestors will be lost here because the ancestors use gen_code
+        # instead of lowering.
+        # There we need to make the changes manually here, these are:
+        # - Declaring the loop variable symbol
+        for loop in self.walk(Loop):
+            kind = loop.variable.datatype.precision.name
+            if loop.variable.name in ("df", ):
+                kind = None
+            my_decl = DeclGen(parent, datatype="integer",
+                              kind=kind,
+                              entity_decls=[loop.variable.name])
+            parent.add(my_decl)
 
+        # - Add the kernel module import statements
         from psyclone.psyGen import CodedKern
         for kernel in self.walk(CodedKern):
             if not kernel.module_inline:
                 parent.add(UseGen(parent, name=kernel._module_name, only=True,
                                   funcnames=[kernel._name]))
-        return
-
-        fwriter = FortranWriter()
-        if is_unit_literal(self.step_expr):
-            step_str = None
-        else:
-            step_str = fwriter(self.step_expr)
-
-
-        do_stmt = DoGen(parent, self.variable.name,
-                        fwriter(self.start_expr),
-                        fwriter(self.stop_expr),
-                        step_str)
-        # need to add do loop before children as children may want to add
-        # info outside of do loop
-        parent.add(do_stmt)
-
-        shallow_copy_original_contents = []
-        for child in self.loop_body:
-            shallow_copy_original_contents.append(child)
-            child.validate_global_constraints()
-            child = child.lower_to_language_level()
-
-        for child in self.loop_body:
-            do_stmt.add(PSyIRGen(do_stmt, child))
-
-        # The KernelCall is still needed for the logic about when to
-        # set halo exchanges and fields to dirty state, so we leave the
-        # tree with the original node
-        self.loop_body.pop_all_children()
-        for child in shallow_copy_original_contents:
-            self.loop_body.addchild(child)
-
-

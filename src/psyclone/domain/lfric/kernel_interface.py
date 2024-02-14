@@ -107,9 +107,6 @@ class KernelInterface(ArgOrdering):
         # ArgOrdering constructor defaults to). This is so that we can
         # specify the correct interface for those symbols passed
         # as arguments.
-        # TODO #1934 - we should not keep a reference to a SymbolTable here.
-        # We should just be using the one associated with the kernel routine
-        # but currently a Kern is not a Call to a Routine.
         self._force_symtab = LFRicSymbolTable()
 
     def generate(self, var_accesses=None):

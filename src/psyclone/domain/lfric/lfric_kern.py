@@ -105,6 +105,7 @@ class LFRicKern(CodedKern):
         self._qr_rules = OrderedDict()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
+        self._intergrid_ref = None  # Reference to this kernel inter-grid
         # The reference-element properties required by this kernel
         self._reference_element = None
         # The mesh properties required by this kernel
@@ -400,12 +401,11 @@ class LFRicKern(CodedKern):
         sched = self.ancestor(InvokeSchedule)
         if self._is_intergrid:
             invoke = sched.invoke
-            if id(self) not in invoke.meshes.intergrid_kernels:
+            if self._intergrid_ref is None:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
                     f"not yet been initialised")
-            cmap = invoke.meshes.intergrid_kernels[id(self)].\
-                colourmap_symbol.name
+            cmap = self._intergrid_ref.colourmap_symbol.name
         else:
             try:
                 cmap = sched.symbol_table.lookup_with_tag("cmap").name
@@ -436,13 +436,11 @@ class LFRicKern(CodedKern):
                                 f"coloured loop.")
 
         if self._is_intergrid:
-            invoke = self.ancestor(InvokeSchedule).invoke
-            if id(self) not in invoke.meshes.intergrid_kernels:
+            if self._intergrid_ref is None:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
                     f"not yet been initialised")
-            return (invoke.meshes.intergrid_kernels[id(self)].
-                    last_cell_var_symbol)
+            return self._intergrid_ref.last_cell_var_symbol
 
         ubnd_name = self.ancestor(Loop).upper_bound_name
         const = LFRicConstants()
@@ -474,13 +472,11 @@ class LFRicKern(CodedKern):
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
         if self._is_intergrid:
-            invoke = self.ancestor(InvokeSchedule).invoke
-            if id(self) not in invoke.meshes.intergrid_kernels:
+            if self._intergrid_ref is None:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
                     f"not yet been initialised")
-            ncols_sym = \
-                invoke.meshes.intergrid_kernels[id(self)].ncolours_var_symbol
+            ncols_sym = self._intergrid_ref.ncolours_var_symbol
             if not ncols_sym:
                 return None
             return ncols_sym.name

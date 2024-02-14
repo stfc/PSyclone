@@ -2335,7 +2335,13 @@ class DynMeshes():
 
             # Create an object to capture info. on this inter-grid kernel
             # and store in our dictionary
-            self._ig_kernels[id(call)] = DynInterGrid(fine_arg, coarse_arg)
+            intergrid = DynInterGrid(fine_arg, coarse_arg)
+            # TODO #2503: Since we use the id(call) as a key, a copy of the
+            # call will not be able to use the ig_kernels to find its
+            # information, therefore we also store a direct link in the
+            # kernel
+            self._ig_kernels[id(call)] = intergrid
+            call._intergrid_ref = intergrid
 
             # Create and store the names of the associated mesh objects
             _name_set.add(f"mesh_{fine_arg.name}")
@@ -2443,7 +2449,7 @@ class DynMeshes():
             # This is an inter-grid kernel so look-up the names of
             # the colourmap variables associated with the coarse
             # mesh (since that determines the iteration space).
-            carg_name = self._ig_kernels[id(call)].coarse.name
+            carg_name = call._intergrid_ref.coarse.name
             # Colour map
             base_name = "cmap_" + carg_name
             colour_map = sym_tab.find_or_create_array(
@@ -2469,8 +2475,7 @@ class DynMeshes():
                     base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
             # Add these symbols into the dictionary entry for this
             # inter-grid kernel
-            self._ig_kernels[id(call)].set_colour_info(
-                colour_map, ncolours, last_cell)
+            call._intergrid_ref.set_colour_info(colour_map, ncolours, last_cell)
 
         if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):

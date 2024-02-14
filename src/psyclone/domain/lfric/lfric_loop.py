@@ -130,32 +130,34 @@ class LFRicLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        # import pdb; pdb.set_trace()
         if self._loop_type != "null":
+            # This is a domain loop, first check that there isn't any
+            # validation issues with the domain node
             for child in self.loop_body.children:
                 child.validate_global_constraints()
-            # This is a domain loop, we start by getting the bound expressions
-            # because we need the domain kernels in the body of the loop to
-            # properly infer them.
-            # We need to copy the expressions, since the original ones are
-            # attached to the original loop.
-            # start, stop, step = self.start_expr, self.stop_expr, self.step_expr
-            psy_loop = PSyLoop.create(
-                          self._variable,
-                          self.start_expr.copy(),
-                          self.stop_expr.copy(),
-                          self.step_expr.copy(),
-                          [])
-            psy_loop.loop_body._symbol_table = self.loop_body.symbol_table.shallow_copy()
+
+            # Then generate the loop bounds, this needs to be done BEFORE
+            # lowering the loop body because it needs kernel information.
+            start = self.start_expr.copy()
+            stop = self.stop_expr.copy()
+            step = self.step_expr.copy()
+
+            # Now we can lower the nodes in the loop body
+            for child in self.loop_body.children:
+                child.lower_to_language_level()
+
+            # Finally create the new lowered Loop and replace the domain one
+            psy_loop = Loop.create(self._variable, start, stop, step, [])
+            psy_loop.loop_body._symbol_table = \
+                self.loop_body.symbol_table.shallow_copy()
             psy_loop.children[3] = self.loop_body.copy()
             self.replace_with(psy_loop)
-            for child in psy_loop.loop_body.children:
-                child.lower_to_language_level()
             return psy_loop
 
-        super().lower_to_language_level()
-        # Domain loop, i.e. no need for a loop at all. Remove the loop
-        # node (self), and insert its children directly
+        # If loop_type is "null" we no need for a loop at all. Remove the loop
+        # node (self), and lower and insert its children directly
+        for child in self.loop_body:
+            child.lower_to_language_level()
         pos = self.position
         parent = self.parent
         self.detach()
@@ -164,6 +166,7 @@ class LFRicLoop(PSyLoop):
         # preserves the original order of the children.
         for child in all_children_reverse:
             parent.children.insert(pos, child)
+
         return parent
 
     def node_str(self, colour=True):

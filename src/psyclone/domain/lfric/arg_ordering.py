@@ -71,6 +71,7 @@ class ArgOrdering:
 
     '''
     def __init__(self, kern):
+        # TODO #2503: This reference will not survive some tree modifications
         self._kern = kern
         self._generate_called = False
         # If available, get an existing symbol table to create unique names
@@ -80,6 +81,7 @@ class ArgOrdering:
         if kern:
             invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
 
+        # TODO #2503: This reference will not survive some tree modifications
         self._force_symtab = None
 
         # TODO #1934 Completely remove the usage of strings, instead
@@ -92,20 +94,22 @@ class ArgOrdering:
 
     @property
     def _symtab(self):
-        # TODO #1934 - we should not keep a reference to a SymbolTable here
-        # as this creates a double reference (
-        # with self._kernel.ancestor(InvokeSchedule)._symbol_table)
-        # to that table and might go stale e.g. if the tree is copied.
-        # In fact, using the same symbol table as the Invoke is a bit odd as
-        # we are describing kernel *arguments* here so they will have a
-        # different interface to those in the Schedule of the invoke.
+        ''' Provide a reference to the associate Invke SymbolTable, usually
+        following the `self._kernel.ancestor(InvokeSchedule)._symbol_table`
+        path unless a _force_symtab has been provided or no parent path to an
+        InvokeSchedule is available.
+
+        Note: This could be improved by TODO #2503
+
+        :returns: the associate invoke symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
         if self._force_symtab:
             return self._force_symtab
         elif self._kern and self._kern.ancestor(psyGen.InvokeSchedule):
             return self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
         else:
-            self._force_symtab = LFRicSymbolTable()
-            return self._force_symtab
+            return LFRicSymbolTable()
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.

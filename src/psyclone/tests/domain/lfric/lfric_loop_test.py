@@ -46,14 +46,13 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
                                    LFRicKern, LFRicKernMetadata, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (ArrayReference, Call, Literal, Reference,
-                                  Schedule, ScopingNode)
+                                  Schedule, ScopingNode, Loop)
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild
@@ -221,7 +220,7 @@ def test_mesh_name_intergrid():
 def test_lower_to_language_normal_loop():
     ''' Test that we can call lower_to_language_level on a normal
     (i.e. not a domain) LFRicLoop. The new loop type should not be a
-    LFRicLoop anymore, but a PSyLoop. Additionally, also test that
+    LFRicLoop anymore, but a Loop. Additionally, also test that
     without lowering the symbols (for start and stop expressions)
     will change if the loop order is modified, but after lowering
     the symbols should not change anymore.
@@ -252,7 +251,7 @@ def test_lower_to_language_normal_loop():
     sched.lower_to_language_level()
     loop1 = sched.children[1]
     assert not isinstance(loop1, LFRicLoop)
-    assert isinstance(loop1, PSyLoop)
+    assert isinstance(loop1, Loop)
 
     # Verify that after lowering the symbol name does not change
     # anymore if a previous loop is removed:
@@ -261,16 +260,17 @@ def test_lower_to_language_normal_loop():
     assert loop1.start_expr.symbol.name == "loop1_start"
 
 
-def test_lower_to_language_domain_loop():
-    ''' Tests that we can call lower_to_language_level on a domain LFRicLoop.
-    This test takes an invoke with two consecutive domain kernels and then
-    fuses the 'loops' to verify that the kernels are all still in the right
-    order.
+def test_lower_to_language_null_loop():
+    ''' Tests that we can call lower_to_language_level on a NULL LFRicLoop.
+    In this case the NULL loop is replaced by the contents of the loop.
     '''
 
     _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
-    # Domain loops cannot be fused with the transformation, so manually
-    # move the two kernels into one domain loop. First detach the second
+    # For this test we want to put 2 kernels inside the same null loop
+    # because we want to check that the order of the statements is
+    # maintained after removing the loop.
+    # Null loops cannot be fused with the transformation, so manually
+    # move the two kernels into one loop. First detach the second
     # LFRicLoop from the invoke, then detach the actual kernel. Lastly,
     # insert this second kernel into the domain loop body:
     sched = invoke.schedule
