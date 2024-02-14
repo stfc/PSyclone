@@ -441,6 +441,19 @@ class Loop(Statement):
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
+        # TODO #1010: The Fortran backend operates on a copy of the node so
+        # that the lowering changes are not reflected in the provided node.
+        # This is the correct behaviour but it means that the lowering changes
+        # to ancestors will be lost here because the ancestors use gen_code
+        # instead of lowering+backend.
+        # So we need to do the "rename_and_write" here for the invoke symbol
+        # table to be updated.
+        from psyclone.psyGen import CodedKern
+        for kernel in self.walk(CodedKern):
+            if not kernel.module_inline:
+                if kernel.modified:
+                    kernel.rename_and_write()
+
         # Use the Fortran Backend from this point 
         parent.add(PSyIRGen(parent, self))
 
@@ -468,14 +481,8 @@ class Loop(Statement):
             parent.add(my_decl)
 
         # - Add the kernel module import statements
-        from psyclone.psyGen import CodedKern
         for kernel in self.walk(CodedKern):
             if not kernel.module_inline:
-                # TODO #1010: The rename_and_write can not be re-executed
-                # beacuse it has side effects (file creation) and it needs
-                # the exact same symbols that the lowered kernels has created
-                # if kernel.modified:
-                #     kernel.rename_and_write()
                 parent.add(UseGen(parent, name=kernel._module_name, only=True,
                                   funcnames=[kernel._name]))
 
