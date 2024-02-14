@@ -376,10 +376,10 @@ linkcheck_anchors_ignore = ['user-content-netcdf-library-lfric-examples']
 
 # MyBinder fails on a very regular basis so we skip those links.
 linkcheck_ignore = [r'^https://mybinder.org/v2/gh/stfc/psyclone',
-# Shpinx has problems wiht Github anchors, so we skip the links to anchors to
-# the main README
+                    # Sphinx has problems with Github anchors, so we skip
+                    # the links to anchors to the main README.
                     r'^https://github.com/stfc/PSyclone#',
-# Requires authentication
+                    # Requires authentication.
                     r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/'
                     r'LFRicDocumentationPapers/lfric_documentation.pdf']
 
