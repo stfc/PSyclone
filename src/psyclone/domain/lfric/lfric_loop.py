@@ -99,7 +99,7 @@ class LFRicLoop(PSyLoop):
                     f"'colour', 'dof' or '' (for cell-columns).")
 
             symtab = self.scope.symbol_table
-            if suggested_name == "df":
+            if suggested_name in ("df", "colour"):
                 self.variable = symtab.find_or_create_tag(
                     tag, root_name=suggested_name, symbol_type=DataSymbol,
                     datatype=INTEGER_TYPE)
@@ -166,14 +166,14 @@ class LFRicLoop(PSyLoop):
             dummy = self.scope.symbol_table.new_symbol(
                 "dummy", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
             self._variable = dummy
+            for child in self.loop_body.children:
+                child.lower_to_language_level()
             one = Literal("1", INTEGER_TYPE)
             loop = Loop.create(dummy, one.copy(), one.copy(), one.copy(), [])
             loop.loop_body._symbol_table = \
                 self.loop_body.symbol_table.shallow_copy()
             loop.children[3] = self.loop_body.copy()
             self.replace_with(loop)
-            for child in loop.loop_body.children:
-                child.lower_to_language_level()
 
 
         return loop
