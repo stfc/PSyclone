@@ -51,9 +51,10 @@ PACKAGES = find_packages(where=SRC_PATH,
                                   "psyclone.tests.*"])
 
 NAME = 'PSyclone'
-AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
-          "Andrew Porter <andrew.porter@stfc.ac.uk>")
-AUTHOR_EMAIL = 'rupert.ford@stfc.ac.uk'
+AUTHOR = ('Rupert Ford <rupert.ford@stfc.ac.uk>, '
+          'Andrew Porter <andrew.porter@stfc.ac.uk>, '
+          'Sergi Siso <sergi.siso@stfc.ac.uk>')
+AUTHOR_EMAIL = 'andrew.porter@stfc.ac.uk'
 URL = 'https://github.com/stfc/psyclone'
 DOWNLOAD_URL = 'https://github.com/stfc/psyclone'
 DESCRIPTION = ('PSyclone - a compiler for Finite Element/Volume/Difference'

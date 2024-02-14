@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 #
-# Configuration file for the Sphinx documentation builder.
+'''
+Configuration file for the Sphinx documentation builder.
+
+'''
+
 #
 # This file does only contain a selection of the most common options. For a
 # full list see the documentation:
@@ -21,8 +25,8 @@ import os
 # -- Project information -----------------------------------------------------
 
 project = 'Reference Guide'
-copyright = ('2019-2024, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
-             ' S. Siso')
+project_copyright = ('2019-2024, R. W. Ford, J. Henrichs, I. Kavcic, '
+                     'A. R. Porter, S. Siso')
 author = 'R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
 
 # We use the version module in src/psyclone. However, rather than importing
@@ -34,11 +38,14 @@ BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 BASE_PATH = os.path.dirname(os.path.dirname(os.path.dirname(BASE_PATH)))
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
           encoding="utf-8") as f:
+    # pylint: disable-next=exec-used
     exec(f.read())
+# pylint: disable=undefined-variable
 # The short X.Y version.
 version = __SHORT_VERSION__
 # The full version, including alpha/beta/rc tags.
 release = __VERSION__
+# pylint: enable=undefined-variable
 
 # -- General configuration ---------------------------------------------------
 
