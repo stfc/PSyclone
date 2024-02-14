@@ -444,19 +444,20 @@ class Loop(Statement):
         # Use the Fortran Backend from this point 
         parent.add(PSyIRGen(parent, self))
 
-        # The Fortran backend operates on a copy of the node so that the
-        # lowering changes are not reflected in the provided node. This is
-        # the correct behaviour but it means that the lowering changes to the
-        # ancestors will be lost here because the ancestors use gen_code
-        # instead of lowering.
-        # There we need to make the changes manually here, these are:
-        # - Declaring the loop variable symbol
+        # TODO #1010: The Fortran backend operates on a copy of the node so
+        # that the lowering changes are not reflected in the provided node.
+        # This is the correct behaviour but it means that the lowering changes
+        # to ancestors will be lost here because the ancestors use gen_code
+        # instead of lowering+backend.
+        # Therefore we need to replicate the lowering ancestor changes
+        # manually here (all this can be removed when the invoke schedule also
+        # uses the lowering+backend), these are:
+        # - Declaring the loop variable symbols
         for loop in self.walk(Loop):
             kind = loop.variable.datatype.precision.name
-            if loop.variable.name in ("df", ):
-                kind = None
+            kind_gen = None if kind == "UNDEFINED" else kind
             my_decl = DeclGen(parent, datatype="integer",
-                              kind=kind,
+                              kind=kind_gen,
                               entity_decls=[loop.variable.name])
             parent.add(my_decl)
 
@@ -464,7 +465,12 @@ class Loop(Statement):
         from psyclone.psyGen import CodedKern
         for kernel in self.walk(CodedKern):
             if not kernel.module_inline:
+                # TODO #1010: The rename_and_write can not be re-executed
+                # beacuse it has side effects (file creation) and it needs
+                # the exact same symbols that the lowered kernels has created
                 # if kernel.modified:
                 #     kernel.rename_and_write()
                 parent.add(UseGen(parent, name=kernel._module_name, only=True,
                                   funcnames=[kernel._name]))
+
+

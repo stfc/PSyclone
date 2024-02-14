@@ -99,9 +99,17 @@ class LFRicLoop(PSyLoop):
                     f"'colour', 'dof' or '' (for cell-columns).")
 
             symtab = self.scope.symbol_table
-            self.variable = symtab.find_or_create_tag(
-                tag, root_name=suggested_name, symbol_type=DataSymbol,
-                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            if suggested_name == "df":
+                self.variable = symtab.find_or_create_tag(
+                    tag, root_name=suggested_name, symbol_type=DataSymbol,
+                    datatype=INTEGER_TYPE)
+            else:
+                # TODO: Shouldn't all these all be INTEGER_TYPE instead of
+                # LFRicIntegerScalarDataType, since this are loop iteration
+                # variables and not domain integers?
+                self.variable = symtab.find_or_create_tag(
+                    tag, root_name=suggested_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,

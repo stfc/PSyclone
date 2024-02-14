@@ -476,8 +476,9 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # the direction of the stencil is not known so pass the value in
-        name = arg.stencil.direction_arg.text
-        self.append_integer_reference(name, f"AlgArgs_{name}")
+        name = arg.stencil.direction_arg.varname
+        tag = arg.stencil.direction_arg.text
+        self.append_integer_reference(name, f"AlgArgs_{tag}")
         self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):

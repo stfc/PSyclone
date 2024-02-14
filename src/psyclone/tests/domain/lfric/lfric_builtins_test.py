@@ -714,7 +714,6 @@ def test_X_plus_Y(
         "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => null()\n"
         "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n")
-    print(code)
     assert output in code
 
     if not dist_mem:

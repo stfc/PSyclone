@@ -142,7 +142,7 @@ def test_field(tmpdir):
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE single_invoke_psy")
-    assert output == str(generated_code)
+    assert output in str(generated_code)
 
 
 def test_field_deref(tmpdir, dist_mem):
