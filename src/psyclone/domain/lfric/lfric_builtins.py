@@ -399,21 +399,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         return None
 
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code (in the form of 'f2pygen' AST
-        nodes) for a call to this built-in. This method must be overridden
-        if a sub-class does not yet implement 'lower_to_language_level()'.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # TODO #1010 Ultimately this routine will be removed once the LFRic
-        # PSyIR has been fully migrated to use the PSyIR backends.
-        # For now we create an f2pygen node from the PSyIR of this routine.
-        parent.add(PSyIRGen(parent, self))
-
     @property
     def cma_operation(self):
         '''

@@ -5527,21 +5527,6 @@ class DynKernelArguments(Arguments):
         and remove the need for this property (#279). '''
         return self._dofs
 
-    def raw_arg_list(self):
-        '''
-        Constructs the class-specific argument list for a kernel.
-
-        :returns: a list of all of the actual arguments to the \
-                  kernel call.
-        :rtype: list of str.
-
-        '''
-        create_arg_list = KernCallArgList(self._parent_call)
-        create_arg_list.generate()
-        self._raw_arg_list = create_arg_list.arglist
-
-        return self._raw_arg_list
-
     def psyir_expressions(self):
         '''
         :returns: the PSyIR expressions representing this Argument list.

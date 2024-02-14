@@ -68,38 +68,6 @@ class NanTestNode(PSyDataNode):
         '''
         return super().psy_data_body
 
-    def gen_code(self, parent):
-        # pylint: disable=arguments-differ
-        '''
-        Generates the code required for NAN/infinite verification of the
-        parameters of one or more Nodes. It uses the PSyData API (via
-        the base class PSyDataNode) to create the required callbacks
-        that will allow a library to do checks on parameters.
-
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`.
-
-        '''
-
-        # pylint: disable=import-outside-toplevel
-        # This cannot be moved to the top, it would cause a circular import
-        from psyclone.psyir.tools import DependencyTools
-        # Determine the variables to check:
-        dep = DependencyTools()
-        read_write_info = dep.get_in_out_parameters(self,
-                                                    options=self.options)
-
-        options = {'pre_var_list': read_write_info.read_list,
-                   'post_var_list': read_write_info.write_list}
-
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " NanTestStart"))
-        parent.add(CommentGen(parent, ""))
-        super().gen_code(parent, options)
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " NanTestEnd"))
-        parent.add(CommentGen(parent, ""))
-
     def lower_to_language_level(self):
         # pylint: disable=arguments-differ
         '''

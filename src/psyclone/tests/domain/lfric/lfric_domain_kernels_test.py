@@ -297,8 +297,8 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     else:
         expected = "      ! call our kernels\n"
     assert (expected + "      !\n"
-            "      !\n"
-            "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+            "      do dummy = 1, 1, 1\n"
+            "        call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
             "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -336,18 +336,18 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     assert "integer(kind=i_def) ncell_2d_no_halos" in gen_code
 
     expected = (
-        "      end do\n"
-        "      !\n")
+        "      end do\n")
     if dist_mem:
         expected += (
+            "      !\n"
             "      ! set halos dirty/clean for fields modified in the above "
             "loop\n"
             "      !\n"
             "      call f2_proxy%set_dirty()\n"
-            "      !\n"
             "      !\n")
     expected += (
-        "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+        "      do dummy = 1, 1, 1\n"
+        "        call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
         "f1_data, ndf_w3, undf_w3, map_w3)\n")
     assert expected in gen_code
     if dist_mem:
@@ -373,9 +373,10 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     assert gen_code.count("ncell_2d_no_halos = mesh%get_last_edge_cell()") == 1
 
     expected = ("      !\n"
-                "      !\n"
-                "      call testkern_domain_code(nlayers, ncell_2d_no_halos, "
-                "b, f1_data, ndf_w3, undf_w3, map_w3)\n")
+                "      do dummy = 1, 1, 1\n"
+                "        call testkern_domain_code(nlayers, ncell_2d_no_halos, "
+                "b, f1_data, ndf_w3, undf_w3, map_w3)\n"
+                "      end do\n")
     if dist_mem:
         assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in gen_code
         expected += ("      !\n"
@@ -404,19 +405,20 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     assert expected in gen_code
 
     expected = (
-        "      end do\n"
-        "      !\n")
+        "      end do\n")
     if dist_mem:
         expected += (
+            "      !\n"
             "      ! set halos dirty/clean for fields modified in the above "
             "loop\n"
             "      !\n"
             "      call f1_proxy%set_dirty()\n"
-            "      !\n"
             "      !\n")
     expected += (
-        "      call testkern_domain_code(nlayers, ncell_2d_no_halos, c, "
-        "f1_data, ndf_w3, undf_w3, map_w3)\n")
+        "      do dummy = 1, 1, 1\n"
+        "        call testkern_domain_code(nlayers, ncell_2d_no_halos, c, "
+        "f1_data, ndf_w3, undf_w3, map_w3)\n"
+        "      end do\n")
     assert expected in gen_code
     if dist_mem:
         assert ("      ! set halos dirty/clean for fields modified in the "

@@ -71,37 +71,6 @@ class ReadOnlyVerifyNode(PSyDataNode):
         '''
         return super().psy_data_body
 
-    def gen_code(self, parent):
-        # pylint: disable=arguments-differ
-        '''
-        Generates the code required for read-only verification of one or
-        more Nodes. It uses the PSyData API (via the base class PSyDataNode)
-        to create the required callbacks that will allow a library to
-        validate that read-only data is not modified.
-
-        :param parent: the parent of this Node in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`.
-
-        '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
-        # Determine the variables to write:
-        dep = DependencyTools()
-        read_write_info = ReadWriteInfo()
-        dep.get_input_parameters(read_write_info, self, options=self.options)
-
-        options = {'pre_var_list': read_write_info.read_list,
-                   'post_var_list': read_write_info.read_list}
-
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " ReadOnlyVerifyStart"))
-        parent.add(CommentGen(parent, ""))
-        super().gen_code(parent, options)
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " ReadOnlyVerifyEnd"))
-        parent.add(CommentGen(parent, ""))
-
     def lower_to_language_level(self):
         # pylint: disable=arguments-differ
         '''

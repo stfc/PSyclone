@@ -1561,40 +1561,6 @@ class CodedKern(Kern):
         self.replace_with(call_node)
         return call_node
 
-    def gen_code(self, parent):
-        '''
-        Generates the f2pygen AST of the Fortran for this kernel call and
-        writes the kernel itself to file if it has been transformed.
-
-        :param parent: The parent of this kernel call in the f2pygen AST.
-        :type parent: :py:class:`psyclone.f2pygen.LoopGen`
-
-        :raises GenerationError: if the call is module-inlined but the \
-            subroutine in not declared in this module.
-        '''
-        # If the kernel has been transformed then we rename it.
-        if not self.module_inline:
-            self.rename_and_write()
-
-        # Add the subroutine call with the necessary arguments
-        arguments = self.arguments.raw_arg_list()
-        parent.add(CallGen(parent, self._name, arguments))
-
-        # Also add the subroutine declaration, this can just be the import
-        # statement, or the whole subroutine inlined into the module.
-        if not self.module_inline:
-            parent.add(UseGen(parent, name=self._module_name, only=True,
-                              funcnames=[self._name]))
-        else:
-            # If its inlined, the symbol must already exist
-            try:
-                self.scope.symbol_table.lookup(self._name)
-            except KeyError as err:
-                raise GenerationError(
-                    f"Cannot generate this kernel call to '{self.name}' "
-                    f"because it is marked as module-inline but no such "
-                    f"subroutine exist in this module.") from err
-
     def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.
@@ -1946,19 +1912,6 @@ class Arguments():
         # (derived from both kernel meta-data and the kernel call
         # in the Algorithm layer).
         self._args = []
-        # The actual list of arguments that must be supplied to a
-        # subroutine call.
-        self._raw_arg_list = []
-
-    def raw_arg_list(self):
-        '''
-        Abstract method to construct the class-specific argument list for a
-        kernel call. Must be overridden in API-specific sub-class.
-
-        :raises NotImplementedError: abstract method.
-        '''
-        raise NotImplementedError("Arguments.raw_arg_list must be "
-                                  "implemented in sub-class")
 
     @abc.abstractmethod
     def psyir_expressions(self):

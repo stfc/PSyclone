@@ -155,27 +155,28 @@ class LFRicLoop(PSyLoop):
                 child.lower_to_language_level()
 
             # Finally create the new lowered Loop and replace the domain one
-            psy_loop = Loop.create(self._variable, start, stop, step, [])
-            psy_loop.loop_body._symbol_table = \
+            loop = Loop.create(self._variable, start, stop, step, [])
+            loop.loop_body._symbol_table = \
                 self.loop_body.symbol_table.shallow_copy()
-            psy_loop.children[3] = self.loop_body.copy()
-            self.replace_with(psy_loop)
-            return psy_loop
+            loop.children[3] = self.loop_body.copy()
+            self.replace_with(loop)
+        else:
+            # If loop_type is "null" we no need for a loop at all. So we set
+            # the bounds to 1 Remove the lower the children
+            dummy = self.scope.symbol_table.new_symbol(
+                "dummy", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+            self._variable = dummy
+            one = Literal("1", INTEGER_TYPE)
+            loop = Loop.create(dummy, one.copy(), one.copy(), one.copy(), [])
+            loop.loop_body._symbol_table = \
+                self.loop_body.symbol_table.shallow_copy()
+            loop.children[3] = self.loop_body.copy()
+            self.replace_with(loop)
+            for child in loop.loop_body.children:
+                child.lower_to_language_level()
 
-        # If loop_type is "null" we no need for a loop at all. Remove the loop
-        # node (self), and lower and insert its children directly
-        for child in self.loop_body:
-            child.lower_to_language_level()
-        pos = self.position
-        parent = self.parent
-        self.detach()
-        all_children_reverse = reversed(self.loop_body.pop_all_children())
-        # Attach the children starting with the last, which
-        # preserves the original order of the children.
-        for child in all_children_reverse:
-            parent.children.insert(pos, child)
 
-        return parent
+        return loop
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
@@ -862,13 +863,7 @@ class LFRicLoop(PSyLoop):
             raise GenerationError("Cannot have a loop over colours within an "
                                   "OpenMP parallel region.")
 
-        if self._loop_type != "null":
-            super().gen_code(parent)
-        else:
-            # This is a 'null' loop and therefore we do not actually generate
-            # a loop - we go on down to the children instead.
-            for child in self.loop_body.children:
-                child.gen_code(parent)
+        super().gen_code(parent)
 
         if not (Config.get().distributed_memory and
                 self._loop_type != "colour"):

@@ -770,10 +770,6 @@ def test_arguments_abstract():
     assert ("Arguments.scalars must be implemented in sub-class"
             in str(err.value))
     with pytest.raises(NotImplementedError) as err:
-        _ = my_arguments.raw_arg_list()
-    assert ("Arguments.raw_arg_list must be implemented in sub-class"
-            in str(err.value))
-    with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.append("var", "type")
     assert ("Arguments.append must be implemented in sub-class"
             in str(err.value))

@@ -454,11 +454,17 @@ class Loop(Statement):
         # uses the lowering+backend), these are:
         # - Declaring the loop variable symbols
         for loop in self.walk(Loop):
-            kind = loop.variable.datatype.precision.name
-            kind_gen = None if kind == "UNDEFINED" else kind
+            if loop._variable is None:
+                # This is the dummy iteration variable
+                name = "dummy"
+                kind_gen = None
+            else:
+                name = loop.variable.name
+                kind = loop.variable.datatype.precision.name
+                kind_gen = None if kind == "UNDEFINED" else kind
             my_decl = DeclGen(parent, datatype="integer",
                               kind=kind_gen,
-                              entity_decls=[loop.variable.name])
+                              entity_decls=[name])
             parent.add(my_decl)
 
         # - Add the kernel module import statements

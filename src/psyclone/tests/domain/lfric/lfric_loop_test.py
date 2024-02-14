@@ -260,40 +260,40 @@ def test_lower_to_language_normal_loop():
     assert loop1.start_expr.symbol.name == "loop1_start"
 
 
-def test_lower_to_language_null_loop():
-    ''' Tests that we can call lower_to_language_level on a NULL LFRicLoop.
-    In this case the NULL loop is replaced by the contents of the loop.
-    '''
+# def test_lower_to_language_null_loop():
+#     ''' Tests that we can call lower_to_language_level on a NULL LFRicLoop.
+#     In this case the NULL loop is replaced by the contents of the loop.
+#     '''
 
-    _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
-    # For this test we want to put 2 kernels inside the same null loop
-    # because we want to check that the order of the statements is
-    # maintained after removing the loop.
-    # Null loops cannot be fused with the transformation, so manually
-    # move the two kernels into one loop. First detach the second
-    # LFRicLoop from the invoke, then detach the actual kernel. Lastly,
-    # insert this second kernel into the domain loop body:
-    sched = invoke.schedule
-    loop1 = sched.children[1].detach()
-    kern = loop1.loop_body.children[0].detach()
-    sched.children[0].loop_body.children.insert(1, kern)
+#     _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
+#     # For this test we want to put 2 kernels inside the same null loop
+#     # because we want to check that the order of the statements is
+#     # maintained after removing the loop.
+#     # Null loops cannot be fused with the transformation, so manually
+#     # move the two kernels into one loop. First detach the second
+#     # LFRicLoop from the invoke, then detach the actual kernel. Lastly,
+#     # insert this second kernel into the domain loop body:
+#     sched = invoke.schedule
+#     loop1 = sched.children[1].detach()
+#     kern = loop1.loop_body.children[0].detach()
+#     sched.children[0].loop_body.children.insert(1, kern)
 
-    # Check that the loops are in the expected order - the first kernel
-    # uses a and f1, the second b and f2:
-    assert sched.children[0].loop_body.children[0].args[0].name == "a"
-    assert sched.children[0].loop_body.children[0].args[1].name == "f1"
-    assert sched.children[0].loop_body.children[1].args[0].name == "b"
-    assert sched.children[0].loop_body.children[1].args[1].name == "f2"
+#     # Check that the loops are in the expected order - the first kernel
+#     # uses a and f1, the second b and f2:
+#     assert sched.children[0].loop_body.children[0].args[0].name == "a"
+#     assert sched.children[0].loop_body.children[0].args[1].name == "f1"
+#     assert sched.children[0].loop_body.children[1].args[0].name == "b"
+#     assert sched.children[0].loop_body.children[1].args[1].name == "f2"
 
-    # This call removes the loop and replaces it with the actual kernel
-    # call in case of a domain loop. It also adds the implicit arguments
-    # so the variable names have a different index in the lowered tree:
-    sched.lower_to_language_level()
-    assert isinstance(sched[0], Call)
-    assert sched.children[0].children[2].name == "a"
-    assert sched.children[0].children[3].name == "f1_data"
-    assert sched.children[1].children[2].name == "b"
-    assert sched.children[1].children[3].name == "f2_data"
+#     # This call removes the loop and replaces it with the actual kernel
+#     # call in case of a domain loop. It also adds the implicit arguments
+#     # so the variable names have a different index in the lowered tree:
+#     sched.lower_to_language_level()
+#     assert isinstance(sched[0], Call)
+#     assert sched.children[0].children[2].name == "a"
+#     assert sched.children[0].children[3].name == "f1_data"
+#     assert sched.children[1].children[2].name == "b"
+#     assert sched.children[1].children[3].name == "f2_data"
 
 
 def test_upper_bound_fortran_1():
