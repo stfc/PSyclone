@@ -41,7 +41,7 @@ precise definitions).
 
 ## Implementation
 In the spirit of numerical analysis the grid is represented
-by a 2d double precision array (main reason for using double
+by a 2D double precision array (main reason for using double
 precision is that the infrastructure library at this stage
 only provides double precision fields). Each live cell is
 stored as a '1', each dead cell as a '0'. We use the following
@@ -82,73 +82,59 @@ This subroutines takes the name of the configuration file to use
 from the first and only command line parameter. It will read
 the grid size from the configuration file. The grid size is then
 used to initialise the ``dl_esm_inf`` grid object. This happens
-in three steps, which you will need to add:
+in three steps:
 1. Initialise the parallelisation subsystem with a call to 
-   ``parallel_init``, which needs to be imported from 
-   ``parallel_mod``. This call takes no parameter (domain
-   decomposition etc is defined later).
+   ``parallel_init``.
 2. Create an Arakawa-C grid by constructing the grid object
-   with the ``grid_type`` constructor. The constructor is
-   imported from ``grid_mod`` (together with ``grid_init``, see
-   below). Use the following import line:
-   ```Fortran
-        USE grid_mod, only : grid_type, grid_init, GO_ARAKAWA_C,     &
-                             GO_BC_PERIODIC, GO_BC_NONE, GO_OFFSET_SW
+   with the ``grid_type`` constructor.
    ```
    The ``grid_type`` constructors takes three parameters: the first
    one the grid type (``GO_ARAKAWA_C``, the only one currently supported
-   by ``dl_esm_inf`` and PSyclone), a 3d array indicating the
-   boundary conditions for each dimension - use ``GO_BC_PERIODIC``
-   (all other boundary conditions require a T-mask), and the offset
-   used (see *******, use ``GO_OFFSET_SW``)
+   by ``dl_esm_inf`` and PSyclone), a 3D array indicating the
+   boundary conditions for each dimension - use ``GO_BC_EXTERNAL``, and
+   the offset as ``GO_OFFSET_SW``
 
-3. Now the domain decomposition can be specified. Call the ``decompose``
-   method of the grid object constructed in the previous step. Provide
-   the number of points in x- and y-direction. For now we are not using
-   MPI, so just provide ``ndomains=1`` as parameter, and ``halo_width=1``
-   (TODO halo is used to store BC????)
+3. Now the domain decomposition can be specified. The ``decompose``
+   method of the grid object constructed in the previous step can just take
+   the number of domains, which is 1 in this case. Also use a halo region
+   of 1, which will be used to store 0 and avoid tests when counting
+   neighbours.
 
 4. Finally the grid initialisation can be called, providing the
    distance between grid points. We do not need this information,
    so just call ``grid_init`` with the grid parameter, and
    ``dxarg=1.0, dy_arg=1.0``.
 
-Once the grid has been properly created and initialised, it can be
-used to create fields, based on using T-points (TODO):
+Once the grid has been properly created and initialised, we read in the
+config file (``get_initial_state``), which will store the initial state
+from the config file in the Fortran array ``initial_state``. This Fortran
+array can then be used to initialise the actual field with this value.
 
-```Fortran
-    initial = r2d_field(grid, GO_T_POINTS)
-```
+While this could be combined in one step, this implementation will later
+allow us to use distributed memory without additional change, since
+the ``rd2_field`` constructor will take care of the data distribution.
 
 
 ### The main program: ``gol.f90``
 As is obvious from the previous step, the main program does not have to do
 much with ``dl_esm_inf`` - it just passes the grid that is initialised
-in ``read_config.f90`` to the function ``time_step.f90``. So there are only
-two steps to do in this file:
-
-1. Import ``grid_type`` and ``r2d_field`` (see above for details if required).
-2. Declare a variable called ``grid`` and ``initial`` (which stores the initial
-   condition read in from the configuration file). Note that the ``grid`` must
-   be declared with the Fortran ``target`` attribute, since each field will
-   store a pointer to the grid.
+in ``read_config.f90`` to the function ``time_step.f90``.
 
 ### Time-stepping: ``time_step_mod.f90``
-The time stepping function receives the initial state of the cells from as
-parameters, and uses it as current state. Then inside of the time stepping
-loop it calls functions to:
-1. Count neighbours based on current state
-2. Computes newly born cells based on number of neighbours and current state
-   (the latter is required since only empty cells can be born).
-3. Computes dying cells based on number of neighbours and current state (again
-   the current state is required since only live cells can die).
-4. Computes the new state based on the current state, newly born cells and
-   dying cells.
+The time stepping function receives the initial state of the cells as
+parameters and uses it as current state. The function needs three additional
+fields - one to count the neighbours, one to compute which cells are born,
+and one for cells that are dying. After this, the field is printed if there
+are 20 time steps or less (since larger and longer runs are meant for timing,
+output is suppressed).
 
-There is only a small change required here:
-1. Import the ``r2d_field`` and ``go_t_points`` from ``field_mod``.
-2. Declare three variables ``neighbours``, ``die``, ``born`` as ``r2d_fields``.
-3. Construct these three variables as ``go_t_points``.
+TODO:
+1. Declare two fields ``die`` and ``born`` - similar to the way ``neighbours``
+   is set up.
+2. Pass the right fields as parameters to the four function called. You need
+   to check with the code to find out the order (and if you are not sure
+   which parameters are required).
+3. Finish all four compute kernels.
 
 ### Compute dying cells: ``compute_die_mod.f90``
 This functions computes which cells will die. Live cells can die either because
@@ -157,21 +143,17 @@ because they have too many neighbours (more than 3 - overpopulation). The functi
 already contains code to extract the loop boundaries from the grid object
 (see ``xstart``, ``xstop`` etc), and the nested loop structure which iterates
 over all cells.
-1. Add code that tests if a cell is live. You get access to the field data by
+1. Add code that tests if a cell is alive. You get access to the field data by
    using ``field%data(...)``, so in order to test if a cell is alive you
-   use ``if (current%data(i,j)>0.0)``. If a cell is not live, it obviously
-   cannot die, so you must set the output ``die`` to 0 (since it might still
-   have a value from a previous iteration).
+   use ``if (current%data(i,j)>0.0)``. Note that ``die`` has to be initialised
+   with 0, since it will contain values from a previous iteration.
+
 2. If a cell is live, you need to test if it has less than 2 or more than 3
    neighbours using the ``neighbours`` field: ``if ( neighbours%data(i,j)...``.
 
 ### Remaining functions
-The remaining functions are already completed for you, but it would be useful
-to check their implementation as well. They closely follow the design of
-``compute_die_mod.f90`` above: take the loop bounds from the grid, have
-a double nested loop to handle all cells, and then compute the output. The
-``combine_mod.f90`` function adds the newly born cells to the current state,
-and subtracts the number of dying cells to compute the new state.
+The remaining functions need to be finished similarly. The template will
+contain comments with details.
 
 ### Running the program
 You can run the program using ``gol ./config.glider``. This will print
@@ -192,8 +174,10 @@ looks like this:
 0.0.0.0.0.0.0.0.0.0.0.0.0.
 0.0.0.0.0.0.0.0.0.0.0.0.0.
 ```
-There is also a handy makefile target:
-``make run``, which will compile and then run the glider example.
+There are also two handy makefile targets:
+1. ``make run``, which will compile and then run the glider example.
+2. ``make test``, which will compile and run the example, and check that the
+    final output is correct.
 
 ### Summary
 This tutorial showed how to initialise ``dl_esm_inf``, create fields on
