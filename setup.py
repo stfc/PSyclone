@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council
+# Copyright (c) 2017-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,9 +51,10 @@ PACKAGES = find_packages(where=SRC_PATH,
                                   "psyclone.tests.*"])
 
 NAME = 'PSyclone'
-AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
-          "Andrew Porter <andrew.porter@stfc.ac.uk>")
-AUTHOR_EMAIL = 'rupert.ford@stfc.ac.uk'
+AUTHOR = ('Rupert Ford <rupert.ford@stfc.ac.uk>, '
+          'Andrew Porter <andrew.porter@stfc.ac.uk>, '
+          'Sergi Siso <sergi.siso@stfc.ac.uk>')
+AUTHOR_EMAIL = 'andrew.porter@stfc.ac.uk'
 URL = 'https://github.com/stfc/psyclone'
 DOWNLOAD_URL = 'https://github.com/stfc/psyclone'
 DESCRIPTION = ('PSyclone - a compiler for Finite Element/Volume/Difference'
@@ -160,9 +161,8 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        # TODO #1193: Pinned jsonschema to support older versions of python
-        install_requires=['pyparsing', 'fparser>=0.1.3', 'configparser',
-                          'jsonschema==3.0.2', 'sympy'],
+        install_requires=['pyparsing', 'fparser>=0.1.4', 'configparser',
+                          'jsonschema', 'sympy'],
         extras_require={
             'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex",

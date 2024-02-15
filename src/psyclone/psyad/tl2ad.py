@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     Call, Container, BinaryOperation, IntrinsicCall, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
-    INTEGER_TYPE, DeferredType, UnknownType
+    INTEGER_TYPE, UnresolvedType, UnsupportedType
 
 
 #: The extent we will allocate to each dimension of arrays used in the
@@ -267,8 +267,8 @@ def _add_precision_symbol(symbol, table):
                                  explicitly imported.
 
     '''
-    # A precision symbol must be of integer, deferred or unknown type.
-    if not (isinstance(symbol.datatype, (DeferredType, UnknownType)) or
+    # A precision symbol must be of Integer, Unresolved or Unsupported type.
+    if not (isinstance(symbol.datatype, (UnresolvedType, UnsupportedType)) or
             isinstance(symbol.datatype, ScalarType) and
             symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER):
         raise TypeError(

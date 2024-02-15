@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,8 +43,6 @@ from __future__ import absolute_import, print_function
 
 import pytest
 
-from psyclone.domain.nemo.transformations import (NemoLoopFuseTrans,
-                                                  CreateNemoPSyTrans)
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
@@ -123,7 +121,7 @@ def test_fusetrans_error_not_same_parent():
 def fuse_loops(fortran_code, fortran_reader, fortran_writer):
     '''Helper function that fuses the first two nodes in the given
     Fortran code, and returns the fused Fortran code as string.
-    If an error is detected by the used NemoLoopFuseTrans transformation,
+    If an error is detected by the used LoopFuseTrans transformation,
     it will raise a TransformationError.
 
     :param str fortran_code: the Fortran code to loop fuse.
@@ -139,10 +137,8 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
 
     '''
     psyir = fortran_reader.psyir_from_source(fortran_code)
-    psy_trans = CreateNemoPSyTrans()
-    fuse = NemoLoopFuseTrans()
+    fuse = LoopFuseTrans()
     # Raise the language-level PSyIR to NEMO PSyIR
-    psy_trans.apply(psyir)
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     fuse.apply(loop1, loop2)
@@ -184,7 +180,7 @@ def test_fuse_ok(tmpdir, fortran_reader, fortran_writer):
     assert Compile(tmpdir).string_compiles(out)
 
     # Then fuse the inner ji loops
-    fuse = NemoLoopFuseTrans()
+    fuse = LoopFuseTrans()
     fuse.apply(psyir.children[0][0].loop_body[0],
                psyir.children[0][0].loop_body[1])
 
@@ -252,7 +248,7 @@ def test_fuse_incorrect_bounds_step(tmpdir, fortran_reader, fortran_writer):
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Lower loop bounds must be identical, but are" in str(err.value)
+    assert "Loops do not have the same iteration space" in str(err.value)
 
     # Upper loop boundary
     code = '''subroutine sub()
@@ -271,7 +267,7 @@ def test_fuse_incorrect_bounds_step(tmpdir, fortran_reader, fortran_writer):
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Upper loop bounds must be identical, but are" in str(err.value)
+    assert "Loops do not have the same iteration space" in str(err.value)
 
     # Test step size:
     code = '''subroutine sub()
@@ -290,7 +286,7 @@ def test_fuse_incorrect_bounds_step(tmpdir, fortran_reader, fortran_writer):
               end subroutine sub'''
     with pytest.raises(TransformationError) as err:
         fuse_loops(code, fortran_reader, fortran_writer)
-    assert "Step size in loops must be identical, but are" in str(err.value)
+    assert "Loops do not have the same iteration space" in str(err.value)
 
     # Test step size - make sure it defaults to 1
     code = '''subroutine sub()
@@ -309,32 +305,6 @@ def test_fuse_incorrect_bounds_step(tmpdir, fortran_reader, fortran_writer):
               end subroutine sub'''
     out, _ = fuse_loops(code, fortran_reader, fortran_writer)
     assert Compile(tmpdir).string_compiles(out)
-
-
-# ----------------------------------------------------------------------------
-def test_fuse_different_loop_vars(fortran_reader, fortran_writer):
-    '''
-    Test that loop variables are verified to be identical.
-
-    '''
-    code = '''subroutine sub()
-              integer :: ji, jj, n
-              integer, dimension(10,10) :: s, t
-              do jj=1, n
-                 do ji=1, 10
-                    s(ji, jj)=t(ji, jj)+1
-                 enddo
-              enddo
-              do ji=1, n
-                 do jj=1, 10
-                    s(ji, jj)=t(ji, jj)+1
-                 enddo
-              enddo
-              end subroutine sub'''
-    with pytest.raises(TransformationError) as err:
-        fuse_loops(code, fortran_reader, fortran_writer)
-    assert ("Loop variables must be the same, but are 'jj' and 'ji'"
-            in str(err.value))
 
 
 # ----------------------------------------------------------------------------
@@ -665,7 +635,7 @@ def test_fuse_no_symbol(fortran_reader, fortran_writer):
     enddo
   enddo""" in out
 
-    fuse = NemoLoopFuseTrans()
+    fuse = LoopFuseTrans()
     # Case 2: Symbol 't' is defined in outer module:
     code = '''
     module mymod
@@ -763,3 +733,89 @@ def test_loop_fuse_different_iterates_over(fortran_reader):
     loop1 = psyir.children[0].children[0]
     loop2 = psyir.children[0].children[1]
     fuse.apply(loop1, loop2)
+
+
+def test_loop_fuse_different_variables(fortran_reader, fortran_writer):
+    '''Test that fusing loops with different variables is possible, and
+    renaming works appropriately.'''
+    code = '''subroutine sub()
+    integer :: ji, jj, n, jk
+    integer, dimension(10, 10) :: s, t
+    do jj = 1, n
+      do ji = 1, 10
+        s(ji, jj) = t(ji, jj) + 1
+      end do
+      do jk = 1, 10
+        s(jk, jj) = t(jk, jj) + 1
+      end do
+    end do
+    end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.children[0].walk(Loop)
+    fuse = LoopFuseTrans()
+    fuse.apply(loops[1], loops[2])
+    out = fortran_writer(psyir)
+    correct = '''subroutine sub()
+  integer :: ji
+  integer :: jj
+  integer :: n
+  integer :: jk
+  integer, dimension(10,10) :: s
+  integer, dimension(10,10) :: t
+
+  do jj = 1, n, 1
+    do ji = 1, 10, 1
+      s(ji,jj) = t(ji,jj) + 1
+      s(ji,jj) = t(ji,jj) + 1
+    enddo
+  enddo
+
+end subroutine sub'''
+    assert correct in out
+
+
+def test_loop_fuse_different_variables_with_access(fortran_reader):
+    '''Test that fusing loops with different variables is disallowed when
+    either loop uses the other loops variable for any reason.'''
+    code = '''subroutine sub()
+    integer :: ji, jj, n, jk
+    integer, dimension(10, 10) :: s, t
+    do jj = 1, n
+      do ji = 1, 10
+        s(ji, jj) = t(ji, jj) + 1
+      end do
+      do jk = 1, 10
+        ji = jk
+        s(jk, jj) = t(jk, jj) + ji
+      end do
+    end do
+    end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.children[0].walk(Loop)
+    fuse = LoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        fuse.apply(loops[1], loops[2])
+    assert ("Error in LoopFuseTrans transformation. Second loop contains "
+            "accesses to the first loop's variable: ji." in str(excinfo.value))
+
+    code = '''subroutine sub()
+    integer :: ji, jj, n, jk
+    integer, dimension(10, 10) :: s, t
+    do jj = 1, n
+      do ji = 1, 10
+        jk = ji
+        s(ji, jj) = t(ji, jj) + jk
+      end do
+      do jk = 1, 10
+        s(jk, jj) = t(jk, jj) + ji
+      end do
+    end do
+    end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.children[0].walk(Loop)
+    fuse = LoopFuseTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        fuse.apply(loops[1], loops[2])
+    assert ("Error in LoopFuseTrans transformation. First loop contains "
+            "accesses to the second loop's variable: jk."
+            in str(excinfo.value))

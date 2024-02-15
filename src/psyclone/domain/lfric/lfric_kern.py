@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -609,16 +609,16 @@ class LFRicKern(CodedKern):
         # Add all the declarations
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import LFRicScalarArgs, LFRicFields
+        from psyclone.domain.lfric import (LFRicFields, LFRicScalarArgs,
+                                           LFRicStencils)
         from psyclone.dynamo0p3 import (DynCellIterators, DynDofmaps,
                                         DynFunctionSpaces, DynCMAOperators,
                                         DynBoundaryConditions,
                                         DynLMAOperators, LFRicMeshProperties,
-                                        DynBasisFunctions, DynStencils,
-                                        DynReferenceElement)
+                                        DynBasisFunctions, DynReferenceElement)
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
-                         DynLMAOperators, DynStencils, DynBasisFunctions,
+                         DynLMAOperators, LFRicStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
             entities(self).declarations(sub_stub)

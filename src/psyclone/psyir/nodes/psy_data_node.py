@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,8 +56,8 @@ from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
-                                    ContainerSymbol, DeferredType, Symbol,
-                                    UnknownFortranType, ImportInterface)
+                                    ContainerSymbol, UnresolvedType, Symbol,
+                                    UnsupportedFortranType, ImportInterface)
 
 
 # =============================================================================
@@ -345,7 +345,7 @@ class PSyDataNode(Statement):
             symbol_table.find_or_create_tag(sym.name,
                                             symbol_type=sym.symbol_type,
                                             interface=ImportInterface(csym),
-                                            datatype=DeferredType())
+                                            datatype=UnresolvedType())
 
         # Store the name of the PSyData variable that is used for this
         # PSyDataNode. This allows the variable name to be shown in str
@@ -354,7 +354,7 @@ class PSyDataNode(Statement):
         if not self._var_name:
             self._var_name = symbol_table.next_available_name(
                 self._psy_data_symbol_with_prefix)
-            psydata_type = UnknownFortranType(
+            psydata_type = UnsupportedFortranType(
                 f"type({self.type_name}), save, target :: {self._var_name}")
             symbol_table.new_symbol(self._var_name, symbol_type=DataSymbol,
                                     datatype=psydata_type,

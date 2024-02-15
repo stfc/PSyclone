@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2022, Science and Technology Facilities Council
+! Copyright (c) 2017-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Modified: I. Kavcic and O. Brunt, Met Office
 !
 !> @brief Meta-data for the LFRic API built-in operations.
 !> @details This meta-data is purely to provide PSyclone with a
@@ -674,8 +674,8 @@ use argument_mod,  only : arg_type,            &
 ! ============== Converting real to integer field elements ========== !
 ! ------------------------------------------------------------------- !
 
-  !> ifield2 = int(field1, i_def)
-  type, public, extends(kernel_type) :: int_X
+  !> ifield2 = int(field1, i_<prec>)
+  type, public, extends(kernel_type) :: real_to_int_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_INTEGER, GH_WRITE, ANY_SPACE_1),      &
@@ -683,8 +683,24 @@ use argument_mod,  only : arg_type,            &
           /)
      integer :: operates_on = DOF
    contains
-     procedure, nopass :: int_X_code
-  end type int_X
+     procedure, nopass :: real_to_int_X_code
+  end type real_to_int_X
+
+! ------------------------------------------------------------------- !
+! ============== Converting real to real field elements ============= !
+! ------------------------------------------------------------------- !
+
+  !> field2 = real(field1, r_<prec>)
+  type, public, extends(kernel_type) :: real_to_real_X
+     private
+     type(arg_type) :: meta_args(2) = (/                              &
+          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1),         &
+          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1)          &
+          /)
+     integer :: operates_on = DOF
+   contains
+     procedure, nopass :: real_to_real_X_code
+  end type real_to_real_X
 
 ! ******************************************************************* !
 ! ************** Built-ins for integer-valued fields **************** !
@@ -988,8 +1004,8 @@ use argument_mod,  only : arg_type,            &
 ! ============== Converting integer to real field elements ========== !
 ! ------------------------------------------------------------------- !
 
-  !> field2 = real(ifield1, r_def)
-  type, public, extends(kernel_type) :: real_X
+  !> field2 = real(ifield1, r_<prec>)
+  type, public, extends(kernel_type) :: int_to_real_X
      private
      type(arg_type) :: meta_args(2) = (/                              &
           arg_type(GH_FIELD, GH_REAL,    GH_WRITE, ANY_SPACE_1),      &
@@ -997,8 +1013,8 @@ use argument_mod,  only : arg_type,            &
           /)
      integer :: operates_on = DOF
    contains
-     procedure, nopass :: real_X_code
-  end type real_X
+     procedure, nopass :: int_to_real_X_code
+  end type int_to_real_X
 
 contains
 
@@ -1152,8 +1168,12 @@ contains
   end subroutine inc_min_aX_code
 
   ! Converting real to integer field elements
-  subroutine int_X_code()
-  end subroutine int_X_code
+  subroutine real_to_int_X_code()
+  end subroutine real_to_int_X_code
+
+  ! Converting real to real field elements
+  subroutine real_to_real_X_code()
+  end subroutine real_to_real_X_code
 
   ! ***** Integer-valued fields ***** !
   ! Adding integer fields
@@ -1230,7 +1250,7 @@ contains
   end subroutine int_inc_min_aX_code
 
   ! Converting integer to real field elements
-  subroutine real_X_code()
-  end subroutine real_X_code
+  subroutine int_to_real_X_code()
+  end subroutine int_to_real_X_code
 
 end module lfric_builtins_mod

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified by I. Kavcic and L. Turner, Met Office
+# Modified by I. Kavcic, L. Turner and O. Brunt, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
@@ -351,7 +351,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f"must be on the same space. However, found spaces "
                 f"{spaces_str} for arguments to '{self.name}'")
 
-        conversion_builtins = ["int_X", "real_X"]
+        conversion_builtins = ["real_to_int_X",
+                               "real_to_real_X",
+                               "int_to_real_X"]
         conversion_builtins_lower = [x.lower() for x in conversion_builtins]
         if len(data_types) != 1 and self.name not in conversion_builtins_lower:
             data_types_str = [str(x) for x in sorted(data_types)]
@@ -2697,7 +2699,7 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntXKern(LFRicBuiltIn):
+class LFRicRealToIntXKern(LFRicBuiltIn):
     ''' Converts real-valued field elements to integer-valued
     field elements using the Fortran intrinsic `INT` function,
     `Y = INT(X, kind=i_<prec>)`. Here `Y` is an integer-valued
@@ -2706,7 +2708,7 @@ class LFRicIntXKern(LFRicBuiltIn):
 
     '''
     _datatype = "integer"
-    _case_name = "int_X"
+    _case_name = "real_to_int_X"
 
     @classmethod
     def metadata(cls):
@@ -2737,11 +2739,66 @@ class LFRicIntXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = INT(proxy0%data, kind=i_<prec>)
+        #      proxy0%data(df) = INT(proxy1%data, kind=i_<prec>)
         i_precision = arg_refs[0].datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
             [arg_refs[1], ("kind", Reference(i_precision))])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
+
+
+# ------------------------------------------------------------------- #
+# ============== Converting real to real field elements ============= #
+# ------------------------------------------------------------------- #
+
+class LFRicRealToRealXKern(LFRicBuiltIn):
+    ''' Converts real-valued field elements to real-valued field elements
+    of a different precision using the Fortran intrinsic `REAL` function,
+    `Y = REAL(X, kind=r_<prec>)`. Here `Y` is a real-valued field of
+    precision `kind=r_<prec>` and `X` is the real-valued field whose
+    values are to be converted from their defined precision.
+
+    '''
+    _datatype = "real"
+    _case_name = "real_to_real_X"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        return cls._builtin_metadata([
+            FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (convert a real-valued "
+                f"to a real-valued field)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
+        r_precision = arg_refs[0].datatype.precision
+        rhs = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.REAL,
+            [arg_refs[1], ("kind", Reference(r_precision))])
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -3040,7 +3097,7 @@ class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
 # ============== Converting integer to real field elements ========== #
 # ------------------------------------------------------------------- #
 
-class LFRicRealXKern(LFRicBuiltIn):
+class LFRicIntToRealXKern(LFRicBuiltIn):
     ''' Converts integer-valued field elements to real-valued
     field elements using the Fortran intrinsic `REAL` function,
     `Y = REAL(X, kind=r_<prec>)`. Here `Y` is a real-valued
@@ -3049,7 +3106,7 @@ class LFRicRealXKern(LFRicBuiltIn):
 
     '''
     _datatype = "real"
-    _case_name = "real_X"
+    _case_name = "int_to_real_X"
 
     @classmethod
     def metadata(cls):
@@ -3080,7 +3137,7 @@ class LFRicRealXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = REAL(proxy0%data, kind=r_<prec>)
+        # proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
         r_precision = arg_refs[0].datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
@@ -3157,7 +3214,9 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "min_aX": LFRicMinAXKern,
     "inc_min_aX": LFRicIncMinAXKern,
     # Converting real to integer field elements
-    "int_X": LFRicIntXKern}
+    "real_to_int_X": LFRicRealToIntXKern,
+    # Converting real to real field elements
+    "real_to_real_X": LFRicRealToRealXKern}
 
 # Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
@@ -3192,7 +3251,7 @@ INT_BUILTIN_MAP_CAPITALISED = {
     "int_min_aX": LFRicIntMinAXKern,
     "int_inc_min_aX": LFRicIntIncMinAXKern,
     # Converting integer to real field elements
-    "real_X": LFRicRealXKern}
+    "int_to_real_X": LFRicIntToRealXKern}
 
 # Built-in map dictionary for all built-ins
 BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
@@ -3251,7 +3310,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncMaxAXKern',
            'LFRicMinAXKern',
            'LFRicIncMinAXKern',
-           'LFRicIntXKern',
+           'LFRicRealToIntXKern',
+           'LFRicRealToRealXKern',
            'LFRicIntXPlusYKern',
            'LFRicIntIncXPlusYKern',
            'LFRicIntAPlusXKern',
@@ -3273,4 +3333,4 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntIncMaxAXKern',
            'LFRicIntMinAXKern',
            'LFRicIntIncMinAXKern',
-           'LFRicRealXKern']
+           'LFRicIntToRealXKern']

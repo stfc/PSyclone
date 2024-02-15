@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -72,6 +72,7 @@ from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
 from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
 from psyclone.domain.lfric.lfric_psy import LFRicPSy
+from psyclone.domain.lfric.lfric_stencils import LFRicStencils
 
 
 __all__ = [
@@ -96,4 +97,5 @@ __all__ = [
     'LFRicPSy',
     'LFRicRunTimeChecks',
     'LFRicScalarArgs',
+    'LFRicStencils',
     'LFRicSymbolTable']

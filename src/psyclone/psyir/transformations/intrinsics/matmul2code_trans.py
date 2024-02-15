@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
     Loop, Literal, ArrayReference, Range, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, UnknownType)
+    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, UnsupportedType)
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 
@@ -222,7 +222,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 f"be references, but found: '{node.parent.debug_string()}'.")
 
         # The children of matvec should be References to arrays
-        if any(isinstance(var.symbol.datatype, UnknownType) for var
+        if any(isinstance(var.symbol.datatype, UnsupportedType) for var
                in [matrix1, matrix2, result]):
             raise TransformationError(
                 f"Must have full type information for result and operands of "

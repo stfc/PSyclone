@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,9 +54,9 @@ from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   Routine, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
-                                    DataTypeSymbol, DeferredType,
+                                    DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
-                                    RoutineSymbol, UnknownFortranType)
+                                    RoutineSymbol, UnsupportedFortranType)
 from psyclone.psyir.transformations import ExtractTrans
 
 
@@ -337,10 +337,10 @@ class LFRicExtractDriverCreator:
             # (with the same name) in the driver's symbol table), and use
             # it in the reference.
             datatype = old_symbol.datatype
-            if isinstance(datatype, UnknownFortranType):
-                # Currently fields are of UnknownFortranType because they are
-                # pointers in the PSy layer. Here we just want the base type
-                # (i.e. not a pointer).
+            if isinstance(datatype, UnsupportedFortranType):
+                # Currently fields are of UnsupportedFortranType because they
+                # are pointers in the PSy layer. Here we just want the base
+                # type (i.e. not a pointer).
                 datatype = old_symbol.datatype.partial_datatype
 
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
@@ -452,7 +452,7 @@ class LFRicExtractDriverCreator:
         # is not allocated. So we need to allocate it and set it to 0.
         if not is_input:
             if (isinstance(post_sym.datatype, ArrayType) or
-                    (isinstance(post_sym.datatype, UnknownFortranType) and
+                    (isinstance(post_sym.datatype, UnsupportedFortranType) and
                      isinstance(post_sym.datatype.partial_datatype,
                                 ArrayType))):
                 alloc = IntrinsicCall.create(
@@ -516,7 +516,7 @@ class LFRicExtractDriverCreator:
             :rtype: bool
 
             '''
-            if isinstance(orig_sym.datatype, UnknownFortranType):
+            if isinstance(orig_sym.datatype, UnsupportedFortranType):
                 intrinsic_name = sym.datatype.partial_datatype.intrinsic.name
             else:
                 intrinsic_name = sym.datatype.intrinsic.name
@@ -615,7 +615,7 @@ class LFRicExtractDriverCreator:
             # statement).
             module = ContainerSymbol(routine.interface.container_symbol.name)
             symbol_table.add(module)
-            new_routine_sym = RoutineSymbol(routine.name, DeferredType(),
+            new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
                                             interface=ImportInterface(module))
             symbol_table.add(new_routine_sym)
 
@@ -668,9 +668,9 @@ class LFRicExtractDriverCreator:
         # comparison.
         for (sym_computed, sym_read) in output_symbols:
             if (isinstance(sym_computed.datatype, ArrayType) or
-                    (isinstance(sym_computed.datatype, UnknownFortranType) and
-                     isinstance(sym_computed.datatype.partial_datatype,
-                                ArrayType))):
+                    (isinstance(sym_computed.datatype, UnsupportedFortranType)
+                     and isinstance(sym_computed.datatype.partial_datatype,
+                                    ArrayType))):
                 cond = f"all({sym_computed.name} - {sym_read.name} == 0.0)"
             else:
                 cond = f"{sym_computed.name} == {sym_read.name}"
@@ -752,7 +752,7 @@ class LFRicExtractDriverCreator:
 
         psy_data_mod = ContainerSymbol("read_kernel_data_mod")
         program_symbol_table.add(psy_data_mod)
-        psy_data_type = DataTypeSymbol("ReadKernelDataType", DeferredType(),
+        psy_data_type = DataTypeSymbol("ReadKernelDataType", UnresolvedType(),
                                        interface=ImportInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
 

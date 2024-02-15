@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -523,4 +523,4 @@ Take a look at the ``print_psyir_trans.py`` script for more information. *Hint*;
 you can insert a single line in that script in order to break into the Python
 interpreter during execution: ``import pdb; pdb.set_trace()``. This then enables
 interactive exploration of the PSyIR if you are interested. Alternatively,
-you can play with some interactive examples on `Binder <https://github.com/stfc/PSyclone#user-content-try-it-on-binder>`_.
+you can play with some interactive examples on `Binder <https://github.com/stfc/PSyclone#try-it-on-binder>`_.

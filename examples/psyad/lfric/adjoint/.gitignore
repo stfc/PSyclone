@@ -1,0 +1,10 @@
+adj_combine_w2_field_kernel_mod.F90
+adj_dg_matrix_vector_kernel_mod.F90
+adj_hydrostatic_kernel_mod.F90
+adj_moist_dyn_mass_kernel_mod.F90
+adj_sample_flux_kernel_mod.F90
+adj_split_w2_field_kernel_mod.F90
+adj_tracer_viscosity_kernel_mod.F90
+adj_transpose_matrix_vector_kernel_mod.F90
+adj_w2_to_w1_projection_kernel_mod.F90
+adj_w3_advective_update_kernel_mod.F90

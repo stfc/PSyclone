@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,12 +36,14 @@
 
 ''' This module provides the PSyIR Fortran front-end.'''
 
-from fparser.common.readfortran import FortranStringReader
+from typing import Optional
+from fparser.common.readfortran import FortranStringReader, FortranFileReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003, pattern_tools
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from fparser.two.utils import NoMatchError
+from psyclone.configuration import Config
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Schedule, Assignment, Routine
 from psyclone.psyir.symbols import SymbolTable
@@ -62,12 +64,12 @@ class FortranReader():
         SYMBOL_TABLES.clear()
 
     @staticmethod
-    def validate_name(name):
+    def validate_name(name: str):
         '''
         Utility method that checks that the supplied name is a valid
         Fortran name.
 
-        :param str name: the name to check.
+        :param name: the name to check.
 
         :raises TypeError: if the name is not a string.
         :raises ValueError: if this is not a valid name.
@@ -81,11 +83,11 @@ class FortranReader():
             raise ValueError(
                 f"Invalid Fortran name '{name}' found.")
 
-    def psyir_from_source(self, source_code, free_form=True):
+    def psyir_from_source(self, source_code: str, free_form: bool = True):
         ''' Generate the PSyIR tree representing the given Fortran source code.
 
-        :param str source_code: text representation of the code to be parsed.
-        :param bool free_form: If parsing free-form code or not (default True).
+        :param source_code: text representation of the code to be parsed.
+        :param free_form: If parsing free-form code or not (default True).
 
         :returns: PSyIR representing the provided Fortran source code.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -99,15 +101,15 @@ class FortranReader():
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
 
-    def psyir_from_expression(self, source_code, symbol_table):
+    def psyir_from_expression(self, source_code: str,
+                              symbol_table: Optional[SymbolTable] = None):
         '''Generate the PSyIR tree for the supplied Fortran statement. The
         symbol table is expected to provide all symbols found in the
         expression.
 
-        :param str source_code: text of the expression to be parsed.
+        :param source_code: text of the expression to be parsed.
         :param symbol_table: the SymbolTable in which to search for any
             symbols that are encountered.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: PSyIR representing the provided Fortran expression.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -117,7 +119,9 @@ class FortranReader():
             Fortran expression.
 
         '''
-        if not isinstance(symbol_table, SymbolTable):
+        if symbol_table is None:
+            symbol_table = SymbolTable()
+        elif not isinstance(symbol_table, SymbolTable):
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
 
@@ -141,15 +145,15 @@ class FortranReader():
         self._processor.process_nodes(fake_parent[0], [parse_tree])
         return fake_parent[0].children[0].detach()
 
-    def psyir_from_statement(self, source_code, symbol_table):
+    def psyir_from_statement(self, source_code: str,
+                             symbol_table: Optional[SymbolTable] = None):
         '''Generate the PSyIR tree for the supplied Fortran statement. The
         symbolt table is expected to provide all symbols found in the
         statement.
 
-        :param str source_code: text of the statement to be parsed.
+        :param source_code: text of the statement to be parsed.
         :param symbol_table: the SymbolTable in which to search for any
             symbols that are encountered.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: PSyIR representing the provided Fortran statement.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -159,7 +163,9 @@ class FortranReader():
             Fortran statement.
 
         '''
-        if not isinstance(symbol_table, SymbolTable):
+        if symbol_table is None:
+            symbol_table = SymbolTable()
+        elif not isinstance(symbol_table, SymbolTable):
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
         string_reader = FortranStringReader(source_code)
@@ -209,8 +215,14 @@ class FortranReader():
         # place to implement caching in order to avoid repeating parsing steps
         # that have already been done before.
 
-        with open(file_path, "r", encoding="utf-8") as source:
-            return self.psyir_from_source(source.read(), free_form=free_form)
+        # Using the FortranFileReader instead of manually open the file allows
+        # fparser to keep the filename information in the tree
+        reader = FortranFileReader(file_path,
+                                   include_dirs=Config.get().include_paths)
+        reader.set_format(FortranFormat(free_form, False))
+        parse_tree = self._parser(reader)
+        psyir = self._processor.generate_psyir(parse_tree)
+        return psyir
 
 
 # For Sphinx AutoAPI documentation generation

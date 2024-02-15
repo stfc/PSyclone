@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,8 +45,8 @@ from enum import Enum
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols.datatypes import (
-    ArrayType, BOOLEAN_TYPE, DeferredType, ScalarType,
-    UnknownFortranType, UnknownType)
+    ArrayType, BOOLEAN_TYPE, UnresolvedType, ScalarType,
+    UnsupportedFortranType, UnsupportedType)
 
 
 class Operation(DataNode, metaclass=ABCMeta):
@@ -325,8 +325,8 @@ class BinaryOperation(Operation):
         '''
         Examines the two operand types to determine the base type of the
         operation using the rules in Section 7.2 of the Fortran2008 standard.
-        If the type cannot be determined then an instance of `DeferredType` is
-        returned.
+        If the type cannot be determined then an instance of `UnresolvedType`
+        is returned.
 
         :param argtypes: the types of the two operands.
         :type argtypes: list[:py:class:`psyclone.psyir.symbols.DataType`,
@@ -345,11 +345,11 @@ class BinaryOperation(Operation):
             return BOOLEAN_TYPE
 
         # We have a numerical operation.
-        if any(isinstance(atype.intrinsic, DeferredType)
+        if any(isinstance(atype.intrinsic, UnresolvedType)
                for atype in argtypes):
-            # datatype of a numerical operation on a DeferredType is a
-            # DeferredType.
-            return DeferredType()
+            # datatype of a numerical operation on a UnresolvedType is a
+            # UnresolvedType.
+            return UnresolvedType()
 
         base_type = None
 
@@ -385,7 +385,7 @@ class BinaryOperation(Operation):
     def datatype(self):
         '''
         Determines the datatype of this operation. If it cannot be determined
-        for any reason then an instance of DeferredType is returned.
+        for any reason then an instance of UnresolvedType is returned.
 
         :returns: the datatype of the result of this BinaryOperation.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
@@ -398,35 +398,35 @@ class BinaryOperation(Operation):
         for child in self.children:
             # If the operand is itself an operation this will recurse.
             dtype = child.datatype
-            if isinstance(dtype, UnknownFortranType):
+            if isinstance(dtype, UnsupportedFortranType):
                 if dtype.partial_datatype:
                     # We are still OK provided we have partial type information
                     # since that means the intrinsic type can be handled in the
                     # PSyIR.
                     dtype = dtype.partial_datatype
                 else:
-                    return DeferredType()
-            if isinstance(dtype, DeferredType):
-                # If either operand is of DeferredType then we can't do
+                    return UnresolvedType()
+            if isinstance(dtype, UnresolvedType):
+                # If either operand is of UnresolvedType then we can't do
                 # any better.
-                return DeferredType()
+                return UnresolvedType()
             if isinstance(dtype, ArrayType):
                 # We know this is an array but do we know its intrinsic type?
-                if isinstance(dtype.intrinsic, DeferredType):
-                    dtype = ArrayType(DeferredType(), shape=dtype.shape)
-                if isinstance(dtype.intrinsic, UnknownType):
-                    if (isinstance(dtype.intrinsic, UnknownFortranType) and
+                if isinstance(dtype.intrinsic, UnresolvedType):
+                    dtype = ArrayType(UnresolvedType(), shape=dtype.shape)
+                if isinstance(dtype.intrinsic, UnsupportedType):
+                    if (isinstance(dtype.intrinsic, UnsupportedFortranType) and
                             dtype.intrinsic.partial_datatype):
                         dtype = ArrayType(dtype.intrinsic.partial_datatype,
                                           shape=dtype.shape)
                     else:
-                        dtype = ArrayType(DeferredType(), shape=dtype.shape)
+                        dtype = ArrayType(UnresolvedType(), shape=dtype.shape)
 
             argtypes.append(dtype)
 
         # Determine the base (scalar) type of the result.
         base_type = self._get_result_scalar_type(argtypes)
-        if (isinstance(base_type, DeferredType) or
+        if (isinstance(base_type, UnresolvedType) or
                 all(isinstance(atype, ScalarType) for atype in argtypes)):
             # Both operands are of scalar type.
             return base_type

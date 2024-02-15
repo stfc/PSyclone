@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,10 +78,8 @@ NOT_PERFORMANT = [
 # Files that we won't touch at all, either because PSyclone actually fails
 # or because it produces incorrect Fortran.
 NOT_WORKING = [
-    # Array accessed inside WHERE does not use array notation
+    # TODO #717 - array accessed inside WHERE does not use array notation
     "diurnal_bulk.f90",
-    # TODO #1960: There is a bug on a WHERE fparser2 frontend processing
-    "sbccpl.f90",
 ]
 
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, CodeBlock, BinaryOperation, \
     Call, Range, Literal
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ArrayType, \
-    UnknownType, RoutineSymbol
+    UnsupportedType, RoutineSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
 
@@ -405,7 +405,7 @@ def test_validate_with_a_function_call():
 
 def test_validate_with_array_with_hidden_accessor():
     '''Check that the validation method of the transformation raises an
-    exception if there is a RHS array (or UnknownType) with the accessor
+    exception if there is a RHS array (or UnsupportedType) with the accessor
     expression missing.
     '''
     _, invoke_info = get_invoke("implicit_do_hidden_accessor.f90",
@@ -414,11 +414,11 @@ def test_validate_with_array_with_hidden_accessor():
     schedule = invoke_info.schedule
     assignment1 = schedule[0]
     assignment2 = schedule[1]
-    # This test expects arg1 is parsed as ArrayType and arg2 as UnknownType
+    # This test expects arg1 is parsed as ArrayType and arg2 as UnsupportedType
     assert isinstance(schedule.symbol_table.lookup("arg1").datatype,
                       ArrayType)
     assert isinstance(schedule.symbol_table.lookup("arg2").datatype,
-                      UnknownType)
+                      UnsupportedType)
 
     # The first one fails because we know the type of the RHS reference is
     # an array but we don't have explicit dimensions.
@@ -428,13 +428,13 @@ def test_validate_with_array_with_hidden_accessor():
             "'arg1' must be a DataSymbol of ScalarType, but it's a 'arg1: "
             "DataSymbol<Array<Scalar<REAL" in str(info.value))
 
-    # The second fails because it's an UnknownType and we don't know whether
-    # it's an scalar or an array.
+    # The second fails because it's an UnsupportedType and we don't know
+    # whether it's an scalar or an array.
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment2.lhs.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
             "'arg2' must be a DataSymbol of ScalarType, but it's a 'arg2: "
-            "DataSymbol<UnknownFortranType" in str(info.value))
+            "DataSymbol<UnsupportedFortranType" in str(info.value))
 
 
 def test_apply_different_num_dims():
