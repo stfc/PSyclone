@@ -55,7 +55,7 @@ from psyclone.psyir.nodes import (
     Literal, BinaryOperation, Routine, IfBlock)
 from psyclone.psyir.symbols import (
     ImportInterface, ContainerSymbol, ScalarType, ArrayType, RoutineSymbol,
-    DataTypeSymbol, DataSymbol, DeferredType)
+    DataTypeSymbol, DataSymbol, UnresolvedType)
 
 #: The tolerance applied to the comparison of the inner product values in
 #: the generated test-harness code.
@@ -327,7 +327,7 @@ def _init_operators_random(operators, table):
     kernel_mod = table.new_symbol(kname+"_mod",
                                   symbol_type=ContainerSymbol)
     kernel_sym = table.new_symbol(kname+"_type", symbol_type=DataTypeSymbol,
-                                  datatype=DeferredType(),
+                                  datatype=UnresolvedType(),
                                   interface=ImportInterface(kernel_mod))
     # Create a functor to initialise each operator
     kernel_list = [LFRicKernelFunctor.create(kernel_sym, [Reference(sym)])
@@ -488,13 +488,13 @@ def _lfric_log_write(sym_table, kernel, var1, var2):
     overall_tol = sym_table.lookup_with_tag("overall_tolerance")
     log_mod = sym_table.find_or_create("log_mod", symbol_type=ContainerSymbol)
     log_scratch = sym_table.find_or_create(
-        "log_scratch_space", symbol_type=DataSymbol, datatype=DeferredType(),
+        "log_scratch_space", symbol_type=DataSymbol, datatype=UnresolvedType(),
         interface=ImportInterface(log_mod))
     log_level_info = sym_table.new_symbol(
-        "log_level_info", symbol_type=DataSymbol, datatype=DeferredType(),
+        "log_level_info", symbol_type=DataSymbol, datatype=UnresolvedType(),
         interface=ImportInterface(log_mod))
     log_level_error = sym_table.new_symbol(
-        "log_level_error", symbol_type=DataSymbol, datatype=DeferredType(),
+        "log_level_error", symbol_type=DataSymbol, datatype=UnresolvedType(),
         interface=ImportInterface(log_mod))
     log_event = sym_table.new_symbol(
         "log_event", symbol_type=RoutineSymbol,
@@ -593,11 +593,11 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
                                symbol_type=ContainerSymbol)
     kernel_routine = table.new_symbol(kernel_name,
                                       symbol_type=DataTypeSymbol,
-                                      datatype=DeferredType(),
+                                      datatype=UnresolvedType(),
                                       interface=ImportInterface(kernel_mod))
     adj_routine = table.new_symbol(create_adjoint_name(kernel_name),
                                    symbol_type=DataTypeSymbol,
-                                   datatype=DeferredType(),
+                                   datatype=UnresolvedType(),
                                    interface=ImportInterface(adj_mod))
 
     # Construct a LFRicKern using the metadata and then use it to construct
@@ -690,7 +690,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             continue
         input_sym = table.new_symbol(
             f"{sym.name}_input", symbol_type=DataSymbol,
-            datatype=DeferredType())
+            datatype=UnresolvedType())
         input_sym.copy_properties(sym)
         input_symbols[sym.name] = input_sym
 
