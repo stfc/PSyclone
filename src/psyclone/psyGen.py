@@ -1533,7 +1533,8 @@ class CodedKern(Kern):
             # Then find or create the imported RoutineSymbol
             try:
                 # Limit scope to this Invoke, since a kernel with the same name
-                # may have been inlined from another invoke.
+                # may have been inlined from another invoke in the same file,
+                # but we have it here marked as "not module-inlined"
                 rsymbol = symtab.lookup(self._name, scope_limit=symtab.node)
             except KeyError:
                 csymbol = symtab.find_or_create(
@@ -1542,6 +1543,9 @@ class CodedKern(Kern):
                 rsymbol = symtab.new_symbol(
                         self._name,
                         symbol_type=RoutineSymbol,
+                        # And allow shadowing in case it is also inlined with
+                        # the same name by another invoke
+                        shadowing=True,
                         interface=ImportInterface(csymbol))
         else:
             # If its inlined, the symbol must exist
