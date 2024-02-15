@@ -80,7 +80,8 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/spack-repo/share/spack/setup-env.sh
-        spack env activate lfric-env-gnu
+        spack load gcc@12
+        spack load lfric-buildenv +xios %gcc@12
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export MINIAPP_DIR=${HOME}/LFRic_${LFRIC_REV}/miniapps/gungho_model
@@ -120,7 +121,8 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/spack-repo/share/spack/setup-env.sh
-        spack env activate lfric-env-gnu
+        spack load gcc@12
+        spack load lfric-buildenv +xios %gcc@12
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export MINIAPP_DIR=${HOME}/LFRic_${LFRIC_REV}/miniapps/gungho_model
