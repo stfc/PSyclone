@@ -776,8 +776,11 @@ class InlineTrans(Transformation):
             # TODO #924. It would be useful if the `datatype` property was
             # a method that took an optional 'resolve' argument to indicate
             # that it should attempt to resolve any UnresolvedTypes.
-            if isinstance(actual_arg.datatype, (UnresolvedType,
-                                                UnsupportedType)):
+            if (isinstance(actual_arg.datatype,
+                           (UnresolvedType, UnsupportedType)) or
+                (isinstance(actual_arg.datatype, ArrayType) and
+                 isinstance(actual_arg.datatype.intrinsic,
+                            (UnresolvedType, UnsupportedType)))):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
                     f"the type of the actual argument "
