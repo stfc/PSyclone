@@ -51,9 +51,10 @@ PACKAGES = find_packages(where=SRC_PATH,
                                   "psyclone.tests.*"])
 
 NAME = 'PSyclone'
-AUTHOR = ("Rupert Ford <rupert.ford@stfc.ac.uk>, "
-          "Andrew Porter <andrew.porter@stfc.ac.uk>")
-AUTHOR_EMAIL = 'rupert.ford@stfc.ac.uk'
+AUTHOR = ('Rupert Ford <rupert.ford@stfc.ac.uk>, '
+          'Andrew Porter <andrew.porter@stfc.ac.uk>, '
+          'Sergi Siso <sergi.siso@stfc.ac.uk>')
+AUTHOR_EMAIL = 'andrew.porter@stfc.ac.uk'
 URL = 'https://github.com/stfc/psyclone'
 DOWNLOAD_URL = 'https://github.com/stfc/psyclone'
 DESCRIPTION = ('PSyclone - a compiler for Finite Element/Volume/Difference'
@@ -160,7 +161,7 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser>=0.1.3', 'configparser',
+        install_requires=['pyparsing', 'fparser>=0.1.4', 'configparser',
                           'jsonschema', 'sympy'],
         extras_require={
             'dag': ["graphviz"],

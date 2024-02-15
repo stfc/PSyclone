@@ -93,8 +93,7 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import (DynStencils,
-                                        DynFunctionSpaces, DynDofmaps,
+        from psyclone.dynamo0p3 import (DynFunctionSpaces, DynDofmaps,
                                         DynLMAOperators, DynGlobalSum,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
@@ -102,12 +101,13 @@ class LFRicInvoke(Invoke):
                                         DynReferenceElement,
                                         LFRicMeshProperties)
         from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
-                                           LFRicScalarArgs, LFRicFields)
+                                           LFRicScalarArgs, LFRicFields,
+                                           LFRicStencils)
 
         self.scalar_args = LFRicScalarArgs(self)
 
         # Initialise our Invoke stencil information
-        self.stencil = DynStencils(self)
+        self.stencil = LFRicStencils(self)
 
         # Initialise our information on the function spaces used by this Invoke
         self.function_spaces = DynFunctionSpaces(self)

@@ -72,6 +72,7 @@ from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
 from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
 from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
+from psyclone.domain.lfric.lfric_stencils import LFRicStencil
 
 
 __all__ = [
@@ -96,4 +97,5 @@ __all__ = [
     'LFRicLoopBounds',
     'LFRicRunTimeChecks',
     'LFRicScalarArgs',
+    'LFRicStencils',
     'LFRicSymbolTable']
