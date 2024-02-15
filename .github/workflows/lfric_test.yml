@@ -80,16 +80,7 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/spack-repo/share/spack/setup-env.sh
-        spack env activate lfric-gnu
-        export FC="gfortran"
-        export CC="gcc"
-        export CXX="g++"
-        export FPP="cpp -traditional-cpp"
-        export LDMPI="mpif90"
-        export FFLAGS="-Wall -Werror=conversion -Werror=unused-variable -Werror=character-truncation -Werror=unused-value -Werror=tabs -I$(spack location -e lfric-gnu)/.spack-env/view/include"
-        export LDFLAGS="-L$(spack location -e lfric-gnu)/.spack-env/view/lib"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib64"
+        spack env activate lfric-env-gnu
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export MINIAPP_DIR=${HOME}/LFRic_${LFRIC_REV}/miniapps/gungho_model
@@ -129,16 +120,7 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/spack-repo/share/spack/setup-env.sh
-        spack env activate lfric-gnu
-        export FC="gfortran"
-        export CC="gcc"
-        export CXX="g++"
-        export FPP="cpp -traditional-cpp"
-        export LDMPI="mpif90"
-        export FFLAGS="-I$(spack location -e lfric-gnu)/.spack-env/view/include"
-        export LDFLAGS="-L$(spack location -e lfric-gnu)/.spack-env/view/lib"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH::$(spack location -e lfric-gnu)/.spack-env/view/lib64"
+        spack env activate lfric-env-gnu
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export MINIAPP_DIR=${HOME}/LFRic_${LFRIC_REV}/miniapps/gungho_model
