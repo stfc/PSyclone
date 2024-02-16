@@ -30,10 +30,9 @@ contains
     !> This subroutine updates the field 'current' by subtracting the dying
     !> cells, and adding the newly born cells.
     !>
-    !> @param[in]  i, j Coordinates of the cell to update.
-    !> @param[out] c    The current state that will be updated.
-    !> @param[in]  die  The field with 1 iff the cell dies.
-    !> @param[in]  born The field with 1 iff a new cell is born.
+    !> @param[in]  i, j       Coordinates of the cell to update.
+    !> @param[out] neighbours The number of neighbours for each cell.
+    !> @param[out] c          The current state that will be updated.
 
     subroutine count_neighbours_code(i, j, neighbours, c)
         implicit none

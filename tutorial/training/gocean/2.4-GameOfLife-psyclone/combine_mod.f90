@@ -37,10 +37,6 @@ contains
         double precision, dimension(:,:), intent(in)  :: die, born
         integer, intent(in)                           :: i, j
 
-        current(i, j) = current(i, j)  &
-                      - die(i, j)      &
-                      + born(i, j)
-
     end subroutine combine_code
 
 end module combine_mod
