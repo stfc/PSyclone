@@ -1,3 +1,7 @@
+	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
+
+release 2.5.0 14th of February 2024
+
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
 	directive.
 
