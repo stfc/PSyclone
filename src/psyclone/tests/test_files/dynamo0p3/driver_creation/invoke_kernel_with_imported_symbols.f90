@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023, Science and Technology Facilities Council
+! Copyright (c) 2023-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -33,9 +33,12 @@
 !-------------------------------------------------------------------------------
 ! Author J. Henrichs, Bureau of Meteorology
 
+! A single program calling two kernels which import non-local symbols. One
+! of the kernels will also introduce name clashes with names in the created
+! PSy-layer.
+
 program invoke_kernel_with_imported_symbols
 
-  ! Description: single function specified in a named invoke call
   use constants_mod, only: r_def
   use field_mod,     only: field_type
   use testkern_import_symbols_mod,  only: testkern_import_symbols_type

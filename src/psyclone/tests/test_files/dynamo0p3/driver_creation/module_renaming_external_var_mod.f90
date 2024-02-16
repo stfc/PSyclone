@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023, Science and Technology Facilities Council.
+! Copyright (c) 2023-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,10 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
+
+! This modules renames a variable it imports. This is used to test the
+! handling of renaming variables in non-local variable in extraction and
+! driver creation.
 
 module module_renaming_external_var_mod
 

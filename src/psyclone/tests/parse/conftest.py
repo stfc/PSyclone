@@ -101,8 +101,8 @@ def mod_man_test_setup_directories():
     with open("d2/g_mod.F90", "w", encoding="utf-8") as f_out:
         f_out.write(module_code)
 
-    # h_mod contains invalid Fortran
-    # ------------------------------
+    # error_mod contains invalid Fortran
+    # ----------------------------------
     module_code = '''
     module error_mod
     contains

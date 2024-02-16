@@ -154,12 +154,12 @@ class Minval2LoopTrans(ArrayReductionBaseTrans):
         # return min(lhs,rhs)
         return IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN, [lhs, rhs])
 
-    def _init_var(self, var_symbol):
+    def _init_var(self, reference):
         '''The initial value for the variable that computes the minimum value
         of an array.
 
-        :param var_symbol: the symbol used to store the final result.
-        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param reference: the reference used to store the final result.
+        :type reference: :py:class:`psyclone.psyir.node.Reference`
 
         :returns: PSyIR for the value to initialise the variable that
             computes the minimum value.
@@ -167,4 +167,4 @@ class Minval2LoopTrans(ArrayReductionBaseTrans):
 
         '''
         return IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.HUGE, [Reference(var_symbol)])
+            IntrinsicCall.Intrinsic.HUGE, [reference.copy()])

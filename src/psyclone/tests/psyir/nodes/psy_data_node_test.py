@@ -43,13 +43,14 @@ import pytest
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
-from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, Routine, \
-        CodeBlock
+from psyclone.psyir.nodes import (
+    CodeBlock, PSyDataNode, Schedule, Return, Routine)
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.symbols import ContainerSymbol, ImportInterface, \
-    SymbolTable, DataTypeSymbol, DeferredType, DataSymbol, UnknownFortranType
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
+from psyclone.psyir.symbols import (
+    ContainerSymbol, ImportInterface, SymbolTable, DataTypeSymbol,
+    UnresolvedType, DataSymbol, UnsupportedFortranType)
 from psyclone.tests.utilities import get_base_path, get_invoke
 
 
@@ -252,14 +253,14 @@ def test_psy_data_generate_symbols():
     typesymbol = routine.symbol_table.lookup("PSyDataType")
     assert isinstance(typesymbol, DataTypeSymbol)
     assert isinstance(typesymbol.interface, ImportInterface)
-    assert isinstance(typesymbol.datatype, DeferredType)
+    assert isinstance(typesymbol.datatype, UnresolvedType)
     assert routine.symbol_table.lookup_with_tag("PSyDataType") == typesymbol
 
     # - The instantiated object
     assert "psy_data" in routine.symbol_table
     objectsymbol = routine.symbol_table.lookup("psy_data")
     assert isinstance(objectsymbol, DataSymbol)
-    assert isinstance(objectsymbol.datatype, UnknownFortranType)
+    assert isinstance(objectsymbol.datatype, UnsupportedFortranType)
 
     # Executing it again doesn't add anything new
     psy_data.generate_symbols(routine.symbol_table)
@@ -272,7 +273,7 @@ def test_psy_data_generate_symbols():
     assert "psy_data_1" in routine.symbol_table
     objectsymbol = routine.symbol_table.lookup("psy_data_1")
     assert isinstance(objectsymbol, DataSymbol)
-    assert isinstance(objectsymbol.datatype, UnknownFortranType)
+    assert isinstance(objectsymbol.datatype, UnsupportedFortranType)
 
 
 # -----------------------------------------------------------------------------

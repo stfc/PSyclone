@@ -238,11 +238,11 @@ def fixture_fortran_writer():
 
 @pytest.fixture(scope='function')
 def clear_module_manager_instance():
-    ''' The tests in this module all assume that there is no pre-existing
-    ModuleManager object, so this fixture ensures that the module manager
-    instance is deleted before and after each test function. The latter
-    makes sure that any other test executed next will automatically reload
-    the default ModuleManager file.
+    '''For tests that assume that there is no pre-existing ModuleManager
+    object, this fixture ensures that the module manager instance is deleted
+    before and after each test function. The latter makes sure that any other
+    test executed next will automatically reload the default ModuleManager
+    file.
     '''
 
     # Enforce loading of the default ModuleManager
