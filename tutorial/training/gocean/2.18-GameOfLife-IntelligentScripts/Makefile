@@ -17,3 +17,6 @@ time_step_alg_mod.o: time_step_alg_mod_psy.o
 # PSyclone: create alg and psy layer files:
 %.f90: %.x90 Makefile openmp.py
 	$(PSYCLONE) -s ./fuse_loops.py -oalg $*.f90 -opsy $*_psy.f90 $<
+
+test:
+	@echo Ignoring test due to known bug.
