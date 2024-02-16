@@ -38,7 +38,7 @@ LIBS +=  $(INF_LIB)
 LDFLAGS += $(LIBS)
 F90FLAGS += -I$(INF_INC)
 
-PSYCLONE = psyclone  -api $(API) -l output $(DM) -d $(GOL_DIR)
+PSYCLONE = psyclone --config $(ROOT_DIR)/config/psyclone.cfg -api $(API) -l output $(DM) -d $(GOL_DIR)
 
 default: $(EXE)
 
