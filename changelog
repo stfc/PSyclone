@@ -1,3 +1,7 @@
+	1) PR #2477 for #2463. Add support for Fortran Namelist statements.
+
+release 2.5.0 14th of February 2024
+
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
 	directive.
 
@@ -161,6 +165,8 @@
 	LFRicStencils in the LFRic API.
 
 	59) PR #2490 towards #2447. Update PSyclone to use fparser 0.1.4 release.
+
+	60) PR #2501 for #2447. Create PSyclone release 2.5.0.
 
 release 2.4.0 29th of September 2023
 
