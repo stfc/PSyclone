@@ -76,7 +76,7 @@ def trans(psy):
         # S-0074-Illegal number or type of arguments to ubound [and lbound]
         # - keyword argument array; and  NVFORTRAN-S-0082-Illegal substring
         # expression for variable filtide
-        if invoke.name in ("bdytide_init", ):
+        if invoke.name in ("bdytide_init", "sbc_cpl_init"):
             print("Skipping", invoke.name)
             continue
 
