@@ -120,7 +120,9 @@ def enhance_tree_information(schedule):
                         ArrayType.Extent.ATTRIBUTE]))
         elif reference.symbol.name == "sbc_dcy":
             # The parser gets this wrong, it is a Call not an Array access
-            reference.symbol.specialise(RoutineSymbol)
+            if not isinstance(reference.symbol, RoutineSymbol):
+                # We haven't already specialised this Symbol.
+                reference.symbol.specialise(RoutineSymbol)
             call = Call(reference.symbol)
             for child in reference.children:
                 call.addchild(child.detach())
@@ -316,8 +318,10 @@ def insert_explicit_loop_parallelism(
                 num_nested_loops += 1
 
                 # If it has more than one children, the next loop will not be
-                # perfectly nested, so stop searching
-                if len(next_loop.loop_body.children) > 1:
+                # perfectly nested, so stop searching. If there is no child,
+                # we have an empty loop (which would cause a crash when
+                # accessing the child next)
+                if len(next_loop.loop_body.children) != 1:
                     break
 
                 next_loop = next_loop.loop_body.children[0]
