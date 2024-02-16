@@ -87,7 +87,7 @@ def trans(psy):
 
         # The nvidia compiler does not compile a loop over a string in
         # this subroutine:
-        if invoke.name in ("bdytide_init", ):
+        if invoke.name in ("bdytide_init", "sbc_cpl_init"):
             print("Skipping", invoke.name)
             continue
 
