@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023, Science and Technology Facilities Council.
+! Copyright (c) 2023-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,9 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
+
+! This module provides some module variables and a function/subroutine to
+! provide non-local symbols for testing kernel extraction and driver creation.
 
 module module_with_var_mod
 

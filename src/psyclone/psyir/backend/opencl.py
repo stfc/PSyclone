@@ -196,7 +196,7 @@ class OpenCLWriter(CWriter):
         :rtype: str
 
         :raises VisitorError: if a non-precision symbol is found with a \
-                              deferred interface.
+                              UnresolvedInterface.
         '''
         # OpenCL implementation assumptions:
         # - All array have the same size and it is given by the

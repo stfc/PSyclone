@@ -122,11 +122,11 @@ def test_asr_create(component_symbol):
                overwrite_datatype=datatype)
     assert asref.datatype is datatype
 
-    # Reference to a symbol of DeferredType
-    ssym = symbols.DataSymbol("grid", symbols.DeferredType())
+    # Reference to a symbol of UnresolvedType
+    ssym = symbols.DataSymbol("grid", symbols.UnresolvedType())
     asref = nodes.ArrayOfStructuresReference.create(
         ssym, [int_one.copy()], ["region", "startx"])
-    assert isinstance(asref.symbol.datatype, symbols.DeferredType)
+    assert isinstance(asref.symbol.datatype, symbols.UnresolvedType)
     assert isinstance(asref.children[0], nodes.StructureMember)
     assert isinstance(asref.children[0].children[0], nodes.Member)
 
@@ -142,8 +142,8 @@ def test_asr_create_errors(component_symbol):
     scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(scalar_symbol, [], [])
-    assert ("ArrayType, DeferredType or UnknownType but symbol 'scalar' has "
-            "type 'Scalar" in str(err.value))
+    assert ("ArrayType, UnresolvedType or UnsupportedType but symbol 'scalar' "
+            "has type 'Scalar" in str(err.value))
     # Missing children (for array-index expressions)
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(component_symbol,

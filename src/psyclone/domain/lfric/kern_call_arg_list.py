@@ -52,7 +52,7 @@ from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, DeferredType,
+    DataSymbol, DataTypeSymbol, UnresolvedType,
     ContainerSymbol, ImportInterface, ScalarType)
 
 # psyir has classes created at runtime
@@ -123,7 +123,7 @@ class KernCallArgList(ArgOrdering):
         user_type_symbol = mod_sym_tab.find_or_create(
             user_type,
             symbol_type=DataTypeSymbol,
-            datatype=DeferredType(),
+            datatype=UnresolvedType(),
             interface=ImportInterface(module))
         # Declare the actual user symbol in the local symbol table, using
         # the datatype from the root table:
@@ -401,8 +401,8 @@ class KernCallArgList(ArgOrdering):
         # The extent is not specified in the metadata so pass the value in
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        var_sym = DynStencils.dofmap_size_symbol(self._symtab, arg)
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [cell_ref],
                                     ScalarType.Intrinsic.INTEGER,
@@ -426,8 +426,8 @@ class KernCallArgList(ArgOrdering):
         # The extent is not specified in the metadata so pass the value in
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        var_sym = DynStencils.dofmap_size_symbol(self._symtab, arg)
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        var_sym = LFRicStencils.dofmap_size_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [":", cell_ref],
                                     ScalarType.Intrinsic.INTEGER,
@@ -452,10 +452,10 @@ class KernCallArgList(ArgOrdering):
         # the value in.
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
         # TODO #1915, this duplicates code in
-        # DynStencils.max_branch_length_name
-        unique_tag = DynStencils.stencil_unique_str(arg, "length")
+        # LFRicStencils.max_branch_length_name
+        unique_tag = LFRicStencils.stencil_unique_str(arg, "length")
         root_name = arg.name + "_max_branch_length"
 
         sym = self.append_integer_reference(root_name, tag=unique_tag)
@@ -497,8 +497,8 @@ class KernCallArgList(ArgOrdering):
         # add in stencil dofmap
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        var_sym = DynStencils.dofmap_symbol(self._symtab, arg)
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name, [":", ":", cell_ref],
                                     ScalarType.Intrinsic.INTEGER,
@@ -529,8 +529,8 @@ class KernCallArgList(ArgOrdering):
         # to the center even when the stencil is truncated at boundaries.
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        var_sym = DynStencils.dofmap_symbol(self._symtab, arg)
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        var_sym = LFRicStencils.dofmap_symbol(self._symtab, arg)
         cell_name, cell_ref = self.cell_ref_name(var_accesses)
         self.append_array_reference(var_sym.name,
                                     [":", ":", ":", cell_ref],

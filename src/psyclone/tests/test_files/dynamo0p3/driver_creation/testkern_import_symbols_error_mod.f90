@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2023, Science and Technology Facilities Council.
+! Copyright (c) 2017-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,10 @@
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified: I. Kavcic, Met Office
 ! Modified: J. Henrichs, Bureau of Meteorology
+
+! A kernel that tries to import a two symbols from a file that is incorrect
+! Fortran. This kernel is used to test error handling in kernel extraction
+! and driver creation.
 
 module testkern_import_symbols_error_mod
 

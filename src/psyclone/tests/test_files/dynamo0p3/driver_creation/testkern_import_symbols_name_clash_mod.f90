@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2023, Science and Technology Facilities Council.
+! Copyright (c) 2017-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,11 @@
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified: I. Kavcic, Met Office
 ! Modified: J. Henrichs, Bureau of Meteorology
+
+! This kernel imports and uses symbols from `module_with_name_clash_mod`,
+! which are names that are used in the PSy-layer. Care needs to be taken
+! when importing these symbols for writing out and reading in to avoid a
+! name clash.
 
 module testkern_import_symbols_name_clash_mod
 

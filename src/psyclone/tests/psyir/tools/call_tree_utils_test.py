@@ -189,7 +189,7 @@ def test_call_tree_get_used_symbols_from_modules():
             )
     assert non_locals_without_access == expected
 
-    # Check the handling of a symbol that is not found: _compute_non_locals
+    # Check the handling of a symbol that is not found: _compute_all_non_locals
     # should return None:
     ref = psyir.walk(Reference)[0]
     # Change the name of the symbol so that it is not in the symbol table:
@@ -278,7 +278,7 @@ def test_get_non_local_read_write_info(capsys):
             not in rw_info.read_list)
 
     # Check that we can ignore a module:
-    mod_man.ignore_module("constants_mod")
+    mod_man.add_ignore_module("constants_mod")
     rw_info = ReadWriteInfo()
     ctu.get_non_local_read_write_info(schedule, rw_info)
     out, _ = capsys.readouterr()
@@ -306,7 +306,7 @@ def test_call_tree_utils_outstanding_nonlocals(capsys):
              None)]
     ctu = CallTreeUtils()
     rw_info = ReadWriteInfo()
-    ctu._outstanding_nonlocals(todo, rw_info)
+    ctu._resolve_calls_and_unknowns(todo, rw_info)
     out, _ = capsys.readouterr()
     assert "Cannot find module 'unknown_module' - ignored." in out
     assert rw_info.read_list == []
@@ -315,7 +315,7 @@ def test_call_tree_utils_outstanding_nonlocals(capsys):
     # Now try to find a routine that does not exist in an existing module:
     todo = [('routine', 'module_with_var_mod', Signature("does-not-exist"),
              None)]
-    ctu._outstanding_nonlocals(todo, rw_info)
+    ctu._resolve_calls_and_unknowns(todo, rw_info)
     out, _ = capsys.readouterr()
     assert ("Cannot find symbol 'does-not-exist' in module "
             "'module_with_var_mod' - ignored." in out)
@@ -327,7 +327,7 @@ def test_call_tree_utils_outstanding_nonlocals(capsys):
     # this subroutine should then be reported:
     todo = [('unknown', 'module_with_var_mod',
              Signature("module_subroutine"), None)]
-    ctu._outstanding_nonlocals(todo, rw_info)
+    ctu._resolve_calls_and_unknowns(todo, rw_info)
     assert rw_info.read_list == [('module_with_var_mod',
                                   Signature("module_var_b"))]
     assert rw_info.write_list == [('module_with_var_mod',
@@ -380,8 +380,8 @@ def test_module_info_generic_interfaces():
 
 
 # -----------------------------------------------------------------------------
-def test_call_tree_utils_inout_parameters_nemo(fortran_reader):
-    '''Test detection of input and output parameters in NEMO.
+def test_call_tree_utils_inout_parameters_generic(fortran_reader):
+    '''Test detection of input and output parameters in the generic PSyIR.
     '''
     source = '''program test
                 integer :: ji, jj, jpj

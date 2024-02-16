@@ -35,13 +35,15 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
-from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
-    Reference, CodeBlock, Call, Return, IfBlock, Routine, \
-    IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType, ScalarType, RoutineSymbol, ImportInterface
-from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
-    HoistTrans, ProfileTrans, HoistLocalArraysTrans, Reference2ArrayRangeTrans
+from psyclone.psyir.nodes import (
+    Loop, Assignment, Directive, Container, Reference, CodeBlock, Call,
+    Return, IfBlock, Routine, IntrinsicCall)
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
+    RoutineSymbol, ImportInterface)
+from psyclone.psyir.transformations import (
+    HoistLoopBoundExprTrans, HoistTrans, ProfileTrans, HoistLocalArraysTrans,
+    Maxval2LoopTrans, Reference2ArrayRangeTrans)
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 from psyclone.transformations import TransformationError
 
@@ -118,7 +120,9 @@ def enhance_tree_information(schedule):
                         ArrayType.Extent.ATTRIBUTE]))
         elif reference.symbol.name == "sbc_dcy":
             # The parser gets this wrong, it is a Call not an Array access
-            reference.symbol.specialise(RoutineSymbol)
+            if not isinstance(reference.symbol, RoutineSymbol):
+                # We haven't already specialised this Symbol.
+                reference.symbol.specialise(RoutineSymbol)
             call = Call(reference.symbol)
             for child in reference.children:
                 call.addchild(child.detach())
@@ -129,6 +133,7 @@ def normalise_loops(
         schedule,
         hoist_local_arrays: bool = True,
         convert_array_notation: bool = True,
+        loopify_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
         hoist_expressions: bool = True,
         ):
@@ -139,11 +144,13 @@ def normalise_loops(
     :param schedule: the PSyIR Schedule to transform.
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
     :param bool hoist_local_arrays: whether to hoist local arrays.
-    :param bool convert_array_notation: wether to convert array notation \
+    :param bool convert_array_notation: whether to convert array notation
         to explicit loops.
-    :param bool convert_range_loops: whether to convert ranges to explicit \
+    :param bool loopify_array_intrinsics: whether to convert intrinsics that
+        operate on arrays to explicit loops (currently only maxval).
+    :param bool convert_range_loops: whether to convert ranges to explicit
         loops.
-    :param bool hoist_expressions: whether to hoist bounds and loop invariant \
+    :param bool hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
     '''
 
@@ -166,6 +173,14 @@ def normalise_loops(
                     Reference2ArrayRangeTrans().apply(reference)
                 except TransformationError as _:
                     pass
+
+    if loopify_array_intrinsics:
+        for intr in schedule.walk(IntrinsicCall):
+            if intr.intrinsic.name == "MAXVAL":
+                try:
+                    Maxval2LoopTrans().apply(intr)
+                except TransformationError as err:
+                    print(err.value)
 
     if convert_range_loops:
         # Convert all array implicit loops to explicit loops
@@ -303,8 +318,10 @@ def insert_explicit_loop_parallelism(
                 num_nested_loops += 1
 
                 # If it has more than one children, the next loop will not be
-                # perfectly nested, so stop searching
-                if len(next_loop.loop_body.children) > 1:
+                # perfectly nested, so stop searching. If there is no child,
+                # we have an empty loop (which would cause a crash when
+                # accessing the child next)
+                if len(next_loop.loop_body.children) != 1:
                     break
 
                 next_loop = next_loop.loop_body.children[0]
