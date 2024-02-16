@@ -35,10 +35,11 @@
 # Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 ''' Single location for the current version number of PSyclone. This is
-    used in setup.py and doc/conf.py '''
+    used in setup.py and
+    doc/{user_guide,developer_guide,reference_guide/source}/conf.py '''
 
 __MAJOR__ = 2
-__MINOR__ = 4
+__MINOR__ = 5
 __MICRO__ = 0
 
 __SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}"

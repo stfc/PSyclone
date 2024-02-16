@@ -64,8 +64,8 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
         Create a reference to a member of one or more elements of an array of
         structures.
 
-        The symbol to be referred to must be of DeferredType, UnknownType or
-        ArrayType. If the latter then the 'intrinsic' type of the array must
+        The symbol to be referred to must be of UnresolvedType, UnsupportedType
+        or ArrayType. If the latter then the 'intrinsic' type of the array must
         be specified with a DataTypeSymbol. The member of the
         structure that is accessed is specified using the 'members'
         argument. e.g. for a reference to "field(idx)%bundle(2)%flag" this
@@ -107,13 +107,13 @@ class ArrayOfStructuresReference(ArrayOfStructuresMixin, StructureReference):
                 f" must be a DataSymbol but found '{type(symbol).__name__}'.")
         if isinstance(symbol.datatype, symbols.ArrayType):
             base_type = symbol.datatype.intrinsic
-        elif isinstance(symbol.datatype, (symbols.DeferredType,
-                                          symbols.UnknownType)):
+        elif isinstance(symbol.datatype, (symbols.UnresolvedType,
+                                          symbols.UnsupportedType)):
             base_type = symbol.datatype
         else:
             raise TypeError(
                 f"An ArrayOfStructuresReference must refer to a symbol of "
-                f"ArrayType, DeferredType or UnknownType but symbol "
+                f"ArrayType, UnresolvedType or UnsupportedType but symbol "
                 f"'{symbol.name}' has type '{symbol.datatype}")
         if not isinstance(indices, list) or not indices:
             raise TypeError(

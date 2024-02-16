@@ -120,7 +120,7 @@ def test_initialise():
 def test_initialise_errors(monkeypatch):
     '''
     Check that the initialise method raises the expected errors when it
-    encounters arguments of unknown type.
+    encounters arguments of UnsupportedType.
 
     '''
     _, info = parse(os.path.join(BASE_PATH,

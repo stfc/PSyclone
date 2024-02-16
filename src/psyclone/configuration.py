@@ -402,7 +402,7 @@ class Config:
         from psyclone.parse import ModuleManager
         mod_manager = ModuleManager.get()
         for module_name in ignore_modules:
-            mod_manager.ignore_module(module_name)
+            mod_manager.add_ignore_module(module_name)
 
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023, Science and Technology Facilities Council.
+! Copyright (c) 2023-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,13 @@
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
 
+! This module declares some variable names that will clash with names used
+! in the PSy layer. It is used by some kernels which allows testing the
+! name clash handling.
+
 module module_with_name_clash_mod
 
   integer :: module_var_a, f1_data, f2_data
-
 
 contains
 

@@ -71,7 +71,7 @@ class CallTreeUtils():
         :type routine: :py:class:`psyclone.psyir.nodes.Routine`
 
         :returns: list of non-local references
-        :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`]]
+        :rtype: list[tuple[str, str, :py:class:`psyclone.core.Signature`]]
 
 
         '''
@@ -164,7 +164,7 @@ class CallTreeUtils():
             all input parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
         :type variables_info:
@@ -172,7 +172,7 @@ class CallTreeUtils():
         :param options: a dictionary with options for the CallTreeUtils
             which will also be used when creating the VariablesAccessInfo
             instance if required.
-        :type param: Optional[Dict[str, Any]]
+        :type param: Optional[dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
             set to a True value, arrays used as first parameter to the
             PSyIR operators lbound, ubound, or size will be reported as
@@ -201,7 +201,7 @@ class CallTreeUtils():
             output parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information,
             can be used to avoid repeatedly collecting this information.
         :type variables_info: \
@@ -209,7 +209,7 @@ class CallTreeUtils():
         :param options: a dictionary with options for the CallTreeUtils
             which will also be used when creating the VariablesAccessInfo
             instance if required.
-        :type param: Optional[Dict[str, Any]]
+        :type param: Optional[dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
             set to a True value, arrays used as first parameter to the
             PSyIR operators lbound, ubound, or size will be reported as
@@ -241,14 +241,14 @@ class CallTreeUtils():
         result object.
 
         :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param bool collect_non_local_symbols: whether non-local symbols
             (i.e. symbols used in other modules either directly or
             indirectly) should be included in the in/out information.
         :param options: a dictionary with options for the CallTreeUtils
             which will also be used when creating the VariablesAccessInfo
             instance if required.
-        :type options: Optional[Dict[str, Any]]
+        :type options: Optional[dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is
             set to a True value, arrays used as first parameter to the
             PSyIR operators lbound, ubound, or size will be reported as
@@ -283,6 +283,8 @@ class CallTreeUtils():
         todo = []
         mod_manager = ModuleManager.get()
         for node in node_list:
+            # TODO #2494 - we need to support calls in order to work for
+            # generic PSyIR.
             for kernel in node.walk(Kern):
                 if isinstance(kernel, BuiltIn):
                     # Builtins don't have non-local accesses
@@ -300,15 +302,18 @@ class CallTreeUtils():
                           f"ignored.")
                     continue
 
+                # TODO #2435: once we have interface support, this will be
+                # handled by the container node.
                 all_possible_routines = mod_info.resolve_routine(kernel.name)
                 for routine_name in all_possible_routines:
                     psyir = \
                         mod_info.get_psyir().get_routine_psyir(routine_name)
                     todo.extend(self.get_non_local_symbols(psyir))
-        return self._outstanding_nonlocals(todo, read_write_info)
+        return self._resolve_calls_and_unknowns(todo, read_write_info)
 
     # -------------------------------------------------------------------------
-    def _outstanding_nonlocals(self, todo, read_write_info):
+    def _resolve_calls_and_unknowns(self, outstanding_nonlocals,
+                                    read_write_info):
         '''This function updates the list of non-local symbols by:
         1. replacing all subroutine calls with the list of their corresponding
             non-local symbols.
@@ -319,9 +324,9 @@ class CallTreeUtils():
         The actual non-local accesses will then be added to the ReadWriteInfo
         object.
 
-        :param todo: the information about symbol type, module_name,
-            symbol_name and access information
-        :type todo: List[Tuple[str,str, str,
+        :param outstanding_nonlocals: the information about symbol type,
+            module_name, symbol_name and access information
+        :type outstanding_nonlocals: list[tuple[str, str, str,
                               :py:class:`psyclone.core.Signature`,str]]
         :param read_write_info: information about all input and output
             parameters.
@@ -336,8 +341,8 @@ class CallTreeUtils():
         # be filtered out.
         in_vars = set()
         out_vars = set()
-        while todo:
-            info = todo.pop()
+        while outstanding_nonlocals:
+            info = outstanding_nonlocals.pop()
             if info in done:
                 continue
             done.add(info)
@@ -350,33 +355,34 @@ class CallTreeUtils():
                     # For now ignore this
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._outstanding_nonlocals] Unknown "
-                          f"routine '{signature[0]} - ignored.")
+                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                          f"Unknown routine '{signature[0]} - ignored.")
                     continue
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
-                          f"find module '{module_name}' - ignored.")
+                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                          f"Cannot find module '{module_name}' - ignored.")
                     continue
 
-                all_routines = mod_info.resolve_routine(signature[0])
                 # Add the list of non-locals to our todo list. Handle
                 # generic interfaces:
                 all_routines = mod_info.resolve_routine(signature[0])
                 for routine_name in all_routines:
-                    psyir = \
+                    routine = \
                         mod_info.get_psyir().get_routine_psyir(routine_name)
-                    if not psyir:
+                    if routine:
+                        # Add the list of non-locals to our todo list:
+                        outstanding_nonlocals.extend(
+                            self.get_non_local_symbols(routine))
+                    else:
                         # TODO #11: Add proper logging
                         # TODO #2120: Handle error
-                        print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
-                              f"find symbol '{signature[0]}' in module "
+                        print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                              f"Cannot find symbol '{signature[0]}' in module "
                               f"'{module_name}' - ignored.")
-                    else:
-                        todo.extend(self.get_non_local_symbols(psyir))
                 continue
 
             if external_type == "unknown":
@@ -387,16 +393,16 @@ class CallTreeUtils():
                 except FileNotFoundError:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._outstanding_nonlocals] Cannot "
-                          f"find module '{module_name}' - ignoring "
+                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                          f"Cannot find module '{module_name}' - ignoring "
                           f"unknown symbol '{signature}'.")
                     continue
 
                 if mod_info.contains_routine(str(signature)):
                     # It is a routine, which we need to analyse for the use
                     # of non-local symbols:
-                    todo.append(("routine", module_name, signature,
-                                 access_info))
+                    outstanding_nonlocals.append(("routine", module_name,
+                                                  signature, access_info))
                     continue
                 # Check if it is a constant (the symbol should always be found,
                 # but if a module cannot be parsed and get_symbol it will
@@ -443,7 +449,7 @@ class CallTreeUtils():
         :type routine: :py:class:`psyclone.psyir.nodes.Routine`
 
         :returns: the non-local accesses in this routine.
-        :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`,
+        :rtype: list[tuple[str, str, :py:class:`psyclone.core.Signature`,
             :py:class:`psyclone.core.SingleVariableAccessInfo`]]
 
         '''

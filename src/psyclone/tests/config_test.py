@@ -796,7 +796,7 @@ def test_ignore_modules(tmpdir, monkeypatch):
 
     assert mod_manager.ignores() == {'mpi', 'netcdf'}
 
-    # Make sure if works if IGNORE_MODULES is not specified at all by checking
+    # Make sure it works if IGNORE_MODULES is not specified at all by checking
     # that the module manager list of modules to ignore stays empty.
     content = re.sub(r"^IGNORE_MODULES.*$",
                      "",

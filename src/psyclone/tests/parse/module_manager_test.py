@@ -262,7 +262,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
 
     # Instruct the module manager to ignore a_mod, which means
     # it should only have b_mod and c_mod in its dependencies:
-    mod_man.ignore_module("a_mod")
+    mod_man.add_ignore_module("a_mod")
     all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
     assert "a_mod" not in all_c
     assert "b_mod" in all_c
@@ -289,12 +289,11 @@ def test_mod_man_sort_modules(capsys):
     deps_sorted = mod_man.sort_modules(deps)
     assert deps_sorted == ["b", "c", "a"]
     out, _ = capsys.readouterr()
-    assert ("Module 'c' contains a dependency to 'netcdf', for which we "
-            "have no dependencies." in out)
+    assert "Cannot find module `netcdf` which is used by module 'c'." in out
 
     # Ignore the netcdf dependencies:
     deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
-    mod_man.ignore_module("netcdf")
+    mod_man.add_ignore_module("netcdf")
     deps_sorted = mod_man.sort_modules(deps)
     assert deps_sorted == ["b", "c", "a"]
     out, _ = capsys.readouterr()
@@ -321,7 +320,7 @@ def test_mod_man_sort_modules(capsys):
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_mod_manager_ignore_modules():
+def test_mod_manager_add_ignore_modules():
     '''Tests that ignoring modules work. We use the standard
     directory and file setup (see mod_man_test_setup_directories).
     tmp/d1/a_mod.f90
@@ -334,13 +333,13 @@ def test_mod_manager_ignore_modules():
     '''
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
-    mod_man.add_search_path("d2")
 
     # First finds a_mod, which will parse the first directory
-    mod_man.ignore_module("a_mod")
+    mod_man.add_ignore_module("a_mod")
     mod_info = mod_man.get_module_info("a_mod")
     assert mod_info is None
     assert "a_mod" in mod_man.ignores()
 
-    mod_info = mod_man.get_module_info("d_mod")
-    assert mod_info.filename == "d2/d_mod.X90"
+    # Just in case verify that other modules are not affected
+    mod_info = mod_man.get_module_info("b_mod")
+    assert mod_info.filename == "d1/d3/b_mod.F90"

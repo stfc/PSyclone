@@ -1,7 +1,7 @@
  ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2023, Science and Technology Facilities Council.
+! Copyright (c) 2017-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,11 @@
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 ! Modified: I. Kavcic, Met Office
 ! Modified: J. Henrichs, Bureau of Meteorology
+
+! This kernel uses a function, subroutine, constant and variables from this
+! module. It is used to check that kernel extraction and driver creation
+! will correctly these usages of module symbols as external to the
+! PSy-layer.
 
 module testkern_import_symbols_mod
 

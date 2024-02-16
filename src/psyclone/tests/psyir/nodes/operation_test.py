@@ -50,9 +50,9 @@ from psyclone.psyir.nodes import (
     ArrayReference, BinaryOperation, colored, IntrinsicCall,
     Literal, Range, Reference, Return, StructureReference, UnaryOperation)
 from psyclone.psyir.symbols import (
-    ArrayType, BOOLEAN_TYPE, DataSymbol, DeferredType, INTEGER_SINGLE_TYPE,
+    ArrayType, BOOLEAN_TYPE, DataSymbol, UnresolvedType, INTEGER_SINGLE_TYPE,
     REAL_DOUBLE_TYPE, REAL_SINGLE_TYPE, ScalarType, Symbol, StructureType,
-    UnknownFortranType)
+    UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
 
 
@@ -187,14 +187,13 @@ def test_binaryop_scalar_datatype():
     iref2 = Reference(DataSymbol("itmp2", INTEGER_SINGLE_TYPE))
     binop3 = BinaryOperation.create(oper, iref1.copy(), iref2)
     assert binop3.datatype == INTEGER_SINGLE_TYPE
-    # When any one of the arguments is of UnknownType then we know
+    # When any one of the arguments is of UnsupportedType then we know
     # nothing about the type of the result.
     uref1 = Reference(
         DataSymbol("trouble",
-                   UnknownFortranType("real, volatile :: trouble")))
+                   UnsupportedFortranType("real, volatile :: trouble")))
     binop4 = BinaryOperation.create(oper, iref1.copy(), uref1)
-    # TODO #2419 - DeferredType should probably be UnsupportedType really.
-    assert isinstance(binop4.datatype, DeferredType)
+    assert isinstance(binop4.datatype, UnresolvedType)
     binop5 = BinaryOperation.create(BinaryOperation.Operator.EQ,
                                     iref1.copy(), iref2.copy())
     assert binop5.datatype == BOOLEAN_TYPE
@@ -332,7 +331,7 @@ def test_binaryop_array_section_datatype():
     dtype1 = binaryoperation.datatype
     assert len(dtype1.shape) == 1
     assert dtype1.shape[0].lower.value == "1"
-    assert dtype1.shape[0].upper.debug_string() == "(3 - 2) / 1 + 1"
+    assert dtype1.shape[0].upper.debug_string() == "3 - 2 + 1"
     # Repeat but for a non-contiguous 1D section of a rank 2, integer array.
     ref3 = ArrayReference.create(
         DataSymbol("tmp3", iarrtype),
@@ -344,7 +343,7 @@ def test_binaryop_array_section_datatype():
     assert dtype3.intrinsic == REAL_SINGLE_TYPE.intrinsic
     assert len(dtype3.shape) == 1
     assert dtype3.shape[0].lower.value == "1"
-    assert dtype3.shape[0].upper.debug_string() == "(3 - 2) / 1 + 1"
+    assert dtype3.shape[0].upper.debug_string() == "3 - 2 + 1"
 
 
 def test_binaryop_datatype_recursion():
@@ -372,7 +371,7 @@ def test_binaryop_datatype_recursion():
     assert dtype1.intrinsic == REAL_SINGLE_TYPE.intrinsic
     assert len(dtype1.shape) == 1
     assert dtype1.shape[0].lower.value == "1"
-    assert dtype1.shape[0].upper.debug_string() == "(3 - 2) / 1 + 1"
+    assert dtype1.shape[0].upper.debug_string() == "3 - 2 + 1"
 
 
 def test_binaryop_structure_datatype():
@@ -403,26 +402,26 @@ def test_binaryop_structure_datatype():
     assert dtype2.intrinsic == REAL_SINGLE_TYPE.intrinsic
 
 
-def test_binaryop_deferred_datatype():
+def test_binaryop_unresolved_datatype():
     '''
-    Test that the BinaryOperation datatype always returns DeferredType if
-    either (or both) operand(s) is of DeferredType.
+    Test that the BinaryOperation datatype always returns UnresolvedType if
+    either (or both) operand(s) is of UnresolvedType.
 
     '''
-    wind = Reference(DataSymbol("wind", DeferredType()))
+    wind = Reference(DataSymbol("wind", UnresolvedType()))
     sea = Reference(DataSymbol("sea", INTEGER_SINGLE_TYPE))
     oper = BinaryOperation.Operator.ADD
     binop1 = BinaryOperation.create(oper, wind, sea)
-    assert isinstance(binop1.datatype, DeferredType)
+    assert isinstance(binop1.datatype, UnresolvedType)
     binop2 = BinaryOperation.create(oper, sea.copy(), wind.copy())
-    assert isinstance(binop2.datatype, DeferredType)
+    assert isinstance(binop2.datatype, UnresolvedType)
     binop3 = BinaryOperation.create(oper, wind.copy(), wind.copy())
-    assert isinstance(binop3.datatype, DeferredType)
-    # An Array of deferred type.
-    arrtype = ArrayType(DeferredType(), [10])
+    assert isinstance(binop3.datatype, UnresolvedType)
+    # An Array of UnresolvedType.
+    arrtype = ArrayType(UnresolvedType(), [10])
     air = Reference(DataSymbol("air", arrtype))
     binop4 = BinaryOperation.create(oper, air, sea.copy())
-    assert isinstance(binop4.datatype, DeferredType)
+    assert isinstance(binop4.datatype, UnresolvedType)
 
 
 def test_binaryop_partial_datatype():
@@ -432,8 +431,9 @@ def test_binaryop_partial_datatype():
 
     '''
     iarrtype = ArrayType(INTEGER_SINGLE_TYPE, [10, 5])
-    utype = UnknownFortranType("integer, dimension(10,5), pointer :: ref1",
-                               partial_datatype=iarrtype)
+    utype = UnsupportedFortranType(
+                "integer, dimension(10,5), pointer :: ref1",
+                partial_datatype=iarrtype)
     ref1 = Reference(DataSymbol("ref1", utype))
     ref2 = Reference(DataSymbol("ref2", REAL_SINGLE_TYPE))
     oper = BinaryOperation.Operator.MUL
@@ -441,13 +441,14 @@ def test_binaryop_partial_datatype():
     dtype1 = binop1.datatype
     assert isinstance(dtype1, ArrayType)
     assert dtype1.intrinsic == REAL_SINGLE_TYPE.intrinsic
-    # Create a second Symbol of UnknownFortranType.
+    # Create a second Symbol of UnsupportedFortranType.
     arrtype3 = ArrayType(REAL_SINGLE_TYPE, [10, 10])
-    utype3 = UnknownFortranType("real, dimension(10,10), pointer :: ref3",
-                                partial_datatype=arrtype3)
+    utype3 = UnsupportedFortranType(
+                "real, dimension(10,10), pointer :: ref3",
+                partial_datatype=arrtype3)
     # We are unable to determine the type of a Reference to a
-    # subsection of an array of UnknownType (since that would require
-    # updating the original UnknownType with a new shape).
+    # subsection of an array of UnsupportedType (since that would require
+    # updating the original UnsupportedType with a new shape).
     ref3 = ArrayReference.create(
         DataSymbol("ref3", utype3),
         [":", Range.create(Literal("5", INTEGER_SINGLE_TYPE),
@@ -455,11 +456,12 @@ def test_binaryop_partial_datatype():
     # Create ref1(:,:) * ref3(:,5:10)
     binop3 = BinaryOperation.create(oper, ref1.copy(), ref3)
     dtype3 = binop3.datatype
-    assert isinstance(dtype3, DeferredType)
+    assert isinstance(dtype3, UnresolvedType)
     # However, if a subsection is not involved then we are OK.
     arrtype4 = ArrayType(REAL_SINGLE_TYPE, [10, 5])
-    utype4 = UnknownFortranType("real, dimension(10,5), pointer :: ref3",
-                                partial_datatype=arrtype4)
+    utype4 = UnsupportedFortranType(
+                "real, dimension(10,5), pointer :: ref3",
+                partial_datatype=arrtype4)
     ref4 = Reference(DataSymbol("ref4", utype4))
     binop4 = BinaryOperation.create(oper, ref1.copy(), ref4)
     dtype4 = binop4.datatype
@@ -469,9 +471,9 @@ def test_binaryop_partial_datatype():
     assert dtype4.shape[1].lower.value == "1"
     assert dtype4.shape[1].upper.value == "5"
     assert dtype4.intrinsic == REAL_SINGLE_TYPE.intrinsic
-    # A reference to an array of unknown type but with partial type info.
-    utype5 = UnknownFortranType("real, pointer :: ref5",
-                                partial_datatype=REAL_SINGLE_TYPE)
+    # A reference to an array of UnsupportedType but with partial type info.
+    utype5 = UnsupportedFortranType("real, pointer :: ref5",
+                                    partial_datatype=REAL_SINGLE_TYPE)
     arrtype5 = ArrayType(utype5, [8])
     ref5 = Reference(DataSymbol("ref5", arrtype5))
     binop5 = BinaryOperation.create(oper, ref2.copy(), ref5)
@@ -479,13 +481,13 @@ def test_binaryop_partial_datatype():
     assert isinstance(dtype5, ArrayType)
     assert dtype5.intrinsic == REAL_SINGLE_TYPE.intrinsic
     assert len(dtype5.shape) == 1
-    # Reference to an array of unknown type without partialy type information.
-    utype6 = UnknownFortranType("real, dimension(10,5), pointer :: ref6")
+    # Reference to an array of UnsupportedType without partial type information
+    utype6 = UnsupportedFortranType("real, dimension(10,5), pointer :: ref6")
     arrtype6 = ArrayType(utype6, [10, 5])
     ref6 = Reference(DataSymbol("ref6", arrtype6))
     binop6 = BinaryOperation.create(oper, ref4.copy(), ref6)
     dtype6 = binop6.datatype
-    assert isinstance(dtype6, DeferredType)
+    assert isinstance(dtype6, UnresolvedType)
 
 
 def test_binaryoperation_intrinsic_fn_datatype():
@@ -493,7 +495,7 @@ def test_binaryoperation_intrinsic_fn_datatype():
     Check that we can get the datatype of an operation involving the result
     of an intrinsic function.
 
-    TODO #1799 - this just returns DeferredType at the minute and needs
+    TODO #1799 - this just returns UnresolvedType at the minute and needs
     implementing.
 
     '''
@@ -503,7 +505,7 @@ def test_binaryoperation_intrinsic_fn_datatype():
     arg2 = Reference(DataSymbol("scalar", INTEGER_SINGLE_TYPE))
     oper = BinaryOperation.Operator.ADD
     binop = BinaryOperation.create(oper, arg1, arg2)
-    assert isinstance(binop.datatype, DeferredType)
+    assert isinstance(binop.datatype, UnresolvedType)
 
 
 # Test UnaryOperation class

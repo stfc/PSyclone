@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023, Science and Technology Facilities Council.
+! Copyright (c) 2023-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,11 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
+
+! This test program contains all test cases of subroutines, programs and
+! functions using different non-local symbols for testing the call tree
+! functionality, but no actual kernel calls. Full details in:
+! call_tree_utils_test.test_call_tree_compute_all_non_locals_non_kernel()
 
 module module_call_tree_mod
 

@@ -38,13 +38,13 @@
 
 '''
 from psyclone.psyir.nodes import DataNode
-from psyclone.psyir.symbols import DeferredType
+from psyclone.psyir.symbols import UnresolvedType
 
 
 def test_datanode_datatype():
     '''
-    Test that the base implementation of datatype just returns DeferredType.
+    Test that the base implementation of datatype just returns UnresolvedType.
 
     '''
     dnode = DataNode()
-    assert isinstance(dnode.datatype, DeferredType)
+    assert isinstance(dnode.datatype, UnresolvedType)
