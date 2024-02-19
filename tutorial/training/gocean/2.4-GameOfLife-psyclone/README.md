@@ -154,6 +154,9 @@ and the full implementation. Finish the declaration of the meta-data.
 > declaration with the actual code, but it is on the todo list
 > of the PSyclone developers.
 
+You also need to implement the actual kernel for count_neighbours,
+i.e. adding up the values of the 8 neighbours.
+
 
 ## Update `time_step_mod`
 Now that all kernels have been implemented, we can update the
