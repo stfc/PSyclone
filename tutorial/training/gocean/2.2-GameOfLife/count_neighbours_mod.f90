@@ -10,27 +10,26 @@ contains
     !> each cell how many of its 8 neighbours are live.
     !>
     !> @param[out] neighbours On exit contains the number of alive neighbours.
-    !> @param[in]  c    The current state.
+    !> @param[in]  current    The current state.
 
-    subroutine count_neighbours(neighbours, c)
+    subroutine count_neighbours(neighbours, current)
         USE field_mod, only            : r2d_field
 
         implicit none
         ! It has to be declared inout - even though the data is only written,
         ! the r2d_field type exists, so it's input as well
         TYPE(r2d_field), intent(inout) :: neighbours
-        ! Sorry for the short name, it keeps the line length below shorter
-        TYPE(r2d_field), intent(in)    :: c
+        TYPE(r2d_field), intent(in)    :: current
 
         integer                        :: xstart, xstop, ystart, ystop
         integer                        :: i, j
 
         ! The outer elements is the 'boundary' area, which is set to 0.
         ! We only loop over the internal points
-        xstart = c%internal%xstart
-        xstop  = c%internal%xstop
-        ystart = c%internal%ystart
-        ystop  = c%internal%ystop
+        xstart = current%internal%xstart
+        xstop  = current%internal%xstop
+        ystart = current%internal%ystart
+        ystop  = current%internal%ystop
 
         do j=ystart, ystop
             do i=xstart, xstop
@@ -41,3 +40,4 @@ contains
     end subroutine count_neighbours
 
 end module count_neighbours_mod
+
