@@ -32,19 +32,19 @@ contains
     !>
     !> @param[in]  i, j       Coordinates of the cell to update.
     !> @param[out] neighbours The number of neighbours for each cell.
-    !> @param[out] c          The current state that will be updated.
+    !> @param[out] current    The current state that will be updated.
 
-    subroutine count_neighbours_code(i, j, neighbours, c)
+    subroutine count_neighbours_code(i, j, neighbours, current)
         implicit none
         double precision, dimension(:,:), intent(out) :: neighbours
         ! Sorry for the short name, it keeps the line length below shorter
-        double precision, dimension(:,:), intent(in)  :: c
+        double precision, dimension(:,:), intent(in)  :: current
         integer, intent(in)                           :: i, j
 
         ! Count the neighbours that are alive
-        neighbours(i, j) = c(i-1, j-1) + c(i, j-1) + c(i+1, j-1) &
-                         + c(i-1, j  )             + c(i+1, j  ) &
-                         + c(i-1, j+1) + c(i, j+1) + c(i+1, j+1)
+        neighbours(i, j) = current(i-1, j-1) + current(i, j-1) + current(i+1, j-1) &
+                         + current(i-1, j  )                   + current(i+1, j  ) &
+                         + current(i-1, j+1) + current(i, j+1) + current(i+1, j+1)
 
 
     end subroutine count_neighbours_code
