@@ -2438,3 +2438,49 @@ def test_apply_merges_symbol_table_with_routine(fortran_reader):
     inline_trans.apply(routine)
     # The i_1 symbol is the renamed i from the inlined call.
     assert psyir.walk(Routine)[0].symbol_table.get_symbols()['i_1'] is not None
+
+
+def test_apply_argument_clash(fortran_reader, fortran_writer):
+    '''
+    Check that the dummy arguments to the inlined routine are not included
+    when checking for clashes (since they will be replaced by the formal
+    arguments to the call).
+    '''
+
+    code_clash = """
+  subroutine run_it()
+    integer :: i
+    integer :: Istr
+    real :: a(10)
+
+    do i=Istr,10
+      a(i) = 1.0
+    end do
+
+    call sub(Istr)
+
+  end subroutine run_it
+
+  subroutine sub(Istr)
+    integer :: Istr
+    real :: x
+    x = 2.0*x
+    call sub_sub(Istr)
+  end subroutine sub
+
+  subroutine sub_sub(Istr)
+    integer :: i
+    integer :: Istr
+    real :: b(10)
+
+    do i=Istr,10
+      b(i) = 1.0
+    end do
+
+  end subroutine sub_sub"""
+
+    psyir = fortran_reader.psyir_from_source(code_clash)
+    call = psyir.walk(Call)[1]
+    inline_trans = InlineTrans()
+    inline_trans.apply(call)
+    assert fortran_writer(psyir) == "andy"#regen_code_clash

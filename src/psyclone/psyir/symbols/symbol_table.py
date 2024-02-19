@@ -548,7 +548,7 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def check_for_clashes(self, other_table):
+    def check_for_clashes(self, other_table, include_arguments=True):
         '''
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
@@ -556,13 +556,31 @@ class SymbolTable():
 
         :param other_table: the table for which to check for clashes.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param Optional[bool] include_arguments: whether to include Symbols
+            which have an ArgumentInterface in `other_table`.
 
-        :raises SymbolError: if there would be an unresolvable name clash \
+        :raises SymbolError: if there would be an unresolvable name clash
             when importing symbols from `other_table` into this table.
 
         '''
+        if include_arguments:
+            symbols_to_skip = []
+        else:
+            symbols_to_skip = other_table.argument_list[:]
+
+        try:
+            # In the case where the 'other_table' belongs to a routine,
+            # we don't want or need the symbol representing that routine.
+            rsym = other_table.lookup_with_tag("own_routine_symbol")
+            if isinstance(rsym, RoutineSymbol):
+                # We only want to skip RoutineSymbols, not DataSymbols (which
+                # we may have if we have a Fortran function).
+                symbols_to_skip.append(rsym)
+        except KeyError:
+            pass
+
         for other_sym in other_table.symbols:
-            if other_sym.name not in self:
+            if other_sym.name not in self or other_sym in symbols_to_skip:
                 continue
             # We have a name clash.
             this_sym = self.lookup(other_sym.name)
@@ -584,6 +602,7 @@ class SymbolTable():
                         f"the supplied table imports it from Container "
                         f"'{other_sym.interface.container_symbol.name}'.")
                 continue
+            import pdb; pdb.set_trace()
             # Can either of them be renamed?
             try:
                 self.rename_symbol(this_sym, "", dry_run=True)
@@ -744,7 +763,8 @@ class SymbolTable():
                             f"instance but got '{type(other_table).__name__}'")
 
         try:
-            self.check_for_clashes(other_table)
+            self.check_for_clashes(other_table,
+                                   include_arguments=include_arguments)
         except SymbolError as err:
             raise SymbolError(
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
