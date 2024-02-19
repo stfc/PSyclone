@@ -9,7 +9,20 @@ module compute_born_mod
     public compute_born, compute_born_code
     type, extends(kernel_type) :: compute_born
        type(go_arg), dimension(TODO) :: meta_args =
+           ! TODO: Declare the three kernel arguments of the kernel. It takes
+           ! three fields as argument, the first one 'born' a written field
+           ! that contains if a new cell was born, the second is a read field
+           ! that contains the current state (1 live, 0 empty), and then a
+           ! read field that contains the number of neighbours.
+
+       ! TODO: Declare this kernel to operate on the GO_INTERNAL_PTS
+       integer
+       ! TODO: Declare that this kernel uses GO_OFFSET_SW
+       integer
+
        contains
+          ! TODO: Declare code as the actual kernel procedure
+          procedure, nopass
        end type compute_born
 
 contains
