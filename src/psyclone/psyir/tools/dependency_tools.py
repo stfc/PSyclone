@@ -955,7 +955,7 @@ class DependencyTools():
         loop_var_name = loop_variable.name
         # Compare all accesses with the first one. If the loop variable
         # is used in a different subscript, raise an error. We test this
-        # by computing the partition of the indices:s
+        # by computing the partition of the indices:
         comp_1 = all_accesses[0].component_indices
         # Note that we compare an access with itself, this will
         # help us detecting if an array is accessed without using
@@ -964,17 +964,22 @@ class DependencyTools():
             comp_other = other_access.component_indices
             partitions = self._partition(comp_1, comp_other,
                                          [loop_var_name])
-            var_found = False
             for (set_of_vars, index) in partitions:
                 # Find the partition that contains the loop variable:
-                if loop_var_name not in set_of_vars:
-                    continue
-                var_found = True
-                # If the loop variable contains more than one index, it is
-                # used inconsistent:
-                if len(index) <= 1:
-                    continue
-                # Raise the appropriate error message:
+                if loop_var_name in set_of_vars:
+                    break
+            else:
+                error = (f"Variable '{var_info1.signature[0]}' does not "
+                         f"depend on loop variable '{loop_var_name}', but is "
+                         f"read and written")
+                self._add_message(error, DTCode.ERROR_READ_WRITE_NO_LOOP_VAR,
+                                  [var_info1.signature[0]])
+                return False
+
+            # If the loop variable contains more than one index, it is
+            # used inconsistent:
+            if len(index) > 1:
+                # Add the appropriate error message:
                 access1 = all_accesses[0].node.debug_string()
                 access2 = other_access.node.debug_string()
                 error = (f"Variable '{var_info1.signature[0]}' is written to "
