@@ -133,13 +133,19 @@ def test_generate_lfric_adjoint_multi_routine(fortran_reader, fortran_writer):
     '''
     psyir = fortran_reader.psyir_from_source(MULTI_ROUTINE_CODE)
     adj_psyir = generate_lfric_adjoint(psyir, ["var1"])
-    result = fortran_writer(adj_psyir)
+    result = fortran_writer(adj_psyir).lower()
     assert "subroutine adj_test_code_r4()" in result
     assert "subroutine adj_test_code_r8()" in result
     # Check that the names of the routines in the two interfaces have
     # been updated.
     assert "module procedure :: adj_test_code_r4, adj_test_code_r8" in result
     assert "module procedure :: adj_test_code_r8, adj_test_code_r4" in result
+    # Check that the name of the interface associated with the kernel
+    # implementation has been updated.
+    assert "end type adj_test_type" in result
+    if "interface adj_test_code" not in result:
+        pytest.xfail("#1946 updating metadata for mixed-precision kernels not "
+                     "yet supported.")
 
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
