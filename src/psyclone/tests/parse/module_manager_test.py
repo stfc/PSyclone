@@ -44,26 +44,8 @@ from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 
 
-@pytest.fixture(scope='function', autouse=True)
-def clear_module_manager_instance():
-    ''' The tests in this module all assume that there is no pre-existing
-    ModuleManager object, so this fixture ensures that the module manager
-    instance is deleted before and after each test function. The latter
-    makes sure that any other test executed next will automatically reload
-    the default ModuleManager file.
-    '''
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-    # Now execute all tests
-    yield
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_manager_instance():
     '''Tests the singleton functionality.'''
     mod_man1 = ModuleManager.get()
@@ -78,6 +60,7 @@ def test_mod_manager_instance():
 
 
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_manager_get_modules_in_file():
     '''Tests that file names are mapped as expected to the module they
     contain. '''
@@ -90,7 +73,7 @@ def test_mod_manager_get_modules_in_file():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_directory_reading():
     '''Tests that directories are read as expected. We use the standard
@@ -132,7 +115,7 @@ def test_mod_manager_directory_reading():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_precedence_preprocessed():
     '''Make sure that a .f90 file is preferred over a .F90 file. Note that
@@ -153,7 +136,7 @@ def test_mod_manager_precedence_preprocessed():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_add_files_from_dir():
     '''Tests that directories are read as expected. We use the standard
@@ -181,7 +164,7 @@ def test_mod_manager_add_files_from_dir():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_get_module_info():
     '''Tests that module information is returned as expected. We use the
@@ -229,7 +212,8 @@ def test_mod_manager_get_module_info():
     assert list(mod_man._remaining_search_paths) == []
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
                                                        "c_mod", "d_mod",
-                                                       "e_mod"])
+                                                       "e_mod", "g_mod",
+                                                       "error_mod"])
 
     with pytest.raises(FileNotFoundError) as err:
         mod_man.get_module_info("does_not_exist")
@@ -240,7 +224,7 @@ def test_mod_manager_get_module_info():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_get_all_dependencies_recursively(capsys):
     '''Tests that dependencies are correctly collected recursively. We use
@@ -271,30 +255,53 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     out, _ = capsys.readouterr()
     assert "Could not find module 'netcdf'" in out
 
+    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    assert "a_mod" in all_c
+    assert "b_mod" in all_c
+    assert "c_mod" in all_c
+
+    # Instruct the module manager to ignore a_mod, which means
+    # it should only have b_mod and c_mod in its dependencies:
+    mod_man.add_ignore_module("a_mod")
+    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    assert "a_mod" not in all_c
+    assert "b_mod" in all_c
+    assert "c_mod" in all_c
+
 
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_man_sort_modules(capsys):
     '''Tests that sorting of modules works as expected.'''
 
+    mod_man = ModuleManager.get()
     # Empty input:
-    assert ModuleManager.sort_modules({}) == []
+    assert mod_man.sort_modules({}) == []
 
     # A depends on B:
     deps = {"a": {"b"}, "b": set()}
-    assert ModuleManager.sort_modules(deps) == ["b", "a"]
+    assert mod_man.sort_modules(deps) == ["b", "a"]
 
     deps = {"a": {"b", "c"}, "b": set(), "c": {"b"}}
-    assert ModuleManager.sort_modules(deps) == ["b", "c", "a"]
+    assert mod_man.sort_modules(deps) == ["b", "c", "a"]
 
     deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
-    deps_sorted = ModuleManager.sort_modules(deps)
+    deps_sorted = mod_man.sort_modules(deps)
     assert deps_sorted == ["b", "c", "a"]
     out, _ = capsys.readouterr()
-    assert ("Module 'c' contains a dependency to 'netcdf', for which we "
-            "have no dependencies." in out)
+    assert "Cannot find module `netcdf` which is used by module 'c'." in out
+
+    # Ignore the netcdf dependencies:
+    deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
+    mod_man.add_ignore_module("netcdf")
+    deps_sorted = mod_man.sort_modules(deps)
+    assert deps_sorted == ["b", "c", "a"]
+    out, _ = capsys.readouterr()
+    # There should be no output now:
+    assert out == ""
 
     deps = {"a": {"b", "c"}, "b": {"c"}, "c": {"b"}}
-    deps_sorted = ModuleManager.sort_modules(deps)
+    deps_sorted = mod_man.sort_modules(deps)
     out, _ = capsys.readouterr()
     # The dependencies for a can be given in two orders (b,c or c,b),
     # since it is an unsorted set. Only test for the rest of the output
@@ -308,3 +315,31 @@ def test_mod_man_sort_modules(capsys):
     # order (unsorted set)
     assert set(deps_sorted[:2]) == {"b", "c"}
     assert deps_sorted[2:] == ["a"]
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_mod_manager_add_ignore_modules():
+    '''Tests that ignoring modules work. We use the standard
+    directory and file setup (see mod_man_test_setup_directories).
+    tmp/d1/a_mod.f90
+    tmp/d1/d3/b_mod.F90
+    tmp/d1/d3/c_mod.x90
+    tmp/d2/d_mod.X90
+    tmp/d2/d4/e_mod.F90
+    tmp/d2/d4/f_mod.ignore
+
+    '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d1")
+
+    # First finds a_mod, which will parse the first directory
+    mod_man.add_ignore_module("a_mod")
+    mod_info = mod_man.get_module_info("a_mod")
+    assert mod_info is None
+    assert "a_mod" in mod_man.ignores()
+
+    # Just in case verify that other modules are not affected
+    mod_info = mod_man.get_module_info("b_mod")
+    assert mod_info.filename == "d1/d3/b_mod.F90"

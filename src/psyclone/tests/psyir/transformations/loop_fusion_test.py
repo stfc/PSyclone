@@ -39,8 +39,6 @@
 '''This module tests the loop fusion transformation.
 '''
 
-from __future__ import absolute_import, print_function
-
 import pytest
 
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
@@ -795,7 +793,7 @@ def test_loop_fuse_different_variables_with_access(fortran_reader):
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         fuse.apply(loops[1], loops[2])
-    assert ("Error in LoopFuseTrans transformation. Second loop contains "
+    assert ("LoopFuseTrans. Error: Second loop contains "
             "accesses to the first loop's variable: ji." in str(excinfo.value))
 
     code = '''subroutine sub()
@@ -816,6 +814,37 @@ def test_loop_fuse_different_variables_with_access(fortran_reader):
     fuse = LoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
         fuse.apply(loops[1], loops[2])
-    assert ("Error in LoopFuseTrans transformation. First loop contains "
+    assert ("LoopFuseTrans. Error: First loop contains "
             "accesses to the second loop's variable: jk."
             in str(excinfo.value))
+
+
+# ----------------------------------------------------------------------------
+def test_fuse_independent_array_stencil(fortran_reader, fortran_writer):
+    '''Test that using arrays which are not dependent on the loop variable
+    are handled correctly. Example:
+    do j  ... a(1) = b(j) * c(j)
+    do j ...  d(j) = a(1)
+    '''
+
+    # The first example can be merged, since 's' does not
+    # depend on the loop variable, and it is written and read.
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=1, n
+                 do ji=1, 10
+                    t(ji, jj) = s(ji, jj+1) + t(ji, jj)
+                 enddo
+              enddo
+              end subroutine sub'''
+
+    with pytest.raises(TransformationError) as err:
+        fuse_loops(code, fortran_reader, fortran_writer)
+    assert ("Variable 's' is used with different indices: 's(ji,jj)' and "
+            "'s(ji,jj + 1)" in str(err.value))
