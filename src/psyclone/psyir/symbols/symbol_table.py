@@ -552,12 +552,15 @@ class SymbolTable():
         '''
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
-        renaming then a SymbolError is raised.
+        renaming then a SymbolError is raised. If `include_arguments` is
+        False then those symbols representing routine arguments in
+        `other_table` are ignored (this is used when inlining a routine
+        body into another routine).
 
         :param other_table: the table for which to check for clashes.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param Optional[bool] include_arguments: whether to include Symbols
-            which have an ArgumentInterface in `other_table`.
+            which have an ArgumentInterface in `other_table` in the checking.
 
         :raises SymbolError: if there would be an unresolvable name clash
             when importing symbols from `other_table` into this table.
@@ -602,7 +605,6 @@ class SymbolTable():
                         f"the supplied table imports it from Container "
                         f"'{other_sym.interface.container_symbol.name}'.")
                 continue
-            import pdb; pdb.set_trace()
             # Can either of them be renamed?
             try:
                 self.rename_symbol(this_sym, "", dry_run=True)
