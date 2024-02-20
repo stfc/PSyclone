@@ -270,10 +270,10 @@ read `current(i-1,j)` and `current(i+1,j)` - the first of which
 would have the updated value written in the previous loop iteration
 in the fourth loop, but the latter one has not been updated.
 
-> Note that at this stage PSyclone does not automatically detect
-> that loop fusion creates incorrect code. This is work in progress,
-> and we expect that PSyclone will be able to raise an exception
-> in case of invalid loop fusions in the near future. 
+> Note that at the moment PSyclone does detect that loop fusion
+> would create incorrect code, but this test is too conservative (i.e)
+> it will reject code that could be fused. This is work in progress.
+> Also, the error message is by far not detailed enough.
 
 ## Optional Fusing Task 1
 Instead of fusing the first three loops, it is also possible to
