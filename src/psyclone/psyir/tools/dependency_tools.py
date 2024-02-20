@@ -990,11 +990,18 @@ class DependencyTools():
                                   DTCode.ERROR_DIFFERENT_INDEX_LOCATIONS,
                                   [var_info1.signature[0]])
                 return False
-            if not var_found:
-                error = (f"Variable '{var_info1.signature[0]}' does not "
-                         f"depend on loop variable '{loop_var_name}', but is "
-                         f"read and written")
-                self._add_message(error, DTCode.ERROR_READ_WRITE_NO_LOOP_VAR,
+            first_index = all_accesses[0].component_indices[index[0]]
+            other_index = other_access.component_indices[index[0]]
+            if not SymbolicMaths.equal(first_index, other_index):
+                # If we have one accesses for the loop variable that is
+                # different from others (e.g. a(i) and a(i+1)), for now
+                # don't allow loop fusion.
+                access1 = all_accesses[0].node.debug_string()
+                access2 = other_access.node.debug_string()
+                error = (f"Variable '{var_info1.signature[0]}' is used with "
+                         f"different indices: '{access1}' and '{access2}'.")
+                self._add_message(error,
+                                  DTCode.ERROR_DEPENDENCY,
                                   [var_info1.signature[0]])
                 return False
         return True
