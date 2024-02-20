@@ -2442,23 +2442,19 @@ def test_apply_merges_symbol_table_with_routine(fortran_reader):
 
 def test_apply_argument_clash(fortran_reader, fortran_writer):
     '''
-    Check that the dummy arguments to the inlined routine are not included
-    when checking for clashes (since they will be replaced by the formal
+    Check that the formal arguments to the inlined routine are not included
+    when checking for clashes (since they will be replaced by the actual
     arguments to the call).
     '''
 
     code_clash = """
   subroutine run_it()
-    integer :: i
     integer :: Istr
     real :: a(10)
-
-    do i=Istr,10
-      a(i) = 1.0
-    end do
+    istr = 2
+    a(Istr:10) = 1.0
 
     call sub(Istr)
-
   end subroutine run_it
 
   subroutine sub(Istr)
@@ -2473,14 +2469,17 @@ def test_apply_argument_clash(fortran_reader, fortran_writer):
     integer :: Istr
     real :: b(10)
 
-    do i=Istr,10
-      b(i) = 1.0
-    end do
-
+    b(Istr:10) = 1.0
   end subroutine sub_sub"""
 
     psyir = fortran_reader.psyir_from_source(code_clash)
     call = psyir.walk(Call)[1]
     inline_trans = InlineTrans()
     inline_trans.apply(call)
-    assert fortran_writer(psyir) == "andy"#regen_code_clash
+    expected = '''\
+  x = 2.0 * x
+  b(istr:) = 1.0
+
+end subroutine sub
+'''
+    assert expected in fortran_writer(psyir)
