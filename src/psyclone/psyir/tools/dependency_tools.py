@@ -891,15 +891,20 @@ class DependencyTools():
     def _fuse_validate_written_scalar(self, var_info1, var_info2):
         '''Validates if the accesses to a scalar that is at least written once
         allows loop fusion. The accesses of the variable is contained in the
-        two parameters (which also include the name of the variable).
+        two parameters (which also include the name of the variable). If the
+        access does not allow loop fusion, a message is added to the
+        dependency tools:
+            - a scalar variable is written in one loop, but only read in
+              the other.
 
         :param var_info1: access information for variable in the first loop.
         :type var_info1: :py:class:`psyclone.core.var_info.VariableInfo`
         :param var_info2: access information for variable in the second loop.
         :type var_info2: :py:class:`psyclone.core.var_info.VariableInfo`
 
-        :raises TransformationError: a scalar variable is written in one \
-            loop, but only read in the other.
+        :returns: whether the scalar is accessed in a way that allows
+            loop fusion.
+        :rtype: bool
 
         '''
         # If a scalar variable is first written in both loops, that pattern
@@ -924,7 +929,11 @@ class DependencyTools():
                                      loop_variable):
         '''Validates if the accesses to an array, which is at least written
         once, allows loop fusion. The access pattern to this array is
-        specified in the two parameters `var_info1` and `var_info2`.
+        specified in the two parameters `var_info1` and `var_info2`. Ff
+        loop fusion is not possible, a message is added to the dependency
+        tools:
+            - an array that is written to uses inconsistent indices, e.g.
+              a(i,j) and a(j,i).
 
         :param var_info1: access information for variable in the first loop.
         :type var_info1: \
@@ -936,8 +945,9 @@ class DependencyTools():
             loops being fused.
         :type loop_variable: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises TransformationError: an array that is written to uses \
-            inconsistent indices, e.g. a(i,j) and a(j,i).
+        :returns: whether the scalar is accessed in a way that allows
+            loop fusion.
+        :rtype: bool
 
         '''
         # pylint: disable=too-many-locals
