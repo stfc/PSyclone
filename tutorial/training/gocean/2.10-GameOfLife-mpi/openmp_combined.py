@@ -34,13 +34,14 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds kernel fuseion code to
-all invokes.
+function via the -s option. It adds optimised OpenMP statements.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
-from psyclone.gocean1p0 import GOKern
+from psyclone.gocean1p0 import GOKern, GOLoop
+from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+
+from fuse_loops import trans as fuse_trans
 
 
 def trans(psy):
@@ -54,40 +55,29 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    fuse = GOceanLoopFuseTrans()
+    omp_parallel = OMPParallelTrans()
+    # Optional argument: schedule
+    omp_do = OMPLoopTrans(omp_schedule="dynamic")
     inline = KernelModuleInlineTrans()
-
 
     invoke = psy.invokes.get("invoke_compute")
     schedule = invoke.schedule
 
-    # schedule.view()
     # Inline all kernels to help gfortran with inlining.
     for kern in schedule.walk(GOKern):
         inline.apply(kern)
 
-    # This schedule has four loops, corresponding to
-    # count_neighbours, compute_born, compute_die, combine kernels
+    # Optional:
+    # fuse_trans(psy)
 
-    # First merge the first two loops
-    fuse.apply(schedule[1], schedule[2])
-    # fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
-    #schedule.view()
-    #return
+    # Both ways work - either specify the default in
+    # the constructor, or change the schedule here:
+    omp_do.omp_schedule = "static"
+    for loop in schedule.walk(GOLoop):
+        if loop.loop_type == "outer":
+            omp_do.apply(loop)
 
-    # Then merge the (previous third, now second) loop to the
-    # fused loop
-    fuse.apply(schedule[1], schedule[2])
-    # Now we have:
-    # do j
-    #   do i
-    #   do i
-    #   do i
-    # do j combine
-    # Fuse the three inner loops: first the first two
-    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
-    # Then merge in the previous third, now second) loop
-    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
-    print(invoke.schedule.view())
+    # Now add the OMP PARALLEL around all loops:
+    omp_parallel.apply(schedule)
 
-    return psy
+    print(schedule.view())

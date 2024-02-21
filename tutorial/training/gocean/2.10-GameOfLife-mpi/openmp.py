@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ all invokes.
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern, GOLoop
-from psyclone.transformations import (OMPLoopTrans, OMPParallelLoopTrans, 
+from psyclone.transformations import (OMPLoopTrans, OMPParallelLoopTrans,
                                       OMPParallelTrans,
                                       GOceanOMPParallelLoopTrans)
 
@@ -65,36 +65,11 @@ def trans(psy):
     invoke = psy.invokes.get("invoke_compute")
     schedule = invoke.schedule
 
-    #omp_parallel_loop.apply(schedule[0])
-    #omp_do.apply(schedule[0])
-    #omp_parallel.apply(schedule[0:2])
-    #schedule.view()
-
-    #return psy
-
     # Inline all kernels to help gfortran with inlining.
-    #for kern in schedule.walk(GOKern):
-    #    inline.apply(kern)
+    for kern in schedule.walk(GOKern):
+        inline.apply(kern)
 
-    #for loop in schedule.walk(GOLoop):
-    #    if loop.loop_type == "outer":
-    #        omp_parallel_loop.apply(loop)
-    #schedule.view()
-    #return psy
-
-    # Inline all kernels to help gfortran with inlining.
-    #for kern in schedule.walk(GOKern):
-    #    inline.apply(kern)
-
-    fuse_trans(psy)
-
-    # Both ways work - either specify the default in
-    # the constructor, or change the schedule
-    omp_do_dynamic = OMPLoopTrans(omp_schedule="dynamic")
-    omp_do.omp_schedule = "dynamic"
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
-            omp_do.apply(loop)
-    omp_parallel.apply(schedule[1:3])
-
-    schedule.view()
+            omp_parallel_loop.apply(loop)
+    print(schedule.view())

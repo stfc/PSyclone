@@ -94,32 +94,36 @@ the halo exchange is automatically triggered.
 > PSyclone) only supports halo exchanges of depth 1.
 
 ## Combination with other Transformations
-MPI can obviously work together with other transformations. For example,
-in order to fuse loops and apply OpenMP, the script from example 2.8
-can be used. This results in the following PSy-layer:
+MPI can obviously work together with other transformations. Provide the
+`fuse_loops.py` script as parameter, and check the created output file or
+the displayed schedule.
+
+You can also combine distributed memory with OpenMP:
+Start with using the script `openmp.py` from example 2.8 (a copy
+is in this directory). This results in the following PSy-layer:
 
       CALL current%halo_exchange(1)
-      !$omp parallel default(shared), private(i,j)
-      !$omp do schedule(dynamic)
+      !$omp parallel do default(shared), private(i,j), schedule(static)
       DO j = neighbours%internal%ystart, neighbours%internal%ystop, 1
         DO i = neighbours%internal%xstart, neighbours%internal%xstop, 1
           CALL count_neighbours_code(i, j, neighbours%data, current%data)
+        END DO
+      END DO
+      !$omp end parallel do
+      !$omp parallel do default(shared), private(i,j), schedule(static)
+      DO j = born%internal%ystart, born%internal%ystop, 1
+        DO i = born%internal%xstart, born%internal%xstop, 1
           CALL compute_born_code(i, j, born%data, current%data, neighbours%data)
-          CALL compute_die_code(i, j, die%data, current%data, neighbours%data)
-        END DO
-      END DO
-      !$omp end do
-      !$omp do schedule(dynamic)
-      DO j = current%internal%ystart, current%internal%ystop, 1
-        DO i = current%internal%xstart, current%internal%xstop, 1
-          CALL combine_code(i, j, current%data, die%data, born%data)
-        END DO
-      END DO
-      !$omp end do
-      !$omp end parallel
+      ...
 
-The whole computation is included in a single `OpenMP parallel` section, the loops
-over rows are parallelised using OpenMP, and as many loops as possible are fused.
-Remember that `combine_code` cannot be called before all previous computations
-have been finished (otherwise the current state is updated before the counting
-for its neighbours to the right and bottom have been updated.
+Each kernel is included in an `openmp parallel do`, so the loops
+over rows are parallelised using OpenMP.
+
+Then try to use the `openmp_combined.py` script from the previous example (a
+copy is in this directory). It doesn't work. Why do you get an error?
+
+Fix the script.
+
+The reason for the error is the modified tree structure due to the added halo
+exchange. Fix the `openmp_combined.py` script to work here. Notice that later
+we will address more intelligent scripting.
