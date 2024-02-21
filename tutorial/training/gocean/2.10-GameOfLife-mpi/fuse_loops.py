@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ def trans(psy):
     invoke = psy.invokes.get("invoke_compute")
     schedule = invoke.schedule
 
-    # schedule.view()
+    print(schedule.view())
     # Inline all kernels to help gfortran with inlining.
     for kern in schedule.walk(GOKern):
         inline.apply(kern)
@@ -71,9 +71,6 @@ def trans(psy):
 
     # First merge the first two loops
     fuse.apply(schedule[1], schedule[2])
-    # fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
-    #schedule.view()
-    #return
 
     # Then merge the (previous third, now second) loop to the
     # fused loop
@@ -89,5 +86,3 @@ def trans(psy):
     # Then merge in the previous third, now second) loop
     fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
     print(invoke.schedule.view())
-
-    return psy

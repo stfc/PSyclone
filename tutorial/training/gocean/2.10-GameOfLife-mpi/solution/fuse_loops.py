@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,14 +34,13 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds optimised OpenMP statements.
+function via the -s option. It adds kernel fuseion code to
+all invokes.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.gocean1p0 import GOKern, GOLoop
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
-
-from fuse_loops import trans as fuse_trans
+from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
+from psyclone.gocean1p0 import GOKern
 
 
 def trans(psy):
@@ -55,27 +54,34 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_parallel = OMPParallelTrans()
-    # Optional argument: schedule
-    omp_do = OMPLoopTrans(omp_schedule="dynamic")
+    fuse = GOceanLoopFuseTrans()
     inline = KernelModuleInlineTrans()
 
     invoke = psy.invokes.get("invoke_compute")
     schedule = invoke.schedule
 
+    print(schedule.view())
     # Inline all kernels to help gfortran with inlining.
     for kern in schedule.walk(GOKern):
         inline.apply(kern)
 
-    # Optional:
-    # fuse_trans(psy)
+    # This schedule has four loops, corresponding to
+    # count_neighbours, compute_born, compute_die, combine kernels
 
-    for loop in schedule.walk(GOLoop):
-        if loop.loop_type == "outer":
-            omp_do.apply(loop)
+    # First merge the first two loops
+    fuse.apply(schedule[1], schedule[2])
 
-    # TODO: This transformation will fail.
-    # How can it be fixed?
-    omp_parallel.apply(schedule)
-
-    print(schedule.view())
+    # Then merge the (previous third, now second) loop to the
+    # fused loop
+    fuse.apply(schedule[1], schedule[2])
+    # Now we have:
+    # do j
+    #   do i
+    #   do i
+    #   do i
+    # do j combine
+    # Fuse the three inner loops: first the first two
+    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
+    # Then merge in the previous third, now second) loop
+    fuse.apply(schedule[1].loop_body[0], schedule[1].loop_body[1])
+    print(invoke.schedule.view())

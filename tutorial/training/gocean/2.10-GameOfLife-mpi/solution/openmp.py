@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,15 +34,17 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds optimised OpenMP statements.
+function via the -s option. It adds kernel extraction code to
+all invokes.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern, GOLoop
-from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+from psyclone.transformations import (OMPLoopTrans, OMPParallelLoopTrans, 
+                                      OMPParallelTrans,
+                                      GOceanOMPParallelLoopTrans)
 
 from fuse_loops import trans as fuse_trans
-
 
 def trans(psy):
     '''
@@ -55,27 +57,44 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
+    omp_parallel_loop = GOceanOMPParallelLoopTrans()
     omp_parallel = OMPParallelTrans()
-    # Optional argument: schedule
-    omp_do = OMPLoopTrans(omp_schedule="dynamic")
+    omp_do = OMPLoopTrans()
     inline = KernelModuleInlineTrans()
 
     invoke = psy.invokes.get("invoke_compute")
     schedule = invoke.schedule
 
+    #omp_parallel_loop.apply(schedule[0])
+    #omp_do.apply(schedule[0])
+    #omp_parallel.apply(schedule[0:2])
+    #schedule.view()
+
+    #return psy
+
     # Inline all kernels to help gfortran with inlining.
-    for kern in schedule.walk(GOKern):
-        inline.apply(kern)
+    #for kern in schedule.walk(GOKern):
+    #    inline.apply(kern)
 
-    # Optional:
-    # fuse_trans(psy)
+    #for loop in schedule.walk(GOLoop):
+    #    if loop.loop_type == "outer":
+    #        omp_parallel_loop.apply(loop)
+    #schedule.view()
+    #return psy
 
+    # Inline all kernels to help gfortran with inlining.
+    #for kern in schedule.walk(GOKern):
+    #    inline.apply(kern)
+
+    fuse_trans(psy)
+
+    # Both ways work - either specify the default in
+    # the constructor, or change the schedule
+    omp_do_dynamic = OMPLoopTrans(omp_schedule="dynamic")
+    omp_do.omp_schedule = "dynamic"
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
             omp_do.apply(loop)
+    omp_parallel.apply(schedule[1:3])
 
-    # TODO: This transformation will fail.
-    # How can it be fixed?
-    omp_parallel.apply(schedule)
-
-    print(schedule.view())
+    schedule.view()

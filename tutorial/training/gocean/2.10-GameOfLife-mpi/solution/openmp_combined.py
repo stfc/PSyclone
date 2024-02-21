@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,12 +70,16 @@ def trans(psy):
     # Optional:
     # fuse_trans(psy)
 
+    # Both ways work - either specify the default in
+    # the constructor, or change the schedule here:
+    omp_do.omp_schedule = "static"
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
             omp_do.apply(loop)
 
-    # TODO: This transformation will fail.
-    # How can it be fixed?
-    omp_parallel.apply(schedule)
+    # Now add the OMP PARALLEL around all loops. In case of
+    # distributed memory the first node is the halo exchange,
+    # which must be excluded:
+    omp_parallel.apply(schedule[1:])
 
     print(schedule.view())
