@@ -72,7 +72,7 @@ def trans(psy):
 
     # TODO (later): Apply the loop fusion transformation (already
     # imported above)
-    
+
     # TODO: Apply OpenMP do around all outer loops:
 
     # TODO: Now add the OMP PARALLEL around all loops
