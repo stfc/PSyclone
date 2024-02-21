@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,16 +66,18 @@ def trans(psy):
     for kern in schedule.walk(GOKern):
         inline.apply(kern)
 
-    fuse_trans(psy)
+    # TODO (later): Try changing the schedule to be dynamic. This can
+    # either be done at the constructor above, or assigning to the
+    # omp_schedule attribute of the omp_do transformation
 
-    # Both ways work - either specify the default in
-    # the constructor, or change the schedule
-    omp_do.omp_schedule = "static"
-    for loop in schedule.walk(GOLoop):
-        if loop.loop_type == "outer":
-            omp_do.apply(loop)
+    # TODO (later): Apply the loop fusion transformation (already
+    # imported above)
+    
+    # TODO: Apply OpenMP do around all outer loops:
 
-    # Now add the OMP PARALLEL around all loops:
-    omp_parallel.apply(schedule)
+    # TODO: Now add the OMP PARALLEL around all loops
+    # by applying the transformation to the schedule
+    # (or you could keep a list of all loops that you
+    # have applied OpenMP do to and provide this list)
 
     print(schedule.view())

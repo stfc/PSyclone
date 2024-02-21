@@ -130,7 +130,8 @@ code. But on the other hand you risk that changes to
 unexpectedly - while in many cases that is good (e.g.
 improvements to `fuse_loops.py` will flow into other
 scripts), but they could also break your `openmp.py` script
-unexpectedly.
+unexpectedly. In a later session we will address the issue
+of writing 'intelligent' scripts.
 
 The important part of importing is to make sure to rename
 the the transformation when importing, since otherwise all
@@ -145,16 +146,3 @@ one loop left to be put into an OMP parallel region
 (in which case there is no advantage of using two
 separate transformations, a single one to apply `OMP parallel do`
 will be sufficient).
-
-## Task Parallelisation
-OpenMP 3.0 introduced task parallelisation, which is a more
-flexible implementation of the previous `OMP sections` directive.
-
-As an optional task, we show how OMP task parallelism can be
-used with PSyclone as well. The example code has limited task
-parallelism, so it will not deliver a significant speed-up.
-
-OMP task directives are typically nested in the following
-directive structure:
-
-Hmm - we only have taskloop???? Should we even bother???

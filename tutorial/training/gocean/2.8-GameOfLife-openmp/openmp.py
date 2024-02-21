@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,8 +64,7 @@ def trans(psy):
     for kern in schedule.walk(GOKern):
         inline.apply(kern)
 
-    for loop in schedule.walk(GOLoop):
-        if loop.loop_type == "outer":
-            omp_parallel.apply(loop)
+    # TODO: apply omp_parallel to all outer loops:
 
+    # Check the expected output
     print(schedule.view())

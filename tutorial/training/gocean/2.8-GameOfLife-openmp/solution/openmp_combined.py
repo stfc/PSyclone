@@ -56,7 +56,8 @@ def trans(psy):
 
     '''
     omp_parallel = OMPParallelTrans()
-    omp_do = OMPLoopTrans()
+    # Optional argument: schedule
+    omp_do = OMPLoopTrans(omp_schedule="dynamic")
     inline = KernelModuleInlineTrans()
 
     invoke = psy.invokes.get("invoke_compute")
@@ -66,10 +67,11 @@ def trans(psy):
     for kern in schedule.walk(GOKern):
         inline.apply(kern)
 
-    fuse_trans(psy)
+    # Optional:
+    # fuse_trans(psy)
 
     # Both ways work - either specify the default in
-    # the constructor, or change the schedule
+    # the constructor, or change the schedule here:
     omp_do.omp_schedule = "static"
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
