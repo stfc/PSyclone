@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,13 +41,9 @@ array index should be transformed.
 
 '''
 
-from __future__ import absolute_import
-
 from psyclone.configuration import Config
 from psyclone.core import SymbolicMaths
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
-    import CreateNemoKernelTrans
-from psyclone.nemo import NemoLoop, NemoKern
+from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, \
     Assignment, Literal, Node, Schedule, Loop
@@ -154,14 +150,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
                 # This is not a nested access e.g. a(b(n)).
                 array.indices[array_index] = Reference(loop_variable_symbol)
 
-        # Determine the loop body and where to add the loop.
-        nemo_kern = assignment.ancestor(NemoKern)
-        if nemo_kern:
-            # This assignment is inside a NemoKern
-            loop_body = nemo_kern
-        else:
-            # There is no parent NemoKern
-            loop_body = assignment
+        loop_body = assignment
         loc_parent = loop_body.parent
         loc_index = loop_body.position
 
@@ -173,14 +162,6 @@ class NemoArrayAccess2LoopTrans(Transformation):
         # Replace the original assignment with a loop containing the
         # modified assignment.
         loc_parent.children.insert(loc_index, loop)
-
-        # Add a NemoKern if required.
-        if not nemo_kern and not assignment.walk(Range):
-            # This was not previously a NemoKern (as it contained no
-            # loops). However, we have now created a loop so, provided
-            # there are no range nodes, we must create an inlined
-            # kernel.
-            CreateNemoKernelTrans().apply(assignment.parent)
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
@@ -239,7 +220,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
         iterator_symbols = []
         location = node.parent.parent
         while (isinstance(location.parent, Schedule) and
-               isinstance(location.parent.parent, (Loop, NemoKern))):
+               isinstance(location.parent.parent, Loop)):
             location = location.parent.parent
             if isinstance(location, Loop):
                 iterator_symbols.append(location.variable)

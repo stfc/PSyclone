@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,24 @@ def check_called(monkeypatch, function, method_name, metadata):
     with pytest.raises(Exception) as info:
         _ = MetadataToArgumentsRules._generate()
     assert method_name in str(info.value)
+
+
+def test_bc_kern_regex():
+    '''
+    Test the regular expression used to identify the boundary-condition kernel
+    and its transformed forms.
+
+    TODO #487 - this test should be removed once metadata is used to identify
+    the boundary-condition kernel.
+
+    '''
+    cls = MetadataToArgumentsRules
+    assert cls.bc_kern_regex.match("enforce_bc_code")
+    assert cls.bc_kern_regex.match("enforce_BC_code")
+    assert cls.bc_kern_regex.match("enforce_BC_1099_code")
+    assert not cls.bc_kern_regex.match("other_bc_code")
+    assert not cls.bc_kern_regex.match("enforce_bc_a1_code")
+    assert not cls.bc_kern_regex.match("enforce_bc_1a_code")
 
 
 def test_mapping(monkeypatch):

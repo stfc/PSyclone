@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
+# Modified work Copyright (c) 2017-2024 by J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
 ''' Module containing tests of Transformations when using the
@@ -1277,9 +1277,10 @@ def test_accloop(tmpdir, fortran_writer):
     # enclosing parallel region
     with pytest.raises(GenerationError) as err:
         _ = fortran_writer(psy.container)
-    assert ("ACCLoopDirective must have an ACCParallelDirective or "
-            "ACCKernelsDirective as an ancestor in the Schedule" in
-            str(err.value))
+    assert ("ACCLoopDirective in routine 'invoke_0' must either have an "
+            "ACCParallelDirective or ACCKernelsDirective as an ancestor in "
+            "the Schedule or the routine must contain an ACCRoutineDirective"
+            in str(err.value))
 
     # Add an enclosing parallel region
     accpara.apply(schedule.children)

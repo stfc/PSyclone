@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,8 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic and O. Brunt, Met Office
-# Modified J. G. Wallwork, Met Office
+# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -49,9 +48,10 @@ import abc
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallArgList, LFRicConstants
-from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart, \
-    DynInvokeSchedule, DynKern, DynLoop
+from psyclone.domain.lfric import (KernCallArgList, LFRicConstants, LFRicKern,
+                                   LFRicLoop)
+from psyclone.dynamo0p3 import (LFRicHaloExchangeEnd, LFRicHaloExchangeStart,
+                                DynInvokeSchedule)
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
@@ -70,7 +70,7 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, DeferredType, INTEGER_TYPE, ScalarType,
+    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE, ScalarType,
     Symbol, SymbolError)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
@@ -99,7 +99,7 @@ def check_intergrid(node):
     '''
     if not node.children:
         return
-    child_kernels = node.walk(DynKern)
+    child_kernels = node.walk(LFRicKern)
     for kern in child_kernels:
         if kern.is_intergrid:
             raise TransformationError(
@@ -664,14 +664,14 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied Node is not a DynLoop.
+        :raises TransformationError: if the supplied Node is not a LFRicLoop.
         :raises TransformationError: if the associated loop requires
             colouring.
         '''
-        if not isinstance(node, DynLoop):
+        if not isinstance(node, LFRicLoop):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
-                f"must be a DynLoop but got '{type(node).__name__}'")
+                f"must be a LFRicLoop but got '{type(node).__name__}'")
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
@@ -991,7 +991,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         loop is over cells of that colour.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type node: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param options: a dictionary with options for transformations.\
         :type options: Optional[Dict[str, Any]]
 
@@ -1855,7 +1855,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
         of the field's halo.
 
         :param loop: the loop that we are transforming.
-        :type loop: :py:class:`psyclone.psyGen.DynLoop`
+        :type loop: :py:class:`psyclone.psyGen.LFRicLoop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param int options["depth"]: the depth of the stencil. Defaults \
@@ -2051,7 +2051,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         is derived.
 
         :param node: a kernel node.
-        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the cells. This is\
@@ -2206,7 +2206,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         this transformation.
 
         :param node: a dynamo 0.3 kernel node.
-        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the elements/cells.
@@ -2226,7 +2226,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             provided (as the former needs the latter).
 
         '''
-        if not isinstance(node, DynKern):
+        if not isinstance(node, LFRicKern):
             raise TransformationError(
                 f"Error in Dynamo0p3KernelConstTrans transformation. Supplied "
                 f"node must be a dynamo kernel but found '{type(node)}'.")
@@ -2526,9 +2526,9 @@ class ACCRoutineTrans(Transformation):
         refs = kernel_schedule.walk(Reference)
         for ref in refs:
             if ref.symbol.is_import:
-                # resolve_deferred does nothing if the Symbol type is known.
+                # resolve_type does nothing if the Symbol type is known.
                 try:
-                    ref.symbol.resolve_deferred()
+                    ref.symbol.resolve_type()
                 except SymbolError:
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
@@ -2931,8 +2931,8 @@ class KernelImportsToArguments(Transformation):
             # Resolve the data type information if it is not available
             # pylint: disable=unidiomatic-typecheck
             if (type(imported_var) is Symbol or
-                    isinstance(imported_var.datatype, DeferredType)):
-                updated_sym = imported_var.resolve_deferred()
+                    isinstance(imported_var.datatype, UnresolvedType)):
+                updated_sym = imported_var.resolve_type()
                 # If we have a new symbol then we must update the symbol table
                 if updated_sym is not imported_var:
                     kernel.symbol_table.swap(imported_var, updated_sym)

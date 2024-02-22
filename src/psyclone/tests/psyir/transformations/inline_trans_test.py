@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,9 +43,10 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
-from psyclone.psyir.symbols import DataSymbol, DeferredType, AutomaticInterface
-from psyclone.psyir.transformations import (InlineTrans,
-                                            TransformationError)
+from psyclone.psyir.symbols import (
+    DataSymbol, UnresolvedType, AutomaticInterface)
+from psyclone.psyir.transformations import (
+    InlineTrans, TransformationError)
 from psyclone.tests.utilities import Compile
 
 MY_TYPE = ("  integer, parameter :: ngrids = 10\n"
@@ -324,20 +325,20 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
 
     output = fortran_writer(psyir)
     assert ("    do i = 1, 5, 1\n"
-            "      do i_3 = 1, 10, 1\n"
-            "        var%data(i_3) = 2.0 * i\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        var%data(i_1) = 2.0 * i\n"
             "      enddo\n"
             "      var%data(:) = -1.0\n"
             "      var%data = -5.0\n"
             "      var%data(1:2) = 0.0\n"
-            "      do i_1 = 1, 10, 1\n"
-            "        var_list(i)%data(i_1) = 2.0 * i\n"
+            "      do i_2 = 1, 10, 1\n"
+            "        var_list(i)%data(i_2) = 2.0 * i\n"
             "      enddo\n"
             "      var_list(i)%data(:) = -1.0\n"
             "      var_list(i)%data = -5.0\n"
             "      var_list(i)%data(1:2) = 0.0\n"
-            "      do i_2 = 1, 10, 1\n"
-            "        var2(i)%region%data(i_2) = 2.0 * i\n"
+            "      do i_3 = 1, 10, 1\n"
+            "        var2(i)%region%data(i_3) = 2.0 * i\n"
             "      enddo\n"
             "      var2(i)%region%data(:) = -1.0\n"
             "      var2(i)%region%data = -5.0\n"
@@ -361,12 +362,12 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
         "    use some_mod, only: mystery_type, mystery\n"
         "    integer :: i\n"
         "    type(mystery_type) :: var3, varr(5)\n"
-        # Unknown structure type but array dims are known.
+        # Unresolved structure type but array dims are known.
         "    call sub3(varr)\n"
-        # Unknown actual argument corresponding to a formal array argument
+        # Unresolved actual argument corresponding to a formal array argument
         # so we can't be sure that it isn't being reshaped.
         "    call sub3(mystery)\n"
-        # Unknown actual argument corresponding to a formal scalar argument
+        # Unresolved actual argument corresponding to a formal scalar argument
         # so lack of type information isn't a problem.
         "    call sub3a(mystery)\n"
         # Formal arg specifies array bounds and we don't have them for
@@ -627,7 +628,7 @@ def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
         "  type my_type\n"
         # TODO #2053 - if the 'data' attribute is correctly given the
         # 'allocatable' attribute then the whole type ends up as an
-        # UnknownFortranType. For now we therefore omit the 'allocatable'
+        # UnsupportedFortranType. For now we therefore omit the 'allocatable'
         # attribute. This means that the Fortran is not strictly correct
         # and we can't compile the code.
         # "    real, allocatable, dimension(:,:) :: data\n"
@@ -719,15 +720,15 @@ def test_apply_array_slice_arg(fortran_reader, fortran_writer, tmpdir):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
     assert ("    do i = 1, 10, 1\n"
-            "      do i_4 = 1, 10, 1\n"
-            "        a(1,i_4,i) = 2.0 * i_4\n"
+            "      do i_1 = 1, 10, 1\n"
+            "        a(1,i_1,i) = 2.0 * i_1\n"
             "      enddo\n"
             "    enddo\n"
             "    a(1,1,:) = 3.0 * a(1,1,:)\n"
             "    a(:,1,:) = 2.0 * a(:,1,:)\n"
             "    b(:,:) = 2.0 * b(:,:)\n"
-            "    do i_3 = 1, 10, 1\n"
-            "      b(i_3,:5) = 2.0 * b(i_3,:5)\n" in output)
+            "    do i_4 = 1, 10, 1\n"
+            "      b(i_4,:5) = 2.0 * b(i_4,:5)\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -1514,7 +1515,7 @@ def test_validate_node():
             "a Call but found 'NoneType'." in str(info.value))
     call = IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
                                 [Reference(DataSymbol("array",
-                                                      DeferredType()))])
+                                                      UnresolvedType()))])
     with pytest.raises(TransformationError) as info:
         inline_trans.validate(call)
     assert "Cannot inline an IntrinsicCall ('ALLOCATE')" in str(info.value)
@@ -1599,9 +1600,9 @@ def test_validate_codeblock(fortran_reader):
             "cannot be inlined" in str(err.value))
 
 
-def test_validate_unknowntype_argument(fortran_reader):
+def test_validate_unsupportedtype_argument(fortran_reader):
     '''
-    Test that validate rejects a subroutine with arguments of UnknownType.
+    Test that validate rejects a subroutine with arguments of UnsupportedType.
 
     '''
     code = (
@@ -1625,7 +1626,7 @@ def test_validate_unknowntype_argument(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
     assert ("Routine 'sub' cannot be inlined because it contains a Symbol 'x' "
-            "which is an Argument of UnknownType: 'REAL, POINTER, "
+            "which is an Argument of UnsupportedType: 'REAL, POINTER, "
             "INTENT(INOUT) :: x'" in str(err.value))
 
 
@@ -2405,3 +2406,35 @@ def test_find_routine_in_container(fortran_reader):
             call_node, call_node.routine.interface.container_symbol)
     assert isinstance(result, Routine)
     assert result.name == "sub"
+
+
+def test_apply_merges_symbol_table_with_routine(fortran_reader):
+    '''
+    Check that the apply method merges the inlined function's symbol table to
+    the containing Routine when the call node is inside a child ScopingNode.
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "  subroutine run_it()\n"
+        "    integer :: i\n"
+        "    real :: a(10)\n"
+        "    do i=1,10\n"
+        "      call sub(a, i)\n"
+        "    end do\n"
+        "  end subroutine run_it\n"
+        "  subroutine sub(x, ivar)\n"
+        "    real, intent(inout), dimension(10) :: x\n"
+        "    integer, intent(in) :: ivar\n"
+        "    integer :: i\n"
+        "    do i = 1, 10\n"
+        "      x(i) = 2.0*ivar\n"
+        "    end do\n"
+        "  end subroutine sub\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    inline_trans.apply(routine)
+    # The i_1 symbol is the renamed i from the inlined call.
+    assert psyir.walk(Routine)[0].symbol_table.get_symbols()['i_1'] is not None

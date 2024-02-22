@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
 # Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: O. Brunt, Met Office
 
 '''
 Module containing tests for LFRic (Dynamo0.3) API configuration handling.
@@ -64,6 +65,19 @@ access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
 COMPUTE_ANNEXED_DOFS = false
 supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
+precision_map = i_def: 4,
+                l_def: 1,
+                r_def: 8,
+                r_double: 8,
+                r_ncdf: 8,
+                r_quad: 16,
+                r_second: 8,
+                r_single: 4,
+                r_solver: 4,
+                r_tran: 8,
+                r_bl: 8,
+                r_phys: 8,
+                r_um: 8
 RUN_TIME_CHECKS = false
 NUM_ANY_SPACE = 10
 NUM_ANY_DISCONTINUOUS_SPACE = 10
@@ -114,24 +128,25 @@ def config(config_file, content):
 @pytest.mark.parametrize(
     "option", ["access_mapping", "COMPUTE_ANNEXED_DOFS",
                "supported_fortran_datatypes", "default_kind",
-               "RUN_TIME_CHECKS", "NUM_ANY_SPACE",
-               "NUM_ANY_DISCONTINUOUS_SPACE"])
+               "precision_map", "RUN_TIME_CHECKS",
+               "NUM_ANY_SPACE", "NUM_ANY_DISCONTINUOUS_SPACE"])
 def test_no_mandatory_option(tmpdir, option):
     ''' Check that we raise an error if we do not provide mandatory
     configuration options for LFRic (Dynamo0.3) API '''
     config_file = tmpdir.join("config_dyn")
+
     content = re.sub(f"^{option} = .*$", "",
                      _CONFIG_CONTENT, flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
-
     assert ("Missing mandatory configuration option in the "
             "\'[dynamo0.3]\' section " in str(err.value))
     assert ("Valid options are: ['access_mapping', "
             "'compute_annexed_dofs', 'supported_fortran_datatypes', "
-            "'default_kind', 'run_time_checks', 'num_any_space', "
-            "'num_any_discontinuous_space']." in str(err.value))
+            "'default_kind', 'precision_map', 'run_time_checks', "
+            "'num_any_space', 'num_any_discontinuous_space']."
+            in str(err.value))
 
 
 @pytest.mark.parametrize("option", ["COMPUTE_ANNEXED_DOFS", "RUN_TIME_CHECKS"])
@@ -201,6 +216,59 @@ def test_invalid_default_kind(tmpdir):
             "datatypes [\'real\', \'integer\', \'logical\']." in test_str)
 
 
+def test_invalid_precision_map(tmpdir):
+    '''Check that we raise an error if the precision map values include
+    a special character or letter/are not a string representation of an
+    integer.
+
+    '''
+    config_file = tmpdir.join("config_dyn")
+
+    # Test invalid datatype: special character
+    content = re.sub(r"r_double: 8,", "r_double: -8,",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("Wrong type supplied to mapping: '-8' is not a positive"
+            " integer or contains special characters." in str(err.value))
+
+    # Test invalid datatype: letter string
+    content = re.sub(r"r_double: 8,", "r_double: number 5,",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("Wrong type supplied to mapping: 'number 5' is not a positive"
+            " integer or contains special characters." in str(err.value))
+
+    # Test invalid datatype: float
+    content = re.sub(r"r_double: 8,", "r_double: 8.5,",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("Wrong type supplied to mapping: '8.5' is not a positive"
+            " integer or contains special characters." in str(err.value))
+
+    # Test invalid datatype: unicode ('\u00b2' = superscript 2)
+    content = re.sub(r"r_double: 8,", "r_double: \u00b2,",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("Wrong type supplied to mapping: '\u00b2' is not a positive"
+            " integer or contains special characters." in str(err.value))
+
+
 def test_invalid_num_any_anyd_spaces(tmpdir):
     ''' Check that we raise an error if we supply an invalid number
     (less than or equal to 0) of ANY_SPACE and ANY_DISCONTINUOUS_SPACE
@@ -268,6 +336,27 @@ def test_default_kind():
     assert api_config.default_kind["real"] == "r_def"
     assert api_config.default_kind["integer"] == "i_def"
     assert api_config.default_kind["logical"] == "l_def"
+
+
+def test_precision_map():
+    '''Check that we load correct precision values for all
+    datatypes.
+
+    '''
+    api_config = Config().get().api_conf(TEST_API)
+    assert api_config.precision_map["i_def"] == 4
+    assert api_config.precision_map["l_def"] == 1
+    assert api_config.precision_map["r_def"] == 8
+    assert api_config.precision_map["r_double"] == 8
+    assert api_config.precision_map["r_ncdf"] == 8
+    assert api_config.precision_map["r_quad"] == 16
+    assert api_config.precision_map["r_second"] == 8
+    assert api_config.precision_map["r_single"] == 4
+    assert api_config.precision_map["r_solver"] == 4
+    assert api_config.precision_map["r_tran"] == 8
+    assert api_config.precision_map["r_bl"] == 8
+    assert api_config.precision_map["r_phys"] == 8
+    assert api_config.precision_map["r_um"] == 8
 
 
 def test_run_time_checks():

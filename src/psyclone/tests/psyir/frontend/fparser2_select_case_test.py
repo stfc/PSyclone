@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -374,7 +374,7 @@ def test_logical_literal_case(fortran_reader, fortran_writer):
     assert "a == .true." not in pass_through
     assert "a .EQV. .true." in pass_through
 
-    # Test with an unknown comparison to a literal.
+    # Test with an unresolved comparison to a literal.
     code = '''subroutine test_subroutine()
     use mymod, only: a
 
@@ -559,10 +559,8 @@ end interface psyclone_internal_cmp_1''' in fortran_writer(container)
 
 def test_expression_case(fortran_reader, fortran_writer):
     '''Test that a select case statement comparing two expressions
-    is using the generic comparison interface.
-
-    # TODO #1799: The interface may not be needed for this case if
-    # we can successuly obtain the expression.datatype
+    does not use the generic comparison interface if the types can be
+    determined.
 
     '''
     code = '''
@@ -584,16 +582,14 @@ def test_expression_case(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
 
-    # Check that the interface implementation has been inserted
-    has_cmp_interface(output)
-
-    # Check that the cannonicalised comparisons use the interface method
-    assert "if (psyclone_internal_cmp(a * a, b - c)) then" in output
-    assert "if (psyclone_internal_cmp(a * a, c - b)) then" in output
+    # Check that the cannonicalised comparisons do not use the interface method
+    assert "if (a * a == b - c) then" in output
+    assert "if (a * a == c - b) then" in output
+    assert "interface psyclone_internal_cmp" not in output
 
 
-def test_unknown_types_case(fortran_reader, fortran_writer):
-    '''Test that a select case statement comparing two unknown types
+def test_unresolved_types_case(fortran_reader, fortran_writer):
+    '''Test that a select case statement comparing two unresolved types
     is using the generic comparison interface'''
     code = '''
     module test
@@ -622,8 +618,8 @@ def test_unknown_types_case(fortran_reader, fortran_writer):
     assert "if (psyclone_internal_cmp(a, c)) then" in output
 
 
-def test_unknown_types_case_without_module(fortran_reader):
-    '''Test that a select case statement comparing two unknown types in a
+def test_unresolved_types_case_without_module(fortran_reader):
+    '''Test that a select case statement comparing two unresolved types in a
     situation wihtout an ancestor module, it will generate a CodeBlock'''
     code = '''
     subroutine test_subroutine()
@@ -669,7 +665,7 @@ def test_derived_types_case(fortran_reader, fortran_writer):
     assert "if (a%field == 1) then" in output
     assert "if (a%field == 2) then" in output
 
-    # And then the datatype information is unknown
+    # And then the datatype information is unresolved
     code = '''
     module test
         contains

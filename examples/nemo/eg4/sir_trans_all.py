@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,6 @@ the original code is translated.
 '''
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.nemo import NemoKern
 from psyclone.psyir.nodes import IntrinsicCall, Assignment
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
     Min2CodeTrans, Max2CodeTrans, HoistTrans
@@ -97,22 +96,19 @@ def trans(psy):
         for assignment in schedule.walk(Assignment):
             array_range_trans.apply(assignment)
 
-        for kernel in schedule.walk(NemoKern):
-
-            kernel_schedule = kernel.get_kernel_schedule()
-            for icall in kernel_schedule.walk(IntrinsicCall):
-                if icall.intrinsic == IntrinsicCall.Intrinsic.ABS:
-                    # Apply ABS transformation
-                    abs_trans.apply(icall)
-                elif icall.intrinsic == IntrinsicCall.Intrinsic.SIGN:
-                    # Apply SIGN transformation
-                    sign_trans.apply(icall)
-                elif icall.intrinsic == IntrinsicCall.Intrinsic.MIN:
-                    # Apply (2-n arg) MIN transformation
-                    min_trans.apply(icall)
-                elif icall.intrinsic in IntrinsicCall.Intrinsic.MAX:
-                    # Apply (2-n arg) MAX transformation
-                    max_trans.apply(icall)
+        for icall in schedule.walk(IntrinsicCall):
+            if icall.intrinsic == IntrinsicCall.Intrinsic.ABS:
+                # Apply ABS transformation
+                abs_trans.apply(icall)
+            elif icall.intrinsic == IntrinsicCall.Intrinsic.SIGN:
+                # Apply SIGN transformation
+                sign_trans.apply(icall)
+            elif icall.intrinsic == IntrinsicCall.Intrinsic.MIN:
+                # Apply (2-n arg) MIN transformation
+                min_trans.apply(icall)
+            elif icall.intrinsic in IntrinsicCall.Intrinsic.MAX:
+                # Apply (2-n arg) MAX transformation
+                max_trans.apply(icall)
 
         # Remove any loop invariant assignments inside k-loops to make
         # them perfectly nested. At the moment this transformation
