@@ -768,7 +768,7 @@ class LFRicExtractDriverCreator:
         module = ContainerSymbol("compare_variables_mod")
         program.symbol_table.add(module)
         for compare_func in ["compare", "compare_init", "compare_summary"]:
-            compare_sym = RoutineSymbol(compare_func, DeferredType(),
+            compare_sym = RoutineSymbol(compare_func, UnresolvedType(),
                                         interface=ImportInterface(module))
             program.symbol_table.add(compare_sym)
 
