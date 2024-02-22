@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
                                   CodeBlock, BinaryOperation, Assignment,
                                   IfBlock, IntrinsicCall)
 from psyclone.psyir.symbols import ArgumentInterface
-from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 
 
 class AdjointVisitor(PSyIRVisitor):
@@ -186,12 +186,12 @@ class AdjointVisitor(PSyIRVisitor):
         # Since a piece of code could contain many Schedules, ensure we are
         # currently handling the one representing the routine.
         if isinstance(node, Routine):
-            dtools = DependencyTools()
+            ctu = CallTreeUtils()
             # Input signatures ('in_sigs') are those whose first access is a
             # read.
             # Output signatures ('out_sigs') are those that are written to at
             # some point.
-            read_write_info = dtools.get_in_out_parameters(node_copy.children)
+            read_write_info = ctu.get_in_out_parameters(node_copy.children)
             # Get the variable name associated with each of these signatures.
             in_names = [sig.var_name
                         for sig in read_write_info.signatures_read]

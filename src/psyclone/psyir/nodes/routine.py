@@ -34,15 +34,16 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
 # Modified by: S. Siso, STFC Daresbury Lab
+# MOdified by: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Routine node implementation.'''
 
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, NoType
-from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, NoType
+from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 
 class Routine(Schedule, CommentableMixin):
@@ -97,6 +98,7 @@ class Routine(Schedule, CommentableMixin):
     @classmethod
     def create(cls, name, symbol_table, children, is_program=False,
                return_symbol_name=None):
+        # pylint: disable=too-many-arguments
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
         so that it is able to act as a Factory for subclasses - e.g. it

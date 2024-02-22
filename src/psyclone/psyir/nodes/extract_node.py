@@ -78,6 +78,10 @@ class ExtractNode(PSyDataNode):
         creating names to store values of output variable. A variable 'a' \
         would store its value as 'a', and its output values as 'a_post' with \
         the default post_var_postfix of '_post'.
+    :param options["read_write_info"]: information about variables that are \
+        read and/or written in the instrumented code.
+    :type options["read_write_info"]:\
+        py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
     '''
     # Textual description of the node.
@@ -102,10 +106,12 @@ class ExtractNode(PSyDataNode):
         # variable 'a' exists, which creates 'a_out' for the output variable,
         # which would clash with a variable 'a_out' used in the program unit).
 
-        if options:
-            self._post_name = options.get("post_var_postfix", "_post")
-        else:
-            self._post_name = "_post"
+        if not options:
+            options = {}
+        self._post_name = options.get("post_var_postfix", "_post")
+
+        # Keep a copy of the parameter list:
+        self._read_write_info = options.get("read_write_info")
 
     def __eq__(self, other):
         '''
@@ -150,15 +156,8 @@ class ExtractNode(PSyDataNode):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
 
         '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
-        # Determine the variables to write:
-        dep = DependencyTools()
-        read_write_info = \
-            dep.get_in_out_parameters(self, options=self.options)
-        options = {'pre_var_list': read_write_info.read_list,
-                   'post_var_list': read_write_info.write_list,
+        options = {'pre_var_list': self._read_write_info.read_list,
+                   'post_var_list': self._read_write_info.write_list,
                    'post_var_postfix': self._post_name}
 
         parent.add(CommentGen(parent, ""))
@@ -179,16 +178,24 @@ class ExtractNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
-        # Determine the variables to write:
-        dep = DependencyTools()
-        read_write_info = \
-            dep.get_in_out_parameters(self, options=self.options)
+        if self._read_write_info is None:
+            # Typically. _read_write_info should be set at the constructor,
+            # but some tests do not provide the required information. To
+            # support these tests, allow creation of the read_write info
+            # here (it can't be done in the constructor, since this node
+            # is not yet integrated into the PSyIR, so the dependency tool
+            # cannot determine variable usage at that time):
 
-        options = {'pre_var_list': read_write_info.read_list,
-                   'post_var_list': read_write_info.write_list,
+            # Avoid circular dependency
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
+            # Determine the variables to write:
+            ctu = CallTreeUtils()
+            self._read_write_info = \
+                ctu.get_in_out_parameters(self, options=self.options)
+
+        options = {'pre_var_list': self._read_write_info.read_list,
+                   'post_var_list': self._read_write_info.write_list,
                    'post_var_postfix': self._post_name}
 
         return super().lower_to_language_level(options)

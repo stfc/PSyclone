@@ -457,13 +457,8 @@ code, it will create an output file for each instrumented code region.
 The same logic for naming variables (using ``_post`` for output variables)
 used in :ref:`extraction_for_gocean` is used here.
 
-As in the case of e.g. :ref:`read-only verification
-<psydata_read_verification>`, this library uses the pared-down LFRic
-infrastructure located in a clone of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
-However, this needs to be changed for any user (for instance with
-PSyclone installation). Please refer to the relevant ``README.md``
-documentation on how to build and link this library.
+Check :ref:`integrating_psy_data_lfric` for the recommended way of linking
+an extraction library to LFRic.
 
 The output file contains the values of all variables used in the
 subroutine. The ``LFRicExtractTrans`` transformation can automatically
@@ -495,14 +490,6 @@ optimisation of a stand-alone kernel.
     stores the variable names and will not be able to find a variable
     if its name has changed.
 
-.. note:: If the kernel, or any function called from an extracted kernel
-    should use a variable from a module directly (as opposed to supplying
-    this as parameter in the kernel call), this variable will not be
-    written to the extract data file, and the driver will also not try to
-    read in the value. As a result, the kernel will not be able to
-    run stand-alone. As a work-around, these values can be added manually
-    to the driver program. Issue #1990 tracks improvement of this situation.
-
 The LFRic kernel driver will inline all required external modules into the
 driver. It uses a ``ModuleManager`` to find the required modules, based on the
 assumption that a file ``my_special_mod.f90`` will define exactly one module
@@ -531,6 +518,20 @@ paths (infrastructure files and extraction library) for the compiler, but
 these flags are actually only required for compiling the example program, not
 for the driver.
 
+Restrictions of Kernel Extraction and Driver Creation
+#####################################################
+A few restrictions still apply to the current implementation of the driver
+creation code:
+
+- Distributed memory is not yet supported. See #1992.
+- The extraction code will now write variables that are used from other
+  modules to the kernel data file, and the driver will read these values in.
+  Unfortunately, if a variable is used that is defined as private,
+  the value cannot be written to the file, and compilation will abort.
+  The only solution is to modify this file and make all variables public.
+  This mostly affects ``log_mod.F90``, but a few other modules as well.
+  The created driver will modify the attributes of all variables so that
+  they can be written when reading in the modified values.
 
 Extraction for NEMO
 ++++++++++++++++++++

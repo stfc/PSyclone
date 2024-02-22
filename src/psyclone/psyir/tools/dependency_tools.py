@@ -46,11 +46,12 @@ from psyclone.configuration import Config
 from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
-from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.tools.read_write_info import ReadWriteInfo
+from psyclone.psyir.nodes import Loop
 
+
+# pylint: disable=too-many-lines
 
 class DTCode(IntEnum):
     '''A simple enum to store the various info, warning and error
@@ -126,11 +127,11 @@ class DependencyTools():
     a messaging system where functions can store messages that might be
     useful for the user to see.
 
-    :param loop_types_to_parallelise: A list of loop types that will be \
-        considered for parallelisation. An example loop type might be\
-        'lat', indicating that only loops over latitudes should be\
-        parallelised. The actually supported list of loop types is\
-        specified in the PSyclone config file. This can be used to\
+    :param loop_types_to_parallelise: A list of loop types that will be
+        considered for parallelisation. An example loop type might be
+        'lat', indicating that only loops over latitudes should be
+        parallelised. The actually supported list of loop types is
+        specified in the PSyclone config file. This can be used to
         exclude for example 1-dimensional loops.
     :type loop_types_to_parallelise: Optional[List[str]]
 
@@ -207,10 +208,10 @@ class DependencyTools():
         variables used, and the list of subscript indices.
 
         :param comp_ind1: component_indices of the first array access.
-        :type comp_ind1:  \
+        :type comp_ind1: 
             :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param comp_ind2: component_indices of the first array access.
-        :type comp_ind2:  \
+        :type comp_ind2:
             :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param loop_variables: list with name of all loop variables.
         :type loop_variables: List[str]
@@ -318,12 +319,12 @@ class DependencyTools():
         be observed in code handled with PSyclone, so they will also
         return None.
 
-        :param str var_name: name of the one variable used in the two \
+        :param str var_name: name of the one variable used in the two
             index expressions.
-        :param index_read: the index expression of the variable read that \
+        :param index_read: the index expression of the variable read that
             is to be compare.
         :type index_read: :py:class:`psyclone.psyir.nodes.Node`
-        :param index_written: the index expression of the variable written \
+        :param index_written: the index expression of the variable written
             that is to be compare.
         :type index_written: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -428,15 +429,15 @@ class DependencyTools():
         the fact that the first subscript is independent makes the access
         parallelisable.
 
-        :param str var_name: the name of the loop variable of the loop to be \
+        :param str var_name: the name of the loop variable of the loop to be
             parallelised.
         :param write_access: access information a single write access.
         :type write_access: :py:class:`psyclone.core.AccessInfo`
-        :param other_access: access information the other (read or write) \
+        :param other_access: access information the other (read or write)
             access.
         :type other_access: :py:class:`psyclone.core.AccessInfo`
-        :param subscripts: the subscript indices (as a tuple, see \
-            ComponentIndices class) which are all handled together because \
+        :param subscripts: the subscript indices (as a tuple, see
+            ComponentIndices class) which are all handled together because
             of shared loop variables.
         :type subscripts: List[Tuple(int,int)]
 
@@ -471,18 +472,18 @@ class DependencyTools():
         is a dependency, then the access to this array cannot be parallelised,
         it would create a race condition.
 
-        :param loop_variables: the list of all loop variables in the code to \
-            be parallelised. The first one must be the loop to be \
-            parallelised (a possible outer loop does not matter, the value of \
+        :param loop_variables: the list of all loop variables in the code to
+            be parallelised. The first one must be the loop to be
+            parallelised (a possible outer loop does not matter, the value of
             the loop variable is a constant within the loop to be parallelised.
         :type loop_variables: List[str]
         :param write_access: access information of a single array write access.
         :type write_access: :py:class:`psyclone.core.AccessInfo`
-        :param other_access: access information of the second single array \
+        :param other_access: access information of the second single array
             access (for the same variable).
         :type other_access: :py:class:`psyclone.core.AccessInfo`
 
-        :returns: whether there is a loop carried dependency between the \
+        :returns: whether there is a loop carried dependency between the
             pair of accesses, which prevents parallelisation.
         :rtype: bool
 
@@ -575,13 +576,13 @@ class DependencyTools():
         that is guaranteed to be independent, which is all that is needed
         for parallelisation.
 
-        :param loop_variables: the list of all loop variables in the code to \
-            be parallelised. The first one must be the loop to be \
-            parallelised (a possible outer loop does not matter, the value of \
+        :param loop_variables: the list of all loop variables in the code to
+            be parallelised. The first one must be the loop to be
+            parallelised (a possible outer loop does not matter, the value of
             the loop variable is a constant within the loop to be parallelised.
         :type loop_variables: List[str]
         :param var_info: access information for this variable.
-        :type var_info: \
+        :type var_info:
             :py:class:`psyclone.core.SingleVariableAccessInfo`
 
         :return: whether the variable can be used in parallel.
@@ -649,7 +650,7 @@ class DependencyTools():
 
         :param var_info: the access information for the variable to test.
         :type var_info: :py:class:`psyclone.core.var_info.VariableInfo`
-        :return: True if the scalar variable is not a reduction, i.e. it \
+        :return: True if the scalar variable is not a reduction, i.e. it
             can be parallelised.
         :rtype: bool
         '''
@@ -767,102 +768,3 @@ class DependencyTools():
                 result = False
 
         return result
-
-    # -------------------------------------------------------------------------
-    def get_input_parameters(self, read_write_info, node_list,
-                             variables_info=None, options=None):
-        '''Adds all variables that are input parameters (i.e. are read before
-        potentially being written) to the read_write_info object.
-
-        :param read_write_info: this object stores the information about \
-            all input parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param variables_info: optional variable usage information, \
-            can be used to avoid repeatedly collecting this information.
-        :type variables_info: \
-            :py:class:`psyclone.core.variables_info.VariablesAccessInfo`
-        :param options: a dictionary with options for the dependency tools \
-            which will also be used when creating the VariablesAccessInfo \
-            instance if required.
-        :type param: Optional[Dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
-            set to a True value, arrays used as first parameter to the \
-            PSyIR operators lbound, ubound, or size will be reported as \
-            'read'. Otherwise, these accesses will be ignored.
-
-        '''
-        # Collect the information about all variables used:
-        if not variables_info:
-            variables_info = VariablesAccessInfo(node_list, options=options)
-
-        for signature in variables_info.all_signatures:
-            # If the first access is a write, the variable is not an input
-            # parameter and does not need to be saved. Note that loop variables
-            # have a WRITE before a READ access, so they will be ignored
-            # automatically.
-            if not variables_info[signature].is_written_first():
-                read_write_info.add_read(signature)
-
-    # -------------------------------------------------------------------------
-    def get_output_parameters(self, read_write_info, node_list,
-                              variables_info=None, options=None):
-        '''Adds all variables that are output parameters (i.e. are written)
-        to the read_write_info object.
-
-        :param read_write_info: this object stores the information about \
-            output parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param variables_info: optional variable usage information, \
-            can be used to avoid repeatedly collecting this information.
-        :type variables_info: \
-        Optional[:py:class:`psyclone.core.variables_info.VariablesAccessInfo`]
-        :param options: a dictionary with options for the dependency tools \
-            which will also be used when creating the VariablesAccessInfo \
-            instance if required.
-        :type param: Optional[Dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
-            set to a True value, arrays used as first parameter to the \
-            PSyIR operators lbound, ubound, or size will be reported as \
-            'read'. Otherwise, these accesses will be ignored.
-
-        '''
-        # Collect the information about all variables used:
-        if not variables_info:
-            variables_info = VariablesAccessInfo(node_list, options=options)
-
-        for signature in variables_info.all_signatures:
-            if variables_info.is_written(signature):
-                read_write_info.add_write(signature)
-
-    # -------------------------------------------------------------------------
-    def get_in_out_parameters(self, node_list, options=None):
-        '''Returns a ReadWriteInfo object that contains all variables that are
-        input and output parameters to the specified node list. This function
-        calls `get_input_parameter` and `get_output_parameter`, but avoids the
-        repeated computation of the variable usage.
-
-        :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param options: a dictionary with options for the dependency tools \
-            which will also be used when creating the VariablesAccessInfo \
-            instance if required.
-        :type options: Optional[Dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
-            set to a True value, arrays used as first parameter to the \
-            PSyIR operators lbound, ubound, or size will be reported as \
-            'read'. Otherwise, these accesses will be ignored.
-
-        :returns: a ReadWriteInfo object with the information about input- \
-            and output parameters.
-        :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-
-        '''
-        variables_info = VariablesAccessInfo(node_list, options=options)
-        read_write_info = ReadWriteInfo()
-        self.get_input_parameters(read_write_info, node_list, variables_info)
-        self.get_output_parameters(read_write_info, node_list, variables_info)
-        return read_write_info

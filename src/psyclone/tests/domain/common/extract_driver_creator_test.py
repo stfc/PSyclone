@@ -57,7 +57,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
-from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
+from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -98,7 +98,7 @@ def test_driver_creation1():
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel:compute_kernel_code:r0.f90")
+                  "kernel-compute_kernel_code-r0.f90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -122,7 +122,7 @@ def test_driver_creation1():
   real*8, allocatable, dimension(:,:) :: in_out_fld_post
   type(ReadKernelDataType) :: extract_psy_data
   call extract_psy_data%OpenRead('psy_extract_example_with_various_variable_''' \
-  '''access_patterns', 'invoke_0_compute_kernel:compute_kernel_code:r0')
+  '''access_patterns', 'invoke_0_compute_kernel-compute_kernel_code-r0')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
   ALLOCATE(out_fld, mold=out_fld_post)
   out_fld = 0
@@ -174,8 +174,8 @@ def test_driver_creation2():
     clb_trans = GOConstLoopBoundsTrans()
     clb_trans.apply(invoke.schedule)
 
-    dep = DependencyTools()
-    read_write_info = dep.get_in_out_parameters(nodes)
+    ctu = CallTreeUtils()
+    read_write_info = ctu.get_in_out_parameters(nodes)
 
     edc = ExtractDriverCreator()
 
@@ -480,8 +480,8 @@ def test_driver_creation_same_symbol():
                            idx=3, dist_mem=False)
 
     nodes = [invoke.schedule.children[0]]
-    dep = DependencyTools()
-    read_write_info = dep.get_in_out_parameters(nodes)
+    ctu = CallTreeUtils()
+    read_write_info = ctu.get_in_out_parameters(nodes)
 
     edc = ExtractDriverCreator()
     driver_code = edc.get_driver_as_string(nodes, read_write_info,

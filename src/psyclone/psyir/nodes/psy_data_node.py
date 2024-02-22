@@ -48,6 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.codeblock import CodeBlock
@@ -473,8 +474,41 @@ class PSyDataNode(Statement):
         parent.add(call)
 
     # -------------------------------------------------------------------------
+    def _create_unique_names(self, var_list, symbol_table):
+        '''This function takes a list of (module_name, signature) tuple, and
+        for any name that is already in the symbol table (i.e. creating a
+        name clash), creates a new, unique symbol and adds it to the symbol
+        table. It returns a list of three-element entries: module name
+        original_signature, unique_signature. The unique signature and
+        original signature are identical if the original name was not in the
+        symbol table.
+
+        :param var_list: the variable information list.
+        :type var_list: List[Tuple[str, :py:class:`psyclone.core.Signature`]]
+
+        :returns: a new list which has a unique signature name added.
+        :rtype: List[Tuple[str, :py:class:`psyclone.core.Signature`,
+            :py:class:`psyclone.core.Signature`]]
+
+        '''
+        out_list = []
+        for (module_name, signature) in var_list:
+            if module_name:
+                var_symbol = \
+                    symbol_table.find_or_create_tag(tag=f"{signature[0]}"
+                                                        f"@{module_name}",
+                                                    root_name=signature[0])
+                unique_sig = Signature(var_symbol.name, signature[1:])
+            else:
+                # This is a local variable anyway, no need to rename:
+                unique_sig = signature
+            out_list.append((module_name, signature, unique_sig))
+        return out_list
+
+    # -------------------------------------------------------------------------
     def gen_code(self, parent, options=None):
         # pylint: disable=arguments-differ, too-many-branches
+        # pylint: disable=too-many-statements
         '''Creates the PSyData code before and after the children
         of this node.
 
@@ -505,14 +539,13 @@ class PSyDataNode(Statement):
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Kern, InvokeSchedule
-        # TODO: #415 Support different classes of PSyData calls.
         invoke = self.ancestor(InvokeSchedule).invoke
-        module_name = self._module_name
-        if module_name is None:
+        global_module_name = self._module_name
+        if global_module_name is None:
             # The user has not supplied a module (location) name so
             # return the psy-layer module name as this will be unique
             # for each PSyclone algorithm file.
-            module_name = invoke.invokes.psy.name
+            global_module_name = invoke.invokes.psy.name
 
         region_name = self._region_name
         if region_name is None:
@@ -524,7 +557,7 @@ class PSyDataNode(Statement):
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,
                 # so append the kernel name.
-                region_name += f":{kerns[0].name}"
+                region_name += f"-{kerns[0].name}"
             # Add a region index to ensure uniqueness when there are
             # multiple regions in an invoke.
             psy_data_nodes = self.root.walk(PSyDataNode)
@@ -535,15 +568,37 @@ class PSyDataNode(Statement):
                 if node is self:
                     idx = index
                     break
-            region_name += f":r{idx}"
+            region_name += f"-r{idx}"
 
         if not options:
             options = {}
 
-        pre_variable_list = options.get("pre_var_list", [])
-        post_variable_list = options.get("post_var_list", [])
+        # Get the list of variables, and handle name clashes: an imported
+        # symbol might be the same as a local variable. Convert the lists
+        # of 2-tuples (module_name, signature) to a list of 3-tuples
+        # (module_name, signature, unique_signature):
+
+        symbol_table = self.scope.symbol_table
+        pre_variable_list = \
+            self._create_unique_names(options.get("pre_var_list", []),
+                                      symbol_table)
+        post_variable_list = \
+            self._create_unique_names(options.get("post_var_list", []),
+                                      symbol_table)
+
         pre_suffix = options.get("pre_var_postfix", "")
         post_suffix = options.get("post_var_postfix", "")
+        for module_name, signature, unique_signature in (pre_variable_list +
+                                                         post_variable_list):
+            if module_name:
+                if unique_signature != signature:
+                    rename = f"{unique_signature[0]}=>{signature[0]}"
+                    use = UseGen(parent, module_name, only=True,
+                                 funcnames=[rename])
+                else:
+                    use = UseGen(parent, module_name, only=True,
+                                 funcnames=[unique_signature[0]])
+                parent.add(use)
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
@@ -560,11 +615,11 @@ class PSyDataNode(Statement):
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
-                       [f"\"{module_name}\"",
+                       [f"\"{global_module_name}\"",
                         f"\"{region_name}\"",
                         len(pre_variable_list),
                         len(post_variable_list)])
-        self.set_region_identifier(module_name, region_name)
+        self.set_region_identifier(global_module_name, region_name)
         has_var = pre_variable_list or post_variable_list
 
         # Each variable name can be given a suffix. The reason for
@@ -581,18 +636,27 @@ class PSyDataNode(Statement):
         # values of a variable "A" as "A" in the pre-variable list,
         # and store the modified value of "A" later as "A_post".
         if has_var:
-            for _, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{var_name}{pre_suffix}\"", var_name])
-            for _, var_name in post_variable_list:
+                               [f"\"{sig}{module_name}{pre_suffix}\"",
+                                unique_sig])
+            for module_name, sig, unique_sig in post_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{var_name}{post_suffix}\"", var_name])
+                               [f"\"{sig}{post_suffix}{module_name}\"",
+                                unique_sig])
 
             self._add_call("PreEndDeclaration", parent)
 
-            for _, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 self._add_call("ProvideVariable", parent,
-                               [f"\"{var_name}{pre_suffix}\"", var_name])
+                               [f"\"{sig}{module_name}{pre_suffix}\"",
+                                unique_sig])
 
             self._add_call("PreEnd", parent)
 
@@ -602,13 +666,17 @@ class PSyDataNode(Statement):
         if has_var:
             # Only add PostStart() if there is at least one variable.
             self._add_call("PostStart", parent)
-            for _, var_name in post_variable_list:
+            for module_name, sig, unique_sig in post_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 self._add_call("ProvideVariable", parent,
-                               [f"\"{var_name}{post_suffix}\"", var_name])
+                               [f"\"{sig}{post_suffix}{module_name}\"",
+                                unique_sig])
 
         self._add_call("PostEnd", parent)
 
     def lower_to_language_level(self, options=None):
+        # pylint: disable=arguments-differ
         # pylint: disable=too-many-branches, too-many-statements
         '''
         Lowers this node (and all children) to language-level PSyIR. The
@@ -708,8 +776,14 @@ class PSyDataNode(Statement):
         if not options:
             options = {}
 
-        pre_variable_list = options.get("pre_var_list", [])
-        post_variable_list = options.get("post_var_list", [])
+        symbol_table = self.scope.symbol_table
+        pre_variable_list = \
+            self._create_unique_names(options.get("pre_var_list", []),
+                                      symbol_table)
+        post_variable_list = \
+            self._create_unique_names(options.get("post_var_list", []),
+                                      symbol_table)
+
         pre_suffix = options.get("pre_var_postfix", "")
         post_suffix = options.get("post_var_postfix", "")
 
@@ -741,25 +815,31 @@ class PSyDataNode(Statement):
         # values of a variable "A" as "A" in the pre-variable list,
         # and store the modified value of "A" later as "A_post".
         if has_var:
-            for _, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{var_name}{pre_suffix}\"", var_name])
+                    [f"\"{sig}{module_name}{pre_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
-            for _, var_name in post_variable_list:
+            for module_name, sig, unique_sig in post_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{var_name}{post_suffix}\"", var_name])
+                    [f"\"{sig}{module_name}{post_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEndDeclaration")
             self.parent.children.insert(self.position, call)
 
-            for _, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{var_name}{pre_suffix}\"", var_name])
+                    [f"\"{sig}{module_name}{pre_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEnd")
@@ -774,10 +854,12 @@ class PSyDataNode(Statement):
             # Only add PostStart() if there is at least one variable.
             call = gen_type_bound_call(self._var_name, "PostStart")
             self.parent.children.insert(self.position, call)
-            for _, var_name in post_variable_list:
+            for module_name, sig, unique_sig in post_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{var_name}{post_suffix}\"", var_name])
+                    [f"\"{sig}{module_name}{post_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
         # PSyData end call

@@ -32,6 +32,7 @@
 ! Modified by J. Henrichs, Bureau of Meteorology
 ! Modified by I. Kavcic, Met Office
 
+
 module testkern_w0_kernel_mod
 
   use argument_mod
@@ -40,8 +41,12 @@ module testkern_w0_kernel_mod
 
   use constants_mod
 
+  use dummy_mod, only: dummy_var1, dummy_code
+
   implicit none
 
+  integer, public :: some_other_var
+  integer, parameter :: some_other_const = 123
   private
 
   type, public, extends(kernel_type) :: testkern_w0_kernel_type
@@ -64,6 +69,7 @@ contains
   subroutine testkern_w0_code(nlayers, fld1, fld2, chi1, chi2, chi3, &
                               some_logical, ndf_w0, undf_w0, map_w0)
 
+    use dummy_mod, only: dummy_var2, dummy_var3, dummy_func, dummy_code
     implicit none
 
     integer(kind=i_def), intent(in)                     :: nlayers
@@ -75,12 +81,19 @@ contains
     integer(kind=i_def), dimension(ndf_w0)              :: map_w0
 
     integer(kind=i_def)                                 :: i, k
+    real(kind=r_def) :: some_r
 
+    call dummy_code(1)
+    some_r = 0
     do k=0, nlayers-1
       do i=1, ndf_w0
-        fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + fld2(map_w0(i)+k)
+        some_r = some_r + 1
+        fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + fld2(map_w0(i)+k)             &
+                          + dummy_func(i)
         if (some_logical) then
-          fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + 1
+          fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + 1 + dummy_var1 + dummy_var2 &
+                            + some_other_var + some_r + dummy_var3            &
+                            + some_other_const
         endif
       end do
     end do
