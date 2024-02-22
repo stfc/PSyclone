@@ -148,13 +148,13 @@ class LFRicExtractTrans(ExtractTrans):
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
         # Get the input- and output-parameters of the node list
-        read_write_info = ctu.get_in_out_parameters(nodes)
+        read_write_info = \
+            ctu.get_in_out_parameters(nodes, collect_non_local_symbols=True)
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,
                                                  postfix="_post")
         my_options["post_var_postfix"] = postfix
-
         if my_options.get("create_driver", False):
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not

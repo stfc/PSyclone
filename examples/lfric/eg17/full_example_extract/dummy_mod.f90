@@ -1,7 +1,6 @@
-! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023-2024, Science and Technology Facilities Council.
+! Copyright (c) 2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,25 +28,39 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: J. Henrichs, Bureau of Meteorology
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified by J. Henrichs, Bureau of Meteorology
+! Modified by I. Kavcic, Met Office
 
-! This module provides some module variables and a function/subroutine to
-! provide non-local symbols for testing kernel extraction and driver creation.
+module dummy_mod
+  integer :: dummy_var1
+  real :: dummy_var2
+  real :: dummy_var3 = 3
 
-module module_with_var_mod
+  public :: dummy_code
 
-  integer :: module_var_a, module_var_b
-  integer, parameter :: module_const = 123
+  interface dummy_code
+   module procedure dummy_code_1, dummy_code_2
+  end interface
 
-contains
+  contains
 
-  integer function module_function()
-    module_function = module_var_b
-  end function module_function
+  subroutine dummy_code_1(a)
+    implicit none
+    integer :: a
+    dummy_var1 = dummy_var1 + 1
+  end subroutine dummy_code_1
 
-  subroutine module_subroutine()
-    module_var_b = module_var_b + 1
-  end subroutine module_subroutine
+  subroutine dummy_code_2(a)
+    implicit none
+    real :: a
+    dummy_var1 = dummy_var1 + 1
+  end subroutine dummy_code_2
 
+  integer function dummy_func(a)
+    implicit none
+    integer :: a
+    dummy_func = a+1 + dummy_var2
+  end function dummy_func
 
-end module module_with_var_mod
+end module dummy_mod
