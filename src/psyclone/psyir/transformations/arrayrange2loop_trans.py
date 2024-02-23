@@ -43,8 +43,8 @@ not support array ranges.
 '''
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
-    Assignment, Call, IntrinsicCall
+from psyclone.psyir.nodes import ArrayReference, Assignment, Call, \
+    IntrinsicCall, Loop, Literal, Range, Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -141,17 +141,20 @@ class ArrayRange2LoopTrans(Transformation):
                                              transformation on a character
                                              type array range.
 
-        :raises TransformationError: if the node argument is not an \
+        :raises TransformationError: if the node argument is not an
             Assignment.
-        :raises TransformationError: if the node argument is an \
+        :raises TransformationError: if the node argument is an
             Assignment whose left hand side is not an ArrayReference.
-        :raises TransformationError: if the node argument is an \
-            Assignment whose left hand side is an ArrayReference that does \
-            not have Range specifying the access to at least one of its \
+        :raises TransformationError: if the node argument is an
+            Assignment whose left hand side is an ArrayReference that does
+            not have Range specifying the access to at least one of its
             dimensions.
-        :raises TransformationError: if two or more of the loop ranges \
-            in the assignment are different or are not known to be the \
+        :raises TransformationError: if two or more of the loop ranges
+            in the assignment are different or are not known to be the
             same.
+        :raises TransformationError: if node contains a character type
+                                     child and the allow_strings option is
+                                     not set.
 
         '''
         if not isinstance(node, Assignment):
@@ -227,14 +230,19 @@ class ArrayRange2LoopTrans(Transformation):
         if allow_string_array:
             return
         lhs = node.lhs
-        # We only check the lhs type for now, since we assume the type of the
-        # LHS and RHS match.
-        if lhs.symbol.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+        if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
             raise TransformationError(
                     "The ArrayRange2LoopTrans transformation doesn't allow "
                     "character arrays by default. This can be enabled by "
                     "passing the allow_string option to the transformation."
             )
+        for child in node.rhs.walk((Literal, Reference)):
+            if child.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                raise TransformationError(
+                    "The ArrayRange2LoopTrans transformation doesn't allow "
+                    "character arrays by default. This can be enabled by "
+                    "passing the allow_string option to the transformation."
+                )
 
 
 __all__ = [
