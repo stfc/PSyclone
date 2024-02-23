@@ -230,19 +230,32 @@ class ArrayRange2LoopTrans(Transformation):
         if allow_string_array:
             return
         lhs = node.lhs
-        if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-            raise TransformationError(
-                    "The ArrayRange2LoopTrans transformation doesn't allow "
-                    "character arrays by default. This can be enabled by "
-                    "passing the allow_string option to the transformation."
-            )
-        for child in node.rhs.walk((Literal, Reference)):
-            if child.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+        # ArrayMixin datatype lookup can fail if the indices contain a
+        # Call or Intrinsic Call. We catch this exception and continue
+        # for now - TODO #1799
+        try:
+            if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
                 raise TransformationError(
                     "The ArrayRange2LoopTrans transformation doesn't allow "
                     "character arrays by default. This can be enabled by "
                     "passing the allow_string option to the transformation."
                 )
+        except NotImplementedError:
+            pass
+        for child in node.rhs.walk((Literal, Reference)):
+            # Skip over indices
+            if child.ancestor(ArrayReference) is not None:
+                continue
+            try:
+                if child.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                    raise TransformationError(
+                        "The ArrayRange2LoopTrans transformation doesn't "
+                        "allow character arrays by default. This can be "
+                        "enabled by passing the allow_string option to the "
+                        "transformation."
+                    )
+            except NotImplementedError:
+                pass
 
 
 __all__ = [
