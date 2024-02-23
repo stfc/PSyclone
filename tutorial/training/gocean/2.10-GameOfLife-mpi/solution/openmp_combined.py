@@ -70,12 +70,12 @@ def trans(psy):
     # Optional:
     # fuse_trans(psy)
 
-    # Both ways work - either specify the default in
-    # the constructor, or change the schedule here:
-    omp_do.omp_schedule = "static"
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
             omp_do.apply(loop)
+
+    # Look at the schedule before adding 'omp parallel':
+    print(schedule.view())
 
     # Now add the OMP PARALLEL around all loops. In case of
     # distributed memory the first node is the halo exchange,

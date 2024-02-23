@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,6 +73,9 @@ def trans(psy):
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
             omp_do.apply(loop)
+
+    # Look at the schedule before adding 'omp parallel':
+    print(schedule.view())
 
     # TODO: This transformation will fail.
     # How can it be fixed?
