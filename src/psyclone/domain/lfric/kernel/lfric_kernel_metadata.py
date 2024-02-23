@@ -39,6 +39,7 @@ kernel-layer-specific class that captures the LFRic kernel metadata.
 
 '''
 import inspect
+from itertools import combinations
 
 from fparser.two import Fortran2003
 from fparser.two.utils import walk, get_child
@@ -232,6 +233,13 @@ class LFRicKernelMetadata(CommonMetadata):
             # This has to be a domain kernel.
             self._validate_domain_kernel()
             return "domain"
+        if self.operates_on == "dof":
+            # pylint: disable=import-outside-top-level
+            from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP_CAPITALISED
+            if self.name in BUILTIN_MAP_CAPITALISED.keys:
+                pass    # Could add 'builtin' type here
+            else:
+                self._validate_dof_user_kernel()
         # This has to be a general purpose kernel.
         self._validate_general_purpose_kernel()
         return "general-purpose"
@@ -297,6 +305,7 @@ class LFRicKernelMetadata(CommonMetadata):
         # meta_arg arguments must also be read only.
         if self.operates_on == "cell_column":
             for meta_arg in self.meta_args:
+                print(str(meta_arg.name),': ', str(meta_arg.access))
                 if type(meta_arg) not in [
                         FieldArgMetadata, FieldVectorArgMetadata,
                         OperatorArgMetadata, ScalarArgMetadata]:
@@ -306,6 +315,25 @@ class LFRicKernelMetadata(CommonMetadata):
                         f"of type field, field vector, LMA operator or scalar"
                         f", but found '{meta_arg.check_name}'"))
 
+        # General-purpose kernels with operates_on = DOF only accept meta_arg
+        # arguments of the following types: field, scalar. Scalar meta_arg
+        # arguments must be one of 'real', 'integer' or 'logical' (but this is
+        # all supported types so no need to check). Scalar meta_arg arguments
+        # must also be read only.
+        if self.operates_on =="dof":
+            for meta_arg in self.meta_args:
+                if type(meta_arg) not in [
+                        FieldArgMetadata, ScalarArgMetadata]:
+                    raise ParseError(self._validation_error_str(
+                        f"User defined kernels that operate on dofs should "
+                        f"only have meta_arg arguments of type field or scalar, "
+                        f"but found '{meta_arg.check_name}'"))
+            if FieldArgMetadata not in self.meta_args:
+                raise ParseError(self._validation_error_str(
+                        f"User defined kernels that operate on dofs should have "
+                        f"at least one meta_arg argument of type field, but found "
+                        f"none in '{[arg.check_name for arg in self.meta_args]}'.")
+                        )
         # TODO issue #1953: constraints when operates_on == dofs
         # 1: They must have one and only one modified (i.e. written
         # to) argument.
@@ -329,6 +357,62 @@ class LFRicKernelMetadata(CommonMetadata):
         # regarding the same data type of “write” and “read” field
         # arguments are Built-ins that convert field data from real to
         # integer, real_to_int_X, and from integer to real, int_to_real_X.
+
+    def _validate_dof_user_kernel(self):
+        '''Validation checks for a dof kernel.
+
+        :raises ParseError: if any validation checks fail.
+
+        '''
+        # Generic constraints.
+        self._validate_generic_kernel()
+
+        if self.operates_on != "dof":
+            raise ParseError(self._validation_error_str(
+                f"User defined kernels that operate on dofs should have "
+                f"their operates_on metadata set to 'dof', but found "
+                f"'{self.operates_on}'"))
+
+        # Get a list of fields to check their metadata
+        fields_metadata = self.meta_args_get([FieldArgMetadata])
+
+        # All field arguments to a given dofwise kernel must be on the
+        # same function space. This is because all fields should have the
+        # same number. It also means that we can determine the number
+        # of DoFs uniquely when a scalar is written to.
+        if len(fields_metadata) > 1:
+            for field1, field2 in combinations(fields_metadata, 2):
+                if field1.function_space != field2.function_space:
+                    raise ParseError(self._validation_error_str(
+                        f"User defined kernels that operate on dofs can "
+                        f"only operate on fields with matching function "
+                        f"spaces, but found '{field1.function_space}' and "
+                        f"'{field2.function_space}'"))
+        # Ask Iva why fields can only have access types of READ, READWRITE,
+        # or WRITE.
+        for meta_arg in fields_metadata:
+            if meta_arg.stencil:
+                raise ParseError(self._validation_error_str(
+                    f"Domain kernels meta_arg arguments of type field, or "
+                    f"field vector should not have any stencil accesses, but "
+                    f"found a stencil of type '{meta_arg.stencil}'"))
+            if meta_arg.access not in ['gh_readwrite', 'gh_read', 'gh_write']:
+                raise ParseError(self._validation_error_str(
+                    f"Domain kernels meta_arg arguments of type field, or "
+                    f"field vector should be on a discontinuous function "
+                    f"space, but found '{meta_arg.function_space}'"))
+
+        # No basis/diff basis functions are allowed.
+        if self.meta_funcs:
+            raise ParseError(self._validation_error_str(
+                "Domain kernels should not specify basis or differential "
+                "basis functions metadata, but this does"))
+
+        # No mesh properties are allowed.
+        if self.meta_mesh:
+            raise ParseError(self._validation_error_str(
+                "Domain kernels should not specify mesh property metadata, "
+                "but this does"))
 
     def _validate_domain_kernel(self):
         '''Validation checks for a domain kernel.

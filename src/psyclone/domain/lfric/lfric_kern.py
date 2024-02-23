@@ -660,18 +660,24 @@ class LFRicKern(CodedKern):
         '''
         # Check operates-on (iteration space) before generating code
         const = LFRicConstants()
-        if self.iterates_over not in const.USER_KERNEL_ITERATION_SPACES:
+
+        # Get configuration for valid argument kinds
+        api_config = Config.get().api_conf("dynamo0.3")
+
+        if self.iterates_over in ['cell_column']:
+            parent.add(DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=["cell"]))
+        elif self.iterates_over in ['dof']:
+            parent.add(DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            entity_decls=["df"]))
+        elif self.iterates_over not in const.USER_KERNEL_ITERATION_SPACES:
             raise GenerationError(
                 f"The LFRic API supports calls to user-supplied kernels that "
                 f"operate on one of {const.USER_KERNEL_ITERATION_SPACES}, but "
                 f"kernel '{self.name}' operates on '{self.iterates_over}'.")
 
-        # Get configuration for valid argument kinds
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_kind["integer"],
-                           entity_decls=["cell"]))
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicLoop
