@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR Array Range to a
 PSyIR Loop. This could be useful for e.g. performance reasons, to
@@ -44,7 +45,7 @@ not support array ranges.
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
     Assignment, Call, IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -134,6 +135,11 @@ class ArrayRange2LoopTrans(Transformation):
 
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :param options: a dictionary with options for transformations
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+                                             transformation on a character
+                                             type array range.
 
         :raises TransformationError: if the node argument is not an \
             Assignment.
@@ -213,6 +219,22 @@ class ArrayRange2LoopTrans(Transformation):
                             f"different or can't be determined in the "
                             f"assignment '{node}'.")
                     break
+
+        if not options:
+            options = {}
+        allow_string_array = options.get("allow_string", False)
+        # If we allow string arrays then we can skip the check.
+        if allow_string_array:
+            return
+        lhs = node.lhs
+        # We only check the lhs type for now, since we assume the type of the
+        # LHS and RHS match.
+        if lhs.symbol.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+            raise TransformationError(
+                    "The ArrayRange2LoopTrans transformation doesn't allow "
+                    "character arrays by default. This can be enabled by "
+                    "passing the allow_string option to the transformation."
+            )
 
 
 __all__ = [

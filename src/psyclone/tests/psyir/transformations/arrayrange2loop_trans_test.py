@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the ArrayRange2LoopTrans
 transformation.'''
@@ -478,3 +479,32 @@ def test_validate_intrinsic():
         "Error in ArrayRange2LoopTrans transformation. The rhs of the supplied"
         " Assignment contains a call 'MATMUL(y2(:,:), x(:))'."
         in str(info.value))
+
+
+def test_character_validation(fortran_reader):
+    '''Check that the validate method returns an exception if the
+    lhs of the assignment contains a character array and the allow_string
+    option isn't defined, and that it doesn't return an exception if the
+    allow_string option is True.'''
+
+    code = '''subroutine test()
+    character :: a(100)
+    character :: b(100)
+
+    a(1:94) = b(1:94)
+
+    end subroutine test'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+
+    trans = ArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The ArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    trans.validate(assign, options={"allow_string": True})
