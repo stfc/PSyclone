@@ -77,8 +77,9 @@ class ModuleManager:
         # checked. It is stored as an ordered dict to make it easier to avoid
         # duplicating entries.
         self._remaining_search_paths = OrderedDict()
-
         self._original_search_paths = []
+
+        self._ignore_modules = set()
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -87,7 +88,7 @@ class ModuleManager:
         directory, or a list of directories, each one a string.
 
         :param directories: the directory/directories to add.
-        :type directories: Union[str, List[str]]
+        :type directories: str | list[str]
 
         :param bool recursive: whether recursively all subdirectories should \
             be added to the search path.
@@ -143,6 +144,23 @@ class ModuleManager:
                         self._mod_2_filename[module] = mod_info
 
     # ------------------------------------------------------------------------
+    def add_ignore_module(self, module_name):
+        '''Adds the specified module name to the modules to be ignored.
+
+        :param str module_name: name of the module to ignore.
+
+        '''
+        self._ignore_modules.add(module_name.lower())
+
+    # ------------------------------------------------------------------------
+    def ignores(self):
+        ''':returns: the set of modules to ignore.
+        :rtype: set[str]
+
+        '''
+        return self._ignore_modules
+
+    # ------------------------------------------------------------------------
     def get_module_info(self, module_name):
         '''This function returns the ModuleInformation for the specified
         module.
@@ -157,6 +175,9 @@ class ModuleManager:
 
         '''
         mod_lower = module_name.lower()
+
+        if mod_lower in self._ignore_modules:
+            return None
 
         # First check if we have already cached this file:
         mod_info = self._mod_2_filename.get(mod_lower, None)
@@ -193,7 +214,7 @@ class ModuleManager:
             of modules it contains.
 
         :returns: the list of all modules contained in the specified file.
-        :rtype: List[str]
+        :rtype: list[str]
 
         '''
         basename = os.path.basename(filename)
@@ -221,12 +242,12 @@ class ModuleManager:
         be ignored (i.e. not listed in any dependencies).
         # TODO 2120: allow a choice to abort or ignore.
 
-        :param Set[str] all_mods: the set of all modules for which to collect
+        :param set[str] all_mods: the set of all modules for which to collect
             module dependencies.
 
         :returns: a dictionary with all modules that are required (directly \
             or indirectly) for the modules in ``all_mods``.
-        :rtype: Dict[str, Set[str]]
+        :rtype: dict[str, set[str]]
 
         '''
         # This contains the mapping from each module name to the
@@ -241,8 +262,13 @@ class ModuleManager:
         not_found = set()
 
         while todo:
-            # Pick one (random) module to handle:
-            module = todo.pop()
+            # Pick one (random) module to handle (convert to lowercase
+            # in case that the code use inconsistent capitalisation)
+            module = todo.pop().lower()
+
+            # Ignore any modules that we were asked to ignore
+            if module in self.ignores():
+                continue
             try:
                 mod_deps = self.get_module_info(module).get_used_modules()
             except FileNotFoundError:
@@ -277,8 +303,7 @@ class ModuleManager:
         return module_dependencies
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def sort_modules(module_dependencies):
+    def sort_modules(self, module_dependencies):
         '''This function sorts the given dependencies so that all
         dependencies of a module are before any module that
         needs it. Input is a dictionary that contains all modules to
@@ -287,10 +312,10 @@ class ModuleManager:
 
         :param module_dependencies: the list of modules required as keys, \
             with all their dependencies as value.
-        :type module_dependencies: Dict[str, Set[str]]
+        :type module_dependencies: dict[str, set[str]]
 
         :returns: the sorted list of modules.
-        :rtype: List[str]
+        :rtype: list[str]
 
         '''
         result = []
@@ -307,11 +332,14 @@ class ModuleManager:
             # Take a copy so we can modify the original set of dependencies:
             dependencies_copy = dependencies.copy()
             for dep in dependencies_copy:
-                if dep not in todo:
-                    print(f"Module '{module}' contains a dependency to "
-                          f"'{dep}', for which we have no dependencies.")
+                if dep in todo:
+                    continue
+                # Print a warning if this module is not supposed to be ignored
+                if dep not in self.ignores():
                     # TODO 2120: allow a choice to abort or ignore.
-                    dependencies.remove(dep)
+                    print(f"Cannot find module `{dep}` which is used by "
+                          f"module '{module}'.")
+                dependencies.remove(dep)
 
         while todo:
             # Find one module that has no dependencies, which is the
