@@ -35,12 +35,12 @@
 # Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 
-''' This module tests the support for Column-Matrix-Assembly operators in
-the LFRic (Dynamo 0.3) API using pytest. '''
+''' This module tests the LFRicDofmaps class found within the LFRic
+domain. Tests here have been pulled from the dynamo0p3_cma_test.py
+test file. '''
 
 import os
 import pytest
-
 
 from psyclone.domain.lfric import LFRicDofmaps
 from psyclone.errors import GenerationError, InternalError
@@ -55,10 +55,13 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 TEST_API = "dynamo0.3"
 
+# Error tests
+def test_lfricdofmap_stubdecln_err():
+    '''
+    Check that LFRicDofmaps._stub_declarations raises the expected errors
+    if the stored CMA information is invalid.
 
-def test_dyndofmap_stubdecln_err():
-    ''' Check that LFRicDofmaps._stub_declarations raises the expected errors
-    if the stored CMA information is invalid. '''
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "20.5_multi_cma_invoke.f90"),
                            api=TEST_API)
@@ -80,8 +83,14 @@ def test_dyndofmap_stubdecln_err():
 
 
 def test_cma_asm_cbanded_dofmap_error():
-    ''' Check that we raise expected internal error if LFRicDofmaps
-    encounters an assembly kernel that has more than one CMA op argument '''
+    '''
+    Check that we raise expected internal error if LFRicDofmaps
+    encounters an assembly kernel that has more than one CMA op argument.
+
+    Tests cma operations flagged as "assembly" have only one operator,
+    the "gh_columnwise_operator".
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.0_cma_assembly.f90"),
@@ -99,12 +108,17 @@ def test_cma_asm_cbanded_dofmap_error():
         invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA operator argument "
             "for a CMA assembly kernel but found 2") in str(excinfo.value)
-    
 
 
 def test_cma_apply_indirection_dofmap_error():
-    ''' Check that we raise expected internal error if LFRicDofmaps
-    encounters an apply kernel that has more than one CMA op argument '''
+    '''
+    Check that we raise expected internal error if LFRicDofmaps
+    encounters an apply kernel that has more than one CMA op argument.
+
+    Tests cma operations flagged as "apply" have only one operator,
+    the "gh_columnwise_operator".
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1_cma_apply.f90"),
@@ -120,22 +134,21 @@ def test_cma_apply_indirection_dofmap_error():
         arg._argument_type = 'gh_columnwise_operator'
     with pytest.raises(GenerationError) as excinfo:
         invoke.dofmaps.__init__(invoke)
-    assert ("Internal error: there should only be one CMA "
-            "operator argument for a kernel that applies a "
-            "CMA operator but found 3") in str(excinfo.value)
+    assert ("Internal error: there should only be one CMA operator argument "
+            "for a kernel that applies a CMA operator but found 3") in str(excinfo.value)
 
-
+# Generation tests
 def test_cbanded_test_comments():
-    ''' Check that we raise expected internal error if LFRicDofmaps
-    encounters an assembly kernel that has more than one CMA op argument '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "20.0_cma_assembly.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=True).create(invoke_info)
+    '''
+    Check that LFRicDofmaps generates the correct comments for an "assembly"
+    cma operation.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "20.0_cma_assembly.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     code = str(psy.gen)
-    
+
     output = (
         "      !\n"
         "      ! Look-up required column-banded dofmaps\n"
@@ -146,40 +159,31 @@ def test_cbanded_test_comments():
 
 
 def test_unique_fs_comments():
-    ''' Check that we raise expected internal error if LFRicDofmaps
-    encounters an apply kernel that has more than one CMA op argument '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "20.1_cma_apply.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=True).create(invoke_info)
+    '''
+    Check that LFRicDofmaps generates the correct comments for an "apply"
+    cma operation.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,"20.1_cma_apply.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API,distributed_memory=True).create(invoke_info)
     code = str(psy.gen)
 
     output = (
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
-    )
+        )
 
     assert output in code
 
 
-
-# def test_dyndofmap_stubdecln():
-#     ''' Check that LFRicDofmaps._stub_declarations raises the expected errors
-#     if the stored CMA information is invalid. '''
-#     _, invoke_info = parse(os.path.join(BASE_PATH,
-#                                         "20.5_multi_cma_invoke.f90"),
-#                            api=TEST_API)
-#     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-#     dofmaps = LFRicDofmaps(psy.invokes.invoke_list[0])
-
-
 def test_stub_decl_dofmaps():
-    ''' Check that we raise expected internal error if LFRicDofmaps
-    encounters an apply kernel that has more than one CMA op argument '''
-    
+    '''
+    Check that LFRicDofmaps generates the expected declarations in the stub.
+
+    '''
+
     result = generate(os.path.join(BASE_PATH,
                                    "columnwise_op_asm_kernel_mod.F90"),
                       api=TEST_API)
@@ -187,3 +191,25 @@ def test_stub_decl_dofmaps():
     assert ("INTEGER(KIND=i_def), intent(in) :: cma_op_2_nrow, cma_op_2_ncol"
             in str(result))
 
+
+def test_lfricdofmaps_stub_gen():
+    '''
+    Test the kernel-stub generator for a CMA apply kernel. This has
+    two fields and one CMA operator as arguments.
+
+    '''
+    result = generate(os.path.join(BASE_PATH,
+                                   "columnwise_op_app_kernel_mod.F90"),
+                      api=TEST_API)
+
+    expected = (
+        "    SUBROUTINE columnwise_op_app_kernel_code(cell, ncell_2d, "
+        "field_1_aspc1_field_1, field_2_aspc2_field_2, cma_op_3, "
+        "cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, cma_op_3_alpha, "
+        "cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
+        "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
+        "cma_indirection_map_aspc1_field_1, ndf_aspc2_field_2, "
+        "undf_aspc2_field_2, map_aspc2_field_2, "
+        "cma_indirection_map_aspc2_field_2)\n"
+        )
+    assert expected in str(result)

@@ -48,7 +48,7 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
                                    LFRicKernMetadata)
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
