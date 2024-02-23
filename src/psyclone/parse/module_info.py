@@ -35,16 +35,23 @@
 
 '''This module contains the ModuleInfo class, which is used to store
 and cache information about a module: the filename, source code (if requested)
-and the fparser tree (if requested).
+and the fparser tree (if requested), and information about any routines it
+includes, and external symbol usage.
 '''
 
+import os
 
 from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Use_Stmt
+from fparser.two.Fortran2003 import (Function_Subprogram, Interface_Block,
+                                     Interface_Stmt, Procedure_Stmt,
+                                     Subroutine_Subprogram, Use_Stmt)
 from fparser.two.parser import ParserFactory
-from fparser.two.utils import walk
+from fparser.two.utils import FortranSyntaxError, walk
 
-from psyclone.errors import PSycloneError
+from psyclone.errors import InternalError, PSycloneError
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Container, FileContainer
+from psyclone.psyir.symbols import SymbolError
 
 
 # ============================================================================
@@ -64,6 +71,7 @@ class ModuleInfoError(PSycloneError):
 
 # ============================================================================
 class ModuleInfo:
+    # pylint: disable=too-many-instance-attributes
     '''This class stores mostly cached information about modules: it stores
     the original filename, if requested it will read the file and then caches
     the plain text file, and if required it will parse the file, and then
@@ -84,13 +92,41 @@ class ModuleInfo:
         # A cache for the fparser tree
         self._parse_tree = None
 
+        # A cache for the PSyIR representation
+        self._psyir = None
+
         # A cache for the module dependencies: this is just a set
-        # of all modules used by this module. Type: Set[str]
+        # of all modules used by this module. Type: set[str]
         self._used_modules = None
 
         # This is a dictionary containing the sets of symbols imported from
-        # each module, indexed by the module names: Dict[str, Set(str)].
+        # each module, indexed by the module names: dict[str, set[str]].
         self._used_symbols_from_module = None
+
+        # This variable will be a set that stores the name of all routines
+        # (based on fparser), so we can test is a routine is defined
+        # without having to convert the AST to PSyIR. It is initialised with
+        # None so we avoid trying to parse a file more than once (parsing
+        # errors would cause routine_names to be empty, so we can test
+        # if routine_name is None vs if routine_names is empty)
+        # TODO #2435: To be changed once we have support for interfaces
+        self._routine_names = None
+
+        # This map contains the list of routine names that are part
+        # of the same generic interface.
+        # TODO #2435: To be changed once we have support for interfaces
+        self._generic_interfaces = {}
+
+        self._processor = Fparser2Reader()
+
+    # ------------------------------------------------------------------------
+    @property
+    def name(self):
+        ''':returns: the name of this module.
+        :rtype: str
+
+        '''
+        return self._name
 
     # ------------------------------------------------------------------------
     @property
@@ -134,11 +170,69 @@ class ModuleInfo:
         :rtype: :py:class:`fparser.two.Fortran2003.Program`
 
         '''
-        if not self._parse_tree:
+        if self._parse_tree is None:
+            # Set routine_names to be an empty set (it was None before).
+            # This way we avoid that any other function might trigger to
+            # parse this file again (in case of parsing errors).
+            self._routine_names = set()
+
             reader = FortranStringReader(self.get_source_code())
             parser = ParserFactory().create(std="f2008")
             self._parse_tree = parser(reader)
+
+            # First collect information about all subroutines/functions.
+            # Store information about generic interface to be handled later
+            # (so we only walk the tree once):
+            # TODO #2478: once generic interfaces are supported, use PSyIR
+            # instead of fparser here.
+            all_generic_interfaces = []
+            for routine in walk(self._parse_tree, (Function_Subprogram,
+                                                   Subroutine_Subprogram,
+                                                   Interface_Block)):
+                if isinstance(routine, Interface_Block):
+                    all_generic_interfaces.append(routine)
+                else:
+                    routine_name = str(routine.content[0].items[1])
+                    self._routine_names.add(routine_name)
+
+            # Then handle all generic interfaces and add them to
+            # _generic_interfaces:
+            for interface in all_generic_interfaces:
+                # TODO #2422 This code does not support all potential
+                # interface statements. After #2422 we can use PSyIR here.
+                # Get the name of the interface from the Interface_Stmt:
+                name = str(walk(interface, Interface_Stmt)[0].items[0]).lower()
+                self._routine_names.add(name)
+
+                # Collect all specific functions for this generic interface
+                routine_names = []
+                for proc_stmt in walk(interface, Procedure_Stmt):
+                    # Convert the items to strings:
+                    routine_names.extend([str(i) for i in
+                                          proc_stmt.items[0].items])
+                self._generic_interfaces[name] = routine_names
+
         return self._parse_tree
+
+    # ------------------------------------------------------------------------
+    def contains_routine(self, routine_name):
+        ''':returns: whether the specified routine name is part of this
+            module or not. It will also return False if the file could
+            not be parsed.
+        :rtype: bool
+
+        '''
+        # TODO #2422 and TODO #2478: Once we parse everything to PSyIR (esp.
+        # generic interfaces), this routine can just be replaced with
+        # get_psyir().get_routine_psyir(routine_name)
+        if self._routine_names is None:
+            # This will trigger adding routine information
+            try:
+                self.get_parse_tree()
+            except FortranSyntaxError:
+                return False
+
+        return routine_name.lower() in self._routine_names
 
     # ------------------------------------------------------------------------
     def _extract_import_information(self):
@@ -148,16 +242,19 @@ class ModuleInfo:
         self._used_symbols_from_module).
 
         '''
-        if self._used_modules is not None or \
-                self._used_symbols_from_module is not None:
-            raise ModuleInfoError(f"_extract_import_information for "
-                                  f"'{self._name}' should not be called "
-                                  f"twice.")
         # Initialise the caches:
         self._used_modules = set()
         self._used_symbols_from_module = {}
 
-        parse_tree = self.get_parse_tree()
+        try:
+            parse_tree = self.get_parse_tree()
+        except FortranSyntaxError:
+            # TODO #11: Add proper logging
+            # TODO #2120: Handle error
+            print(f"[ModuleInfo._extract_import_information] Syntax error "
+                  f"parsing '{self._filename} - ignored")
+            # Hide syntax errors
+            return
         for use in walk(parse_tree, Use_Stmt):
             # Ignore intrinsic modules:
             if str(use.items[0]) == "INTRINSIC":
@@ -186,7 +283,7 @@ class ModuleInfo:
         pre-processor directives).
 
         :returns: a set with all imported module names.
-        :rtype: Set[str]
+        :rtype: set[str]
 
         '''
         if self._used_modules is None:
@@ -203,10 +300,78 @@ class ModuleInfo:
 
         :returns: a dictionary that gives for each module name the set \
             of symbols imported from it.
-        :rtype: Dict[str, Set[str]]
+        :rtype: dict[str, set[str]]
 
         '''
         if self._used_symbols_from_module is None:
             self._extract_import_information()
 
         return self._used_symbols_from_module
+
+    # ------------------------------------------------------------------------
+    def get_psyir(self):
+        '''Returns the PSyIR representation of this module. This is based
+        on the fparser tree (see get_parse_tree), and the information is
+        cached. If the PSyIR must be modified, it needs to be copied,
+        otherwise the modified tree will be returned from the cache in the
+        future.
+        If the conversion to PSyIR fails, a dummy FileContainer with an
+        empty Container (module) is returned, which avoids additional error
+        handling in many other subroutines.
+        #TODO 2120: This should be revisited when improving on the error
+        handling.
+
+        :param routine_name: optional the name of a routine.
+        :type routine_name: Optional[str]
+
+        :returns: PSyIR representing this module.
+        :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
+
+        '''
+        if self._psyir is None:
+            try:
+                self._psyir = \
+                    self._processor.generate_psyir(self.get_parse_tree())
+            except (KeyError, SymbolError, InternalError,
+                    FortranSyntaxError) as err:
+                print(f"Error trying to parse '{self.filename}': '{err}'")
+                # TODO #11: Add proper logging
+                # TODO #2120: Handle error better. Long term we should not
+                # just ignore errors.
+                # Create a dummy FileContainer with a dummy module. This avoids
+                # additional error handling in other subroutines, since they
+                # will all return 'no information', whatever you ask for
+                self._psyir = FileContainer(os.path.basename(self._filename))
+                module = Container("invalid-module")
+                self._psyir.children.append(module)
+
+        # TODO #2462: needs to be fixed to properly support multiple modules
+        # in one file
+        # Return the actual module Container (not the FileContainer)
+        return self._psyir.children[0]
+
+    # ------------------------------------------------------------------------
+    def resolve_routine(self, routine_name):
+        '''This function returns a list of function names that might be
+        actually called when the routine `name` is called. In most cases
+        this is exactly name, but in case of a generic subroutine the
+        name might change. For now (since we cannot resolve generic
+        interfaces yet), we return the list of all possible functions that
+        might be called.
+
+        :param str routine_name: the name of the routine to resolve
+
+        :returns: list of routine name(s) that could be called.
+        :rtype: list[str]
+
+        '''
+        # TODO #2422: once #2422 is done, this can be moved into the PSyIR
+        if self._psyir is None:
+            self.get_psyir()
+        routine_name = routine_name.lower()
+        if routine_name not in self._generic_interfaces:
+            return [routine_name]
+
+        # If a generic interface name is queried, return a copy
+        # of all possible routine names that might be called:
+        return self._generic_interfaces[routine_name][:]
