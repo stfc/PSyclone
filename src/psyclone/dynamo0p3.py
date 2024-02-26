@@ -67,10 +67,10 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
-                             KernelArgument, HaloExchange, GlobalSum,
-                             DataAccess)
+                             KernelArgument, HaloExchange, DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Reference, ACCEnterDataDirective, ScopingNode
+from psyclone.psyir.nodes import (ACCEnterDataDirective, GlobalReduction,
+                                  Reference, ScopingNode)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -3912,65 +3912,6 @@ class DynInvokeSchedule(InvokeSchedule):
         '''
         return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
                 "', dm=" + str(Config.get().distributed_memory)+"]")
-
-
-class DynGlobalSum(GlobalSum):
-    '''
-    Dynamo specific global sum class which can be added to and
-    manipulated in a schedule.
-
-    :param scalar: the kernel argument for which to perform a global sum.
-    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param parent: the parent node of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    :raises GenerationError: if distributed memory is not enabled.
-    :raises InternalError: if the supplied argument is not a scalar.
-    :raises GenerationError: if the scalar is not of "real" intrinsic type.
-
-    '''
-    def __init__(self, scalar, parent=None):
-        # Check that distributed memory is enabled
-        if not Config.get().distributed_memory:
-            raise GenerationError(
-                "It makes no sense to create a DynGlobalSum object when "
-                "distributed memory is not enabled (dm=False).")
-        # Check that the global sum argument is indeed a scalar
-        if not scalar.is_scalar:
-            raise InternalError(
-                f"DynGlobalSum.init(): A global sum argument should be a "
-                f"scalar but found argument of type '{scalar.argument_type}'.")
-        # Check scalar intrinsic types that this class supports (only
-        # "real" for now)
-        if scalar.intrinsic_type != "real":
-            raise GenerationError(
-                f"DynGlobalSum currently only supports real scalars, but "
-                f"argument '{scalar.name}' in Kernel '{scalar.call.name}' has "
-                f"'{scalar.intrinsic_type}' intrinsic type.")
-        # Initialise the parent class
-        super().__init__(scalar, parent=parent)
-
-    def gen_code(self, parent):
-        '''
-        Dynamo-specific code generation for this class.
-
-        :param parent: f2pygen node to which to add AST nodes.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        name = self._scalar.name
-        # Use InvokeSchedule SymbolTable to share the same symbol for all
-        # GlobalSums in the Invoke.
-        sum_name = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag("global_sum").name
-        sum_type = self._scalar.data_type
-        sum_mod = self._scalar.module_name
-        parent.add(UseGen(parent, name=sum_mod, only=True,
-                          funcnames=[sum_type]))
-        parent.add(TypeDeclGen(parent, datatype=sum_type,
-                               entity_decls=[sum_name]))
-        parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
-        parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
 
 def _create_depth_list(halo_info_list, sym_table):

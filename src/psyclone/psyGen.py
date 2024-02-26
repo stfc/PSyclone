@@ -48,12 +48,12 @@ import abc
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeclGen, DeallocateGen, DoGen, UseGen)
+from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, DeclGen,
+                              DeallocateGen, DoGen, UseGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (ArrayReference, Call, Container, Literal,
-                                  Loop, Node, OMPDoDirective, Reference,
+from psyclone.psyir.nodes import (ArrayReference, Call, Container, GlobalReduction,
+                                  Literal, Loop, Node, OMPDoDirective, Reference,
                                   Routine, Schedule, Statement)
 from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     ContainerSymbol, DataSymbol,
@@ -111,18 +111,6 @@ def get_api(api):
                                   f"specified. Supported types are "
                                   f"{Config.get().supported_apis}.")
     return api
-
-
-def zero_reduction_variables(red_call_list, parent):
-    '''zero all reduction variables associated with the calls in the call
-    list'''
-    if red_call_list:
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Zero summation variables"))
-        parent.add(CommentGen(parent, ""))
-        for call in red_call_list:
-            call.zero_reduction_variable(parent)
-        parent.add(CommentGen(parent, ""))
 
 
 def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
@@ -633,11 +621,11 @@ class Invoke():
             if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
                 # If the first access is a write then the intent is
                 # out irrespective of any other accesses. Note,
-                # sum_args behave as if they are write_args from the
+                # reduction args behave as if they are write args from the
                 # PSy-layer's perspective.
                 declns["out"].append(arg)
                 continue
-            # if all accesses are read, then the intent is in,
+            # If all accesses are read, then the intent is in,
             # otherwise the intent is inout (as we have already
             # dealt with intent out).
             read_only = True
@@ -793,65 +781,6 @@ class InvokeSchedule(Routine):
 
         for entity in self._children:
             entity.gen_code(parent)
-
-
-class GlobalSum(Statement):
-    '''
-    Generic Global Sum class which can be added to and manipulated
-    in, a schedule.
-
-    :param scalar: the scalar that the global sum is stored into
-    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
-    _text_name = "GlobalSum"
-    _colour = "cyan"
-
-    def __init__(self, scalar, parent=None):
-        Node.__init__(self, children=[], parent=parent)
-        import copy
-        self._scalar = copy.copy(scalar)
-        if scalar:
-            # Update scalar values appropriately
-            # Here "readwrite" denotes how the class GlobalSum
-            # accesses/updates a scalar
-            self._scalar.access = AccessType.READWRITE
-            self._scalar.call = self
-
-    @property
-    def scalar(self):
-        ''' Return the scalar field that this global sum acts on '''
-        return self._scalar
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-        '''
-        return f"globalsum({self._scalar.name})_{self.position}"
-
-    @property
-    def args(self):
-        ''' Return the list of arguments associated with this node. Override
-        the base method and simply return our argument.'''
-        return [self._scalar]
-
-    def node_str(self, colour=True):
-        '''
-        Returns a text description of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        return f"{self.coloured_name(colour)}[scalar='{self._scalar.name}']"
 
 
 class HaloExchange(Statement):
@@ -1013,7 +942,8 @@ class HaloExchange(Statement):
 
 
 class Kern(Statement):
-    '''Base class representing a call to a sub-program unit from within the
+    '''
+    Base class representing a call to a sub-program unit from within the
     PSy layer. It is possible for this unit to be in-lined within the
     PSy layer.
 
@@ -1078,24 +1008,31 @@ class Kern(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
-        base method and simply return our arguments. '''
+        '''
+        :returns: the list of arguments associated with this node.
+                  Overide the base method and simply return our arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
+
+        '''
         return self.arguments.args
 
     def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
+        '''
+        Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
 
         :param bool colour: whether or not to include colour control codes.
 
         :returns: description of this node, possibly coloured.
         :rtype: str
+
         '''
         return (self.coloured_name(colour) + " " + self.name +
                 "(" + self.arguments.names + ")")
 
     def reference_accesses(self, var_accesses):
-        '''Get all variable access information. The API specific classes
+        '''
+        Get all variable access information. The API specific classes
         add the accesses to the arguments. So the code here only calls
         the baseclass, and increases the location.
 
@@ -1103,6 +1040,7 @@ class Kern(Statement):
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
+
         '''
         super().reference_accesses(var_accesses)
         var_accesses.next_location()
@@ -1155,7 +1093,7 @@ class Kern(Statement):
         # with the PSy-layer generation or relevant transformation.
         return "l_" + self.reduction_arg.name
 
-    def zero_reduction_variable(self, parent, position=None):
+    def initialise_reduction_variable(self, parent, position=None):
         '''
         Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
@@ -1172,6 +1110,11 @@ class Kern(Statement):
                                  neither 'real' nor 'integer'.
 
         '''
+        # TODO #2381: It makes sense to zero the global sum variable,
+        # however not the global min and global max variables. Depending
+        # on the implementation of global min and max, this function may
+        # need to be renamed and separate initialisation methods for min
+        # and max added.
         if not position:
             position = ["auto"]
         var_name = self._reduction_arg.name
@@ -1180,7 +1123,7 @@ class Kern(Statement):
         # Check for a non-scalar argument
         if not var_arg.is_scalar:
             raise GenerationError(
-                f"Kern.zero_reduction_variable() should be a scalar but "
+                f"Kern.initialise_reduction_variable() should be a scalar but "
                 f"found '{var_arg.argument_type}'.")
         # Generate the reduction variable
         var_data_type = var_arg.intrinsic_type
@@ -1190,7 +1133,7 @@ class Kern(Statement):
             data_value = "0"
         else:
             raise GenerationError(
-                f"Kern.zero_reduction_variable() should be either a 'real' or "
+                f"Kern.initialise_reduction_variable() should be either a 'real' or "
                 f"an 'integer' scalar but found scalar of type "
                 f"'{var_arg.intrinsic_type}'.")
         # Retrieve the precision information (if set) and append it
@@ -1299,14 +1242,33 @@ class Kern(Statement):
 
     @property
     def arg_descriptors(self):
+        '''
+        :returns: a list of kernel argument descriptors.
+        :rtype: list of API-specific specialisation of
+                :py:class:`psyclone.kernel.Descriptor`
+
+        '''
         return self._arg_descriptors
 
     @arg_descriptors.setter
     def arg_descriptors(self, obj):
+        '''
+        Set the argument descriptors for this kernel.
+
+        :param obj: Argument descriptors populated from the kernel metadata.
+        :type obj: list of API-specific specialisation of
+                   :py:class:`psyclone.kernel.Descriptor`
+
+        '''
         self._arg_descriptors = obj
 
     @property
     def arguments(self):
+        '''
+        :returns: object that holds all information on the kernel arguments.
+        :rtype: :py:class:`psyclone.psyGen.Arguments`
+
+        '''
         return self._arguments
 
     @property
@@ -1314,6 +1276,7 @@ class Kern(Statement):
         '''
         :returns: the name of the kernel.
         :rtype: str
+
         '''
         return self._name
 
@@ -1323,14 +1286,16 @@ class Kern(Statement):
         Set the name of the kernel.
 
         :param str value: The name of the kernel.
+
         '''
         self._name = value
 
     def is_coloured(self):
         '''
-        :returns: True if this kernel is being called from within a \
+        :returns: True if this kernel is being called from within a
                   coloured loop.
         :rtype: bool
+
         '''
         parent_loop = self.ancestor(Loop)
         while parent_loop:
@@ -1341,6 +1306,11 @@ class Kern(Statement):
 
     @property
     def iterates_over(self):
+        '''
+        :returns: the name of the iteration space supported by this kernel.
+        :rtype: str
+
+        '''
         return self._iterates_over
 
     def local_vars(self):
@@ -2027,22 +1997,23 @@ class DataAccess():
     '''
 
     def __init__(self, arg):
-        '''Store the argument associated with the instance of this class and
-        the Call, HaloExchange or GlobalSum (or a subclass thereof)
+        '''
+        Store the argument associated with the instance of this class and
+        the Call, HaloExchange or GlobalReduction (or a subclass thereof)
         instance with which the argument is associated.
 
-        :param arg: the argument that we are concerned with. An \
-        argument can be found in a `Kern` a `HaloExchange` or a \
-        `GlobalSum` (or a subclass thereof)
+        :param arg: the argument that we are concerned with. An argument
+                    can be found in a `Kern` a `HaloExchange` or a
+                    `GlobalReduction` (or a subclass thereof).
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
         # the `psyclone.psyGen.Argument` we are concerned with
         self._arg = arg
-        # The call (Kern, HaloExchange, GlobalSum or subclass)
+        # The call (Kern, HaloExchange, GlobalReduction or subclass)
         # instance with which the argument is associated
         self._call = arg.call
-        # initialise _covered and _vector_index_access to keep pylint
+        # Initialise _covered and _vector_index_access to keep pylint
         # happy
         self._covered = None
         self._vector_index_access = None
@@ -2179,12 +2150,12 @@ class Argument():
 
     :param call: the kernel call that this argument is associated with.
     :type call: :py:class:`psyclone.psyGen.Kern`
-    :param arg_info: Information about this argument collected by \
+    :param arg_info: information about this argument collected by
                      the parser.
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
-    :param access: the way in which this argument is accessed in \
-                   the 'Kern'. Valid values are specified in the config \
-                   object of the current API.
+    :param access: the way in which this argument is accessed in
+                   the `Kern`. Valid values are specified in the
+                   configuration object of the current API.
     :type access: str
 
     '''
@@ -2214,20 +2185,21 @@ class Argument():
         self._name = self._orig_name
 
     def _complete_init(self, arg_info):
-        '''Provides the initialisation of name, text and the declaration of
+        '''
+        Provides the initialisation of name, text and the declaration of
         symbols in the symbol table if required. This initialisation
         is not performed in the constructor as subclasses may need to
-        perform additional initialisation before infer_datatype is
-        called (in order to determine the values of precision,
-        data_type and module_name).
+        perform additional initialisation before 'infer_datatype' is
+        called (in order to determine the values of 'precision',
+        'data_type' and 'module_name').
 
-        :param arg_info: Information about this argument collected by \
-            the parser.
+        :param arg_info: information about this argument collected by
+                         the parser.
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
 
         '''
         if self._orig_name is None:
-            # this is an infrastructure call literal argument. Therefore
+            # This is an infrastructure call literal argument. Therefore
             # we do not want an argument (_text=None) but we do want to
             # keep the value (_name)
             self._name = arg_info.text
@@ -2278,7 +2250,8 @@ class Argument():
         '''
 
     def infer_datatype(self):
-        ''' Infer the datatype of this argument using the API rules. If no
+        '''
+        Infer the datatype of this argument using the API rules. If no
         specialisation of this method has been provided make the type
         UnresolvedType for now (it may be provided later in the execution).
 
@@ -2289,34 +2262,65 @@ class Argument():
         return UnresolvedType()
 
     def __str__(self):
+        '''
+        :returns: ??.
+        :rtype: str
+
+        '''
         return self._name
 
     @property
     def name(self):
+        '''
+        :returns: the name of this argument.
+        :rtype: str
+
+        '''
         return self._name
 
     @property
     def text(self):
+        '''
+        :returns: ???.
+        :rtype: str
+
+        '''
         return self._text
 
     @property
     def form(self):
+        '''
+        :returns: ???.
+        :rtype: str
+
+        '''
         return self._form
 
     @property
     def is_literal(self):
+        '''
+        :returns: whether this argument is a Literal constant.
+        :rtype: bool
+
+        '''
         return self._is_literal
 
     @property
     def access(self):
+        '''
+        :returns: the access type for this argument.
+        :rtype: :py:class:`psyclone.core.access_type.AccessType`
+
+        '''
         return self._access
 
     @access.setter
     def access(self, value):
-        '''Set the access type for this argument.
+        '''
+        Set the access type for this argument.
 
         :param value: new access type.
-        :type value: :py:class:`psyclone.core.access_type.AccessType`.
+        :type value: :py:class:`psyclone.core.access_type.AccessType`
 
         :raises InternalError: if value is not an AccessType.
 
@@ -2355,9 +2359,9 @@ class Argument():
     @property
     def precision(self):
         '''
-        :returns: the precision of this argument. Default value is None, \
+        :returns: the precision of this argument. Default value is `None`,
                   explicit implementation is left to a specific API.
-        :rtype: str or NoneType
+        :rtype: str or `NoneType`
 
         '''
         return self._precision
@@ -2365,9 +2369,9 @@ class Argument():
     @property
     def data_type(self):
         '''
-        :returns: the data type of this argument. Default value is None, \
+        :returns: the data type of this argument. Default value is `None`,
                   explicit implementation is left to a specific API.
-        :rtype: str or NoneType
+        :rtype: str or `NoneType`
 
         '''
         return self._data_type
@@ -2375,32 +2379,43 @@ class Argument():
     @property
     def module_name(self):
         '''
-        :returns: the name of the Fortran module that contains definitions \
-                  for the argument data type. Default value is None, \
+        :returns: the name of the Fortran module that contains definitions
+                  for the argument data type. Default value is `None`,
                   explicit implementation is left to a specific API.
-        :rtype: str or NoneType
-
+        :rtype: str or `NoneType`
 
         '''
         return self._module_name
 
     @property
     def call(self):
-        ''' Return the call that this argument is associated with '''
+        '''
+
+        :returns: the call that this argument is associated with.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
         return self._call
 
     @call.setter
     def call(self, value):
-        ''' set the node that this argument is associated with '''
+        '''
+        Set the node that this argument is associated with.
+
+        :param value: the node this argument belongs to.
+        :type value: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
         self._call = value
 
     def backward_dependence(self):
-        '''Returns the preceding argument that this argument has a direct
-        dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.
+        '''
+        Returns the preceding argument that this argument has a direct
+        dependence with, or `None` if there is not one. The argument may
+        exist in a call, a halo exchange, or a global reduction.
 
-        :returns: the first preceding argument that has a dependence \
-            on this argument.
+        :returns: the first preceding argument that has a dependence
+                  on this argument.
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2408,17 +2423,20 @@ class Argument():
         return self._find_argument(nodes)
 
     def forward_write_dependencies(self, ignore_halos=False):
-        '''Returns a list of following write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
-        none are found then return an empty list. If self is not a
-        reader then return an empty list.
+        '''
+        Returns a list of following write arguments that this argument
+        has dependencies with. The arguments may exist in a call, a
+        halo exchange (unless `ignore_halos` is `True`), or a global
+        reduction. If none are found then return an empty list. If self
+        is not a reader then return an empty list.
 
-        :param bool ignore_halos: if `True` then any write dependencies \
-            involving a halo exchange are ignored. Defaults to `False`.
+        :param ignore_halos: if `True` then any write dependencies
+                             involving a halo exchange are ignored.
+                             Defaults to `False`.
+        :type ignore_halos: bool
 
-        :returns: a list of arguments that have a following write \
-            dependence on this argument.
+        :returns: a list of arguments that have a following write
+                  dependence on this argument.
         :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2427,18 +2445,20 @@ class Argument():
         return results
 
     def backward_write_dependencies(self, ignore_halos=False):
-        '''Returns a list of previous write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
-        none are found then return an empty list. If self is not a
-        reader then return an empty list.
+        '''
+        Returns a list of previous write arguments that this argument
+        has dependencies with. The arguments may exist in a call, a
+        halo exchange (unless `ignore_halos` is `True`), or a global
+        reduction. If none are found then return an empty list. If self
+        is not a reader then return an empty list.
 
-        :param ignore_halos: if `True` then any write dependencies \
-            involving a halo exchange are ignored. Defaults to `False`.
+        :param ignore_halos: if `True` then any write dependencies
+                             involving a halo exchange are ignored.
+                             Defaults to `False`.
         :type ignore_halos: bool
 
-        :returns: a list of arguments that have a preceding write \
-            dependence on this argument.
+        :returns: a list of arguments that have a preceding write
+                  dependence on this argument.
         :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2447,12 +2467,13 @@ class Argument():
         return results
 
     def forward_dependence(self):
-        '''Returns the following argument that this argument has a direct
+        '''
+        Returns the following argument that this argument has a direct
         dependence on, or `None` if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.
+        exist in a call, a halo exchange, or a global reduction.
 
-        :returns: the first following argument that has a dependence \
-            on this argument.
+        :returns: the first following argument that has a dependence
+                  on this argument.
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2460,14 +2481,15 @@ class Argument():
         return self._find_argument(nodes)
 
     def forward_read_dependencies(self):
-        '''Returns a list of following read arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange, or a globalsum. If none are found then
+        '''
+        Returns a list of following read arguments that this argument
+        has dependencies with. The arguments may exist in a call, a
+        halo exchange, or a global reduction. If none are found then
         return an empty list. If self is not a writer then return an
         empty list.
 
-        :returns: a list of following arguments that have a read \
-            dependence on this argument.
+        :returns: a list of following arguments that have a read
+                  dependence on this argument.
         :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2475,18 +2497,20 @@ class Argument():
         return self._find_read_arguments(nodes)
 
     def _find_argument(self, nodes):
-        '''Return the first argument in the list of nodes that has a
-        dependency with self. If one is not found return None
+        '''
+        Returns the first argument in the list of nodes that has
+        a dependency with self. If one is not found return `None`.
 
         :param nodes: the list of nodes that this method examines.
         :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: An argument object or None.
-        :rtype: :py:class:`psyclone.psyGen.Argument`
+        :returns: An argument object or `None`.
+        :rtype: :py:class:`psyclone.psyGen.Argument` or `NoneType`
 
         '''
-        nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
+        nodes_with_args = [
+            x for x in nodes if
+            isinstance(x, (Kern, HaloExchange, GlobalReduction))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -2494,15 +2518,16 @@ class Argument():
         return None
 
     def _find_read_arguments(self, nodes):
-        '''Return a list of arguments from the list of nodes that have a read
+        '''
+        Return a list of arguments from the list of nodes that have a read
         dependency with self. If none are found then return an empty
         list. If self is not a writer then return an empty list.
 
         :param nodes: the list of nodes that this method examines.
         :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: a list of arguments that have a read dependence on \
-            this argument.
+        :returns: a list of arguments that have a read dependence on
+                 this argument.
         :rtype: list of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -2511,13 +2536,14 @@ class Argument():
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
+        nodes_with_args = [
+            x for x in nodes if
+            isinstance(x, (Kern, HaloExchange, GlobalReduction))]
         access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
             for argument in node.args:
-                # look at all arguments in our nodes
+                # Look at all arguments in our nodes
                 if argument.access in AccessType.all_read_accesses() and \
                    access.overlaps(argument):
                     arguments.append(argument)
@@ -2528,23 +2554,29 @@ class Argument():
                         # this argument depends so return the list.
                         return arguments
 
-        # we did not find a terminating write dependence in the list
+        # We did not find a terminating write dependence in the list
         # of nodes so we return any read dependencies that were found
         return arguments
 
     def _find_write_arguments(self, nodes, ignore_halos=False):
-        '''Return a list of arguments from the list of nodes that have a write
+        '''
+        Return a list of arguments from the list of nodes that have a write
         dependency with self. If none are found then return an empty
         list. If self is not a reader then return an empty list.
 
         :param nodes: the list of nodes that this method examines.
         :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
 
-        :param bool ignore_halos: if `True` then any write dependencies \
-            involving a halo exchange are ignored. Defaults to `False`.
-        :returns: a list of arguments that have a write dependence with \
-            this argument.
+        :param bool ignore_halos: if `True` then any write dependencies
+                                  involving a halo exchange are ignored.
+                                  Defaults to `False`.
+
+        :returns: a list of arguments that have a write dependence with
+                  this argument.
         :rtype: list of :py:class:`psyclone.psyGen.Argument`
+
+        :raises InternalError: there are dependencies that are not
+                               associated with nodes.
 
         '''
         if self.access not in AccessType.all_read_accesses():
@@ -2553,15 +2585,15 @@ class Argument():
 
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, GlobalSum)) or
+                           isinstance(x, (Kern, GlobalReduction)) or
                            (isinstance(x, HaloExchange) and not ignore_halos)]
         access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
             for argument in node.args:
-                # look at all arguments in our nodes
+                # Look at all arguments in our nodes
                 if argument.access not in AccessType.all_write_accesses():
-                    # no dependence if not a writer
+                    # No dependence if not a writer
                     continue
                 if not access.overlaps(argument):
                     # Accesses are independent of each other
@@ -2569,7 +2601,7 @@ class Argument():
                 arguments.append(argument)
                 access.update_coverage(argument)
                 if access.covered:
-                    # sanity check
+                    # Sanity check
                     if not isinstance(node, HaloExchange) and \
                        len(arguments) > 1:
                         raise InternalError(
@@ -2582,12 +2614,13 @@ class Argument():
             raise InternalError(
                 "Argument()._field_write_arguments() There are no more nodes "
                 "but there are already dependencies. This should not happen.")
-        # no dependencies have been found
+        # No dependencies have been found
         return []
 
     def _depends_on(self, argument):
-        '''If there is a dependency between the argument and self then return
-        True, otherwise return False. We consider there to be a
+        '''
+        If there is a dependency between the argument and self then return
+        `True`, otherwise return `False`. We consider there to be a
         dependency between two arguments if the names are the same and
         if one reads and one writes, or if both write. Dependencies
         are often defined as being read-after-write (RAW),
@@ -2595,7 +2628,7 @@ class Argument():
         dependencies can be considered to be forward dependencies, in
         the sense that RAW means that the read is after the write in
         the schedule. Similarly for WAR and WAW. We capture these
-        dependencies in this method. However we also capture
+        dependencies in this method. However, we also capture
         dependencies in the opposite direction (backward
         dependencies). These are the same dependencies as forward
         dependencies but are reversed. One could consider these to be
@@ -2607,18 +2640,18 @@ class Argument():
         loop iteration and a backward dependence indicates a
         dependence on a previous loop iteration. Note, we currently
         assume that any read or write to an argument results in a
-        dependence i.e. we do not consider the internal structure of
+        dependence, i.e. we do not consider the internal structure of
         the argument (e.g. it may be an array). However, this
         assumption is OK as all elements of an array are typically
         accessed. However, we may need to revisit this when we change
-        the iteration spaces of loops e.g. for overlapping
+        the iteration spaces of loops, e.g. for overlapping
         communication and computation.
 
-        :param argument: the argument we will check to see whether \
-            there is a dependence on this argument instance (self).
+        :param argument: the argument we will check to see whether there
+                         is a dependence on this argument instance (self).
         :type argument: :py:class:`psyclone.psyGen.Argument`
 
-        :returns: True if there is a dependence and False if not.
+        :returns: `True` if there is a dependence and `False` if not.
         :rtype: bool
 
         '''
@@ -2872,7 +2905,21 @@ class DummyTransformation(Transformation):
 
 
 # For Sphinx AutoAPI documentation generation
-__all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
-           'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
-           'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
-           'TransInfo', 'Transformation', 'DummyTransformation']
+__all__ = [
+    'PSyFactory',
+    'PSy',
+    'Invokes',
+    'Invoke',
+    'InvokeSchedule',
+    'HaloExchange',
+    'Kern',
+    'CodedKern',
+    'InlinedKern',
+    'BuiltIn',
+    'Arguments',
+    'DataAccess',
+    'Argument',
+    'KernelArgument',
+    'TransInfo',
+    'Transformation',
+    'DummyTransformation']

@@ -63,10 +63,10 @@ from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import (TransInfo, Transformation, PSyFactory,
                              InlinedKern, object_index, HaloExchange, Invoke,
                              DataAccess, Kern, Arguments, CodedKern, Argument,
-                             GlobalSum, InvokeSchedule, BuiltIn)
-from psyclone.psyir.nodes import (Assignment, BinaryOperation, Container,
-                                  Literal, Loop, Node, KernelSchedule, Call,
-                                  colored, Schedule)
+                             InvokeSchedule, BuiltIn)
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, colored,
+                                  Container, GlobalReduction, KernelSchedule,
+                                  Literal, Loop, Node, Schedule)
 from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, REAL_TYPE,
                                     ImportInterface, ContainerSymbol, Symbol,
                                     INTEGER_TYPE, UnresolvedType, SymbolTable)
@@ -862,7 +862,7 @@ def test_haloexchange_unknown_halo_depth():
 
 
 def test_globalsum_node_str():
-    '''test the node_str method in the GlobalSum class. The simplest way
+    '''test the node_str method in the GlobalReduction class. The simplest way
     to do this is to use a dynamo0p3 builtin example which contains a
     scalar and then call node_str() on that.
 
@@ -878,13 +878,13 @@ def test_globalsum_node_str():
             break
     assert gsum
     output = gsum.node_str()
-    expected_output = (colored("GlobalSum", GlobalSum._colour) +
+    expected_output = (colored("GlobalReduction", GlobalReduction._colour) +
                        "[scalar='asum']")
     assert expected_output in output
 
 
 def test_globalsum_children_validation():
-    '''Test that children added to GlobalSum are validated. A GlobalSum node
+    '''Test that children added to GlobalReduction are validated. A GlobalReduction node
     does not accept any children.
 
     '''
@@ -899,7 +899,7 @@ def test_globalsum_children_validation():
             break
     with pytest.raises(GenerationError) as excinfo:
         gsum.addchild(Literal("2", INTEGER_TYPE))
-    assert ("Item 'Literal' can't be child 0 of 'GlobalSum'. GlobalSum is a"
+    assert ("Item 'Literalzz' can't be child 0 of 'GlobalReduction'. GlobalReduction is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 
@@ -960,7 +960,7 @@ def test_args_filter2():
 
 
 def test_reduction_var_error(dist_mem):
-    ''' Check that we raise an exception if the zero_reduction_variable()
+    ''' Check that we raise an exception if the initialise_reduction_variable()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
@@ -971,13 +971,13 @@ def test_reduction_var_error(dist_mem):
     # args[1] is of type gh_field
     call._reduction_arg = call.arguments.args[1]
     with pytest.raises(GenerationError) as err:
-        call.zero_reduction_variable(None)
-    assert ("Kern.zero_reduction_variable() should be a scalar but "
+        call.initialise_reduction_variable(None)
+    assert ("Kern.initialise_reduction_variable() should be a scalar but "
             "found 'gh_field'." in str(err.value))
 
 
 def test_reduction_var_invalid_scalar_error(dist_mem):
-    ''' Check that we raise an exception if the zero_reduction_variable()
+    ''' Check that we raise an exception if the initialise_reduction_variable()
     method is provided with an incorrect intrinsic type of scalar
     argument (other than 'real' or 'integer').
 
@@ -992,8 +992,8 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     # args[5] is a scalar of data type gh_logical
     call._reduction_arg = call.arguments.args[5]
     with pytest.raises(GenerationError) as err:
-        call.zero_reduction_variable(None)
-    assert ("Kern.zero_reduction_variable() should be either a 'real' "
+        call.initialise_reduction_variable(None)
+    assert ("Kern.initialise_reduction_variable() should be either a 'real' "
             "or an 'integer' scalar but found scalar of type 'logical'."
             in str(err.value))
 
@@ -1037,7 +1037,7 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
 
 
 def test_reduction_no_set_precision(dist_mem):
-    '''Test that the zero_reduction_variable() method generates correct
+    '''Test that the initialise_reduction_variable() method generates correct
     code when a reduction argument does not have a defined
     precision. Only a zero value (without precision i.e. 0.0 not
     0.0_r_def) is generated in this case.
@@ -1074,7 +1074,7 @@ def test_reduction_no_set_precision(dist_mem):
     assert zero_sum_decls in generated_code
 
     zero_sum_output = (
-        "      ! Zero summation variables\n"
+        "      ! Initialise reduction variables\n"
         "      !\n"
         "      asum = 0.0\n")
     assert zero_sum_output in generated_code
@@ -1345,7 +1345,7 @@ def test_argument_find_read_arguments():
 
 def test_globalsum_arg():
     ''' Check that the globalsum argument is defined as gh_readwrite and
-    points to the GlobalSum node '''
+    points to the GlobalReduction node '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
