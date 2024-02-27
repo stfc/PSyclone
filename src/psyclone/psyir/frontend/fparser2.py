@@ -1344,8 +1344,8 @@ class Fparser2Reader():
                     elif not (isinstance(sym.datatype, ScalarType) and
                               sym.datatype.intrinsic ==
                               ScalarType.Intrinsic.INTEGER):
-                        # It's not of Unsupported/UnresolvedType and it's not an
-                        # integer scalar.
+                        # It's not of Unsupported/UnresolvedType and it's not
+                        # an integer scalar.
                         raise NotImplementedError()
                 except KeyError:
                     # We haven't seen this symbol before so create a new

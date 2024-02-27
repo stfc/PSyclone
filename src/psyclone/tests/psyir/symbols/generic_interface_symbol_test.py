@@ -113,24 +113,3 @@ def test_gis_copy():
     rsyms = [item.symbol for item in spinney.routines]
     assert ash in rsyms
     assert holly in rsyms
-
-
-def test_gis_replace():
-    '''
-    Test the replace() method of GenericInterfaceSymbol.
-    '''
-    ash = RoutineSymbol("ash")
-    holly = RoutineSymbol("holly")
-    coppice = GenericInterfaceSymbol("coppice", [(ash, True), (holly, False)])
-    ivy = RoutineSymbol("ivy")
-    # Ivy is not yet a part of the interface.
-    with pytest.raises(ValueError) as err:
-        coppice.replace(ivy, holly)
-    assert ("RoutineSymbol 'ivy' not found in GenericInterfaceSymbol "
-            "'coppice'" in str(err.value))
-    coppice.replace(holly, ivy)
-    assert len(coppice.routines) == 2
-    # The replacement preserves the information on whether or not a routine
-    # originates from a Container.
-    assert coppice.external_routines == [ivy]
-    assert coppice.container_routines == [ash]

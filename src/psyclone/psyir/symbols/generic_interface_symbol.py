@@ -131,28 +131,6 @@ class GenericInterfaceSymbol(RoutineSymbol):
                 result.append(value.symbol)
         return result
 
-    def replace(self, existing_sym, new_sym):
-        '''
-        Replace the specified RoutineSymbol with the new RoutineSymbol.
-
-        The 'from_container' property of the entry is preserved.
-
-        :param existing_sym: the RoutineSymbol to replace.
-        :type existing_sym: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
-        :param new_sym: the new RoutineSymbol.
-        :type new_sym: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
-
-        :raises ValueError: if the supplied RoutineSymbol is not referenced
-                            by this interface.
-        '''
-        for idx, value in enumerate(self._routines):
-            if value.symbol is existing_sym:
-                self._routines[idx] = self.RoutineInfo(new_sym,
-                                                       value.from_container)
-                return
-        raise ValueError(f"RoutineSymbol '{existing_sym.name}' not found in "
-                         f"GenericInterfaceSymbol '{self.name}'")
-
     def __str__(self):
         return (f"{self.name}: {type(self).__name__}<{self.datatype}, "
                 f"routines={[rt.symbol.name for rt in self.routines]}>")
