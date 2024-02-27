@@ -58,12 +58,12 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import (
     ArrayOfStructuresMixin)
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, CommonBlockInterface, ContainerSymbol,
-    DataSymbol, DataTypeSymbol, GenericInterfaceSymbol, ImportInterface,
-    AutomaticInterface, NoType, RoutineSymbol, ScalarType, StructureType,
-    Symbol, SymbolError, SymbolTable, UnsupportedFortranType, UnsupportedType,
-    UnresolvedInterface, INTEGER_TYPE, StaticInterface, DefaultModuleInterface,
-    UnknownInterface, UnresolvedType)
+    ArgumentInterface, ArrayType, AutomaticInterface, CommonBlockInterface,
+    ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
+    GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE, NoType,
+    RoutineSymbol, ScalarType, StaticInterface, StructureType, Symbol,
+    SymbolError, SymbolTable, UnknownInterface, UnresolvedInterface,
+    UnresolvedType, UnsupportedFortranType, UnsupportedType)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -1850,6 +1850,7 @@ class Fparser2Reader():
             attributes are found in a symbol declaration.
 
         '''
+        # pylint: disable=too-many-arguments
         (type_spec, attr_specs, entities) = decl.items
 
         # Parse the type_spec
@@ -2577,6 +2578,7 @@ class Fparser2Reader():
                                    Fortran2003.Use_Stmt)):
                 # These node types are handled separately
                 pass
+
             elif isinstance(node, Fortran2003.Implicit_Part):
                 # Anything other than a PARAMETER statement or an
                 # IMPLICIT NONE means we can't handle this code.
@@ -2593,6 +2595,18 @@ class Fparser2Reader():
                     raise NotImplementedError(
                         f"Error processing implicit-part: implicit variable "
                         f"declarations not supported but found '{node}'")
+
+            elif isinstance(node, Fortran2003.Namelist_Stmt):
+                # Place the declaration statement into the symbol table using
+                # an internal symbol name. In case that we need more details
+                # (e.g. to update symbol information), the following code
+                # loops over namelist and each symbol:
+                # for namelist_object in node.children:
+                #    for symbol_name in namelist_object[1].items:
+                parent.symbol_table.new_symbol(
+                    root_name="_PSYCLONE_INTERNAL_NAMELIST",
+                    symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(str(node)))
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
@@ -2603,9 +2617,9 @@ class Fparser2Reader():
         # symbols and can appear in any order.
         self._process_parameter_stmts(nodes, parent)
 
-        # We process the nodes again looking for common blocks. We do this
-        # here, after the main declarations loop, because they modify the
-        # interface of existing symbols and can appear in any order.
+        # We process the nodes again looking for common blocks.
+        # We do this here, after the main declarations loop, because they
+        # modify the interface of existing symbols and can appear in any order.
         self._process_common_blocks(nodes, parent)
 
         if visibility_map is not None:

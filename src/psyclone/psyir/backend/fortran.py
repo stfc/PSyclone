@@ -333,12 +333,12 @@ class FortranWriter(LanguageWriter):
         self._reverse_map(self._operator_2_str,
                           Fparser2Reader.binary_operators)
 
-        # Create and store a DependencyTools instance for use when ordering
-        # parameter declarations. Have to import it here as DependencyTools
+        # Create and store a CallTreeUtils instance for use when ordering
+        # parameter declarations. Have to import it here as CallTreeUtils
         # also uses this Fortran backend.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools
-        self._dep_tools = DependencyTools()
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
+        self._call_tree_utils = CallTreeUtils()
 
     @staticmethod
     def _reverse_map(reverse_dict, op_map):
@@ -858,8 +858,8 @@ class FortranWriter(LanguageWriter):
         for symbol in local_constants:
             decln_inputs[symbol.name] = set()
             read_write_info = ReadWriteInfo()
-            self._dep_tools.get_input_parameters(read_write_info,
-                                                 symbol.initial_value)
+            self._call_tree_utils.get_input_parameters(read_write_info,
+                                                       symbol.initial_value)
             # The dependence analysis tools do not include symbols used to
             # define precision so check for those here.
             for lit in symbol.initial_value.walk(Literal):

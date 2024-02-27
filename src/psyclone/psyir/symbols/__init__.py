@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
 # Modified by A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Symbols package module '''
@@ -43,24 +44,25 @@ from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.generic_interface_symbol import (
     GenericInterfaceSymbol)
 from psyclone.psyir.symbols.interfaces import (
-    AutomaticInterface, ImportInterface, ArgumentInterface,
-    UnresolvedInterface, StaticInterface, DefaultModuleInterface,
-    UnknownInterface, CommonBlockInterface)
+     ArgumentInterface, AutomaticInterface, CommonBlockInterface,
+     DefaultModuleInterface, ImportInterface,
+     StaticInterface, UnknownInterface, UnresolvedInterface)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.datatypes import (
-    DataType, ScalarType, ArrayType, TYPE_MAP_TO_PYTHON, REAL_TYPE,
-    REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE,
-    INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, UnresolvedType, UnsupportedType,
-    UnsupportedFortranType, StructureType, NoType)
+     ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataType, INTEGER4_TYPE,
+     INTEGER8_TYPE, INTEGER_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, INTEGER_TYPE,
+     NoType, REAL4_TYPE, REAL8_TYPE, REAL_DOUBLE_TYPE, REAL_SINGLE_TYPE,
+     REAL_TYPE, ScalarType, StructureType, TYPE_MAP_TO_PYTHON, UnresolvedType,
+     UnsupportedType, UnsupportedFortranType)
 
 # For auto documentation generation.
 __all__ = ['ArgumentInterface',
            'ArrayType',
+           'AutomaticInterface',
            'BOOLEAN_TYPE',
            'CHARACTER_TYPE',
            'CommonBlockInterface',
@@ -77,7 +79,6 @@ __all__ = ['ArgumentInterface',
            'INTEGER4_TYPE',
            'INTEGER8_TYPE',
            'IntrinsicSymbol',
-           'AutomaticInterface',
            'NoType',
            'REAL_TYPE',
            'REAL_SINGLE_TYPE',
