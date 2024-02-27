@@ -119,34 +119,13 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
 
     ctr_table = ad_container.symbol_table
 
-    # Before we can rename any routines, we need to know if they're referenced
-    # by any GenericInterfaceSymbols. Construct a reverse dict so that, given
-    # a RoutineSymbol, we can lookup which GenericInterfaceSymbol(s) refer
-    # to it.
-    interfaced_routines = dict()
-    for gisym in ctr_table.symbols:
-        if isinstance(gisym, GenericInterfaceSymbol):
-            for routine in gisym.routines:
-                if routine.symbol in interfaced_routines:
-                    interfaced_routines[routine.symbol].append(gisym)
-                else:
-                    interfaced_routines[routine.symbol] = [gisym]
-
+    # Re-name the routines that we've adjointed.
     for routine in routines:
 
-        # We need to re-name the kernel routine.
         kernel_sym = ctr_table.lookup(routine.name)
-        adj_kernel_name = create_adjoint_name(routine.name)
-        # A symbol's name is immutable so create a new RoutineSymbol
-        adj_kernel_sym = ctr_table.new_symbol(
-            adj_kernel_name, symbol_type=RoutineSymbol,
-            visibility=kernel_sym.visibility)
-        if kernel_sym in interfaced_routines:
-            for gsym in interfaced_routines[kernel_sym]:
-                gsym.replace(kernel_sym, adj_kernel_sym)
-        ad_container.symbol_table.remove(kernel_sym)
-
-        routine.name = adj_kernel_sym.name
+        adj_kernel_name = create_adjoint_name(routine.name, table=ctr_table)
+        ctr_table.rename_symbol(kernel_sym, adj_kernel_name)
+        routine.name = adj_kernel_name
 
         logger.debug("AD LFRic kernel will be named '%s'", routine.name)
 
