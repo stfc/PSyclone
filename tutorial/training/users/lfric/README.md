@@ -104,7 +104,8 @@ This script will apply OpenMP transformation to the loops. Add the option
     psyclone -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 The script will apply OpenMP parallelisation to all loops.
-Compare the PSy-layer files with the previously created files. What has changed?
+Compare the PSy-layer files with the previously created files in the directory
+`../1_using_psyclone`. What has changed?
 
 The explanation can be found [here](#explanation-for-applying-openmp).
 
@@ -127,7 +128,8 @@ with the `-dm` flag, but also apply the OpenMP transformation:
 
 
 Again, check the created PSy-layer file `main_alg_psy.f90` for the calls to halo-exchanges
-and OpenMP directives around loops.
+and OpenMP directives around loops. You can also compare it with the files created
+in directory `../2_supporting_mpi/`.
 
 The explanation can be found [here](#explanation-for-mpi-and-openmp).
 
