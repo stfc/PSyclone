@@ -1789,7 +1789,7 @@ def test_fw_call_node_namedargs(fortran_writer):
     result = fortran_writer(call)
     assert result == "call mysub(1.0, arg2=2.0, arg3=3.0)\n"
 
-    call.children[2] = Literal("4.0", REAL_TYPE)
+    call.children[3] = Literal("4.0", REAL_TYPE)
 
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer(call)

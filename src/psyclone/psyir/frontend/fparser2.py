@@ -4588,12 +4588,12 @@ class Fparser2Reader():
 
         self.process_nodes(parent=call, nodes=arg_nodes)
 
-        # Detach the children and add them again with the argument
+        # Detach the arguments and add them again with the argument
         # names
-        child_list = call.children[:]
-        for child in child_list:
+        arg_list = call.arguments[:]
+        for child in arg_list:
             child.detach()
-        for idx, child in enumerate(child_list):
+        for idx, child in enumerate(arg_list):
             call.append_named_arg(arg_names[idx], child)
 
         # Point to the original CALL statement in the parse tree.

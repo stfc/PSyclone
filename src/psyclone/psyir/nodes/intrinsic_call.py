@@ -749,12 +749,14 @@ class IntrinsicCall(Call):
                 f"'{type(routine).__name__}'.")
 
         # A Call expects a symbol, so give it an intrinsic symbol.
-        super().__init__(
-            IntrinsicSymbol(
-                routine.name,
-                is_elemental=routine.is_elemental,
-                is_pure=routine.is_pure),
-            **kwargs)
+        super().__init__(Reference(
+                            IntrinsicSymbol(
+                                routine.name,
+                                routine,
+                                is_elemental=routine.is_elemental,
+                                is_pure=routine.is_pure)),
+                         **kwargs)
+        # FIXME: May get out of sync
         self._intrinsic = routine
 
     @property
@@ -765,7 +767,7 @@ class IntrinsicCall(Call):
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
 
         '''
-        return self._intrinsic
+        return self.routine.symbol.intrinsic
 
     # This is not part of the intrinsic enum, because its ValueError could
     # change for different devices, and in the future we may want to pass
@@ -923,10 +925,10 @@ class IntrinsicCall(Call):
             # If this is an inquiry access (which doesn't actually access the
             # value) and we haven't explicitly requested them, ignore the
             # inquired variables, which are always the first argument.
-            for child in self._children[1:]:
+            for child in self.arguments[1:]:
                 child.reference_accesses(var_accesses)
         else:
-            for child in self._children:
+            for child in self.arguments:
                 child.reference_accesses(var_accesses)
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic

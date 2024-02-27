@@ -136,7 +136,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         node.replace_with(Reference(res_var_symbol))
 
         # Extract the operand nodes
-        op1, op2 = node.pop_all_children()
+        _, op1, op2 = node.pop_all_children()
 
         # res_var=ABS(A)
         lhs = Reference(res_var_symbol)

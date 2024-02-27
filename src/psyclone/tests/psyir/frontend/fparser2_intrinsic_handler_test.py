@@ -197,7 +197,7 @@ end subroutine
     assert isinstance(intrinsic_call, IntrinsicCall)
     result = fortran_writer(intrinsic_call)
     assert result == f"{intrinsic_name}(a, dim=d, mask=m)"
-    routine_symbol = intrinsic_call.routine
+    routine_symbol = intrinsic_call.routine.symbol
 
     assert isinstance(routine_symbol, RoutineSymbol)
     assert intrinsic_call.routine.name == intrinsic_name
@@ -231,7 +231,7 @@ end subroutine
     assert isinstance(intrinsic_call, IntrinsicCall)
     result = fortran_writer(intrinsic_call)
     assert result == f"{intrinsic_name}(a)"
-    routine_symbol = intrinsic_call.routine
+    routine_symbol = intrinsic_call.routine.symbol
     assert isinstance(routine_symbol, RoutineSymbol)
     assert intrinsic_call.routine.name == intrinsic_name
     assert isinstance(routine_symbol.interface, AutomaticInterface)
@@ -288,7 +288,7 @@ def test_handling_intrinsics(code, expected_intrinsic, symbol_table):
         "Fails when parsing '" + code + "'"
     assert assign.rhs._intrinsic == expected_intrinsic, \
         "Fails when parsing '" + code + "'"
-    assert len(assign.rhs.children) == len(assign.rhs.argument_names)
+    assert len(assign.rhs.arguments) == len(assign.rhs.argument_names)
     for named_arg in assign.rhs.argument_names:
         assert named_arg is None
 
@@ -349,8 +349,8 @@ def test_handling_intrinsics_named_args(
         "Fails when parsing '" + code + "'"
     assert assign.rhs._intrinsic == expected_intrinsic, \
         "Fails when parsing '" + code + "'"
-    assert len(assign.rhs.children) == len(assign.rhs._argument_names)
-    for idx, child in enumerate(assign.rhs.children):
+    assert len(assign.rhs.arguments) == len(assign.rhs._argument_names)
+    for idx, child in enumerate(assign.rhs.arguments):
         assert (assign.rhs._argument_names[idx] ==
                 (id(child), expected_names[idx]))
     assert assign.rhs.argument_names == expected_names
@@ -367,7 +367,7 @@ def test_intrinsic_no_args(symbol_table):
     assign = fake_parent.children[0]
     assert isinstance(assign.rhs, IntrinsicCall)
     assert assign.rhs.intrinsic == IntrinsicCall.Intrinsic.NULL
-    assert len(assign.rhs.children) == 0
+    assert len(assign.rhs.arguments) == 0
 
 
 @pytest.mark.usefixtures("f2008_parser")

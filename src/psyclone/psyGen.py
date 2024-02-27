@@ -49,7 +49,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeclGen, DeallocateGen, DoGen, UseGen)
+                              DeclGen, DeallocateGen, DoGen, UseGen, PSyIRGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (ArrayReference, Call, Container, Literal,
@@ -793,6 +793,8 @@ class InvokeSchedule(Routine):
                               funcnames=var_list))
 
         for entity in self.children:
+            # Use the Fortran Backend from this point
+            # parent.add(PSyIRGen(parent, entity))
             entity.gen_code(parent)
 
 
@@ -1011,6 +1013,9 @@ class HaloExchange(Statement):
         return (f"{self.coloured_name(colour)}[field='{self._field.name}', "
                 f"type='{self._halo_type}', depth={self._halo_depth}, "
                 f"check_dirty={self._check_dirty}]")
+
+    def lower_to_language_level(self):
+        raise NotImplementedError()
 
 
 class Kern(Statement):

@@ -1296,7 +1296,6 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         lookup = "last_edge_cell_all_colours(colour)"
 
     output = (
-        f"      !\n"
         f"      DO colour = loop0_start, loop0_stop, 1\n"
         f"        !$omp parallel default(shared), private(cell)\n"
         f"        !$omp do schedule(static)\n"
@@ -4074,9 +4073,9 @@ def test_rc_continuous_no_depth():
     rc_trans.apply(loop)
     result = str(psy.gen)
 
-    assert ("      IF (f1_proxy%is_dirty(depth=max_halo_depth_mesh-1)) THEN\n"
+    assert ("      IF (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) THEN\n"
             "        CALL f1_proxy%halo_exchange(depth=max_halo_depth_mesh"
-            "-1)" in result)
+            " - 1)" in result)
     for fname in ["f2", "m1", "m2"]:
         assert (f"      IF ({fname}_proxy%is_dirty(depth=max_halo_depth_mesh"
                 f")) THEN\n"
@@ -5474,11 +5473,9 @@ def test_rc_colour(tmpdir):
         "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=2)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=2)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=2)\n"
         "      END IF\n" in result)
@@ -5525,11 +5522,9 @@ def test_rc_max_colour(tmpdir):
         "      IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "      END IF\n" in result)
@@ -5600,11 +5595,9 @@ def test_rc_then_colour(tmpdir):
         "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=3)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=3)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=3)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=3)\n"
         "      END IF\n" in result)
@@ -5658,11 +5651,9 @@ def test_rc_then_colour2(tmpdir):
         "      IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "      END IF\n" in result)
@@ -5712,18 +5703,15 @@ def test_loop_fuse_then_rc(tmpdir):
 
     assert "max_halo_depth_mesh = mesh%get_halo_depth()" in result
     assert (
-        "      IF (f1_proxy%is_dirty(depth=max_halo_depth_mesh-1)) THEN\n"
+        "      IF (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=max_halo_depth_mesh-1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
         "        CALL m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
         "      END IF\n" in result)
@@ -6662,15 +6650,12 @@ def test_async_hex(tmpdir):
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange_start(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange_finish(depth=1)\n"
-        "      END IF\n"
-        "      !\n") in result
+        "      END IF\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6698,15 +6683,12 @@ def test_async_hex_move_1(tmpdir):
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange_start(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange_finish(depth=1)\n"
         "      END IF\n") in result
@@ -6797,7 +6779,6 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
     assert "loop3_stop = mesh%get_last_halo_cell(1)" in result
     assert (
         "      CALL f2_proxy%halo_exchange_start(depth=1)\n"
-        "      !\n"
         "      DO cell = loop3_start, loop3_stop, 1\n"
         "        CALL testkern_any_space_3_code(cell, nlayers, "
         "op_proxy%ncell_3d, op_local_stencil, ndf_aspc1_op, "
@@ -6944,7 +6925,6 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m2_proxy%halo_exchange_start(depth=2)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m2_proxy%halo_exchange_finish(depth=2)\n"
         "      END IF\n") in result
@@ -7065,17 +7045,13 @@ def test_vector_async_halo_exchange(tmpdir):
             f"      IF (f1_proxy({index})%is_dirty(depth=1)) THEN\n"
             f"        CALL f1_proxy({index})%halo_exchange_start(depth=1)\n"
             f"      END IF\n"
-            f"      !\n"
             f"      IF (f1_proxy({index})%is_dirty(depth=1)) THEN\n"
             f"        CALL f1_proxy({index})%halo_exchange_finish(depth=1)\n"
             f"      END IF\n") in result
     assert (
         "      CALL f1_proxy(1)%halo_exchange(depth=1)\n"
-        "      !\n"
         "      CALL f1_proxy(2)%halo_exchange_start(depth=1)\n"
-        "      !\n"
         "      CALL f1_proxy(2)%halo_exchange_finish(depth=1)\n"
-        "      !\n"
         "      CALL f1_proxy(3)%halo_exchange(depth=1)\n") in result
 
     # we are not able to test re-ordering of vector halo exchanges as

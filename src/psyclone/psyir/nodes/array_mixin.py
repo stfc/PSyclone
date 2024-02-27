@@ -144,12 +144,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if (isinstance(expr, IntrinsicCall) and
                 expr.intrinsic == bound_operator):
             # This is the expected bound
-            if self.is_same_array(expr.children[0]):
+            if self.is_same_array(expr.arguments[0]):
                 # The arrays match
-                if (isinstance(expr.children[1], Literal) and
-                        expr.children[1].datatype.intrinsic ==
+                if (isinstance(expr.arguments[1], Literal) and
+                        expr.arguments[1].datatype.intrinsic ==
                         ScalarType.Intrinsic.INTEGER
-                        and expr.children[1].value == str(index+1)):
+                        and expr.arguments[1].value == str(index+1)):
                     # This is the correct index
                     return True
         return False
@@ -363,11 +363,17 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             else:
                 intrinsic = IntrinsicCall.Intrinsic.LBOUND
                 access_bound = access_shape.start
+            # If it uses an intrinsic in the bound, but this inquires a different
+            # array then we can not guarentee their equivalence.
+            if isinstance(access_bound, IntrinsicCall):
+                if not self.is_same_array(access_bound.arguments[0]):
+                    return False
+
             # Is this array access in the form of {UL}BOUND(array, index)?
-            if self._is_bound_op(access_bound, intrinsic, index):
-                return True
+            return self._is_bound_op(access_bound, intrinsic, index)
         else:
             access_bound = access_shape
+
 
         # Try to compare the upper/lower bound of the array access
         # with the upper/lower bound of the array declaration.
@@ -547,7 +553,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # of LBOUND and UBOUND. Therefore, it's simpler to use SIZE.
             return IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.SIZE,
-                [start.children[0].copy(),
+                [start.arguments[0].copy(),
                  ("dim", Literal(str(idx+1), INTEGER_TYPE))])
 
         if start == one and step == one:

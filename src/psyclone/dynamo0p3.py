@@ -70,11 +70,13 @@ from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Reference, ACCEnterDataDirective, ScopingNode
+from psyclone.psyir.nodes import (
+    Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
+    StructureReference, Literal, IfBlock, Call, BinaryOperation)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
-                                    ArrayType, UnsupportedFortranType)
+                                    ArrayType, UnsupportedFortranType, Symbol)
 
 
 # pylint: disable=too-many-lines
@@ -4158,6 +4160,16 @@ class LFRicHaloExchange(HaloExchange):
                           depth_info_list]
         return "max("+",".join(depth_str_list)+")"
 
+    def psyir_expression(self):
+        ''' PSyIR expr '''
+        depth_info_list = self._compute_halo_read_depth_info()
+        if len(depth_info_list) == 1:
+            return depth_info_list[0].psyir_expression()
+
+        return IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.MAX,
+                [depth.psyir_expression() for depth in depth_info_list])
+
     def _compute_halo_read_depth_info(self, ignore_hex_dep=False):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
         create an equivalent list of `psyclone.dynamo0p3.HaloDepth`
@@ -4479,25 +4491,41 @@ class LFRicHaloExchange(HaloExchange):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        parent.add(PSyIRGen(parent, self))
+
+    def lower_to_language_level(self):
+        ''' Lower method '''
+        symbol = DataSymbol(self._field.proxy_name, UnresolvedType())
+        method = self._halo_exchange_name
+        depth_expr = self.psyir_expression()
+
+        # Create infrastructure Calls
         if self.vector_index:
-            ref = f"({self.vector_index})"
+            idx = Literal(str(self.vector_index), INTEGER_TYPE)
+            if_condition = Call.create(
+                ArrayOfStructuresReference.create(symbol, [idx], ['is_dirty']),
+                [('depth', depth_expr)])
+            if_body = Call.create(
+                ArrayOfStructuresReference.create(
+                    symbol, [idx.copy()], [method]),
+                [('depth', depth_expr.copy())])
         else:
-            ref = ""
+            if_condition = Call.create(
+                StructureReference.create(symbol, ['is_dirty']),
+                [('depth', depth_expr)])
+            if_body = Call.create(
+                StructureReference.create(symbol, [method]),
+                [('depth', depth_expr.copy())])
+
+        # Add the "if_dirty" check when necessary
         _, known = self.required()
         if not known:
-            if_then = IfThenGen(parent, self._field.proxy_name + ref +
-                                "%is_dirty(depth=" +
-                                self._compute_halo_depth() + ")")
-            parent.add(if_then)
-            halo_parent = if_then
+            haloex = IfBlock.create(if_condition, [if_body])
         else:
-            halo_parent = parent
-        halo_parent.add(
-            CallGen(
-                halo_parent, name=self._field.proxy_name + ref +
-                "%" + self._halo_exchange_name +
-                "(depth=" + self._compute_halo_depth() + ")"))
-        parent.add(CommentGen(parent, ""))
+            haloex = if_body
+
+        self.replace_with(haloex)
+        return haloex
 
 
 class LFRicHaloExchangeStart(LFRicHaloExchange):
@@ -4696,6 +4724,7 @@ class HaloDepth():
         self._annexed_only = False
         # Keep a reference to the symbol table so that we can look-up
         # variables holding the maximum halo depth.
+        # FIXME
         self._symbol_table = sym_table
 
     @property
@@ -4808,6 +4837,30 @@ class HaloDepth():
                 # Returns depth if depth has any value, including 0
                 depth_str = str(self.literal_depth)
         return depth_str
+
+    def psyir_expression(self):
+        ''' Generate PSyIR expression '''
+        if self.max_depth:
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            return Reference(max_depth)
+        if self.max_depth_m1:
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            return BinaryOperation.create(
+                        BinaryOperation.Operator.SUB,
+                        Reference(max_depth),
+                        Literal('1', INTEGER_TYPE))
+        if self.var_depth:
+            depth_ref = Reference(self._symbol_table.lookup(self.var_depth))
+            if self.literal_depth != 0:  # Ignores depth == 0
+                return BinaryOperation.create(
+                            BinaryOperation.Operator.SUB,
+                            depth_ref,
+                            Literal(f"{self.literal_depth}", INTEGER_TYPE))
+            return depth_ref
+        # Returns depth if depth has any value, including 0
+        return Literal(str(self.literal_depth), INTEGER_TYPE)
 
 
 def halo_check_arg(field, access_types):

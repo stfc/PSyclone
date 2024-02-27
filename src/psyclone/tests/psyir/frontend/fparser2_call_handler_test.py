@@ -46,7 +46,7 @@ from fparser.two import Fortran2003
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import CodeBlock, Schedule, Call
+from psyclone.psyir.nodes import CodeBlock, Schedule, Call, Reference
 from psyclone.psyir.symbols import (
     RoutineSymbol, UnresolvedInterface, ImportInterface, NoType)
 
@@ -70,9 +70,11 @@ def test_call_noargs():
 
     call_node = fake_parent.children[0]
     assert isinstance(call_node, Call)
-    assert not call_node.children
+    assert not call_node.arguments
 
-    routine_symbol = call_node.routine
+    routine_ref = call_node.routine
+    assert isinstance(routine_ref, Reference)
+    routine_symbol = routine_ref.symbol
     assert isinstance(routine_symbol, RoutineSymbol)
     assert isinstance(routine_symbol.interface, UnresolvedInterface)
     assert routine_symbol.name == "kernel"
@@ -105,7 +107,7 @@ def test_call_declared_routine(f2008_parser):
     psyir = processor.generate_psyir(ptree)
 
     for call_node in psyir.walk(Call):
-        routine_symbol = call_node.routine
+        routine_symbol = call_node.routine.symbol
         assert isinstance(routine_symbol, RoutineSymbol)
         assert isinstance(routine_symbol.interface, ImportInterface)
         assert routine_symbol.name == "kernel"

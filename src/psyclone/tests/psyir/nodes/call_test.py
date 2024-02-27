@@ -55,20 +55,20 @@ def test_call_init():
     property.
 
     '''
-    # routine argument
+    # Initialise with a RoutineSymbol
     routine = RoutineSymbol("jo", NoType())
     call = Call(routine)
-    assert call._routine is routine
-    assert call.routine is call._routine
+    assert call.routine.symbol is routine
     assert call.parent is None
-    assert call.children == []
+    # The Symbol is now inside a Reference
+    assert call.children == [Reference(routine)]
 
-    # optional parent argument
+    # Initialise with Reference and provide optional parent argument
     parent = Schedule()
-    call = Call(routine, parent=parent)
-    assert call.routine is routine
+    call = Call(Reference(routine), parent=parent)
+    assert call.routine.symbol is routine
     assert call.parent is parent
-    assert call.children == []
+    assert call.children == [Reference(routine)]
 
 
 def test_call_is_elemental():
@@ -134,8 +134,9 @@ def test_call_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = Call(None)
-    assert ("Call 'routine' argument should be a RoutineSymbol but found "
-            "'NoneType'." in str(info.value))
+    assert ("The Call routine argument should be a Reference to a Routine"
+            "Symbol or a RoutineSymbol, but found 'NoneType'."
+            in str(info.value))
 
 
 @pytest.mark.parametrize("cls", [Call, SpecialCall])
@@ -152,9 +153,9 @@ def test_call_create(cls):
     call = cls.create(routine, [arguments[0], ("name", arguments[1])])
     # pylint: disable=unidiomatic-typecheck
     assert type(call) is cls
-    assert call.routine is routine
+    assert call.routine.symbol is routine
     assert call.argument_names == [None, "name"]
-    for idx, child, in enumerate(call.children):
+    for idx, child, in enumerate(call.arguments):
         assert child is arguments[idx]
         assert child.parent is call
 
@@ -164,10 +165,11 @@ def test_call_create_error1():
     argument to the create method is not a RoutineSymbol.
 
     '''
-    with pytest.raises(GenerationError) as info:
+    with pytest.raises(TypeError) as info:
         _ = Call.create(None, [])
-    assert ("Call create routine argument should be a RoutineSymbol but "
-            "found 'NoneType'." in str(info.value))
+    assert ("The Call routine argument should be a Reference to a "
+            "RoutineSymbol or a RoutineSymbol, but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_call_create_error2():
@@ -202,8 +204,8 @@ def test_call_create_error4():
         _ = Call.create(
             routine, [Reference(DataSymbol(
                 "arg1", INTEGER_TYPE)), ("name", None)])
-    assert ("Item 'NoneType' can't be child 1 of 'Call'. The valid format "
-            "is: '[DataNode]*'." in str(info.value))
+    assert ("Item 'NoneType' can't be child 2 of 'Call'. The valid format "
+            "is: 'Reference, [DataNode]*'." in str(info.value))
 
 
 def test_call_add_args():
@@ -215,17 +217,17 @@ def test_call_add_args():
     arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
                  ArrayReference(DataSymbol("arg2", array_type))]
     Call._add_args(call, [arguments[0], ("name", arguments[1])])
-    assert call.routine is routine
+    assert call.routine.symbol is routine
     assert call.argument_names == [None, "name"]
-    for idx, child, in enumerate(call.children):
+    for idx, child, in enumerate(call.arguments):
         assert child is arguments[idx]
         assert child.parent is call
     # For some reason pylint thinks that call.children[0,1] are of
     # type Literal and complains about there being no name member,
     # even though they are not.
     # pylint: disable=no-member
-    assert call.children[0].name == "arg1"
-    assert call.children[1].name == "arg2"
+    assert call.arguments[0].name == "arg1"
+    assert call.arguments[1].name == "arg2"
 
 
 def test_call_add_args_error1():
@@ -283,7 +285,7 @@ def test_call_appendnamedarg():
     # ok
     call.append_named_arg("name2", op2)
     call.append_named_arg(None, op3)
-    assert call.children == [op1, op2, op3]
+    assert call.arguments == [op1, op2, op3]
     assert call.argument_names == ["name1", "name2", None]
 
 
@@ -319,13 +321,13 @@ def test_call_insertnamedarg():
     assert ("The 'index' argument in 'insert_named_arg' in the 'Call' node "
             "should be an int but found str." in str(info.value))
     # ok
-    assert call.children == [op1]
+    assert call.arguments == [op1]
     assert call.argument_names == ["name1"]
     call.insert_named_arg("name2", op2, 0)
-    assert call.children == [op2, op1]
+    assert call.arguments == [op2, op1]
     assert call.argument_names == ["name2", "name1"]
     call.insert_named_arg(None, op3, 0)
-    assert call.children == [op3, op2, op1]
+    assert call.arguments == [op3, op2, op1]
     assert call.argument_names == [None, "name2", "name1"]
 
 
@@ -353,12 +355,12 @@ def test_call_replacenamedarg():
             "'replace_named_arg' in the 'Call' node was not found in the "
             "existing arguments." in str(info.value))
     # ok
-    assert call.children == [op1, op2]
+    assert call.arguments == [op1, op2]
     assert call.argument_names == ["name1", "name2"]
     assert call._argument_names[0][0] == id(op1)
     assert call._argument_names[1][0] == id(op2)
     call.replace_named_arg("name1", op3)
-    assert call.children == [op3, op2]
+    assert call.arguments == [op3, op2]
     assert call.argument_names == ["name1", "name2"]
     assert call._argument_names[0][0] == id(op3)
     assert call._argument_names[1][0] == id(op2)
@@ -419,11 +421,11 @@ def test_call_argumentnames_after_removearg():
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("1", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
-    assert len(call.children) == 2
+    assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
     assert call.argument_names == ["name1", "name2"]
     call.children.pop(0)
-    assert len(call.children) == 1
+    assert len(call.arguments) == 1
     assert len(call._argument_names) == 2
     # argument_names property makes _argument_names list consistent.
     assert call.argument_names == ["name2"]
@@ -440,11 +442,11 @@ def test_call_argumentnames_after_addarg():
     op2 = Literal("1", INTEGER_TYPE)
     op3 = Literal("1", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
-    assert len(call.children) == 2
+    assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
     assert call.argument_names == ["name1", "name2"]
     call.children.append(op3)
-    assert len(call.children) == 3
+    assert len(call.arguments) == 3
     assert len(call._argument_names) == 2
     # argument_names property makes _argument_names list consistent.
     assert call.argument_names == ["name1", "name2", None]
@@ -461,17 +463,17 @@ def test_call_argumentnames_after_replacearg():
     op2 = Literal("1", INTEGER_TYPE)
     op3 = Literal("1", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
-    assert len(call.children) == 2
+    assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
     assert call.argument_names == ["name1", "name2"]
-    call.children[0] = op3
-    assert len(call.children) == 2
+    call.children[1] = op3
+    assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
     # argument_names property makes _argument_names list consistent.
-    assert call._argument_names[0][0] != id(call.children[0])
+    assert call._argument_names[0][0] != id(call.children[1])
     assert call.argument_names == [None, "name2"]
     assert len(call._argument_names) == 2
-    assert call._argument_names[0][0] == id(call.children[0])
+    assert call._argument_names[0][0] == id(call.children[1])
 
 
 def test_call_argumentnames_after_reorderarg():
@@ -484,11 +486,11 @@ def test_call_argumentnames_after_reorderarg():
     op2 = Literal("1", INTEGER_TYPE)
     op3 = Literal("1", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
-    assert len(call.children) == 2
+    assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
     assert call.argument_names == ["name1", "name2"]
-    call.children[0] = op3
-    assert len(call.children) == 2
+    call.children[1] = op3
+    assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
     # argument_names property makes _argument_names list consistent.
     assert call.argument_names == [None, "name2"]
@@ -506,19 +508,19 @@ def test_call_node_reconcile_add():
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     # consistent
     assert len(call._argument_names) == 2
-    assert call._argument_names[0] == (id(call.children[0]), "name1")
-    assert call._argument_names[1] == (id(call.children[1]), "name2")
+    assert call._argument_names[0] == (id(call.arguments[0]), "name1")
+    assert call._argument_names[1] == (id(call.arguments[1]), "name2")
     call.children.append(op3)
     # inconsistent
     assert len(call._argument_names) == 2
-    assert call._argument_names[0] == (id(call.children[0]), "name1")
-    assert call._argument_names[1] == (id(call.children[1]), "name2")
+    assert call._argument_names[0] == (id(call.arguments[0]), "name1")
+    assert call._argument_names[1] == (id(call.arguments[1]), "name2")
     call._reconcile()
     # consistent
     assert len(call._argument_names) == 3
-    assert call._argument_names[0] == (id(call.children[0]), "name1")
-    assert call._argument_names[1] == (id(call.children[1]), "name2")
-    assert call._argument_names[2] == (id(call.children[2]), None)
+    assert call._argument_names[0] == (id(call.arguments[0]), "name1")
+    assert call._argument_names[1] == (id(call.arguments[1]), "name2")
+    assert call._argument_names[2] == (id(call.arguments[2]), None)
 
 
 def test_call_node_reconcile_reorder():
@@ -531,18 +533,18 @@ def test_call_node_reconcile_reorder():
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     # consistent
     assert len(call._argument_names) == 2
-    assert call._argument_names[0] == (id(call.children[0]), "name1")
-    assert call._argument_names[1] == (id(call.children[1]), "name2")
-    call.children = [op2.detach(), op1.detach()]
+    assert call._argument_names[0] == (id(call.arguments[0]), "name1")
+    assert call._argument_names[1] == (id(call.arguments[1]), "name2")
+    call.children = [call.routine.detach(), op2.detach(), op1.detach()]
     # inconsistent
     assert len(call._argument_names) == 2
-    assert call._argument_names[0] != (id(call.children[0]), "name1")
-    assert call._argument_names[1] != (id(call.children[1]), "name2")
+    assert call._argument_names[0] != (id(call.arguments[0]), "name1")
+    assert call._argument_names[1] != (id(call.arguments[1]), "name2")
     call._reconcile()
     # consistent
     assert len(call._argument_names) == 2
-    assert call._argument_names[0] == (id(call.children[0]), "name2")
-    assert call._argument_names[1] == (id(call.children[1]), "name1")
+    assert call._argument_names[0] == (id(call.arguments[0]), "name2")
+    assert call._argument_names[1] == (id(call.arguments[1]), "name1")
 
 
 def test_call_node_str():
@@ -567,19 +569,19 @@ def test_copy():
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     # consistent call
     call_copy = call.copy()
-    assert call._argument_names[0] == (id(call.children[0]), "name1")
-    assert call._argument_names[1] == (id(call.children[1]), "name2")
-    assert call_copy._argument_names[0] == (id(call_copy.children[0]), "name1")
-    assert call_copy._argument_names[1] == (id(call_copy.children[1]), "name2")
+    assert call._argument_names[0] == (id(call.arguments[0]), "name1")
+    assert call._argument_names[1] == (id(call.arguments[1]), "name2")
+    assert call_copy._argument_names[0] == (id(call_copy.arguments[0]), "name1")
+    assert call_copy._argument_names[1] == (id(call_copy.arguments[1]), "name2")
     assert call._argument_names != call_copy._argument_names
 
-    call.children = [op2.detach(), op1.detach()]
-    assert call._argument_names[0] != (id(call.children[0]), "name2")
-    assert call._argument_names[1] != (id(call.children[1]), "name1")
+    call.children = [call.routine.detach(), op2.detach(), op1.detach()]
+    assert call._argument_names[0] != (id(call.arguments[0]), "name2")
+    assert call._argument_names[1] != (id(call.arguments[1]), "name1")
     # inconsistent call
     call_copy = call.copy()
-    assert call._argument_names[0] == (id(call.children[0]), "name2")
-    assert call._argument_names[1] == (id(call.children[1]), "name1")
-    assert call_copy._argument_names[0] == (id(call_copy.children[0]), "name2")
-    assert call_copy._argument_names[1] == (id(call_copy.children[1]), "name1")
+    assert call._argument_names[0] == (id(call.arguments[0]), "name2")
+    assert call._argument_names[1] == (id(call.arguments[1]), "name1")
+    assert call_copy._argument_names[0] == (id(call_copy.arguments[0]), "name2")
+    assert call_copy._argument_names[1] == (id(call_copy.arguments[1]), "name1")
     assert call._argument_names != call_copy._argument_names
