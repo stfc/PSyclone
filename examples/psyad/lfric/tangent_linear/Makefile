@@ -47,7 +47,7 @@ TL_KERNEL_NAME ?=
 TL_KERNEL_FILE = ${TL_KERNEL_NAME}_mod.F90
 ADJ_KERNEL_FILE = $(addprefix adj_,$(subst tl_,,${TL_KERNEL_FILE}))
 
-GENERATED_FILES = ${OUT_DIR}/adj*.[fF]90 ../adjoint/adj_transpose_matrix_vector_kernel_mod.F90 ../adjoint/adj_hydrostatic_kernel_mod.F90 ../adjoint/adj_moist_dyn_mass_kernel_mod.F90 ../adjoint/adj_w3_advective_update_kernel_mod.F90 ../adjoint/adj_combine_w2_field_kernel_mod.F90 ../adjoint/adj_split_w2_field_kernel_mod.F90 ../adjoint/adj_sample_flux_kernel_mod.F90 ../adjoint/adj_tracer_viscosity_kernel_mod.F90 ../adjoint/adj_dg_matrix_vector_kernel_mod.F90 ../adjoint/adj_w2_to_w1_projection_kernel_mod.F90
+GENERATED_FILES = ${OUT_DIR}/adj*.[fF]90 ../adjoint/adj_transpose_matrix_vector_kernel_mod.F90 ../adjoint/adj_hydrostatic_kernel_mod.F90 ../adjoint/adj_moist_dyn_mass_kernel_mod.F90 ../adjoint/adj_w3_advective_update_kernel_mod.F90 ../adjoint/adj_combine_w2_field_kernel_mod.F90 ../adjoint/adj_split_w2_field_kernel_mod.F90 ../adjoint/adj_sample_flux_kernel_mod.F90 ../adjoint/adj_tracer_viscosity_kernel_mod.F90 ../adjoint/adj_dg_matrix_vector_kernel_mod.F90 ../adjoint/adj_w2_to_w1_projection_kernel_mod.F90 ../adjoint/adj_poly1d_reconstruction_kernel_mod.F90
 
 single: ${ADJ_KERNEL_FILE}
 
@@ -61,7 +61,8 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_sample_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas exner_cell theta_vd_cell rho_cell rho_e exner_e theta_vd_e"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_poly_advective_kernel ACTIVE_VAR_LIST="advective u v dtdx dtdy tracer wind"
 	$(MAKE) single -e TL_KERNEL_NAME=strong_curl_kernel ACTIVE_VAR_LIST="xi res_dot_product curl_u u"
-
+	$(MAKE) single -e TL_KERNEL_NAME=poly1d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
+	$(MAKE) single -e TL_KERNEL_NAME=poly2d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
 	# The following files no not need any modification after PSyAD processing so
 	# go straight into the adjoint directory.
 	$(MAKE) single -e TL_KERNEL_NAME=transpose_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x_e x" OUT_DIR="../adjoint"
