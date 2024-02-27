@@ -169,15 +169,25 @@ subroutine poly1d_reconstruction_code( nlayers,        &
   do p = 1, order+1
   do f = 1,nfaces
 
-     !call compute_reconstruction(p, f, order, reconstruction, map_md(1,cell), &
-     !                            coeff, map_c(1,cell), tracer, stencil_map(1,map1d(p,f),cell))
+     if(map1d(p,f) == 1)then
+        ! Diagonal (owned-cell) update.
+        ! Call commented out as PSyAD rejects them at the moment
+        !call compute_reconstruction(p, f, order, reconstruction, map_md(1,cell), &
+        !                            coeff, map_c(1,cell), &
+        !                            tracer, stencil_map(1,map1d(p,f),cell))
+     else
+        ! Off-diagonal update.
+        !call compute_reconstruction(p, f, order, reconstruction, map_md(1,cell), &
+        !                            coeff, map_c(1,cell), &
+        !                            tracer, stencil_map(1,map1d(p,f),cell))
+     end if
   end do
   end do
 end subroutine poly1d_reconstruction_code
 
 subroutine compute_reconstruction(p, f, order, reconstruction, recon_cell, coeff, coeff_cell, &
                                   tracer, tracer_cell, nl)
-  integer, intent(in) :: p, f, nl, order, recon_cell, coeff_cell
+  integer, intent(in) :: p, f, nl, order, recon_cell, coeff_cell, tracer_cell
   real(kind=r_tran), intent(inout) :: reconstruction(:)
   real(kind=r_tran), intent(in) :: tracer(:), coeff(:)
   integer :: k, ijp, df, stencil_depth, face_mod, face, depth
