@@ -2275,7 +2275,7 @@ def test_find_routine_exception(fortran_reader, monkeypatch):
 
 # _symbols_to_skip
 
-def test_symbols_to_skip(fortran_reader):
+def test_symbols_to_skip():
     '''Test that the _symbols_to_skip() utility method returns the expected
     list of symbols to skip when merging the table of a called routine into
     the table of the call site.
