@@ -44,11 +44,13 @@
 from collections import OrderedDict
 import inspect
 import copy
+
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
-    Symbol, DataSymbol, ImportInterface, ContainerSymbol, DataTypeSymbol,
-    RoutineSymbol, SymbolError, UnresolvedInterface)
+    DataSymbol, ImportInterface, ContainerSymbol, DataTypeSymbol,
+    GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError,
+    UnresolvedInterface)
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -287,6 +289,17 @@ class SymbolTable():
             new_container = new_st.lookup(name)
             symbol.interface = ImportInterface(new_container,
                                                orig_name=orig_name)
+
+        # Fix the references to RoutineSymbols within any
+        # GenericInterfaceSymbols.
+        for symbol in new_st.symbols:
+            if not isinstance(symbol, GenericInterfaceSymbol):
+                continue
+            new_routines = []
+            for routine in symbol.routines:
+                new_routines.append((new_st.lookup(routine.symbol.name),
+                                     routine.from_container))
+            symbol.routines = new_routines
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
@@ -1059,6 +1072,25 @@ class SymbolTable():
                 f"Cannot remove ContainerSymbol '{symbol.name}' since symbols"
                 f" {[sym.name for sym in self.symbols_imported_from(symbol)]} "
                 f"are imported from it - remove them first.")
+
+        if isinstance(symbol, RoutineSymbol):
+            # Check for Calls.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import Call
+            all_calls = self.node.walk(Call) if self.node else []
+            for call in all_calls:
+                if call.routine is symbol:
+                    raise ValueError(
+                        f"Cannot remove RoutineSymbol '{symbol.name}' "
+                        f"because it is referenced by '{call.debug_string()}'")
+            # Check for any references to it within interfaces.
+            for sym in self._symbols.values():
+                if isinstance(sym, GenericInterfaceSymbol):
+                    if symbol in [rt.symbol for rt in sym.routines]:
+                        raise ValueError(
+                            f"Cannot remove RoutineSymbol '{symbol.name}' "
+                            f"because it is referenced in interface "
+                            f"'{sym.name}'")
 
         # If the symbol had a tag, it should be disassociated
         for tag, tagged_symbol in list(self._tags.items()):

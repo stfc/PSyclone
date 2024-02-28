@@ -92,9 +92,6 @@ end module test_mod
     assert "The supplied PSyIR does not contain any routines" in str(err.value)
 
 
-# We can't yet parse metadata that does not contain a procedure (see
-# issue #2236) so instead we simply add multiple routines even though
-# only one is specified in the metadata.
 MULTI_ROUTINE_CODE = (
     "module test_mod\n"
     "  implicit none\n"
@@ -106,9 +103,16 @@ MULTI_ROUTINE_CODE = (
     "          arg_type(gh_field,  gh_real, gh_read, w0)  &\n"
     "          /)\n"
     "     integer :: operates_on = cell_column\n"
-    "  contains\n"
-    "    procedure, nopass :: test_code_r4\n"
     "  end type test_type\n"
+    "  public test_code\n"
+    "  interface test_code\n"
+    "    module procedure :: test_code_r4, test_code_r8\n"
+    "  end interface test_code\n"
+    # Include a second interface that also references the two subroutines.
+    "  interface another_interface\n"
+    "    module procedure :: test_code_r8, test_code_r4\n"
+    "  end interface another_interface\n"
+    "  private :: another_interface\n"
     "contains\n"
     "  subroutine test_code_r4()\n"
     "    real*4 :: var1\n"
@@ -124,14 +128,24 @@ MULTI_ROUTINE_CODE = (
 def test_generate_lfric_adjoint_multi_routine(fortran_reader, fortran_writer):
     '''Test that if there are multiple routines in the PSyIR (i.e. for
     multi-precision kernels), all of their (tl) names are modified to
-    their expected adjoint names.
+    their expected adjoint names, including in the two interface definitions.
 
     '''
     psyir = fortran_reader.psyir_from_source(MULTI_ROUTINE_CODE)
     adj_psyir = generate_lfric_adjoint(psyir, ["var1"])
-    result = fortran_writer(adj_psyir)
+    result = fortran_writer(adj_psyir).lower()
     assert "subroutine adj_test_code_r4()" in result
     assert "subroutine adj_test_code_r8()" in result
+    # Check that the names of the routines in the two interfaces have
+    # been updated.
+    assert "module procedure :: adj_test_code_r4, adj_test_code_r8" in result
+    assert "module procedure :: adj_test_code_r8, adj_test_code_r4" in result
+    # Check that the name of the interface associated with the kernel
+    # implementation has been updated.
+    assert "end type adj_test_type" in result
+    if "interface adj_test_code" not in result:
+        pytest.xfail("#1946 updating metadata for mixed-precision kernels not "
+                     "yet supported.")
 
 
 @pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
