@@ -50,7 +50,7 @@ from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (CommentGen, DeclGen, ModuleGen, SubroutineGen,
                               UseGen)
 from psyclone.parse.algorithm import Arg, KernelCall
-from psyclone.psyGen import InvokeSchedule, CodedKern
+from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Reference,
                                   KernelSchedule)
@@ -104,7 +104,8 @@ class LFRicKern(CodedKern):
         # because we must preserve the ordering specified in the metadata.
         self._qr_rules = OrderedDict()
         self._cma_operation = None
-        self._is_intergrid = False  # Whether this is an inter-grid kernel
+        # Reference to the DynInterGrid object holding any inter-grid aspects
+        # of this kernel or None if it is not an intergrid kernel
         self._intergrid_ref = None  # Reference to this kernel inter-grid
         # The reference-element properties required by this kernel
         self._reference_element = None
@@ -273,9 +274,21 @@ class LFRicKern(CodedKern):
         self._cma_operation = ktype.cma_operation
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
 
-        # Record whether or not the kernel metadata specifies that this
-        # is an inter-grid kernel
-        self._is_intergrid = ktype.is_intergrid
+        # If the kernel metadata specifies that this is an inter-grid kernel
+        # create the associated DynInterGrid
+        if ktype.is_intergrid:
+            if not self.ancestor(InvokeSchedule):
+                raise NotImplementedError(
+                    f"Intergrid kernels can only be setup inside an "
+                    f"InvokeSchedule, but attempted '{self.name}' without it.")
+            fine_args = args_filter(self.arguments.args,
+                                    arg_meshes=["gh_fine"])
+            coarse_args = args_filter(self.arguments.args,
+                                      arg_meshes=["gh_coarse"])
+
+            from psyclone.dynamo0p3 import DynInterGrid
+            intergrid = DynInterGrid(fine_args[0], coarse_args[0])
+            self._intergrid_ref = intergrid
 
         const = LFRicConstants()
         # Check that all specified evaluator shapes are recognised
@@ -380,7 +393,7 @@ class LFRicKern(CodedKern):
         :return: True if it is an inter-grid kernel, False otherwise
         :rtype: bool
         '''
-        return self._is_intergrid
+        return self._intergrid_ref is not None
 
     @property
     def colourmap(self):
@@ -399,12 +412,7 @@ class LFRicKern(CodedKern):
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
         sched = self.ancestor(InvokeSchedule)
-        if self._is_intergrid:
-            invoke = sched.invoke
-            if self._intergrid_ref is None:
-                raise InternalError(
-                    f"Colourmap information for kernel '{self.name}' has "
-                    f"not yet been initialised")
+        if self.is_intergrid:
             cmap = self._intergrid_ref.colourmap_symbol.name
         else:
             try:
@@ -435,11 +443,7 @@ class LFRicKern(CodedKern):
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
 
-        if self._is_intergrid:
-            if self._intergrid_ref is None:
-                raise InternalError(
-                    f"Colourmap information for kernel '{self.name}' has "
-                    f"not yet been initialised")
+        if self.is_intergrid:
             return self._intergrid_ref.last_cell_var_symbol
 
         ubnd_name = self.ancestor(Loop).upper_bound_name
@@ -471,11 +475,7 @@ class LFRicKern(CodedKern):
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
-        if self._is_intergrid:
-            if self._intergrid_ref is None:
-                raise InternalError(
-                    f"Colourmap information for kernel '{self.name}' has "
-                    f"not yet been initialised")
+        if self.is_intergrid:
             ncols_sym = self._intergrid_ref.ncolours_var_symbol
             if not ncols_sym:
                 return None

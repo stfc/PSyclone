@@ -122,12 +122,6 @@ def test_kern_colourmap(monkeypatch):
         _ = kern.colourmap
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
             in str(err.value))
-    monkeypatch.setattr(kern, "is_coloured", lambda: True)
-    monkeypatch.setattr(kern, "_is_intergrid", True)
-    with pytest.raises(InternalError) as err:
-        _ = kern.colourmap
-    assert ("Colourmap information for kernel 'testkern_code' has not yet "
-            "been initialised" in str(err.value))
 
 
 def test_kern_ncolours(monkeypatch):
@@ -140,12 +134,6 @@ def test_kern_ncolours(monkeypatch):
         _ = kern.ncolours_var
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
             in str(err.value))
-    monkeypatch.setattr(kern, "is_coloured", lambda: True)
-    monkeypatch.setattr(kern, "_is_intergrid", True)
-    with pytest.raises(InternalError) as err:
-        _ = kern.ncolours_var
-    assert ("Colourmap information for kernel 'testkern_code' has not yet "
-            "been initialised" in str(err.value))
 
 
 def test_get_kernel_schedule():
@@ -391,11 +379,6 @@ def test_kern_last_cell_all_colours_errors(monkeypatch):
     assert "'testkern_code' is not inside a coloured loop" in str(err.value)
     # Monkeypatch the Kernel so that it appears to be coloured.
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
-    kern._is_intergrid = True
-    with pytest.raises(InternalError) as err:
-        _ = kern.last_cell_all_colours_symbol
-    assert ("Colourmap information for kernel 'testkern_code' has not yet "
-            "been initialised" in str(err.value))
 
 
 def test_kern_last_cell_all_colours():

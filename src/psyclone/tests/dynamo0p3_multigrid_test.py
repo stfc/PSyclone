@@ -260,8 +260,7 @@ def test_dynintergrid():
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     # Get the DynIntergrid object from the tree:
-    dyn_intergrid = list(psy.invokes.invoke_list[0].meshes.
-                         intergrid_kernels.values())[0]
+    dyn_intergrid = psy.invokes.invoke_list[0].meshes.intergrid_kernels[0]
     # The objects will not get initialised before `gen` is called, so all
     # values should be None initially:
     assert dyn_intergrid.colourmap_symbol is None
@@ -770,8 +769,8 @@ def test_no_stub_gen():
     with pytest.raises(NotImplementedError) as excinfo:
         generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.f90"),
                  api="dynamo0.3")
-    assert ("'prolong_test_kernel_code' is an inter-grid kernel and stub "
-            "generation is not yet supported for inter-grid kernels"
+    assert ("Intergrid kernels can only be setup inside an InvokeSchedule, "
+            "but attempted 'prolong_test_kernel_code' without it."
             in str(excinfo.value))
 
 
