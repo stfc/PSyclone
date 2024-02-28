@@ -170,7 +170,7 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
     # and colour-map pointers
     assert "integer(kind=i_def), pointer :: cmap(:,:)" in gen
     assert "integer(kind=i_def) ncolour" in gen
-    assert "integer colour" in gen
+    assert "integer(kind=i_def) colour" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

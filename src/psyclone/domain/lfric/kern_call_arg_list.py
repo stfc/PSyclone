@@ -934,14 +934,11 @@ class KernCallArgList(ArgOrdering):
         :rtype: Tuple[str, py:class:`psyclone.psyir.nodes.Reference`]
 
         '''
-        cell_sym = self._symtab.find_or_create_tag(
-            tag="cell_loop_idx", root_name="cell", symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+        cell_sym = self._symtab.find_or_create_integer_symbol(
+            "cell", tag="cell_loop_idx")
         if self._kern.is_coloured():
-            colour_sym = self._symtab.find_or_create_tag(
-                tag="colours_loop_idx", root_name="colour", symbol_type=DataSymbol,
-                datatype=INTEGER_TYPE)
-            
+            colour_sym = self._symtab.find_or_create_integer_symbol(
+                "colour", tag="colours_loop_idx")
             if self._kern.is_intergrid:
                 tag = None
             else:

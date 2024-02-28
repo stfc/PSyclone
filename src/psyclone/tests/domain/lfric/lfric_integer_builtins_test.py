@@ -98,7 +98,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Check for the correct declarations
     output = (
         "      TYPE(integer_field_type), intent(in) :: f3, f1, f2\n"
-        "      INTEGER df\n"
+        "      INTEGER(KIND=i_def) df\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: f2_data => "
         "null()\n"
