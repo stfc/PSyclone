@@ -691,15 +691,15 @@ def test_check_for_clashes_cannot_rename():
     # Add a clash between two symbols where neither is a Container or has an
     # ImportInterface.
     del table1._symbols["prostetnic"]
-    jsym1 = DataSymbol("jeltz", symbols.INTEGER_TYPE,
-                       interface=symbols.ArgumentInterface())
+    jsym1 = symbols.DataSymbol("jeltz", symbols.INTEGER_TYPE,
+                               interface=symbols.ArgumentInterface())
     table1.add(jsym1)
     table1.specify_argument_list([jsym1])
-    jsym2 = DataSymbol("jeltz", symbols.INTEGER_TYPE,
-                       interface=symbols.ArgumentInterface())
+    jsym2 = symbols.DataSymbol("jeltz", symbols.INTEGER_TYPE,
+                               interface=symbols.ArgumentInterface())
     table2.add(jsym2)
     table2.specify_argument_list([jsym2])
-    with pytest.raises(SymbolError) as err:
+    with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
     assert ("Cannot rename symbol 'jeltz' because it is a routine argument "
             "and as such may be named in a Call." in str(err.value))
