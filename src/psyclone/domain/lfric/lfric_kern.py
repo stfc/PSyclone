@@ -889,14 +889,15 @@ class LFRicKern(CodedKern):
 
     def validate_global_constraints(self):
         '''
-        Generates LFRic (Dynamo 0.3) specific PSy layer code for a call
-        to this user-supplied LFRic kernel.
-        :raises GenerationError: if this kernel does not have a supported \
+        Perform validation checks for any global constraints (that requiere the
+        tree to be complete).
+
+        :raises GenerationError: if this kernel does not have a supported
                         operates-on (currently only "cell_column").
-        :raises GenerationError: if the loop goes beyond the level 1 \
+        :raises GenerationError: if the loop goes beyond the level 1
                         halo and an operator is accessed.
-        :raises GenerationError: if a kernel in the loop has an inc access \
-                        and the loop is not coloured but is within an OpenMP \
+        :raises GenerationError: if a kernel in the loop has an inc access
+                        and the loop is not coloured but is within an OpenMP
                         parallel region.
         '''
         # Check operates-on (iteration space) before generating code
@@ -910,6 +911,7 @@ class LFRicKern(CodedKern):
         # Get configuration for valid argument kinds
         api_config = Config.get().api_conf("dynamo0.3")
 
+        # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicLoop
         parent_loop = self.ancestor(LFRicLoop)
 
@@ -920,8 +922,8 @@ class LFRicKern(CodedKern):
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
-            if parent_loop.upper_bound_name == "cell_halo" and \
-               parent_loop.upper_bound_halo_depth > 1:
+            if (parent_loop.upper_bound_name == "cell_halo" and
+                    parent_loop.upper_bound_halo_depth > 1):
                 raise GenerationError(
                     f"Kernel '{self._name}' reads from an operator and "
                     f"therefore cannot be used for cells beyond the level 1 "
@@ -936,15 +938,14 @@ class LFRicKern(CodedKern):
                 try:
                     # It is OpenMP parallel - does it have an argument
                     # with INC access?
-                    arg = self.incremented_arg()
-                except FieldNotFoundError:
-                    arg = None
-                if arg:
+                    _ = self.incremented_arg()
                     raise GenerationError(f"Kernel '{self._name}' has an "
                                           f"argument with INC access and "
                                           f"therefore must be coloured in "
                                           f"order to be parallelised with "
                                           f"OpenMP.")
+                except FieldNotFoundError:
+                    pass
 
         super().validate_global_constraints()
 

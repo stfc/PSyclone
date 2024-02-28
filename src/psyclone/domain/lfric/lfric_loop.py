@@ -130,8 +130,8 @@ class LFRicLoop(PSyLoop):
 
         '''
         if self._loop_type != "null":
-            # This is a domain loop, first check that there isn't any
-            # validation issues with the domain node
+            # This is not a 'domain' loop (i.e. there is a real loop). First
+            # check that there isn't any validation issues with the node.
             for child in self.loop_body.children:
                 child.validate_global_constraints()
 
@@ -151,23 +151,16 @@ class LFRicLoop(PSyLoop):
                 self.loop_body.symbol_table.shallow_copy()
             loop.children[3] = self.loop_body.copy()
             self.replace_with(loop)
+            lowered_node = loop
         else:
-            # If loop_type is "null" we no need for a loop at all. So we set
-            # the bounds to 1 Remove the lower the children
-            dummy = self.scope.symbol_table.new_symbol(
-                "dummy", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            self._variable = dummy
+            # If loop_type is "null" we not need a loop at all, just the kernel
+            # in its loop_body
             for child in self.loop_body.children:
                 child.lower_to_language_level()
-            one = Literal("1", INTEGER_TYPE)
-            loop = Loop.create(dummy, one.copy(), one.copy(), one.copy(), [])
-            loop.loop_body._symbol_table = \
-                self.loop_body.symbol_table.shallow_copy()
-            loop.children[3] = self.loop_body.copy()
-            self.replace_with(loop)
+            lowered_node = self.loop_body[0].detach()
+            self.replace_with(lowered_node)
 
-
-        return loop
+        return lowered_node
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
@@ -843,8 +836,6 @@ class LFRicLoop(PSyLoop):
             f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
-        :raises GenerationError: if a loop over colours is within an \
-            OpenMP parallel region (as it must be serial).
 
         '''
         # pylint: disable=too-many-statements, too-many-branches
@@ -855,6 +846,10 @@ class LFRicLoop(PSyLoop):
                                   "OpenMP parallel region.")
 
         super().gen_code(parent)
+        # TODO #1010: gen_code of this loop calls the PSyIR lowering version,
+        # but that method can not currently provide sibiling nodes because the
+        # ancestor is not PSyIR, so for now we leave the remainder of the
+        # gen_code logic here instead of removing the whole method.
 
         if not (Config.get().distributed_memory and
                 self._loop_type != "colour"):

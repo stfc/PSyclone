@@ -554,7 +554,7 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     with pytest.raises(VisitorError) as err:
         gen = str(psy.gen)
     assert ("Cannot generate this kernel call to 'ru_code' because it "
-            "is marked as module-inline but no such subroutine exist in "
+            "is marked as module-inlined but no such subroutine exists in "
             "this module." in str(err.value))
 
     # Create the symbol and try again, it now must succeed

@@ -719,8 +719,7 @@ class InvokeSchedule(Routine):
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
             for reserved in reserved_names:
-                self.symbol_table.add(Symbol(reserved),
-                                      tag=f"AlgArgs_{reserved}")
+                self.symbol_table.add(Symbol(reserved))
 
         # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
@@ -1554,8 +1553,8 @@ class CodedKern(Kern):
             except KeyError as err:
                 raise GenerationError(
                     f"Cannot generate this kernel call to '{self.name}' "
-                    f"because it is marked as module-inline but no such "
-                    f"subroutine exist in this module.") from err
+                    f"because it is marked as module-inlined but no such "
+                    f"subroutine exists in this module.") from err
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node

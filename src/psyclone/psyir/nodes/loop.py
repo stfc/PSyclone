@@ -454,7 +454,7 @@ class Loop(Statement):
                 if kernel.modified:
                     kernel.rename_and_write()
 
-        # Use the Fortran Backend from this point 
+        # Use the Fortran Backend from this point
         parent.add(PSyIRGen(parent, self))
 
         # TODO #1010: The Fortran backend operates on a copy of the node so
@@ -467,6 +467,7 @@ class Loop(Statement):
         # uses the lowering+backend), these are:
         # - Declaring the loop variable symbols
         for loop in self.walk(Loop):
+            # pylint: disable=protected-access
             if loop._variable is None:
                 # This is the dummy iteration variable
                 name = "dummy"
@@ -485,5 +486,3 @@ class Loop(Statement):
             if not kernel.module_inline:
                 parent.add(UseGen(parent, name=kernel._module_name, only=True,
                                   funcnames=[kernel._name]))
-
-

@@ -260,23 +260,17 @@ def test_lower_to_language_normal_loop():
     assert loop1.start_expr.symbol.name == "loop1_start"
 
 
-def test_lower_to_language_null_loop():
-    ''' Tests that we can call lower_to_language_level on a NULL LFRicLoop.
-    The NULL loop is replaced by a dummy loop with a single iteration
+def test_lower_to_language_domain_loops():
+    ''' Tests that we can call lower_to_language_level on a DOMAIN LFRicLoop.
+    The DOMAIN loop is replaced by the kernel call inside it.
     '''
 
     _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
-    # For this test we want to put 2 kernels inside the same null loop
-    # because we want to check that the order of the statements is
-    # maintained after removing the loop.
-    # Null loops cannot be fused with the transformation, so manually
-    # move the two kernels into one loop. First detach the second
-    # LFRicLoop from the invoke, then detach the actual kernel. Lastly,
-    # insert this second kernel into the domain loop body:
     sched = invoke.schedule
     assert isinstance(sched.children[1], LFRicLoop)
     sched.lower_to_language_level()
     assert not isinstance(sched.children[1], LFRicLoop)
+    assert isinstance(sched.children[1], Call)
 
 
 def test_upper_bound_fortran_1():
