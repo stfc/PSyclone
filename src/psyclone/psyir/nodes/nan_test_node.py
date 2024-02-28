@@ -80,10 +80,10 @@ class NanTestNode(PSyDataNode):
         '''
         # This cannot be moved to the top, it would cause a circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
         # Determine the variables to check:
-        dep = DependencyTools()
-        read_write_info = dep.get_in_out_parameters(self)
+        ctu = CallTreeUtils()
+        read_write_info = ctu.get_in_out_parameters(self)
 
         options = {'pre_var_list': read_write_info.read_list,
                    'post_var_list': read_write_info.write_list}
