@@ -46,7 +46,8 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, UnresolvedType, INTEGER_TYPE,
-    StaticInterface, Symbol, SymbolError, UnknownInterface, UnsupportedType)
+    RoutineSymbol, StaticInterface, Symbol, SymbolError, UnknownInterface,
+    UnsupportedType)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -159,7 +160,9 @@ class InlineTrans(Transformation):
 
         # Shallow copy the symbols from the routine into the table at the
         # call site.
-        table.merge(routine_table, include_arguments=False)
+        table.merge(routine_table,
+                    symbols_to_skip=self._symbols_to_skip(routine_table))
+
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
         # accesses. If they use 'array notation' (i.e. represent a whole array)
@@ -213,7 +216,7 @@ class InlineTrans(Transformation):
                 idx += 1
                 parent.addchild(child, idx)
 
-        # If the scope we merged the inlined functions symbol table into
+        # If the scope we merged the inlined function's symbol table into
         # is not a Routine scope then we now merge that symbol table into
         # the ancestor Routine. This avoids issues like #2424 when
         # applying ParallelLoopTrans to loops containing inlined calls.
@@ -222,6 +225,38 @@ class InlineTrans(Transformation):
             replacement = type(scope.symbol_table)()
             scope.symbol_table.detach()
             replacement.attach(scope)
+
+    def _symbols_to_skip(self, table):
+        '''
+        Constructs a list of those Symbols in the table of the called routine
+        that must be excluded when merging that table with the one at the
+        call site.
+
+        These are:
+         - those Symbols representing routine arguments;
+         - any RoutineSymbol representing the called routine itself.
+
+        :param table: the symbol table of the routine to be inlined.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :returns: those Symbols that must be skipped when merging the
+                  supplied table into the one at the call site.
+        :rtype: list[:py:class:`psyclone.psyir.symbols.Symbol`]
+
+        '''
+        # We need to exclude formal arguments and any RoutineSymbol
+        # representing the routine itself.
+        symbols_to_skip = table.argument_list[:]
+        try:
+            # We don't want or need the symbol representing that routine.
+            rsym = table.lookup_with_tag("own_routine_symbol")
+            if isinstance(rsym, RoutineSymbol):
+                # We only want to skip RoutineSymbols, not DataSymbols (which
+                # we may have if we have a Fortran function).
+                symbols_to_skip.append(rsym)
+        except KeyError:
+            pass
+        return symbols_to_skip
 
     def _replace_formal_arg(self, ref, call_node, formal_args):
         '''
@@ -675,7 +710,9 @@ class InlineTrans(Transformation):
             # Since we are inlining, we don't care about the routine arguments
             # since these will be replaced by the actual arguments to the call
             # itself.
-            table.check_for_clashes(routine_table, include_arguments=False)
+            table.check_for_clashes(
+                routine_table,
+                symbols_to_skip=self._symbols_to_skip(routine_table))
         except SymbolError as err:
             raise TransformationError(
                 f"One or more symbols from routine '{routine.name}' cannot be "

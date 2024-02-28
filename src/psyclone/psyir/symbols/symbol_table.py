@@ -561,40 +561,24 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def check_for_clashes(self, other_table, include_arguments=True):
+    def check_for_clashes(self, other_table, symbols_to_skip=()):
         '''
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
-        renaming then a SymbolError is raised. If `include_arguments` is
-        False then those symbols representing routine arguments in
-        `other_table` are ignored (this is used when inlining a routine
-        body into another routine).
+        renaming then a SymbolError is raised. Any symbols appearing
+        in `symbols_to_skip` are excluded from the checks.
 
         :param other_table: the table for which to check for clashes.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param Optional[bool] include_arguments: whether to include Symbols
-            which have an ArgumentInterface in `other_table` in the checking.
+        :param symbols_to_skip: an optional list of symbols to exclude from
+                                the check.
+        :type symbols_to_skip: list[:py:class:`psyclone.psyir.symbols.Symbol`]
+
 
         :raises SymbolError: if there would be an unresolvable name clash
             when importing symbols from `other_table` into this table.
 
         '''
-        if include_arguments:
-            symbols_to_skip = []
-        else:
-            symbols_to_skip = other_table.argument_list[:]
-
-        try:
-            # In the case where the 'other_table' belongs to a routine,
-            # we don't want or need the symbol representing that routine.
-            rsym = other_table.lookup_with_tag("own_routine_symbol")
-            if isinstance(rsym, RoutineSymbol):
-                # We only want to skip RoutineSymbols, not DataSymbols (which
-                # we may have if we have a Fortran function).
-                symbols_to_skip.append(rsym)
-        except KeyError:
-            pass
-
         for other_sym in other_table.symbols:
             if other_sym.name not in self or other_sym in symbols_to_skip:
                 continue
@@ -687,38 +671,25 @@ class SymbolTable():
                         self.lookup(csym.name),
                         orig_name=isym.interface.orig_name)
 
-    def _add_symbols_from_table(self, other_table, include_arguments=True):
+    def _add_symbols_from_table(self, other_table, symbols_to_skip=()):
         '''
         Takes symbols from the supplied symbol table and adds them to this
-        table. _add_container_symbols_from_table() must have been called
+        table (unless they appear in `symbols_to_skip`).
+        _add_container_symbols_from_table() must have been called
         before this method in order to handle any Container Symbols and update
         those Symbols imported from them.
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool include_arguments: whether or not to include symbols that \
-                                       are routine arguments.
+        :param symbols_to_skip: an optional list of symbols to exclude from
+                                the merge.
+        :type symbols_to_skip: Optional[
+            list[:py:class:`psyclone.psyir.symbols.Symbol`]]
 
-        :raises InternalError: if an imported symbol is found that has not \
+        :raises InternalError: if an imported symbol is found that has not
             already been updated to refer to a Container in this table.
 
         '''
-        if include_arguments:
-            symbols_to_skip = []
-        else:
-            symbols_to_skip = other_table.argument_list[:]
-
-        try:
-            # In the case where the 'other_table' belongs to a routine,
-            # we don't want or need the symbol representing that routine.
-            rsym = other_table.lookup_with_tag("own_routine_symbol")
-            if isinstance(rsym, RoutineSymbol):
-                # We only want to skip RoutineSymbols, not DataSymbols (which
-                # we may have if we have a Fortran function).
-                symbols_to_skip.append(rsym)
-        except KeyError:
-            pass
-
         for old_sym in other_table.symbols:
 
             if old_sym in symbols_to_skip or isinstance(old_sym,
@@ -753,7 +724,8 @@ class SymbolTable():
                     other_table.rename_symbol(old_sym, new_name)
                     self.add(old_sym)
 
-    def merge(self, other_table, include_arguments=True):
+    def merge(self, other_table, symbols_to_skip=()):
+        #include_arguments=True):
         '''Merges all of the symbols found in `other_table` into this
         table. Symbol objects in *either* table may be renamed in the
         event of clashes.
@@ -779,7 +751,8 @@ class SymbolTable():
 
         try:
             self.check_for_clashes(other_table,
-                                   include_arguments=include_arguments)
+                                   symbols_to_skip=symbols_to_skip)
+                                   #include_arguments=include_arguments)
         except SymbolError as err:
             raise SymbolError(
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
@@ -789,8 +762,10 @@ class SymbolTable():
         self._add_container_symbols_from_table(other_table)
 
         # Copy each Symbol from the supplied table into this one, excluding
-        # ContainerSymbols and, optionally, those that represent formal args.
-        self._add_symbols_from_table(other_table, include_arguments)
+        # ContainerSymbols and any listed in `symbols_to_skip`.
+        self._add_symbols_from_table(other_table,
+                                     symbols_to_skip=symbols_to_skip)
+        #include_arguments)
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
