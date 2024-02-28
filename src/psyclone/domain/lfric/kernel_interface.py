@@ -107,7 +107,7 @@ class KernelInterface(ArgOrdering):
         # ArgOrdering constructor defaults to). This is so that we can
         # specify the correct interface for those symbols passed
         # as arguments.
-        self._force_symtab = LFRicSymbolTable()
+        self._forced_symtab = LFRicSymbolTable()
 
     def generate(self, var_accesses=None):
         '''Call the generate base class then add the argument list as it can't

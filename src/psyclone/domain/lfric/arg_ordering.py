@@ -82,7 +82,7 @@ class ArgOrdering:
             invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
 
         # TODO #2503: This reference will not survive some tree modifications
-        self._force_symtab = None
+        self._forced_symtab = None
 
         # TODO #1934 Completely remove the usage of strings, instead
         # use the PSyIR representation.
@@ -94,18 +94,20 @@ class ArgOrdering:
 
     @property
     def _symtab(self):
-        ''' Provide a reference to the associate Invke SymbolTable, usually
+        ''' Provide a reference to the associate Invoke SymbolTable, usually
         following the `self._kernel.ancestor(InvokeSchedule)._symbol_table`
-        path unless a _force_symtab has been provided or no parent path to an
-        InvokeSchedule is available.
+        path unless a _forced_symtab has been provided.
+
+        If no symbol table is available it creates a temporary symbol table
+        for the operation to suceed but it will not be preserved.
 
         Note: This could be improved by TODO #2503
 
         :returns: the associate invoke symbol table.
         :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
-        if self._force_symtab:
-            return self._force_symtab
+        if self._forced_symtab:
+            return self._forced_symtab
         elif self._kern and self._kern.ancestor(psyGen.InvokeSchedule):
             return self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
         else:
