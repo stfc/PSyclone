@@ -44,7 +44,8 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
 from psyclone.psyir.symbols import (
-    DataSymbol, UnresolvedType, AutomaticInterface)
+    ArgumentInterface, AutomaticInterface, DataSymbol, INTEGER_TYPE,
+    RoutineSymbol, SymbolTable, UnresolvedType)
 from psyclone.psyir.transformations import (
     InlineTrans, TransformationError)
 from psyclone.tests.utilities import Compile
@@ -2270,6 +2271,38 @@ def test_find_routine_exception(fortran_reader, monkeypatch):
         _ = inline_trans._find_routine(call)
     assert ("Routine Symbol 'sub' is not local, unresolved or imported."
             in str(info.value))
+
+
+# _symbols_to_skip
+
+def test_symbols_to_skip(fortran_reader):
+    '''Test that the _symbols_to_skip() utility method returns the expected
+    list of symbols to skip when merging the table of a called routine into
+    the table of the call site.
+
+    '''
+    inline_trans = InlineTrans()
+    table = SymbolTable()
+    # A locally-scoped symbol should not be skipped.
+    not_arg = DataSymbol("not_arg", INTEGER_TYPE)
+    table.add(not_arg)
+    skipped = inline_trans._symbols_to_skip(table)
+    assert not skipped
+    # Add an 'argument' Symbol. This should be skipped.
+    arg1 = DataSymbol(
+        "arg1", INTEGER_TYPE,
+        interface=ArgumentInterface(ArgumentInterface.Access.READ))
+    table.add(arg1)
+    table.specify_argument_list([arg1])
+    skipped = inline_trans._symbols_to_skip(table)
+    assert skipped == [arg1]
+    # Add a RoutineSymbol and tag it so that it appears to represents the
+    # routine associated with the table. This too should be skipped.
+    rsym = RoutineSymbol("me_myself")
+    table.add(rsym, tag="own_routine_symbol")
+    skipped = inline_trans._symbols_to_skip(table)
+    assert len(skipped) == 2
+    assert arg1 in skipped and rsym in skipped
 
 
 # _find_routine_in_container
