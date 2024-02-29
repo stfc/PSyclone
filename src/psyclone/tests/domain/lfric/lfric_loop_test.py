@@ -267,10 +267,30 @@ def test_lower_to_language_domain_loops():
 
     _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
     sched = invoke.schedule
+
+    # The lowering converts the loops into a single calls
+    assert isinstance(sched.children[0], LFRicLoop)
     assert isinstance(sched.children[1], LFRicLoop)
     sched.lower_to_language_level()
-    assert not isinstance(sched.children[1], LFRicLoop)
+    assert isinstance(sched.children[0], Call)
     assert isinstance(sched.children[1], Call)
+
+
+def test_lower_to_language_domain_loops_multiple_statements():
+    ''' Tests lower_to_language_level on a DOMAIN LFRicLoop with multiple
+    statements in its loop_body.
+    '''
+
+    _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
+    sched = invoke.schedule
+    # Force the two statements to be inside the same loop
+    loop1 = sched.children[1].detach()
+    kern = loop1.loop_body.children[0].detach()
+    sched.children[0].loop_body.children.insert(1, kern)
+    with pytest.raises(GenerationError) as err:
+        sched.lower_to_language_level()
+    assert ("Lowering LFRic domain loops that produce more than one "
+            "children is not yet supported, but found:" in str(err.value))
 
 
 def test_upper_bound_fortran_1():

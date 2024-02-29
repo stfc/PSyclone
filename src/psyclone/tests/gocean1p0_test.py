@@ -45,21 +45,15 @@ import re
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import Arg, parse
-from psyclone.parse.kernel import Descriptor
+from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
 from psyclone.gocean1p0 import (GOKern, GOLoop, GOKernelArgument,
-                                GOKernelArguments, GOKernelGridArgument,
-                                GOBuiltInCallFactory)
+                                GOKernelGridArgument, GOBuiltInCallFactory)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.tests.gocean_build import GOceanBuild
-from psyclone.psyir.nodes import (Node, StructureReference, Member,
-                                  StructureMember, Reference, Literal)
-from psyclone.psyir.symbols import (
-    ContainerSymbol, ImportInterface, SymbolTable,
-    INTEGER_TYPE, DataTypeSymbol, ScalarType)
+from psyclone.psyir.symbols import ContainerSymbol, ImportInterface
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
 API = "gocean1.0"

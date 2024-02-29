@@ -157,6 +157,13 @@ class LFRicLoop(PSyLoop):
             # in its loop_body
             for child in self.loop_body.children:
                 child.lower_to_language_level()
+            # TODO #1010: This restriction can be removed when also lowering the
+            # parent InvokeSchedule
+            if len(self.loop_body.children) > 1:
+                raise GenerationError(
+                    f"Lowering LFRic domain loops that produce more than one "
+                    f"children is not yet supported, but found:\n "
+                    f"{self.view()}")
             lowered_node = self.loop_body[0].detach()
             self.replace_with(lowered_node)
 
