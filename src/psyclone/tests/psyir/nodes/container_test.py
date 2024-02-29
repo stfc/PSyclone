@@ -205,7 +205,7 @@ SUB_IN_MODULE = (
     f"end module inline_mod\n")
 
 
-def test_get_routine_definition_routine_not_found(fortran_reader):
+def test_get_routine_psyir_routine_not_found(fortran_reader):
     '''Test that None is returned when the required Routine is not found
     in the Container associated with the supplied container symbol, as
     it does not exist.
@@ -250,7 +250,7 @@ def test_get_routine_missing_container_wildcard(fortran_reader):
     assert result is None
 
 
-def test_get_routine_definition_recurse_named(fortran_reader):
+def test_get_routine_recurse_named(fortran_reader):
     '''Test that when a container does not contain the required routine,
     any imported containers within this container are also
     searched. In this case the test is for a container within the
@@ -274,7 +274,7 @@ def test_get_routine_definition_recurse_named(fortran_reader):
     assert result.name == "sub"
 
 
-def test_get_routine_definition_recurse_wildcard(fortran_reader):
+def test_get_routine_recurse_wildcard(fortran_reader):
     '''Test that when a container does not contain the required routine,
     any imported containers within this container are also
     searched. In this case the test the import is from a container that

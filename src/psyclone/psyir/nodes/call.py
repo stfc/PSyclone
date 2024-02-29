@@ -432,7 +432,7 @@ class Call(Statement, DataNode):
         :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`]
 
         :raises NotImplementedError: if the routine is not local and not found
-            in any containers in scope at the call site..
+            in any containers in scope at the call site.
         '''
 
         def _location_txt(node):
@@ -482,7 +482,7 @@ class Call(Statement, DataNode):
                         except FileNotFoundError:
                             containers_not_found.append(container_symbol.name)
                             continue
-                        routine = container.get_routine_definition(rsym.name)
+                        routine = container.get_routine_psyir(rsym.name)
                         if routine:
                             return [routine]
                 current_table = current_table.parent_symbol_table()
@@ -555,12 +555,10 @@ class Call(Statement, DataNode):
                 f"Cannot currently module inline such a routine.")
 
         if isinstance(container, Container):
-            # TODO #924 - need to allow for interface to multiple routines
-            # here.
-            routine = container.get_routine_definition(
+            routines = container.get_routine_psyir(
                 rsym.name, allow_private=can_be_private)
-            if routine:
-                return [routine]
+            if routines:
+                return routines
 
         raise SymbolError(
             f"Failed to find a Routine named '{rsym.name}' in "

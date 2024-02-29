@@ -37,11 +37,11 @@
 This module contains the InlineTrans transformation.
 
 '''
-from psyclone.errors import InternalError, LazyString
+from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, Container, IntrinsicCall, Node, Range, Routine, Reference,
+    CodeBlock, IntrinsicCall, Node, Range, Routine, Reference,
     Return, Literal, Assignment, StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (

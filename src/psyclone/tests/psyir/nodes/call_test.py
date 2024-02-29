@@ -676,10 +676,10 @@ end subroutine top'''
             "module search path is set to [" in str(err.value))
 
 
-def test_call_get_callees_unsupported_type(fortran_reader):
+def test_call_get_callees_interface(fortran_reader):
     '''
-    Check that get_callees() raises the expected error when the RoutineSymbol
-    is of UnsuppportedFortranType (which happens when it is an interface).
+    Check that get_callees() works correctly when the target of a call is
+    actually an interface.
     '''
     code = '''
 module my_mod
@@ -707,10 +707,12 @@ end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
-    with pytest.raises(NotImplementedError) as err:
-        _ = call.get_callees()
-    assert ("RoutineSymbol 'bottom' exists in Container 'my_mod' but is of "
-            "UnsupportedFortranType:" in str(err.value))
+    callees = call.get_callees()
+    assert len(callees) == 2
+    assert isinstance(callees[0], Routine)
+    assert callees[0].name == "rbottom"
+    assert isinstance(callees[1], Routine)
+    assert callees[1].name == "ibottom"
 
 
 def test_call_get_callees_file_container(fortran_reader):
@@ -1013,47 +1015,3 @@ end module some_mod'''
             "but that Container defines a private Symbol of the same name. "
             "Searching for the Container that defines a public Routine with "
             "that name is not yet supported - TODO #924" in str(err.value))
-
-
-def test_get_callees_interface_name(tmpdir, monkeypatch, fortran_reader):
-    '''
-    Test get_callees() for a subroutine that is called via an interface with a
-    different name.
-
-    TODO #924 - this is currently unsupported.
-
-    '''
-    path = str(tmpdir)
-    monkeypatch.setattr(Config.get(), '_include_paths', [path])
-
-    with open(os.path.join(path, "my_mod.f90"), "w") as mfile:
-        mfile.write('''\
-    module my_mod
-      interface manna
-        module procedure :: manna_sp, manna_dp
-      end interface manna
-    contains
-      subroutine manna_sp(arg)
-        real(kind=kind(1.0)) :: arg
-      end subroutine manna_sp
-      subroutine manna_dp(arg)
-        real(kind=kind(1.0d0)) :: arg
-      end subroutine manna_dp
-    end module my_mod
-    ''')
-    code = '''\
-    module a_mod
-      use my_mod, only: manna
-    contains
-      subroutine a_sub()
-        real, dimension(10) :: a
-        call manna(a)
-      end subroutine a_sub
-    end module a_mod
-    '''
-    psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
-    with pytest.raises(NotImplementedError) as err:
-        call.get_callees()
-    assert ("RoutineSymbol 'manna' exists in Container 'my_mod' but is of "
-            "UnsupportedFortranType:" in str(err.value))
