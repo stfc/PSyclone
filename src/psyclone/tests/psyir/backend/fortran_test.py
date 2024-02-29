@@ -52,10 +52,10 @@ from psyclone.psyir.nodes import (
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
     OMPDependClause, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, SymbolTable, ContainerSymbol, RoutineSymbol, Symbol,
-    ImportInterface, ArgumentInterface, UnresolvedInterface, StaticInterface,
-    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE,
-    BOOLEAN_TYPE, REAL_DOUBLE_TYPE, UnresolvedType,
+    ArgumentInterface, ContainerSymbol, DataSymbol, GenericInterfaceSymbol,
+    ImportInterface, RoutineSymbol, StaticInterface, Symbol, SymbolTable,
+    UnresolvedInterface, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
+    CHARACTER_TYPE, BOOLEAN_TYPE, REAL_DOUBLE_TYPE, UnresolvedType,
     UnsupportedType, UnsupportedFortranType, DataTypeSymbol, StructureType)
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
@@ -823,6 +823,10 @@ def test_gen_access_stmts(fortran_writer):
                      tag='own_routine_symbol')
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert "my_routine" not in code
+    # Accessibility should also be generated for a GenericInterfaceSymbol.
+    symbol_table.add(GenericInterfaceSymbol("overloaded", [(sub2, True)]))
+    code = fortran_writer.gen_access_stmts(symbol_table)
+    assert code.strip() == "public :: my_sub1, some_var, overloaded"
 
 
 def test_fw_exception(fortran_writer):
