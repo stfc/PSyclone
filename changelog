@@ -4,7 +4,10 @@
 	for the Routines contained in a Module.
 
 	3) PR #2435 for #2422. Add PSyIR GenericInterface to capture the
-	information about which routines implement a specific interface symbol.  
+	information about which routines implement a specific interface symbol.
+
+	4) PR #2457 for #2455. Splitting and renaming DynDofMaps from
+	dynamo0p3.py.
 
 release 2.5.0 14th of February 2024
 
