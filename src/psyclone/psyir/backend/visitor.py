@@ -44,7 +44,7 @@ back ends.
 import inspect
 
 from psyclone.errors import PSycloneError
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Node, Schedule, Container
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
 
@@ -253,9 +253,16 @@ class PSyIRVisitor():
 
                 # Add preceding comment if available
                 if isinstance(node, CommentableMixin):
-                    if node.preceding_comment and self._COMMENT_PREFIX:
-                        result += (self._nindent + self._COMMENT_PREFIX +
-                                   node.preceding_comment + "\n")
+                    # and is in a location that allows line comments
+                    valid_locations = (Schedule, Container)
+                    if not (node.parent and
+                            not isinstance(node.parent, valid_locations)):
+                        if node.preceding_comment and self._COMMENT_PREFIX:
+                            lines = node.preceding_comment.split('\n')
+                            for line in lines:
+                                result += (self._nindent +
+                                           self._COMMENT_PREFIX +
+                                           line + "\n")
 
                 result += node_result
 

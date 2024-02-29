@@ -221,6 +221,9 @@ def test_unsupported_parameter_statements_produce_codeblocks(fortran_reader,
     # statements
     code = fortran_writer(psyir)
     assert code == '''\
+! PSyclone CodeBlock reason:
+!  - Could not parse 'PARAMETER(var1 = 'hello')' because 'var1' has an \
+UnsupportedType.
 MODULE my_mod
   CHARACTER*5 :: var1
   PARAMETER(var1 = 'hello')

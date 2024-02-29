@@ -238,19 +238,27 @@ def test_do_inside_while(fortran_reader, fortran_writer, tmpdir):
 
   i = 0
   do while (.true.)
+    ! PSyclone CodeBlock reason:
+    !  - Unsupported statement
     WRITE(iu_stdout, '(A)') 'Enter units followed by lower and upper \
 limits and increment:'
     do while (.true.)
+      ! PSyclone CodeBlock reason:
+      !  - Unsupported statement
       EXIT
     end do
     range_bands = 3
     if (range_bands + i > 3 .AND. range_bands + i < 15) then
+      ! PSyclone CodeBlock reason:
+      !  - Unsupported statement
       CYCLE
     end if
     do j = 1, range_bands, 1
       i = i + 1
     enddo
     if (i > 15) then
+      ! PSyclone CodeBlock reason:
+      !  - Unsupported statement
       EXIT
     end if
   end do

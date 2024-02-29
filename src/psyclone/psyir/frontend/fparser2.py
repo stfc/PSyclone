@@ -1091,18 +1091,19 @@ class Fparser2Reader():
         }
 
     @staticmethod
-    def nodes_to_code_block(parent, fp2_nodes):
+    def nodes_to_code_block(parent, fp2_nodes, message=None):
         '''Create a CodeBlock for the supplied list of fparser2 nodes and then
         wipe the list. A CodeBlock is a node in the PSyIR (Schedule)
         that represents a sequence of one or more Fortran statements
         and/or expressions which PSyclone does not attempt to handle.
 
-        :param parent: Node in the PSyclone AST to which to add this code \
-                       block.
+        :param parent: Node in the PSyclone AST to which to add this CodeBlock.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param fp2_nodes: list of fparser2 AST nodes constituting the \
-                          code block.
+        :param fp2_nodes: list of fparser2 AST nodes constituting the
+                          CodeBlock.
         :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
+        :param message: Include a preceeding comment attached to the CodeBlock.
+        :type message: Optional[str]
 
         :returns: a CodeBlock instance.
         :rtype: :py:class:`psyclone.CodeBlock`
@@ -1127,6 +1128,8 @@ class Fparser2Reader():
             structure = CodeBlock.Structure.EXPRESSION
 
         code_block = CodeBlock(fp2_nodes, structure, parent=parent)
+        if message:
+            code_block.preceding_comment = message
         parent.addchild(code_block)
         del fp2_nodes[:]
         return code_block
@@ -1346,7 +1349,8 @@ class Fparser2Reader():
                               ScalarType.Intrinsic.INTEGER):
                         # It's not of Unknown/UnresolvedType and it's not an
                         # integer scalar.
-                        raise NotImplementedError()
+                        raise NotImplementedError(
+                                "Unsupported shape dimension")
                 except KeyError:
                     # We haven't seen this symbol before so create a new
                     # one with a unresolved interface (since we don't
@@ -1356,7 +1360,7 @@ class Fparser2Reader():
                     symbol_table.add(sym)
                 return Reference(sym)
 
-            raise NotImplementedError()
+            raise NotImplementedError("Unsupported shape dimension")
 
         one = Literal("1", INTEGER_TYPE)
         shape = []
@@ -1799,7 +1803,7 @@ class Fparser2Reader():
         else:
             # Not a supported type specification. This will result in a
             # CodeBlock or UnsupportedFortranType, depending on the context.
-            raise NotImplementedError()
+            raise NotImplementedError("Unsupported type specification")
 
         return base_type, precision
 
@@ -2776,28 +2780,30 @@ class Fparser2Reader():
 
         '''
         code_block_nodes = []
+        message = "PSyclone CodeBlock reason:"
         for child in nodes:
             try:
                 psy_child = self._create_child(child, parent)
-            except NotImplementedError:
+            except NotImplementedError as err:
                 # If child type implementation not found, add them on the
                 # ongoing code_block node list.
+                message += "\n - " + str(err)
                 code_block_nodes.append(child)
                 if not isinstance(parent, Schedule):
                     # If we're not processing a statement then we create a
                     # separate CodeBlock for each node in the parse tree.
                     # (Otherwise it is hard to correctly reconstruct e.g.
                     # the arguments to a Call.)
-                    self.nodes_to_code_block(parent, code_block_nodes)
+                    self.nodes_to_code_block(parent, code_block_nodes, message)
             else:
                 if psy_child:
-                    self.nodes_to_code_block(parent, code_block_nodes)
+                    self.nodes_to_code_block(parent, code_block_nodes, message)
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
 
         # Complete any unfinished code-block
-        self.nodes_to_code_block(parent, code_block_nodes)
+        self.nodes_to_code_block(parent, code_block_nodes, message)
 
     def _create_child(self, child, parent=None):
         '''
@@ -2824,10 +2830,10 @@ class Fparser2Reader():
             # must allow for the case where the block is empty though.
             if (child.content and child.content[0] and
                     child.content[0].item and child.content[0].item.label):
-                raise NotImplementedError()
+                raise NotImplementedError("Unsupported labeled statement")
         elif isinstance(child, StmtBase):
             if child.item and child.item.label:
-                raise NotImplementedError()
+                raise NotImplementedError("Unsupported labeled statement")
 
         handler = self.handlers.get(type(child))
         if handler is None:
@@ -2840,7 +2846,7 @@ class Fparser2Reader():
             generic_type = type(child).__bases__[0]
             handler = self.handlers.get(generic_type)
             if not handler:
-                raise NotImplementedError()
+                raise NotImplementedError("Unsupported statement")
         return handler(child, parent)
 
     def _ignore_handler(self, *_):
@@ -3116,7 +3122,7 @@ class Fparser2Reader():
                 # the Loop (but exclude the END DO from this check).
                 names = walk(node.content[:-1], Fortran2003.Name)
                 if construct_name in [name.string for name in names]:
-                    raise NotImplementedError()
+                    raise NotImplementedError("Unsuppored label reference")
 
         ctrl = walk(nonlabel_do, Fortran2003.Loop_Control)
         # In fparser Loop_Control has 4 children, but just one of the Loop
@@ -4427,7 +4433,7 @@ class Fparser2Reader():
                 value = value.replace(".", "0.")
             return Literal(value, real_type)
         # Unrecognised datatype - will result in a CodeBlock
-        raise NotImplementedError()
+        raise NotImplementedError("Unsupported datatype")
 
     def _char_literal_handler(self, node, parent):
         '''
@@ -4461,7 +4467,7 @@ class Fparser2Reader():
         # However, checking whether we have e.g. 'that''s a cat''s mat' is
         # difficult and so, for now, we don't support it.
         if len(char_value) > 2 and ("''" in char_value or '""' in char_value):
-            raise NotImplementedError()
+            raise NotImplementedError("Unsupported Literal")
         # Strip the wrapping quotation chars before storing the value.
         return Literal(char_value[1:-1], character_type)
 

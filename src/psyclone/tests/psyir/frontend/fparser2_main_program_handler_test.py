@@ -110,7 +110,10 @@ def test_main_program_handler_codeblock(fortran_reader, fortran_writer):
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
     out = fortran_writer(psyir)
-    correct = '''PROGRAM TestProgram
+    correct = '''\
+! PSyclone CodeBlock reason:
+!  - PSyclone doesn't yet support 'Contains' inside a Program
+PROGRAM TestProgram
   CONTAINS
   SUBROUTINE TestSubroutine
   END SUBROUTINE

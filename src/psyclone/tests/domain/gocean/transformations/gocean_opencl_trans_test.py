@@ -341,6 +341,8 @@ c_sizeof(field%grid%'''
       integer(kind=c_intptr_t) cl_mem
       integer ierr
 
+      ! psyclone codeblock reason:
+      !  - unsupported statement
       cmd_queues => get_cmd_queues()
       size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%tmask(1,1))
@@ -444,6 +446,8 @@ def test_opencl_routines_initialisation(kernel_outputdir):
       integer i
 
       cl_mem = transfer(from, cl_mem)
+      ! psyclone codeblock reason:
+      !  - unsupported statement
       cmd_queues => get_cmd_queues()
       if (nx < size(to, 1) / 2) then
         do i = starty, starty + ny, 1
@@ -492,6 +496,8 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
       integer i
 
       cl_mem = transfer(to, cl_mem)
+      ! psyclone codeblock reason:
+      !  - unsupported statement
       cmd_queues => get_cmd_queues()
       if (nx < size(from, 1) / 2) then
         do i = starty, starty + ny, 1
@@ -532,6 +538,9 @@ c_sizeof(field%data(1,1))
         field%device_ptr = transfer(create_rw_buffer(size_in_bytes), \
 field%device_ptr)
         field%data_on_device = .true.
+        ! psyclone codeblock reason:
+        !  - unsupported statement
+        !  - unsupported statement
         field%read_from_device_f => read_from_device
         field%write_to_device_f => write_to_device
       end if

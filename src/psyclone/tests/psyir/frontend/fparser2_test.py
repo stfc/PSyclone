@@ -2703,6 +2703,10 @@ def test_nodes_to_code_block_1(f2008_parser):
     schedule = psy.invokes.invoke_list[0].schedule
     assert isinstance(schedule[0], CodeBlock)
     assert schedule[0].structure == CodeBlock.Structure.STATEMENT
+    # Check that the error message that generated the codeblock has been
+    # added as a preceding comment by nodes_to_code_block
+    assert (schedule[0].preceding_comment ==
+            "PSyclone CodeBlock reason:\n - Unsuppored label reference")
 
 
 # (2/3) fparser2reader::nodes_to_code_block
@@ -2728,6 +2732,10 @@ def test_nodes_to_code_block_2(f2008_parser):
     schedule = psy.invokes.invoke_list[0].schedule
     assert isinstance(schedule[0].if_body[0], CodeBlock)
     assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
+    # Check that the error message that generated the codeblock has been
+    # added as a preceding comment by nodes_to_code_block
+    assert (schedule[0].if_body[0].preceding_comment ==
+            "PSyclone CodeBlock reason:\n - Unsuppored label reference")
 
 
 # (3/3) fparser2reader::nodes_to_code_block
