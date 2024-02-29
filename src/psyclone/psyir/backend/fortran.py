@@ -1183,7 +1183,15 @@ class FortranWriter(LanguageWriter):
             whole_routine_scope = type(node.symbol_table)()
 
             for schedule in node.walk(Schedule):
-                whole_routine_scope.merge(schedule.symbol_table)
+                sched_table = schedule.symbol_table
+                # We can't declare a routine inside itself so make sure we
+                # skip any RoutineSymbol representing this routine.
+                try:
+                    rsym = sched_table.lookup_with_tag("own_routine_symbol")
+                    skip = rsym if isinstance(rsym, RoutineSymbol) else None
+                except KeyError:
+                    skip = None
+                whole_routine_scope.merge(sched_table, [skip])
 
             # Replace the symbol table
             node.symbol_table.detach()
