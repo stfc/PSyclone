@@ -38,14 +38,15 @@
     PSyIR backend. '''
 
 import pytest
+from psyclone.errors import InternalError
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation,
                                   Container, Routine, Return)
 from psyclone.psyir.symbols import (
-    Symbol, DataSymbol, DataTypeSymbol, SymbolTable, ContainerSymbol,
-    ScalarType, UnresolvedType, StructureType, RoutineSymbol,
-    ImportInterface, UnresolvedInterface, ArgumentInterface, INTEGER_TYPE,
-    REAL_TYPE, StaticInterface)
+    DataSymbol, DataTypeSymbol, ContainerSymbol, GenericInterfaceSymbol,
+    RoutineSymbol, ScalarType, Symbol, SymbolTable, UnresolvedType,
+    StructureType, ImportInterface, UnresolvedInterface, ArgumentInterface,
+    INTEGER_TYPE, REAL_TYPE, StaticInterface)
 
 
 def test_gen_param_decls_dependencies(fortran_writer):
@@ -282,7 +283,8 @@ def test_gen_decls_static_variables(fortran_writer):
 
 
 @pytest.mark.parametrize("visibility", ["public", "private"])
-def test_visibility_interface(fortran_reader, fortran_writer, visibility):
+def test_visibility_abstract_interface(fortran_reader, fortran_writer,
+                                       visibility):
     '''Test that PSyclone's Fortran backend successfully writes out
     public/private clauses and symbols when the symbol's declaration
     is hidden in an abstract interface.
@@ -310,3 +312,39 @@ def test_visibility_interface(fortran_reader, fortran_writer, visibility):
         assert "public :: update_interface" not in result
     if visibility == "private":
         assert "private :: update_interface" in result
+
+
+def test_procedure_interface(fortran_writer):
+    '''Test that the Fortran backend correctly recreates an interface
+    declaration from a GenericInterfaceSymbol.
+    '''
+    symbol_table = SymbolTable()
+    isub = GenericInterfaceSymbol("subx", [(RoutineSymbol("sub1"), False),
+                                           (RoutineSymbol("sub2"), True)])
+    symbol_table.add(isub)
+    out = fortran_writer.gen_decls(symbol_table)
+    assert "interface subx" in out
+    assert "procedure :: sub1" in out
+    assert "module procedure :: sub2" in out
+    assert "end interface subx" in out
+
+
+def test_gen_interfacedecl(fortran_writer):
+    '''
+    Test the gen_interfacedecl() method directly. That it raises the expected
+    error if not supplied with a GenericInterfaceSymbol but otherwise generates
+    correct Fortran.
+
+    '''
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_interfacedecl("not a symbol")
+    assert ("gen_interfacedecl only supports 'GenericInterfaceSymbol's but "
+            "got 'str'" in str(err.value))
+    isub = GenericInterfaceSymbol("subx", [(RoutineSymbol("sub1"), False),
+                                           (RoutineSymbol("sub2"), True)])
+    out = fortran_writer.gen_interfacedecl(isub)
+    assert (out == '''interface subx
+  module procedure :: sub2
+  procedure :: sub1
+end interface subx
+''')

@@ -41,6 +41,8 @@
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+from psyclone.psyir.symbols.generic_interface_symbol import (
+    GenericInterfaceSymbol)
 from psyclone.psyir.symbols.interfaces import (
      ArgumentInterface, AutomaticInterface, CommonBlockInterface,
      DefaultModuleInterface, ImportInterface,
@@ -57,8 +59,7 @@ from psyclone.psyir.symbols.datatypes import (
      REAL_TYPE, ScalarType, StructureType, TYPE_MAP_TO_PYTHON, UnresolvedType,
      UnsupportedType, UnsupportedFortranType)
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g. 'from psyclone.psyir.symbols import DataSymbol'
+# For auto documentation generation.
 __all__ = ['ArgumentInterface',
            'ArrayType',
            'AutomaticInterface',
@@ -70,7 +71,7 @@ __all__ = ['ArgumentInterface',
            'DataType',
            'DataTypeSymbol',
            'DefaultModuleInterface',
-           'UnresolvedType',
+           'GenericInterfaceSymbol',
            'ImportInterface',
            'INTEGER_TYPE',
            'INTEGER_SINGLE_TYPE',
@@ -96,4 +97,5 @@ __all__ = ['ArgumentInterface',
            'UnsupportedFortranType',
            'UnknownInterface',
            'UnsupportedType',
-           'UnresolvedInterface']
+           'UnresolvedInterface',
+           'UnresolvedType']
