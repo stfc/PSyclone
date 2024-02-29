@@ -123,6 +123,7 @@ class Dummy3(Dummy2):
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
+# pylint: disable=invalid-name
 def test_lfric_builtin_abstract_method():
     '''Check that the 'LFRicBuiltIn' class is abstract and that the
     'metadata()' method is abstract.

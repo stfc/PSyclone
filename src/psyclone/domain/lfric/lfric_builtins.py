@@ -494,32 +494,29 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         literal expression) for any scalar arguments to this Built-In kernel.
 
         :returns: a Reference or PSyIR expression for each scalar kernel \
-            argument.
+                  argument.
         :rtype: list of subclasses of `:py:class:`psyclone.psyir.nodes.Node`
 
         '''
         return [arg.psyir_expression() for arg in self._arguments.args
                 if arg.is_scalar]
-    
-    def add_preceding_comment(builtin, assignment):
+
+    def _create_assignment(self, lhs, rhs):
         '''
-        Adds a preceding comment to the assignment created in the
-        `lower_to_language_level` method of the builtin class. Defined here
-        as a callable method to prevent repeated functionality.
-        
-        :param cls builtin: The builtin class that will provide the description for
-                            the comment.
-        :param str assignment: The assignment that will have a preceding comment
-                               added to it.
+        Creates an assignment from left-hand- and right-hand-side ArrayReference
+        nodes, then replaces the Builtin with the newly created Assignment
+        node.
 
-        :returns str assignment: Returns the input assignment with a comment line
-                                 before the operation. The comment is the __str__
-                                 method of the input class
+        :returns: an Assignment.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
         '''
+        assign = Assignment.create(lhs, rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
+        self.replace_with(assign)
 
-        assignment.preceding_comment = str(builtin)
-
-        return assignment
+        return assign
 
 
 # ******************************************************************* #
@@ -574,14 +571,12 @@ class LFRicXPlusYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      arg_refs[1], arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncXPlusYKern(LFRicBuiltIn):
@@ -625,12 +620,9 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      lhs.copy(), arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicAPlusXKern(LFRicBuiltIn):
@@ -671,14 +663,12 @@ class LFRicAPlusXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar + proxy1%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      scalar_args[0], arg_refs[1])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncAPlusXKern(LFRicBuiltIn):
@@ -721,12 +711,9 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicAXPlusYKern(LFRicBuiltIn):
@@ -768,16 +755,14 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * proxy1%data(df) + proxy2%data(df)
+        lhs = arg_refs[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      mult_op, arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncAXPlusYKern(LFRicBuiltIn):
@@ -823,12 +808,9 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
                                          scalar_args[0], lhs.copy())
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      mult_op, arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncXPlusBYKern(LFRicBuiltIn):
@@ -874,12 +856,9 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
                                          scalar_args[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      lhs.copy(), mult_op)
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicAXPlusBYKern(LFRicBuiltIn):
@@ -923,18 +902,16 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * proxy1%data(df) +
         #                        bscalar  *proxy2%data(df)
+        lhs = arg_refs[0]
         mult_op_a = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[0], arg_refs[1])
         mult_op_b = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[1], arg_refs[2])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      mult_op_a, mult_op_b)
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncAXPlusBYKern(LFRicBuiltIn):
@@ -984,12 +961,9 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
                                            scalar_args[1], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      mult_op_a, mult_op_b)
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicAXPlusAYKern(LFRicBuiltIn):
@@ -1031,16 +1005,14 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * (proxy1%data(df) + proxy2%data(df))
+        lhs = arg_refs[0]
         add_op = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                         arg_refs[1], arg_refs[2])
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      scalar_args[0], add_op)
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -1088,14 +1060,12 @@ class LFRicXMinusYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) - proxy2%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      arg_refs[1], arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncXMinusYKern(LFRicBuiltIn):
@@ -1140,12 +1110,9 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      lhs.copy(), arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicAMinusXKern(LFRicBuiltIn):
@@ -1186,14 +1153,12 @@ class LFRicAMinusXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar - proxy1%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      scalar_args[0], arg_refs[1])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncAMinusXKern(LFRicBuiltIn):
@@ -1236,12 +1201,9 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicXMinusAKern(LFRicBuiltIn):
@@ -1282,14 +1244,12 @@ class LFRicXMinusAKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) - ascalar
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      arg_refs[1], scalar_args[0])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncXMinusAKern(LFRicBuiltIn):
@@ -1332,12 +1292,9 @@ class LFRicIncXMinusAKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      lhs.copy(), scalar_args[0])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicAXMinusYKern(LFRicBuiltIn):
@@ -1379,16 +1336,14 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * proxy1%data(df) - proxy2%data(df)
+        lhs = arg_refs[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      mult_op, arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicXMinusBYKern(LFRicBuiltIn):
@@ -1430,16 +1385,14 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) - bscalar * proxy2%data(df)
+        lhs = arg_refs[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[2])
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      arg_refs[1], mult_op)
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncXMinusBYKern(LFRicBuiltIn):
@@ -1485,12 +1438,9 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
                                          scalar_args[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      lhs.copy(), mult_op)
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicAXMinusBYKern(LFRicBuiltIn):
@@ -1534,18 +1484,16 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * proxy1%data(df) -
         #                        bscalar * proxy2%data(df)
+        lhs = arg_refs[0]
         mult_op_a = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[0], arg_refs[1])
         mult_op_b = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[1], arg_refs[2])
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      mult_op_a, mult_op_b)
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -1593,14 +1541,12 @@ class LFRicXTimesYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) * proxy2%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      arg_refs[1], arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncXTimesYKern(LFRicBuiltIn):
@@ -1644,12 +1590,9 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      lhs.copy(), arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncAXTimesYKern(LFRicBuiltIn):
@@ -1695,12 +1638,9 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
                                          scalar_args[0], lhs.copy())
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      mult_op, arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -1750,14 +1690,12 @@ class LFRicATimesXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * proxy1%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      scalar_args[0], arg_refs[1])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncATimesXKern(LFRicBuiltIn):
@@ -1803,13 +1741,9 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
 
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Dividing real fields =============================== #
@@ -1856,14 +1790,12 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) / proxy2%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      arg_refs[1], arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncXDividebyYKern(LFRicBuiltIn):
@@ -1907,12 +1839,9 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      lhs.copy(), arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicXDividebyAKern(LFRicBuiltIn):
@@ -1958,14 +1887,12 @@ class LFRicXDividebyAKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) / ascalar
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      arg_refs[1], scalar_args[0])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncXDividebyAKern(LFRicBuiltIn):
@@ -2012,13 +1939,9 @@ class LFRicIncXDividebyAKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      lhs.copy(), scalar_args[0])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
 
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Inverse scaling of real fields ===================== #
@@ -2069,14 +1992,12 @@ class LFRicADividebyXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar / proxy1%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      scalar_args[0], arg_refs[1])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncADividebyXKern(LFRicBuiltIn):
@@ -2125,12 +2046,9 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2181,12 +2099,9 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.POW,
                                      lhs.copy(), scalar_args[0])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncXPowintNKern(LFRicBuiltIn):
@@ -2232,12 +2147,9 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.POW,
                                      lhs.copy(), scalar_args[0])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2286,12 +2198,11 @@ class LFRicSetvalCKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar
-        assign = Assignment.create(arg_refs[0], scalar_args[0])
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+        lhs = arg_refs[0]
+        rhs = scalar_args[0]
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicSetvalXKern(LFRicBuiltIn):
@@ -2332,12 +2243,11 @@ class LFRicSetvalXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df)
-        assign = Assignment.create(arg_refs[0], arg_refs[1])
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+        lhs = arg_refs[0]
+        rhs = arg_refs[1]
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicSetvalRandomKern(LFRicBuiltIn):
@@ -2380,7 +2290,7 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
         call = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
                                     arg_refs)
         # Add a preceding comment to the Assignment
-        call = LFRicBuiltIn.add_preceding_comment(self, call)
+        call.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(call)
         return call
@@ -2431,12 +2341,9 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
                                          arg_refs[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      lhs.copy(), mult_op)
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicXInnerproductXKern(LFRicBuiltIn):
@@ -2479,12 +2386,9 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
                                          arg_refs[0].copy(), arg_refs[0])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      lhs.copy(), mult_op)
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2533,12 +2437,9 @@ class LFRicSumXKern(LFRicBuiltIn):
         #      asum = asum + proxy0%data(df)
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      lhs.copy(), arg_refs[0])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2588,14 +2489,12 @@ class LFRicSignXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = SIGN(ascalar, proxy1%data)
+        lhs = arg_refs[0]
         rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.SIGN,
                                    [scalar_args[0], arg_refs[1]])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2642,14 +2541,12 @@ class LFRicMaxAXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MAX(ascalar, proxy1%data)
+        lhs = arg_refs[0]
         rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
                                    [scalar_args[0], arg_refs[1]])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncMaxAXKern(LFRicBuiltIn):
@@ -2693,13 +2590,9 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
                                    [scalar_args[0], lhs.copy()])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
 
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Minimum of (real scalar, real field elements) ====== #
@@ -2745,14 +2638,12 @@ class LFRicMinAXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MIN(ascalar, proxy1%data)
+        lhs = arg_refs[0]
         rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
                                    [scalar_args[0], arg_refs[1]])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 class LFRicIncMinAXKern(LFRicBuiltIn):
@@ -2796,13 +2687,9 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
                                    [scalar_args[0], lhs.copy()])
-        assign = Assignment.create(lhs, rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
 
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
@@ -2850,16 +2737,14 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = INT(proxy1%data, kind=i_<prec>)
+        lhs = arg_refs[0]
         i_precision = arg_refs[0].datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
             [arg_refs[1], ("kind", Reference(i_precision))])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2907,16 +2792,14 @@ class LFRicRealToRealXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
+        lhs = arg_refs[0]
         r_precision = arg_refs[0].datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
             [arg_refs[1], ("kind", Reference(r_precision))])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # ******************************************************************* #
@@ -3252,16 +3135,14 @@ class LFRicIntToRealXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         # proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
+        lhs = arg_refs[0]
         r_precision = arg_refs[0].datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
             [arg_refs[1], ("kind", Reference(r_precision))])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Add a preceding comment to the Assignment
-        assign = LFRicBuiltIn.add_preceding_comment(self, assign)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._create_assignment(lhs, rhs)
 
 
 # The built-in operations that we support for this API. The meta-data
