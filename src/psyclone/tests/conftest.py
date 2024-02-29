@@ -234,3 +234,22 @@ def fixture_fortran_reader():
 def fixture_fortran_writer():
     '''Create and return a FortranWriter object with default settings.'''
     return FortranWriter()
+
+
+@pytest.fixture(scope='function')
+def clear_module_manager_instance():
+    '''For tests that assume that there is no pre-existing ModuleManager
+    object, this fixture ensures that the module manager instance is deleted
+    before and after each test function. The latter makes sure that any other
+    test executed next will automatically reload the default ModuleManager
+    file.
+    '''
+
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
+
+    # Now execute all tests
+    yield
+
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None

@@ -59,6 +59,10 @@ def test_create_adjoint_name():
     assert create_adjoint_name("NAME") == "adj_name"
     assert create_adjoint_name("tl_name") == "adj_name"
     assert create_adjoint_name("Tl_NaMe") == "adj_name"
+    # With optional table supplied.
+    table = SymbolTable()
+    table.add(DataSymbol("adj_name", REAL_TYPE))
+    assert create_adjoint_name("name", table) == "adj_name_1"
 
 #  create_real_comparison
 
@@ -188,3 +192,6 @@ def test_find_container():
         find_container(file_cont)
     assert ("The supplied PSyIR contains more than two Containers. This is "
             "not supported." in str(err.value))
+    with pytest.raises(TypeError) as err:
+        find_container("alice")
+    assert "Expected a PSyIR Node but got 'str'" in str(err.value)

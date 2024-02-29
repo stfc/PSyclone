@@ -170,8 +170,8 @@ class Container(ScopingNode, CommentableMixin):
     def __str__(self):
         return f"Container[{self.name}]\n"
 
-    def get_routine_definition(self, name, allow_private=False,
-                               check_wildcard_imports=False):
+    def get_routine_psyir(self, name, allow_private=False,
+                          check_wildcard_imports=False):
         '''
         Searches the Container for a definition of the named routine.
 
