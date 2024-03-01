@@ -121,6 +121,9 @@ class ContainerSymbol(Symbol):
         ''' Returns the referenced container. If it is not available, use
         the interface to import the container
 
+        :param local_node: optional local PSyIR tree to check first.
+        :type local_node: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+
         :returns: referenced container.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
         '''
@@ -220,7 +223,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
         minfo = mod_manager.get_module_info(name)
         ptree = minfo.get_parse_tree()
         # Generate PSyIR from the parse tree. #TODO this could be in
-        # ModuleManager?
+        # ModuleManager/Info?
         fp2reader = Fparser2Reader()
         psyir = fp2reader.generate_psyir(ptree.get_root())
         for candidate in psyir.walk(Container):

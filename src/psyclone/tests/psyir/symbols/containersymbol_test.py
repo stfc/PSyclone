@@ -40,11 +40,14 @@
 
 import os
 import pytest
+
+from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.symbols.containersymbol import (
     ContainerSymbol, ContainerSymbolInterface, FortranModuleInterface)
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import CodeBlock, Container, FileContainer
 from psyclone.configuration import Config
 
 
@@ -172,6 +175,23 @@ def test_containersymbol_resolve_external_container(monkeypatch):
     assert sym.container() == "MockContainer"
 
 
+def test_containersymbol_resolve_local_container(fortran_reader):
+    '''Check that the container() method searches for the corresponding
+    Container in the local PSyIR tree if it is supplied.'''
+    sym = ContainerSymbol("my_mod")
+    psyir = fortran_reader.psyir_from_source('''
+module other_mod
+  integer :: alice
+end module other_mod
+module my_mod
+  integer :: carroll
+end module my_mod
+''')
+    container = sym.container(psyir)
+    assert isinstance(container, Container)
+    assert container.name == "my_mod"
+
+
 def test_containersymbol_generic_interface():
     '''Check ContainerSymbolInterface abstract methods '''
 
@@ -182,7 +202,8 @@ def test_containersymbol_generic_interface():
     assert "Abstract method" in str(error.value)
 
 
-def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
+def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir,
+                                                 fortran_reader):
     '''Check that the FortranModuleInterface imports Fortran modules
     as containers or produces the appropriate errors'''
 
@@ -211,6 +232,31 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     container = fminterface.import_container("dummy_module")
     assert isinstance(container, Container)
     assert container.name.lower() == "dummy_module"
+
+    # Test when the parse tree provided by ModuleManager does *not* contain
+    # the expected module (should not be possible).
+    monkeypatch.setattr(ModuleManager, "_instance", None)
+    # We monkeypath the method used to generate PSyIR so that it returns
+    # PSyIR for some other source altogether.
+    psyir = fortran_reader.psyir_from_source('''
+module some_other_mod
+  integer :: looking_glass
+end module some_other_mod
+''')
+    monkeypatch.setattr(Fparser2Reader, "generate_psyir", lambda x, y: psyir)
+    with pytest.raises(InternalError) as err:
+        _ = fminterface.import_container("dummy_module")
+    assert "does not contain the expected module." in str(err.value)
+
+    # Test when the whole Fortran module ends up in a CodeBlock.
+    fcntr = FileContainer("test_mod")
+    fcntr.addchild(CodeBlock("", CodeBlock.Structure.STATEMENT))
+    monkeypatch.setattr(Fparser2Reader, "generate_psyir", lambda x, y: fcntr)
+    monkeypatch.setattr(ModuleManager, "_instance", None)
+    with pytest.raises(NotImplementedError) as err:
+        _ = fminterface.import_container("dummy_module")
+    assert ("Cannot find Fortran module 'dummy_module' because the file '"
+            in str(err.value))
 
 
 def test_containersymbol_wildcard_import():
