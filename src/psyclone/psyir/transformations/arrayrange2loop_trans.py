@@ -88,9 +88,13 @@ class ArrayRange2LoopTrans(Transformation):
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+                                             transformation on a character
+                                             type array range.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         parent = node.parent
         symbol_table = node.scope.symbol_table
