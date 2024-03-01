@@ -64,7 +64,7 @@ class DummyInvokeInfo():
         self.calls = []
 
 
-def test_dynamopsy():
+def test_lfricpsy():
     ''' Check that an instance of LFRicPSy can be created successfully.'''
 
     invoke_info = DummyInvokeInfo()
@@ -82,7 +82,7 @@ def test_dynamopsy():
         assert infrastructure_modules[module_name] == set()
 
 
-def test_dynamopsy_kind():
+def test_lfricpsy_kind():
     '''Check that an instance of LFRicPSy captures any precision (kind
     values) for literals.
 
@@ -105,7 +105,7 @@ def test_dynamopsy_kind():
         assert f"f1_data(df) = 0.0_{kind_name}" in result
 
 
-def test_dynamopsy_names():
+def test_lfricpsy_names():
     '''Check that the name() and orig_name() methods of LFRicPSy behave as
     expected.
 
@@ -117,7 +117,7 @@ def test_dynamopsy_names():
     assert lfric_psy.orig_name == supplied_name
 
 
-def test_dynamopsy_inf_modules():
+def test_lfricpsy_inf_modules():
     '''Check that the infrastructure_modules() method of LFRicPSy (which
     is implemented as a property) behaves as expected. In this case we
     check that it returns the values set up in the initialisation of
@@ -129,7 +129,7 @@ def test_dynamopsy_inf_modules():
             lfric_psy._infrastructure_modules)
 
 
-def test_dynamopsy_gen_no_invoke():
+def test_lfricpsy_gen_no_invoke():
     '''Check that the gen() method of LFRicPSy behaves as expected for a
     minimal psy-layer when the algorithm layer does not contain any
     invoke calls.
@@ -146,7 +146,7 @@ def test_dynamopsy_gen_no_invoke():
     assert str(result) == expected_result
 
 
-def test_dynamopsy_gen(monkeypatch):
+def test_lfricpsy_gen(monkeypatch):
     '''Check that the gen() method of LFRicPSy behaves as expected when
     generating a psy-layer from an algorithm layer containing invoke
     calls. Simply check that the PSy-layer code for the invoke call is
