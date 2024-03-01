@@ -277,7 +277,7 @@ def test_get_routine_recurse_named(fortran_reader):
 def test_get_routine_recurse_wildcard(fortran_reader):
     '''Test that when a container does not contain the required routine,
     any imported containers within this container are also
-    searched. In this case the test the import is from a container that
+    searched. In this case, test when the import is from a container that
     then has a wildcard import. The PSyIR of the routine is returned when
     it is found in the second container.
 
@@ -304,6 +304,21 @@ def test_get_routine_recurse_wildcard(fortran_reader):
                                          check_wildcard_imports=True)
     assert isinstance(result[0], Routine)
     assert result[0].name == "sub"
+    # Test when we follow an import chain but ultimately fail to find
+    # a Container along the way. In this case, we have no source for
+    # module 'inline_mod3'.
+    code = (
+        f"{CALL_IN_SUB_USE}"
+        f"module inline_mod\n"
+        f"use inline_mod3\n"
+        f"end module inline_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    container = call_node.routine.interface.container_symbol.container(
+        local_node=call_node)
+    result = container.get_routine_psyir(call_node.routine.name,
+                                         check_wildcard_imports=True)
+    assert result is None
 
 
 def test_find_routine_in_container_private_routine_not_found(fortran_reader):
@@ -338,3 +353,41 @@ def test_find_routine_in_container(fortran_reader):
     result = container.get_routine_psyir(call_node.routine.name)
     assert isinstance(result[0], Routine)
     assert result[0].name == "sub"
+
+
+def test_find_routines_for_interface(fortran_reader):
+    '''
+    Check that get_routine_psyir() returns the PSyIR of all implementations
+    referenced by an interface.
+    '''
+    code = '''
+module my_mod
+  use other_mod, only: sub
+contains
+    subroutine run_it()
+      real :: a
+      ! 'sub' is actually an interface to 32- and 64-bit versions.
+      call sub(a)
+    end subroutine run_it
+end module my_mod
+module other_mod
+  interface sub
+    module procedure :: sub_r32, sub_r64
+  end interface sub
+contains
+  subroutine sub_r32(a)
+    real :: a
+  end subroutine sub_r32
+  subroutine sub_r64(a)
+    real(kind=kind(1.0d0)) :: a
+  end subroutine sub_r64
+end module other_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    call_node = psyir.walk(Call)[0]
+    container = call_node.routine.interface.container_symbol.container(
+        local_node=call_node)
+    result = container.get_routine_psyir(call_node.routine.name)
+    assert len(result) == 2
+    assert all(isinstance(sub, Routine) for sub in result)
+    assert set(sub.name for sub in result) == set(["sub_r32", "sub_r64"])
