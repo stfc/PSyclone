@@ -6076,7 +6076,6 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = [
     'DynFuncDescriptor03',
-    'DynDofmaps',
     'DynFunctionSpaces',
     'DynProxies',
     'DynCellIterators',
