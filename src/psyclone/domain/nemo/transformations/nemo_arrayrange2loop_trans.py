@@ -339,10 +339,10 @@ class NemoArrayRange2LoopTrans(Transformation):
             # Skip over indices
             if child.ancestor(ArrayReference) is not None:
                 continue
-            # Skip unresolved types
-            if isinstance(child.datatype, UnresolvedType):
-                continue
             try:
+                # Skip unresolved types
+                if isinstance(child.datatype, UnresolvedType):
+                    continue
                 if child.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
                     raise TransformationError(
                         "The ArrayRange2LoopTrans transformation doesn't "
