@@ -42,6 +42,7 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.tools import DependencyTools, DTCode
+from psyclone.tests.utilities import get_invoke
 
 
 @pytest.fixture(scope="function", autouse=True)
