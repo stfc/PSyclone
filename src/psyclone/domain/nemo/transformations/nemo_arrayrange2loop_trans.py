@@ -329,9 +329,10 @@ class NemoArrayRange2LoopTrans(Transformation):
         try:
             if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
                 raise TransformationError(
-                    "The ArrayRange2LoopTrans transformation doesn't allow "
-                    "character arrays by default. This can be enabled by "
-                    "passing the allow_string option to the transformation."
+                    "The NemoArrayRange2LoopTrans transformation doesn't "
+                    "allow character arrays by default. This can be enabled "
+                    "by passing the allow_string option to the "
+                    "transformation."
                 )
         except NotImplementedError:
             pass
@@ -345,7 +346,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                     continue
                 if child.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
                     raise TransformationError(
-                        "The ArrayRange2LoopTrans transformation doesn't "
+                        "The NemoArrayRange2LoopTrans transformation doesn't "
                         "allow character arrays by default. This can be "
                         "enabled by passing the allow_string option to the "
                         "transformation."
