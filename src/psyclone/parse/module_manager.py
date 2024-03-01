@@ -231,27 +231,6 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def old_get_modules_in_file(self, filename):
-        '''This function returns the list of modules defined in the specified
-        file. The base implementation assumes the use of the LFRic coding
-        style: the file `a_mod.f90` implements the module `a_mod`. This
-        function can be implemented in a derived class to actually parse the
-        source file if required.
-
-        :param str filename: the file name for which to find the list \
-            of modules it contains.
-
-        :returns: the list of all modules contained in the specified file.
-        :rtype: list[str]
-
-        '''
-        basename = os.path.basename(filename)
-        root, _ = os.path.splitext(basename)
-        if root.lower().endswith("_mod"):
-            return [root]
-
-        return []
-
     def get_modules_in_file(self, filename):
         '''
         Uses a regex search to find all modules defined in the file with the

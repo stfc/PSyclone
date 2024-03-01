@@ -772,12 +772,10 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
             incorrect code.
 
         '''
-        if not options:
-            options = {}
-
         # Since this function potentially modifies the user's option
         # dictionary, create a copy:
-        options = options.copy()
+        options = options.copy() if options else {}
+
         # Make sure the default is set:
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
