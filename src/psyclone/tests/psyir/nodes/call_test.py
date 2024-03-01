@@ -42,12 +42,12 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import (
-    ArrayReference, BinaryOperation, Call, Literal, Reference,
-    Routine, Schedule)
+    ArrayReference, Assignment, BinaryOperation, Call, CodeBlock, Literal,
+    Reference, Routine, Schedule)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import (
     ArrayType, INTEGER_TYPE, DataSymbol, NoType, RoutineSymbol, REAL_TYPE,
-    SymbolError)
+    SymbolError, UnsupportedFortranType)
 from psyclone.errors import GenerationError
 
 
@@ -650,7 +650,8 @@ end subroutine top'''
     # find the routine we're looking for.
     path = str(tmpdir)
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
-    with open(os.path.join(path, "that_file.f90"), "w") as ofile:
+    with open(os.path.join(path, "that_file.f90"), "w",
+              encoding="utf-8") as ofile:
         ofile.write('''\
 module some_mod_somewhere
 end module some_mod_somewhere
@@ -679,7 +680,7 @@ end subroutine top'''
 def test_call_get_callees_interface(fortran_reader):
     '''
     Check that get_callees() works correctly when the target of a call is
-    actually an interface.
+    actually a generic interface.
     '''
     code = '''
 module my_mod
@@ -713,6 +714,48 @@ end module my_mod
     assert callees[0].name == "rbottom"
     assert isinstance(callees[1], Routine)
     assert callees[1].name == "ibottom"
+
+
+def test_call_get_callees_unsupported_type(fortran_reader):
+    '''
+    Check that get_callees() raises the expected error when the called routine
+    is of UnsupportedFortranType. This is hard to achieve so we have to
+    manually construct some aspects of the test case.
+
+    '''
+    code = '''
+module my_mod
+  integer, target :: value
+contains
+  subroutine top()
+    integer :: luggage
+    luggage = bottom()
+  end subroutine top
+  function bottom() result(fval)
+    integer, pointer :: fval
+    fval => value
+  end function bottom
+end module my_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    container = psyir.children[0]
+    routines = container.get_routine_psyir("bottom")
+    assert len(routines) == 1
+    rsym = container.symbol_table.lookup(routines[0].name)
+    # Ensure the type of this RoutineSymbol is UnsupportedFortranType.
+    rsym.datatype = UnsupportedFortranType("integer, pointer :: fval")
+    assign = container.walk(Assignment)[0]
+    # Currently `bottom()` gets matched by fparser2 as a structure constructor
+    # and the fparser2 frontend leaves this as a CodeBlock (TODO #2429) so
+    # replace it with a Call. Once #2429 is fixed the next two lines can be
+    # removed.
+    assert isinstance(assign.rhs, CodeBlock)
+    assign.rhs.replace_with(Call(rsym))
+    call = psyir.walk(Call)[0]
+    with pytest.raises(NotImplementedError) as err:
+        _ = call.get_callees()
+    assert ("RoutineSymbol 'bottom' exists in Container 'my_mod' but is of "
+            "UnsupportedFortranType" in str(err.value))
 
 
 def test_call_get_callees_file_container(fortran_reader):
