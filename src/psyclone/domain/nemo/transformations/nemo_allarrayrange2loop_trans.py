@@ -106,6 +106,9 @@ class NemoAllArrayRange2LoopTrans(Transformation):
             transformations fails, and therefor the reason why the inner
             transformation failed is not propagated.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+                                             transformation on a character
+                                             type array range.
 
         '''
         self.validate(node)
@@ -113,7 +116,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         trans = NemoOuterArrayRange2LoopTrans()
         try:
             while True:
-                trans.apply(node)
+                trans.apply(node, options)
         except TransformationError as err:
             # TODO #11: Instead we could use proper logging
             if options and options.get("verbose", False):

@@ -46,9 +46,10 @@ from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
     Assignment, CodeBlock, ArrayMember, Routine, IntrinsicCall, \
-    StructureReference, StructureMember, Node
+    StructureReference, StructureMember, Node, Literal
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
+        UnresolvedType
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
@@ -108,9 +109,12 @@ class NemoArrayRange2LoopTrans(Transformation):
             transformation. This is an optional argument that defaults \
             to None.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+                                             transformation on a character
+                                             type array range.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         assignment = node.ancestor(Assignment)
         parent = assignment.parent
@@ -178,6 +182,9 @@ class NemoArrayRange2LoopTrans(Transformation):
             transformation. This is an optional argument that defaults \
             to None.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+                                             transformation on a character
+                                             type array range.
 
         :raises TransformationError: if the node argument is not a \
             Range, if the Range node is not part of an ArrayReference, \
@@ -189,6 +196,9 @@ class NemoArrayRange2LoopTrans(Transformation):
             multiple locations of a structure of arrays.
         :raises TransformationError: if the node argument contains a \
             non-elemental Operation or Call.
+        :raises TransformationError: if node contains a character type
+                                     child and the allow_strings option is
+                                     not set.
 
         '''
         # Am I Range node?
@@ -305,6 +315,43 @@ class NemoArrayRange2LoopTrans(Transformation):
                     "Error in NemoArrayRange2LoopTrans transformation. This "
                     "transformation can only be applied to the outermost "
                     "Range.")
+
+        if not options:
+            options = {}
+        allow_string_array = options.get("allow_string", False)
+        # If we allow string arrays then we can skip the check.
+        if allow_string_array:
+            return
+        lhs = assignment.lhs
+        # ArrayMixin datatype lookup can fail if the indices contain a
+        # Call or Intrinsic Call. We catch this exception and continue
+        # for now - TODO #1799
+        try:
+            if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                raise TransformationError(
+                    "The ArrayRange2LoopTrans transformation doesn't allow "
+                    "character arrays by default. This can be enabled by "
+                    "passing the allow_string option to the transformation."
+                )
+        except NotImplementedError:
+            pass
+        for child in assignment.rhs.walk((Literal, Reference)):
+            # Skip over indices
+            if child.ancestor(ArrayReference) is not None:
+                continue
+            # Skip unresolved types
+            if isinstance(child.datatype, UnresolvedType):
+                continue
+            try:
+                if child.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                    raise TransformationError(
+                        "The ArrayRange2LoopTrans transformation doesn't "
+                        "allow character arrays by default. This can be "
+                        "enabled by passing the allow_string option to the "
+                        "transformation."
+                    )
+            except NotImplementedError:
+                pass
 
 
 # For automatic document generation

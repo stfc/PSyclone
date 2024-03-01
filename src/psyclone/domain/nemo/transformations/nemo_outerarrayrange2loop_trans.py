@@ -108,6 +108,9 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             transformation. This is an optional argument that defaults \
             to None.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+                                             transformation on a character
+                                             type array range.
 
         '''
         self.validate(node)
