@@ -493,7 +493,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         Finds or creates either a Reference (for a symbol) or PSyIR (for a
         literal expression) for any scalar arguments to this Built-In kernel.
 
-        :returns: a Reference or PSyIR expression for each scalar kernel \
+        :returns: a Reference or PSyIR expression for each scalar kernel
                   argument.
         :rtype: list of subclasses of `:py:class:`psyclone.psyir.nodes.Node`
 
@@ -501,14 +501,20 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         return [arg.psyir_expression() for arg in self._arguments.args
                 if arg.is_scalar]
 
-    def _create_assignment(self, lhs, rhs):
+    def _replace_with_assignment(self, lhs, rhs):
         '''
-        Creates an assignment from left-hand- and right-hand-side ArrayReference
+        Creates an assignment from left- and right-hand-side ArrayReference
         nodes, then replaces the Builtin with the newly created Assignment
         node.
 
+        :param lhs: The left-hand side of the assignment to be created.
+        :type lhs: :py:class:`psyclone.psyir.nodes.ArrayReference`
+
+        :param rhs: The right-hand side of the assignment to be created.
+        :type rhs: :py:class:`psyclone.psyir.nodes.ArrayReference`
+
         :returns: an Assignment.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
         '''
         assign = Assignment.create(lhs, rhs)
@@ -576,7 +582,7 @@ class LFRicXPlusYKern(LFRicBuiltIn):
                                      arg_refs[1], arg_refs[2])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXPlusYKern(LFRicBuiltIn):
@@ -622,7 +628,7 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
                                      lhs.copy(), arg_refs[1])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAPlusXKern(LFRicBuiltIn):
@@ -668,7 +674,7 @@ class LFRicAPlusXKern(LFRicBuiltIn):
                                      scalar_args[0], arg_refs[1])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncAPlusXKern(LFRicBuiltIn):
@@ -713,7 +719,7 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
                                      scalar_args[0], lhs.copy())
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAXPlusYKern(LFRicBuiltIn):
@@ -762,7 +768,7 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
                                      mult_op, arg_refs[2])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncAXPlusYKern(LFRicBuiltIn):
@@ -810,7 +816,7 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
                                      mult_op, arg_refs[1])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXPlusBYKern(LFRicBuiltIn):
@@ -858,7 +864,7 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
                                      lhs.copy(), mult_op)
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAXPlusBYKern(LFRicBuiltIn):
@@ -911,7 +917,7 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
                                      mult_op_a, mult_op_b)
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncAXPlusBYKern(LFRicBuiltIn):
@@ -963,7 +969,7 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
                                      mult_op_a, mult_op_b)
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAXPlusAYKern(LFRicBuiltIn):
@@ -1012,7 +1018,7 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
                                      scalar_args[0], add_op)
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -1065,7 +1071,7 @@ class LFRicXMinusYKern(LFRicBuiltIn):
                                      arg_refs[1], arg_refs[2])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXMinusYKern(LFRicBuiltIn):
@@ -1112,7 +1118,7 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
                                      lhs.copy(), arg_refs[1])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAMinusXKern(LFRicBuiltIn):
@@ -1158,7 +1164,7 @@ class LFRicAMinusXKern(LFRicBuiltIn):
                                      scalar_args[0], arg_refs[1])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncAMinusXKern(LFRicBuiltIn):
@@ -1203,7 +1209,7 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
                                      scalar_args[0], lhs.copy())
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicXMinusAKern(LFRicBuiltIn):
@@ -1249,7 +1255,7 @@ class LFRicXMinusAKern(LFRicBuiltIn):
                                      arg_refs[1], scalar_args[0])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXMinusAKern(LFRicBuiltIn):
@@ -1294,7 +1300,7 @@ class LFRicIncXMinusAKern(LFRicBuiltIn):
                                      lhs.copy(), scalar_args[0])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAXMinusYKern(LFRicBuiltIn):
@@ -1343,7 +1349,7 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
                                      mult_op, arg_refs[2])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicXMinusBYKern(LFRicBuiltIn):
@@ -1392,7 +1398,7 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
                                      arg_refs[1], mult_op)
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXMinusBYKern(LFRicBuiltIn):
@@ -1440,7 +1446,7 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
                                      lhs.copy(), mult_op)
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAXMinusBYKern(LFRicBuiltIn):
@@ -1493,7 +1499,7 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
                                      mult_op_a, mult_op_b)
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -1546,7 +1552,7 @@ class LFRicXTimesYKern(LFRicBuiltIn):
                                      arg_refs[1], arg_refs[2])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXTimesYKern(LFRicBuiltIn):
@@ -1592,7 +1598,7 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
                                      lhs.copy(), arg_refs[1])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncAXTimesYKern(LFRicBuiltIn):
@@ -1640,7 +1646,7 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
                                      mult_op, arg_refs[1])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -1695,7 +1701,7 @@ class LFRicATimesXKern(LFRicBuiltIn):
                                      scalar_args[0], arg_refs[1])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncATimesXKern(LFRicBuiltIn):
@@ -1743,7 +1749,7 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
                                      scalar_args[0], lhs.copy())
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Dividing real fields =============================== #
@@ -1795,7 +1801,7 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
                                      arg_refs[1], arg_refs[2])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXDividebyYKern(LFRicBuiltIn):
@@ -1841,7 +1847,7 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
                                      lhs.copy(), arg_refs[1])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicXDividebyAKern(LFRicBuiltIn):
@@ -1892,7 +1898,7 @@ class LFRicXDividebyAKern(LFRicBuiltIn):
                                      arg_refs[1], scalar_args[0])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXDividebyAKern(LFRicBuiltIn):
@@ -1941,7 +1947,7 @@ class LFRicIncXDividebyAKern(LFRicBuiltIn):
                                      lhs.copy(), scalar_args[0])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Inverse scaling of real fields ===================== #
@@ -1997,7 +2003,7 @@ class LFRicADividebyXKern(LFRicBuiltIn):
                                      scalar_args[0], arg_refs[1])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncADividebyXKern(LFRicBuiltIn):
@@ -2048,7 +2054,7 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
                                      scalar_args[0], lhs.copy())
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2101,7 +2107,7 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
                                      lhs.copy(), scalar_args[0])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXPowintNKern(LFRicBuiltIn):
@@ -2149,7 +2155,7 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
                                      lhs.copy(), scalar_args[0])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2202,7 +2208,7 @@ class LFRicSetvalCKern(LFRicBuiltIn):
         rhs = scalar_args[0]
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicSetvalXKern(LFRicBuiltIn):
@@ -2247,7 +2253,7 @@ class LFRicSetvalXKern(LFRicBuiltIn):
         rhs = arg_refs[1]
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicSetvalRandomKern(LFRicBuiltIn):
@@ -2343,7 +2349,7 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
                                      lhs.copy(), mult_op)
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicXInnerproductXKern(LFRicBuiltIn):
@@ -2388,7 +2394,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
                                      lhs.copy(), mult_op)
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2439,7 +2445,7 @@ class LFRicSumXKern(LFRicBuiltIn):
                                      lhs.copy(), arg_refs[0])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2494,7 +2500,7 @@ class LFRicSignXKern(LFRicBuiltIn):
                                    [scalar_args[0], arg_refs[1]])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2546,7 +2552,7 @@ class LFRicMaxAXKern(LFRicBuiltIn):
                                    [scalar_args[0], arg_refs[1]])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncMaxAXKern(LFRicBuiltIn):
@@ -2592,7 +2598,7 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
                                    [scalar_args[0], lhs.copy()])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Minimum of (real scalar, real field elements) ====== #
@@ -2643,7 +2649,7 @@ class LFRicMinAXKern(LFRicBuiltIn):
                                    [scalar_args[0], arg_refs[1]])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncMinAXKern(LFRicBuiltIn):
@@ -2689,7 +2695,7 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
                                    [scalar_args[0], lhs.copy()])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
@@ -2744,7 +2750,7 @@ class LFRicRealToIntXKern(LFRicBuiltIn):
             [arg_refs[1], ("kind", Reference(i_precision))])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2799,7 +2805,7 @@ class LFRicRealToRealXKern(LFRicBuiltIn):
             [arg_refs[1], ("kind", Reference(r_precision))])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ******************************************************************* #
@@ -3142,7 +3148,7 @@ class LFRicIntToRealXKern(LFRicBuiltIn):
             [arg_refs[1], ("kind", Reference(r_precision))])
 
         # Create assignment and replace node
-        return self._create_assignment(lhs, rhs)
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # The built-in operations that we support for this API. The meta-data
