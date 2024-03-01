@@ -270,8 +270,8 @@ def test_get_routine_recurse_named(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     container = psyir.walk(Container)[1]
     result = container.get_routine_psyir("sub")
-    assert isinstance(result, Routine)
-    assert result.name == "sub"
+    assert isinstance(result[0], Routine)
+    assert result[0].name == "sub"
 
 
 def test_get_routine_recurse_wildcard(fortran_reader):
@@ -302,8 +302,8 @@ def test_get_routine_recurse_wildcard(fortran_reader):
     # Repeat but include wildcard imports.
     result = container.get_routine_psyir(call_node.routine.name,
                                          check_wildcard_imports=True)
-    assert isinstance(result, Routine)
-    assert result.name == "sub"
+    assert isinstance(result[0], Routine)
+    assert result[0].name == "sub"
 
 
 def test_find_routine_in_container_private_routine_not_found(fortran_reader):
@@ -336,5 +336,5 @@ def test_find_routine_in_container(fortran_reader):
     container = call_node.routine.interface.container_symbol.container(
         local_node=call_node)
     result = container.get_routine_psyir(call_node.routine.name)
-    assert isinstance(result, Routine)
-    assert result.name == "sub"
+    assert isinstance(result[0], Routine)
+    assert result[0].name == "sub"

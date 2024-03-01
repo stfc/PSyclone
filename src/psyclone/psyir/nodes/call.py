@@ -484,7 +484,7 @@ class Call(Statement, DataNode):
                             continue
                         routine = container.get_routine_psyir(rsym.name)
                         if routine:
-                            return [routine]
+                            return routine
                 current_table = current_table.parent_symbol_table()
             if not wildcard_names:
                 wc_text = "there are no wildcard imports"

@@ -1053,7 +1053,7 @@ class SymbolTable():
 
         if isinstance(symbol, RoutineSymbol):
             is_shadowed = False
-            if self.node.parent:
+            if self.node and self.node.parent:
                 try:
                     shadowed_sym = self.node.parent.scope.symbol_table.lookup(
                         symbol.name)
