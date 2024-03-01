@@ -52,7 +52,7 @@ from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
     DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface, \
     INTEGER_SINGLE_TYPE, AutomaticInterface, CommonBlockInterface, \
-    RoutineSymbol, Symbol, SymbolError, UnknownInterface, \
+    NoType, RoutineSymbol, Symbol, SymbolError, UnknownInterface, \
     SymbolTable, UnresolvedInterface
 
 
@@ -384,6 +384,15 @@ def test_symbol_resolve_type(monkeypatch):
     assert new_sym.is_import
     assert new_sym.is_constant
     assert new_sym.initial_value == Literal("1", INTEGER_SINGLE_TYPE)
+    # Repeat but test when the import turns out to be a RoutineSymbol.
+    dsym = Symbol("d", visibility=Symbol.Visibility.PRIVATE,
+                  interface=ImportInterface(other_container))
+    monkeypatch.setattr(
+        dsym, "get_external_symbol",
+        lambda: RoutineSymbol("d", NoType()))
+    new_sym = dsym.resolve_type()
+    assert new_sym is dsym
+    assert isinstance(dsym, RoutineSymbol)
 
 
 def test_symbol_array_handling():
