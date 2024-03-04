@@ -48,7 +48,7 @@ from psyclone.psyir.nodes import (Call, CodeBlock, IfBlock, Loop, Routine,
                                   Schedule, ACCEnterDataDirective,
                                   ACCKernelsDirective, ACCParallelDirective,
                                   Node, IntrinsicCall)
-from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 from psyclone.psyir.transformations import TransformationError
 
 # We distinguish between two access modes, IN (read) and OUT (write).
@@ -240,7 +240,7 @@ class ACCUpdateTrans(Transformation):
 
         # TODO #1872: the lack of precise array access descriptions might
         # unnecessarily increase the data transfer volume.
-        read_write_info = DependencyTools().get_in_out_parameters(node_list)
+        read_write_info = CallTreeUtils().get_in_out_parameters(node_list)
         inputs = set(read_write_info.signatures_read)
         outputs = set(read_write_info.signatures_written)
 

@@ -170,6 +170,23 @@ class Container(ScopingNode, CommentableMixin):
     def __str__(self):
         return f"Container[{self.name}]\n"
 
+    def get_routine_psyir(self, name):
+        '''Returns the PSyIR for the routine with the given name, or None
+        if a routine with this name does not exist.
+
+        :param str name: name of the routine to find.
+
+        :returns: the PSyIR Routine instance of the subroutine, or None if
+            there is no routine with that name in this container.
+        :rtype: Union[None, psyclone.psyir.nodes.Routine]
+
+        '''
+        name = name.lower()
+        for routine in self.walk(Routine):
+            if routine.name.lower() == name:
+                return routine
+        return None
+
 
 # For AutoAPI documentation generation
 __all__ = ['Container']
