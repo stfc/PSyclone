@@ -503,17 +503,15 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
     def _replace_with_assignment(self, lhs, rhs):
         '''
-        Creates an assignment from left- and right-hand-side ArrayReference
-        nodes, then replaces the Builtin with the newly created Assignment
-        node.
+        Creates an assignment from the left- and right-hand-side nodes, then
+        replaces this Builtin with the newly-created Assignment node.
 
         :param lhs: The left-hand side of the assignment to be created.
         :type lhs: :py:class:`psyclone.psyir.nodes.ArrayReference`
-
         :param rhs: The right-hand side of the assignment to be created.
-        :type rhs: :py:class:`psyclone.psyir.nodes.ArrayReference`
+        :type rhs: :py:class:`psyclone.psyir.nodes.DataNode`
 
-        :returns: an Assignment.
+        :returns: the new Assignment node.
         :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
         '''
