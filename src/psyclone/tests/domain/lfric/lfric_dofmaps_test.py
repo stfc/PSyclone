@@ -135,8 +135,8 @@ def test_cma_apply_indirection_dofmap_error():
     with pytest.raises(GenerationError) as excinfo:
         invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA operator argument "
-            "for a kernel that applies a CMA operator but found 3" in
-            str(excinfo.value))
+            "for a kernel that applies a CMA operator but found 3"
+            in str(excinfo.value))
 
 
 # Generation tests
