@@ -6,7 +6,7 @@ module adj_poly1d_reconstruction_kernel_mod
   implicit none
   type, public, extends(kernel_type) :: adj_poly1d_reconstruction_kernel_type
   type(ARG_TYPE) :: META_ARGS(5) = (/ &
-    arg_type(gh_field, gh_real, gh_readwrite, any_discontinuous_space_1, stencil(cross)), &
+    arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_1, stencil(cross)), &
     arg_type(gh_field, gh_real, gh_readwrite, any_discontinuous_space_2), &
     arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_3), &
     arg_type(gh_scalar, gh_integer, gh_read), &
@@ -14,8 +14,11 @@ module adj_poly1d_reconstruction_kernel_mod
   INTEGER :: OPERATES_ON = cell_column
   CONTAINS
     PROCEDURE, NOPASS :: adj_poly1d_reconstruction_code
-END TYPE adj_poly1d_reconstruction_kernel_type
-
+  END TYPE adj_poly1d_reconstruction_kernel_type
+!!$  integer, parameter :: i_def = kind(1)
+!!$  integer, parameter :: r_def = kind(1.0d0)
+!!$  integer, parameter :: r_tran = kind(1.0d0)
+  
   private
 
   public :: adj_poly1d_reconstruction_code
@@ -38,8 +41,8 @@ END TYPE adj_poly1d_reconstruction_kernel_type
     integer(kind=i_def), intent(in) :: ndata
     integer(kind=i_def), intent(in) :: order
     integer(kind=i_def), intent(in) :: stencil_size
-    real(kind=r_tran), dimension(undf_md), intent(out) :: reconstruction
-    real(kind=r_tran), dimension(undf_ws), intent(out) :: tracer
+    real(kind=r_tran), dimension(undf_md), intent(in) :: reconstruction
+    real(kind=r_tran), dimension(undf_ws), intent(inout) :: tracer
     real(kind=r_tran), dimension(undf_c), intent(in) :: coeff
     integer(kind=i_def), dimension(ndf_ws,stencil_size), intent(in) :: stencil_map
     integer(kind=i_def) :: k
@@ -68,33 +71,36 @@ END TYPE adj_poly1d_reconstruction_kernel_type
         depth = depth + 1
       enddo
     enddo
-    map1d(stencil + depth,face) = order * MOD(stencil, 2) + stencil + stencil_depth * MOD(face + 1, 2)
+
     do p = 1, order + 1, 1
        do f = 1, nfaces, 1
           if(map1d(p,f) /= 1)then
              ! Off-diagonal term
-            call adj_compute_reconstruction(p, f, order, &
+            call adj_compute_reconstruction(p, f, order,                               &
                                             reconstruction, stencil_map(1,map1d(p,f)), &
-                                            coeff, map_c(1), tracer, map_md(1))
+                                            coeff, map_c(1), tracer, map_md(1), nl)
          else
             ! Diagonal term (update owned cell only)
-            call adj_compute_reconstruction(p, f, order, &
-                                            reconstruction, map_md(1,cell), &
-                                            coeff, map_c(1,cell), &
-                                            tracer, stencil_map(1,map1d(p,f),cell))
+            call adj_compute_reconstruction(p, f, order,                               &
+                                            reconstruction, map_md(1),                 &
+                                            coeff, map_c(1),                           &
+                                            tracer, stencil_map(1,map1d(p,f)), nl)
 
          end if
       enddo
     enddo
-    do f = nfaces, 1, -1
-      df = f * nl + f - nl + map_md(1) - 1
-      do idx = df + nl, df, -1
-        reconstruction(idx) = 0.0
-      enddo
-    enddo
+
+    ! Zeroing must be done in subsequent built-in to avoid race condition.
+!!$    do f = nfaces, 1, -1
+!!$      df = f * nl + f - nl + map_md(1) - 1
+!!$      do idx = df + nl, df, -1
+!!$        reconstruction(idx) = 0.0
+!!$      enddo
+!!$    enddo
 
   end subroutine adj_poly1d_reconstruction_code
-  subroutine adj_compute_reconstruction(p, f, order, reconstruction, recon_cell, coeff, coeff_cell, tracer, tracer_cell, nl)
+  subroutine adj_compute_reconstruction(p, f, order, reconstruction, recon_cell,   &
+                                        coeff, coeff_cell, tracer, tracer_cell, nl)
     integer, intent(in) :: p
     integer, intent(in) :: f
     integer, intent(in) :: nl

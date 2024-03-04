@@ -161,10 +161,11 @@ subroutine poly1d_reconstruction_code( nlayers,        &
   ! so the index on the North face (face=4) is: map_md(1) + 3*(nl+1) + k
   ! i.e for face f index is map_md(1) + (f-1)*(nl+1) + k
   do f = 1,nfaces
-    df = map_md(1) + (f-1)*(nl+1)
-    do k = 0, nl
-      reconstruction(df + k) = 0.0_r_tran
-    end do
+     df = map_md(1) + (f-1)*(nl+1)
+     ! Hoist this zeroing out to a built-in.
+    !do k = 0, nl
+    !  reconstruction(df + k) = 0.0_r_tran
+    !end do
     do p = 1, order+1
       ijp = (p - 1 + (f-1)*(order+1)) + map_c(1)
       stencil = map1d(p,f)
