@@ -403,9 +403,7 @@ class LFRicKern(CodedKern):
         :returns: name of the colourmap (Fortran array).
         :rtype: str
 
-        :raises InternalError: if this kernel is not coloured or the \
-                               dictionary of inter-grid kernels and \
-                               colourmaps has not been constructed.
+        :raises InternalError: if this kernel is not coloured.
 
         '''
         if not self.is_coloured():
@@ -435,9 +433,7 @@ class LFRicKern(CodedKern):
         :returns: name of the array.
         :rtype: str
 
-        :raises InternalError: if this kernel is not coloured or the \
-                               dictionary of inter-grid kernels and \
-                               colourmaps has not been constructed.
+        :raises InternalError: if this kernel is not coloured.
         '''
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
@@ -467,10 +463,9 @@ class LFRicKern(CodedKern):
         associated with this kernel call.
 
         :return: name of the variable holding the number of colours
-        :rtype: Union[str, NoneType]
+        :rtype: Optional[str]
 
-        :raises InternalError: if this kernel is not coloured or the \
-                               colour-map information has not been initialised.
+        :raises InternalError: if this kernel is not coloured.
         '''
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
@@ -888,7 +883,7 @@ class LFRicKern(CodedKern):
 
     def validate_global_constraints(self):
         '''
-        Perform validation checks for any global constraints (that requiere the
+        Perform validation checks for any global constraints (that require the
         tree to be complete).
 
         :raises GenerationError: if this kernel does not have a supported

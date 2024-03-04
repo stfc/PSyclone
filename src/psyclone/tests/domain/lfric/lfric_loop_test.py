@@ -287,7 +287,7 @@ def test_lower_to_language_domain_loops_multiple_statements():
     loop1 = sched.children[1].detach()
     kern = loop1.loop_body.children[0].detach()
     sched.children[0].loop_body.children.insert(1, kern)
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(NotImplementedError) as err:
         sched.lower_to_language_level()
     assert ("Lowering LFRic domain loops that produce more than one "
             "children is not yet supported, but found:" in str(err.value))

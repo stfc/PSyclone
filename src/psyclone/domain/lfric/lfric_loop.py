@@ -153,14 +153,14 @@ class LFRicLoop(PSyLoop):
             self.replace_with(loop)
             lowered_node = loop
         else:
-            # If loop_type is "null" we not need a loop at all, just the kernel
-            # in its loop_body
+            # If loop_type is "null" we do not need a loop at all, just the
+            # kernel in its loop_body
             for child in self.loop_body.children:
                 child.lower_to_language_level()
             # TODO #1010: This restriction can be removed when also lowering the
             # parent InvokeSchedule
             if len(self.loop_body.children) > 1:
-                raise GenerationError(
+                raise NotImplementedError(
                     f"Lowering LFRic domain loops that produce more than one "
                     f"children is not yet supported, but found:\n "
                     f"{self.view()}")

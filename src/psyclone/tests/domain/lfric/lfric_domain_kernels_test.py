@@ -442,7 +442,6 @@ def test_domain_plus_cma_kernels(dist_mem, tmpdir):
     assert "mesh => f1_proxy%vspace%get_mesh()" in gen_code
     assert "ncell_2d = mesh%get_ncells_2d()" in gen_code
     assert "ncell_2d_no_halos = mesh%get_last_edge_cell()" in gen_code
-    print(gen_code)
     assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
             "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
     assert ("call columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "

@@ -2321,7 +2321,7 @@ class DynMeshes():
                             entity_decls=[decln]))
 
         if not self.intergrid_kernels and (self._needs_colourmap or
-                                     self._needs_colourmap_halo):
+                                           self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
@@ -2524,8 +2524,9 @@ class DynMeshes():
     @property
     def intergrid_kernels(self):
         '''
-        :returns: A list of intergrid mesh objects used.
-        :rtype: List[:py:class:`psyclone.dynamo3p0.DynInterGrid`]
+        :returns: A list of objects describing the intergrid kernels used in
+            this invoke.
+        :rtype: list[:py:class:`psyclone.dynamo3p0.DynInterGrid`]
         '''
         intergrids = []
         for call in self._schedule.coded_kernels():
