@@ -6,8 +6,8 @@ module adj_poly1d_reconstruction_kernel_mod
   implicit none
   type, public, extends(kernel_type) :: adj_poly1d_reconstruction_kernel_type
   type(ARG_TYPE) :: META_ARGS(5) = (/ &
-    arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
-    arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_2, stencil(cross)), &
+    arg_type(gh_field, gh_real, gh_readwrite, any_discontinuous_space_1, stencil(cross)), &
+    arg_type(gh_field, gh_real, gh_readwrite, any_discontinuous_space_2), &
     arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_3), &
     arg_type(gh_scalar, gh_integer, gh_read), &
     arg_type(gh_scalar, gh_integer, gh_read)/)
@@ -21,8 +21,9 @@ END TYPE adj_poly1d_reconstruction_kernel_type
   public :: adj_poly1d_reconstruction_code
 
   contains
-  subroutine adj_poly1d_reconstruction_code(nlayers, reconstruction, tracer, stencil_size, stencil_map, coeff, ndata, order, &
-&ndf_md, undf_md, map_md, ndf_ws, undf_ws, map_ws, ndf_c, undf_c, map_c)
+    subroutine adj_poly1d_reconstruction_code( &
+         nlayers, reconstruction, stencil_size, stencil_map, tracer, coeff, ndata, order, &
+         ndf_md, undf_md, map_md, ndf_ws, undf_ws, map_ws, ndf_c, undf_c, map_c)
     integer(kind=i_def), parameter :: nfaces = 4
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_ws
