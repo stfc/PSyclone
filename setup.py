@@ -170,8 +170,7 @@ if __name__ == '__main__':
             'psydata': ["Jinja2"],
             # TODO #2348: pytest currently fails with pylint >=3
             'test': ["pep8", "flake8", "pylint<3.0", "pytest-cov",
-                     "pytest-pep8", "pytest-pylint", "pytest-flakes",
-                     "pytest-xdist"],
+                     "pytest-pylint", "pytest-flakes", "pytest-xdist"],
         },
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/psyclone-kern', 'bin/psyad'],
