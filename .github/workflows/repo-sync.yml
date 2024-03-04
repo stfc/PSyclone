@@ -37,9 +37,6 @@
 # test suite using a self-hosted runner. 
 name: Push to private
 
-on:
-  workflow_dispatch:
-
 env:
   # Use the same ssh-agent socket value across all jobs
   # Useful when a GH action is using SSH behind-the-scenes
