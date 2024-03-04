@@ -42,6 +42,7 @@
 # pylint: disable=too-many-lines
 
 from collections import OrderedDict
+from collections.abc import Iterable
 import inspect
 import copy
 
@@ -571,15 +572,21 @@ class SymbolTable():
         :param other_table: the table for which to check for clashes.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param symbols_to_skip: an optional list of symbols to exclude from
-                                the check.
-        :type symbols_to_skip: Optional[
-            list[:py:class:`psyclone.psyir.symbols.Symbol`]]
+            the check.
+        :type symbols_to_skip: Iterable[
+            :py:class:`psyclone.psyir.symbols.Symbol`]
 
-
+        :raises TypeError: if symbols_to_skip is supplied but is not an
+            instance of Iterable.
         :raises SymbolError: if there would be an unresolvable name clash
             when importing symbols from `other_table` into this table.
 
         '''
+        if not isinstance(symbols_to_skip, Iterable):
+            raise TypeError(
+                f"check_for_clashes: 'symbols_to_skip' must be an instance of "
+                f"Iterable but got '{type(symbols_to_skip).__name__}'")
+
         for other_sym in other_table.symbols:
             if other_sym.name not in self or other_sym in symbols_to_skip:
                 continue
@@ -684,8 +691,8 @@ class SymbolTable():
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param symbols_to_skip: an optional list of symbols to exclude from
                                 the merge.
-        :type symbols_to_skip: Optional[
-            list[:py:class:`psyclone.psyir.symbols.Symbol`]]
+        :type symbols_to_skip: Iterable[
+            :py:class:`psyclone.psyir.symbols.Symbol`]
 
         :raises InternalError: if an imported symbol is found that has not
             already been updated to refer to a Container in this table.
@@ -736,17 +743,21 @@ class SymbolTable():
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param symbols_to_skip: an optional list of Symbols to exclude from
                                 the merge.
-        :type symbols_to_skip: Optional[
-            list[:py:class:`psyclone.psyir.symbols.Symbol`]]
+        :type symbols_to_skip: Iterable[
+            :py:class:`psyclone.psyir.symbols.Symbol`]
 
         :raises TypeError: if `other_table` is not a SymbolTable.
+        :raises TypeError: if `symbols_to_skip` is not an Iterable.
         :raises SymbolError: if name clashes prevent the merge.
 
         '''
         if not isinstance(other_table, SymbolTable):
             raise TypeError(f"SymbolTable.merge() expects a SymbolTable "
                             f"instance but got '{type(other_table).__name__}'")
-
+        if not isinstance(symbols_to_skip, Iterable):
+            raise TypeError(
+                f"SymbolTable.merge() expects 'symbols_to_skip' to be an "
+                f"Iterable but got '{type(symbols_to_skip).__name__}'")
         try:
             self.check_for_clashes(other_table,
                                    symbols_to_skip=symbols_to_skip)

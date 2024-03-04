@@ -1188,9 +1188,9 @@ class FortranWriter(LanguageWriter):
                 # skip any RoutineSymbol representing this routine.
                 try:
                     rsym = sched_table.lookup_with_tag("own_routine_symbol")
-                    skip = rsym if isinstance(rsym, RoutineSymbol) else None
+                    skip = rsym if isinstance(rsym, RoutineSymbol) else []
                 except KeyError:
-                    skip = None
+                    skip = []
                 whole_routine_scope.merge(sched_table, [skip])
 
             # Replace the symbol table

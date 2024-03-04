@@ -707,9 +707,6 @@ class InlineTrans(Transformation):
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
         try:
-            # Since we are inlining, we don't care about the routine arguments
-            # since these will be replaced by the actual arguments to the call
-            # itself.
             table.check_for_clashes(
                 routine_table,
                 symbols_to_skip=self._symbols_to_skip(routine_table))

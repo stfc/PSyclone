@@ -706,6 +706,11 @@ def test_check_for_clashes_cannot_rename():
     # This clash can be ignored by telling the checker to ignore any routine
     # arguments.
     table1.check_for_clashes(table2, symbols_to_skip=table2.argument_list[:])
+    # Ensure the symbols_to_skip argument is type-checked.
+    with pytest.raises(TypeError) as err:
+        table1.check_for_clashes(table2, symbols_to_skip=None)
+    assert ("symbols_to_skip' must be an instance of Iterable but got "
+            "'NoneType'" in str(err.value))
 
 
 def test_table_merge():
@@ -717,6 +722,11 @@ def test_table_merge():
         table1.merge("zaphod")
     assert ("merge() expects a SymbolTable instance but got 'str'" in
             str(err.value))
+    # 'symbols_to_skip' must be an Iterable (if provided).
+    with pytest.raises(TypeError) as err:
+        table1.merge(table2, symbols_to_skip=None)
+    assert ("merge() expects 'symbols_to_skip' to be an Iterable but got "
+            "'NoneType'" in str(err.value))
     # Can merge empty tables.
     table1.merge(table2)
     assert not table1._symbols

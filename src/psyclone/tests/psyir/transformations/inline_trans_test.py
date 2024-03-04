@@ -2473,7 +2473,7 @@ def test_apply_merges_symbol_table_with_routine(fortran_reader):
     assert psyir.walk(Routine)[0].symbol_table.get_symbols()['i_1'] is not None
 
 
-def test_apply_argument_clash(fortran_reader, fortran_writer):
+def test_apply_argument_clash(fortran_reader, fortran_writer, tmpdir):
     '''
     Check that the formal arguments to the inlined routine are not included
     when checking for clashes (since they will be replaced by the actual
@@ -2481,15 +2481,6 @@ def test_apply_argument_clash(fortran_reader, fortran_writer):
     '''
 
     code_clash = """
-  subroutine run_it()
-    integer :: Istr
-    real :: a(10)
-    istr = 2
-    a(Istr:10) = 1.0
-
-    call sub(Istr)
-  end subroutine run_it
-
   subroutine sub(Istr)
     integer :: Istr
     real :: x
@@ -2506,13 +2497,21 @@ def test_apply_argument_clash(fortran_reader, fortran_writer):
   end subroutine sub_sub"""
 
     psyir = fortran_reader.psyir_from_source(code_clash)
-    call = psyir.walk(Call)[1]
+    call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     inline_trans.apply(call)
     expected = '''\
+subroutine sub(istr)
+  integer :: istr
+  real :: x
+  integer :: i
+  real, dimension(10) :: b
+
   x = 2.0 * x
   b(istr:) = 1.0
 
 end subroutine sub
 '''
-    assert expected in fortran_writer(psyir)
+    output = fortran_writer(psyir)
+    assert expected in output
+    assert Compile(tmpdir).string_compiles(output)
