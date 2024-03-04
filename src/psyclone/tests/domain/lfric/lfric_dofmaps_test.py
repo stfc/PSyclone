@@ -55,6 +55,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 TEST_API = "dynamo0.3"
 
+
 # Error tests
 def test_lfricdofmap_stubdecln_err():
     '''
@@ -135,7 +136,9 @@ def test_cma_apply_indirection_dofmap_error():
     with pytest.raises(GenerationError) as excinfo:
         invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA operator argument "
-            "for a kernel that applies a CMA operator but found 3") in str(excinfo.value)
+            "for a kernel that applies a CMA operator but found 3"
+            in str(excinfo.value))
+
 
 # Generation tests
 def test_cbanded_test_comments():
@@ -164,9 +167,9 @@ def test_unique_fs_comments():
     cma operation.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,"20.1_cma_apply.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH, "20.1_cma_apply.f90"),
                            api=TEST_API)
-    psy = PSyFactory(TEST_API,distributed_memory=True).create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     code = str(psy.gen)
 
     output = (

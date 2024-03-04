@@ -139,6 +139,9 @@ jobs:
         # Stop the build if there are Python syntax errors or undefined names.
         # See PSyclone/setup.cfg for configuration of this check.
         flake8 --count --select=E9,F63,F7,F82 --show-source --statistics src examples tutorial
+    - name: Lint against the conventions in PEP 8 with pycodestyle
+      run: |
+        pycodestyle src examples tutorial
     - name: Run examples
       run: |
         ( make -j 2 -C examples transform > /dev/null )
