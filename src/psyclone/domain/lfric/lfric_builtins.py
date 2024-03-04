@@ -193,7 +193,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
         :param meta_args: a list of 'meta_args' metadata.
         :type meta_args: List[subclass of \
-            :py:class:`psyclone.domain.lifric.kernel.CommonArgMetadata`]
+            :py:class:`psyclone.domain.lfric.kernel.CommonArgMetadata`]
 
         :returns: LFRic kernel metadata for this built-in.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`

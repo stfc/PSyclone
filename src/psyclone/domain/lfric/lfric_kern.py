@@ -235,6 +235,7 @@ class LFRicKern(CodedKern):
 
     def _setup(self, ktype, module_name, args, parent, check=True):
         # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-branches, too-many-locals
         '''Internal setup of kernel information.
 
         :param ktype: object holding information on the parsed metadata for \
@@ -255,7 +256,6 @@ class LFRicKern(CodedKern):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynKernelArguments, FSDescriptors
-        # pylint: disable=too-many-branches, too-many-locals
         super().__init__(DynKernelArguments,
                          KernelCall(module_name, ktype, args),
                          parent, check)
@@ -605,14 +605,13 @@ class LFRicKern(CodedKern):
         # Add all the declarations
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import (LFRicFields, LFRicScalarArgs,
-                                           LFRicStencils)
-        from psyclone.dynamo0p3 import (DynCellIterators, DynDofmaps,
-                                        DynFunctionSpaces, DynCMAOperators,
-                                        DynBoundaryConditions,
+        from psyclone.domain.lfric import (LFRicScalarArgs, LFRicFields,
+                                           LFRicDofmaps, LFRicStencils)
+        from psyclone.dynamo0p3 import (DynCellIterators, DynFunctionSpaces,
+                                        DynCMAOperators, DynBoundaryConditions,
                                         DynLMAOperators, LFRicMeshProperties,
                                         DynBasisFunctions, DynReferenceElement)
-        for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
+        for entities in [DynCellIterators, LFRicDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, LFRicStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
