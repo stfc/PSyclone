@@ -42,6 +42,7 @@
 # pylint: disable=too-many-lines
 
 from collections import OrderedDict
+from collections.abc import Iterable
 import inspect
 import copy
 
@@ -561,21 +562,33 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def check_for_clashes(self, other_table):
+    def check_for_clashes(self, other_table, symbols_to_skip=()):
         '''
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
-        renaming then a SymbolError is raised.
+        renaming then a SymbolError is raised. Any symbols appearing
+        in `symbols_to_skip` are excluded from the checks.
 
         :param other_table: the table for which to check for clashes.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param symbols_to_skip: an optional list of symbols to exclude from
+            the check.
+        :type symbols_to_skip: Iterable[
+            :py:class:`psyclone.psyir.symbols.Symbol`]
 
-        :raises SymbolError: if there would be an unresolvable name clash \
+        :raises TypeError: if symbols_to_skip is supplied but is not an
+            instance of Iterable.
+        :raises SymbolError: if there would be an unresolvable name clash
             when importing symbols from `other_table` into this table.
 
         '''
+        if not isinstance(symbols_to_skip, Iterable):
+            raise TypeError(
+                f"check_for_clashes: 'symbols_to_skip' must be an instance of "
+                f"Iterable but got '{type(symbols_to_skip).__name__}'")
+
         for other_sym in other_table.symbols:
-            if other_sym.name not in self:
+            if other_sym.name not in self or other_sym in symbols_to_skip:
                 continue
             # We have a name clash.
             this_sym = self.lookup(other_sym.name)
@@ -617,7 +630,7 @@ class SymbolTable():
         (This is a preliminary step to adding all symbols from other_table to
         this table.)
 
-        :param other_table: the symbol table from which to take container \
+        :param other_table: the symbol table from which to take container
                             symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
@@ -667,42 +680,28 @@ class SymbolTable():
                         orig_name=isym.interface.orig_name)
 
     def _add_symbols_from_table(self, other_table, shared_wildcard_imports,
-                                include_arguments=True):
+                                symbols_to_skip=()):
         '''
         Takes symbols from the supplied symbol table and adds them to this
-        table. _add_container_symbols_from_table() must have been called
+        table (unless they appear in `symbols_to_skip`).
+        _add_container_symbols_from_table() must have been called
         before this method in order to handle any Container Symbols and update
         those Symbols imported from them.
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param shared_wildcard_imports: set of the names of any
+        :param set[str] shared_wildcard_imports: set of the names of any
             ContainerSymbols from which there were wildcard imports in both
             tables originally.
-        :type shared_wildcard_imports: set[str]
-        :param bool include_arguments: whether or not to include symbols that
-                                       are routine arguments.
+        :param symbols_to_skip: an optional list of symbols to exclude from
+                                the merge.
+        :type symbols_to_skip: Iterable[
+            :py:class:`psyclone.psyir.symbols.Symbol`]
 
         :raises InternalError: if an imported symbol is found that has not
             already been updated to refer to a Container in this table.
 
         '''
-        if include_arguments:
-            symbols_to_skip = []
-        else:
-            symbols_to_skip = other_table.argument_list[:]
-
-        try:
-            # In the case where the 'other_table' belongs to a routine,
-            # we don't want or need the symbol representing that routine.
-            rsym = other_table.lookup_with_tag("own_routine_symbol")
-            if isinstance(rsym, RoutineSymbol):
-                # We only want to skip RoutineSymbols, not DataSymbols (which
-                # we may have if we have a Fortran function).
-                symbols_to_skip.append(rsym)
-        except KeyError:
-            pass
-
         for old_sym in other_table.symbols:
 
             if old_sym in symbols_to_skip or isinstance(old_sym,
@@ -761,32 +760,35 @@ class SymbolTable():
             self.rename_symbol(self_sym, new_name)
             self.add(old_sym)
 
-    def merge(self, other_table, include_arguments=True):
+    def merge(self, other_table, symbols_to_skip=()):
         '''Merges all of the symbols found in `other_table` into this
         table. Symbol objects in *either* table may be renamed in the
         event of clashes.
 
-        If `other_table` belongs to a Routine and contains a symbol with the
-        same name as the Routine (i.e. a function in Fortran) then that symbol
-        is *not* added to this symbol table. Also, if `include_arguments` is
-        False then any Symbols representing formal routine arguments are
-        excluded.
+        Any Symbols appearing in `symbols_to_skip` are excluded.
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool include_arguments: whether to include Symbols that \
-            represent routine arguments.
+        :param symbols_to_skip: an optional list of Symbols to exclude from
+                                the merge.
+        :type symbols_to_skip: Iterable[
+            :py:class:`psyclone.psyir.symbols.Symbol`]
 
         :raises TypeError: if `other_table` is not a SymbolTable.
+        :raises TypeError: if `symbols_to_skip` is not an Iterable.
         :raises SymbolError: if name clashes prevent the merge.
 
         '''
         if not isinstance(other_table, SymbolTable):
             raise TypeError(f"SymbolTable.merge() expects a SymbolTable "
                             f"instance but got '{type(other_table).__name__}'")
-
+        if not isinstance(symbols_to_skip, Iterable):
+            raise TypeError(
+                f"SymbolTable.merge() expects 'symbols_to_skip' to be an "
+                f"Iterable but got '{type(symbols_to_skip).__name__}'")
         try:
-            self.check_for_clashes(other_table)
+            self.check_for_clashes(other_table,
+                                   symbols_to_skip=symbols_to_skip)
         except SymbolError as err:
             raise SymbolError(
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
@@ -811,9 +813,9 @@ class SymbolTable():
         self._add_container_symbols_from_table(other_table)
 
         # Copy each Symbol from the supplied table into this one, excluding
-        # ContainerSymbols and, optionally, those that represent formal args.
+        # ContainerSymbols and any listed in `symbols_to_skip`.
         self._add_symbols_from_table(other_table, shared_wildcard_imports,
-                                     include_arguments)
+                                     symbols_to_skip=symbols_to_skip)
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
