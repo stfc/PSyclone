@@ -42,7 +42,7 @@ correctly'''
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
     ImportInterface, ScalarType, AutomaticInterface, ArgumentInterface, \

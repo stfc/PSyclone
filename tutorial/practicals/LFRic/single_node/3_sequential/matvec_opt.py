@@ -44,10 +44,8 @@ command, it is not designed to be directly run from python.
 
 '''
 from __future__ import print_function
-import sys
 from psyclone.psyir.nodes import BinaryOperation
 from psyclone.psyir.transformations import Matmul2CodeTrans
-from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def trans(psy):

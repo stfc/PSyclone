@@ -47,8 +47,7 @@ from psyclone.core import AccessType
 from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
                                    KernelInterface, LFRicConstants)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import (CommentGen, DeclGen, ModuleGen, SubroutineGen,
-                              UseGen)
+from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader

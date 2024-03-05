@@ -41,8 +41,6 @@ This module provides support for verifying that the real inputs and outputs
 of a kernel are valid numbers (i.e. neither NAN nor infinite).
 '''
 
-
-from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
