@@ -2216,7 +2216,8 @@ class DynMeshes():
                 last_cell = self._schedule.symbol_table.find_or_create_array(
                     base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
             # Add these symbols into the DynInterGrid entry for this kernel
-            call._intergrid_ref.set_colour_info(colour_map, ncolours, last_cell)
+            call._intergrid_ref.set_colour_info(colour_map, ncolours,
+                                                last_cell)
 
         if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):

@@ -923,11 +923,12 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = ("CALL columnwise_op_asm_kernel_scalar_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
-                "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
-                "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha_1, "
-                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-                "cma_op1_alpha, ndf_aspc1_lma_op1, cbanded_map_aspc1_lma_op1, "
-                "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)")
+                "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), "
+                "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+                "cma_op1_alpha_1, cma_op1_beta, cma_op1_gamma_m, "
+                "cma_op1_gamma_p, cma_op1_alpha, ndf_aspc1_lma_op1, "
+                "cbanded_map_aspc1_lma_op1, ndf_aspc2_lma_op1, "
+                "cbanded_map_aspc2_lma_op1)")
 
     assert expected in code
 

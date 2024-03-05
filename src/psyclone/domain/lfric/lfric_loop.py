@@ -157,8 +157,8 @@ class LFRicLoop(PSyLoop):
             # kernel in its loop_body
             for child in self.loop_body.children:
                 child.lower_to_language_level()
-            # TODO #1010: This restriction can be removed when also lowering the
-            # parent InvokeSchedule
+            # TODO #1010: This restriction can be removed when also lowering
+            # the parent InvokeSchedule
             if len(self.loop_body.children) > 1:
                 raise NotImplementedError(
                     f"Lowering LFRic domain loops that produce more than one "

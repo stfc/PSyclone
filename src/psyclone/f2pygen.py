@@ -1383,7 +1383,8 @@ class DoGen(BaseGen):
             return
 
         if position[0] == "auto" or position[0] == "append":
-            if position[0] == "auto" and bubble_up_type(content):  # pragma: no cover
+            if (position[0] == "auto" and
+                    bubble_up_type(content)):  # pragma: no cover
                 # use and declaration statements cannot appear in a do loop
                 # so pass on to parent
                 self.parent.add(content, bubble_up=True)
