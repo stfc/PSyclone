@@ -39,12 +39,9 @@
 ''' Performs py.test tests on the Container PSyIR node. '''
 
 import pytest
-from psyclone.psyir.nodes import (Call, Container, KernelSchedule,
-                                  FileContainer, Return, Routine)
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (colored, Container, FileContainer,
+from psyclone.psyir.nodes import (Call, colored, Container, FileContainer,
                                   KernelSchedule, Return, Routine)
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
 from psyclone.tests.utilities import check_links
