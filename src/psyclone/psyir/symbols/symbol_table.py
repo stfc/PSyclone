@@ -610,6 +610,14 @@ class SymbolTable():
                         f"the supplied table imports it from Container "
                         f"'{other_sym.interface.container_symbol.name}'.")
                 continue
+            if (other_sym.is_unresolved and this_sym.is_unresolved and
+                    other_table.has_wildcard_imports() and
+                    self.has_wildcard_imports()):
+                # Both Symbols are unresolved and both tables have wildcard
+                # imports. Therefore we assume that the two symbols in fact
+                # represent the same memory location.
+                continue
+
             # Can either of them be renamed?
             try:
                 self.rename_symbol(this_sym, "", dry_run=True)
@@ -790,16 +798,11 @@ class SymbolTable():
             raise TypeError(
                 f"SymbolTable.merge() expects 'symbols_to_skip' to be an "
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
-        try:
-            self.check_for_clashes(other_table,
-                                   symbols_to_skip=symbols_to_skip)
-        except SymbolError as err:
-            raise SymbolError(
-                f"Cannot merge {other_table.view()} with {self.view()} due to "
-                f"unresolvable name clashes.") from err
 
         # Before we begin merging, check whether there are any wildcard
         # imports that are common to both tables.
+        shared_wildcard_imports = self.all_wildcard_imports
+        shared_wildcard_imports.intersection(other_table.all_wildcard_imports)
         shared_wildcard_imports = set()
         self_csyms = self.containersymbols
         for csym in self_csyms:
@@ -812,6 +815,14 @@ class SymbolTable():
                     shared_wildcard_imports.add(csym.name)
             except KeyError:
                 continue
+
+        try:
+            self.check_for_clashes(other_table, shared_wildcard_imports,
+                                   symbols_to_skip=symbols_to_skip)
+        except SymbolError as err:
+            raise SymbolError(
+                f"Cannot merge {other_table.view()} with {self.view()} due to "
+                f"unresolvable name clashes.") from err
 
         # Deal with any Container symbols first.
         self._add_container_symbols_from_table(other_table)
@@ -1715,6 +1726,15 @@ class SymbolTable():
                     return True
             current_table = current_table.parent_symbol_table()
         return False
+
+    @property
+    def all_wildcard_imports(self):
+        '''
+        :returns: set of the names of all Containers with wildcard imports
+                  into the current scope.
+        :rtype: set[str]
+        '''
+        raise NotImplementedError("fix me")
 
     def view(self):
         '''
