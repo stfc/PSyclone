@@ -865,8 +865,10 @@ def test_add_container_symbols_from_table():
     assert bclash_in_1.name != "bclash"
 
 
-def test_add_symbols_from_table():
-    '''Test for the 'internal' _add_symbols_from_table() method.'''
+def test_add_symbols_from_table_import_error():
+    '''Test that the 'internal' _add_symbols_from_table() method raises
+    the expected error if a Container import has not been updated before
+    it is called.'''
     table1 = symbols.SymbolTable()
     table2 = symbols.SymbolTable()
     csym = symbols.ContainerSymbol("ford")
@@ -878,10 +880,61 @@ def test_add_symbols_from_table():
     table2.add(symbols.DataSymbol("prefect", symbols.INTEGER_TYPE,
                                   interface=symbols.ImportInterface(csym2)))
     with pytest.raises(InternalError) as err:
-        table1._add_symbols_from_table(table2)
+        table1._add_symbols_from_table(table2, {})
     assert ("Symbol 'prefect' imported from 'ford' has not been updated to "
             "refer to the corresponding container in the current table."
             in str(err.value))
+
+
+def test_add_symbols_from_table_wildcard_import():
+    '''Test that _add_symbols_from_table() handles the case where the same
+    symbol is brought into scope via a wildcard import in both tables.
+
+    '''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    csym = symbols.ContainerSymbol("adagio")
+    table1.add(csym)
+    csym2 = csym.copy()
+    table2.add(csym2)
+    table1.new_symbol("concierto", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.UnresolvedType(),
+                      interface=symbols.UnresolvedInterface())
+    table2.new_symbol("concierto", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.UnresolvedType(),
+                      interface=symbols.UnresolvedInterface())
+    # With no shared wildcard imports this should raise an InternalError.
+    with pytest.raises(InternalError) as err:
+        table1._add_symbols_from_table(table2, shared_wildcard_imports={})
+    assert ("An unresolved Symbol named 'concierto' is present in both "
+            "tables and there are no common wildcard imports. This should "
+            "have been caught by SymbolTable._check_for_clashes()"
+            in str(err.value))
+    # With a shared wildcard import, table1 should be left unchanged.
+    table1._add_symbols_from_table(table2, shared_wildcard_imports={"john"})
+    assert len(table1._symbols) == 2
+    assert "adagio" in table1
+    assert "concierto" in table1
+
+
+def test_add_symbols_from_table_rename_existing():
+    '''Test that _add_symbols_from_table() will rename the symbol in the
+    current table if it can't rename the one in the other table.'''
+    table1 = symbols.SymbolTable()
+    table1.new_symbol("concierto", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.INTEGER_TYPE)
+    table2 = symbols.SymbolTable()
+    table2.new_symbol("adagio", symbol_type=symbols.ContainerSymbol)
+    table2.new_symbol("concierto", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.UnresolvedType(),
+                      interface=symbols.UnresolvedInterface())
+    table1._add_symbols_from_table(table2, shared_wildcard_imports={})
+    assert len(table1._symbols) == 2
+    # The original, integer scalar symbol should have been renamed.
+    orig_sym = table1.lookup("concierto_1")
+    assert orig_sym.datatype == symbols.INTEGER_TYPE
+    new_sym = table1.lookup("concierto")
+    assert isinstance(new_sym.datatype, symbols.UnresolvedType)
 
 
 def test_swap_symbol_properties():
@@ -2478,8 +2531,9 @@ def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
     # name_public2 also has been imported because it is a public symbol
     assert "name_public2" in symtab
     # even though we capture that other symbols are private by default
-    assert symtab.lookup("b_mod").container.symbol_table \
-        .default_visibility == symbols.Symbol.Visibility.PRIVATE
+    ctr = symtab.lookup("b_mod").container()
+    assert (ctr.symbol_table.default_visibility ==
+            symbols.Symbol.Visibility.PRIVATE)
     assert "other_private" not in symtab
 
 
