@@ -52,7 +52,6 @@ from psyclone.psyGen import PSyFactory
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          os.pardir, os.pardir, "test_files", "dynamo0p3")
-
 TEST_API = "dynamo0.3"
 
 
