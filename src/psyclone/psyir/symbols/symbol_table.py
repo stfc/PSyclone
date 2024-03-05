@@ -1465,7 +1465,7 @@ class SymbolTable():
 
         for c_symbol in container_symbols:
             try:
-                external_container = c_symbol.container(local_node=self.node)
+                external_container = c_symbol.container #(local_node=self.node)
             # pylint: disable=broad-except
             except Exception:
                 # Ignore this container if the associated module file has not
