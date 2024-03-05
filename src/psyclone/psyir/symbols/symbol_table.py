@@ -714,12 +714,15 @@ class SymbolTable():
 
             except KeyError:
                 # We have a clash with a symbol in this table.
-                self._handle_symbol_clash(other_table, old_sym,
+                self._handle_symbol_clash(old_sym, other_table,
                                           shared_wildcard_imports)
 
-    def _handle_symbol_clash(self, other_table, old_sym,
+    def _handle_symbol_clash(self, old_sym, other_table,
                              shared_wildcard_imports):
         '''
+        Adds the supplied Symbol to the current table in the presence
+        of a name clash.
+
         '''
         if old_sym.is_import:
             # This symbol is imported from a Container so should
@@ -745,7 +748,8 @@ class SymbolTable():
             # them. This should have been picked up in _check_for_clashes().
             raise InternalError(
                 f"An unresolved Symbol named '{old_sym.name}' is present in "
-                f"both tables. This should have been caught by "
+                f"both tables and there are no common wildcard imports. This "
+                f"should have been caught by "
                 f"SymbolTable._check_for_clashes().")
 
         # A Symbol with the same name already exists so we attempt to rename
@@ -1604,19 +1608,19 @@ class SymbolTable():
         :param symbol: the symbol to be renamed.
         :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param str name: the new name.
-        :param bool dry_run: if True then only the validation checks are \
+        :param bool dry_run: if True then only the validation checks are
                              performed.
 
         :raises TypeError: if the symbol is not a Symbol.
         :raises TypeError: if the name is not a str.
-        :raises ValueError: if the given symbol does not belong to this \
+        :raises ValueError: if the given symbol does not belong to this
                             symbol table.
-        :raises KeyError: if the given variable name already exists in the \
-                          symbol table.
-        :raises SymbolError: if the specified Symbol is a ContainerSymbol, is \
-                             imported or is a formal routine argument.
-        :raises SymbolError: if the specified Symbol is accessed within a \
-                             CodeBlock in the scope of this table.
+        :raises KeyError: if the given variable name already exists in the
+                symbol table.
+        :raises SymbolError: if the specified Symbol is a ContainerSymbol, is
+            imported/unresolved or is a formal routine argument.
+        :raises SymbolError: if the specified Symbol is accessed within a
+            CodeBlock in the scope of this table.
         :raises SymbolError: if the symbol has a common block interface.
 
         '''
@@ -1639,6 +1643,11 @@ class SymbolTable():
                 f"Cannot rename symbol '{symbol.name}' because it is imported "
                 f"(from Container '{symbol.interface.container_symbol.name}')."
             )
+
+        if symbol.is_unresolved:
+            raise SymbolError(
+                f"Cannot rename symbol '{symbol.name}' because it is "
+                f"unresolved.")
 
         if symbol.is_argument:
             raise SymbolError(
