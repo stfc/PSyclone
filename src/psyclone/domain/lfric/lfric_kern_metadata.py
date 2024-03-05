@@ -317,6 +317,7 @@ class LFRicKernMetadata(KernelType):
         # Perform checks for a kernel with operates_on == domain
         self._validate_operates_on_domain(need_evaluator)
 
+
     def _validate_inter_grid(self):
         '''
         Checks that the kernel metadata obeys the rules for LFRic inter-grid

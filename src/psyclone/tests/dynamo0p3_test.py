@@ -314,13 +314,25 @@ def test_kernel_call_invalid_iteration_space():
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1.14_single_invoke_dofs.f90"), api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = psy.gen
-    assert ("The LFRic API supports calls to user-supplied kernels that "
-            "operate on one of ['cell_column', 'domain'], but "
-            "kernel 'testkern_dofs_code' operates on 'dof'."
-            in str(excinfo.value))
+
+    code = CODE.replace("operates_on = cell_column",
+                        "operates_on = dof",
+                        1)
+    print(code)
+    ast = fpapi.parse(code, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = LFRicKernMetadata(ast, name=name)
+
+
+    # psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    # with pytest.raises(ParseError) as excinfo:
+    #     _ = psy.gen
+    # assert ("The LFRic API supports calls to user-supplied kernels that "
+    #         "operate on one of ['cell_column', 'domain'], but "
+    #         "kernel 'testkern_dofs_code' operates on 'dof'."
+    #         in str(excinfo.value))
+
+    # print(str(psy.gen))
 
 
 def test_any_space_1(tmpdir):

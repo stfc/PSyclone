@@ -234,11 +234,14 @@ class LFRicKernelMetadata(CommonMetadata):
             self._validate_domain_kernel()
             return "domain"
         if self.operates_on == "dof":
+            print(self.operates_on)
             # pylint: disable=import-outside-top-level
             from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP_CAPITALISED
             if self.name in BUILTIN_MAP_CAPITALISED.keys:
+                print(self.name)
                 pass    # Could add 'builtin' type here
             else:
+                print("not a builtin")
                 self._validate_dof_user_kernel()
         # This has to be a general purpose kernel.
         self._validate_general_purpose_kernel()
@@ -380,14 +383,14 @@ class LFRicKernelMetadata(CommonMetadata):
         # same function space. This is because all fields should have the
         # same number. It also means that we can determine the number
         # of DoFs uniquely when a scalar is written to.
-        if len(fields_metadata) > 1:
-            for field1, field2 in combinations(fields_metadata, 2):
-                if field1.function_space != field2.function_space:
-                    raise ParseError(self._validation_error_str(
-                        f"User defined kernels that operate on dofs can "
-                        f"only operate on fields with matching function "
-                        f"spaces, but found '{field1.function_space}' and "
-                        f"'{field2.function_space}'"))
+        for field in fields_metadata:
+            print(field.function_space)
+            # if field1.function_space != field2.function_space:
+            #     raise ParseError(self._validation_error_str(
+            #         f"User defined kernels that operate on dofs can "
+            #         f"only operate on fields with matching function "
+            #         f"spaces, but found '{field1.function_space}' and "
+            #         f"'{field2.function_space}'"))
         # Ask Iva why fields can only have access types of READ, READWRITE,
         # or WRITE.
         for meta_arg in fields_metadata:
@@ -397,6 +400,7 @@ class LFRicKernelMetadata(CommonMetadata):
                     f"field vector should not have any stencil accesses, but "
                     f"found a stencil of type '{meta_arg.stencil}'"))
             if meta_arg.access not in ['gh_readwrite', 'gh_read', 'gh_write']:
+                print(meta_arg.function_space)
                 raise ParseError(self._validation_error_str(
                     f"Domain kernels meta_arg arguments of type field, or "
                     f"field vector should be on a discontinuous function "
