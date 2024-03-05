@@ -666,7 +666,8 @@ class SymbolTable():
                         self.lookup(csym.name),
                         orig_name=isym.interface.orig_name)
 
-    def _add_symbols_from_table(self, other_table, include_arguments=True):
+    def _add_symbols_from_table(self, other_table, shared_wildcard_imports,
+                                include_arguments=True):
         '''
         Takes symbols from the supplied symbol table and adds them to this
         table. _add_container_symbols_from_table() must have been called
@@ -675,10 +676,14 @@ class SymbolTable():
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool include_arguments: whether or not to include symbols that \
+        :param shared_wildcard_imports: set of the names of any
+            ContainerSymbols from which there were wildcard imports in both
+            tables originally.
+        :type shared_wildcard_imports: set[str]
+        :param bool include_arguments: whether or not to include symbols that
                                        are routine arguments.
 
-        :raises InternalError: if an imported symbol is found that has not \
+        :raises InternalError: if an imported symbol is found that has not
             already been updated to refer to a Container in this table.
 
         '''
@@ -710,27 +715,51 @@ class SymbolTable():
 
             except KeyError:
                 # We have a clash with a symbol in this table.
-                if old_sym.is_import:
-                    # This symbol is imported from a Container so should
-                    # already have been updated so as to be imported from the
-                    # corresponding container in this table.
-                    self_csym = self.lookup(
-                        old_sym.interface.container_symbol.name)
-                    if old_sym.interface.container_symbol is not self_csym:
-                        # pylint: disable=raise-missing-from
-                        raise InternalError(
-                            f"Symbol '{old_sym.name}' imported from "
-                            f"'{self_csym.name}' has not been updated to refer"
-                            f" to the corresponding container in the "
-                            f"current table.")
-                else:
-                    # A Symbol with the same name already exists so we rename
-                    # the one that we are adding. (We don't just create a new
-                    # Symbol because we need to preserve any References to it.)
-                    new_name = self.next_available_name(
-                        old_sym.name, other_table=other_table)
-                    other_table.rename_symbol(old_sym, new_name)
-                    self.add(old_sym)
+                self._handle_symbol_clash(other_table, old_sym,
+                                          shared_wildcard_imports)
+
+    def _handle_symbol_clash(self, other_table, old_sym,
+                             shared_wildcard_imports):
+        '''
+        '''
+        if old_sym.is_import:
+            # This symbol is imported from a Container so should
+            # already have been updated so as to be imported from the
+            # corresponding container in this table.
+            self_csym = self.lookup(old_sym.interface.container_symbol.name)
+            if old_sym.interface.container_symbol is self_csym:
+                return
+            raise InternalError(
+                f"Symbol '{old_sym.name}' imported from '{self_csym.name}' "
+                f"has not been updated to refer to the corresponding "
+                f"container in the current table.")
+        self_sym = self.lookup(old_sym.name)
+        if old_sym.is_unresolved and self_sym.is_unresolved:
+            if shared_wildcard_imports:
+                # The clashing symbols are both unresolved and there are
+                # wildcard imports that are common to both tables. Therefore
+                # we assume that the two symbols are referring to the same
+                # memory location and we don't have to do anything.
+                return
+            # The clashing symbols are unresolved and we don't know how they're
+            # being brought into scope. Therefore, we cannot rename either of
+            # them. This should have been picked up in _check_for_clashes().
+            raise InternalError(
+                f"An unresolved Symbol named '{old_sym.name}' is present in "
+                f"both tables. This should have been caught by "
+                f"SymbolTable._check_for_clashes().")
+
+        # A Symbol with the same name already exists so we attempt to rename
+        # first the one that we are adding and failing that, the existing
+        # symbol in this table.
+        new_name = self.next_available_name(
+            old_sym.name, other_table=other_table)
+        try:
+            other_table.rename_symbol(old_sym, new_name)
+            self.add(old_sym)
+        except SymbolError:
+            self.rename_symbol(self_sym, new_name)
+            self.add(old_sym)
 
     def merge(self, other_table, include_arguments=True):
         '''Merges all of the symbols found in `other_table` into this
@@ -763,12 +792,28 @@ class SymbolTable():
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
                 f"unresolvable name clashes.") from err
 
+        # Before we begin merging, check whether there are any wildcard
+        # imports that are common to both tables.
+        shared_wildcard_imports = set()
+        self_csyms = self.containersymbols
+        for csym in self_csyms:
+            if not csym.wildcard_import:
+                continue
+            try:
+                other_sym = other_table.lookup(csym.name)
+                if (isinstance(other_sym, ContainerSymbol) and
+                        other_sym.wildcard_import):
+                    shared_wildcard_imports.add(csym.name)
+            except KeyError:
+                continue
+
         # Deal with any Container symbols first.
         self._add_container_symbols_from_table(other_table)
 
         # Copy each Symbol from the supplied table into this one, excluding
         # ContainerSymbols and, optionally, those that represent formal args.
-        self._add_symbols_from_table(other_table, include_arguments)
+        self._add_symbols_from_table(other_table, shared_wildcard_imports,
+                                     include_arguments)
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
