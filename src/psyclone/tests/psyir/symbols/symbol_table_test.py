@@ -878,7 +878,7 @@ def test_add_symbols_from_table():
     table2.add(symbols.DataSymbol("prefect", symbols.INTEGER_TYPE,
                                   interface=symbols.ImportInterface(csym2)))
     with pytest.raises(InternalError) as err:
-        table1._add_symbols_from_table(table2)
+        table1._add_symbols_from_table(table2, {})
     assert ("Symbol 'prefect' imported from 'ford' has not been updated to "
             "refer to the corresponding container in the current table."
             in str(err.value))
