@@ -54,7 +54,7 @@ def trans(psy):
     '''PSyclone transformation script for the Dynamo0.3 API to optimise
     the matvec kernel for many-core CPUs. This is currently limited to
     running on the scaled_matrix_vector_code kernel but should work
-    more generally. Any matmul calls are replaced with inline matric
+    more generally. Any matmul calls are replaced with inline matrix
     vector code.
 
     :param psy: a PSyclone PSy object which captures the algorithm and \
