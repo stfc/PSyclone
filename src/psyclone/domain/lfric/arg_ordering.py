@@ -79,7 +79,7 @@ class ArgOrdering:
         # symbol table (required for stub generation atm).
         invoke_sched = None
         if kern:
-            invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
+            invoke_sched = kern.ancestor(psyGen.InvokeSchedule)  # noqa: F841
 
         # TODO #2503: This reference will not survive some tree modifications
         self._forced_symtab = None

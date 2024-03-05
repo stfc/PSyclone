@@ -902,9 +902,6 @@ class LFRicKern(CodedKern):
                 f"operate on one of {const.USER_KERNEL_ITERATION_SPACES}, but "
                 f"kernel '{self.name}' operates on '{self.iterates_over}'.")
 
-        # Get configuration for valid argument kinds
-        api_config = Config.get().api_conf("dynamo0.3")
-
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicLoop
         parent_loop = self.ancestor(LFRicLoop)
