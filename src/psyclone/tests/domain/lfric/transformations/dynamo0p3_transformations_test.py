@@ -3731,7 +3731,8 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
         for names in [
                 {"var": "asum", "lvar": "l_asum", "loop_idx": "0",
                  "rhs": "f1_data(df) * f2_data(df)",
-                 "builtin": "! Built-in: X_innerproduct_Y (real-valued fields)"},
+                 "builtin": "! Built-in: X_innerproduct_Y (real-valued fields)"
+                 },
                 {"var": "bsum", "lvar": "l_bsum",
                  "loop_idx": "2", "rhs": "f2_data(df)",
                  "builtin": "! Built-in: sum_X (sum a real-valued field)"}]:
