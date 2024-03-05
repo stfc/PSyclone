@@ -798,20 +798,17 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
         :param node: the Node in the Schedule to check.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations \
+        :param options: a dictionary with options for transformations
                         and validation.
-        :type options: Optional[Dict[str, Any]]
-        :param bool options["reprod"]: \
-                indicating whether reproducible reductions should be used. \
+        :type options: Optional[dict[str, Any]]
+        :param bool options["reprod"]:
+                indicating whether reproducible reductions should be used.
                 By default the value from the config file will be used.
 
         '''
-        if not options:
-            options = {}
-
         # Since this function potentially modifies the user's option
         # dictionary, create a copy:
-        options = options.copy()
+        options = options.copy() if options else {}
         # Make sure the default is set:
         options["reprod"] = options.get("reprod",
                                         Config.get().reproducible_reductions)
