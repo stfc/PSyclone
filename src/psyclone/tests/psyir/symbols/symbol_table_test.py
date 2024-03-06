@@ -713,6 +713,34 @@ def test_check_for_clashes_cannot_rename():
             "'NoneType'" in str(err.value))
 
 
+def test_check_for_clashes_wildcard_import():
+    '''Test check_for_clashes() in the presence of wildcard imports.'''
+    table1 = symbols.SymbolTable()
+    table2 = symbols.SymbolTable()
+    table1.add(symbols.ContainerSymbol("beta", wildcard_import=True))
+    table1.new_symbol("stavro", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.UnresolvedType(),
+                      interface=symbols.UnresolvedInterface())
+    table2.new_symbol("stavro", symbol_type=symbols.DataSymbol,
+                      datatype=symbols.UnresolvedType(),
+                      interface=symbols.UnresolvedInterface())
+    # Both symbols unresolved but no common wildcard import.
+    import pdb; pdb.set_trace()
+    with pytest.raises(symbols.SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("There is a name clash for symbol 'stavro' that cannot be resolved"
+            " by renaming one of the instances because:" in str(err.value))
+    # Add a wildcard import to the second table but from a different container.
+    table2.add(symbols.ContainerSymbol("romula", wildcard_import=True))
+    with pytest.raises(symbols.SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("There is a name clash for symbol 'stavro' that cannot be resolved"
+            " by renaming one of the instances because:" in str(err.value))
+    # Add a wildcard import from the same container as in the first table.
+    table2.add(symbols.ContainerSymbol("beta", wildcard_import=True))
+    table1.check_for_clashes(table2)
+
+
 def test_table_merge():
     ''' Test the SymbolTable.merge method. '''
     table1 = symbols.SymbolTable()

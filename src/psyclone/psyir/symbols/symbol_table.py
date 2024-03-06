@@ -562,8 +562,7 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def check_for_clashes(self, other_table, shared_wildcard_imports=(),
-                          symbols_to_skip=()):
+    def check_for_clashes(self, other_table, symbols_to_skip=()):
         '''
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
@@ -588,6 +587,11 @@ class SymbolTable():
                 f"check_for_clashes: 'symbols_to_skip' must be an instance of "
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
+        # Check whether there are any wildcard imports common to both tables.
+        shared_wildcard_imports = self.wildcard_imports(collect_all=True)
+        shared_wildcard_imports.intersection(
+            other_table.wildcard_imports(collect_all=True))
+
         for other_sym in other_table.symbols:
             if other_sym.name not in self or other_sym in symbols_to_skip:
                 continue
@@ -598,6 +602,7 @@ class SymbolTable():
             if (isinstance(this_sym, ContainerSymbol) and
                     isinstance(other_sym, ContainerSymbol)):
                 continue
+
             if other_sym.is_import and this_sym.is_import:
                 # Both symbols are imported. That's fine as long as they are
                 # imported from the same Container.
@@ -611,13 +616,19 @@ class SymbolTable():
                         f"the supplied table imports it from Container "
                         f"'{other_sym.interface.container_symbol.name}'.")
                 continue
-            if (other_sym.is_unresolved and this_sym.is_unresolved and
-                    other_table.wildcard_imports() and
-                    shared_wildcard_imports):
-                # Both Symbols are unresolved and both tables have wildcard
-                # imports. Therefore we assume that the two symbols in fact
-                # represent the same memory location.
-                continue
+
+            if other_sym.is_unresolved and this_sym.is_unresolved:
+                # Both Symbols are unresolved.
+                if shared_wildcard_imports:
+                    # The tables have one or more wildcard imports in common.
+                    # Therefore we assume that the two symbols in fact
+                    # represent the same memory location.
+                    continue
+                # We can't rename a symbol if we don't know its origin.
+                raise SymbolError(
+                    f"A symbol named '{this_sym.name}' is present but "
+                    f"unresolved in both tables and they do not share a "
+                    f"wildcard import that could be bringing it into scope.")
 
             # Can either of them be renamed?
             try:
@@ -807,7 +818,7 @@ class SymbolTable():
             other_table.wildcard_imports(collect_all=True))
 
         try:
-            self.check_for_clashes(other_table, shared_wildcard_imports,
+            self.check_for_clashes(other_table,
                                    symbols_to_skip=symbols_to_skip)
         except SymbolError as err:
             raise SymbolError(
