@@ -964,8 +964,7 @@ class FortranWriter(LanguageWriter):
         except KeyError:
             internal_interface_symbol = None
         if unresolved_symbols and not (
-                symbol_table.has_wildcard_imports() or
-                internal_interface_symbol):
+                symbol_table.wildcard_imports() or internal_interface_symbol):
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(

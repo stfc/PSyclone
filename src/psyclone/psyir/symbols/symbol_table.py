@@ -562,7 +562,8 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def check_for_clashes(self, other_table, symbols_to_skip=()):
+    def check_for_clashes(self, other_table, shared_wildcard_imports=(),
+                          symbols_to_skip=()):
         '''
         Checks the symbols in the supplied table against those in
         this table. If there is a name clash that cannot be resolved by
@@ -611,8 +612,8 @@ class SymbolTable():
                         f"'{other_sym.interface.container_symbol.name}'.")
                 continue
             if (other_sym.is_unresolved and this_sym.is_unresolved and
-                    other_table.has_wildcard_imports() and
-                    self.has_wildcard_imports()):
+                    other_table.wildcard_imports() and
+                    shared_wildcard_imports):
                 # Both Symbols are unresolved and both tables have wildcard
                 # imports. Therefore we assume that the two symbols in fact
                 # represent the same memory location.
@@ -801,20 +802,9 @@ class SymbolTable():
 
         # Before we begin merging, check whether there are any wildcard
         # imports that are common to both tables.
-        shared_wildcard_imports = self.all_wildcard_imports
-        shared_wildcard_imports.intersection(other_table.all_wildcard_imports)
-        shared_wildcard_imports = set()
-        self_csyms = self.containersymbols
-        for csym in self_csyms:
-            if not csym.wildcard_import:
-                continue
-            try:
-                other_sym = other_table.lookup(csym.name)
-                if (isinstance(other_sym, ContainerSymbol) and
-                        other_sym.wildcard_import):
-                    shared_wildcard_imports.add(csym.name)
-            except KeyError:
-                continue
+        shared_wildcard_imports = self.wildcard_imports(collect_all=True)
+        shared_wildcard_imports.intersection(
+            other_table.wildcard_imports(collect_all=True))
 
         try:
             self.check_for_clashes(other_table, shared_wildcard_imports,
@@ -1710,31 +1700,32 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def has_wildcard_imports(self):
+    def wildcard_imports(self, collect_all=False):
         '''
         Searches this symbol table and then up through any parent symbol
-        tables for a ContainerSymbol that has a wildcard import.
+        tables for a ContainerSymbol that has a wildcard import. If
+        `collect_all` is false then the returned set will just contain the
+        name of hte first one found. Otherwise, it will contain the names
+        of all containers which have wildcard imports into this scope.
 
-        :returns: True if a wildcard import is found, False otherwise.
-        :rtype: bool
+        :param bool collect_all: whether or not to collect all containers
+            with wildcard imports or just return the first one found.
+
+        :returns: the name(s) of containers which have wildcard imports
+            into the current scope.
+        :rtype: set[str]
 
         '''
+        wildcards = set()
         current_table = self
         while current_table:
             for sym in current_table.containersymbols:
                 if sym.wildcard_import:
-                    return True
+                    wildcards.add(sym.name)
+                    if not collect_all:
+                        return wildcards
             current_table = current_table.parent_symbol_table()
-        return False
-
-    @property
-    def all_wildcard_imports(self):
-        '''
-        :returns: set of the names of all Containers with wildcard imports
-                  into the current scope.
-        :rtype: set[str]
-        '''
-        raise NotImplementedError("fix me")
+        return wildcards
 
     def view(self):
         '''
