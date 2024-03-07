@@ -695,4 +695,3 @@ def test_character_validation(fortran_reader):
 
     trans = NemoArrayRange2LoopTrans()
     trans.validate(assign)
-

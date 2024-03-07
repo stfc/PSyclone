@@ -352,8 +352,8 @@ class NemoArrayRange2LoopTrans(Transformation):
                         "transformation."
                     )
             except NotImplementedError:
-                print("HELLO")
                 pass
+
 
 # For automatic document generation
 __all__ = [
