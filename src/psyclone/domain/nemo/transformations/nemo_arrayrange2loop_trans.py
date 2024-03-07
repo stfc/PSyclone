@@ -340,17 +340,20 @@ class NemoArrayRange2LoopTrans(Transformation):
             # Skip over indices
             if child.ancestor(ArrayReference) is not None:
                 continue
-            # Skip unresolved types
-            if isinstance(child.datatype, UnresolvedType):
-                continue
-            if child.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                raise TransformationError(
-                    "The NemoArrayRange2LoopTrans transformation doesn't "
-                    "allow character arrays by default. This can be "
-                    "enabled by passing the allow_string option to the "
-                    "transformation."
-                )
-
+            try:
+                # Skip unresolved types
+                if isinstance(child.datatype, UnresolvedType):
+                    continue
+                if child.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                    raise TransformationError(
+                        "The NemoArrayRange2LoopTrans transformation doesn't "
+                        "allow character arrays by default. This can be "
+                        "enabled by passing the allow_string option to the "
+                        "transformation."
+                    )
+            except NotImplementedError:
+                print("HELLO")
+                pass
 
 # For automatic document generation
 __all__ = [

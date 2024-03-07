@@ -684,14 +684,15 @@ def test_character_validation(fortran_reader):
         "passing the allow_string option to the transformation."
         in str(info.value))
 
-    # Check we accept when we don't know
+    # Check we accept when we don't know due to expression in array indexing
     code = '''subroutine test()
     use some_mod
 
-    a(1:94) = b(1:94)
+    a(1:94) = b(3-2)
     end subroutine test'''
     psyir = fortran_reader.psyir_from_source(code)
     assign = psyir.walk(Range)[0]
 
     trans = NemoArrayRange2LoopTrans()
     trans.validate(assign)
+
