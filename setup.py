@@ -90,7 +90,7 @@ BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
           encoding="utf-8") as vfile:
     exec(vfile.read())  # pylint:disable=exec-used
-VERSION = __VERSION__  # pylint:disable=undefined-variable
+VERSION = __VERSION__  # pylint:disable=undefined-variable # noqa: F821
 
 if __name__ == '__main__':
 

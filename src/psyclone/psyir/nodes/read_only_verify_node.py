@@ -45,7 +45,6 @@ There is currently only one class in this module: ReadOnlyVerifyNode.
 
 '''
 
-from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
