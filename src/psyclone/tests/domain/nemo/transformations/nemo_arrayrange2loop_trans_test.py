@@ -683,3 +683,15 @@ def test_character_validation(fortran_reader):
         "character arrays by default. This can be enabled by "
         "passing the allow_string option to the transformation."
         in str(info.value))
+
+    # Check we accept when we don't know
+    code = '''subroutine test()
+    use some_mod
+
+    a(1:94) = b(1:94)
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    trans.validate(assign)
