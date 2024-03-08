@@ -98,7 +98,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     # Check for the correct declarations
     output = (
         "      TYPE(integer_field_type), intent(in) :: f3, f1, f2\n"
-        "      INTEGER df\n"
+        "      INTEGER(KIND=i_def) df\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def), pointer, dimension(:) :: f2_data => "
         "null()\n"
@@ -130,7 +130,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO df=loop0_start,loop0_stop\n"
+            "      DO df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: int_X_plus_Y (add integer-valued fields)\n"
             "        f3_data(df) = f1_data(df) + f2_data(df)\n"
             "      END DO")
@@ -141,7 +141,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
-            "      DO df=loop0_start,loop0_stop\n"
+            "      DO df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: int_X_plus_Y (add integer-valued fields)\n"
             "        f3_data(df) = f1_data(df) + f2_data(df)\n"
             "      END DO\n"
