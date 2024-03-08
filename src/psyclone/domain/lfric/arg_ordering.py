@@ -74,12 +74,6 @@ class ArgOrdering:
         # TODO #2503: This reference will not survive some tree modifications
         self._kern = kern
         self._generate_called = False
-        # If available, get an existing symbol table to create unique names
-        # and symbols required for PSyIR. Otherwise just create a new
-        # symbol table (required for stub generation atm).
-        invoke_sched = None
-        if kern:
-            invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
 
         # TODO #2503: This reference will not survive some tree modifications
         self._forced_symtab = None

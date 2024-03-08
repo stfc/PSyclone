@@ -51,12 +51,10 @@ from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
 from psyclone.errors import InternalError
-from psyclone.f2pygen import PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Reference, IntrinsicCall)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.utils import a_or_an
 
 # The name of the file containing the meta-data describing the
