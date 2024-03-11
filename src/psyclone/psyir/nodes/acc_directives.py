@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -123,7 +123,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynInvokeSchedule
         from psyclone.gocean1p0 import GOInvokeSchedule
-        from psyclone.psyir.tools import DependencyTools
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 
         if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
             # Look-up the kernels that are children of this node
@@ -133,7 +133,7 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
                     sig_set.add(Signature(arg_str))
             return (sig_set, )
 
-        rwi = DependencyTools().get_in_out_parameters(self.children)
+        rwi = CallTreeUtils().get_in_out_parameters(self.children)
         return (set(rwi.signatures_read),
                 set(rwi.signatures_written))
 

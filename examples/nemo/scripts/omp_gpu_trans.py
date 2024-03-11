@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,13 +37,14 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
-from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information, add_profiling
-
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.nodes import Call, Loop
+from psyclone.psyir.nodes import (
+    Call, Loop, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans
+
+from utils import insert_explicit_loop_parallelism, normalise_loops, \
+    enhance_tree_information, add_profiling
 
 PROFILING_ENABLED = True
 
@@ -84,6 +85,12 @@ def trans(psy):
             print("Skipping", invoke.name)
             continue
 
+        # The nvidia compiler does not compile a loop over a string in
+        # this subroutine:
+        if invoke.name in ("bdytide_init", "sbc_cpl_init"):
+            print("Skipping", invoke.name)
+            continue
+
         # This are functions with scalar bodies, we don't want to parallelise
         # them, but we could:
         # - Inine them
@@ -100,6 +107,7 @@ def trans(psy):
                 invoke.schedule,
                 hoist_local_arrays=True,
                 convert_array_notation=True,
+                loopify_array_intrinsics=True,
                 convert_range_loops=True,
                 hoist_expressions=True
         )
@@ -111,6 +119,28 @@ def trans(psy):
                 if all(call.is_available_on_device() for call in calls):
                     OMPDeclareTargetTrans().apply(invoke.schedule)
                     continue
+
+        # For now this is a special case for stpctl.f90 because it forces
+        # loops to parallelise without many safety checks
+        # TODO #2446: This needs to be generalised and probably be done
+        # from inside the loop transformation when the race condition data
+        # dependency is found.
+        if psy.name == "psy_stpctl_psy":
+            for loop in invoke.schedule.walk(Loop):
+                # Skip if an outer loop is already parallelised
+                if loop.ancestor(Directive):
+                    continue
+                omp_loop_trans.apply(loop, options={"force": True})
+                omp_target_trans.apply(loop.parent.parent)
+                assigns = loop.walk(Assignment)
+                if len(assigns) == 1 and assigns[0].lhs.symbol.name == "zmax":
+                    stmt = assigns[0]
+                    if OMPAtomicDirective.is_valid_atomic_statement(stmt):
+                        parent = stmt.parent
+                        atomic = OMPAtomicDirective()
+                        atomic.children[0].addchild(stmt.detach())
+                        parent.addchild(atomic)
+            continue
 
         insert_explicit_loop_parallelism(
                 invoke.schedule,

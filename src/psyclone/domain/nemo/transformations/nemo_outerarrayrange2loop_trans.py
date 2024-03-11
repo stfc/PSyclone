@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -113,7 +113,8 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         self.validate(node)
 
         # Get deepest array in LHS (excluding inside Ranges)
-        lhs_array_ref = node.lhs.walk(ArrayMixin, stop_type=Range)[-1]
+        deepest_range = node.lhs.walk(Range, stop_type=Range)[-1]
+        lhs_array_ref = deepest_range.parent
         index = lhs_array_ref.get_outer_range_index()
         nemo_arrayrange2loop = NemoArrayRange2LoopTrans()
         nemo_arrayrange2loop.apply(lhs_array_ref.children[index])

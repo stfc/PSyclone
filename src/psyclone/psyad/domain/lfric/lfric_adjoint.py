@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
+from psyclone.psyir.symbols import ContainerSymbol
 from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
 
 
@@ -116,17 +116,15 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     # help fix this problem as it would only be arguments that would
     # need to have the same names.
 
+    ctr_table = ad_container.symbol_table
+
+    # Re-name the routines that we've adjointed.
     for routine in routines:
 
-        # We need to re-name the kernel routine.
-        kernel_sym = ad_container.symbol_table.lookup(routine.name)
-        adj_kernel_name = create_adjoint_name(routine.name)
-        # A symbol's name is immutable so create a new RoutineSymbol
-        adj_kernel_sym = ad_container.symbol_table.new_symbol(
-            adj_kernel_name, symbol_type=RoutineSymbol,
-            visibility=kernel_sym.visibility)
-        ad_container.symbol_table.remove(kernel_sym)
-        routine.name = adj_kernel_sym.name
+        kernel_sym = ctr_table.lookup(routine.name)
+        adj_kernel_name = create_adjoint_name(routine.name, table=ctr_table)
+        ctr_table.rename_symbol(kernel_sym, adj_kernel_name)
+        routine.name = adj_kernel_name
 
         logger.debug("AD LFRic kernel will be named '%s'", routine.name)
 

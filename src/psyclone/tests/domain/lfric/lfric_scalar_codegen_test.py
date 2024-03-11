@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -152,8 +152,7 @@ def test_real_scalar(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_code(nlayers, a, f1_data, f2_data,"
         " m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
@@ -261,8 +260,7 @@ def test_int_scalar(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_one_int_scalar_code(nlayers, f1_data, "
         "iflag, f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -371,8 +369,7 @@ def test_two_real_scalars(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_two_real_scalars_code(nlayers, a, "
         "f1_data, f2_data, m1_data, m2_data, "
         "b, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
@@ -482,8 +479,7 @@ def test_two_int_scalars(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_two_int_scalars_code(nlayers, iflag, "
         "f1_data, f2_data, m1_data, m2_data, istep, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
@@ -491,8 +487,7 @@ def test_two_int_scalars(tmpdir):
     assert expected in generated_code
     # Check that we pass iflag by value in the second kernel call
     expected = (
-        "      DO cell=loop1_start,loop1_stop\n"
-        "        !\n"
+        "      DO cell = loop1_start, loop1_stop, 1\n"
         "        CALL testkern_two_int_scalars_code(nlayers, 1, "
         "f1_data, f2_data, m1_data, m2_data, iflag, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
@@ -607,8 +602,7 @@ def test_three_scalars(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_three_scalars_code(nlayers, a, f1_data, "
         "f2_data, m1_data, m2_data, lswitch, istep, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "

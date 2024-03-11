@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council
+# Copyright (c) 2019-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -152,11 +152,11 @@ class ExtractNode(PSyDataNode):
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
         # Determine the variables to write:
-        dep = DependencyTools()
+        ctu = CallTreeUtils()
         read_write_info = \
-            dep.get_in_out_parameters(self, options=self.options)
+            ctu.get_in_out_parameters(self, options=self.options)
         options = {'pre_var_list': read_write_info.read_list,
                    'post_var_list': read_write_info.write_list,
                    'post_var_postfix': self._post_name}
@@ -181,11 +181,11 @@ class ExtractNode(PSyDataNode):
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
         # Determine the variables to write:
-        dep = DependencyTools()
+        ctu = CallTreeUtils()
         read_write_info = \
-            dep.get_in_out_parameters(self, options=self.options)
+            ctu.get_in_out_parameters(self, options=self.options)
 
         options = {'pre_var_list': read_write_info.read_list,
                    'post_var_list': read_write_info.write_list,

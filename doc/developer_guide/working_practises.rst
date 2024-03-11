@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -526,7 +526,7 @@ provides the `\:ref_guide\:` role. (The source for this
 plugin may be found in the ``PSyclone/docs/_ext/apilinks.py`` file.) The format
 to use when adding a link to the Reference Guide is then, e.g.::
 
-  :ref_guide:`anchor text psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnknownType`
+  :ref_guide:`anchor text psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnsupportedType`
 
 The URL to prepend to the supplied target is set via a new Sphinx
 configuration variable named ``ref_guide_base`` in the ``conf.py``

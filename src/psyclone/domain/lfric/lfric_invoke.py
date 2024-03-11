@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,7 @@ class LFRicInvoke(Invoke):
 
     '''
     # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-locals
     def __init__(self, alg_invocation, idx, invokes):
         if not alg_invocation and not idx:
             # This 'if' test is added to support pyreverse
@@ -80,7 +81,6 @@ class LFRicInvoke(Invoke):
         reserved_names_list = []
         const = LFRicConstants()
         reserved_names_list.extend(const.STENCIL_MAPPING.values())
-        reserved_names_list.extend(const.VALID_STENCIL_DIRECTIONS)
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
@@ -93,29 +93,27 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import (DynStencils,
-                                        DynFunctionSpaces, DynDofmaps,
-                                        LFRicFields, DynLMAOperators,
+        from psyclone.dynamo0p3 import (DynFunctionSpaces, DynGlobalSum,
+                                        DynLMAOperators, DynReferenceElement,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
                                         DynProxies, DynCellIterators,
-                                        DynReferenceElement,
-                                        LFRicMeshProperties,
-                                        DynGlobalSum)
+                                        LFRicMeshProperties)
         from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
-                                           LFRicScalarArgs)
+                                           LFRicScalarArgs, LFRicFields,
+                                           LFRicDofmaps, LFRicStencils)
 
         self.scalar_args = LFRicScalarArgs(self)
 
         # Initialise our Invoke stencil information
-        self.stencil = DynStencils(self)
+        self.stencil = LFRicStencils(self)
 
         # Initialise our information on the function spaces used by this Invoke
         self.function_spaces = DynFunctionSpaces(self)
 
         # Initialise the object holding all information on the dofmaps
         # required by this Invoke
-        self.dofmaps = DynDofmaps(self)
+        self.dofmaps = LFRicDofmaps(self)
 
         # Initialise information on all of the fields accessed in this Invoke
         self.fields = LFRicFields(self)

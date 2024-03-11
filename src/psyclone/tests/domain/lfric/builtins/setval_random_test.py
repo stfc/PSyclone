@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,7 @@ def test_setval_random(tmpdir):
     # Test code generation
     code = str(psy.gen)
     output = (
-        "      DO df=loop0_start,loop0_stop\n"
+        "      DO df = loop0_start, loop0_stop, 1\n"
         "        CALL RANDOM_NUMBER(f1_data(df))\n"
         "      END DO\n")
     assert output in code

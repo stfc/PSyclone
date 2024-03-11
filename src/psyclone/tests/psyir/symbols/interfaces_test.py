@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,10 @@
 
 import pytest
 
-from psyclone.psyir.symbols.interfaces import SymbolInterface, \
-    AutomaticInterface, ArgumentInterface, ImportInterface, \
-    UnresolvedInterface, StaticInterface, DefaultModuleInterface, \
-    CommonBlockInterface, UnknownInterface
+from psyclone.psyir.symbols.interfaces import (
+     AutomaticInterface, ArgumentInterface, CommonBlockInterface,
+     DefaultModuleInterface, ImportInterface,
+     StaticInterface, SymbolInterface, UnknownInterface, UnresolvedInterface)
 from psyclone.psyir.symbols import ContainerSymbol
 
 

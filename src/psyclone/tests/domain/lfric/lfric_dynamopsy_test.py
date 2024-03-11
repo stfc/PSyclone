@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -171,8 +171,7 @@ def test_dynamopsy_gen(monkeypatch):
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
     assert (
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_code(nlayers, ginger, f1_data, "
         "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -183,6 +182,6 @@ def test_dynamopsy_gen(monkeypatch):
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
         "      !\n"
-        "      DO df=loop1_start,loop1_stop\n"
+        "      DO df = loop1_start, loop1_stop, 1\n"
         "        f1_data(df) = 0.0_r_def\n"
         "      END DO\n" in result)

@@ -44,7 +44,7 @@ psyclone -s ./opencl_transformation.py -api gocean1.0 shallow_alg.f90
 
 BSD 3-Clause License
 
-Copyright (c) 2017-2021, Science and Technology Facilities Council.
+Copyright (c) 2017-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

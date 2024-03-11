@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
 
-    assert (
+    expected = (
         "subroutine tmp(a, b, c)\n"
         "  use iso_c_binding, only : c_int\n"
         "  real, dimension(:), intent(out) :: a\n"
@@ -84,8 +84,17 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
         "    a = b / c\n"
         "  end if\n"
         "\n"
-        "end subroutine tmp\n") in result
+        "end subroutine tmp\n")
+    assert expected in result
     assert Compile(tmpdir).string_compiles(result)
+    # Repeat for the situation where the 'own_routine_symbol' is not present
+    # in the Routine's symbol table.
+    routine = psyir.walk(nodes.Routine)[0]
+    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol")
+    assert isinstance(rsym, symbols.RoutineSymbol)
+    routine.symbol_table.remove(rsym)
+    result = fortran_writer(schedule)
+    assert expected in result
 
     # Add distinctly named symbols in the routine sub-scopes
     sub_scopes = schedule.walk(nodes.Schedule)[1:]
@@ -213,31 +222,36 @@ def test_fw_routine_program(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir):
+@pytest.mark.parametrize("result_decl", ["real :: val",
+                                         "real, volatile :: val"])
+def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir,
+                             result_decl):
     ''' Check that the FortranWriter outputs a function when a routine node
-    is found with return_symbol set.
+    is found with return_symbol set. We check for both supported and
+    unsupported (e.g. with the 'volatile' attribute) forms of declaration for
+    that symbol.
 
     '''
-    code = ("module test\n"
-            "implicit none\n"
-            "real :: a\n"
-            "contains\n"
-            "function tmp(b) result(val)\n"
-            "  real :: val\n"
-            "  real :: b\n"
-            "  val = a + b\n"
-            "end function tmp\n"
-            "end module test")
+    code = (f"module test\n"
+            f"implicit none\n"
+            f"real :: a\n"
+            f"contains\n"
+            f"function tmp(b) result(val)\n"
+            f"  {result_decl}\n"
+            f"  real :: b\n"
+            f"  val = a + b\n"
+            f"end function tmp\n"
+            f"end module test")
     container = fortran_reader.psyir_from_source(code)
     # Generate Fortran from PSyIR
     result = fortran_writer(container)
     assert (
-        "  contains\n"
-        "  function tmp(b) result(val)\n"
-        "    real :: b\n"
-        "    real :: val\n\n"
-        "    val = a + b\n\n"
-        "  end function tmp\n" in result)
+        f"  contains\n"
+        f"  function tmp(b) result(val)\n"
+        f"    real :: b\n"
+        f"    {result_decl}\n\n"
+        f"    val = a + b\n\n"
+        f"  end function tmp\n" in result.lower())
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -290,7 +304,7 @@ def test_fw_routine_flatten_tables(fortran_reader, fortran_writer):
     # Add an import to this symbol table that will clash with symbols already
     # declared in the routine table.
     csym = symbols.ContainerSymbol("the_clash")
-    ssym = symbols.DataSymbol("strummer", datatype=symbols.DeferredType(),
+    ssym = symbols.DataSymbol("strummer", datatype=symbols.UnresolvedType(),
                               interface=symbols.ImportInterface(csym))
     # Add a variable to this table that will clash with a Container symbol
     # in the routine table.

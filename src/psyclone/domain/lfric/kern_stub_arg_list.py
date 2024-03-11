@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,11 +58,6 @@ class KernStubArgList(ArgOrdering):
                                  reference element.
     '''
     def __init__(self, kern):
-        # We don't yet support inter-grid kernels (Issue #162)
-        if kern.is_intergrid:
-            raise NotImplementedError(
-                f"Kernel '{kern.name}' is an inter-grid kernel and stub "
-                f"generation is not yet supported for inter-grid kernels")
         ArgOrdering.__init__(self, kern)
         # TODO 719 The stub_symtab is not connected to other parts of the
         # Stub generation. Also the symboltable already has an
@@ -188,10 +183,10 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        # Avoid circular import
+        # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_symbol(self._stub_symtab, arg).name
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        name = LFRicStencils.dofmap_size_symbol(self._stub_symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
@@ -207,10 +202,10 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        # Avoid circular import
+        # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.direction_name(self._stub_symtab, arg)
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        name = LFRicStencils.direction_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
@@ -227,10 +222,10 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        # Avoid circular import
+        # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_symbol(self._stub_symtab, arg).name
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        var_name = LFRicStencils.dofmap_symbol(self._stub_symtab, arg).name
         self.append(var_name, var_accesses)
 
     def stencil_2d_max_extent(self, arg, var_accesses=None):
@@ -250,8 +245,8 @@ class KernStubArgList(ArgOrdering):
         # the value in.
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.max_branch_length_name(self._stub_symtab, arg)
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        name = LFRicStencils.max_branch_length_name(self._stub_symtab, arg)
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -267,10 +262,10 @@ class KernStubArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        # Avoid circular import
+        # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_symbol(self._stub_symtab, arg).name
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        name = LFRicStencils.dofmap_size_symbol(self._stub_symtab, arg).name
         self.append(name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -296,8 +291,8 @@ class KernStubArgList(ArgOrdering):
         # to the centre even when the stencil is truncated at boundaries.
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_symbol(self._stub_symtab, arg).name
+        from psyclone.domain.lfric.lfric_stencils import LFRicStencils
+        var_name = LFRicStencils.dofmap_symbol(self._stub_symtab, arg).name
         self.append(var_name, var_accesses)
 
     def operator(self, arg, var_accesses=None):

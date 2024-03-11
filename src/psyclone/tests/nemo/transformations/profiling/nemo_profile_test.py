@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,10 +45,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop, ProfileNode
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
-from psyclone.transformations import OMPParallelLoopTrans, ACCKernelsTrans
-from psyclone.profiler import Profiler
 
 
 # The transformation that most of these tests use

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,14 +38,15 @@
 ''' This module tests the LFric classes based on ArgOrdering.'''
 
 import os
+import re
 import pytest
 
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
-from psyclone.domain.lfric import (KernCallArgList, LFRicKern,
-                                   KernStubArgList, LFRicConstants,
-                                   LFRicSymbolTable, LFRicLoop)
+from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
+                                   LFRicConstants, LFRicKern,
+                                   LFRicKernMetadata, LFRicLoop,
+                                   LFRicSymbolTable)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
-from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -69,7 +70,11 @@ def check_psyir_results(create_arg_list, fortran_writer):
     result = []
     for node in create_arg_list.psyir_arglist:
         assert isinstance(node, Reference)
-        result.append(fortran_writer(node))
+        out = fortran_writer(node)
+        # We're comparing old and new (textual versus PSyIR) here and only
+        # the new, PSyIR approach supports the addition of array-slice notation
+        # (e.g. 'array(:)'). Therefore, we remove it before comparing.
+        result.append(re.sub(r"[(]\s*:(,\s*:)*\s*[)]$", "", out))
 
     assert result == create_arg_list._arglist
 
@@ -215,7 +220,7 @@ def test_kernel_stub_invalid_scalar_argument():
     when using the KernStubArgList scalar method. '''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid type.
@@ -276,7 +281,7 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     create_arg_list.generate()
     assert create_arg_list._arglist == [
         'cell', 'nlayers', 'ncell_2d', 'lma_op1_proxy%ncell_3d',
-        'lma_op1_local_stencil', 'cma_op1_matrix', 'cma_op1_nrow',
+        'lma_op1_local_stencil', 'cma_op1_cma_matrix', 'cma_op1_nrow',
         'cma_op1_ncol', 'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
         'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_adspc1_lma_op1',
         'cbanded_map_adspc1_lma_op1', 'ndf_adspc2_lma_op1',
@@ -318,7 +323,7 @@ def test_kernel_stub_ind_dofmap_errors():
     '''Check that we raise the expected exceptions if the wrong arguments
     are supplied to KernelStubArgList.indirection_dofmap() '''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
@@ -439,7 +444,7 @@ def test_kernstubarglist_arglist_error():
     kernstubarglist without first calling the generate method'''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
@@ -457,7 +462,7 @@ def test_kernstubarglist_eval_shape_error():
     diff_basis() methods and one of the kernel's evaluator shapes is
     invalid. '''
     ast = get_ast(TEST_API, "testkern_qr_faces_mod.F90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     create_arg_list = KernStubArgList(kernel)
@@ -478,7 +483,7 @@ def test_refelem_stub_arglist_err():
     the expected error if it encounters an unsupported property. '''
     # Create the Kernel object
     ast = get_ast(TEST_API, "testkern_ref_elem_all_faces_mod.F90")
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Break the list of ref-element properties required by the Kernel

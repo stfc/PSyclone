@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,15 +46,13 @@ from fparser import api as fpapi
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
-                                   LFRicKern, LFRicLoop)
-from psyclone.dynamo0p3 import DynKernMetadata
+                                   LFRicKern, LFRicKernMetadata, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (ArrayReference, Call, Literal, Reference,
-                                  Schedule, ScopingNode)
+                                  Schedule, ScopingNode, Loop)
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild
@@ -222,7 +220,7 @@ def test_mesh_name_intergrid():
 def test_lower_to_language_normal_loop():
     ''' Test that we can call lower_to_language_level on a normal
     (i.e. not a domain) LFRicLoop. The new loop type should not be a
-    LFRicLoop anymore, but a PSyLoop. Additionally, also test that
+    LFRicLoop anymore, but a Loop. Additionally, also test that
     without lowering the symbols (for start and stop expressions)
     will change if the loop order is modified, but after lowering
     the symbols should not change anymore.
@@ -253,7 +251,7 @@ def test_lower_to_language_normal_loop():
     sched.lower_to_language_level()
     loop1 = sched.children[1]
     assert not isinstance(loop1, LFRicLoop)
-    assert isinstance(loop1, PSyLoop)
+    assert isinstance(loop1, Loop)
 
     # Verify that after lowering the symbol name does not change
     # anymore if a previous loop is removed:
@@ -262,39 +260,37 @@ def test_lower_to_language_normal_loop():
     assert loop1.start_expr.symbol.name == "loop1_start"
 
 
-def test_lower_to_language_domain_loop():
-    ''' Tests that we can call lower_to_language_level on a domain LFRicLoop.
-    This test takes an invoke with two consecutive domain kernels and then
-    fuses the 'loops' to verify that the kernels are all still in the right
-    order.
+def test_lower_to_language_domain_loops():
+    ''' Tests that we can call lower_to_language_level on a DOMAIN LFRicLoop.
+    The DOMAIN loop is replaced by the kernel call inside it.
     '''
 
     _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
-    # Domain loops cannot be fused with the transformation, so manually
-    # move the two kernels into one domain loop. First detach the second
-    # LFRicLoop from the invoke, then detach the actual kernel. Lastly,
-    # insert this second kernel into the domain loop body:
     sched = invoke.schedule
+
+    # The lowering converts the loops into a single calls
+    assert isinstance(sched.children[0], LFRicLoop)
+    assert isinstance(sched.children[1], LFRicLoop)
+    sched.lower_to_language_level()
+    assert isinstance(sched.children[0], Call)
+    assert isinstance(sched.children[1], Call)
+
+
+def test_lower_to_language_domain_loops_multiple_statements():
+    ''' Tests lower_to_language_level on a DOMAIN LFRicLoop with multiple
+    statements in its loop_body.
+    '''
+
+    _, invoke = get_invoke("25.1_kern_two_domain.f90", TEST_API, idx=0)
+    sched = invoke.schedule
+    # Force the two statements to be inside the same loop
     loop1 = sched.children[1].detach()
     kern = loop1.loop_body.children[0].detach()
     sched.children[0].loop_body.children.insert(1, kern)
-
-    # Check that the loops are in the expected order - the first kernel
-    # uses a and f1, the second b and f2:
-    assert sched.children[0].loop_body.children[0].args[0].name == "a"
-    assert sched.children[0].loop_body.children[0].args[1].name == "f1"
-    assert sched.children[0].loop_body.children[1].args[0].name == "b"
-    assert sched.children[0].loop_body.children[1].args[1].name == "f2"
-
-    # This call removes the loop and replaces it with the actual kernel
-    # call in case of a domain loop. It also adds the implicit arguments
-    # so the variable names have a different index in the lowered tree:
-    sched.lower_to_language_level()
-    assert isinstance(sched[0], Call)
-    assert sched.children[0].children[2].name == "a"
-    assert sched.children[0].children[3].name == "f1_data"
-    assert sched.children[1].children[2].name == "b"
-    assert sched.children[1].children[3].name == "f2_data"
+    with pytest.raises(NotImplementedError) as err:
+        sched.lower_to_language_level()
+    assert ("Lowering LFRic domain loops that produce more than one "
+            "children is not yet supported, but found:" in str(err.value))
 
 
 def test_upper_bound_fortran_1():
@@ -724,14 +720,14 @@ def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     else:
         assert "loop0_stop = m2_proxy%vspace%get_ncell()\n" in generated_code
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -757,7 +753,7 @@ def test_itn_space_fld_and_op_writers(tmpdir):
                     generated_code)
             output = (
                 "      !\n"
-                "      DO cell=loop0_start,loop0_stop\n")
+                "      DO cell = loop0_start, loop0_stop, 1\n")
             assert output in generated_code
         else:
             assert ("loop0_stop = op1_proxy%fs_from%get_ncell()\n" in
@@ -765,7 +761,7 @@ def test_itn_space_fld_and_op_writers(tmpdir):
             output = (
                 "      ! Call our kernels\n"
                 "      !\n"
-                "      DO cell=loop0_start,loop0_stop")
+                "      DO cell = loop0_start, loop0_stop, 1")
             assert output in generated_code
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -793,14 +789,14 @@ def test_itn_space_any_any_discontinuous(dist_mem, tmpdir):
         assert "loop0_stop = mesh%get_last_halo_cell(1)" in generated_code
         output = (
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()" in generated_code
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
 
 
@@ -825,7 +821,7 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     else:
         # Loop upper bound should use f2 as that field is *definitely*
@@ -835,7 +831,7 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
         output = (
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
 
 
@@ -993,7 +989,7 @@ contains
   end subroutine testkern_code
 end module testkern_mod
 ''', ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_type")
     kern = LFRicKern()
     kern.load_meta(dkm)
     with pytest.raises(GenerationError) as err:

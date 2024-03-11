@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,6 @@ have already been preprocessed (if required).
 '''
 
 from __future__ import print_function, absolute_import
-from psyclone.psyGen import InlinedKern
-from psyclone.psyir.nodes import CodeBlock
 
 
 def trans(psy):

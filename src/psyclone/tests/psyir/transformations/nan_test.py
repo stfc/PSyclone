@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -103,7 +103,7 @@ def test_nan_test_options():
     nan_test.apply(invoke.schedule[0].loop_body[0],
                    options={"region_name": ("a", "b")})
     code = str(invoke.gen())
-    assert 'CALL nan_test_psy_data%PreStart("a", "b", 4, 2)' in code
+    assert 'CALL nan_test_psy_data % PreStart("a", "b", 4, 2)' in code
 
 
 # -----------------------------------------------------------------------------

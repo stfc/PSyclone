@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council
+# Copyright (c) 2023-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ parallelisation approach, or if the performance in the inline code is
 better than the intrinsic.
 
 '''
-from psyclone.psyir.nodes import Reference, IntrinsicCall, UnaryOperation
+from psyclone.psyir.nodes import IntrinsicCall, UnaryOperation
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
     import ArrayReductionBaseTrans
 
@@ -154,12 +154,12 @@ class Maxval2LoopTrans(ArrayReductionBaseTrans):
         # return max(lhs,rhs)
         return IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX, [lhs, rhs])
 
-    def _init_var(self, var_symbol):
+    def _init_var(self, reference):
         '''The initial value for the variable that computes the maximum value
         of an array.
 
-        :param var_symbol: the symbol used to store the final result.
-        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param reference: the reference used to store the final result.
+        :type reference: :py:class:`psyclone.psyir.node.Reference`
 
         :returns: PSyIR for the value to initialise the variable that
             computes the maximum value.
@@ -168,5 +168,5 @@ class Maxval2LoopTrans(ArrayReductionBaseTrans):
         '''
         # Return -HUGE()
         huge = IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.HUGE, [Reference(var_symbol)])
+            IntrinsicCall.Intrinsic.HUGE, [reference.copy()])
         return UnaryOperation.create(UnaryOperation.Operator.MINUS, huge)

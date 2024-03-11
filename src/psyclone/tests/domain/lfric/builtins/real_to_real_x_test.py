@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,21 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
-# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
-# Modified: by J. Henrichs, Bureau of Meteorology
+# Author: O. Brunt, Met Office
 
-''' Module containing pytest tests of the LFRicIntXKern built-in
-    (converting real-valued to integer-valued field elements).'''
+''' Module containing pytest tests of the LFRicRealToRealXKern built-in
+    (converting real-valued field element of precision 'r_<prec>' to
+    real-valued field elements of 'r_<prec>').
+'''
 
 import os
 import pytest
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata
-from psyclone.domain.lfric.lfric_builtins import LFRicIntXKern
+from psyclone.domain.lfric.lfric_builtins import LFRicRealToRealXKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Assignment, Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
 # Constants
@@ -60,49 +58,69 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
-def test_int_x(tmpdir, monkeypatch, annexed, dist_mem):
+def test_real_to_real_x(tmpdir, monkeypatch, annexed, dist_mem):
     '''
-    Test that 1) the '__str__' method of 'LFRicIntXKern' returns the
+    Test that 1) the '__str__' method of 'LFRicRealToRealXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation 'Y = INT(X, kind=i_<prec>)' where 'Y' is an integer-valued
-    field of kind 'i_<prec>' and 'X' is the real-valued field being
+    operation 'Y = REAL(X, kind=r_<prec>)' where 'Y' is a real-valued
+    field of kind 'r_<prec>' and 'X' is the real-valued field being
     converted. Test with and without annexed DoFs being computed as this
     affects the generated code. 3) Also test the 'metadata()' method.
 
     '''
     # Test metadata
-    metadata = LFRicIntXKern.metadata()
+    metadata = LFRicRealToRealXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     # Test with and without annexed DoFs
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.10.3_int_X_builtin.f90"),
+                                        "15.10.8_real_to_real_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
 
     # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: int_X (convert a real-valued to an "
-                         "integer-valued field)")
+    assert str(kern) == ("Built-in: real_to_real_X (convert a real-valued to "
+                         "a real-valued field)")
 
     # Test code generation
     code = str(psy.gen)
 
     # Check that the correct field types and constants are used
     output = (
-        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE constants_mod, ONLY: r_tran, r_solver, r_def, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
-        "    USE integer_field_mod, ONLY: integer_field_type, "
-        "integer_field_proxy_type\n")
+        "    USE r_solver_field_mod, ONLY: r_solver_field_type, "
+        "r_solver_field_proxy_type\n"
+        "    USE r_tran_field_mod, ONLY: r_tran_field_type, "
+        "r_tran_field_proxy_type\n"
+        )
     assert output in code
 
-    # Check built-in loop
+    # Check built-in loop for 'r_def'
     output = (
-        "      DO df=loop0_start,loop0_stop\n"
-        "        f2_data(df) = INT(f1_data(df), kind=i_def)\n"
-        "      END DO\n")
+        "      DO df = loop1_start, loop1_stop, 1\n"
+        "        f1_data(df) = REAL(f3_data(df), kind=r_def)\n"
+        "      END DO\n"
+        )
+    assert output in code
+
+    # Check built-in loop for 'r_tran'
+    output = (
+        "      DO df = loop0_start, loop0_stop, 1\n"
+        "        f2_data(df) = REAL(f1_data(df), kind=r_tran)\n"
+        "      END DO\n"
+        )
+    assert output in code
+
+    # Check built-in loop for 'r_solver'
+    output = (
+        "      DO df = loop2_start, loop2_stop, 1\n"
+        "        f3_data(df) = REAL(f2_data(df), kind=r_solver)\n"
+        "      END DO\n"
+        )
     assert output in code
 
     if not dist_mem:
@@ -120,25 +138,21 @@ def test_int_x(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-@pytest.mark.parametrize("kind_name", ["i_native", "i_ncdf"])
-def test_int_x_precision(monkeypatch, kind_name):
+@pytest.mark.parametrize("kind_name", ["r_bl", "r_phys", "r_um"])
+def test_real_to_real_x_lowering(monkeypatch, kind_name):
     '''
-    Test that the built-in picks up and creates correct code for field
-    data with precision that is not the default, i.e. not 'i_def'.
-    At the moment there is no other integer precision for field data
-    so we use random integer precisions from 'constants_mod'.
-    However, this does mean that we are not able to check whether the
-    generated PSy layer compiles.
+    Test that the lower_to_language_level() method works as expected.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.10.3_int_X_builtin.f90"),
+                                        "15.10.8_real_to_real_X_builtin.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API,
+                     distributed_memory=False).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     table = first_invoke.schedule.symbol_table
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
-    # Set 'f2_data' to another 'i_<prec>'
+    # Set 'f2_data' to another 'r_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
     monkeypatch.setattr(arg, "_precision", f"{kind_name}")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
@@ -146,31 +160,17 @@ def test_int_x_precision(monkeypatch, kind_name):
 
     # Test limited code generation (no equivalent field type)
     code = str(psy.gen)
-    assert f"USE constants_mod, ONLY: r_def, {kind_name}" in code
-    assert (f"INTEGER(KIND={kind_name}), pointer, dimension(:) :: "
+
+    # Due to the reverse alphabetical ordering performed by PSyclone,
+    # different cases will arise depending on the substitution
+    if kind_name < 'r_def':
+        assert f"USE constants_mod, ONLY: r_solver, r_def, {kind_name}" in code
+    elif 'r_solver' > kind_name > 'r_def':
+        assert f"USE constants_mod, ONLY: r_solver, {kind_name}, r_def" in code
+    else:
+        assert f"USE constants_mod, ONLY: {kind_name}, r_solver, r_def" in code
+
+    # Assert correct type is set
+    assert (f"REAL(KIND={kind_name}), pointer, dimension(:) :: "
             "f2_data => null()") in code
-    assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
-
-
-def test_int_x_lowering(fortran_writer):
-    '''
-    Test that the lower_to_language_level() method works as expected.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.10.3_int_X_builtin.f90"),
-                           api=API)
-    psy = PSyFactory(API,
-                     distributed_memory=False).create(invoke_info)
-    first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    parent = kern.parent
-    lowered = kern.lower_to_language_level()
-    assert parent.children[0] is lowered
-    assert isinstance(parent.children[0], Assignment)
-
-    loop = first_invoke.schedule.walk(Loop)[0]
-    code = fortran_writer(loop)
-    assert ("do df = loop0_start, loop0_stop, 1\n"
-            "  f2_data(df) = INT(f1_data(df), kind=i_def)\n"
-            "enddo") in code
+    assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code

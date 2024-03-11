@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,23 +58,24 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.gocean import GOceanConstants, GOSymbolTable
 from psyclone.errors import GenerationError, InternalError
 import psyclone.expression as expr
-from psyclone.f2pygen import DeclGen, UseGen, ModuleGen, SubroutineGen, \
-    TypeDeclGen, PSyIRGen
+from psyclone.f2pygen import (
+    DeclGen, UseGen, ModuleGen, SubroutineGen, TypeDeclGen, PSyIRGen)
 from psyclone.parse.algorithm import Arg
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    CodedKern, Arguments, Argument, KernelArgument, args_filter, \
-    AccessType, HaloExchange
+from psyclone.psyGen import (
+    PSy, Invokes, Invoke, InvokeSchedule, CodedKern, Arguments, Argument,
+    KernelArgument, args_filter, AccessType, HaloExchange)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Literal, Schedule, KernelSchedule, \
-    StructureReference, IntrinsicCall, Reference, Call, Assignment, \
-    ACCEnterDataDirective, ACCParallelDirective, \
-    ACCKernelsDirective, Container, ACCUpdateDirective, Routine
-from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE, \
-    DataSymbol, RoutineSymbol, ContainerSymbol, DeferredType, DataTypeSymbol, \
-    UnresolvedInterface, BOOLEAN_TYPE, REAL_TYPE
+from psyclone.psyir.nodes import (
+    Literal, Schedule, KernelSchedule, StructureReference, IntrinsicCall,
+    Reference, Call, Assignment, ACCEnterDataDirective, ACCParallelDirective,
+    ACCKernelsDirective, Container, ACCUpdateDirective, Routine)
+from psyclone.psyir.symbols import (
+    ScalarType, INTEGER_TYPE, DataSymbol, RoutineSymbol, ContainerSymbol,
+    UnresolvedType, DataTypeSymbol, UnresolvedInterface, BOOLEAN_TYPE,
+    REAL_TYPE)
 
 
 class GOPSy(PSy):
@@ -1269,57 +1270,6 @@ class GOKernelArguments(Arguments):
                                  f"['grid_property', 'scalar', 'field'].")
         self._dofs = []
 
-    def raw_arg_list(self):
-        '''
-        :returns: a list of all of the actual arguments to the \
-                  kernel call.
-        :rtype: list of str
-
-        :raises GenerationError: if the kernel requires a grid property \
-                                 but has no field arguments.
-        :raises InternalError: if we encounter a kernel argument with an \
-                               unrecognised type.
-        '''
-        if self._raw_arg_list:
-            return self._raw_arg_list
-
-        # Before we do anything else, go through the arguments and
-        # determine the best one from which to obtain the grid properties.
-        grid_arg = self.find_grid_access()
-
-        # A GOcean 1.0 kernel always requires the [i,j] indices of the
-        # grid-point that is to be updated
-        arguments = ["i", "j"]
-        for arg in self._args:
-
-            if arg.argument_type == "scalar":
-                # Scalar arguments require no de-referencing
-                arguments.append(arg.name)
-            elif arg.argument_type == "field":
-                # Field objects are Fortran derived-types
-                api_config = Config.get().api_conf("gocean1.0")
-                # TODO: #676 go_grid_data is actually a field property
-                data = api_config.grid_properties["go_grid_data"].fortran\
-                    .format(arg.name)
-                arguments.append(data)
-            elif arg.argument_type == "grid_property":
-                # Argument is a property of the grid which we can access via
-                # the grid member of any field object.
-                # We use the most suitable field as chosen above.
-                if grid_arg is None:
-                    raise GenerationError(
-                        f"Error: kernel {self._parent_call.name} requires "
-                        f"grid property {arg.name} but does not have any "
-                        f"arguments that are fields")
-                arguments.append(arg.dereference(grid_arg.name))
-            else:
-                raise InternalError(f"Kernel {self._parent_call.name}, "
-                                    f"argument {arg.name} has "
-                                    f"unrecognised type: "
-                                    f"'{arg.argument_type}'")
-        self._raw_arg_list = arguments
-        return self._raw_arg_list
-
     def psyir_expressions(self):
         '''
         :returns: the PSyIR expressions representing this Argument list.
@@ -1449,7 +1399,6 @@ class GOKernelArguments(Arguments):
         arg = Arg("variable", name)
         argument = GOKernelArgument(descriptor, arg, self._parent_call)
         self.args.append(argument)
-        # self.raw_arg_list().append(name)
 
 
 class GOKernelArgument(KernelArgument):
@@ -1513,18 +1462,18 @@ class GOKernelArgument(KernelArgument):
         '''
         # All GOcean fields are r2d_field
         if self.argument_type == "field":
-            # r2d_field can have DeferredType and UnresolvedInterface because
+            # r2d_field can have UnresolvedType and UnresolvedInterface because
             # it is an unnamed import from a module.
             type_symbol = self._call.root.symbol_table.find_or_create_tag(
                 "r2d_field", symbol_type=DataTypeSymbol,
-                datatype=DeferredType(), interface=UnresolvedInterface())
+                datatype=UnresolvedType(), interface=UnresolvedInterface())
             return type_symbol
 
         # Gocean scalars can be REAL or INTEGER
         if self.argument_type == "scalar":
             if self.space.lower() == "go_r_scalar":
                 go_wp = self._call.root.symbol_table.find_or_create_tag(
-                    "go_wp", symbol_type=DataSymbol, datatype=DeferredType(),
+                    "go_wp", symbol_type=DataSymbol, datatype=UnresolvedType(),
                     interface=UnresolvedInterface())
                 return ScalarType(ScalarType.Intrinsic.REAL, go_wp)
             if self.space.lower() == "go_i_scalar":

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -442,12 +442,10 @@ def test_profile_fused_kernels_dynamo0p3():
     code = str(invoke.gen())
     expected = '''\
       CALL profile_psy_data%PreStart("multi_invoke_psy", "invoke_0:r0", 0, 0)
-      DO cell=loop0_start,loop0_stop
-        !
+      DO cell = loop0_start, loop0_stop, 1
         CALL testkern_code(nlayers, a, f1_data, f2_data, m1_data, m2_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
-        !
         CALL testkern_code(nlayers, a, f1_data, f3_data, m2_data, m1_data, \
 ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
 undf_w3, map_w3(:,cell))
@@ -496,7 +494,7 @@ def test_profile_kernels_in_directive_dynamo0p3():
       CALL profile_psy_data%PreStart("single_invoke_w3_psy", \
 "invoke_0_testkern_w3_type:testkern_w3_code:r0", 0, 0)
       !$acc kernels
-      DO cell=loop0_start,loop0_stop
+      DO cell = loop0_start, loop0_stop, 1
 '''
     assert expected in code
 
@@ -687,11 +685,11 @@ def test_multi_prefix_profile(monkeypatch):
     assert ("      CALL tool1_psy_data%PostEnd\n"
             "      CALL profile_psy_data%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r1\", 0, 0)\n"
-            "      DO cell=loop0_start,loop0_stop\n" in result)
+            "      DO cell = loop0_start, loop0_stop, 1\n" in result)
     assert ("      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      CALL profile_psy_data%PostEnd\n"
-            "      DO cell=loop2_start,loop2_stop\n" in result)
+            "      DO cell = loop2_start, loop2_stop, 1\n" in result)
 
 
 # -----------------------------------------------------------------------------
@@ -717,8 +715,8 @@ def test_omp_transform():
         "\"invoke_loop1:bc_ssh_code:r0\", 0, 0)\n"
         "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
-        "      DO j=t%internal%ystart,t%internal%ystop\n"
-        "        DO i=t%internal%xstart,t%internal%xstop\n"
+        "      DO j = t%internal%ystart, t%internal%ystop, 1\n"
+        "        DO i = t%internal%xstart, t%internal%xstop, 1\n"
         "          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)\n"
         "        END DO\n"
         "      END DO\n"
@@ -741,8 +739,8 @@ def test_omp_transform():
       CALL profile_psy_data_1%PreStart("psy_test27_loop_swap", ''' + \
         '''"invoke_loop1:bc_ssh_code:r1", 0, 0)
       !$omp do schedule(static)
-      DO j=t%internal%ystart,t%internal%ystop
-        DO i=t%internal%xstart,t%internal%xstop
+      DO j = t%internal%ystart, t%internal%ystop, 1
+        DO i = t%internal%xstart, t%internal%xstop, 1
           CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
         END DO
       END DO

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -130,13 +130,15 @@ jobs:
         # Some of the examples use Jupyter. We need to keep IPython to
         # below 8.0 as we still run the test suite with Python 3.7.
         pip install "ipython>=7.0,<8.0" jupyter
-        pip install external/fparser
+        # Uncomment the below to use the submodule version of fparser rather
+        # than the latest release from pypi.
+        # pip install external/fparser
         pip install .[test]
     - name: Lint with flake8
       run: |
         # Stop the build if there are Python syntax errors or undefined names.
         # See PSyclone/setup.cfg for configuration of this check.
-        flake8 --count --select=E9,F63,F7,F82 --show-source --statistics src examples tutorial
+        flake8 --count --show-source --statistics .
     - name: Run examples
       run: |
         ( make -j 2 -C examples transform > /dev/null )

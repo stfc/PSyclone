@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -880,9 +880,9 @@ spaces through the use of the ``gh_evaluator_targets`` metadata entry.
 Every evaluator used by that kernel will then be provided on all of the
 target spaces.
 
-When constructing a ``DynKernMetadata`` object from the parsed kernel
+When constructing a ``LFRicKernMetadata`` object from the parsed kernel
 metadata, the list of target function-space names (as they appear in
-the meta-data) is stored in ``DynKernMetadata._eval_targets``. This
+the meta-data) is stored in ``LFRicKernMetadata._eval_targets``. This
 information is then used in the ``LFRicKern._setup()`` method which
 populates ``LFRicKern._eval_targets``. This is an ``OrderedDict`` which has
 the (mangled) names of the target function spaces as keys and 2-tuples
@@ -1072,15 +1072,6 @@ layer routine. A lot of this work is currently performed in the
 ``DynKernelArgument.infer_datatype()`` method but ultimately (see
 https://github.com/stfc/PSyclone/issues/1258) much of this will be
 removed.
-
-To date, all the LFRic BuiltIns have had ``lower_to_language_level()``
-methods implemented except for the following:
-
-* ``LFRicXInnerproductYKern``,
-* ``LFRicXInnerproductXKern``,
-* ``LFRicSumXKern``,
-* ``LFRicIntXKern``,
-* ``LFRicRealXKern``.
 
 The sum and inner product BuiltIns require extending PSyIR to handle
 reductions in the ``GlobalSum`` class in ``psyGen.py``. Conversions from

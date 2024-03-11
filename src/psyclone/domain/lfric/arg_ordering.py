@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,26 +71,12 @@ class ArgOrdering:
 
     '''
     def __init__(self, kern):
+        # TODO #2503: This reference will not survive some tree modifications
         self._kern = kern
         self._generate_called = False
-        # If available, get an existing symbol table to create unique names
-        # and symbols required for PSyIR. Otherwise just create a new
-        # symbol table (required for stub generation atm).
-        invoke_sched = None
-        if kern:
-            invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
 
-        # TODO #1934 - we should not keep a reference to a SymbolTable here
-        # as this creates a double reference (with
-        # self._kernel.ancestor(InvokeSchedule)._symbol_table) to that table
-        # and might go stale e.g. if the tree is copied.
-        # In fact, using the same symbol table as the Invoke is a bit odd as
-        # we are describing kernel *arguments* here so they will have a
-        # different interface to those in the Schedule of the invoke.
-        if invoke_sched:
-            self._symtab = invoke_sched.symbol_table
-        else:
-            self._symtab = LFRicSymbolTable()
+        # TODO #2503: This reference will not survive some tree modifications
+        self._forced_symtab = None
 
         # TODO #1934 Completely remove the usage of strings, instead
         # use the PSyIR representation.
@@ -99,6 +85,27 @@ class ArgOrdering:
         # This stores the PSyIR representation of the arguments
         self._psyir_arglist = []
         self._arg_index_to_metadata_index = {}
+
+    @property
+    def _symtab(self):
+        ''' Provide a reference to the associate Invoke SymbolTable, usually
+        following the `self._kernel.ancestor(InvokeSchedule)._symbol_table`
+        path unless a _forced_symtab has been provided.
+
+        If no symbol table is available it creates a temporary symbol table
+        for the operation to suceed but it will not be preserved.
+
+        Note: This could be improved by TODO #2503
+
+        :returns: the associate invoke symbol table.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        if self._forced_symtab:
+            return self._forced_symtab
+        elif self._kern and self._kern.ancestor(psyGen.InvokeSchedule):
+            return self._kern.ancestor(psyGen.InvokeSchedule).symbol_table
+        else:
+            return LFRicSymbolTable()
 
     def psyir_append(self, node):
         '''Appends a PSyIR node to the PSyIR argument list.
@@ -416,8 +423,7 @@ class ArgOrdering:
                     if arg.descriptor.stencil['type'] == "xory1d":
                         # if "xory1d is specified then the actual
                         # direction must be passed from the Algorithm layer.
-                        self.stencil_unknown_direction(arg,
-                                                       var_accesses)
+                        self.stencil_unknown_direction(arg, var_accesses)
                     # stencil information that is always passed from the
                     # Algorithm layer.
                     if arg.descriptor.stencil['type'] == "cross2d":

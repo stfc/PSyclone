@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,7 @@ import psyclone
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.lfric import (LFRicConstants, LFRicTypes, LFRicKern,
-                                   LFRicLoop)
-from psyclone.dynamo0p3 import DynKernMetadata
+                                   LFRicKernMetadata, LFRicLoop)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -59,6 +58,7 @@ from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
     INTEGER_TYPE, ArrayType
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
+from psyclone.psyir.backend.visitor import VisitorError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
                 os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -100,7 +100,7 @@ def test_scalar_kernel_load_meta_err():
     '''
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     kernel = LFRicKern()
     # Get a scalar argument descriptor and set an invalid data type
     scalar_arg = metadata.arg_descriptors[5]
@@ -122,12 +122,6 @@ def test_kern_colourmap(monkeypatch):
         _ = kern.colourmap
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
             in str(err.value))
-    monkeypatch.setattr(kern, "is_coloured", lambda: True)
-    monkeypatch.setattr(kern, "_is_intergrid", True)
-    with pytest.raises(InternalError) as err:
-        _ = kern.colourmap
-    assert ("Colourmap information for kernel 'testkern_code' has not yet "
-            "been initialised" in str(err.value))
 
 
 def test_kern_ncolours(monkeypatch):
@@ -140,12 +134,6 @@ def test_kern_ncolours(monkeypatch):
         _ = kern.ncolours_var
     assert ("Kernel 'testkern_code' is not inside a coloured loop"
             in str(err.value))
-    monkeypatch.setattr(kern, "is_coloured", lambda: True)
-    monkeypatch.setattr(kern, "_is_intergrid", True)
-    with pytest.raises(InternalError) as err:
-        _ = kern.ncolours_var
-    assert ("Colourmap information for kernel 'testkern_code' has not yet "
-            "been initialised" in str(err.value))
 
 
 def test_get_kernel_schedule():
@@ -391,11 +379,6 @@ def test_kern_last_cell_all_colours_errors(monkeypatch):
     assert "'testkern_code' is not inside a coloured loop" in str(err.value)
     # Monkeypatch the Kernel so that it appears to be coloured.
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
-    kern._is_intergrid = True
-    with pytest.raises(InternalError) as err:
-        _ = kern.last_cell_all_colours_symbol
-    assert ("Colourmap information for kernel 'testkern_code' has not yet "
-            "been initialised" in str(err.value))
 
 
 def test_kern_last_cell_all_colours():
@@ -468,8 +451,8 @@ def test_kern_not_coloured_inc(monkeypatch):
     # Monkeypatch the Kernel so that it appears to be OpenMP parallel.
     monkeypatch.setattr(kern, "is_openmp_parallel", lambda: True)
     assert kern.is_openmp_parallel() is True
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(VisitorError) as err:
         _ = psy.gen
     assert ("Kernel 'testkern_code' has an argument with INC access and "
             "therefore must be coloured in order to be parallelised with "
-            "OpenMP.")
+            "OpenMP." in str(err.value))

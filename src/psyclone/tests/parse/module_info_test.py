@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,30 +41,12 @@ import pytest
 from fparser.two import Fortran2003
 
 from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
+from psyclone.psyir.nodes import Container, FileContainer
 from psyclone.tests.utilities import get_base_path
 
 
-@pytest.fixture(scope='function', autouse=True)
-def clear_module_manager_instance():
-    ''' The tests in this module all assume that there is no pre-existing
-    ModuleManager object, so this fixture ensures that the module manager
-    instance is deleted before and after each test function. The latter
-    makes sure that any other test executed next will automatically reload
-    the default ModuleManager file.
-    '''
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-    # Now execute all tests
-    yield
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_module_info():
     '''Tests the module info object.'''
@@ -97,8 +79,26 @@ def test_module_info():
     assert isinstance(mod_info._parse_tree, Fortran2003.Program)
 
 
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_module_info_get_psyir():
+    '''Tests that we can get the PSyIR from the module info object:
+    '''
+
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d2")
+    mod_info = mod_man.get_module_info("g_mod")
+
+    psyir = mod_info.get_psyir().get_routine_psyir("myfunc1")
+    assert psyir.name == "myfunc1"
+
+    psyir = mod_info.get_psyir()
+    assert isinstance(psyir, Container)
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_info_get_used_modules():
     '''Tests that dependencies are reported as expected. We use the standard
@@ -119,6 +119,7 @@ def test_mod_info_get_used_modules():
     assert mod_man.get_module_info("b_mod").get_used_modules() == set()
 
     mod_c_info = mod_man.get_module_info("c_mod")
+    assert mod_c_info.name == "c_mod"
     dep = mod_c_info.get_used_modules()
     assert dep == set(("a_mod", "b_mod"))
 
@@ -126,12 +127,6 @@ def test_mod_info_get_used_modules():
     # Calling the method a second time should return the same
     # (cached) list object
     assert dep_cached is dep
-
-    # Check error conditions:
-    with pytest.raises(ModuleInfoError) as err:
-        mod_c_info._extract_import_information()
-    assert ("_extract_import_information for 'c_mod' should not be "
-            "called twice" in str(err.value))
 
     dyn_path = get_base_path("dynamo0.3")
     # This will add all subdirectories, including infrastructure:
@@ -152,8 +147,8 @@ def test_mod_info_get_used_modules():
         assert mod_info.get_used_symbols_from_modules()[module] == set()
 
 
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_info_get_used_symbols_from_modules():
     '''Tests that symbols from dependencies are reported as expected. We
@@ -180,3 +175,155 @@ def test_mod_info_get_used_symbols_from_modules():
     used_symbols_cached = mod_info.get_used_symbols_from_modules()
     # The cached copy should be the same dictionary
     assert used_symbols_cached is used_symbols
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_info_get_psyir(capsys):
+    '''This tests the handling of PSyIR representation of the module.
+    '''
+
+    mod_man = ModuleManager.get()
+    dyn_path = get_base_path("dynamo0.3")
+    mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
+
+    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
+    assert mod_info._psyir is None
+    psyir = mod_info.get_psyir()
+    assert isinstance(psyir, Container)
+    assert psyir.name == "testkern_import_symbols_mod"
+    # Make sure the PSyIR is cached:
+    assert mod_info._psyir.children[0] is psyir
+    # Test that we get the cached value (and not a new instance)
+    psyir_cached = mod_info.get_psyir()
+    assert psyir_cached is psyir
+
+    # Test that a file that can't be converted to PSyIR returns an
+    # empty FileContainer.
+    mod_man.add_search_path(dyn_path, recursive=False)
+    # The file 'broken_builtins_mod.f90' contains invalid Fortran and
+    # cannot be parsed:
+    broken_builtins = mod_man.get_module_info("broken_builtins_mod")
+    broken_builtins_psyir = broken_builtins.get_psyir()
+
+    # We should still get an empty Container with a dummy Container:
+    assert isinstance(broken_builtins_psyir, Container)
+    assert broken_builtins_psyir.name == "invalid-module"
+    assert isinstance(broken_builtins_psyir.parent, FileContainer)
+    assert broken_builtins_psyir.parent.name == "broken_builtins_mod.f90"
+
+    out, _ = capsys.readouterr()
+    assert "Error trying to parse" in out
+    assert "Expecting name 'aX_plus_bY', got 'blah'" in out
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_generic_interface():
+    '''Tests that a generic interface works as expected. This test relies on
+    the directories and files set up by `mod_man_test_setup_directories`:
+    the module `g_mod` contains:
+        interface myfunc
+            procedure myfunc1
+            procedure myfunc2
+        end interface myfunc
+    Therefore, the ModuleInfo object needs to contain `myfunc`, `myfunc1`, and
+    `myfunc2`
+
+    '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d1")
+    mod_man.add_search_path("d2")
+
+    mod_info = mod_man.get_module_info("g_mod")
+
+    # It should contain all three functions
+    assert mod_info.contains_routine("myfunc")
+    assert mod_info.contains_routine("myfunc1")
+    assert mod_info.contains_routine("myfunc2")
+
+    assert "myfunc" in mod_info._generic_interfaces
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_resolve_routine():
+    '''Test resolve_routine functionality: a simple routine should return
+    its name as the only member of a list, a routine name which is a generic
+    interface should return a list of all possible names. This test relies on
+    the directories and file setup my `mod_man_test_setup_directories`:
+    the module `g_mod` contains:
+    interface myfunc
+        procedure myfunc1
+        procedure myfunc2
+    end interface myfunc
+    Therefore, resolving `myfunc` must return `myfunc1`, and `myfunc2`.
+    TODO #2478: this needs to be rewritten or (re)moved once we have support
+    for interfaces in the PSyIR.
+
+    '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d2")
+
+    mod_info = mod_man.get_module_info("g_mod")
+
+    # Use set to be independent of ordering
+    all_funcs = mod_info.resolve_routine("myfunc")
+    assert set(all_funcs) == set(["myfunc1", "myfunc2"])
+
+    assert mod_info.resolve_routine("myfunc1") == ["myfunc1"]
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_module_info_contains_routine():
+    '''Test contains_routine. It relies on the directories and file setup my
+    `mod_man_test_setup_directories`, `d2/g_mod` contains a function
+    `myfunc1`.
+
+    TODO #2422 This needs to be updated when the PSyIR supports generic
+    interfaces.
+
+    '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d2")
+    mod_info = mod_man.get_module_info("g_mod")
+    assert mod_info.name == "g_mod"
+
+    assert mod_info.contains_routine("myfunc1")
+    assert not mod_info.contains_routine("does-not-exist")
+
+    # Test handling of files that cannot be parsed
+    # --------------------------------------------
+    # TODO #2120: Needs to be updated when error handling is implemented.
+    mod_info = mod_man.get_module_info("error_mod")
+    assert not mod_info.contains_routine("ERROR-CANNOT-BE-PARSED")
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_module_info_extract_import_information_error():
+    '''Test handling of files that cannot be parsed in
+    _extract_import_information. This relies on the directories and file setup
+    my `mod_man_test_setup_directories`, which will create a file
+    `d2/error_mod.f90`, which is invalid Fortran.
+
+    '''
+    # TODO 2120: Once proper error handling is implemented, this should
+    # likely just raise an exception.
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d2")
+    mod_info = mod_man.get_module_info("error_mod")
+    assert mod_info.name == "error_mod"
+
+    assert mod_info._used_modules is None
+    assert mod_info._used_symbols_from_module is None
+    mod_info._extract_import_information()
+    # Make sure the internal attributes are set to not None to avoid
+    # trying to parse them again later
+    assert mod_info._used_modules == set()
+    assert mod_info._used_symbols_from_module == {}

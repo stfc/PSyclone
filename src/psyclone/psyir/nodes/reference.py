@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ from psyclone.core import AccessType, Signature
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
-from psyclone.psyir.symbols.datatypes import DeferredType
+from psyclone.psyir.symbols.datatypes import UnresolvedType
 
 
 class Reference(DataNode):
@@ -86,20 +86,12 @@ class Reference(DataNode):
     @property
     def is_array(self):
         '''
-        :returns: whether this reference is an array. Note that if an array
-            expression is used, it will be a Reference in the PSyIR, but if the
-            symbol has been resolved, the symbol will be queried to determine
-            whether it is an array or not.
+        :returns: whether this reference is an array, False if it can not be
+            determined.
         :rtype: bool
 
         '''
-        try:
-            # The standard symbol raises a ValueError if is_array
-            # is called - which indicates that we don't know if this
-            # symbol is an array or not.
-            return self.symbol.is_array
-        except ValueError:
-            return False
+        return self.symbol.is_array
 
     @property
     def symbol(self):
@@ -196,7 +188,7 @@ class Reference(DataNode):
         # Use type() directly as we need to ignore inheritance.
         if type(self.symbol) is Symbol:
             # We don't even have a DataSymbol
-            return DeferredType()
+            return UnresolvedType()
         return self.symbol.datatype
 
 

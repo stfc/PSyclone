@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -374,7 +374,7 @@ def test_logical_literal_case(fortran_reader, fortran_writer):
     assert "a == .true." not in pass_through
     assert "a .EQV. .true." in pass_through
 
-    # Test with an unknown comparison to a literal.
+    # Test with an unresolved comparison to a literal.
     code = '''subroutine test_subroutine()
     use mymod, only: a
 
@@ -460,10 +460,9 @@ def has_cmp_interface(code):
 
     # Check that the generic interface in in the code
     assert '''interface psyclone_internal_cmp
-  procedure psyclone_cmp_int
-  procedure psyclone_cmp_logical
-  procedure psyclone_cmp_char
-end interface psyclone_internal_cmp''' in code
+    procedure :: psyclone_cmp_int, psyclone_cmp_logical, psyclone_cmp_char
+  end interface psyclone_internal_cmp
+''' in code
 
     # Check that the integer implementation is in the code
     assert '''function psyclone_cmp_int(op1, op2)
@@ -547,10 +546,9 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
 
     # Check that the interface new names are internally consistent
     assert '''interface psyclone_internal_cmp_1
-  procedure psyclone_cmp_int_1
-  procedure psyclone_cmp_logical_1
-  procedure psyclone_cmp_char_1
-end interface psyclone_internal_cmp_1''' in fortran_writer(container)
+    procedure :: psyclone_cmp_int_1, psyclone_cmp_logical_1, \
+psyclone_cmp_char_1
+  end interface psyclone_internal_cmp_1''' in fortran_writer(container)
 
     # And that from now on the tag refers to the new symbol
     assert container.symbol_table.lookup_with_tag(
@@ -588,8 +586,8 @@ def test_expression_case(fortran_reader, fortran_writer):
     assert "interface psyclone_internal_cmp" not in output
 
 
-def test_unknown_types_case(fortran_reader, fortran_writer):
-    '''Test that a select case statement comparing two unknown types
+def test_unresolved_types_case(fortran_reader, fortran_writer):
+    '''Test that a select case statement comparing two unresolved types
     is using the generic comparison interface'''
     code = '''
     module test
@@ -618,8 +616,8 @@ def test_unknown_types_case(fortran_reader, fortran_writer):
     assert "if (psyclone_internal_cmp(a, c)) then" in output
 
 
-def test_unknown_types_case_without_module(fortran_reader):
-    '''Test that a select case statement comparing two unknown types in a
+def test_unresolved_types_case_without_module(fortran_reader):
+    '''Test that a select case statement comparing two unresolved types in a
     situation wihtout an ancestor module, it will generate a CodeBlock'''
     code = '''
     subroutine test_subroutine()
@@ -665,7 +663,7 @@ def test_derived_types_case(fortran_reader, fortran_writer):
     assert "if (a%field == 1) then" in output
     assert "if (a%field == 2) then" in output
 
-    # And then the datatype information is unknown
+    # And then the datatype information is unresolved
     code = '''
     module test
         contains

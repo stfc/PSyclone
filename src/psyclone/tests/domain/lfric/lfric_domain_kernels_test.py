@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,7 @@
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata
-from psyclone.domain.lfric import LFRicKern
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -78,7 +77,7 @@ contains
   end subroutine testkern_domain_code
 end module testkern_domain_mod
 ''', ignore_comments=False)
-    dkm = DynKernMetadata(ast, name="testkern_domain_type")
+    dkm = LFRicKernMetadata(ast, name="testkern_domain_type")
     assert dkm.iterates_over == "domain"
 
 
@@ -103,7 +102,7 @@ contains
 end module testkern_domain_mod
 ''', ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("'domain' is only permitted to accept scalar and field arguments "
             "but the metadata for kernel 'testkern_domain_type' includes an "
             "argument of type 'gh_operator'" in str(err.value))
@@ -129,7 +128,7 @@ contains
 end module testkern_domain_mod
 ''', ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("domain only accept field arguments on discontinuous function "
             "spaces but found 'w2' in 'arg_type(gh_field, gh_real, "
             "gh_read, w2)'" in str(err.value))
@@ -155,7 +154,7 @@ contains
 end module testkern_domain_mod
 ''', ignore_comments=False)
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("domain are not permitted to have arguments with a stencil "
             "access but found: 'arg_type(gh_field, gh_real, gh_read, "
             "w3, stencil(cross))'" in str(err.value))
@@ -186,7 +185,7 @@ contains
 end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("'domain' cannot be passed basis/differential basis functions "
             "but the metadata for kernel 'testkern_domain_type' contains an "
             "entry for 'meta_funcs'" in str(err.value))
@@ -214,7 +213,7 @@ contains
 end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("'testkern_domain_type' operates on the domain but requests "
             "properties of the mesh ([" in str(err.value))
     assert "ADJACENT_FACE" in str(err.value)
@@ -243,7 +242,7 @@ contains
 end module testkern_domain_mod
 ''')
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="testkern_domain_type")
+        LFRicKernMetadata(ast, name="testkern_domain_type")
     assert ("'testkern_domain_type' operates on the domain but requests "
             "properties of the reference element ([" in str(err.value))
     assert "NORMALS_TO_HORIZONTAL_FACES" in str(err.value)
@@ -272,7 +271,7 @@ contains
 end module restrict_mod
 ''')
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name="restrict_kernel_type")
+        LFRicKernMetadata(ast, name="restrict_kernel_type")
     assert ("'restrict_kernel_type' operates on the domain but has fields on "
             "different mesh resolutions" in str(err.value))
 
@@ -298,7 +297,6 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     else:
         expected = "      ! call our kernels\n"
     assert (expected + "      !\n"
-            "      !\n"
             "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
             "f1_data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
@@ -337,15 +335,14 @@ def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):
     assert "integer(kind=i_def) ncell_2d_no_halos" in gen_code
 
     expected = (
-        "      end do\n"
-        "      !\n")
+        "      end do\n")
     if dist_mem:
         expected += (
+            "      !\n"
             "      ! set halos dirty/clean for fields modified in the above "
             "loop\n"
             "      !\n"
             "      call f2_proxy%set_dirty()\n"
-            "      !\n"
             "      !\n")
     expected += (
         "      call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
@@ -374,7 +371,6 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
     assert gen_code.count("ncell_2d_no_halos = mesh%get_last_edge_cell()") == 1
 
     expected = ("      !\n"
-                "      !\n"
                 "      call testkern_domain_code(nlayers, ncell_2d_no_halos, "
                 "b, f1_data, ndf_w3, undf_w3, map_w3)\n")
     if dist_mem:
@@ -401,19 +397,18 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                      "      !\n")
     else:
         assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
-    expected += "      do cell=loop1_start,loop1_stop\n"
+    expected += "      do cell = loop1_start, loop1_stop, 1\n"
     assert expected in gen_code
 
     expected = (
-        "      end do\n"
-        "      !\n")
+        "      end do\n")
     if dist_mem:
         expected += (
+            "      !\n"
             "      ! set halos dirty/clean for fields modified in the above "
             "loop\n"
             "      !\n"
             "      call f1_proxy%set_dirty()\n"
-            "      !\n"
             "      !\n")
     expected += (
         "      call testkern_domain_code(nlayers, ncell_2d_no_halos, c, "

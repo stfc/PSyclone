@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1628,6 +1628,38 @@ class Node():
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.debug_writer import DebugWriter
         return DebugWriter()(self)
+
+    def origin_string(self):
+        ''' Generates a string with the available information about where
+        this node has been created. It currently only works with Fortran
+        Statements or subchildren of them.
+
+        :returns: a string specifing the origin of this node.
+        :rtype: str
+        '''
+        name = self.coloured_name(False)
+        line_span = "<unknown>"
+        original_src = "<unknown>"
+        filename = "<unknown>"
+        # Try to populate the line/src/filename using the ancestor Statement
+        from psyclone.psyir.nodes.statement import Statement
+        node = self.ancestor(Statement, include_self=True)
+        # TODO #2062: The part below is tighly coupled to fparser tree
+        # structure and ideally should be moved the appropriate frontend,
+        # but we don't necessarely want to do all this string manipulation
+        # ahead of time as it is rarely needed. One option is for the frontend
+        # to provide a callable that this method will invoke to generate the
+        # string. Other frontends or PSyIR not comming from code could provide
+        # a completely different implementation in the Callable oject.
+        if node and node._ast:
+            if hasattr(node._ast, 'item') and node._ast.item:
+                if hasattr(node._ast.item, 'reader'):
+                    if hasattr(node._ast.item.reader, 'file'):
+                        filename = node._ast.item.reader.file.name
+                line_span = node._ast.item.span
+                original_src = node._ast.item.line
+        return (f"{name} from line {line_span} of file "
+                f"'{filename}':\n> {original_src}")
 
     def update_signal(self):
         '''

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,17 +44,15 @@ command, it is not designed to be directly run from python.
 
 '''
 from __future__ import print_function
-import sys
 from psyclone.psyir.nodes import BinaryOperation
 from psyclone.psyir.transformations import Matmul2CodeTrans
-from psyclone.psyir.backend.fortran import FortranWriter
 
 
 def trans(psy):
     '''PSyclone transformation script for the Dynamo0.3 API to optimise
     the matvec kernel for many-core CPUs. This is currently limited to
     running on the scaled_matrix_vector_code kernel but should work
-    more generally. Any matmul calls are replaced with inline matric
+    more generally. Any matmul calls are replaced with inline matrix
     vector code.
 
     :param psy: a PSyclone PSy object which captures the algorithm and \

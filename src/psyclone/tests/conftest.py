@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@ import pytest
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
+from psyclone.parse import ModuleManager
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.tests.gocean_build import GOceanBuild
@@ -82,7 +83,7 @@ def have_graphviz():
     also have been installed for dag generation to work correctly. '''
     try:
         # pylint: disable=import-outside-toplevel, unused-import
-        import graphviz
+        import graphviz  # noqa: F401
     except ImportError:
         return False
     return True
@@ -233,3 +234,22 @@ def fixture_fortran_reader():
 def fixture_fortran_writer():
     '''Create and return a FortranWriter object with default settings.'''
     return FortranWriter()
+
+
+@pytest.fixture(scope='function')
+def clear_module_manager_instance():
+    '''For tests that assume that there is no pre-existing ModuleManager
+    object, this fixture ensures that the module manager instance is deleted
+    before and after each test function. The latter makes sure that any other
+    test executed next will automatically reload the default ModuleManager
+    file.
+    '''
+
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
+
+    # Now execute all tests
+    yield
+
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
