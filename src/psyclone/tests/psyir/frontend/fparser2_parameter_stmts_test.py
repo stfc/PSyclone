@@ -160,7 +160,7 @@ def test_parameter_statements_with_unsupported_symbols():
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not parse 'PARAMETER(var1 = 'hello')' because 'var1' has "
+    assert ("Could not process 'PARAMETER(var1 = 'hello')' because 'var1' has "
             "an UnsupportedType." in str(error.value))
 
     # Test with a symbol which is not a DataSymbol
@@ -171,8 +171,8 @@ def test_parameter_statements_with_unsupported_symbols():
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not parse 'PARAMETER(var2 = 'hello')' because 'var2' is not"
-            " a DataSymbol." in str(error.value))
+    assert ("Could not process 'PARAMETER(var2 = 'hello')' because 'var2' is "
+            "not a DataSymbol." in str(error.value))
 
     # Test with a symbol which is not a DataSymbol
     reader = FortranStringReader('''
@@ -181,7 +181,7 @@ def test_parameter_statements_with_unsupported_symbols():
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not parse 'PARAMETER(var3 = 3)' because: \"Could not "
+    assert ("Could not process 'PARAMETER(var3 = 3)' because: \"Could not "
             "find 'var3' in the Symbol Table.\"" in str(error.value))
 
 
@@ -221,8 +221,8 @@ def test_unsupported_parameter_statements_produce_codeblocks(fortran_reader,
     # statements
     code = fortran_writer(psyir)
     assert code == '''\
-! PSyclone CodeBlock reason:
-!  - Could not parse 'PARAMETER(var1 = 'hello')' because 'var1' has an \
+! PSyclone CodeBlock (unsupported code) reason:
+!  - Could not process 'PARAMETER(var1 = 'hello')' because 'var1' has an \
 UnsupportedType.
 MODULE my_mod
   CHARACTER*5 :: var1

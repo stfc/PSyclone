@@ -2312,16 +2312,16 @@ class Fparser2Reader():
                         # in a codeblock (as we presume the original
                         # code is correct).
                         raise NotImplementedError(
-                            f"Could not parse '{stmt}' because: "
+                            f"Could not process '{stmt}' because: "
                             f"{err}.") from err
 
                     if not isinstance(symbol, DataSymbol):
                         raise NotImplementedError(
-                            f"Could not parse '{stmt}' because "
+                            f"Could not process '{stmt}' because "
                             f"'{symbol.name}' is not a DataSymbol.")
                     if isinstance(symbol.datatype, UnsupportedType):
                         raise NotImplementedError(
-                            f"Could not parse '{stmt}' because "
+                            f"Could not process '{stmt}' because "
                             f"'{symbol.name}' has an UnsupportedType.")
 
                     # Parse its initialization into a dummy Assignment
@@ -2837,11 +2837,11 @@ class Fparser2Reader():
         :param parent: Parent node in the PSyIR we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param nodes: List of sibling nodes in fparser2 AST.
-        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :type nodes: list[:py:class:`fparser.two.utils.Base`]
 
         '''
         code_block_nodes = []
-        message = "PSyclone CodeBlock reason:"
+        message = "PSyclone CodeBlock (unsupported code) reason:"
         for child in nodes:
             try:
                 psy_child = self._create_child(child, parent)
@@ -2856,9 +2856,11 @@ class Fparser2Reader():
                     # (Otherwise it is hard to correctly reconstruct e.g.
                     # the arguments to a Call.)
                     self.nodes_to_code_block(parent, code_block_nodes, message)
+                    message = "PSyclone CodeBlock (unsupported code) reason:"
             else:
                 if psy_child:
                     self.nodes_to_code_block(parent, code_block_nodes, message)
+                    message = "PSyclone CodeBlock (unsupported code) reason:"
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
@@ -2891,10 +2893,10 @@ class Fparser2Reader():
             # must allow for the case where the block is empty though.
             if (child.content and child.content[0] and
                     child.content[0].item and child.content[0].item.label):
-                raise NotImplementedError("Unsupported labeled statement")
+                raise NotImplementedError("Unsupported labelled statement")
         elif isinstance(child, StmtBase):
             if child.item and child.item.label:
-                raise NotImplementedError("Unsupported labeled statement")
+                raise NotImplementedError("Unsupported labelled statement")
 
         handler = self.handlers.get(type(child))
         if handler is None:
@@ -2907,7 +2909,8 @@ class Fparser2Reader():
             generic_type = type(child).__bases__[0]
             handler = self.handlers.get(generic_type)
             if not handler:
-                raise NotImplementedError("Unsupported statement")
+                raise NotImplementedError(
+                    f"Unsupported statement: {type(child).__name__}")
         return handler(child, parent)
 
     def _ignore_handler(self, *_):
@@ -3183,7 +3186,8 @@ class Fparser2Reader():
                 # the Loop (but exclude the END DO from this check).
                 names = walk(node.content[:-1], Fortran2003.Name)
                 if construct_name in [name.string for name in names]:
-                    raise NotImplementedError("Unsuppored label reference")
+                    raise NotImplementedError(
+                        "Unsupported label reference within DO")
 
         ctrl = walk(nonlabel_do, Fortran2003.Loop_Control)
         # In fparser Loop_Control has 4 children, but just one of the Loop
@@ -4494,7 +4498,7 @@ class Fparser2Reader():
                 value = value.replace(".", "0.")
             return Literal(value, real_type)
         # Unrecognised datatype - will result in a CodeBlock
-        raise NotImplementedError("Unsupported datatype")
+        raise NotImplementedError("Unsupported datatype of literal number")
 
     def _char_literal_handler(self, node, parent):
         '''
@@ -4667,6 +4671,7 @@ class Fparser2Reader():
         if canonicalise:
             canonicalise(arg_nodes, arg_names, node)
 
+        # import pdb; pdb.set_trace()
         self.process_nodes(parent=call, nodes=arg_nodes)
 
         # Detach the children and add them again with the argument

@@ -214,8 +214,8 @@ def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
         "  enddo\n"
         "  d(1,1,1) = 0.0\n"
         "  e(:,:,:) = f(:,:,:)\n"
-        "  ! PSyclone CodeBlock reason:\n"
-        "  !  - Unsupported statement\n"
+        "  ! PSyclone CodeBlock (unsupported code) reason:\n"
+        "  !  - Unsupported statement: Print_Stmt\n"
         "  PRINT *, \"hello\"\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)

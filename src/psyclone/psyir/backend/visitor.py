@@ -253,10 +253,12 @@ class PSyIRVisitor():
 
                 # Add preceding comment if available
                 if isinstance(node, CommentableMixin):
-                    # and is in a location that allows line comments
+                    parent = node.parent
                     valid_locations = (Schedule, Container)
-                    if not (node.parent and
-                            not isinstance(node.parent, valid_locations)):
+                    valid = parent and isinstance(parent, valid_locations)
+                    # And is in a location that allows line comments, e.g.
+                    # Schedules, Container and Standalone nodes (no-parent)
+                    if not parent or valid:
                         if node.preceding_comment and self._COMMENT_PREFIX:
                             lines = node.preceding_comment.split('\n')
                             for line in lines:

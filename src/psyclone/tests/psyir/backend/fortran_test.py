@@ -1543,9 +1543,9 @@ def test_fw_codeblock_1(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir)
     assert (
         "    a = 1\n"
-        "    ! PSyclone CodeBlock reason:\n"
-        "    !  - Unsupported statement\n"
-        "    !  - Unsupported statement\n"
+        "    ! PSyclone CodeBlock (unsupported code) reason:\n"
+        "    !  - Unsupported statement: Print_Stmt\n"
+        "    !  - Unsupported statement: Print_Stmt\n"
         "    PRINT *, \"I am a code block\"\n"
         "    PRINT *, \"with more than one line\"\n" in result)
     assert Compile(tmpdir).string_compiles(result)
