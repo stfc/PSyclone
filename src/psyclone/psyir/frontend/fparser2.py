@@ -41,7 +41,7 @@
     to transform each node into the equivalent PSyIR representation.'''
 
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 
 from fparser.common.readfortran import FortranStringReader
@@ -1054,6 +1054,57 @@ class Fparser2Reader():
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR)])
+
+    @dataclass
+    class SelectTypeClass:
+        """Class for storing required information from an fparser2
+        Select_Type_Construct.
+
+        :param guard_type: the guard types used by 'type is' and 'class is'
+            select-type clauses e.g. 'REAL', 'REAL(KIND = 4), or 'mytype'
+            in 'type_is(REAL)' 'type_is(REAL(KIND = 4)' and 'class
+            is(mytype)' respectively. These are stored as a list of
+            str, ordered as found within the select-type
+            construct's 'type is', 'class is' and 'class default'
+            clauses with None indicating the 'class default' clause.
+        :param guard_type_name: a string representation of the guard types used
+            by 'type is' and 'class is' select-type clauses e.g. 'REAL',
+            'REAL(KIND = 4)', or 'mytype' are stored as
+            'REAL', 'REAL_4' and 'mytype' respectively. These are
+            designed to be used as base variable names in
+            the code. These are ordered as they are found in the
+            the select type construct 'type is, 'class is'
+            and 'class default' clauses with None representing the
+            'class default'.
+        :param intrinsic_type_name: the base intrinsic string name for the
+            particular clause or None if there is no intrinsic type. e.g.
+            'type is(REAL*4)', 'type is(mytype)' becomes ['REAL', None].
+            These are ordered as they are found in the the select-type
+            construct's 'type is, 'class is' and 'class default' clauses.
+        :param clause_type: the name of the clause in the select-type construct
+            i.e. one of 'type is', 'class is' and 'class default'. These are
+            ordered as they occur within the select-type construct.
+        :param stmts: a list of fparser2 statements holding the content of each
+            of the select-type construct 'type is, 'class is' and
+            'class default' clauses. These are ordered as they occur within the
+            select-type construct.
+        :param selector: the name of the select-type construct selector e.g.
+            'selector' in 'select type(selector)'.
+        :param num_clauses: the number of 'type is', 'class is' and
+            'class default' clauses in the select type construct.
+        :param default_idx: index of the 'default' clause as it appears within
+            the select-type construct's 'type is, 'class is' and
+            'class default' clauses, or -1 if no default clause is found.
+
+        """
+        guard_type: list[str | None] = field(default_factory=list)
+        guard_type_name: list[str | None] = field(default_factory=list)
+        intrinsic_type_name: list[str | None] = field(default_factory=list)
+        clause_type: list[str] = field(default_factory=list)
+        stmts: list[list[StmtBase]] = field(default_factory=list)
+        selector: str = ""
+        num_clauses: int = -1
+        default_idx: int = -1
 
     def __init__(self):
         # Map of fparser2 node types to handlers (which are class methods)
@@ -3429,7 +3480,8 @@ class Fparser2Reader():
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param select_type: instance of the SelectTypeClass dataclass
             containing information about the select type construct.
-        :type select_type: :py:class:`dataclasses.dataclass`
+        :type select_type: :py:class:\
+            `psyclone.psyir.frontend.fparser2.Fparser2Reader.SelectTypeClass`
         :param type_string_symbol: a type_string symbol capturing a
             particular 'select type' 'type is' or 'class is' clause.
         :type type_string_symbol: :py:class:`psyclone.psyir.type.DataSymbol`
@@ -3472,7 +3524,7 @@ class Fparser2Reader():
             # original select type clauses.
             clause = BinaryOperation.create(
                 BinaryOperation.Operator.EQ, Reference(type_string_symbol),
-                Literal(select_type.guard_type_repr[idx], CHARACTER_TYPE))
+                Literal(select_type.guard_type_name[idx], CHARACTER_TYPE))
 
             ifblock.addchild(clause)
             # Add If_body
@@ -3555,7 +3607,7 @@ class Fparser2Reader():
             # Create pointer symbol for the content of this 'type is'
             # or 'class is' clause.
             pointer_name = parent.scope.symbol_table.next_available_name(
-                f"ptr_{select_type.guard_type_repr[idx]}")
+                f"ptr_{select_type.guard_type_name[idx]}")
             if (select_type.intrinsic_type_name[idx] and
                     select_type.intrinsic_type_name[idx].upper() ==
                     "CHARACTER"):
@@ -3595,7 +3647,7 @@ class Fparser2Reader():
             # always have a valid 'type_spec' value.
             code += f"  {select_type.clause_type[idx]} ({type_spec})\n"
             code += (f"    {type_string_name} = "
-                     f"\"{select_type.guard_type_repr[idx].lower()}\"\n")
+                     f"\"{select_type.guard_type_name[idx].lower()}\"\n")
             code += (f"    {pointer_name} => {select_type.selector}\n")
         code += "end select\n"
         code += "end program\n"
@@ -3637,68 +3689,8 @@ class Fparser2Reader():
         :rtype: :py:class:`dataclasses.dataclass`
 
         '''
-        @dataclass
-        class SelectTypeClass:
-            """Class for storing required information from an fparser2
-            Select_Type_Construct.
 
-            """
-            # the guard types used by 'type is' and 'class is' select
-            # type clauses e.g. 'REAL', 'REAL(KIND = 4), or 'mytype'
-            # in 'type_is(REAL)' 'type_is(REAL(KIND = 4)' and 'class
-            # is(mytype)' respectively. These are stored as a list of
-            # strings, ordered as found within the select type
-            # construct 'type is, 'class is' and 'class default'
-            # clauses with None indicating the 'class default' clause.
-            guard_type = []
-
-            # a string representation of the guard types used by 'type
-            # is' and 'class is' select type clauses e.g. 'REAL',
-            # 'REAL(KIND = 4), or 'mytype' in 'REAL' are stored as
-            # 'REAL', 'REAL_4' and 'mytype' respectively. These are
-            # designed to be able to be used as base variable names in
-            # the code. These are ordered as they are found in the
-            # the select type construct 'type is, 'class is'
-            # and 'class default' clauses with None representing the
-            # 'class default'.
-            guard_type_repr = []
-
-            # the base intrinsic string name for the particular clause
-            # or None if there is no intrinsic. For example 'type
-            # is(REAL*4)', ' type is(mytype)' becomes ['REAL', None]
-            # These are ordered as they are found in the the select
-            # type construct 'type is, 'class is' and 'class default'
-            # clauses.
-            intrinsic_type_name = []
-
-            # the name of the clause in the select type construct
-            # i.e. one of 'type is', 'class is' and 'class
-            # default'. These are ordered as they are found in the
-            # within the select type construct 'type is, 'class is'
-            # and 'class default' clauses.
-            clause_type = []
-
-            # a list of fparser2 statements for the content of each of
-            # the select type construct 'type is, 'class is' and
-            # 'class default' clauses. These are ordered as they are
-            # found in the within the select type construct 'type is,
-            # 'class is' and 'class default' clauses.
-            stmts = []
-
-            # the name of the select type construct selector
-            # e.g. 'selector' in 'select type(selector)'.
-            selector: str = ""
-
-            # the number of 'type is', 'class is' and 'class default'
-            # clauses in the select type construct.
-            num_clauses: int = -1
-
-            # index of the default clause, ordered as found within the
-            # select type construct 'type is, 'class is' and 'class
-            # default' clauses, or -1 if no default clause is found.
-            default_idx: int = -1
-
-        select_type = SelectTypeClass()
+        select_type = Fparser2Reader.SelectTypeClass()
 
         select_idx = -1
         for child in node.children:
@@ -3754,7 +3746,7 @@ class Fparser2Reader():
                     # The guard type selector is a Class type ('class
                     # is (mytype)')
                     type_name = str(type_spec).lower()
-                select_type.guard_type_repr.append(type_name)
+                select_type.guard_type_name.append(type_name)
                 if type_spec:
                     select_type.guard_type.append(str(type_spec).lower())
                 else:
