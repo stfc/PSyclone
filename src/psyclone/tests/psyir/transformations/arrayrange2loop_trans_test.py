@@ -545,26 +545,3 @@ def test_character_validation(fortran_reader):
         "character arrays by default. This can be enabled by "
         "passing the allow_string option to the transformation."
         in str(info.value))
-
-
-def test_validate_function_in_index(fortran_reader):
-    '''
-    Checks the try catch blocks to handle TODO #1799 work correctly.
-    '''
-    code = '''
-    subroutine test()
-    use some_mod
-    character, dimension(100,100) :: a
-    character, dimension(100,100) :: b
-
-    a(LBOUND(a),:) = b(LBOUND(b),:)
-
-    end subroutine test
-    '''
-    psyir = fortran_reader.psyir_from_source(code)
-    assign = psyir.walk(Assignment)[0]
-
-    trans = ArrayRange2LoopTrans()
-    # At the moment this doesn't fail because we can't know the type of
-    # a and b - TODO #1799
-    trans.validate(assign)

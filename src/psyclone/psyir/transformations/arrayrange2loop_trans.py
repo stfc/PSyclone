@@ -246,11 +246,11 @@ class ArrayRange2LoopTrans(Transformation):
             except NotImplementedError:
                 pass
             for child in node.rhs.walk((Literal, Reference)):
-                # Skip unresolved types
-                if isinstance(child.datatype,
-                              (UnresolvedType, UnsupportedType)):
-                    continue
                 try:
+                    # Skip unresolved types
+                    if isinstance(child.datatype,
+                              (UnresolvedType, UnsupportedType)):
+                        continue
                     if (child.datatype.intrinsic ==
                             ScalarType.Intrinsic.CHARACTER):
                         raise TransformationError(

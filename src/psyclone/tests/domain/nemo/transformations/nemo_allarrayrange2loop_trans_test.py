@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the NemoAllArrayRange2LoopTrans
 transformation.'''

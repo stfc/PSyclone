@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation that given an Assignment node to an
 ArrayReference in its left-hand-side which has at least one PSyIR Range

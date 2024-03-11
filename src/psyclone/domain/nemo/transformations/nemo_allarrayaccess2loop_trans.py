@@ -106,7 +106,7 @@ class NemoAllArrayAccess2LoopTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         trans = NemoArrayAccess2LoopTrans()
 
