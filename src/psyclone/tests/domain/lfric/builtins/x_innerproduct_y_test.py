@@ -88,7 +88,7 @@ def test_x_innerproduct_y(tmpdir, dist_mem):
             "      !\n"
             "      asum = 0.0_r_def\n"
             "      !\n"
-            "      DO df=loop0_start,loop0_stop\n"
+            "      DO df = loop0_start, loop0_stop, 1\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO")
     assert output in code
