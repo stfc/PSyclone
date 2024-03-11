@@ -61,12 +61,13 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import (
     ArrayOfStructuresMixin)
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, AutomaticInterface, CommonBlockInterface,
-    ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
-    GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE, NoType,
-    RoutineSymbol, ScalarType, StaticInterface, StructureType, Symbol,
-    SymbolError, SymbolTable, UnknownInterface, UnresolvedInterface,
-    UnresolvedType, UnsupportedFortranType, UnsupportedType)
+    ArgumentInterface, ArrayType, AutomaticInterface, CHARACTER_TYPE,
+    CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    DefaultModuleInterface, GenericInterfaceSymbol, ImportInterface,
+    INTEGER_TYPE, NoType, RoutineSymbol, ScalarType, StaticInterface,
+    StructureType, Symbol, SymbolError, SymbolTable, UnknownInterface,
+    UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
+    UnsupportedType)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -3533,7 +3534,7 @@ class Fparser2Reader():
         type_string_name = parent.scope.symbol_table.next_available_name(
             type_string_name)
         # Length is hardcoded here so could potentially be too short.
-        type_string_type = UnknownFortranType(
+        type_string_type = UnsupportedFortranType(
             f"character(256) :: {type_string_name}")
         type_string_symbol = DataSymbol(type_string_name, type_string_type)
         parent.scope.symbol_table.add(type_string_symbol)
@@ -3584,7 +3585,7 @@ class Fparser2Reader():
             # the approprriate select type clause so that the specific
             # type can be used in a subsequent if block hierarchy
             # (otherwise Fortran complains that the type is generic).
-            pointer_type = UnknownFortranType(
+            pointer_type = UnsupportedFortranType(
                 f"{tmp_type}, pointer :: {pointer_name}")
             pointer_symbol = DataSymbol(pointer_name, pointer_type)
             parent.scope.symbol_table.add(pointer_symbol)
