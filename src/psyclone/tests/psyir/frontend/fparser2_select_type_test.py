@@ -93,9 +93,9 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "      end if\n"
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
-    assert expected1 in result
-    assert expected2 in result
+    result = fortran_writer(psyir).lower()
+    assert expected1.lower() in result
+    assert expected2.lower() in result
     if_blocks = psyir.walk(IfBlock)
     assert "was_type_is" in if_blocks[0].annotations
     assert "was_type_is" in if_blocks[1].annotations
@@ -156,9 +156,9 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
         "        branch3 = 1\n"
         "      end if\n"
         "    end if\n\n"
-        "  end subroutine select_type\n")
+        "  end subroutine select_type\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
+    result = fortran_writer(psyir).lower()
     assert expected in result
     assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
@@ -203,7 +203,7 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
-    expected1 = "CLASS(*), TARGET :: type"
+    expected1 = "CLASS(*), TARGET :: type".lower()
     expected2 = (
         "    character(256) :: type_string\n"
         "    type(type2), pointer :: ptr_type2\n"
@@ -243,9 +243,9 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "          end if\n"
         "        end if\n"
         "      end if\n"
-        "    end if\n")
+        "    end if\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
+    result = fortran_writer(psyir).lower()
     assert expected1 in result
     assert expected2 in result
     if_blocks = psyir.walk(IfBlock)
@@ -320,7 +320,7 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "    REAL(KIND = 8) :: rinfo2\n"
         "    character(256) :: type_string\n"
         "    REAL(KIND = 4), pointer :: ptr_REAL_4\n"
-        "    REAL(KIND = 8), pointer :: ptr_REAL_8\n")
+        "    REAL(KIND = 8), pointer :: ptr_REAL_8\n").lower()
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
@@ -340,9 +340,9 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "        branch2 = 1\n"
         "        rinfo2 = ptr_REAL_8\n"
         "      end if\n"
-        "    end if\n")
+        "    end if\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
+    result = fortran_writer(psyir).lower()
     assert expected1 in result
     assert expected2 in result
     assert Compile(tmpdir).string_compiles(code)
@@ -440,7 +440,7 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "    character(256) :: type_string\n"
         "    LOGICAL, pointer :: ptr_LOGICAL\n"
         "    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star\n"
-        "    COMPLEX, pointer :: ptr_COMPLEX\n")
+        "    COMPLEX, pointer :: ptr_COMPLEX\n").lower()
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
@@ -468,9 +468,9 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "          complex_type = ptr_COMPLEX\n"
         "        end if\n"
         "      end if\n"
-        "    end if\n")
+        "    end if\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
+    result = fortran_writer(psyir).lower()
     assert expected1 in result
     assert expected2 in result
     assert Compile(tmpdir).string_compiles(code)
@@ -507,7 +507,7 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
         f"    CLASS(*), TARGET :: type_selector\n"
         f"    CHARACTER{char_type_out} :: character_type\n"
         f"    character(256) :: type_string\n"
-        f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star\n")
+        f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star\n").lower()
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
@@ -517,9 +517,9 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
         "END SELECT\n"
         "    if (type_string == 'character_star') then\n"
         "      character_type = ptr_CHARACTER_star\n"
-        "    end if\n")
+        "    end if\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
+    result = fortran_writer(psyir).lower()
     assert expected1 in result
     assert expected2 in result
     assert Compile(tmpdir).string_compiles(code)
@@ -552,7 +552,7 @@ def test_character_colon(fortran_reader, fortran_writer, tmpdir, char_type_in,
         f"    CLASS(*), TARGET :: type_selector\n"
         f"    CHARACTER{char_type_out}, POINTER :: character_type\n"
         f"    character(256) :: type_string\n"
-        f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star\n")
+        f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star\n").lower()
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
@@ -562,9 +562,9 @@ def test_character_colon(fortran_reader, fortran_writer, tmpdir, char_type_in,
         "END SELECT\n"
         "    if (type_string == 'character_star') then\n"
         "      character_type = ptr_CHARACTER_star\n"
-        "    end if\n")
+        "    end if\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
+    result = fortran_writer(psyir).lower()
     assert expected1 in result
     assert expected2 in result
     assert Compile(tmpdir).string_compiles(code)
@@ -606,9 +606,9 @@ def test_character_expression(fortran_reader, fortran_writer, tmpdir):
         "      character_type = ptr_CHARACTER_star\n"
         "    end if\n\n"
         "  end subroutine select_type\n\n"
-        "end module select_mod\n")
+        "end module select_mod\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
+    result = fortran_writer(psyir).lower()
     assert result == expected
     assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
@@ -655,23 +655,23 @@ def test_character_kind(
         f"  public\n\n"
         f"  contains\n"
         f"  subroutine select_type(type_selector, character_type)\n"
-        f"    CLASS(*), TARGET :: type_selector\n"
-        f"    CHARACTER{char_type_out}{pointer} :: character_type\n"
+        f"    class(*), target :: type_selector\n"
+        f"    character{char_type_out}{pointer} :: character_type\n"
         f"    character(256) :: type_string\n"
-        f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star\n\n"
+        f"    character(len=256), pointer :: ptr_character_star\n\n"
         f"    type_string = ''\n"
-        f"    SELECT TYPE(type_selector)\n"
-        f"  TYPE IS (CHARACTER(LEN = *))\n"
+        f"    select type(type_selector)\n"
+        f"  type is (character(len = *))\n"
         f"  type_string = \"character_star\"\n"
-        f"  ptr_CHARACTER_star => type_selector\n"
-        f"END SELECT\n"
+        f"  ptr_character_star => type_selector\n"
+        f"end select\n"
         f"    if (type_string == 'character_star') then\n"
-        f"      character_type = ptr_CHARACTER_star\n"
+        f"      character_type = ptr_character_star\n"
         f"    end if\n\n"
         f"  end subroutine select_type\n\n"
-        f"end module select_mod\n")
+        f"end module select_mod\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
+    result = fortran_writer(psyir).lower()
     assert result == expected
     assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
@@ -721,9 +721,9 @@ def test_class_target(
         f"      character_type = ptr_CHARACTER_star\n"
         f"    end if\n\n"
         f"  end subroutine select_type\n\n"
-        f"end module select_mod\n")
+        f"end module select_mod\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
+    result = fortran_writer(psyir).lower()
     assert result == expected
     assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)

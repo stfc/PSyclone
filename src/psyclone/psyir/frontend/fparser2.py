@@ -3387,32 +3387,31 @@ class Fparser2Reader():
         # created pointers to point at the supplied datatype.
         attr_spec_list = type_decl_stmt.children[1]
         attr_spec_str_list = []
-        found = False
+
         if attr_spec_list:
             for attr_spec in attr_spec_list.children:
                 attr_spec_str = attr_spec.string
                 attr_spec_str_list.append(attr_spec_str)
                 if attr_spec_str.upper() in ["TARGET", "POINTER"]:
                     # There is already a target or pointer attribute
-                    found = True
-                    break
-        if not found:
-            # TARGET needs to be added as an additional attribute
-            if attr_spec_str_list:
-                # At least one attribute already exists but it is not
-                # or they are not the target or pointer attributes.
-                attr_spec_str_list.append("TARGET")
-                attr_spec_list = Fortran2003.Attr_Spec_List(
-                    ", ".join(attr_spec_str_list))
-            else:
-                # There are no pre-existing attributes
-                attr_spec_list = Fortran2003.Attr_Spec_List("TARGET")
-            type_decl_stmt.items = (
-                type_decl_stmt.items[0], attr_spec_list,
-                type_decl_stmt.items[2])
-            attr_spec_list.parent = type_decl_stmt
-            # pylint: disable=protected-access
-            datatype._declaration = str(type_decl_stmt)
+                    return
+
+        # TARGET needs to be added as an additional attribute
+        if attr_spec_str_list:
+            # At least one attribute already exists but it is not
+            # or they are not the target or pointer attributes.
+            attr_spec_str_list.append("TARGET")
+            attr_spec_list = Fortran2003.Attr_Spec_List(
+                ", ".join(attr_spec_str_list))
+        else:
+            # There are no pre-existing attributes
+            attr_spec_list = Fortran2003.Attr_Spec_List("TARGET")
+        type_decl_stmt.items = (
+            type_decl_stmt.items[0], attr_spec_list,
+            type_decl_stmt.items[2])
+        attr_spec_list.parent = type_decl_stmt
+        # pylint: disable=protected-access
+        datatype._declaration = str(type_decl_stmt)
 
     def _create_ifblock(
             self, parent, select_type, type_string_symbol, pointer_symbols):
@@ -3437,7 +3436,7 @@ class Fparser2Reader():
         :param pointer_symbols: a list of symbols that point to the
             different select type types within the select type codeblock.
         :type pointer_symbols:
-            List[Optional[:py:class:`psyclone.psyir.symbols.Symbol`]]
+            list[Optional[:py:class:`psyclone.psyir.symbols.Symbol`]]
 
         :returns: the newly created PSyIR IfBlock.
         :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
@@ -3451,21 +3450,18 @@ class Fparser2Reader():
                 # This is the index of the 'class default' clause so
                 # skip this until the end of the if blocks.
                 continue
+
+            annotation = (
+                "was_class_is" if select_type.clause_type[idx].upper() ==
+                "CLASS IS" else "was_type_is")
             if ifblock:
-                # We already have an if so this is an else if
+                # We already have an if so this is an else if.
                 elsebody = Schedule(parent=currentparent)
-                annotation = "was_class_is" \
-                    if select_type.clause_type[idx].upper() == \
-                    "CLASS IS" else "was_type_is"
                 ifblock = IfBlock(annotations=[annotation], parent=elsebody)
                 elsebody.addchild(ifblock)
                 currentparent.addchild(elsebody)
             else:
-                # We do not yet have an if so this is the 'outer'
-                # if block
-                annotation = "was_class_is" \
-                    if select_type.clause_type[idx].upper() == \
-                    "CLASS IS" else "was_type_is"
+                # We do not yet have an if so this is the 'outer' if block.
                 ifblock = IfBlock(parent=currentparent,
                                   annotations=[annotation])
                 outer_ifblock = ifblock
@@ -3476,8 +3472,7 @@ class Fparser2Reader():
             # original select type clauses.
             clause = BinaryOperation.create(
                 BinaryOperation.Operator.EQ, Reference(type_string_symbol),
-                Literal(select_type.guard_type_repr[idx].lower(),
-                        CHARACTER_TYPE))
+                Literal(select_type.guard_type_repr[idx], CHARACTER_TYPE))
 
             ifblock.addchild(clause)
             # Add If_body
@@ -3487,7 +3482,7 @@ class Fparser2Reader():
             # references to the appropriate pointer.
             for reference in ifbody.walk(Reference):
                 symbol = reference.symbol
-                if symbol.name.lower() == select_type.selector.lower():
+                if symbol.name.lower() == select_type.selector:
                     reference.symbol = pointer_symbols[idx]
             ifblock.addchild(ifbody)
             currentparent = ifblock
@@ -3506,31 +3501,36 @@ class Fparser2Reader():
     @staticmethod
     def _create_select_type(
             parent, select_type, pointer_symbols, type_string_name=None):
-        '''Use the contents from the supplied dataclass instance (select_type)
-        to create a select type PSyIR codeblock to capture the logic
-        of the select type without capturing its content.
+        '''Use the contents of the supplied dataclass instance (`select_type`)
+        to create a CodeBlock containing a select type to capture its control
+        logic without capturing its content.
+
+        The 'output' of this CodeBlock is a character variable containing the
+        'name' of the type that was provided, thus identifying which branch of
+        the code would be executed. A pointer is also created and assigned
+        to the type-selection of the 'type is' or 'class is' clause.
 
         :param parent: the PSyIR parent to which we are going to add
             the PSyIR codeblock and any required symbols.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param select_type: instance of the SelectTypeClass dataclass
             containing information about the select type construct.
-        :type: :py:class:`dataclasses.dataclass`
+        :type select_type: :py:class:`dataclasses.dataclass`
         :param pointer_symbols: a list of symbols that point to the
             different select type types within the select type codeblock.
         :type pointer_symbols:
-            List[Optional[:py:class:`psyclone.psyir.symbols.Symbol`]]
+            list[Optional[:py:class:`psyclone.psyir.symbols.Symbol`]]
         :param Optional[str] type_string_name: the base name to use
             for the newly created type_string symbol.
 
-        :returns: the newly created type_string_symbol for use with
-            subsequent routines.
+        :returns: the DataSymbol representing the character variable which
+                  will hold the 'name' of the type.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         # Create a symbol from the supplied base name. Store as an
-        # UnknownFortranType in the symbol table as we do not natively
-        # support character strings in the PSyIR at the moment.
+        # UnknownFortranType in the symbol table as we do not natively support
+        # character strings (as opposed to scalars) in the PSyIR at the moment.
         type_string_name = parent.scope.symbol_table.next_available_name(
             type_string_name)
         # Length is hardcoded here so could potentially be too short.
@@ -3539,18 +3539,17 @@ class Fparser2Reader():
         type_string_symbol = DataSymbol(type_string_name, type_string_type)
         parent.scope.symbol_table.add(type_string_symbol)
 
-        # Create text for a select type construct using the
-        # information captured in the select_type dataclass
-        # instance. Also add any required pointer symbols to the
-        # symbol table as UnknownFortranType, as pointers are not
-        # natively supported in the PSyIR at the moment.
+        # Create text for a select type construct using the information
+        # captured in the `select_type` SelectTypeClass (dataclass) instance.
+        # Also add any required pointer symbols to the symbol table as
+        # UnknownFortranType, as pointers are not natively supported in the
+        # PSyIR at the moment.
         code = "program dummy\n"
         code += f"select type({select_type.selector})\n"
         for idx in range(select_type.num_clauses):
             if idx == select_type.default_idx:
-                # This is the index of the 'class default' clause so no
-                # pointer symbol is required (as there is no type
-                # selection).
+                # This is the index of the 'class default' clause so no pointer
+                # symbol is required (as there is no type selection).
                 pointer_symbols.append(None)
                 continue
             # Create pointer symbol for the content of this 'type is'
@@ -3582,7 +3581,7 @@ class Fparser2Reader():
                 type_spec = select_type.guard_type[idx]
 
             # Create a pointer that points to the specific type from
-            # the approprriate select type clause so that the specific
+            # the appropriate select type clause so that the specific
             # type can be used in a subsequent if block hierarchy
             # (otherwise Fortran complains that the type is generic).
             pointer_type = UnsupportedFortranType(
@@ -3601,15 +3600,15 @@ class Fparser2Reader():
         code += "end select\n"
         code += "end program\n"
 
-        # Parse the the create fortran text to an fparser2 tree and
+        # Parse the the created Fortran text to an fparser2 tree and
         # store the resulting tree in a PSyIR CodeBlock.
         parser = ParserFactory().create(std="f2008")
         reader = FortranStringReader(code)
         fp2_program = parser(reader)
         # Ignore the program part of the fparser2 tree
-        fp2_select_type = fp2_program.children[0].children[1]
-        code_block = CodeBlock(
-            [fp2_select_type], CodeBlock.Structure.STATEMENT, parent=parent)
+        exec_part = walk(fp2_program, Fortran2003.Execution_Part)
+        code_block = CodeBlock(exec_part, CodeBlock.Structure.STATEMENT,
+                               parent=parent)
 
         # Handlers assume a single node is returned and in this
         # implementation we create an assignment (see below), a
@@ -3716,7 +3715,7 @@ class Fparser2Reader():
                         f"the PSyIR.")
                 # Store the name of the selector variable in our
                 # dataclass instance.
-                select_type.selector = child.children[1].string
+                select_type.selector = child.children[1].string.lower()
             elif isinstance(child, Fortran2003.Type_Guard_Stmt):
                 # Found one of the type stmt guard clauses ('type is',
                 # 'class is', or 'class default').
@@ -3734,7 +3733,7 @@ class Fparser2Reader():
                     # The guard type selector is an intrinsic type
                     # e.g. 'type is(REAL)' Set the intrinsic base name
                     # as there is a base intrinsic type.
-                    intrinsic_base_name = type_spec.children[0]
+                    intrinsic_base_name = str(type_spec.children[0]).lower()
                     # Determine type_name for all the different cases
                     # (must return a string that can be used as a
                     # variable name).
@@ -3744,20 +3743,20 @@ class Fparser2Reader():
                         # This is a non-character intrinsic type with
                         # a kind specification
                         kind_spec_value = type_spec.children[1].children[1]
-                        type_name = f"{type_name}_{kind_spec_value}"
+                        type_name = f"{type_name}_{kind_spec_value}".lower()
                     elif walk(type_spec, Fortran2003.Length_Selector):
                         # This is a character intrinsic type so must
                         # have an assumed length ('*') which we
                         # tranform to 'star to allow the creation of a
                         # valid symbol name.
-                        type_name = f"{type_name}_star"
+                        type_name = f"{type_name}_star".lower()
                 else:
                     # The guard type selector is a Class type ('class
                     # is (mytype)')
-                    type_name = str(type_spec)
+                    type_name = str(type_spec).lower()
                 select_type.guard_type_repr.append(type_name)
                 if type_spec:
-                    select_type.guard_type.append(str(type_spec))
+                    select_type.guard_type.append(str(type_spec).lower())
                 else:
                     select_type.guard_type.append(None)
                 select_type.intrinsic_type_name.append(intrinsic_base_name)
@@ -3769,11 +3768,10 @@ class Fparser2Reader():
             elif isinstance(child, Fortran2003.End_Select_Type_Stmt):
                 pass
             else:
-                # The next content must be a statement as the content
-                # within select case or select type clauses in
-                # fparser2 are siblings of the various select case or
-                # select-type statements, rather than children of them
-                # (as one might expect).
+                # The next content must be a statement as the content within
+                # select case or select type clauses in fparser2 are *siblings*
+                # of the various select case or select-type statements, rather
+                # than children of them (as one might expect).
                 try:
                     select_type.stmts[select_idx].append(child)
                 except IndexError:
