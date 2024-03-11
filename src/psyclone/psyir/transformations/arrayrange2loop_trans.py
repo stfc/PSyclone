@@ -249,7 +249,7 @@ class ArrayRange2LoopTrans(Transformation):
                 try:
                     # Skip unresolved types
                     if isinstance(child.datatype,
-                              (UnresolvedType, UnsupportedType)):
+                                  (UnresolvedType, UnsupportedType)):
                         continue
                     if (child.datatype.intrinsic ==
                             ScalarType.Intrinsic.CHARACTER):
