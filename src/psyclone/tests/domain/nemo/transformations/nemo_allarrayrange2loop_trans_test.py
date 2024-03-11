@@ -235,3 +235,36 @@ def test_validate_assignment():
     assert ("Error in NemoAllArrayRange2LoopTrans transformation. The "
             "supplied node argument should be a PSyIR Assignment, but "
             "found 'NoneType'." in str(info.value))
+
+
+def test_character_validation_passes_through(fortran_reader, fortran_writer):
+    '''Check that the validate method of the called transformations
+    returns an exception if the lhs of the assignment contains a
+    character array and the allow_string option isn't defined,
+    and that it doesn't return an exception if the allow_string option is
+    True.'''
+    code = '''subroutine test()
+    character :: a(100)
+    character :: b(100)
+
+    a(1:94) = b(1:94)
+
+    end subroutine test'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+
+    trans = NemoAllArrayRange2LoopTrans()
+    trans.apply(assign, options={"allow_string": False})
+    correct = '''a(:94) = b(:94)'''
+    assert correct in fortran_writer(psyir)
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+
+    trans = NemoAllArrayRange2LoopTrans()
+    trans.apply(assign, options={"allow_string": True})
+    correct = '''  do idx = 1, 94, 1
+    a(idx) = b(idx)
+  enddo'''
+    assert correct in fortran_writer(psyir)

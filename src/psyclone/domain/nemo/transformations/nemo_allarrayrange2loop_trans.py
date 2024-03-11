@@ -107,11 +107,10 @@ class NemoAllArrayRange2LoopTrans(Transformation):
             transformation failed is not propagated.
         :type options: Optional[Dict[str, Any]]
         :param bool options["allow_string"]: whether to allow the
-                                             transformation on a character
-                                             type array range.
+            transformation on a character type array range. Defaults to False.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         trans = NemoOuterArrayRange2LoopTrans()
         try:

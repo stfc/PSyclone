@@ -45,7 +45,8 @@ not support array ranges.
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import ArrayReference, Assignment, Call, \
     IntrinsicCall, Loop, Literal, Range, Reference
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
+        UnresolvedType, UnsupportedType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -90,8 +91,7 @@ class ArrayRange2LoopTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :type options: Optional[Dict[str, Any]]
         :param bool options["allow_string"]: whether to allow the
-                                             transformation on a character
-                                             type array range.
+            transformation on a character type array range. Defaults to False.
 
         '''
         self.validate(node, options)
@@ -142,8 +142,7 @@ class ArrayRange2LoopTrans(Transformation):
         :param options: a dictionary with options for transformations
         :type options: Optional[Dict[str, Any]]
         :param bool options["allow_string"]: whether to allow the
-                                             transformation on a character
-                                             type array range.
+            transformation on a character type array range. Defaults to False.
 
         :raises TransformationError: if the node argument is not an
             Assignment.
@@ -231,35 +230,37 @@ class ArrayRange2LoopTrans(Transformation):
             options = {}
         allow_string_array = options.get("allow_string", False)
         # If we allow string arrays then we can skip the check.
-        if allow_string_array:
-            return
-        lhs = node.lhs
-        # ArrayMixin datatype lookup can fail if the indices contain a
-        # Call or Intrinsic Call. We catch this exception and continue
-        # for now - TODO #1799
-        try:
-            if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                raise TransformationError(
-                    "The ArrayRange2LoopTrans transformation doesn't allow "
-                    "character arrays by default. This can be enabled by "
-                    "passing the allow_string option to the transformation."
-                )
-        except NotImplementedError:
-            pass
-        for child in node.rhs.walk((Literal, Reference)):
-            # Skip over indices
-            if child.ancestor(ArrayReference) is not None:
-                continue
+        if not allow_string_array:
+            lhs = node.lhs
+            # ArrayMixin datatype lookup can fail if the indices contain a
+            # Call or Intrinsic Call. We catch this exception and continue
+            # for now - TODO #1799
             try:
-                if child.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
                     raise TransformationError(
                         "The ArrayRange2LoopTrans transformation doesn't "
                         "allow character arrays by default. This can be "
-                        "enabled by passing the allow_string option to the "
-                        "transformation."
+                        "enabled by passing the allow_string option to "
+                        "the transformation."
                     )
             except NotImplementedError:
                 pass
+            for child in node.rhs.walk((Literal, Reference)):
+                # Skip unresolved types
+                if isinstance(child.datatype,
+                              (UnresolvedType, UnsupportedType)):
+                    continue
+                try:
+                    if (child.datatype.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER):
+                        raise TransformationError(
+                            "The ArrayRange2LoopTrans transformation doesn't "
+                            "allow character arrays by default. This can be "
+                            "enabled by passing the allow_string option to "
+                            "the transformation."
+                        )
+                except NotImplementedError:
+                    pass
 
 
 __all__ = [

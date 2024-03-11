@@ -109,18 +109,17 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             to None.
         :type options: Optional[Dict[str, Any]]
         :param bool options["allow_string"]: whether to allow the
-                                             transformation on a character
-                                             type array range.
+            transformation on a character type array range. Defaults to False.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         # Get deepest array in LHS (excluding inside Ranges)
         deepest_range = node.lhs.walk(Range, stop_type=Range)[-1]
         lhs_array_ref = deepest_range.parent
         index = lhs_array_ref.get_outer_range_index()
         nemo_arrayrange2loop = NemoArrayRange2LoopTrans()
-        nemo_arrayrange2loop.apply(lhs_array_ref.children[index])
+        nemo_arrayrange2loop.apply(lhs_array_ref.children[index], options)
 
     def __str__(self):
         return ("Convert a PSyIR assignment to the outermost ArrayReference "

@@ -647,6 +647,29 @@ def test_character_validation(fortran_reader):
 
     trans.validate(assign, options={"allow_string": True})
 
+    # Check that the LEN=x syntax is also ok
+    code = '''subroutine test()
+    character(LEN=100) :: a
+    character(LEN=100) :: b
+
+    a(1:94) = b(1:94)
+
+    end subroutine test'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The NemoArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    trans.validate(assign, options={"allow_string": True})
+
     # Check it also works for rhs
     code = '''subroutine test()
     use some_mod

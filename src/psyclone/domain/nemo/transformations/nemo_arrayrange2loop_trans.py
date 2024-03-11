@@ -49,7 +49,7 @@ from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
     StructureReference, StructureMember, Node, Literal
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
-        UnresolvedType
+        UnresolvedType, UnsupportedType
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
@@ -110,8 +110,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             to None.
         :type options: Optional[Dict[str, Any]]
         :param bool options["allow_string"]: whether to allow the
-                                             transformation on a character
-                                             type array range.
+            transformation on a character type array range. Defaults to False.
 
         '''
         self.validate(node, options)
@@ -183,8 +182,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             to None.
         :type options: Optional[Dict[str, Any]]
         :param bool options["allow_string"]: whether to allow the
-                                             transformation on a character
-                                             type array range.
+            transformation on a character type array range. Defaults to False.
 
         :raises TransformationError: if the node argument is not a \
             Range, if the Range node is not part of an ArrayReference, \
@@ -320,31 +318,13 @@ class NemoArrayRange2LoopTrans(Transformation):
             options = {}
         allow_string_array = options.get("allow_string", False)
         # If we allow string arrays then we can skip the check.
-        if allow_string_array:
-            return
-        lhs = assignment.lhs
-        # ArrayMixin datatype lookup can fail if the indices contain a
-        # Call or Intrinsic Call. We catch this exception and continue
-        # for now - TODO #1799
-        try:
-            if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                raise TransformationError(
-                    "The NemoArrayRange2LoopTrans transformation doesn't "
-                    "allow character arrays by default. This can be enabled "
-                    "by passing the allow_string option to the "
-                    "transformation."
-                )
-        except NotImplementedError:
-            pass
-        for child in assignment.rhs.walk((Literal, Reference)):
-            # Skip over indices
-            if child.ancestor(ArrayReference) is not None:
-                continue
+        if not allow_string_array:
+            lhs = assignment.lhs
+            # ArrayMixin datatype lookup can fail if the indices contain a
+            # Call or Intrinsic Call. We catch this exception and continue
+            # for now - TODO #1799
             try:
-                # Skip unresolved types
-                if isinstance(child.datatype, UnresolvedType):
-                    continue
-                if child.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
                     raise TransformationError(
                         "The NemoArrayRange2LoopTrans transformation doesn't "
                         "allow character arrays by default. This can be "
@@ -353,6 +333,22 @@ class NemoArrayRange2LoopTrans(Transformation):
                     )
             except NotImplementedError:
                 pass
+            for child in assignment.rhs.walk((Literal, Reference)):
+                try:
+                    # Skip unresolved types
+                    if isinstance(child.datatype,
+                                  (UnresolvedType, UnsupportedType)):
+                        continue
+                    if (child.datatype.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER):
+                        raise TransformationError(
+                            "The NemoArrayRange2LoopTrans transformation "
+                            "doesn't allow character arrays by default. This "
+                            "can be enabled by passing the allow_string "
+                            "option to the transformation."
+                        )
+                except NotImplementedError:
+                    pass
 
 
 # For automatic document generation
