@@ -43,8 +43,6 @@ import pytest
 
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (FileContainer, Schedule, Assignment, Loop,
                                   IfBlock)

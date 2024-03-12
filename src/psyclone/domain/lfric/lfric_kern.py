@@ -47,8 +47,7 @@ from psyclone.core import AccessType
 from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
                                    KernelInterface, LFRicConstants)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import (CommentGen, DeclGen, ModuleGen, SubroutineGen,
-                              UseGen)
+from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -901,9 +900,6 @@ class LFRicKern(CodedKern):
                 f"The LFRic API supports calls to user-supplied kernels that "
                 f"operate on one of {const.USER_KERNEL_ITERATION_SPACES}, but "
                 f"kernel '{self.name}' operates on '{self.iterates_over}'.")
-
-        # Get configuration for valid argument kinds
-        api_config = Config.get().api_conf("dynamo0.3")
 
         # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicLoop
