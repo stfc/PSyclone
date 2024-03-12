@@ -291,8 +291,7 @@ this:
 
 This class is then sub-classed in order to support the generation of
 argument lists when *calling* kernels (``KernCallArgList``) and when
-*creating* kernel stubs (``KernStubArgList``).  ``KernCallArgList`` is
-only used in ``DynKernelArguments.raw_arg_list()``.
+*creating* kernel stubs (``KernStubArgList``).
 ``KernStubArgList`` is only used in ``LFRicKern.gen_stub()``. These
 classes make use of ``LFRicCollection`` sub-classes in order
 to ensure that argument naming is consistent.
