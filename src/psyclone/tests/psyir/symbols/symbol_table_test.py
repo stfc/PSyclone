@@ -691,14 +691,26 @@ def test_check_for_clashes_cannot_rename():
     # Add a clash between two symbols where neither is a Container or has an
     # ImportInterface.
     del table1._symbols["prostetnic"]
-    table1.add(symbols.DataSymbol("jeltz", symbols.INTEGER_TYPE,
-                                  interface=symbols.ArgumentInterface()))
-    table2.add(symbols.DataSymbol("jeltz", symbols.INTEGER_TYPE,
-                                  interface=symbols.ArgumentInterface()))
+    jsym1 = symbols.DataSymbol("jeltz", symbols.INTEGER_TYPE,
+                               interface=symbols.ArgumentInterface())
+    table1.add(jsym1)
+    table1.specify_argument_list([jsym1])
+    jsym2 = symbols.DataSymbol("jeltz", symbols.INTEGER_TYPE,
+                               interface=symbols.ArgumentInterface())
+    table2.add(jsym2)
+    table2.specify_argument_list([jsym2])
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
     assert ("Cannot rename symbol 'jeltz' because it is a routine argument "
             "and as such may be named in a Call." in str(err.value))
+    # This clash can be ignored by telling the checker to ignore any routine
+    # arguments.
+    table1.check_for_clashes(table2, symbols_to_skip=table2.argument_list[:])
+    # Ensure the symbols_to_skip argument is type-checked.
+    with pytest.raises(TypeError) as err:
+        table1.check_for_clashes(table2, symbols_to_skip=None)
+    assert ("symbols_to_skip' must be an instance of Iterable but got "
+            "'NoneType'" in str(err.value))
 
 
 def test_table_merge():
@@ -710,13 +722,19 @@ def test_table_merge():
         table1.merge("zaphod")
     assert ("merge() expects a SymbolTable instance but got 'str'" in
             str(err.value))
+    # 'symbols_to_skip' must be an Iterable (if provided).
+    with pytest.raises(TypeError) as err:
+        table1.merge(table2, symbols_to_skip=None)
+    assert ("merge() expects 'symbols_to_skip' to be an Iterable but got "
+            "'NoneType'" in str(err.value))
     # Can merge empty tables.
     table1.merge(table2)
     assert not table1._symbols
     # Simple merge.
     table2.add(symbols.DataSymbol("beeblebrox", symbols.INTEGER_TYPE))
-    # 'Own' routine symbol excluded.
-    table2.add(symbols.RoutineSymbol("dent"), tag="own_routine_symbol")
+    # A symbol we will exclude from the merge.
+    dent = symbols.RoutineSymbol("dent")
+    table2.add(dent, tag="own_routine_symbol")
     # Precision symbol should be included.
     wp_sym = symbols.DataSymbol("wp", symbols.INTEGER_TYPE, is_constant=True,
                                 initial_value=8)
@@ -724,7 +742,7 @@ def test_table_merge():
     table2.add(symbols.DataSymbol(
         "marvin",
         symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL, wp_sym)))
-    table1.merge(table2)
+    table1.merge(table2, symbols_to_skip=[dent])
     assert table1.lookup("beeblebrox")
     assert "dent" not in table1
     assert "marvin" in table1
@@ -746,14 +764,6 @@ def test_table_merge():
     table3.specify_argument_list([arg_sym])
     table1.merge(table3)
     assert table1.lookup("trillian") is arg_sym
-    # Check that arguments are ignored if requested.
-    table4 = symbols.SymbolTable()
-    arg_sym2 = symbols.DataSymbol("arthur", symbols.INTEGER_TYPE,
-                                  interface=symbols.ArgumentInterface())
-    table4.add(arg_sym2)
-    table4.specify_argument_list([arg_sym2])
-    table1.merge(table4, include_arguments=False)
-    assert "arthur" not in table1
 
 
 def test_merge_container_syms():
@@ -1648,7 +1658,7 @@ def test_deep_copy():
     # Create an initial SymbolTable
     symtab = symbols.SymbolTable(
         default_visibility=symbols.Symbol.Visibility.PRIVATE)
-    dummy = Schedule(symbol_table=symtab)
+    Schedule(symbol_table=symtab)
     mod = symbols.ContainerSymbol("my_mod")
     sym1 = symbols.DataSymbol("symbol1", symbols.INTEGER_TYPE,
                               interface=symbols.ArgumentInterface(
