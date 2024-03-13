@@ -50,8 +50,8 @@ PSYDATA_LIB_DIR ?= ./..
 
 # The nan-test library is implemented for int, real and
 # double scalars and 2-dimension arrays
-PROCESS_ARGS = -prefix=nan_test_ -types=int,real,double \
-		       -dims=2
+PROCESS_ARGS = -prefix=nan_test_ -types=char,int,logical,real,double \
+		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
 
