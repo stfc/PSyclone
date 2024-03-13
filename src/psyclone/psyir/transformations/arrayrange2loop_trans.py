@@ -40,6 +40,12 @@ PSyIR Loop. This could be useful for e.g. performance reasons, to
 allow further transformations e.g. loop fusion or if the back-end does
 not support array ranges.
 
+By default the transformation will reject character arrays,
+though this can be overriden by setting the
+allow_string option to True. Note that PSyclone expresses syntax such
+as `character(LEN=100)` as UnsupportedFortranType, and this
+transformation will convert unknown or unsupported types to loops.
+
 '''
 
 from psyclone.psyGen import Transformation
@@ -137,6 +143,12 @@ class ArrayRange2LoopTrans(Transformation):
         '''Perform various checks to ensure that it is valid to apply the
         ArrayRange2LoopTrans transformation to the supplied PSyIR Node.
 
+        By default the validate function will throw an TransofmrationError
+        on character arrays, though this can be overriden by setting the
+        allow_string option to True. Note that PSyclone expresses syntax such
+        as `character(LEN=100)` as UnsupportedFortranType, and this
+        transformation will convert unknown or unsupported types to loops.
+
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations
@@ -231,21 +243,10 @@ class ArrayRange2LoopTrans(Transformation):
         allow_string_array = options.get("allow_string", False)
         # If we allow string arrays then we can skip the check.
         if not allow_string_array:
-            lhs = node.lhs
             # ArrayMixin datatype lookup can fail if the indices contain a
             # Call or Intrinsic Call. We catch this exception and continue
             # for now - TODO #1799
-            try:
-                if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                    raise TransformationError(
-                        "The ArrayRange2LoopTrans transformation doesn't "
-                        "allow character arrays by default. This can be "
-                        "enabled by passing the allow_string option to "
-                        "the transformation."
-                    )
-            except NotImplementedError:
-                pass
-            for child in node.rhs.walk((Literal, Reference)):
+            for child in node.walk((Literal, Reference)):
                 try:
                     # Skip unresolved types
                     if isinstance(child.datatype,

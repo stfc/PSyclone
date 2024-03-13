@@ -695,3 +695,18 @@ def test_character_validation(fortran_reader):
 
     trans = NemoArrayRange2LoopTrans()
     trans.validate(assign)
+
+    # Check we accept when we find character(LEN=x) syntax as this is an
+    # UnsupportedFortranType
+    # TODO #2441
+    code = '''subroutine test()
+    character(LEN=100) :: a
+    character(LEN=100) :: b
+
+    a(1:94) = b(1:94)
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    trans.validate(assign)

@@ -89,6 +89,12 @@ class NemoArrayRange2LoopTrans(Transformation):
     node. This is required for correctness and if not satisfied the
     transformation will raise an exception.
 
+    By default the transformation will reject character arrays,
+    though this can be overriden by setting the
+    allow_string option to True. Note that PSyclone expresses syntax such
+    as `character(LEN=100)` as UnsupportedFortranType, and this
+    transformation will convert unknown or unsupported types to loops.
+
     '''
     def apply(self, node, options=None):
         ''' Apply the transformation such that, given an assignment with an
@@ -174,6 +180,12 @@ class NemoArrayRange2LoopTrans(Transformation):
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
         NemoArrayRange2LoopTrans transformation to the supplied PSyIR Node.
+
+        By default the validation will reject character arrays that PSyclone
+        understand as such, though this can be overriden by setting the
+        allow_string option to True. Note that PSyclone expresses syntax such
+        as `character(LEN=100)` as UnsupportedFortranType, and this
+        transformation will convert unknown or unsupported types to loops.
 
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
@@ -320,21 +332,10 @@ class NemoArrayRange2LoopTrans(Transformation):
         allow_string_array = options.get("allow_string", False)
         # If we allow string arrays then we can skip the check.
         if not allow_string_array:
-            lhs = assignment.lhs
             # ArrayMixin datatype lookup can fail if the indices contain a
             # Call or Intrinsic Call. We catch this exception and continue
             # for now - TODO #1799
-            try:
-                if lhs.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                    raise TransformationError(
-                        "The NemoArrayRange2LoopTrans transformation doesn't "
-                        "allow character arrays by default. This can be "
-                        "enabled by passing the allow_string option to the "
-                        "transformation."
-                    )
-            except NotImplementedError:
-                pass
-            for child in assignment.rhs.walk((Literal, Reference)):
+            for child in assignment.walk((Literal, Reference)):
                 try:
                     # Skip unresolved types
                     if isinstance(child.datatype,
