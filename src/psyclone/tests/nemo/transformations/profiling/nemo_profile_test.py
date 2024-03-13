@@ -45,10 +45,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop, ProfileNode
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
-from psyclone.transformations import OMPParallelLoopTrans, ACCKernelsTrans
-from psyclone.profiler import Profiler
 
 
 # The transformation that most of these tests use
