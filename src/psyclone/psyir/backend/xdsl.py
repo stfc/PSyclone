@@ -51,8 +51,7 @@ from xdsl.ir import Operation, Attribute, ParametrizedAttribute, Region, Block, 
 INTRINSIC_TYPE_TO_STRING={ScalarType.Intrinsic.INTEGER: "integer", ScalarType.Intrinsic.REAL: "real",
   ScalarType.Intrinsic.BOOLEAN: "logical", ScalarType.Intrinsic.CHARACTER: "character"}
 
-INTRINSIC_FUNCTIONS=["PRINT", "MPI_COMMRANK", "MPI_COMMSIZE", "MPI_SEND", "MPI_RECV", "MPI_ISEND", "MPI_IRECV", "MPI_WAIT", "MPI_WAITALL",
-  "MPI_REDUCE", "MPI_ALLREDUCE", "MPI_BCAST", "MPI_INIT", "MPI_FINALIZE", "TIMER_INIT", "TIMER_START", "TIMER_STOP", "TIMER_REPORT", "ALLOCATE", "DEALLOCATE"]
+INTRINSIC_FUNCTIONS=["PRINT", "ALLOCATE", "DEALLOCATE"]
 
 @dataclass
 class SSAValueCtx:
@@ -281,7 +280,9 @@ class xDSLWriter(LanguageWriter):
               new_name = whole_routine_scope.next_available_name(local_name)
               schedule.symbol_table.rename_symbol(symbol, new_name)
               whole_routine_scope.add(symbol)
+              imports.append(self.gen_use(symbol, whole_routine_scope))
 
+        
       imports=[]
       for symbol in whole_routine_scope.containersymbols:
         imports.append(self.gen_use(symbol, whole_routine_scope))
@@ -337,9 +338,9 @@ class xDSLWriter(LanguageWriter):
     def handleIntrinsic(self, fortran_code, isExpression):
       hasToken=re.search("(^[a-zA-Z_-]*)(\s|\()+", fortran_code)
       if hasToken:
+        psy_ir_args=[]
         tokens=re.findall("(^[a-zA-Z_-]*)(\s|\()+", fortran_code)
         if tokens[0][0].upper().strip() in INTRINSIC_FUNCTIONS:
-          psy_ir_args=[]
           arg_only=fortran_code.replace(tokens[0][0], "").replace("(", "").replace(")", "")
           arguments=arg_only.split(",")
           for argument in arguments:
@@ -364,8 +365,15 @@ class xDSLWriter(LanguageWriter):
               intrinsic=True)
           else:
             return psy_ir.CallExpr.get(tokens[0][0].upper().strip(), psy_ir_args, intrinsic=True)
+        # *** TODO: Handle module functions here
         else:
-          raise VisitorError(f"Intrinsic '{tokens[0][0].upper()}' call not supported")
+              #only_list = [StringAttr(dsym.name) for dsym in
+              #     symbol_table.symbols_imported_from(symbol)]
+
+              #if tokens[0][0].upper().strip() in only_list:
+              return psy_ir.CallExpr.get(tokens[0][0].upper().strip(), psy_ir_args, intrinsic=False)                    
+              #else:
+              #  raise VisitorError(f"Intrinsic '{tokens[0][0].upper()}' call not supported")
       else:
         raise VisitorError(f"Can not extract intrinsic name from '{fortran_code}'")
 
@@ -387,7 +395,6 @@ class xDSLWriter(LanguageWriter):
 
     def handleAllocateCodeBlock(self, fortran_code):
       varname=fortran_code.split("ALLOCATE(")[1].split("(")[0]
-      print(f"Allocate: {varname}")
       result_list=[psy_ir.ExprName.get(varname, self.ctx[varname])]
       args=fortran_code.split("ALLOCATE(")[1].split("(")[1].split(")")[0].split(",")
       for arg in args:
@@ -443,19 +450,7 @@ class xDSLWriter(LanguageWriter):
                 "must have one or more children.".format(node.name))
 
         args = self.gen_indices(node.children, node.name)
-        # For allocate intrinsic call, remove the arg range wrapper
-        if node.parent: 
-          if isinstance(node.parent, IntrinsicCall):
-            # *** TODO: We should check for "ALLOCATE" here
-            args = []
-            args.append(psy_ir.ExprName.get(node.symbol.name, self.ctx[node.symbol.name]))
-            for kid in node.children:
-              if isinstance(kid, Range):
-                if not isinstance(kid.stop, Literal):
-                  args.append(psy_ir.ExprName.get(kid.stop.name, self.ctx[kid.stop.name]))
-                  kid.stop._parent = None
-                  node.parent.addchild(kid.stop)
-            return psy_ir.ExprName.get(node.symbol.name, self.ctx[node.symbol.name])
+
         return psy_ir.ArrayReference.get(self.ctx[node.name], args)
         
 
@@ -663,23 +658,10 @@ class xDSLWriter(LanguageWriter):
     def call_node(self, node):
       result_list = []
       for child in node.children:
-        print(f"call_node: child {child}")
         result_list.append(self._visit(child))
 
       intrinsic=isinstance(node.routine, IntrinsicSymbol)
-      print(f"call_node: {node.routine} intrinsic={intrinsic}")
       
-      #for arg in node.routine.argument_names:
-      #  print(f"call_node:   {node.routine} arg={arg}")
-
-      #if fortran_code.upper().startswith("ALLOCATE"):
-      #if node.routine.name.upper().startswith("ALLOCATE"): 
-      #  ops_to_return.append(self.handleAllocateCodeBlock(fortran_code))
-      #elif node.routine.name.upper().startswith("DEALLOCATE"):
-      #  ops_to_return.append(self.handleDeAllocateCodeBlock(fortran_code))
-      #else:
-      #  ops_to_return.append(self.handleIntrinsic(fortran_code, False))
-
       if isinstance(node.routine.datatype, NoType):
         return psy_ir.CallExpr.get(node.routine.name, result_list, intrinsic=intrinsic)
       else:
