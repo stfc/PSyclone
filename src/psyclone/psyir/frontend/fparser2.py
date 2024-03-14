@@ -491,8 +491,8 @@ def _is_bound_full_extent(array, dim, intrinsic):
     if not isinstance(bound, IntrinsicCall):
         return False
 
-    reference = bound.children[0]
-    literal = bound.children[1]
+    reference = bound.arguments[0]
+    literal = bound.arguments[1]
 
     if bound.intrinsic != intrinsic:
         return False

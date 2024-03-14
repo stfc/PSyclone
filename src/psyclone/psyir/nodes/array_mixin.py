@@ -363,14 +363,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             else:
                 intrinsic = IntrinsicCall.Intrinsic.LBOUND
                 access_bound = access_shape.start
-            # If it uses an intrinsic in the bound, but this inquires a different
-            # array then we can not guarentee their equivalence.
-            if isinstance(access_bound, IntrinsicCall):
-                if not self.is_same_array(access_bound.arguments[0]):
-                    return False
 
             # Is this array access in the form of {UL}BOUND(array, index)?
-            return self._is_bound_op(access_bound, intrinsic, index)
+            if self._is_bound_op(access_bound, intrinsic, index):
+                return True
         else:
             access_bound = access_shape
 
