@@ -1739,7 +1739,7 @@ def test_deep_copy():
     # Create an initial SymbolTable
     symtab = symbols.SymbolTable(
         default_visibility=symbols.Symbol.Visibility.PRIVATE)
-    dummy = Schedule(symbol_table=symtab)
+    Schedule(symbol_table=symtab)
     mod = symbols.ContainerSymbol("my_mod")
     sym1 = symbols.DataSymbol("symbol1", symbols.INTEGER_TYPE,
                               interface=symbols.ArgumentInterface(

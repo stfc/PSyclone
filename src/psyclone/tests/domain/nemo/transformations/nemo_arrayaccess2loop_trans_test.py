@@ -39,9 +39,8 @@ transformation.'''
 import os
 import pytest
 
-from psyclone.domain.nemo.transformations import NemoArrayAccess2LoopTrans, \
-    CreateNemoPSyTrans
-from psyclone.psyGen import Transformation, InlinedKern
+from psyclone.domain.nemo.transformations import NemoArrayAccess2LoopTrans
+from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, ArrayReference, Literal, Node
