@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
     StructureReference, StructureMember, Node, Literal
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
-        UnresolvedType, UnsupportedType
+        UnresolvedType, UnsupportedType, ArrayType
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
@@ -338,8 +338,11 @@ class NemoArrayRange2LoopTrans(Transformation):
             for child in assignment.walk((Literal, Reference)):
                 try:
                     # Skip unresolved types
-                    if isinstance(child.datatype,
-                                  (UnresolvedType, UnsupportedType)):
+                    if (isinstance(child.datatype,
+                                   (UnresolvedType, UnsupportedType)) or
+                        (isinstance(child.datatype, ArrayType) and
+                         isinstance(child.datatype.datatype,
+                                    (UnresolvedType, UnsupportedType)))):
                         continue
                     if (child.datatype.intrinsic ==
                             ScalarType.Intrinsic.CHARACTER):
