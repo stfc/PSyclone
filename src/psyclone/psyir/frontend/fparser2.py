@@ -4671,7 +4671,6 @@ class Fparser2Reader():
         if canonicalise:
             canonicalise(arg_nodes, arg_names, node)
 
-        # import pdb; pdb.set_trace()
         self.process_nodes(parent=call, nodes=arg_nodes)
 
         # Detach the children and add them again with the argument
