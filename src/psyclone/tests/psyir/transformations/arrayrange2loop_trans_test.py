@@ -560,4 +560,3 @@ def test_character_validation(fortran_reader):
 
     trans = ArrayRange2LoopTrans()
     trans.validate(assign)
-    assert(False)
