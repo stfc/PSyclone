@@ -20,6 +20,9 @@
 	8) PR #2516 for #2513. Resolve flake8 issues and make it the only CI
 	linter.
 
+	9) PR #2512 towards #11. Adds comments giving the reason for any
+	CodeBlocks in the generated code.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
