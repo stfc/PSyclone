@@ -291,9 +291,10 @@ class CallTreeUtils():
                 # handled by the container node.
                 all_possible_routines = mod_info.resolve_routine(kernel.name)
                 for routine_name in all_possible_routines:
-                    psyir = \
-                        mod_info.get_psyir().get_routine_psyir(routine_name)
-                    todo.extend(self.get_non_local_symbols(psyir))
+                    kroutines = mod_info.get_psyir().get_routine_psyir(
+                        routine_name)
+                    for psyir in kroutines:
+                        todo.extend(self.get_non_local_symbols(psyir))
         return self._resolve_calls_and_unknowns(todo, read_write_info)
 
     # -------------------------------------------------------------------------
@@ -350,11 +351,12 @@ class CallTreeUtils():
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot find module '{module_name}' - ignored.")
                     continue
-                routine = mod_info.get_psyir().get_routine_psyir(signature[0])
-                if routine:
-                    # Add the list of non-locals to our todo list:
-                    outstanding_nonlocals.extend(
-                        self.get_non_local_symbols(routine))
+                routines = mod_info.get_psyir().get_routine_psyir(signature[0])
+                if routines:
+                    for routine in routines:
+                        # Add the list of non-locals to our todo list:
+                        outstanding_nonlocals.extend(
+                            self.get_non_local_symbols(routine))
                 else:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error

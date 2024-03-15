@@ -48,6 +48,7 @@ from fparser.two.Fortran2003 import (Function_Subprogram, Interface_Block,
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import FortranSyntaxError, walk
 
+from psyclone.configuration import Config
 from psyclone.errors import InternalError, PSycloneError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Container, FileContainer
@@ -176,7 +177,9 @@ class ModuleInfo:
             # parse this file again (in case of parsing errors).
             self._routine_names = set()
 
-            reader = FortranStringReader(self.get_source_code())
+            reader = FortranStringReader(
+                self.get_source_code(),
+                include_dirs=Config.get().include_paths)
             parser = ParserFactory().create(std="f2008")
             self._parse_tree = parser(reader)
 

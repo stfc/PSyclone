@@ -40,9 +40,33 @@ which module is contained in which file (including full location). '''
 from collections import OrderedDict
 import copy
 import os
+import re
+import codecs
 
 from psyclone.errors import InternalError
 from psyclone.parse.module_info import ModuleInfo
+
+
+# regex to find Fortran module names. Have to be careful not to match
+# e.g. "module procedure :: some_sub".
+_MODULE_PATTERN = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
+                             flags=(re.IGNORECASE | re.MULTILINE))
+
+
+def log_decode_error_handler(err):
+    """
+    A custom error handler for use when reading files. Simply skips any
+    characters that cause decoding errors.
+
+    :returns: 2-tuple containing replacement for bad chars (an empty string
+              and the position from where encoding should continue).
+    :rtype: tuple[str, int]
+
+    """
+    return ("", err.end)
+
+
+codecs.register_error("file-error-handler", log_decode_error_handler)
 
 
 class ModuleManager:
@@ -72,6 +96,7 @@ class ModuleManager:
                                 "to get the singleton instance.")
         # Cached mapping from module name to filename.
         self._mod_2_filename = {}
+        self._visited_files = set()
 
         # The list of all search paths which have not yet all their files
         # checked. It is stored as an ordered dict to make it easier to avoid
@@ -129,6 +154,9 @@ class ModuleManager:
                         ext not in [".F90", ".f90", ".X90", ".x90"]:
                     continue
                 full_path = os.path.join(directory, entry.name)
+                if full_path in self._visited_files:
+                    continue
+                self._visited_files.add(full_path)
                 # Obtain the names of all modules defined in this source file.
                 all_modules = self.get_modules_in_file(full_path)
                 for module in all_modules:
@@ -204,25 +232,26 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     def get_modules_in_file(self, filename):
-        '''This function returns the list of modules defined in the specified
-        file. The base implementation assumes the use of the LFRic coding
-        style: the file `a_mod.f90` implements the module `a_mod`. This
-        function can be implemented in a derived class to actually parse the
-        source file if required.
+        '''
+        Uses a regex search to find all modules defined in the file with the
+        supplied name.
 
-        :param str filename: the file name for which to find the list \
-            of modules it contains.
+        :param str filename: the fully-qualified name of the file to check for
+                             Fortran modules.
 
-        :returns: the list of all modules contained in the specified file.
+        :returns: the names of any modules present in the supplied file.
         :rtype: list[str]
 
         '''
-        basename = os.path.basename(filename)
-        root, _ = os.path.splitext(basename)
-        if root.lower().endswith("_mod"):
-            return [root]
+        # Error handler is defined in parse/__init__.py. It simply skips any
+        # characters that result in decoding errors. (Comments in a code may
+        # contain all sorts of weird things.)
+        with open(filename, "r", encoding='utf-8',
+                  errors='file-error-handler') as file_in:
+            source_code = file_in.read()
+        mod_names = _MODULE_PATTERN.findall(source_code)
 
-        return []
+        return [name.lower() for name in mod_names]
 
     # ------------------------------------------------------------------------
     def get_all_dependencies_recursively(self, all_mods):

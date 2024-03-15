@@ -41,7 +41,7 @@
 from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import GenericInterfaceSymbol, SymbolTable
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
@@ -170,21 +170,79 @@ class Container(ScopingNode, CommentableMixin):
     def __str__(self):
         return f"Container[{self.name}]\n"
 
-    def get_routine_psyir(self, name):
-        '''Returns the PSyIR for the routine with the given name, or None
-        if a routine with this name does not exist.
+    def get_routine_psyir(self, name, allow_private=False,
+                          check_wildcard_imports=False):
+        '''
+        Searches the Container for a definition of the named routine.
 
-        :param str name: name of the routine to find.
+        If it is not found and the routine is named in an import statement
+        then the search is continued in the named Container. Failing that,
+        all wildcard imports are checked.
 
-        :returns: the PSyIR Routine instance of the subroutine, or None if
-            there is no routine with that name in this container.
-        :rtype: Union[None, psyclone.psyir.nodes.Routine]
+        :param str name: the name of the Routine for which to search.
+        :param bool allow_private: whether the Routine is permitted to have
+            a visibility of PRIVATE.
+
+        :returns: the PSyIR of the named Routine (or Routines if it is an
+                  interface) if found, otherwise None.
+        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`] | NoneType
 
         '''
-        name = name.lower()
-        for routine in self.walk(Routine):
-            if routine.name.lower() == name:
-                return routine
+        rname = name.lower()
+        from psyclone.psyir.nodes.routine import Routine
+        from psyclone.psyir.symbols.symbol import Symbol
+        for node in self.children:
+            if isinstance(node, Routine) and node.name.lower() == rname:
+                # Check this routine is public
+                routine_sym = self.symbol_table.lookup(node.name)
+                if (allow_private or
+                        routine_sym.visibility == Symbol.Visibility.PUBLIC):
+                    return [node]
+                # The Container does not contain the expected Routine or the
+                # Routine is not public.
+
+        # Look in the import that names the routine if there is one.
+        table = self.symbol_table
+        try:
+            routine_sym = table.lookup(rname)
+        except KeyError:
+            # Routine does not exist in the SymbolTable.
+            routine_sym = None
+
+        if routine_sym and isinstance(routine_sym, GenericInterfaceSymbol):
+            # The routine is actually an interface to one or more routines.
+            rlist = []
+            for iroutine in routine_sym.routines:
+                rlist += self.get_routine_psyir(iroutine.symbol.name,
+                                                allow_private=allow_private)
+            return rlist
+
+        if routine_sym and routine_sym.is_import:
+            child_cntr_sym = routine_sym.interface.container_symbol
+            # Find the definition of the container.
+            try:
+                container = child_cntr_sym.container(local_node=self)
+            except FileNotFoundError:
+                # TODO #11 log that we didn't find the Container from which
+                # the routine is imported.
+                return None
+            return container.get_routine_psyir(rname)
+
+        # Look in any wildcard imports.
+        if not check_wildcard_imports:
+            return None
+
+        for child_cntr_sym in table.containersymbols:
+            if child_cntr_sym.wildcard_import:
+                # Find the definition of the container.
+                try:
+                    container = child_cntr_sym.container(local_node=self)
+                except FileNotFoundError:
+                    continue
+                result = container.get_routine_psyir(rname)
+                if result:
+                    return result
+        # The required Routine was not found in the Container.
         return None
 
 

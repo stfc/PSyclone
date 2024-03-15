@@ -90,7 +90,7 @@ def test_module_info_get_psyir():
     mod_man.add_search_path("d2")
     mod_info = mod_man.get_module_info("g_mod")
 
-    psyir = mod_info.get_psyir().get_routine_psyir("myfunc1")
+    psyir = mod_info.get_psyir().get_routine_psyir("myfunc1")[0]
     assert psyir.name == "myfunc1"
 
     psyir = mod_info.get_psyir()

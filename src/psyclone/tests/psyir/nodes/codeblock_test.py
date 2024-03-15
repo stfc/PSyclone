@@ -38,7 +38,6 @@
 
 ''' Performs py.test tests on the CodeBlock PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.nodes import CodeBlock
@@ -104,19 +103,34 @@ def test_codeblock_children_validation():
 
 def test_codeblock_get_symbol_names(parser):
     '''Test that the get_symbol_names methods returns the names of the symbols
-    used inside the CodeBlock.'''
+    used inside the CodeBlock. This is slightly subtle as we have to avoid
+    any labels on loop and branching statements.'''
     reader = FortranStringReader('''
     subroutine mytest
+      myloop: DO i = 1, 10
         a = b + sqrt(c)
+        myifblock: IF(this_is_true)THEN
+          EXIT myloop
+        ELSE IF(that_is_true)THEN myifblock
+          write(*,*) "Bye"
+        ELSE myifblock
+          write(*,*) "hello"
+        END IF myifblock
+      END DO myloop
     end subroutine mytest''')
     prog = parser(reader)
     block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
-    assert "a" in block.get_symbol_names()
-    assert "b" in block.get_symbol_names()
-    assert "c" in block.get_symbol_names()
-    assert "mytest" in block.get_symbol_names()
-    assert "subroutine" not in block.get_symbol_names()
-    assert "sqrt" not in block.get_symbol_names()
+    sym_names = block.get_symbol_names()
+    assert "a" in sym_names
+    assert "b" in sym_names
+    assert "c" in sym_names
+    assert "mytest" in sym_names
+    assert "subroutine" not in sym_names
+    assert "sqrt" not in sym_names
+    assert "myloop" not in sym_names
+    assert "myifblock" not in sym_names
+    assert "this_is_true" in sym_names
+    assert "that_is_true" in sym_names
 
 
 def test_codeblock_equality(parser):
