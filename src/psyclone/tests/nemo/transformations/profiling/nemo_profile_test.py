@@ -203,6 +203,8 @@ def test_profile_codeblock(parser):
     assert (
         "  call profile_psy_data % prestart(\"cb_test\", \"r0\", 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
+        "    ! psyclone codeblock (unsupported code) reason:\n"
+        "    !  - unsupported statement: write_stmt\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "  enddo\n"
         "  call profile_psy_data % postend\n" in code)
@@ -278,6 +280,8 @@ def test_profile_single_line_if(parser):
         "  if (do_this) then\n"
         "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0,"
         " 0)\n"
+        "    ! psyclone codeblock (unsupported code) reason:\n"
+        "    !  - unsupported statement: write_stmt\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "    call profile_psy_data % postend\n"
         "  end if\n" in gen_code)
