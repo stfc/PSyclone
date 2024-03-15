@@ -45,7 +45,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    CodeBlock, Container, KernelSchedule,
+    Call, CodeBlock, Container, KernelSchedule,
     Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir import symbols
 
@@ -454,10 +454,9 @@ def test_remove_routineymbols():
     assert "a" not in sym_table
 
 
-def test_no_remove_routinesymbol_called(fortran_reader):
+def test_no_remove_routinesymbol_called(fortran_reader, monkeypatch):
     '''Check that remove() refuses to remove a RoutineSymbol if it is the
     target of a Call.'''
-    # But not if they are referred to by a Call
     psyir = fortran_reader.psyir_from_source(
         '''
 module my_mod
@@ -484,10 +483,36 @@ end module my_mod
             "'call my_sub()" in str(err))
 
 
+def test_remove_shadowed_routinesymbol_called(fortran_reader, monkeypatch):
+    '''Check that remove() removes a RoutineSymbol if it is the
+    target of a Call but is shadowing a RoutineSymbol in an outer scope.'''
+    psyir = fortran_reader.psyir_from_source(
+        '''
+module my_mod
+  use some_mod, only: my_sub
+  implicit none
+
+contains
+
+  subroutine runnit()
+    use some_mod, only: my_sub
+    call my_sub
+  end subroutine runnit
+
+end module my_mod
+''')
+    routines = psyir.walk(Routine)
+    call = psyir.walk(Call)[0]
+    shadow_sym = call.routine
+    routines[0].symbol_table.remove(shadow_sym)
+    # Call must be updated to point to Symbol in outer scope.
+    outer_sym = psyir.children[0].symbol_table.lookup("my_sub")
+    assert call.routine is outer_sym
+
+
 def test_no_remove_routinesymbol_interface(fortran_reader):
     '''Check that remove() refuses to remove a RoutineSymbol if it is
     referred to in an interface.'''
-    # But not if they are referred to by a Call
     psyir = fortran_reader.psyir_from_source(
         '''
 module my_mod
@@ -725,17 +750,18 @@ def test_check_for_clashes_wildcard_import():
                       datatype=symbols.UnresolvedType(),
                       interface=symbols.UnresolvedInterface())
     # Both symbols unresolved but no common wildcard import.
-    import pdb; pdb.set_trace()
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
-    assert ("There is a name clash for symbol 'stavro' that cannot be resolved"
-            " by renaming one of the instances because:" in str(err.value))
+    assert ("A symbol named 'stavro' is present but unresolved in both tables "
+            "and they do not share a wildcard import that could be bringing "
+            "it into scope" in str(err.value))
     # Add a wildcard import to the second table but from a different container.
     table2.add(symbols.ContainerSymbol("romula", wildcard_import=True))
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
-    assert ("There is a name clash for symbol 'stavro' that cannot be resolved"
-            " by renaming one of the instances because:" in str(err.value))
+    assert ("A symbol named 'stavro' is present but unresolved in both tables "
+            "and they do not share a wildcard import that could be bringing "
+            "it into scope" in str(err.value))
     # Add a wildcard import from the same container as in the first table.
     table2.add(symbols.ContainerSymbol("beta", wildcard_import=True))
     table1.check_for_clashes(table2)

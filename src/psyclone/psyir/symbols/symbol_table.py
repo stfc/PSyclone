@@ -588,8 +588,8 @@ class SymbolTable():
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
         # Check whether there are any wildcard imports common to both tables.
-        shared_wildcard_imports = self.wildcard_imports(collect_all=True)
-        shared_wildcard_imports.intersection(
+        self_wildcard_imports = self.wildcard_imports(collect_all=True)
+        shared_wildcard_imports = self_wildcard_imports.intersection(
             other_table.wildcard_imports(collect_all=True))
 
         for other_sym in other_table.symbols:
@@ -1114,13 +1114,18 @@ class SymbolTable():
                 f" {[sym.name for sym in self.symbols_imported_from(symbol)]} "
                 f"are imported from it - remove them first.")
 
+        # We can remove a RoutineSymbol if it is shadowing the same symbol from
+        # an outer scope, even if it is the target of a Call.
         if isinstance(symbol, RoutineSymbol):
             is_shadowed = False
             if self.node and self.node.parent:
                 try:
                     shadowed_sym = self.node.parent.scope.symbol_table.lookup(
                         symbol.name)
-                    is_shadowed = shadowed_sym == symbol
+                    is_shadowed = (
+                        shadowed_sym == symbol or
+                        (type(shadowed_sym) is Symbol and
+                         shadowed_sym.interface == symbol.interface))
                 except KeyError:
                     pass
             if not is_shadowed:
@@ -1477,7 +1482,7 @@ class SymbolTable():
 
         for c_symbol in container_symbols:
             try:
-                external_container = c_symbol.container #(local_node=self.node)
+                external_container = c_symbol.container
             # pylint: disable=broad-except
             except Exception:
                 # Ignore this container if the associated module file has not
