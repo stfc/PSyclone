@@ -37,8 +37,6 @@ transformations.
 
 '''
 from psyclone.psyGen import Transformation
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.backend.visitor import PSyIRVisitor
 from psyclone.psyir.symbols import DataSymbol
 
 # AdjointTransformation is purposefully abstract. It does not

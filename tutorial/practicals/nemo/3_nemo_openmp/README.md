@@ -14,7 +14,7 @@ PSyclone in the User Guide
 
 This example includes a Makefile to simplify the compilation process. It
 assumes you are using Gnu Make. If you are using a different version of
-Make then you may need to edit the Makefile and replace the occurances of
+Make then you may need to edit the Makefile and replace the occurrences of
 `?=` with `=`.
 
 The flags to enable OpenMP will depend upon which Fortran compiler you

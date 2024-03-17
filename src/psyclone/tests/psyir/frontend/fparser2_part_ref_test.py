@@ -44,8 +44,8 @@ from fparser.two.Fortran2003 import Execution_Part
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import KernelSchedule, Routine, Call, ArrayReference
-from psyclone.psyir.symbols import SymbolError, DataSymbol, ScalarType, \
-    INTEGER_TYPE, RoutineSymbol, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ScalarType, INTEGER_TYPE, \
+    RoutineSymbol, ArrayType
 
 
 @pytest.mark.usefixtures("f2008_parser")

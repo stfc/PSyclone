@@ -103,7 +103,7 @@ def test_nan_test_options():
     nan_test.apply(invoke.schedule[0].loop_body[0],
                    options={"region_name": ("a", "b")})
     code = str(invoke.gen())
-    assert 'CALL nan_test_psy_data%PreStart("a", "b", 4, 2)' in code
+    assert 'CALL nan_test_psy_data % PreStart("a", "b", 4, 2)' in code
 
 
 # -----------------------------------------------------------------------------

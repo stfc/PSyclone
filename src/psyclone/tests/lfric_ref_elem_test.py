@@ -188,7 +188,7 @@ def test_refelem_arglist_err():
     # Break the list of ref-element properties required by the Kernel
     kernel.reference_element.properties.append("Not a property")
     with pytest.raises(InternalError) as err:
-        kernel.arguments.raw_arg_list()
+        kernel.arguments.psyir_expressions()
     assert ("Unsupported reference-element property ('Not a property') found "
             "when generating arguments for kernel 'testkern_ref_elem_code'. "
             "Supported properties are: ['Property" in str(err.value))
