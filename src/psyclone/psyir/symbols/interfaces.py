@@ -151,11 +151,12 @@ class ImportInterface(SymbolInterface):
     @container_symbol.setter
     def container_symbol(self, value):
         '''
-        :param value: the ContainerSymbol that imports the symbol with \
+        :param value: the ContainerSymbol that imports the symbol with
             this interface.
         :type value: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
 
-        :raise TypeError: if the provided value is not a ContainerSymbol.
+        :raises TypeError: if the provided value is not a ContainerSymbol.
+
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
@@ -175,6 +176,12 @@ class ImportInterface(SymbolInterface):
             orig_name_str = f", orig_name='{self.orig_name}'"
         return (f"Import(container='{self.container_symbol.name}"
                 f"'{orig_name_str})")
+
+    def __eq__(self, other):
+        if type(other) is not type(self):
+            return False
+        return (self.container_symbol.name.lower() ==
+                other.container_symbol.name.lower())
 
     def copy(self):
         '''
