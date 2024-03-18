@@ -875,7 +875,7 @@ class, for example:
         ''' Example node '''
 
     mynode = MyNode()
-    mynode.preceding_comment = "A preceding comment"
+    mynode.preceding_comment = "A multi-line\n preceding comment"
     mynode.inline_comment = "An inline comment"
 
 From the language-level PSyIR nodes, Container, Routine and Statement have
