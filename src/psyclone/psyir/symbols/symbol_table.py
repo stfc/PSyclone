@@ -1052,6 +1052,66 @@ class SymbolTable():
         self.remove(old_symbol)
         self.add(new_symbol)
 
+    def _remove_routinesymbol(self, symbol):
+        '''
+        Removes the supplied RoutineSymbol from this table when possible.
+        If the symbol is the target of a Call or is a member of an interface
+        definition then removal is only possible if the symbol is shadowing a
+        declaration in an outer scope. In that case the Call or Interface is
+        updated to refer to that instance of the symbol.
+
+        :param symbol: the Symbol to remove.
+        :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        :raises ValueError: if the Symbol cannot be removed.
+
+        '''
+        is_shadowed = False
+        if self.node and self.node.parent:
+            try:
+                shadowed_sym = self.node.parent.scope.symbol_table.lookup(
+                    symbol.name)
+                # pylint: disable=unidiomatic-typecheck
+                is_shadowed = (shadowed_sym == symbol or
+                               (type(shadowed_sym) is Symbol and
+                                shadowed_sym.interface == symbol.interface))
+            except KeyError:
+                pass
+
+        # Check for Calls or GenericInterfaceSymbols that reference it.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Call
+        all_calls = self.node.walk(Call) if self.node else []
+        for call in all_calls:
+            if call.routine is not symbol:
+                continue
+            if is_shadowed:
+                # Update the Call to use the shadowed symbol.
+                if not isinstance(shadowed_sym, RoutineSymbol):
+                    shadowed_sym.specialise(RoutineSymbol)
+                call.routine = shadowed_sym
+            else:
+                raise ValueError(
+                    f"Cannot remove RoutineSymbol '{symbol.name}' "
+                    f"because it is referenced by '{call.debug_string()}'")
+        # Check for any references to it within interfaces.
+        for sym in self._symbols.values():
+            if not isinstance(sym, GenericInterfaceSymbol):
+                continue
+            rt_list = sym.routines[:]
+            for idx, rt_info in enumerate(rt_list):
+                if rt_info.symbol is not symbol:
+                    continue
+                if is_shadowed:
+                    if not isinstance(shadowed_sym, RoutineSymbol):
+                        shadowed_sym.specialise(RoutineSymbol)
+                    rt_list[idx] = (shadowed_sym, rt_list[idx][1])
+                    continue
+                raise ValueError(
+                    f"Cannot remove RoutineSymbol '{symbol.name}' "
+                    f"because it is referenced in interface '{sym.name}'")
+            sym.routines = rt_list
+
     def remove(self, symbol):
         '''
         Remove the supplied symbol from the Symbol Table. This has a high
@@ -1065,16 +1125,16 @@ class SymbolTable():
         TODO #898. This method should check for any references/uses of
         the target symbol.
 
-        :param symbol: the container symbol to remove.
-        :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        :param symbol: the symbol to remove.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
-        :raises TypeError: if the supplied symbol is not of type Symbol.
-        :raises NotImplementedError: the removal of this symbol type is not \
+        :raises TypeError: if the supplied parameter is not of type Symbol.
+        :raises NotImplementedError: the removal of this symbol type is not
                                      supported yet.
         :raises KeyError: if the supplied symbol is not in the symbol table.
-        :raises ValueError: if the supplied container symbol is referenced \
+        :raises ValueError: if the supplied container symbol is referenced
                             by one or more DataSymbols.
-        :raises InternalError: if the supplied symbol is not the same as the \
+        :raises InternalError: if the supplied symbol is not the same as the
                                entry with that name in this SymbolTable.
         '''
         if not isinstance(symbol, Symbol):
@@ -1114,40 +1174,10 @@ class SymbolTable():
                 f" {[sym.name for sym in self.symbols_imported_from(symbol)]} "
                 f"are imported from it - remove them first.")
 
-        # We can remove a RoutineSymbol if it is shadowing the same symbol from
-        # an outer scope, even if it is the target of a Call.
+        # RoutineSymbols require special consideration as they may be the
+        # target of a Call or a member of a GenericInterfaceSymbol.
         if isinstance(symbol, RoutineSymbol):
-            is_shadowed = False
-            if self.node and self.node.parent:
-                try:
-                    shadowed_sym = self.node.parent.scope.symbol_table.lookup(
-                        symbol.name)
-                    is_shadowed = (
-                        shadowed_sym == symbol or
-                        (type(shadowed_sym) is Symbol and
-                         shadowed_sym.interface == symbol.interface))
-                except KeyError:
-                    pass
-            if not is_shadowed:
-                # The Symbol to be removed is not shadowing one in an outer
-                # scope so check that there are no Calls referencing it.
-                # pylint: disable=import-outside-toplevel
-                from psyclone.psyir.nodes import Call
-                all_calls = self.node.walk(Call) if self.node else []
-                for call in all_calls:
-                    if call.routine is symbol:
-                        raise ValueError(
-                            f"Cannot remove RoutineSymbol '{symbol.name}' "
-                            f"because it is referenced by "
-                            f"'{call.debug_string()}'")
-                # Check for any references to it within interfaces.
-                for sym in self._symbols.values():
-                    if isinstance(sym, GenericInterfaceSymbol):
-                        if symbol in [rt.symbol for rt in sym.routines]:
-                            raise ValueError(
-                                f"Cannot remove RoutineSymbol '{symbol.name}' "
-                                f"because it is referenced in interface "
-                                f"'{sym.name}'")
+            self._remove_routinesymbol(symbol)
 
         # If the symbol had a tag, it should be disassociated
         for tag, tagged_symbol in list(self._tags.items()):

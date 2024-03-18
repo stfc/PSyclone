@@ -484,8 +484,11 @@ end module my_mod
 
 
 def test_remove_shadowed_routinesymbol_called(fortran_reader, monkeypatch):
-    '''Check that remove() removes a RoutineSymbol if it is the
-    target of a Call but is shadowing a RoutineSymbol in an outer scope.'''
+    '''Check that remove() removes a RoutineSymbol if it is the target of a
+    Call or a member of a GenericInterfaceSymbol but is shadowing a
+    RoutineSymbol in an outer scope.
+
+    '''
     psyir = fortran_reader.psyir_from_source(
         '''
 module my_mod
@@ -495,19 +498,30 @@ module my_mod
 contains
 
   subroutine runnit()
+    use power, only: generator
     use some_mod, only: my_sub
-    call my_sub
+    interface diesel
+      module procedure :: MY_sub
+      procedure :: other_sub
+    end interface diesel
+    call generator()
+    call my_sub()
   end subroutine runnit
 
 end module my_mod
 ''')
     routines = psyir.walk(Routine)
-    call = psyir.walk(Call)[0]
+    call = psyir.walk(Call)[1]
     shadow_sym = call.routine
     routines[0].symbol_table.remove(shadow_sym)
     # Call must be updated to point to Symbol in outer scope.
     outer_sym = psyir.children[0].symbol_table.lookup("my_sub")
     assert call.routine is outer_sym
+    # GenericInterfaceSymbol must also be updated.
+    gsym = routines[0].symbol_table.lookup("diesel")
+    for rt_info in gsym.routines:
+        if rt_info.symbol.name.lower() == "my_sub":
+            assert rt_info.symbol is outer_sym
 
 
 def test_no_remove_routinesymbol_interface(fortran_reader):
