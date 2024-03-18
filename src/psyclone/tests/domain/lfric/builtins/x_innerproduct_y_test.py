@@ -89,6 +89,7 @@ def test_x_innerproduct_y(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df = loop0_start, loop0_stop, 1\n"
+            "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
             "      END DO")
     assert output in code
@@ -128,5 +129,6 @@ def test_x_innerproduct_y_lowering(fortran_writer):
     loop = first_invoke.schedule.walk(Loop)[0]
     code = fortran_writer(loop)
     assert ("do df = loop0_start, loop0_stop, 1\n"
+            "  ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "  asum = asum + f1_data(df) * f2_data(df)\n"
             "enddo") in code
