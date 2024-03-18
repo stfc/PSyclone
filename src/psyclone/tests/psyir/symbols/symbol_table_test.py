@@ -454,7 +454,7 @@ def test_remove_routineymbols():
     assert "a" not in sym_table
 
 
-def test_no_remove_routinesymbol_called(fortran_reader, monkeypatch):
+def test_no_remove_routinesymbol_called(fortran_reader):
     '''Check that remove() refuses to remove a RoutineSymbol if it is the
     target of a Call.'''
     psyir = fortran_reader.psyir_from_source(
@@ -483,7 +483,7 @@ end module my_mod
             "'call my_sub()" in str(err))
 
 
-def test_remove_shadowed_routinesymbol_called(fortran_reader, monkeypatch):
+def test_remove_shadowed_routinesymbol_called(fortran_reader):
     '''Check that remove() removes a RoutineSymbol if it is the target of a
     Call or a member of a GenericInterfaceSymbol but is shadowing a
     RoutineSymbol in an outer scope.

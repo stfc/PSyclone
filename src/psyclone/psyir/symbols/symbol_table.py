@@ -743,6 +743,20 @@ class SymbolTable():
         Adds the supplied Symbol to the current table in the presence
         of a name clash.
 
+        :param old_sym: the Symbol to be added to self.
+        :type old_sym: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param other_table: the other table containing the symbol that we are
+                            trying to add to self.
+        :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param set[str] shared_wildcard_imports: set of the names of any
+            ContainerSymbols from which there were wildcard imports in both
+            tables originally.
+
+        :raises InternalError: if the supplied symbol is imported from a
+            Container that is not represented in this table.
+        :raises InternalError: if the supplied symbol is unresolved in both
+            this and `other_table`.
+
         '''
         if old_sym.is_import:
             # This symbol is imported from a Container so should
@@ -1751,7 +1765,7 @@ class SymbolTable():
         Searches this symbol table and then up through any parent symbol
         tables for a ContainerSymbol that has a wildcard import. If
         `collect_all` is false then the returned set will just contain the
-        name of hte first one found. Otherwise, it will contain the names
+        name of the first one found. Otherwise, it will contain the names
         of all containers which have wildcard imports into this scope.
 
         :param bool collect_all: whether or not to collect all containers
