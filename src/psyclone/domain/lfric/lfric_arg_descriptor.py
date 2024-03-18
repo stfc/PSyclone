@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
 '''
@@ -102,6 +102,7 @@ class LFRicArgDescriptor(Descriptor):
         self._function_spaces = []
         # Set vector size to 1 (scalars set it to 0 in their validation)
         self._vector_size = 1
+        self._array_ndims = 1
         # Initialise other internal arguments
         self._access_type = None
         self._function_space1 = None
@@ -201,6 +202,10 @@ class LFRicArgDescriptor(Descriptor):
             # Validate scalar arguments
             self._init_scalar(arg_type)
 
+        elif self._argument_type in const.VALID_ARRAY_NAMES:
+            # Validate array arguments
+            self._init_array(arg_type)
+
         else:
             # We should never get to here if the checks are tight enough
             raise InternalError(
@@ -269,6 +274,64 @@ class LFRicArgDescriptor(Descriptor):
                 f"In the LFRic API, vector notation is only supported for "
                 f"{const.VALID_FIELD_NAMES} argument types but found "
                 f"'{arg_type.args[0]}'.")
+
+    def _validate_array_ndims(self, arg_type):
+        '''
+        Validates descriptors for scalar array arguments and populates
+        vector properties accordingly.
+
+        :param str separator: operator in a binary expression.
+        :param arg_type: LFRic API array argument type.
+        :type arg_type: :py:class:`psyclone.expression.FunctionVar`
+
+        :raises ParseError: if the array notation does not use \
+                            the '*' operator.
+        :raises ParseError: if the array notation is not in the \
+                            correct format '(NRANKS*n)' where 'n' is \
+                            an integer.
+        :raises ParseError: if the array notation is used for the \
+                            array size of less than 1.
+        :raises ParseError: if the array notation is used for an \
+                            argument that is not an array.
+
+        '''
+        print(arg_type.args[3].toks[0])
+        if arg_type.args[3].toks[0].name != "NRANKS".lower():
+            raise ParseError(
+                f"In the LFRic API, the 4th argument of a 'meta_arg' "
+                f"entry must use 'NRANKS' as the keyword in the format "
+                f"'NRANKS*n' if the 1st argument is 'GH_ARRAY', but "
+                f"found '{arg_type.args[3].toks[0]}' as the keyword "
+                f"in '{arg_type}'.")
+
+        # Check that the operator is correct
+        if arg_type.args[3].toks[1] != "*":
+            raise ParseError(
+                f"In the LFRic API, the 4th argument of a 'meta_arg' "
+                f"entry may be an array but if so must use '*' as "
+                f"the separator in the format 'NRANKS*n', but found "
+                f"'{arg_type.args[3].toks[1]}' in '{arg_type}'.")
+        print(arg_type.args[3])
+
+        # Now try to find the array size for a scalar array and return
+        # an error if it is not an integer number...
+        try:
+            array_ndims = int(arg_type.args[3].toks[2])
+        except ValueError as err:
+            raise ParseError(
+                f"In the LFRic API, the array notation must be in "
+                f"the format 'NRANKS*n' where 'n' is an integer, "
+                f"but '{arg_type.args[3].toks[2]}' was found in "
+                f"'{arg_type}'.") from err
+
+        # ... or it is less than 1 (1 is the default for all fields)...
+        if array_ndims < 1:
+            raise ParseError(
+                f"In the LFRic API, the array notation must be in "
+                f"the format 'NRANKS*n' where 'n' is an integer >= 1. "
+                f"However, found n = '{array_ndims}' in '{arg_type}'.")
+        # ... and set the array size if all checks pass
+        self._array_ndims = array_ndims
 
     def _init_field(self, arg_type, operates_on):
         '''
@@ -599,7 +662,65 @@ class LFRicArgDescriptor(Descriptor):
                 f"with a real scalar argument, but a scalar argument with "
                 f"'{self._data_type}' data type was found in '{arg_type}'.")
 
-        # Scalars don't have vector size
+        # Scalars don't have vector size or array size
+        self._vector_size = 0
+        self._array_ndims = 0
+
+    def _init_array(self, arg_type):
+        '''
+        Validates metadata descriptors for scalar array arguments and
+        initialises scalar array argument properties accordingly.
+
+        :param arg_type: LFRic API scalar array argument type.
+        :type arg_type: :py:class:`psyclone.expression.FunctionVar`
+
+        :raises InternalError: if argument type other than an array is \
+                               passed in.
+        :raises ParseError: if there are not exactly 4 metadata arguments.
+        :raises InternalError: if an array argument has an invalid data type.
+        :raises ParseError: if array arguments do not have read-only access.
+        :raises ParseError: if a scalar argument that is not a real \
+                            scalar has a reduction access.
+
+        '''
+        const = LFRicConstants()
+        # Check whether something other than a scalar is passed in
+        if self._argument_type not in const.VALID_ARRAY_NAMES:
+            raise InternalError(
+                f"Expected an array argument but got an argument of type "
+                f"'{arg_type.args[0]}'.")
+
+        # There must be 4 arguments
+        nargs_array = 4
+        if self._nargs != nargs_array:
+            raise ParseError(
+                "In the LFRic API each 'meta_arg' entry must have "
+                f"{nargs_array} arguments if its first argument is of "
+                f"{const.VALID_ARRAY_NAMES} type, but found {self._nargs} in "
+                f"'{arg_type}'.")
+
+        # Check whether an invalid data type for an array argument is passed
+        # in. Valid data types for arrays are valid data types in LFRic API.
+        if self._data_type not in const.VALID_ARRAY_DATA_TYPES:
+            raise InternalError(
+                f"Expected one of {const.VALID_ARRAY_DATA_TYPES} as the "
+                f"array data type but got '{self._data_type}'.")
+
+        # Test allowed accesses for arrays (read_only)
+        array_accesses = [AccessType.READ]
+        # Convert generic access types to GH_* names for error messages
+        api_config = Config.get().api_conf(API)
+        rev_access_mapping = api_config.get_reverse_access_mapping()
+        if self._access_type not in array_accesses:
+            api_specific_name = rev_access_mapping[self._access_type]
+            raise ParseError(
+                f"In the LFRic API array arguments must have read-only "
+                f"('gh_read') access but found '{api_specific_name}' "
+                f"in '{arg_type}'.")
+
+        self._validate_array_ndims(arg_type)
+
+        # Arrays don't have vector size
         self._vector_size = 0
 
     @property
@@ -670,6 +791,8 @@ class LFRicArgDescriptor(Descriptor):
             return self._function_space1
         if self._argument_type in const.VALID_OPERATOR_NAMES:
             return self._function_space2
+        if self._argument_type in const.VALID_ARRAY_NAMES:
+            return self._function_space1
         if self._argument_type in const.VALID_SCALAR_NAMES:
             return None
         raise InternalError(f"Expected a valid argument type but got "
@@ -695,6 +818,8 @@ class LFRicArgDescriptor(Descriptor):
         if self._argument_type in const.VALID_OPERATOR_NAMES:
             # Return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
+        if self._argument_type in const.VALID_ARRAY_NAMES:
+            return [self.function_space]
         if self._argument_type in const.VALID_SCALAR_NAMES:
             return []
         raise InternalError(f"Expected a valid argument type but got "
@@ -712,6 +837,19 @@ class LFRicArgDescriptor(Descriptor):
 
         '''
         return self._vector_size
+
+    @property
+    def array_ndims(self):
+        '''
+        Returns the array size of the argument. This will be 1 if ``*n``
+        has not been specified for all argument types except scalars
+        (their array size is set to 0).
+
+        :returns: array size of the argument.
+        :rtype: int
+
+        '''
+        return self._array_ndims
 
     def __str__(self):
         '''
@@ -737,6 +875,9 @@ class LFRicArgDescriptor(Descriptor):
                 + os.linesep)
         if self._argument_type in const.VALID_FIELD_NAMES:
             res += (f"  function_space[3]='{self._function_space1}'"
+                    + os.linesep)
+        elif self._argument_type in const.VALID_ARRAY_NAMES:
+            res += (f"  array_ndims[3]='{self._array_ndims}'"
                     + os.linesep)
         elif self._argument_type in const.VALID_OPERATOR_NAMES:
             res += (f"  function_space_to[3]='{self._function_space1}'"

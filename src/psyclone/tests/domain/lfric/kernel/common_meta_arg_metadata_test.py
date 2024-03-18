@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modifier L. Turner, Met Office
 
 '''Module containing tests for the CommonMetaArgMetadata class.
 
@@ -43,6 +44,7 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel import (
     CommonMetaArgMetadata, ScalarArgMetadata)
 from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
 
 
 # pylint: disable=abstract-class-instantiated
@@ -58,10 +60,10 @@ def test_init_error():
     # We split the check to accomodate for this.
     assert ("Can't instantiate abstract class CommonMetaArgMetadata with"
             in str(info.value))
-    assert ("abstract methods" in str(info.value))
-    assert ("_get_metadata" in str(info.value))
-    assert ("check_access" in str(info.value))
-    assert ("check_datatype" in str(info.value))
+    assert "abstract methods" in str(info.value)
+    assert "_get_metadata" in str(info.value)
+    assert "check_access" in str(info.value)
+    assert "check_datatype" in str(info.value)
 # pylint: enable=abstract-class-instantiated
 
 
@@ -254,6 +256,35 @@ def test_get_vector_length():
     fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     vector_length = CheckArg.get_vector_length(fparser_tree)
+    assert vector_length == "3"
+
+
+def test_get_array_ndims():
+    '''Test that the get_array_ndims method in the
+    CommonMetaArgMetadata class works as expected.
+
+    '''
+    fparser_tree = CheckArg.create_fparser2(
+        "arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS2)", Fortran2003.Part_Ref)
+    with pytest.raises(TypeError) as info:
+        _ = CheckArg.get_array_ndims(fparser_tree)
+    assert ("The array size metadata should be in the form "
+            "'NRANKS*array_ndims' but found 'NRANKS2'."
+            in str(info.value))
+
+    fparser_tree = CheckArg.create_fparser2(
+        "arg_type(GH_ARRAY, GH_REAL, GH_READ, SKARN*2)", Fortran2003.Part_Ref)
+    with pytest.raises(ParseError) as info:
+        _ = CheckArg.get_array_ndims(fparser_tree)
+    assert ("In the LFRic API, the 4th argument of a 'meta_arg' entry must "
+            "use 'NRANKS' as the keyword in the format 'NRANKS*n' if the 1st "
+            "argument is 'GH_ARRAY', but found 'SKARN' as the keyword in "
+            "'SKARN * 2'." in
+            str(info.value))
+
+    fparser_tree = CheckArg.create_fparser2(
+        "arg_type(GH_ARRAY, GH_REAL, GH_READ, NRANKS*3)", Fortran2003.Part_Ref)
+    vector_length = CheckArg.get_array_ndims(fparser_tree)
     assert vector_length == "3"
 
 
