@@ -326,6 +326,23 @@ class Call(Statement, DataNode):
         '''
         return self._routine
 
+    @routine.setter
+    def routine(self, value):
+        '''
+        Set the RoutineSymbol that this Call targets.
+
+        :param value: the new RoutineSymbol target of the Call.
+        :type value: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        :raises TypeError: if `value` is of the wrong type.
+
+        '''
+        if not isinstance(value, RoutineSymbol):
+            raise TypeError(
+                f"Error setting 'routine' property of Call. Expected a "
+                f"'RoutineSymbol' but got '{type(value).__name__}'")
+        self._routine = value
+
     @property
     def is_elemental(self):
         '''
