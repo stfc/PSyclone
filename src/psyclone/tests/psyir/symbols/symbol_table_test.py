@@ -780,6 +780,13 @@ def test_check_for_clashes_wildcard_import():
     '''Test check_for_clashes() in the presence of wildcard imports.'''
     table1 = symbols.SymbolTable()
     table2 = symbols.SymbolTable()
+    # A Symbol representing an intrinsic will be unresolved but shouldn't
+    # affect the ability to merge.
+    table1.new_symbol("random_number", symbol_type=symbols.RoutineSymbol,
+                      interface=symbols.UnresolvedInterface())
+    table2.new_symbol("random_number", symbol_type=symbols.RoutineSymbol,
+                      interface=symbols.UnresolvedInterface())
+    table1.check_for_clashes(table2)
     table1.add(symbols.ContainerSymbol("beta", wildcard_import=True))
     table1.new_symbol("stavro", symbol_type=symbols.DataSymbol,
                       datatype=symbols.UnresolvedType(),
@@ -840,14 +847,19 @@ def test_table_merge():
     assert "marvin" in table1
     assert "wp" in table1
     # Different symbols with a name clash. This results in the Symbol in the
-    # second table being renamed (as that preserves any references to it).
+    # second table being renamed (as that preserves any references to it)
+    # unless it is an intrinsic.
     table1 = symbols.SymbolTable()
     table2 = symbols.SymbolTable()
-    table1.add(symbols.DataSymbol("theclash", symbols.INTEGER_TYPE))
-    table2.add(symbols.DataSymbol("theclash", symbols.INTEGER_TYPE))
+    for table in [table1, table2]:
+        table.add(symbols.DataSymbol("theclash", symbols.INTEGER_TYPE))
+        table.new_symbol("random_number", symbol_type=symbols.RoutineSymbol,
+                         interface=symbols.UnresolvedInterface())
     table1.merge(table2)
-    assert len(table1._symbols) == 2
+    assert len(table1._symbols) == 3
     assert table1.lookup("theclash_1") is table2.lookup("theclash_1")
+    # The symbol representing an intrinsic should not be modified.
+    assert table1.lookup("random_number") is not table2.lookup("random_number")
     # Arguments. By default they are included in a merge.
     table3 = symbols.SymbolTable()
     arg_sym = symbols.DataSymbol("trillian", symbols.INTEGER_TYPE,

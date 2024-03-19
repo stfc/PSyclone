@@ -49,9 +49,9 @@ import copy
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
-    DataSymbol, ImportInterface, ContainerSymbol, DataTypeSymbol,
-    GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError,
-    UnresolvedInterface)
+    DataSymbol, ContainerSymbol, DataTypeSymbol, GenericInterfaceSymbol,
+    ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
+from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -624,6 +624,19 @@ class SymbolTable():
                     # Therefore we assume that the two symbols in fact
                     # represent the same memory location.
                     continue
+                # pylint: disable=import-outside-toplevel
+                from psyclone.psyir.nodes import IntrinsicCall
+                try:
+                    # An unresolved symbol representing an intrinisc is fine.
+                    _ = IntrinsicCall.Intrinsic[this_sym.name.upper()]
+                    # Take this opportunity to specialise the symbol(s).
+                    if not isinstance(this_sym, IntrinsicSymbol):
+                        this_sym.specialise(IntrinsicSymbol)
+                    if not isinstance(other_sym, IntrinsicSymbol):
+                        other_sym.specialise(IntrinsicSymbol)
+                    continue
+                except KeyError:
+                    pass
                 # We can't rename a symbol if we don't know its origin.
                 raise SymbolError(
                     f"A symbol named '{this_sym.name}' is present but "
@@ -776,6 +789,10 @@ class SymbolTable():
                 # wildcard imports that are common to both tables. Therefore
                 # we assume that the two symbols are referring to the same
                 # memory location and we don't have to do anything.
+                return
+            if (isinstance(old_sym, IntrinsicSymbol) or
+                    isinstance(self_sym, IntrinsicSymbol)):
+                # The clashing symbols represent an intrinsic so that's fine.
                 return
             # The clashing symbols are unresolved and we don't know how they're
             # being brought into scope. Therefore, we cannot rename either of
