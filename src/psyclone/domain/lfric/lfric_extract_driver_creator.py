@@ -603,7 +603,7 @@ class LFRicExtractDriverCreator:
 
         '''
         for call in sched.walk(Call):
-            routine = call.routine
+            routine = call.routine.symbol
             if not isinstance(routine.interface, ImportInterface):
                 # No import required, can be ignored.
                 continue

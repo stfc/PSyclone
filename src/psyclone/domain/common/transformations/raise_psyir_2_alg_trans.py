@@ -84,7 +84,8 @@ class RaisePSyIR2AlgTrans(Transformation):
         fparser2 = Fparser2Reader()
         for arg in fp2_node.children[1].children:
             fparser2.process_nodes(dummy_call, [arg])
-        return dummy_call.pop_all_children()
+        # Return the list of detached arguments
+        return dummy_call.pop_all_children()[1:]
 
     @staticmethod
     def _get_symbol(call, fp2_node):
@@ -183,7 +184,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                 f"Error in {self.name} transformation. There should be at "
                 f"most one named argument in an invoke, but there are "
                 f"{len(names)} in '{node.debug_string()}'.")
-        for idx, arg in enumerate(node.children):
+        for idx, arg in enumerate(node.arguments):
             if node.argument_names[idx]:
                 if (not node.argument_names[idx].lower() == "name"
                     or not (isinstance(arg, Literal) and
@@ -238,12 +239,13 @@ class RaisePSyIR2AlgTrans(Transformation):
 
         call_name = None
         calls = []
-        for idx, call_arg in enumerate(call.children):
+        for idx, call_arg in enumerate(call.arguments):
 
             # pylint: disable=protected-access
             arg_info = []
             if call.argument_names[idx]:
                 call_name = f"{call_arg.value}"
+                continue
             elif isinstance(call_arg, ArrayReference):
                 # kernel misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
@@ -263,7 +265,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                 calls.append(KernelFunctor.create(type_symbol, args))
 
         invoke_call = AlgorithmInvokeCall.create(
-            call.routine, calls, index, name=call_name)
+            call.routine.symbol, calls, index, name=call_name)
         call.replace_with(invoke_call)
 
 
