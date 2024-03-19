@@ -160,6 +160,10 @@ The explanation can be found [here](#explanation-for-missing-parameter).
 
 
 ## Invalid OpenMP Transformation (`7_invalid_openmp`)
+Please ignore this for now.
+
+<!-- IGNORE THIS FOR NOT
+## Invalid OpenMP Transformation (`7_invalid_openmp`)
 This example has a slightly different kernel: this kernel adds a field on the W0
 space (vertices) to another field on the W0 space, i.e. it is adding the blue dots
 in the diagram above for two fields. The difference to the kernel used previously
@@ -203,6 +207,7 @@ to execute the code.
 The [explanation](#explanation-for-invalid-transformation) for this optional part will explain
 the loop structure in more detail.
 
+-->
 
 ## Incorrect Naming Scheme (`8_incorrect_naming`)
 This example shows the importance of naming the files correctly. It is basically the same code
@@ -395,6 +400,7 @@ PSyclone will verify the code the user asked to be created as much as possible a
 any issues early on, i.e. before even compiling the code.
 
 
+<!-- IGNORE FOR NOW
 ## Explanation for Invalid Transformation
 PSyclone internally verifies transformation to make sure it will always create valid
 code. In this case, it will recognise that the kernel cannot simply be parallelised.
@@ -472,6 +478,7 @@ This will closely recreate the output above and make it more obvious where the t
 In this small example, especially at the beginning, thread usage is limited to only one or two
 threads. For a larger example, 
 
+-->
 ## Explanation for Incorrect Naming Scheme
 
 PSyclone will print the error message:
