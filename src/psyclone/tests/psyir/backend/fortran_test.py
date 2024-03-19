@@ -1543,6 +1543,9 @@ def test_fw_codeblock_1(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir)
     assert (
         "    a = 1\n"
+        "    ! PSyclone CodeBlock (unsupported code) reason:\n"
+        "    !  - Unsupported statement: Print_Stmt\n"
+        "    !  - Unsupported statement: Print_Stmt\n"
         "    PRINT *, \"I am a code block\"\n"
         "    PRINT *, \"with more than one line\"\n" in result)
     assert Compile(tmpdir).string_compiles(result)
@@ -1883,7 +1886,7 @@ def test_fw_comments(fortran_writer):
     routine.preceding_comment = "My routine preceding comment"
     routine.inline_comment = "My routine inline comment"
     statement1.preceding_comment = "My statement with a preceding comment"
-    statement2.preceding_comment = "My statement with a preceding comment ..."
+    statement2.preceding_comment = "My statement with a\nmulti-line comment."
     statement2.inline_comment = "... and an inline comment"
     statement3.inline_comment = "Statement with only an inline comment"
 
@@ -1898,7 +1901,8 @@ def test_fw_comments(fortran_writer):
         "  subroutine my_routine()\n\n"
         "    ! My statement with a preceding comment\n"
         "    return\n"
-        "    ! My statement with a preceding comment ...\n"
+        "    ! My statement with a\n"
+        "    ! multi-line comment.\n"
         "    return  ! ... and an inline comment\n"
         "    return  ! Statement with only an inline comment\n\n"
         "  end subroutine my_routine  ! My routine inline comment\n\n"
