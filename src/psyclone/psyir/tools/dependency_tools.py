@@ -822,8 +822,7 @@ class DependencyTools():
         '''
         # pylint: disable=too-many-locals
         # This should only be called from loop_fuse_trans, which
-        # has done tests for loop boundaries (depending on domain) and that
-        # the loop variable is the same
+        # has done tests for loop boundaries (depending on domain)
 
         assert isinstance(loop1, Loop)
         assert isinstance(loop2, Loop)
