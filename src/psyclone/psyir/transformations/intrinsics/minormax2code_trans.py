@@ -120,7 +120,7 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
 
         '''
         # pylint: disable=too-many-locals
-        self.validate(node)
+        self.validate(node, options)
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
