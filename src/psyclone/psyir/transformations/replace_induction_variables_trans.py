@@ -207,7 +207,7 @@ class ReplaceInductionVariablesTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
 
         '''
-        self.validate(node)
+        self.validate(node, options)
         loop_var = node.variable.name
 
         # Find assignments that are directly part of the loop (this
