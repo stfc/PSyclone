@@ -315,6 +315,10 @@ class LFRicExtractDriverCreator:
         # the flattened name can be ensured not to clash with a variable name
         # used in the program.
         for reference in all_references:
+            # Skip routine references
+            if (isinstance(reference.parent, Call) and
+                    reference.parent.routine is reference):
+                continue
             # For now ignore structure names, which require flattening (which
             # could introduce duplicated symbols, so they need to be processed
             # after all existing symbols have been added.
@@ -355,6 +359,10 @@ class LFRicExtractDriverCreator:
         # flattened name does not clash with a variable declared by the user.
         # We use the structured name (with '%') as tag to handle this.
         for reference in all_references:
+            # Skip routine references and structures
+            if (isinstance(reference.parent, Call) and
+                    reference.parent.routine is reference):
+                continue
             if not isinstance(reference, StructureReference):
                 continue
             self._flatten_reference(reference, symbol_table,

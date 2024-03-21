@@ -705,7 +705,6 @@ def test_itn_space_write_w2broken_w1(dist_mem, tmpdir):
     if dist_mem:
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
-            "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     else:
@@ -774,7 +773,6 @@ def test_itn_space_any_any_discontinuous(dist_mem, tmpdir):
     if dist_mem:
         assert "loop0_stop = mesh%get_last_halo_cell(1)" in generated_code
         output = (
-            "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     else:
@@ -806,7 +804,6 @@ def test_itn_space_any_w2trace(dist_mem, tmpdir):
     if dist_mem:
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
         output = (
-            "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     else:

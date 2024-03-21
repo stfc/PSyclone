@@ -286,7 +286,7 @@ def test_handling_intrinsics(code, expected_intrinsic, symbol_table):
     assert isinstance(assign, Assignment)
     assert isinstance(assign.rhs, IntrinsicCall), \
         "Fails when parsing '" + code + "'"
-    assert assign.rhs._intrinsic == expected_intrinsic, \
+    assert assign.rhs.routine.symbol.intrinsic == expected_intrinsic, \
         "Fails when parsing '" + code + "'"
     assert len(assign.rhs.arguments) == len(assign.rhs.argument_names)
     for named_arg in assign.rhs.argument_names:
@@ -347,7 +347,7 @@ def test_handling_intrinsics_named_args(
     assert isinstance(assign, Assignment)
     assert isinstance(assign.rhs, IntrinsicCall), \
         "Fails when parsing '" + code + "'"
-    assert assign.rhs._intrinsic == expected_intrinsic, \
+    assert assign.rhs.routine.symbol.intrinsic == expected_intrinsic, \
         "Fails when parsing '" + code + "'"
     assert len(assign.rhs.arguments) == len(assign.rhs._argument_names)
     for idx, child in enumerate(assign.rhs.arguments):

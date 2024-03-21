@@ -73,7 +73,7 @@ def test_intrinsiccall_constructor():
     # correctly.
     sched = Schedule()
     call = IntrinsicCall(IntrinsicCall.Intrinsic.MINVAL, parent=sched)
-    assert call._intrinsic is IntrinsicCall.Intrinsic.MINVAL
+    assert call.routine.symbol.intrinsic is IntrinsicCall.Intrinsic.MINVAL
     assert isinstance(call.routine.symbol, IntrinsicSymbol)
     assert call.routine.name == "MINVAL"
     assert call.parent is sched

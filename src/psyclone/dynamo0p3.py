@@ -62,7 +62,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen, IfThenGen,
+                              DeallocateGen, DeclGen, DoGen,
                               ModuleGen, TypeDeclGen, UseGen, PSyIRGen)
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -72,11 +72,11 @@ from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
-    StructureReference, Literal, IfBlock, Call, BinaryOperation)
+    StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
-                                    ArrayType, UnsupportedFortranType, Symbol)
+                                    ArrayType, UnsupportedFortranType)
 
 
 # pylint: disable=too-many-lines
@@ -4160,8 +4160,11 @@ class LFRicHaloExchange(HaloExchange):
                           depth_info_list]
         return "max("+",".join(depth_str_list)+")"
 
-    def psyir_expression(self):
-        ''' PSyIR expr '''
+    def _psyir_depth_expression(self):
+        '''
+        :returns: the PSyIR expression to compute the halo depth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
         depth_info_list = self._compute_halo_read_depth_info()
         if len(depth_info_list) == 1:
             return depth_info_list[0].psyir_expression()
@@ -4494,10 +4497,13 @@ class LFRicHaloExchange(HaloExchange):
         parent.add(PSyIRGen(parent, self))
 
     def lower_to_language_level(self):
-        ''' Lower method '''
+        '''
+        :returns: this node lowered to language-level PSyIR.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
         symbol = DataSymbol(self._field.proxy_name, UnresolvedType())
         method = self._halo_exchange_name
-        depth_expr = self.psyir_expression()
+        depth_expr = self._psyir_depth_expression()
 
         # Create infrastructure Calls
         if self.vector_index:
@@ -4724,7 +4730,8 @@ class HaloDepth():
         self._annexed_only = False
         # Keep a reference to the symbol table so that we can look-up
         # variables holding the maximum halo depth.
-        # FIXME
+        # FIXME #2503: This can become invalid if the HaloExchange
+        # containing this HaloDepth changes its ancestors.
         self._symbol_table = sym_table
 
     @property
@@ -4839,7 +4846,10 @@ class HaloDepth():
         return depth_str
 
     def psyir_expression(self):
-        ''' Generate PSyIR expression '''
+        '''
+        :returns: the PSyIR expression representing this HaloDepth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
         if self.max_depth:
             max_depth = self._symbol_table.lookup_with_tag(
                 "max_halo_depth_mesh")
@@ -4855,7 +4865,7 @@ class HaloDepth():
             depth_ref = Reference(self._symbol_table.lookup(self.var_depth))
             if self.literal_depth != 0:  # Ignores depth == 0
                 return BinaryOperation.create(
-                            BinaryOperation.Operator.SUB,
+                            BinaryOperation.Operator.ADD,
                             depth_ref,
                             Literal(f"{self.literal_depth}", INTEGER_TYPE))
             return depth_ref

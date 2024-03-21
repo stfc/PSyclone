@@ -48,7 +48,7 @@ from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
     Symbol, DataSymbol, ImportInterface, ContainerSymbol, DataTypeSymbol,
-    RoutineSymbol, SymbolError, UnresolvedInterface)
+    RoutineSymbol, SymbolError, UnresolvedInterface, IntrinsicSymbol)
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 

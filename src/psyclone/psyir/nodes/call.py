@@ -291,7 +291,6 @@ class Call(Statement, DataNode):
 
         '''
         if self.is_pure:
-            # FIXME: This is not right?
             # If the called routine is pure then any arguments are only
             # read.
             default_access = AccessType.READ

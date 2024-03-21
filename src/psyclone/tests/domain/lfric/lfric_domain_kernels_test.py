@@ -388,17 +388,13 @@ def test_psy_gen_domain_multi_kernel(dist_mem, tmpdir):
                      "      if (f2_proxy%is_dirty(depth=1)) then\n"
                      "        call f2_proxy%halo_exchange(depth=1)\n"
                      "      end if\n"
-                     "      !\n"
                      "      if (f3_proxy%is_dirty(depth=1)) then\n"
                      "        call f3_proxy%halo_exchange(depth=1)\n"
                      "      end if\n"
-                     "      !\n"
                      "      if (f4_proxy%is_dirty(depth=1)) then\n"
                      "        call f4_proxy%halo_exchange(depth=1)\n"
                      "      end if\n"
-                     "      !\n"
-                     "      call f1_proxy%halo_exchange(depth=1)\n"
-                     "      !\n")
+                     "      call f1_proxy%halo_exchange(depth=1)\n")
     else:
         assert "loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code
     expected += "      do cell = loop1_start, loop1_stop, 1\n"

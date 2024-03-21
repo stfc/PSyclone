@@ -249,19 +249,15 @@ def test_field_deref(tmpdir, dist_mem):
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (est_f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL est_f2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (est_m2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL est_m2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n")
         assert output in generated_code
     else:

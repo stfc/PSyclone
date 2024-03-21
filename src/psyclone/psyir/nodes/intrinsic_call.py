@@ -748,7 +748,8 @@ class IntrinsicCall(Call):
                 f"instance of IntrinsicCall.Intrinsic, but found "
                 f"'{type(routine).__name__}'.")
 
-        # A Call expects a symbol, so give it an intrinsic symbol.
+        # A Call expects a Reference to a Symbol, so give it a Reference
+        # to an Intrinsicsymbol of the given intrinsic.
         super().__init__(Reference(
                             IntrinsicSymbol(
                                 routine.name,
@@ -756,8 +757,6 @@ class IntrinsicCall(Call):
                                 is_elemental=routine.is_elemental,
                                 is_pure=routine.is_pure)),
                          **kwargs)
-        # FIXME: May get out of sync
-        self._intrinsic = routine
 
     @property
     def intrinsic(self):
@@ -905,7 +904,6 @@ class IntrinsicCall(Call):
         # the intrinsic enum.
         call = IntrinsicCall(routine)
         call._add_args(call, arguments)
-        call._intrinsic = routine
 
         return call
 
