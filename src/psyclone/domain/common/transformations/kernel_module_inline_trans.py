@@ -42,11 +42,10 @@
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    RoutineSymbol, DataSymbol, IntrinsicSymbol,DataTypeSymbol, Symbol,
+    RoutineSymbol, DataSymbol, IntrinsicSymbol, DataTypeSymbol, Symbol,
     ContainerSymbol, DefaultModuleInterface)
 from psyclone.psyir.nodes import (
-    Container, ScopingNode, Reference, Routine, Literal, CodeBlock, Call,
-    IntrinsicCall)
+    Container, ScopingNode, Reference, Routine, Literal, CodeBlock, Call)
 
 
 class KernelModuleInlineTrans(Transformation):

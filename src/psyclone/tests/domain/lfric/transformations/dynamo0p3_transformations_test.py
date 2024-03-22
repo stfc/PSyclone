@@ -4219,7 +4219,8 @@ def test_rc_continuous_no_depth():
     rc_trans.apply(loop)
     result = str(psy.gen)
 
-    assert ("      IF (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) THEN\n"
+    assert ("      IF (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) THEN"
+            "\n"
             "        CALL f1_proxy%halo_exchange(depth=max_halo_depth_mesh"
             " - 1)" in result)
     for fname in ["f2", "m1", "m2"]:

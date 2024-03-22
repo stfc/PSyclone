@@ -290,7 +290,8 @@ class AdjointVisitor(PSyIRVisitor):
                                   (node.stop_expr, "upper bound"),
                                   (node.step_expr, "step")]:
             for ref in expr.walk(Reference):
-                if isinstance(ref.parent, Call) and ref is ref.parent.children[0]:
+                if (isinstance(ref.parent, Call) and
+                        ref is ref.parent.children[0]):
                     continue
                 if ref.symbol in self._active_variables:
                     # Ignore LBOUND and UBOUND

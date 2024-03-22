@@ -370,7 +370,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         else:
             access_bound = access_shape
 
-
         # Try to compare the upper/lower bound of the array access
         # with the upper/lower bound of the array declaration.
 

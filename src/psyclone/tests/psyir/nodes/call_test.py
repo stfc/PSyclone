@@ -568,20 +568,20 @@ def test_copy():
     op2 = Literal("2", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
     # consistent call
-    call_copy = call.copy()
+    call2 = call.copy()
     assert call._argument_names[0] == (id(call.arguments[0]), "name1")
     assert call._argument_names[1] == (id(call.arguments[1]), "name2")
-    assert call_copy._argument_names[0] == (id(call_copy.arguments[0]), "name1")
-    assert call_copy._argument_names[1] == (id(call_copy.arguments[1]), "name2")
-    assert call._argument_names != call_copy._argument_names
+    assert call2._argument_names[0] == (id(call2.arguments[0]), "name1")
+    assert call2._argument_names[1] == (id(call2.arguments[1]), "name2")
+    assert call._argument_names != call2._argument_names
 
     call.children = [call.routine.detach(), op2.detach(), op1.detach()]
     assert call._argument_names[0] != (id(call.arguments[0]), "name2")
     assert call._argument_names[1] != (id(call.arguments[1]), "name1")
     # inconsistent call
-    call_copy = call.copy()
+    call2 = call.copy()
     assert call._argument_names[0] == (id(call.arguments[0]), "name2")
     assert call._argument_names[1] == (id(call.arguments[1]), "name1")
-    assert call_copy._argument_names[0] == (id(call_copy.arguments[0]), "name2")
-    assert call_copy._argument_names[1] == (id(call_copy.arguments[1]), "name1")
-    assert call._argument_names != call_copy._argument_names
+    assert call2._argument_names[0] == (id(call2.arguments[0]), "name2")
+    assert call2._argument_names[1] == (id(call2.arguments[1]), "name1")
+    assert call._argument_names != call2._argument_names

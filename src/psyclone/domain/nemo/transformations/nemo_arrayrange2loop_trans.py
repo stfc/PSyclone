@@ -274,7 +274,6 @@ class NemoArrayRange2LoopTrans(Transformation):
                     f"Assignment node, but found '{name}' in:\n"
                     f"{assignment.debug_string()}'."))
 
-
         # Do not allow to transform expressions with CodeBlocks
         if any(isinstance(n, CodeBlock) for n in nodes_to_check):
             raise TransformationError(LazyString(
@@ -339,7 +338,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                                    (UnresolvedType, UnsupportedType, NoType))
                         or (isinstance(child.datatype, ArrayType) and
                             isinstance(child.datatype.datatype,
-                                    (UnresolvedType, UnsupportedType)))):
+                                       (UnresolvedType, UnsupportedType)))):
                         continue
                     if (child.datatype.intrinsic ==
                             ScalarType.Intrinsic.CHARACTER):

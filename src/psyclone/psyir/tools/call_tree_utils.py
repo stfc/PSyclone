@@ -40,9 +40,10 @@ across different subroutines and modules.'''
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
-from psyclone.psyir.nodes import (Call, Container, IntrinsicCall, Reference)
-from psyclone.psyir.symbols import (ArgumentInterface, DefaultModuleInterface,
-                                    ImportInterface)
+from psyclone.psyir.nodes import Container, Reference
+from psyclone.psyir.symbols import (
+    ArgumentInterface, DefaultModuleInterface, ImportInterface,
+    IntrinsicSymbol, RoutineSymbol)
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
@@ -79,9 +80,12 @@ class CallTreeUtils():
 
         outer_module = routine.ancestor(Container)
 
-        for access in routine.walk((Kern, Call, Reference)):
-            if isinstance(access, (BuiltIn, IntrinsicCall)):
-                # Builtins and Intrinsicsd are certainly not externals,
+        for access in routine.walk((Kern, Reference)):
+            if isinstance(access, BuiltIn) or (
+                    isinstance(access, Reference) and
+                    isinstance(access.symbol, IntrinsicSymbol)
+            ):
+                # Builtins and Intrinsics are certainly not externals,
                 # so ignore them.
                 continue
 
@@ -93,24 +97,24 @@ class CallTreeUtils():
                                    Signature(access.name)))
                 continue
 
-            if isinstance(access, Call):
-                sym = access.routine.symbol
-                if isinstance(sym.interface, ImportInterface):
-                    module_name = sym.interface.container_symbol.name
+            if isinstance(access.symbol, RoutineSymbol):
+                if isinstance(access.symbol.interface, ImportInterface):
+                    module_name = access.symbol.interface.container_symbol.name
                     non_locals.append(("routine", module_name,
-                                       Signature(sym.name)))
+                                       Signature(access.symbol.name)))
                     continue
 
                 # No import. This could either be a routine from
                 # this module, or just a global function.
-                if isinstance(sym.interface, DefaultModuleInterface):
+                if isinstance(access.symbol.interface, DefaultModuleInterface):
                     # A function defined in the same module
                     non_locals.append(("routine", outer_module.name,
-                                       Signature(sym.name)))
+                                       Signature(access.symbol.name)))
                     continue
 
                 # We don't know where the subroutine comes from
-                non_locals.append(("routine", None, Signature(sym.name)))
+                non_locals.append(("routine", None,
+                                   Signature(access.symbol.name)))
                 continue
 
             # Now access must be a Reference
