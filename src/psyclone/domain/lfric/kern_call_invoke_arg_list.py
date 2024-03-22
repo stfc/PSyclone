@@ -68,7 +68,7 @@ class KernCallInvokeArgList(ArgOrdering):
                 f"Argument 'symbol_table' must be a SymbolTable "
                 f"instance but got '{type(symbol_table).__name__}'")
         # TODO #2503: This reference will not survive some tree modifications
-        self._force_symtab = symbol_table
+        self._forced_symtab = symbol_table
         # Once generate() is called, this list will contain 2-tuples, each
         # containing a Symbol and a function space (string).
         self._fields = []

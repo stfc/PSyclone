@@ -48,9 +48,7 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
                                    LFRicKernMetadata)
-from psyclone.dynamo0p3 import DynDofmaps
-from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import ModuleGen
+from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -811,28 +809,6 @@ def test_cma_mdata_matrix_vector_error():
             "'gh_columnwise_operator * 3'." in str(excinfo.value))
 
 
-def test_cma_asm_cbanded_dofmap_error():
-    ''' Check that we raise expected internal error if DynInvokeDofmaps
-    encounters an assembly kernel that has more than one CMA op argument '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "20.0_cma_assembly.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    calls = invoke.schedule.kernels()
-    # We must go in and make the internal state inconsistent in order
-    # to trigger the error. So, we set the type of all the arguments
-    # in the kernel cal to be CMA operators...
-    for arg in calls[0].arguments.args:
-        arg._argument_type = 'gh_columnwise_operator'
-    with pytest.raises(GenerationError) as excinfo:
-        invoke.dofmaps.__init__(invoke)
-    assert ("Internal error: there should only be one CMA operator argument "
-            "for a CMA assembly kernel but found 2") in str(excinfo.value)
-
-
 def test_cma_asm(tmpdir, dist_mem):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator.
@@ -947,11 +923,12 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = ("CALL columnwise_op_asm_kernel_scalar_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
-                "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
-                "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha_1, "
-                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-                "cma_op1_alpha, ndf_aspc1_lma_op1, cbanded_map_aspc1_lma_op1, "
-                "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)")
+                "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), "
+                "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+                "cma_op1_alpha_1, cma_op1_beta, cma_op1_gamma_m, "
+                "cma_op1_gamma_p, cma_op1_alpha, ndf_aspc1_lma_op1, "
+                "cbanded_map_aspc1_lma_op1, ndf_aspc2_lma_op1, "
+                "cbanded_map_aspc2_lma_op1)")
 
     assert expected in code
 
@@ -1009,29 +986,6 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
     assert "cma_op1_proxy%is_dirty(" not in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
-
-
-def test_cma_apply_indirection_dofmap_error():
-    ''' Check that we raise expected internal error if DynInvokeDofmaps
-    encounters an apply kernel that has more than one CMA op argument '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "20.1_cma_apply.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=True).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    calls = invoke.schedule.kernels()
-    # We must go in and make the internal state inconsistent in order
-    # to trigger the error. So, we set the type of all the arguments
-    # in the kernel cal to be CMA operators...
-    for arg in calls[0].arguments.args:
-        arg._argument_type = 'gh_columnwise_operator'
-    with pytest.raises(GenerationError) as excinfo:
-        invoke.dofmaps.__init__(invoke)
-    assert ("Internal error: there should only be one CMA "
-            "operator argument for a kernel that applies a "
-            "CMA operator but found 3") in str(excinfo.value)
 
 
 def test_cma_apply(tmpdir, dist_mem):
@@ -1352,32 +1306,8 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+
 # Tests for the kernel-stub generator
-
-
-def test_dyndofmap_stubdecln_err():
-    ''' Check that DynDofmaps._stub_declarations raises the expected errors
-    if the stored CMA information is invalid. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "20.5_multi_cma_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    dofmaps = DynDofmaps(psy.invokes.invoke_list[0])
-    mod = ModuleGen(name="test_module")
-    for cma in dofmaps._unique_indirection_maps.values():
-        cma["direction"] = "not-a-direction"
-    with pytest.raises(InternalError) as err:
-        dofmaps._stub_declarations(mod)
-    assert ("Invalid direction ('not-a-direction') found for CMA operator "
-            "when collecting indirection dofmaps" in str(err.value))
-    for cma in dofmaps._unique_cbanded_maps.values():
-        cma["direction"] = "not-a-direction"
-    with pytest.raises(InternalError) as err:
-        dofmaps._stub_declarations(mod)
-    assert ("Invalid direction ('not-a-direction') found for CMA operator "
-            "when collecting column-banded dofmaps" in str(err.value))
-
-
 def test_cma_asm_stub_gen():
     ''' Test the kernel-stub generator for CMA operator assembly.
 

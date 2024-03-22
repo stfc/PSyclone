@@ -58,12 +58,12 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_mixin import (
     ArrayOfStructuresMixin)
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    UnresolvedType, ImportInterface, AutomaticInterface, NoType,
-    RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
-    UnsupportedFortranType, UnsupportedType, UnresolvedInterface, INTEGER_TYPE,
-    StaticInterface, DefaultModuleInterface, UnknownInterface,
-    CommonBlockInterface)
+    ArgumentInterface, ArrayType, AutomaticInterface, CommonBlockInterface,
+    ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
+    GenericInterfaceSymbol, ImportInterface, INTEGER_TYPE, NoType,
+    RoutineSymbol, ScalarType, StaticInterface, StructureType, Symbol,
+    SymbolError, SymbolTable, UnknownInterface, UnresolvedInterface,
+    UnresolvedType, UnsupportedFortranType, UnsupportedType)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -1091,18 +1091,19 @@ class Fparser2Reader():
         }
 
     @staticmethod
-    def nodes_to_code_block(parent, fp2_nodes):
+    def nodes_to_code_block(parent, fp2_nodes, message=None):
         '''Create a CodeBlock for the supplied list of fparser2 nodes and then
         wipe the list. A CodeBlock is a node in the PSyIR (Schedule)
         that represents a sequence of one or more Fortran statements
         and/or expressions which PSyclone does not attempt to handle.
 
-        :param parent: Node in the PSyclone AST to which to add this code \
-                       block.
+        :param parent: Node in the PSyclone AST to which to add this CodeBlock.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param fp2_nodes: list of fparser2 AST nodes constituting the \
-                          code block.
+        :param fp2_nodes: list of fparser2 AST nodes constituting the
+                          CodeBlock.
         :type fp2_nodes: list of :py:class:`fparser.two.utils.Base`
+        :param message: Include a preceeding comment attached to the CodeBlock.
+        :type message: Optional[str]
 
         :returns: a CodeBlock instance.
         :rtype: :py:class:`psyclone.CodeBlock`
@@ -1127,6 +1128,8 @@ class Fparser2Reader():
             structure = CodeBlock.Structure.EXPRESSION
 
         code_block = CodeBlock(fp2_nodes, structure, parent=parent)
+        if message:
+            code_block.preceding_comment = message
         parent.addchild(code_block)
         del fp2_nodes[:]
         return code_block
@@ -1339,14 +1342,15 @@ class Fparser2Reader():
                         sym.specialise(DataSymbol, datatype=UnresolvedType())
                     elif isinstance(sym.datatype, (UnsupportedType,
                                                    UnresolvedType)):
-                        # Allow symbols of Unknown/UnresolvedType.
+                        # Allow symbols of Unsupported/UnresolvedType.
                         pass
                     elif not (isinstance(sym.datatype, ScalarType) and
                               sym.datatype.intrinsic ==
                               ScalarType.Intrinsic.INTEGER):
-                        # It's not of Unknown/UnresolvedType and it's not an
-                        # integer scalar.
-                        raise NotImplementedError()
+                        # It's not of Unsupported/UnresolvedType and it's not
+                        # an integer scalar.
+                        raise NotImplementedError(
+                                "Unsupported shape dimension")
                 except KeyError:
                     # We haven't seen this symbol before so create a new
                     # one with a unresolved interface (since we don't
@@ -1356,7 +1360,7 @@ class Fparser2Reader():
                     symbol_table.add(sym)
                 return Reference(sym)
 
-            raise NotImplementedError()
+            raise NotImplementedError("Unsupported shape dimension")
 
         one = Literal("1", INTEGER_TYPE)
         shape = []
@@ -1681,7 +1685,13 @@ class Fparser2Reader():
                         # There's already a symbol with this name
                         existing_symbol = parent.symbol_table.lookup(
                             sym_name)
-                        if not existing_symbol.is_import:
+                        if isinstance(existing_symbol, RoutineSymbol):
+                            # We already knew it was a RoutineSymbol (probably
+                            # because it is referenced by a Generic Interface)
+                            # but not where it came from so add an interface.
+                            existing_symbol.interface = ImportInterface(
+                                container, orig_name=orig_name)
+                        elif not existing_symbol.is_import:
                             raise SymbolError(
                                 f"Symbol '{sym_name}' is imported from module "
                                 f"'{mod_name}' but is already present in the "
@@ -1799,7 +1809,7 @@ class Fparser2Reader():
         else:
             # Not a supported type specification. This will result in a
             # CodeBlock or UnsupportedFortranType, depending on the context.
-            raise NotImplementedError()
+            raise NotImplementedError("Unsupported type specification")
 
         return base_type, precision
 
@@ -1844,6 +1854,7 @@ class Fparser2Reader():
             attributes are found in a symbol declaration.
 
         '''
+        # pylint: disable=too-many-arguments
         (type_spec, attr_specs, entities) = decl.items
 
         # Parse the type_spec
@@ -2301,16 +2312,16 @@ class Fparser2Reader():
                         # in a codeblock (as we presume the original
                         # code is correct).
                         raise NotImplementedError(
-                            f"Could not parse '{stmt}' because: "
+                            f"Could not process '{stmt}' because: "
                             f"{err}.") from err
 
                     if not isinstance(symbol, DataSymbol):
                         raise NotImplementedError(
-                            f"Could not parse '{stmt}' because "
+                            f"Could not process '{stmt}' because "
                             f"'{symbol.name}' is not a DataSymbol.")
                     if isinstance(symbol.datatype, UnsupportedType):
                         raise NotImplementedError(
-                            f"Could not parse '{stmt}' because "
+                            f"Could not process '{stmt}' because "
                             f"'{symbol.name}' has an UnsupportedType.")
 
                     # Parse its initialization into a dummy Assignment
@@ -2326,6 +2337,108 @@ class Fparser2Reader():
                     symbol.is_constant = True
                     # Ensure the interface to this Symbol is static
                     symbol.interface = StaticInterface()
+
+    def _process_interface_block(self, node, symbol_table, visibility_map):
+        '''
+        Processes a Fortran2003.Interface_Block. If the interface is named
+        and consists only of [module] procedure :: <procedure-list> then a
+        GenericInterfaceSymbol is created. Otherwise, a RoutineSymbol of
+        UnsupportedFortranType is created.
+
+        :param node: the parse tree for the interface block.
+        :type node: :py:class:`fparser.two.Fortran2003.Interface_Block`
+        :param symbol_table: the table to which to add new symbols.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param visibility_map: information on any explicit symbol visibilities
+            in the current scope.
+        :type visibility_map: dict[
+            str, :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
+
+        '''
+        # Fortran 2003 standard R1203 says that:
+        #    interface-stmt is INTERFACE [ generic-spec ]
+        #                   or ABSTRACT INTERFACE
+        # where generic-spec is either (R1207) a generic-name or one
+        # of OPERATOR, ASSIGNMENT or dtio-spec.
+        if not isinstance(node.children[0].children[0],
+                          Fortran2003.Name):
+            # This interface does not have a name. Therefore we store it as a
+            # RoutineSymbol with an internal name and with the content of the
+            # interface being kept within an UnsupportedFortranType. As a
+            # result the visibility and interface details of the RoutineSymbol
+            # do not matter.
+            symbol_table.new_symbol(
+                root_name="_psyclone_internal_interface",
+                symbol_type=RoutineSymbol,
+                datatype=UnsupportedFortranType(str(node).lower()))
+            return
+
+        # This interface has a name.
+        name = node.children[0].children[0].string.lower()
+        vis = visibility_map.get(
+            name, symbol_table.default_visibility)
+        # Attempt to work out which routines this interface includes. We
+        # only support those interfaces which use:
+        #     [MODULE] PROCEDURE :: <name-list>
+        # to specify these.
+        rsymbols = []
+        # This flag will be set to False in the loop below if an unsupported
+        # feature is found.
+        supported_interface = True
+        # Loop over the child nodes of the Interface definition.
+        for child in node.children:
+            if isinstance(child, (Fortran2003.Interface_Stmt,
+                                  Fortran2003.End_Interface_Stmt)):
+                continue
+            if isinstance(child, Fortran2003.Procedure_Stmt):
+                # Keep track of whether these are module procedures.
+                is_module = child.children[1] == 'MODULE'
+                for routine_name in child.children[0].children:
+                    # Can't specify the symbol_type here as that will raise
+                    # an exception if a bare Symbol is found instead of a
+                    # RoutineSymbol.
+                    rsym = symbol_table.find_or_create(
+                        routine_name.string)
+                    if type(rsym) is Symbol:
+                        rsym.specialise(RoutineSymbol)
+                    elif not isinstance(rsym, RoutineSymbol):
+                        raise InternalError(
+                            f"Expected '{rsym.name}' referenced by generic "
+                            f"interface '{name}' to be a Symbol or a "
+                            f"RoutineSymbol but found '{type(rsym).__name__}'")
+                    rsymbols.append((rsym, is_module))
+            else:
+                # Interface block contains an unsupported entry so
+                # we'll create a symbol of UnsupportedFortranType (below).
+                supported_interface = False
+
+        try:
+            if supported_interface:
+                # A named interface block corresponds to a
+                # GenericInterfaceSymbol. (There will be calls to it
+                # although there will be no corresponding implementation
+                # with that name.)
+                symbol_table.add(GenericInterfaceSymbol(
+                    name, rsymbols, visibility=vis))
+            else:
+                # We've not been able to determine the list of
+                # RoutineSymbols that this interface maps to so we just
+                # create a RoutineSymbol of UnsupportedFortranType.
+                symbol_table.add(RoutineSymbol(
+                    name, datatype=UnsupportedFortranType(str(node).lower()),
+                    visibility=vis))
+        except KeyError:
+            # This symbol has already been declared. This can happen when
+            # an interface overloads a constructor for a type (as the interface
+            # name is then the name of the type). However we still want to
+            # capture the interface so we store it in the PSyIR as an
+            # UnsupportedFortranType with an internal name as we do
+            # for unnamed interfaces.
+            symbol_table.new_symbol(
+                root_name=f"_psyclone_internal_{name}",
+                symbol_type=RoutineSymbol,
+                datatype=UnsupportedFortranType(str(node).lower()),
+                visibility=vis)
 
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
@@ -2390,55 +2503,8 @@ class Fparser2Reader():
 
             if isinstance(node, Fortran2003.Interface_Block):
 
-                # Fortran 2003 standard R1203 says that:
-                #    interface-stmt is INTERFACE [ generic-spec ]
-                #                   or ABSTRACT INTERFACE
-                # where generic-spec is either (R1207) a generic-name or one
-                # of OPERATOR, ASSIGNMENT or dtio-spec.
-                if not isinstance(node.children[0].children[0],
-                                  Fortran2003.Name):
-                    # This interface does not have a name so we store
-                    # it as a RoutineSymbol with an internal name and
-                    # with the content of the interface being kept
-                    # within an UnsupportedFortranType. As a result the
-                    # visibility and interface details of the
-                    # RoutineSymbol do not matter.
-                    parent.symbol_table.new_symbol(
-                        root_name="_psyclone_internal_interface",
-                        symbol_type=RoutineSymbol,
-                        datatype=UnsupportedFortranType(str(node).lower()))
-                else:
-                    # This interface has a name.
-                    name = node.children[0].children[0].string.lower()
-                    vis = visibility_map.get(
-                        name, parent.symbol_table.default_visibility)
-                    # A named interface block corresponds to a
-                    # RoutineSymbol. (There will be calls to it
-                    # although there will be no corresponding
-                    # implementation with that name.) We store its
-                    # definition using an UnsupportedFortranType.
-                    try:
-                        parent.symbol_table.add(
-                            RoutineSymbol(
-                                name,
-                                UnsupportedFortranType(str(node).lower()),
-                                interface=UnknownInterface(),
-                                visibility=vis))
-                    except KeyError:
-                        # This symbol has already been declared. This
-                        # can happen when an interface overloads a
-                        # constructor for a type (as the interface
-                        # name is then the name of the type). However
-                        # we still want to capture the interface so we
-                        # store it in the PSyIR as an
-                        # UnsupportedFortranType with an internal name as
-                        # we do for unnamed interfaces.
-                        parent.symbol_table.new_symbol(
-                            root_name=f"_psyclone_internal_{name}",
-                            symbol_type=RoutineSymbol,
-                            interface=UnknownInterface(),
-                            datatype=UnsupportedFortranType(str(node).lower()),
-                            visibility=vis)
+                self._process_interface_block(node, parent.symbol_table,
+                                              visibility_map)
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
@@ -2516,6 +2582,7 @@ class Fparser2Reader():
                                    Fortran2003.Use_Stmt)):
                 # These node types are handled separately
                 pass
+
             elif isinstance(node, Fortran2003.Implicit_Part):
                 # Anything other than a PARAMETER statement or an
                 # IMPLICIT NONE means we can't handle this code.
@@ -2532,6 +2599,18 @@ class Fparser2Reader():
                     raise NotImplementedError(
                         f"Error processing implicit-part: implicit variable "
                         f"declarations not supported but found '{node}'")
+
+            elif isinstance(node, Fortran2003.Namelist_Stmt):
+                # Place the declaration statement into the symbol table using
+                # an internal symbol name. In case that we need more details
+                # (e.g. to update symbol information), the following code
+                # loops over namelist and each symbol:
+                # for namelist_object in node.children:
+                #    for symbol_name in namelist_object[1].items:
+                parent.symbol_table.new_symbol(
+                    root_name="_PSYCLONE_INTERNAL_NAMELIST",
+                    symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(str(node)))
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
@@ -2542,9 +2621,9 @@ class Fparser2Reader():
         # symbols and can appear in any order.
         self._process_parameter_stmts(nodes, parent)
 
-        # We process the nodes again looking for common blocks. We do this
-        # here, after the main declarations loop, because they modify the
-        # interface of existing symbols and can appear in any order.
+        # We process the nodes again looking for common blocks.
+        # We do this here, after the main declarations loop, because they
+        # modify the interface of existing symbols and can appear in any order.
         self._process_common_blocks(nodes, parent)
 
         if visibility_map is not None:
@@ -2758,32 +2837,36 @@ class Fparser2Reader():
         :param parent: Parent node in the PSyIR we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param nodes: List of sibling nodes in fparser2 AST.
-        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :type nodes: list[:py:class:`fparser.two.utils.Base`]
 
         '''
         code_block_nodes = []
+        message = "PSyclone CodeBlock (unsupported code) reason:"
         for child in nodes:
             try:
                 psy_child = self._create_child(child, parent)
-            except NotImplementedError:
+            except NotImplementedError as err:
                 # If child type implementation not found, add them on the
                 # ongoing code_block node list.
+                message += "\n - " + str(err)
                 code_block_nodes.append(child)
                 if not isinstance(parent, Schedule):
                     # If we're not processing a statement then we create a
                     # separate CodeBlock for each node in the parse tree.
                     # (Otherwise it is hard to correctly reconstruct e.g.
                     # the arguments to a Call.)
-                    self.nodes_to_code_block(parent, code_block_nodes)
+                    self.nodes_to_code_block(parent, code_block_nodes, message)
+                    message = "PSyclone CodeBlock (unsupported code) reason:"
             else:
                 if psy_child:
-                    self.nodes_to_code_block(parent, code_block_nodes)
+                    self.nodes_to_code_block(parent, code_block_nodes, message)
+                    message = "PSyclone CodeBlock (unsupported code) reason:"
                     parent.addchild(psy_child)
                 # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
 
         # Complete any unfinished code-block
-        self.nodes_to_code_block(parent, code_block_nodes)
+        self.nodes_to_code_block(parent, code_block_nodes, message)
 
     def _create_child(self, child, parent=None):
         '''
@@ -2810,10 +2893,10 @@ class Fparser2Reader():
             # must allow for the case where the block is empty though.
             if (child.content and child.content[0] and
                     child.content[0].item and child.content[0].item.label):
-                raise NotImplementedError()
+                raise NotImplementedError("Unsupported labelled statement")
         elif isinstance(child, StmtBase):
             if child.item and child.item.label:
-                raise NotImplementedError()
+                raise NotImplementedError("Unsupported labelled statement")
 
         handler = self.handlers.get(type(child))
         if handler is None:
@@ -2826,7 +2909,8 @@ class Fparser2Reader():
             generic_type = type(child).__bases__[0]
             handler = self.handlers.get(generic_type)
             if not handler:
-                raise NotImplementedError()
+                raise NotImplementedError(
+                    f"Unsupported statement: {type(child).__name__}")
         return handler(child, parent)
 
     def _ignore_handler(self, *_):
@@ -3102,7 +3186,8 @@ class Fparser2Reader():
                 # the Loop (but exclude the END DO from this check).
                 names = walk(node.content[:-1], Fortran2003.Name)
                 if construct_name in [name.string for name in names]:
-                    raise NotImplementedError()
+                    raise NotImplementedError(
+                        "Unsupported label reference within DO")
 
         ctrl = walk(nonlabel_do, Fortran2003.Loop_Control)
         # In fparser Loop_Control has 4 children, but just one of the Loop
@@ -4413,7 +4498,7 @@ class Fparser2Reader():
                 value = value.replace(".", "0.")
             return Literal(value, real_type)
         # Unrecognised datatype - will result in a CodeBlock
-        raise NotImplementedError()
+        raise NotImplementedError("Unsupported datatype of literal number")
 
     def _char_literal_handler(self, node, parent):
         '''
@@ -4447,7 +4532,7 @@ class Fparser2Reader():
         # However, checking whether we have e.g. 'that''s a cat''s mat' is
         # difficult and so, for now, we don't support it.
         if len(char_value) > 2 and ("''" in char_value or '""' in char_value):
-            raise NotImplementedError()
+            raise NotImplementedError("Unsupported Literal")
         # Strip the wrapping quotation chars before storing the value.
         return Literal(char_value[1:-1], character_type)
 
@@ -4500,7 +4585,7 @@ class Fparser2Reader():
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
                 routine_symbol.specialise(RoutineSymbol)
-            elif type(routine_symbol) is RoutineSymbol:
+            elif isinstance(routine_symbol, RoutineSymbol):
                 # This symbol is already the expected type
                 pass
             else:

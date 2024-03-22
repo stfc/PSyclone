@@ -45,7 +45,6 @@ There is currently only one class in this module: ReadOnlyVerifyNode.
 
 '''
 
-from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
@@ -83,14 +82,14 @@ class ReadOnlyVerifyNode(PSyDataNode):
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
         # Determine the variables to write:
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import ReadWriteInfo
-        dep = DependencyTools()
+        ctu = CallTreeUtils()
         read_write_info = ReadWriteInfo()
-        dep.get_input_parameters(read_write_info, self, options=self.options)
+        ctu.get_input_parameters(read_write_info, self, options=self.options)
         options = {'pre_var_list': read_write_info.read_list,
                    'post_var_list': read_write_info.read_list}
 

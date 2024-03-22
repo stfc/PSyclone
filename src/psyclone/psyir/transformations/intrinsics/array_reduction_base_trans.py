@@ -195,7 +195,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         orig_lhs = node.ancestor(Assignment).lhs.copy()
         orig_rhs = node.ancestor(Assignment).rhs.copy()

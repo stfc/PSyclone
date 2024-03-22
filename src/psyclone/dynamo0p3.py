@@ -1182,243 +1182,6 @@ class DynReferenceElement(LFRicCollection):
                     f"faces({self._face_out_normals_symbol.name})"))
 
 
-class DynDofmaps(LFRicCollection):
-    '''
-    Holds all information on the dofmaps (including column-banded and
-    indirection) required by an invoke.
-
-    :param node: Kernel or Invoke for which to manage dofmaps.
-    :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or \
-                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
-
-    '''
-    def __init__(self, node):
-        # pylint: disable=too-many-branches
-        super().__init__(node)
-
-        # Look at every kernel call in this invoke and generate a list
-        # of the unique function spaces involved.
-        # We create a dictionary whose keys are the map names and entries
-        # are the corresponding field objects.
-        self._unique_fs_maps = OrderedDict()
-        # We also create a dictionary of column-banded dofmaps. Entries
-        # in this one are themselves dictionaries containing two entries:
-        # "argument" - the object holding information on the CMA kernel
-        #              argument
-        # "direction" - whether the dofmap is required for the "to" or
-        #               "from" function space of the operator.
-        self._unique_cbanded_maps = OrderedDict()
-        # A dictionary of required CMA indirection dofmaps. As with the
-        # column-banded dofmaps, each entry is itself a dictionary with
-        # "argument" and "direction" entries.
-        self._unique_indirection_maps = OrderedDict()
-
-        for call in self._calls:
-            # We only need a dofmap if the kernel operates on a cell_column
-            # or the domain.
-            if call.iterates_over in ["cell_column", "domain"]:
-                for unique_fs in call.arguments.unique_fss:
-                    # We only need a dofmap if there is a *field* on this
-                    # function space. If there is then we use it to look
-                    # up the dofmap.
-                    fld_arg = unique_fs.field_on_space(call.arguments)
-                    if fld_arg:
-                        map_name = unique_fs.map_name
-                        if map_name not in self._unique_fs_maps:
-                            self._unique_fs_maps[map_name] = fld_arg
-                if call.cma_operation == "assembly":
-                    # A kernel that assembles a CMA operator requires
-                    # column-banded dofmaps for its 'to' and 'from'
-                    # function spaces
-                    cma_args = psyGen.args_filter(
-                        call.arguments.args,
-                        arg_types=["gh_columnwise_operator"])
-
-                    # Sanity check - we expect only one CMA argument
-                    if len(cma_args) != 1:
-                        raise GenerationError(
-                            f"Internal error: there should only be one CMA "
-                            f"operator argument for a CMA assembly kernel but "
-                            f"found {len(cma_args)}")
-
-                    map_name = \
-                        cma_args[0].function_space_to.cbanded_map_name
-                    if map_name not in self._unique_cbanded_maps:
-                        self._unique_cbanded_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "to"}
-                    map_name = \
-                        cma_args[0].function_space_from.cbanded_map_name
-                    if map_name not in self._unique_cbanded_maps:
-                        self._unique_cbanded_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "from"}
-                elif call.cma_operation == "apply":
-                    # A kernel that applies (or applies the inverse of) a
-                    # CMA operator requires the indirection dofmaps for the
-                    # to- and from-spaces of the operator.
-                    cma_args = psyGen.args_filter(
-                        call.arguments.args,
-                        arg_types=["gh_columnwise_operator"])
-
-                    # Sanity check - we expect only one CMA argument
-                    if len(cma_args) != 1:
-                        raise GenerationError(
-                            f"Internal error: there should only be one CMA "
-                            f"operator argument for a kernel that applies a "
-                            f"CMA operator but found {len(cma_args)}")
-
-                    map_name = cma_args[0].function_space_to\
-                        .cma_indirection_map_name
-                    if map_name not in self._unique_indirection_maps:
-                        self._unique_indirection_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "to"}
-                    map_name = cma_args[0].function_space_from\
-                        .cma_indirection_map_name
-                    if map_name not in self._unique_indirection_maps:
-                        self._unique_indirection_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "from"}
-
-    def initialise(self, parent):
-        ''' Generates the calls to the LFRic infrastructure that
-        look-up the necessary dofmaps. Adds these calls as children
-        of the supplied parent node. This must be an appropriate
-        f2pygen object. '''
-
-        # If we've got no dofmaps then we do nothing
-        if self._unique_fs_maps:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Look-up dofmaps for each function space"))
-            parent.add(CommentGen(parent, ""))
-
-            for dmap, field in self._unique_fs_maps.items():
-                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=field.proxy_name_indexed +
-                                     "%" + field.ref_name() +
-                                     "%get_whole_dofmap()"))
-        if self._unique_cbanded_maps:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Look-up required column-banded dofmaps"))
-            parent.add(CommentGen(parent, ""))
-
-            for dmap, cma in self._unique_cbanded_maps.items():
-                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=cma["argument"].proxy_name_indexed +
-                                     "%column_banded_dofmap_" +
-                                     cma["direction"]))
-
-        if self._unique_indirection_maps:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Look-up required CMA indirection dofmaps"))
-            parent.add(CommentGen(parent, ""))
-
-            for dmap, cma in self._unique_indirection_maps.items():
-                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=cma["argument"].proxy_name_indexed +
-                                     "%indirection_dofmap_"+cma["direction"]))
-
-    def _invoke_declarations(self, parent):
-        '''
-        Declare all unique function space dofmaps in the PSy layer as pointers
-        to integer arrays of rank 2.
-
-        :param parent: the f2pygen node to which to add the declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        # Function space dofmaps
-        decl_map_names = \
-            [dmap+"(:,:) => null()" for dmap in sorted(self._unique_fs_maps)]
-
-        if decl_map_names:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=decl_map_names))
-
-        # Column-banded dofmaps
-        decl_bmap_names = \
-            [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
-        if decl_bmap_names:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=decl_bmap_names))
-
-        # CMA operator indirection dofmaps
-        decl_ind_map_names = \
-            [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
-        if decl_ind_map_names:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=decl_ind_map_names))
-
-    def _stub_declarations(self, parent):
-        '''
-        Add dofmap-related declarations to a Kernel stub.
-
-        :param parent: node in the f2pygen AST representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        # Function space dofmaps
-        for dmap in sorted(self._unique_fs_maps):
-            # We declare ndf first as some compilers require this
-            ndf_name = \
-                self._unique_fs_maps[dmap].function_space.ndf_name
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", dimension=ndf_name,
-                               entity_decls=[dmap]))
-        # Column-banded dofmaps
-        for dmap, cma in self._unique_cbanded_maps.items():
-            if cma["direction"] == "to":
-                ndf_name = cma["argument"].function_space_to.ndf_name
-            elif cma["direction"] == "from":
-                ndf_name = cma["argument"].function_space_from.ndf_name
-            else:
-                raise InternalError(
-                    f"Invalid direction ('{cma['''direction''']}') found for "
-                    f"CMA operator when collecting column-banded dofmaps. "
-                    f"Should be either 'to' or 'from'.")
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in",
-                               dimension=",".join([ndf_name, "nlayers"]),
-                               entity_decls=[dmap]))
-        # CMA operator indirection dofmaps
-        for dmap, cma in self._unique_indirection_maps.items():
-            if cma["direction"] == "to":
-                dim_name = cma["argument"].name + "_nrow"
-            elif cma["direction"] == "from":
-                dim_name = cma["argument"].name + "_ncol"
-            else:
-                raise InternalError(
-                    f"Invalid direction ('{cma['''direction''']}') found for "
-                    f"CMA operator when collecting indirection dofmaps. "
-                    f"Should be either 'to' or 'from'.")
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[dim_name]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", dimension=dim_name,
-                               entity_decls=[dmap]))
-
-
 class DynFunctionSpaces(LFRicCollection):
     '''
     Handles the declaration and initialisation of all function-space-related
@@ -2288,10 +2051,6 @@ class DynMeshes():
     '''
 
     def __init__(self, invoke, unique_psy_vars):
-        # Dict of DynInterGrid objects holding information on the mesh-related
-        # variables required by each inter-grid kernel. Keys are the kernel
-        # names.
-        self._ig_kernels = OrderedDict()
         # List of names of unique mesh variables referenced in the Invoke
         self._mesh_tag_names = []
         # Whether or not the associated Invoke requires colourmap information
@@ -2317,6 +2076,7 @@ class DynMeshes():
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
+        has_intergrid = False
         for call in self._schedule.coded_kernels():
 
             if (call.reference_element.properties or call.mesh.properties or
@@ -2325,33 +2085,15 @@ class DynMeshes():
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
-                # Skip over any non-inter-grid kernels
-                continue
-
-            fine_args = psyGen.args_filter(call.arguments.args,
-                                           arg_meshes=["gh_fine"])
-            coarse_args = psyGen.args_filter(call.arguments.args,
-                                             arg_meshes=["gh_coarse"])
-            fine_arg = fine_args[0]
-            coarse_arg = coarse_args[0]
-
-            # Create an object to capture info. on this inter-grid kernel
-            # and store in our dictionary
-            intergrid = DynInterGrid(fine_arg, coarse_arg)
-            # TODO #2503: Since we use the id(call) as a key, a copy of the
-            # call will not be able to use the ig_kernels to find its
-            # information, therefore we also store a direct link in the
-            # kernel
-            self._ig_kernels[id(call)] = intergrid
-            call._intergrid_ref = intergrid
-
-            # Create and store the names of the associated mesh objects
-            _name_set.add(f"mesh_{fine_arg.name}")
-            _name_set.add(f"mesh_{coarse_arg.name}")
+            else:
+                has_intergrid = True
+                # Create and store the names of the associated mesh objects
+                _name_set.add(f"mesh_{call._intergrid_ref.fine.name}")
+                _name_set.add(f"mesh_{call._intergrid_ref.coarse.name}")
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
-        if non_intergrid_kernels and self._ig_kernels:
+        if non_intergrid_kernels and has_intergrid:
             raise GenerationError(
                 f"An invoke containing inter-grid kernels must contain no "
                 f"other kernel types but kernels "
@@ -2475,9 +2217,9 @@ class DynMeshes():
                 base_name = "last_edge_cell_all_colours_" + carg_name
                 last_cell = self._schedule.symbol_table.find_or_create_array(
                     base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
-            # Add these symbols into the dictionary entry for this
-            # inter-grid kernel
-            call._intergrid_ref.set_colour_info(colour_map, ncolours, last_cell)
+            # Add these symbols into the DynInterGrid entry for this kernel
+            call._intergrid_ref.set_colour_info(colour_map, ncolours,
+                                                last_cell)
 
         if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
@@ -2526,7 +2268,7 @@ class DynMeshes():
             name = self._symbol_table.lookup_with_tag(mtype).name
             parent.add(UseGen(parent, name=mmod, only=True,
                               funcnames=[name]))
-        if self._ig_kernels:
+        if self.intergrid_kernels:
             parent.add(UseGen(parent, name=mmap_mod, only=True,
                               funcnames=[mmap_type]))
         # Declare the mesh object(s) and associated halo depths
@@ -2543,7 +2285,7 @@ class DynMeshes():
                                    entity_decls=[name]))
 
         # Declare the inter-mesh map(s) and cell map(s)
-        for kern in self._ig_kernels.values():
+        for kern in self.intergrid_kernels:
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype=mmap_type,
                                    entity_decls=[kern.mmap + " => null()"]))
@@ -2581,8 +2323,8 @@ class DynMeshes():
                             kind=api_config.default_kind["integer"],
                             entity_decls=[decln]))
 
-        if not self._ig_kernels and (self._needs_colourmap or
-                                     self._needs_colourmap_halo):
+        if not self.intergrid_kernels and (self._needs_colourmap or
+                                           self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
@@ -2675,8 +2417,8 @@ class DynMeshes():
         # that we don't generate duplicate assignments
         initialised = []
 
-        # Loop over the DynInterGrid objects in our dictionary
-        for dig in self._ig_kernels.values():
+        # Loop over the DynInterGrid objects
+        for dig in self.intergrid_kernels:
             # We need pointers to both the coarse and the fine mesh as well
             # as the maximum halo depth for each.
             fine_mesh = self._schedule.symbol_table.find_or_create_tag(
@@ -2784,12 +2526,16 @@ class DynMeshes():
 
     @property
     def intergrid_kernels(self):
-        ''' Getter for the dictionary of intergrid kernels.
-
-        :returns: Dictionary of intergrid kernels, indexed by name.
-        :rtype: :py:class:`collections.OrderedDict`
         '''
-        return self._ig_kernels
+        :returns: A list of objects describing the intergrid kernels used in
+            this invoke.
+        :rtype: list[:py:class:`psyclone.dynamo3p0.DynInterGrid`]
+        '''
+        intergrids = []
+        for call in self._schedule.coded_kernels():
+            if call.is_intergrid:
+                intergrids.append(call._intergrid_ref)
+        return intergrids
 
 
 class DynInterGrid():
@@ -6505,7 +6251,6 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 __all__ = [
     'DynFuncDescriptor03',
     'DynamoPSy',
-    'DynDofmaps',
     'DynFunctionSpaces',
     'DynProxies',
     'DynCellIterators',

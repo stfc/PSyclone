@@ -1747,8 +1747,8 @@ def test_get_sibling_lists(fortran_reader):
     assert len(loop_blocks) == len(expected)
     for block, indices in zip(loop_blocks, expected):
         assert len(block) == len(indices)
-        for node, index in zip(block, indices):
-            assert node is loops[index]
+        for psyir_node, index in zip(block, indices):
+            assert psyir_node is loops[index]
 
     # Test case where only assignments are requested
     assignments = psyir.walk(Assignment)
@@ -1758,8 +1758,8 @@ def test_get_sibling_lists(fortran_reader):
     assert len(assignment_blocks) == len(expected)
     for block, indices in zip(assignment_blocks, expected):
         assert len(block) == len(indices)
-        for node, index in zip(block, indices):
-            assert node is assignments[index]
+        for psyir_node, index in zip(block, indices):
+            assert psyir_node is assignments[index]
 
     # Test case where both loops and assignments are requested
     loops_assignments = psyir.walk((Loop, Assignment))
@@ -1769,8 +1769,8 @@ def test_get_sibling_lists(fortran_reader):
     assert len(both_blocks) == len(expected)
     for block, indices in zip(both_blocks, expected):
         assert len(block) == len(indices)
-        for node, index in zip(block, indices):
-            assert node is loops_assignments[index]
+        for psyir_node, index in zip(block, indices):
+            assert psyir_node is loops_assignments[index]
 
 
 def test_get_sibling_lists_with_stopping(fortran_reader):

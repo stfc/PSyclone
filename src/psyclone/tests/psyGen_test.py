@@ -554,7 +554,7 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     with pytest.raises(VisitorError) as err:
         gen = str(psy.gen)
     assert ("Cannot generate this kernel call to 'ru_code' because it "
-            "is marked as module-inline but no such subroutine exist in "
+            "is marked as module-inlined but no such subroutine exists in "
             "this module." in str(err.value))
 
     # Create the symbol and try again, it now must succeed
@@ -1062,12 +1062,12 @@ def test_reduction_no_set_precision(dist_mem):
             "      REAL, intent(out) :: asum\n"
             "      TYPE(field_type), intent(in) :: f1\n"
             "      TYPE(scalar_type) global_sum\n"
-            "      INTEGER df\n")
+            "      INTEGER(KIND=i_def) df\n")
     else:
         zero_sum_decls = (
             "      REAL, intent(out) :: asum\n"
             "      TYPE(field_type), intent(in) :: f1\n"
-            "      INTEGER df\n")
+            "      INTEGER(KIND=i_def) df\n")
     assert zero_sum_decls in generated_code
 
     zero_sum_output = (

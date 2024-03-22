@@ -47,10 +47,9 @@ from psyclone.core import AccessType
 from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
                                    KernelInterface, LFRicConstants)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import (CommentGen, DeclGen, ModuleGen, SubroutineGen,
-                              UseGen)
+from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
-from psyclone.psyGen import InvokeSchedule, CodedKern
+from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Reference,
                                   KernelSchedule)
@@ -104,7 +103,8 @@ class LFRicKern(CodedKern):
         # because we must preserve the ordering specified in the metadata.
         self._qr_rules = OrderedDict()
         self._cma_operation = None
-        self._is_intergrid = False  # Whether this is an inter-grid kernel
+        # Reference to the DynInterGrid object holding any inter-grid aspects
+        # of this kernel or None if it is not an intergrid kernel
         self._intergrid_ref = None  # Reference to this kernel inter-grid
         # The reference-element properties required by this kernel
         self._reference_element = None
@@ -234,6 +234,7 @@ class LFRicKern(CodedKern):
 
     def _setup(self, ktype, module_name, args, parent, check=True):
         # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-branches, too-many-locals
         '''Internal setup of kernel information.
 
         :param ktype: object holding information on the parsed metadata for \
@@ -254,7 +255,6 @@ class LFRicKern(CodedKern):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynKernelArguments, FSDescriptors
-        # pylint: disable=too-many-branches, too-many-locals
         super().__init__(DynKernelArguments,
                          KernelCall(module_name, ktype, args),
                          parent, check)
@@ -273,9 +273,21 @@ class LFRicKern(CodedKern):
         self._cma_operation = ktype.cma_operation
         self._fs_descriptors = FSDescriptors(ktype.func_descriptors)
 
-        # Record whether or not the kernel metadata specifies that this
-        # is an inter-grid kernel
-        self._is_intergrid = ktype.is_intergrid
+        # If the kernel metadata specifies that this is an inter-grid kernel
+        # create the associated DynInterGrid
+        if ktype.is_intergrid:
+            if not self.ancestor(InvokeSchedule):
+                raise NotImplementedError(
+                    f"Intergrid kernels can only be setup inside an "
+                    f"InvokeSchedule, but attempted '{self.name}' without it.")
+            fine_args = args_filter(self.arguments.args,
+                                    arg_meshes=["gh_fine"])
+            coarse_args = args_filter(self.arguments.args,
+                                      arg_meshes=["gh_coarse"])
+
+            from psyclone.dynamo0p3 import DynInterGrid
+            intergrid = DynInterGrid(fine_args[0], coarse_args[0])
+            self._intergrid_ref = intergrid
 
         const = LFRicConstants()
         # Check that all specified evaluator shapes are recognised
@@ -380,7 +392,7 @@ class LFRicKern(CodedKern):
         :return: True if it is an inter-grid kernel, False otherwise
         :rtype: bool
         '''
-        return self._is_intergrid
+        return self._intergrid_ref is not None
 
     @property
     def colourmap(self):
@@ -390,21 +402,14 @@ class LFRicKern(CodedKern):
         :returns: name of the colourmap (Fortran array).
         :rtype: str
 
-        :raises InternalError: if this kernel is not coloured or the \
-                               dictionary of inter-grid kernels and \
-                               colourmaps has not been constructed.
+        :raises InternalError: if this kernel is not coloured.
 
         '''
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
         sched = self.ancestor(InvokeSchedule)
-        if self._is_intergrid:
-            invoke = sched.invoke
-            if self._intergrid_ref is None:
-                raise InternalError(
-                    f"Colourmap information for kernel '{self.name}' has "
-                    f"not yet been initialised")
+        if self.is_intergrid:
             cmap = self._intergrid_ref.colourmap_symbol.name
         else:
             try:
@@ -427,19 +432,13 @@ class LFRicKern(CodedKern):
         :returns: name of the array.
         :rtype: str
 
-        :raises InternalError: if this kernel is not coloured or the \
-                               dictionary of inter-grid kernels and \
-                               colourmaps has not been constructed.
+        :raises InternalError: if this kernel is not coloured.
         '''
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
 
-        if self._is_intergrid:
-            if self._intergrid_ref is None:
-                raise InternalError(
-                    f"Colourmap information for kernel '{self.name}' has "
-                    f"not yet been initialised")
+        if self.is_intergrid:
             return self._intergrid_ref.last_cell_var_symbol
 
         ubnd_name = self.ancestor(Loop).upper_bound_name
@@ -463,19 +462,14 @@ class LFRicKern(CodedKern):
         associated with this kernel call.
 
         :return: name of the variable holding the number of colours
-        :rtype: Union[str, NoneType]
+        :rtype: Optional[str]
 
-        :raises InternalError: if this kernel is not coloured or the \
-                               colour-map information has not been initialised.
+        :raises InternalError: if this kernel is not coloured.
         '''
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
-        if self._is_intergrid:
-            if self._intergrid_ref is None:
-                raise InternalError(
-                    f"Colourmap information for kernel '{self.name}' has "
-                    f"not yet been initialised")
+        if self.is_intergrid:
             ncols_sym = self._intergrid_ref.ncolours_var_symbol
             if not ncols_sym:
                 return None
@@ -605,14 +599,13 @@ class LFRicKern(CodedKern):
         # Add all the declarations
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric import (LFRicFields, LFRicScalarArgs,
-                                           LFRicStencils)
-        from psyclone.dynamo0p3 import (DynCellIterators, DynDofmaps,
-                                        DynFunctionSpaces, DynCMAOperators,
-                                        DynBoundaryConditions,
+        from psyclone.domain.lfric import (LFRicScalarArgs, LFRicFields,
+                                           LFRicDofmaps, LFRicStencils)
+        from psyclone.dynamo0p3 import (DynCellIterators, DynFunctionSpaces,
+                                        DynCMAOperators, DynBoundaryConditions,
                                         DynLMAOperators, LFRicMeshProperties,
                                         DynBasisFunctions, DynReferenceElement)
-        for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
+        for entities in [DynCellIterators, LFRicDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, LFRicStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
@@ -889,14 +882,15 @@ class LFRicKern(CodedKern):
 
     def validate_global_constraints(self):
         '''
-        Generates LFRic (Dynamo 0.3) specific PSy layer code for a call
-        to this user-supplied LFRic kernel.
-        :raises GenerationError: if this kernel does not have a supported \
+        Perform validation checks for any global constraints (that require the
+        tree to be complete).
+
+        :raises GenerationError: if this kernel does not have a supported
                         operates-on (currently only "cell_column").
-        :raises GenerationError: if the loop goes beyond the level 1 \
+        :raises GenerationError: if the loop goes beyond the level 1
                         halo and an operator is accessed.
-        :raises GenerationError: if a kernel in the loop has an inc access \
-                        and the loop is not coloured but is within an OpenMP \
+        :raises GenerationError: if a kernel in the loop has an inc access
+                        and the loop is not coloured but is within an OpenMP
                         parallel region.
         '''
         # Check operates-on (iteration space) before generating code
@@ -907,9 +901,7 @@ class LFRicKern(CodedKern):
                 f"operate on one of {const.USER_KERNEL_ITERATION_SPACES}, but "
                 f"kernel '{self.name}' operates on '{self.iterates_over}'.")
 
-        # Get configuration for valid argument kinds
-        api_config = Config.get().api_conf("dynamo0.3")
-
+        # pylint: disable=import-outside-toplevel
         from psyclone.domain.lfric import LFRicLoop
         parent_loop = self.ancestor(LFRicLoop)
 
@@ -920,8 +912,8 @@ class LFRicKern(CodedKern):
         if op_args:
             # It does. We must check that our parent loop does not
             # go beyond the L1 halo.
-            if parent_loop.upper_bound_name == "cell_halo" and \
-               parent_loop.upper_bound_halo_depth > 1:
+            if (parent_loop.upper_bound_name == "cell_halo" and
+                    parent_loop.upper_bound_halo_depth > 1):
                 raise GenerationError(
                     f"Kernel '{self._name}' reads from an operator and "
                     f"therefore cannot be used for cells beyond the level 1 "
@@ -936,15 +928,14 @@ class LFRicKern(CodedKern):
                 try:
                     # It is OpenMP parallel - does it have an argument
                     # with INC access?
-                    arg = self.incremented_arg()
-                except FieldNotFoundError:
-                    arg = None
-                if arg:
+                    _ = self.incremented_arg()
                     raise GenerationError(f"Kernel '{self._name}' has an "
                                           f"argument with INC access and "
                                           f"therefore must be coloured in "
                                           f"order to be parallelised with "
                                           f"OpenMP.")
+                except FieldNotFoundError:
+                    pass
 
         super().validate_global_constraints()
 

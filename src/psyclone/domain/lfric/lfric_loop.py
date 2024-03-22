@@ -98,18 +98,9 @@ class LFRicLoop(PSyLoop):
                     f"creating loop variable. Supported values are 'colours', "
                     f"'colour', 'dof' or '' (for cell-columns).")
 
-            symtab = self.scope.symbol_table
-            if suggested_name in ("df", "colour"):
-                self.variable = symtab.find_or_create_tag(
-                    tag, root_name=suggested_name, symbol_type=DataSymbol,
-                    datatype=INTEGER_TYPE)
-            else:
-                # TODO: Shouldn't all these all be INTEGER_TYPE instead of
-                # LFRicIntegerScalarDataType, since this are loop iteration
-                # variables and not domain integers?
-                self.variable = symtab.find_or_create_tag(
-                    tag, root_name=suggested_name, symbol_type=DataSymbol,
-                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            self.variable = self.scope.symbol_table.find_or_create_tag(
+                tag, root_name=suggested_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -139,8 +130,8 @@ class LFRicLoop(PSyLoop):
 
         '''
         if self._loop_type != "null":
-            # This is a domain loop, first check that there isn't any
-            # validation issues with the domain node
+            # This is not a 'domain' loop (i.e. there is a real loop). First
+            # check that there isn't any validation issues with the node.
             for child in self.loop_body.children:
                 child.validate_global_constraints()
 
@@ -160,23 +151,23 @@ class LFRicLoop(PSyLoop):
                 self.loop_body.symbol_table.shallow_copy()
             loop.children[3] = self.loop_body.copy()
             self.replace_with(loop)
+            lowered_node = loop
         else:
-            # If loop_type is "null" we no need for a loop at all. So we set
-            # the bounds to 1 Remove the lower the children
-            dummy = self.scope.symbol_table.new_symbol(
-                "dummy", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            self._variable = dummy
+            # If loop_type is "null" we do not need a loop at all, just the
+            # kernel in its loop_body
             for child in self.loop_body.children:
                 child.lower_to_language_level()
-            one = Literal("1", INTEGER_TYPE)
-            loop = Loop.create(dummy, one.copy(), one.copy(), one.copy(), [])
-            loop.loop_body._symbol_table = \
-                self.loop_body.symbol_table.shallow_copy()
-            loop.children[3] = self.loop_body.copy()
-            self.replace_with(loop)
+            # TODO #1010: This restriction can be removed when also lowering
+            # the parent InvokeSchedule
+            if len(self.loop_body.children) > 1:
+                raise NotImplementedError(
+                    f"Lowering LFRic domain loops that produce more than one "
+                    f"children is not yet supported, but found:\n "
+                    f"{self.view()}")
+            lowered_node = self.loop_body[0].detach()
+            self.replace_with(lowered_node)
 
-
-        return loop
+        return lowered_node
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
@@ -852,8 +843,6 @@ class LFRicLoop(PSyLoop):
             f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
-        :raises GenerationError: if a loop over colours is within an \
-            OpenMP parallel region (as it must be serial).
 
         '''
         # pylint: disable=too-many-statements, too-many-branches
@@ -864,6 +853,10 @@ class LFRicLoop(PSyLoop):
                                   "OpenMP parallel region.")
 
         super().gen_code(parent)
+        # TODO #1010: gen_code of this loop calls the PSyIR lowering version,
+        # but that method can not currently provide sibiling nodes because the
+        # ancestor is not PSyIR, so for now we leave the remainder of the
+        # gen_code logic here instead of removing the whole method.
 
         if not (Config.get().distributed_memory and
                 self._loop_type != "colour"):

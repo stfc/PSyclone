@@ -355,7 +355,7 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         arg2 = node.arguments[1]
         if (len(arg2.children) > 1 and isinstance(arg2.children[1], Range) or

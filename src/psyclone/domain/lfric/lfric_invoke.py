@@ -69,6 +69,7 @@ class LFRicInvoke(Invoke):
 
     '''
     # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-locals
     def __init__(self, alg_invocation, idx, invokes):
         if not alg_invocation and not idx:
             # This 'if' test is added to support pyreverse
@@ -92,16 +93,15 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import (DynFunctionSpaces, DynDofmaps,
-                                        DynLMAOperators, DynGlobalSum,
+        from psyclone.dynamo0p3 import (DynFunctionSpaces, DynGlobalSum,
+                                        DynLMAOperators, DynReferenceElement,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
                                         DynProxies, DynCellIterators,
-                                        DynReferenceElement,
                                         LFRicMeshProperties)
         from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
                                            LFRicScalarArgs, LFRicFields,
-                                           LFRicStencils)
+                                           LFRicDofmaps, LFRicStencils)
 
         self.scalar_args = LFRicScalarArgs(self)
 
@@ -113,7 +113,7 @@ class LFRicInvoke(Invoke):
 
         # Initialise the object holding all information on the dofmaps
         # required by this Invoke
-        self.dofmaps = DynDofmaps(self)
+        self.dofmaps = LFRicDofmaps(self)
 
         # Initialise information on all of the fields accessed in this Invoke
         self.fields = LFRicFields(self)

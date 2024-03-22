@@ -172,8 +172,8 @@ class LFRicExtractDriverCreator:
     def __init__(self):
         # TODO #2069: check if this list can be taken from LFRicConstants
         self._all_field_types = ["integer_field_type", "field_type",
-                                 "r_bl_field", "r_phys_field",
-                                 "r_solver_field_type", "r_tran_field_type"]
+                                 "r_bl_field", "r_solver_field_type",
+                                 "r_tran_field_type"]
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -642,12 +642,13 @@ class LFRicExtractDriverCreator:
         mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
         constant_mod = ContainerSymbol(mod_name)
         symbol_table.add(constant_mod)
-        # r_quad is defined in constants_mod, but not exported. So
-        # we have to remove it from the lists of precisions to import.
-        # TODO #2018
+
+        # r_quad is defined in constants_mod, but not exported. And r_phys
+        # does not exist at all in LFRic. So we have to remove them from the
+        # lists of precisions to import.  TODO #2018
         api_config = Config.get().api_conf("dynamo0.3")
         all_precisions = [name for name in api_config.precision_map
-                          if name != "r_quad"]
+                          if name not in ["r_quad", "r_phys"]]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
                                     symbol_type=DataSymbol,
@@ -927,12 +928,12 @@ class LFRicExtractDriverCreator:
         # that have no dependency. This is required for compilation, the
         # compiler must have found any dependent modules before it can
         # compile a module.
-        sorted_modules = ModuleManager.sort_modules(module_dependencies)
+        mod_manager = ModuleManager.get()
+        sorted_modules = mod_manager.sort_modules(module_dependencies)
 
         # Inline all required modules into the driver source file so that
         # it is stand-alone:
         out = []
-        mod_manager = ModuleManager.get()
         for module in sorted_modules:
             # Note that all modules in `sorted_modules` are known to be in
             # the module manager, so we can always get the module info here.

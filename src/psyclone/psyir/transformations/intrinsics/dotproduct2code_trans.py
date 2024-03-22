@@ -267,7 +267,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         :type options: dict of str:str or None
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         assignment = node.ancestor(Assignment)
         vector1 = node.arguments[0]
