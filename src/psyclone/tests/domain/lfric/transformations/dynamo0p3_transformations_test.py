@@ -5704,7 +5704,7 @@ def test_loop_fuse_then_rc(tmpdir):
     assert "max_halo_depth_mesh = mesh%get_halo_depth()" in result
     assert (
         "      IF (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) THEN\n"
-        "        CALL f1_proxy%halo_exchange(depth=max_halo_depth_mesh-1)\n"
+        "        CALL f1_proxy%halo_exchange(depth=max_halo_depth_mesh - 1)\n"
         "      END IF\n"
         "      IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"

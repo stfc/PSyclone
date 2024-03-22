@@ -47,7 +47,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
                                   CodeBlock, BinaryOperation, Assignment,
-                                  IfBlock, IntrinsicCall)
+                                  IfBlock, IntrinsicCall, Call)
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.psyir.tools import DependencyTools
 
@@ -290,10 +290,12 @@ class AdjointVisitor(PSyIRVisitor):
                                   (node.stop_expr, "upper bound"),
                                   (node.step_expr, "step")]:
             for ref in expr.walk(Reference):
+                if isinstance(ref.parent, Call) and ref is ref.parent.children[0]:
+                    continue
                 if ref.symbol in self._active_variables:
                     # Ignore LBOUND and UBOUND
                     if not (isinstance(ref.parent, IntrinsicCall) and
-                            ref.position == 0 and
+                            ref.position == 1 and
                             ref.parent.intrinsic in [
                                 IntrinsicCall.Intrinsic.LBOUND,
                                 IntrinsicCall.Intrinsic.UBOUND]):

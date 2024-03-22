@@ -4605,6 +4605,18 @@ class LFRicHaloExchangeStart(LFRicHaloExchange):
         # pylint: disable=protected-access
         return self._get_hex_end()._compute_halo_depth()
 
+    def _psyir_depth_expression(self):
+        '''
+        Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :returns: the PSyIR expression to compute the halo depth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        return self._get_hex_end()._psyir_depth_expression()
+
     def required(self):
         '''Call the required method in the corresponding halo exchange end
         object. This is done as the field in halo exchange start is
