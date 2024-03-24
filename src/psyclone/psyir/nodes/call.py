@@ -36,6 +36,7 @@
 
 ''' This module contains the Call node implementation.'''
 
+from collections.abc import Iterable
 
 from psyclone.core import AccessType
 from psyclone.psyir.nodes.statement import Statement
@@ -52,13 +53,8 @@ class Call(Statement, DataNode):
     TODO #1437: The combined Statement and Expression implementation is simple
     but it has some shortcomings that may need to be addressed.
 
-    :param routine: the routine that this call calls.
-    :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol` |
-                   py:class:`psyclone.psyir.nodes.Reference`
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
-
-    :raises TypeError: if the routine argument is not a RoutineSymbol.
 
     '''
     # Textual description of the node.
@@ -66,19 +62,8 @@ class Call(Statement, DataNode):
     _text_name = "Call"
     _colour = "cyan"
 
-    def __init__(self, routine, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-        if not isinstance(routine, (Reference, RoutineSymbol)):
-            raise TypeError(
-                f"The Call routine argument should be a Reference to a "
-                f"RoutineSymbol or a RoutineSymbol, but "
-                f"found '{type(routine).__name__}'.")
-
-        if isinstance(routine, Reference):
-            self.addchild(routine)
-        else:
-            self.addchild(Reference(routine))
 
         # The internal _argument_names list can be inconsistent with
         # the order of the children. Use the property/methods
@@ -102,36 +87,45 @@ class Call(Statement, DataNode):
         return is_eq
 
     @classmethod
-    def create(cls, routine, arguments):
+    def create(cls, routine, arguments=()):
         '''Create an instance of class cls given valid instances of a routine
         symbol, and a list of child nodes (or name and node tuple) for
         its arguments.
 
         :param routine: the routine that class cls calls.
-        :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
-        :param arguments: the arguments to this routine, and/or \
-            2-tuples containing an argument name and the \
-            argument. Arguments are added as child nodes.
-        :type arguments: List[ \
-            Union[:py:class:``psyclone.psyir.nodes.DataNode``, \
-                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]
+        :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol` |
+            py:class:`psyclone.psyir.nodes.Reference`
+        :param arguments: optional list of arguments for this call, these
+            can be PSyIR nodes or tuples of string,Node for named arguments.
+        :type arguments: Optional[Iterable[
+            Union[:py:class:``psyclone.psyir.nodes.DataNode``,
+                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]]
 
         :returns: an instance of cls.
         :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
 
-        :raises GenerationError: if the routine argument is not a \
-            RoutineSymbol.
-        :raises GenerationError: if the arguments argument is not a \
-            list.
+        :raises TypeError: if the routine argument is not a RoutineSymbol.
+        :raises GenerationError: if the arguments argument is not an Iterable.
 
         '''
-        if not isinstance(arguments, list):
-            raise GenerationError(
-                f"Call create arguments argument should be a list but found "
-                f"'{type(arguments).__name__}'.")
+        if not isinstance(routine, (Reference, RoutineSymbol)):
+            raise TypeError(
+                f"The Call routine argument should be a Reference to a "
+                f"RoutineSymbol or a RoutineSymbol, but "
+                f"found '{type(routine).__name__}'.")
 
-        call = cls(routine)
-        cls._add_args(call, arguments)
+        if not isinstance(arguments, Iterable):
+            raise GenerationError(
+                f"Call.create 'arguments' argument should be an Iterable but "
+                f"found '{type(arguments).__name__}'.")
+
+        call = cls()
+        if isinstance(routine, Reference):
+            call.addchild(routine)
+        else:
+            call.addchild(Reference(routine))
+        if arguments:
+            cls._add_args(call, arguments)
         return call
 
     @staticmethod
@@ -141,14 +135,13 @@ class Call(Statement, DataNode):
 
         :param call: the supplied call node.
         :type call: :py:class:`psyclone.psyir.nodes.Call`
-        :param arguments: the arguments to this call, and/or \
-            2-tuples containing an argument name and the \
-            argument.
-        :type arguments: List[ \
-            Union[:py:class:``psyclone.psyir.nodes.DataNode``, \
+        :param arguments: list of arguments for this call, these
+            can be PSyIR nodes or tuples of string,Node for named arguments.
+        :type arguments: Iterable[
+            Union[:py:class:``psyclone.psyir.nodes.DataNode``,
                   Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]
 
-        :raises GenerationError: if the contents of the arguments \
+        :raises GenerationError: if the contents of the arguments
             argument are not in the expected form or of the expected
             type.
 
@@ -273,6 +266,8 @@ class Call(Statement, DataNode):
         :rtype: bool
 
         '''
+        if position == 0:
+            return isinstance(child, Reference)
         return isinstance(child, DataNode)
 
     def reference_accesses(self, var_accesses):
@@ -298,6 +293,10 @@ class Call(Statement, DataNode):
             # We conservatively default to READWRITE otherwise (TODO #446).
             default_access = AccessType.READWRITE
 
+        # TODO #2271: This may skip references in inner expressions of
+        # structure calls, but to implement properly we new a new kind of
+        # AccessType that represents beign called (USED but not READ, maybe
+        # the same that we need for INQUIRY type attributes?)
         for arg in self.arguments:
             if isinstance(arg, Reference):
                 # This argument is pass-by-reference.
@@ -403,7 +402,8 @@ class Call(Statement, DataNode):
         :rtype: str
 
         '''
-        return f"{self.coloured_name(colour)}[name='{self.routine.name}']"
+        return (f"{self.coloured_name(colour)}"
+                f"[name='{self.routine.debug_string()}']")
 
     def __str__(self):
         return self.node_str(False)

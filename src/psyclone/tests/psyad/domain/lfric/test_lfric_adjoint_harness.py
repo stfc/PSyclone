@@ -592,9 +592,9 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
             "    type(field_type) :: field_input\n"
             "    real(kind=r_def) :: field_inner_prod\n" in gen)
     # The field and its copy must be initialised.
-    assert ("call field % initialise(vector_space=vector_space_w3_ptr, "
+    assert ("call field%initialise(vector_space=vector_space_w3_ptr, "
             "name='field')" in gen)
-    assert ("call field_input % initialise(vector_space=vector_space_w3_ptr,"
+    assert ("call field_input%initialise(vector_space=vector_space_w3_ptr,"
             " name='field_input')" in gen)
     # So too must the scalar argument.
     assert ("    call random_number(ascalar)\n"
@@ -692,7 +692,7 @@ def test_generate_lfric_adjoint_harness_operator(fortran_reader,
     assert ("vector_space_w3_ptr => function_space_collection % get_fs(mesh, "
             "element_order, w3)\n" in gen)
     # Initialise takes the *to* and *from* spaces as arguments in that order.
-    assert ("call op % initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
+    assert ("call op%initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
             in gen)
     # Operator is given random values and passed to the TL kernel.
     assert ("setop_random_kernel_type(op), "

@@ -67,7 +67,7 @@ def test_intrinsiccall_constructor():
     # Wrong type of routine argument.
     with pytest.raises(TypeError) as err:
         _ = IntrinsicCall(None)
-    assert ("IntrinsicCall 'routine' argument should be an instance of "
+    assert ("IntrinsicCall 'intrinsic' argument should be an instance of "
             "IntrinsicCall.Intrinsic, but found 'NoneType'." in str(err.value))
     # Check that supplied intrinsic and optional parent node is stored
     # correctly.
@@ -278,13 +278,13 @@ def test_intrinsiccall_create_errors():
     aref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create("ALLOCATE", [Reference(sym)])
-    assert ("'routine' argument should be an instance of "
-            "IntrinsicCall.Intrinsic but found 'str'" in str(err.value))
+    assert ("'intrinsic' argument should be an instance of "
+            "IntrinsicCall.Intrinsic, but found 'str'" in str(err.value))
     # Supplied arguments must be a list.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, aref)
-    assert ("IntrinsicCall.create() 'arguments' argument should be a list "
-            "but found 'ArrayReference'" in str(err.value))
+    assert ("IntrinsicCall.create() 'arguments' argument should be an Iterable"
+            " but found 'ArrayReference'" in str(err.value))
     # An allocate must have one or more References as argument.
     with pytest.raises(ValueError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [])

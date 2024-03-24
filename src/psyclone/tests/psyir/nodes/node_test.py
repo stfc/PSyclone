@@ -1352,7 +1352,7 @@ def test_detach():
     lit = Literal("1", REAL_TYPE)
     e_ref2 = Reference(e_sym)
     f_ref = Reference(f_sym)
-    node1 = Call(routine)
+    node1 = Call.create(routine)
     node1.addchild(e_ref)
     node1.addchild(lit)
     node1.addchild(e_ref2)

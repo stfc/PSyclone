@@ -296,7 +296,7 @@ def test_invoke_error():
     '''
     invoke_trans = RaisePSyIR2AlgTrans()
     with pytest.raises(TransformationError) as info:
-        invoke_trans.validate(Call(RoutineSymbol("hello")))
+        invoke_trans.validate(Call.create(RoutineSymbol("hello")))
     assert ("Error in RaisePSyIR2AlgTrans transformation. The supplied call "
             "argument should be a `Call` node with name 'invoke' but "
             "found 'hello'." in str(info.value))

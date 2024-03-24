@@ -56,29 +56,33 @@ def test_call_init():
 
     '''
     # Initialise with a RoutineSymbol
-    routine = RoutineSymbol("jo", NoType())
-    call = Call(routine)
-    assert call.routine.symbol is routine
+    call = Call()
+    # By default everything is None
+    assert call.routine is None
     assert call.parent is None
-    # The Symbol is now inside a Reference
-    assert call.children == [Reference(routine)]
+    assert len(call.arguments) == 0
+    assert call.is_elemental is None
+    assert call.is_pure is None
 
-    # Initialise with Reference and provide optional parent argument
+    # Initialise with parent and add routine and argument children
     parent = Schedule()
-    call = Call(Reference(routine), parent=parent)
+    routine = RoutineSymbol("jo", NoType())
+    call = Call(parent=parent)
+    call.addchild(Reference(routine))
+    call.addchild(Literal('3', INTEGER_TYPE))
     assert call.routine.symbol is routine
     assert call.parent is parent
-    assert call.children == [Reference(routine)]
+    assert call.arguments == [Literal('3', INTEGER_TYPE)]
 
 
 def test_call_is_elemental():
     '''Test the is_elemental property of a Call is set correctly and can be
     queried.'''
     routine = RoutineSymbol("zaphod", NoType())
-    call = Call(routine)
+    call = Call.create(routine)
     assert call.is_elemental is None
     routine = RoutineSymbol("beeblebrox", NoType(), is_elemental=True)
-    call = Call(routine)
+    call = Call.create(routine)
     assert call.is_elemental is True
 
 
@@ -86,10 +90,10 @@ def test_call_is_pure():
     '''Test the is_pure property of a Call is set correctly and can be
     queried.'''
     routine = RoutineSymbol("zaphod", NoType())
-    call = Call(routine)
+    call = Call.create(routine)
     assert call.is_pure is None
     routine = RoutineSymbol("beeblebrox", NoType(), is_pure=True)
-    call = Call(routine)
+    call = Call.create(routine)
     assert call.is_pure is True
 
 
@@ -97,7 +101,7 @@ def test_call_is_available_on_device():
     '''Test the is_available_on_device() method of a Call (currently always
     returns False). '''
     routine = RoutineSymbol("zaphod", NoType())
-    call = Call(routine)
+    call = Call.create(routine)
     assert call.is_available_on_device() is False
 
 
@@ -106,11 +110,11 @@ def test_call_equality():
     # routine arguments
     routine = RoutineSymbol("j", NoType())
     routine2 = RoutineSymbol("k", NoType())
-    call1 = Call(routine)
-    call2 = Call(routine)
+    call1 = Call.create(routine)
+    call2 = Call.create(routine)
     assert call1 == call2
 
-    call3 = Call(routine2)
+    call3 = Call.create(routine2)
     assert call1 != call3
 
     # Check with argument names
@@ -125,18 +129,6 @@ def test_call_equality():
     # Check with different argument names
     call7 = Call.create(routine, [("new_name", Literal("1.0", REAL_TYPE))])
     assert call4 != call7
-
-
-def test_call_init_error():
-    '''Test that the appropriate exception is raised if the routine
-    argument is not a RoutineSymbol.
-
-    '''
-    with pytest.raises(TypeError) as info:
-        _ = Call(None)
-    assert ("The Call routine argument should be a Reference to a Routine"
-            "Symbol or a RoutineSymbol, but found 'NoneType'."
-            in str(info.value))
 
 
 @pytest.mark.parametrize("cls", [Call, SpecialCall])
@@ -178,7 +170,7 @@ def test_call_create_error2():
     routine = RoutineSymbol("isaac", NoType())
     with pytest.raises(GenerationError) as info:
         _ = Call.create(routine, None)
-    assert ("Call create arguments argument should be a list but found "
+    assert ("Call.create 'arguments' argument should be an Iterable but found "
             "'NoneType'." in str(info.value))
 
 
@@ -212,7 +204,7 @@ def test_call_add_args():
     '''Test the _add_args method in the Call class.'''
 
     routine = RoutineSymbol("myeloma", INTEGER_TYPE)
-    call = Call(routine)
+    call = Call.create(routine)
     array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
     arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
                  ArrayReference(DataSymbol("arg2", array_type))]
@@ -424,7 +416,7 @@ def test_call_argumentnames_after_removearg():
     assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
     assert call.argument_names == ["name1", "name2"]
-    call.children.pop(0)
+    call.children.pop(1)
     assert len(call.arguments) == 1
     assert len(call._argument_names) == 2
     # argument_names property makes _argument_names list consistent.
@@ -535,8 +527,11 @@ def test_call_node_reconcile_reorder():
     assert len(call._argument_names) == 2
     assert call._argument_names[0] == (id(call.arguments[0]), "name1")
     assert call._argument_names[1] == (id(call.arguments[1]), "name2")
-    call.children = [call.routine.detach(), op2.detach(), op1.detach()]
-    # inconsistent
+
+    # Swap position of arguments
+    call.children.extend([op2.detach(), op1.detach()])
+
+    # Now the private _argument_names are inconsistent with thir node ids
     assert len(call._argument_names) == 2
     assert call._argument_names[0] != (id(call.arguments[0]), "name1")
     assert call._argument_names[1] != (id(call.arguments[1]), "name2")
@@ -550,7 +545,7 @@ def test_call_node_reconcile_reorder():
 def test_call_node_str():
     ''' Test that the node_str method behaves as expected '''
     routine = RoutineSymbol("isaac", NoType())
-    call = Call(routine)
+    call = Call.create(routine)
     colouredtext = colored("Call", Call._colour)
     assert call.node_str() == colouredtext+"[name='isaac']"
 
@@ -558,7 +553,7 @@ def test_call_node_str():
 def test_call_str():
     ''' Test that the str method behaves as expected '''
     routine = RoutineSymbol("roo", NoType())
-    call = Call(routine)
+    call = Call.create(routine)
     assert str(call) == "Call[name='roo']"
 
 
@@ -575,7 +570,9 @@ def test_copy():
     assert call2._argument_names[1] == (id(call2.arguments[1]), "name2")
     assert call._argument_names != call2._argument_names
 
-    call.children = [call.routine.detach(), op2.detach(), op1.detach()]
+    # Swap position of arguments
+    call.children.extend([op2.detach(), op1.detach()])
+
     assert call._argument_names[0] != (id(call.arguments[0]), "name2")
     assert call._argument_names[1] != (id(call.arguments[1]), "name1")
     # inconsistent call

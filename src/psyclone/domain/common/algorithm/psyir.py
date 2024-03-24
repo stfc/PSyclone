@@ -72,7 +72,8 @@ class AlgorithmInvokeCall(Call):
     _colour = "green"
 
     def __init__(self, invoke_routine_symbol, index, parent=None, name=None):
-        super().__init__(invoke_routine_symbol, parent=parent)
+        super().__init__(parent=parent)
+        self.addchild(Reference(invoke_routine_symbol))
 
         if not isinstance(index, int):
             raise TypeError(

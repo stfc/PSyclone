@@ -46,7 +46,9 @@ from fparser.two import Fortran2003
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import CodeBlock, Schedule, Call, Reference
+from psyclone.psyir.nodes import (
+    CodeBlock, Schedule, Call, Reference, StructureReference,
+    ArrayOfStructuresReference, Routine)
 from psyclone.psyir.symbols import (
     RoutineSymbol, UnresolvedInterface, ImportInterface, NoType)
 
@@ -64,7 +66,7 @@ def test_call_noargs():
     '''
     reader = FortranStringReader(" call kernel()")
     ast = Fortran2003.Call_Stmt(reader)
-    fake_parent = Schedule()
+    fake_parent = Routine('dummy')
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [ast])
 
@@ -114,6 +116,53 @@ def test_call_declared_routine(f2008_parser):
         assert routine_symbol in call_node.scope.symbol_table.symbols
         assert isinstance(routine_symbol.datatype, NoType)
         assert (str(call_node)) == "Call[name='kernel']"
+
+
+def test_call_type_bound_expression(f2008_parser):
+    '''Test that fparser2reader _call_handler method transforms a Fortran
+     subroutine call into the equivalent PSyIR Call node when the call
+     is a complex type-bound expression.
+    '''
+    test_code = (
+        "subroutine test()\n"
+        "  use my_mod\n"
+        "  ! Simple type-bound call with 1 argument\n"
+        "  call struct%method(3)\n"
+        "  ! Type-bound call with a middle array member and a named argument\n"
+        "  call struct%field(3 + var)%method(arg_name=4)\n"
+        "  ! Array Type-bound call and no arguments\n"
+        "  call struct(3)%method()\n"
+        "  ! Array Type-bound call with a middle field and no arguments\n"
+        "  call struct(i)%field%method()\n"
+        "end subroutine")
+    reader = FortranStringReader(test_code)
+    ptree = f2008_parser(reader)
+    processor = Fparser2Reader()
+    psyir = processor.generate_psyir(ptree)
+
+    calls = psyir.walk(Call)
+    assert len(calls) == 4
+
+    # Check that all children are fully captured at their expected position
+    assert isinstance(calls[0].children[0], StructureReference)
+    assert calls[0].routine.debug_string() == "struct%method"
+    assert calls[0].arguments[0].debug_string() == "3"
+    assert calls[0].argument_names[0] is None
+
+    assert isinstance(calls[1].children[0], StructureReference)
+    assert calls[1].routine.debug_string() == "struct%field(3 + var)%method"
+    assert calls[1].arguments[0].debug_string() == "4"
+    assert calls[1].argument_names[0] == "arg_name"
+
+    assert isinstance(calls[2].children[0], ArrayOfStructuresReference)
+    assert calls[2].routine.debug_string() == "struct(3)%method"
+    assert len(calls[2].arguments) == 0
+    assert len(calls[2].argument_names) == 0
+
+    assert isinstance(calls[3].children[0], ArrayOfStructuresReference)
+    assert calls[3].routine.debug_string() == "struct(i)%field%method"
+    assert len(calls[3].arguments) == 0
+    assert len(calls[3].argument_names) == 0
 
 
 def test_call_incorrect_type(f2008_parser):

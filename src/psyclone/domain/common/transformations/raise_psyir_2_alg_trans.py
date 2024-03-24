@@ -43,11 +43,12 @@ which uses specialised classes.
 from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock, Literal
-from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \
-    RoutineSymbol, ScalarType
-from psyclone.domain.common.algorithm import AlgorithmInvokeCall, \
-    KernelFunctor
+from psyclone.psyir.nodes import (
+    Call, ArrayReference, CodeBlock, Literal, Reference)
+from psyclone.psyir.symbols import (
+    Symbol, DataTypeSymbol, StructureType, RoutineSymbol, ScalarType)
+from psyclone.domain.common.algorithm import (
+    AlgorithmInvokeCall, KernelFunctor)
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -79,8 +80,8 @@ class RaisePSyIR2AlgTrans(Transformation):
         :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        dummy_call = Call(RoutineSymbol("dummy"),
-                          parent=code_block.parent)
+        dummy_call = Call(parent=code_block.parent)
+        dummy_call.addchild(Reference(RoutineSymbol("dummy")))
         fparser2 = Fparser2Reader()
         for arg in fp2_node.children[1].children:
             fparser2.process_nodes(dummy_call, [arg])
