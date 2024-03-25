@@ -797,7 +797,7 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
             # The one below are not documented on nvidia compiler
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
-            IntrinsicCall.Intrinsic.UBOUND)
+            IntrinsicCall.Intrinsic.UBOUND, IntrinsicCall.Intrinsic.FLOAT)
 
     @classmethod
     def create(cls, routine, arguments):
