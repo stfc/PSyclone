@@ -34,8 +34,10 @@
 
 PROGRAM kernel_stencil_test
 
-  ! Fake Fortran program for testing aspects of
-  ! the PSyclone code generation system.
+  ! This Fortran program calls an (invalid) kernel that can't be
+  ! parallelised because it writes to a variable with a stencil
+  ! access. A valid PSyKAl kernel, by definition, must be safe to
+  ! execute in parallel.
 
   use kind_params_mod
   use grid_mod

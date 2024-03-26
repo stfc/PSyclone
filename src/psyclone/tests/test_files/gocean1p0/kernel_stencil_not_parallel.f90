@@ -49,7 +49,9 @@ module kernel_stencil_not_parallel
      type(go_arg), dimension(2) :: meta_args =    &
           ! We deliberately specify an incorrect stencil value
           ! for the first kernel argument in order to test the 
-          ! parser...
+          ! parser: stencil accesses are not permitted on variables
+          ! that are written to."
+
           (/ go_arg(GO_READWRITE, GO_CT, GO_STENCIL(010,010,010)),  & ! u
              go_arg(GO_WRITE,  GO_CT, GO_POINTWISE)   & ! v
            /)

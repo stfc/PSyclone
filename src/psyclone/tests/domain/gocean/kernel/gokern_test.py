@@ -142,7 +142,7 @@ def test_gok_reference_accesses(fortran_writer):
     assert str(vai) == "cu_fld: WRITE, p_fld: READ, u_fld: READ"
     p_fld = vai[Signature("p_fld")]
     # We can't have lists in a set, so we convert the lists to string
-    # for easy comparison. Calling `to_fortran` also ensures that the
+    # for easy comparison. Calling `fortran_writer` also ensures that the
     # component indices are PSyIR nodes (not strings)
 
     # Convert each PSyIR index into a string, and then also convert each
@@ -153,8 +153,8 @@ def test_gok_reference_accesses(fortran_writer):
         for indices in access.component_indices:
             result.add(str([fortran_writer(index) for index in indices]))
 
-    # The stencil is 123, 110, 100 - test that appropriate accesses were
-    # added for each direction
+    # The stencil is declared as 123, 110, 100 - test that appropriate
+    # accesses were added for each direction
     expected = {
         # First stencil direction of 123: 1
         "['i - 1', 'j - 1']",

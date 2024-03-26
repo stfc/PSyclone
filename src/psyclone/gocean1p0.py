@@ -1137,10 +1137,13 @@ class GOKern(CodedKern):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        # TODO #2530: if we parse the actual kernel code, it might not
+        # be required anymore to add these artificial accesses, instead
+        # the actual kernel accesses could be added.
         sym_tab = self.ancestor(GOInvokeSchedule).symbol_table
         symbol_i = sym_tab.lookup_with_tag("contiguous_kidx")
         symbol_j = sym_tab.lookup_with_tag("noncontiguous_kidx")
-        # Query each possible stencil direction and add a corresponding
+        # Query each possible stencil direction and add corresponding
         # variable accesses. Note that if (i,j) itself is accessed, the
         # depth will be 1, so one access to (i,j) is then added.
         for j in [-1, 0, 1]:

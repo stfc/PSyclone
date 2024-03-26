@@ -726,6 +726,8 @@ def test_reserved_words(fortran_reader):
 # -----------------------------------------------------------------------------
 def test_gocean_parallel():
     '''Check that PSyclones gives useful error messages for a GOKern.'''
+
+    # TODO #2531: this kernel should not be accepted in the first place.
     _, invoke = get_invoke("test31_stencil_not_parallel.f90",
                            api="gocean1.0", idx=0, dist_mem=False)
 

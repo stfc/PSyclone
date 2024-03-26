@@ -127,7 +127,11 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # TODO #2498: access information for LFRic kernels do not have any
         # index information for field accesses, and the loop fusion dependency
         # tests will therefore fail. To avoid this, disable the dependency test
-        # in the generic loop fusion class for LFRic:
+        # in the generic loop fusion class for LFRic.
+        # TODO 257: if the loop fusion loop is implemented to just check that
+        # a variable with a stencil read-access is written, then the test
+        # could be enabled for LFRic as well, so the force option can be
+        # removed.
         if "force" not in my_options:
             my_options["force"] = True
 

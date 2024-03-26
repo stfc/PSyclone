@@ -210,7 +210,7 @@ class DependencyTools():
         variables used, and the list of subscript indices.
 
         :param comp_ind1: component_indices of the first array access.
-        :type comp_ind1: 
+        :type comp_ind1:
             :py:class:`psyclone.core.component_indices.ComponentIndices`
         :param comp_ind2: component_indices of the first array access.
         :type comp_ind2:
@@ -621,7 +621,7 @@ class DependencyTools():
                             [var_info.var_name])
                     else:
                         # Circular dependency:
-                        # pylint: disable=import-outside-toplevel
+                        # pylint: disable-next=import-outside-toplevel
                         from psyclone.gocean1p0 import GOKern
 
                         # If the node is a GOKern, the node.debug_string()
@@ -654,9 +654,9 @@ class DependencyTools():
                         else:
                             other_info = f"{access_type} access to"
 
-                        # We need to use default parameters, since otherwise
-                        # the value of a variable might be different when
-                        # the message is actually evaluated.
+                        # We need to use default parameters for wnode and
+                        # onode, since otherwise the value of a variable might
+                        # be different when the message is actually evaluated.
                         # Some pylint version complain here (because of the
                         # above). The code is correct, so disable this
                         # message:
