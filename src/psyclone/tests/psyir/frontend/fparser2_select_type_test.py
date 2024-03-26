@@ -39,7 +39,7 @@ construction for the Fparser->PSyIR frontend.
 '''
 import pytest
 
-from psyclone.psyir.nodes import CodeBlock, IfBlock
+from psyclone.psyir.nodes import CodeBlock, IfBlock, Routine
 from psyclone.tests.utilities import Compile
 
 
@@ -75,13 +75,13 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "    REAL, pointer :: ptr_REAL\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
-        "  TYPE IS (INTEGER)\n"
-        "  type_string = \"integer\"\n"
-        "  ptr_INTEGER => type_selector\n"
-        "  TYPE IS (REAL)\n"
-        "  type_string = \"real\"\n"
-        "  ptr_REAL => type_selector\n"
-        "END SELECT\n"
+        "      TYPE IS (INTEGER)\n"
+        "      type_string = \"integer\"\n"
+        "      ptr_INTEGER => type_selector\n"
+        "      TYPE IS (REAL)\n"
+        "      type_string = \"real\"\n"
+        "      ptr_REAL => type_selector\n"
+        "    END SELECT\n"
         "    if (type_string == 'integer') then\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
@@ -137,13 +137,13 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
         "    REAL, pointer :: ptr_REAL\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
-        "  TYPE IS (INTEGER)\n"
-        "  type_string = \"integer\"\n"
-        "  ptr_INTEGER => type\n"
-        "  TYPE IS (REAL)\n"
-        "  type_string = \"real\"\n"
-        "  ptr_REAL => type\n"
-        "END SELECT\n"
+        "      TYPE IS (INTEGER)\n"
+        "      type_string = \"integer\"\n"
+        "      ptr_INTEGER => type\n"
+        "      TYPE IS (REAL)\n"
+        "      type_string = \"real\"\n"
+        "      ptr_REAL => type\n"
+        "    END SELECT\n"
         "    if (type_string == 'integer') then\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
@@ -212,19 +212,19 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "    REAL, pointer :: ptr_REAL\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
-        "  CLASS IS (type2)\n"
-        "  type_string = \"type2\"\n"
-        "  ptr_type2 => type\n"
-        "  TYPE IS (INTEGER)\n"
-        "  type_string = \"integer\"\n"
-        "  ptr_INTEGER => type\n"
-        "  CLASS IS (type3)\n"
-        "  type_string = \"type3\"\n"
-        "  ptr_type3 => type\n"
-        "  TYPE IS (REAL)\n"
-        "  type_string = \"real\"\n"
-        "  ptr_REAL => type\n"
-        "END SELECT\n"
+        "      CLASS IS (type2)\n"
+        "      type_string = \"type2\"\n"
+        "      ptr_type2 => type\n"
+        "      TYPE IS (INTEGER)\n"
+        "      type_string = \"integer\"\n"
+        "      ptr_INTEGER => type\n"
+        "      CLASS IS (type3)\n"
+        "      type_string = \"type3\"\n"
+        "      ptr_type3 => type\n"
+        "      TYPE IS (REAL)\n"
+        "      type_string = \"real\"\n"
+        "      ptr_REAL => type\n"
+        "    END SELECT\n"
         "    if (type_string == 'type2') then\n"
         "      branch0 = 1\n"
         "      my_type2 = ptr_type2\n"
@@ -255,8 +255,50 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
+def test_class_with_codeblock(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the handler copes with the case where we have a CodeBlock
+    that refers to the type-selector variable inside a 'class is' clause.'''
+    code = (
+        "module select_mod\n"
+        "contains\n"
+        "subroutine select_type(type)\n"
+        "  class(*) :: type\n"
+        "  type type2\n"
+        "    integer :: scalar\n"
+        "  end type\n"
+        "  type type3\n"
+        "    integer :: field\n"
+        "  end type\n"
+        "  integer :: branch0, branch1, branch2, branch3\n"
+        "  type(type2) :: my_type2\n"
+        "  type(type3) :: my_type3\n"
+        "  integer :: iinfo\n"
+        "  SELECT TYPE (type)\n"
+        "    CLASS IS(type2)\n"
+        "      branch0 = 1\n"
+        "      my_type2 = type\n"
+        "      write(*,*) 'This is a CodeBlock', print_me(type)\n"
+        "    TYPE IS (INTEGER)\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "      iinfo = type\n"
+        "  END SELECT\n"
+        "end subroutine\n"
+        "function print_me(var)\n"
+        "  class(*) :: var\n"
+        "  character(len=10) :: print_me\n"
+        "  print_me = 'hello'\n"
+        "end function print_me\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine.children[0], CodeBlock)
+    result = fortran_writer(psyir)
+    assert Compile(tmpdir).string_compiles(result)
+
+
 def test_select_rename(fortran_reader, fortran_writer, tmpdir):
-    '''Check that a code block is created when the type in select type is
+    '''Check that a CodeBlock is created when the type in select type is
     renamed (i.e. the code is not modified). This is done as we are
     not yet able to rename the variables inside the select type
     clause.
@@ -275,9 +317,9 @@ def test_select_rename(fortran_reader, fortran_writer, tmpdir):
         "end module\n")
     expected = (
         "    SELECT TYPE(newtype=>type)\n"
-        "  TYPE IS (INTEGER)\n"
-        "  PRINT *, newtype\n"
-        "END SELECT\n")
+        "      TYPE IS (INTEGER)\n"
+        "      PRINT *, newtype\n"
+        "    END SELECT\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0].children[0], CodeBlock)
     result = fortran_writer(psyir)
@@ -324,13 +366,13 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
-        "  TYPE IS (REAL(KIND = 4))\n"
-        "  type_string = \"real_4\"\n"
-        "  ptr_REAL_4 => type\n"
-        "  TYPE IS (REAL(KIND = 8))\n"
-        "  type_string = \"real_8\"\n"
-        "  ptr_REAL_8 => type\n"
-        "END SELECT\n"
+        "      TYPE IS (REAL(KIND = 4))\n"
+        "      type_string = \"real_4\"\n"
+        "      ptr_REAL_4 => type\n"
+        "      TYPE IS (REAL(KIND = 8))\n"
+        "      type_string = \"real_8\"\n"
+        "      ptr_REAL_8 => type\n"
+        "    END SELECT\n"
         "    if (type_string == 'real_4') then\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
@@ -383,10 +425,10 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type)\n"
-        "  TYPE IS (field_type)\n"
-        "  type_string = \"field_type\"\n"
-        "  ptr_field_type => type\n"
-        "END SELECT\n"
+        "      TYPE IS (field_type)\n"
+        "      type_string = \"field_type\"\n"
+        "      ptr_field_type => type\n"
+        "    END SELECT\n"
         "    if (type_string == 'field_type') then\n"
         "      branch1 = 1\n"
         "      field_type_info = ptr_field_type\n"
@@ -444,16 +486,16 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
-        "  TYPE IS (LOGICAL)\n"
-        "  type_string = \"logical\"\n"
-        "  ptr_LOGICAL => type_selector\n"
-        "  TYPE IS (CHARACTER(LEN = *))\n"
-        "  type_string = \"character_star\"\n"
-        "  ptr_CHARACTER_star => type_selector\n"
-        "  TYPE IS (COMPLEX)\n"
-        "  type_string = \"complex\"\n"
-        "  ptr_COMPLEX => type_selector\n"
-        "END SELECT\n"
+        "      TYPE IS (LOGICAL)\n"
+        "      type_string = \"logical\"\n"
+        "      ptr_LOGICAL => type_selector\n"
+        "      TYPE IS (CHARACTER(LEN = *))\n"
+        "      type_string = \"character_star\"\n"
+        "      ptr_CHARACTER_star => type_selector\n"
+        "      TYPE IS (COMPLEX)\n"
+        "      type_string = \"complex\"\n"
+        "      ptr_COMPLEX => type_selector\n"
+        "    END SELECT\n"
         "    if (type_string == 'logical') then\n"
         "      branch1 = 1\n"
         "      branch2 = 0\n"
@@ -511,10 +553,10 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
-        "  TYPE IS (CHARACTER(LEN = *))\n"
-        "  type_string = \"character_star\"\n"
-        "  ptr_CHARACTER_star => type_selector\n"
-        "END SELECT\n"
+        "      TYPE IS (CHARACTER(LEN = *))\n"
+        "      type_string = \"character_star\"\n"
+        "      ptr_CHARACTER_star => type_selector\n"
+        "    END SELECT\n"
         "    if (type_string == 'character_star') then\n"
         "      character_type = ptr_CHARACTER_star\n"
         "    end if\n").lower()
@@ -556,10 +598,10 @@ def test_character_colon(fortran_reader, fortran_writer, tmpdir, char_type_in,
     expected2 = (
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
-        "  TYPE IS (CHARACTER(LEN = *))\n"
-        "  type_string = \"character_star\"\n"
-        "  ptr_CHARACTER_star => type_selector\n"
-        "END SELECT\n"
+        "      TYPE IS (CHARACTER(LEN = *))\n"
+        "      type_string = \"character_star\"\n"
+        "      ptr_CHARACTER_star => type_selector\n"
+        "    END SELECT\n"
         "    if (type_string == 'character_star') then\n"
         "      character_type = ptr_CHARACTER_star\n"
         "    end if\n").lower()
@@ -598,10 +640,10 @@ def test_character_expression(fortran_reader, fortran_writer, tmpdir):
         "    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star\n\n"
         "    type_string = ''\n"
         "    SELECT TYPE(type_selector)\n"
-        "  TYPE IS (CHARACTER(LEN = *))\n"
-        "  type_string = \"character_star\"\n"
-        "  ptr_CHARACTER_star => type_selector\n"
-        "END SELECT\n"
+        "      TYPE IS (CHARACTER(LEN = *))\n"
+        "      type_string = \"character_star\"\n"
+        "      ptr_CHARACTER_star => type_selector\n"
+        "    END SELECT\n"
         "    if (type_string == 'character_star') then\n"
         "      character_type = ptr_CHARACTER_star\n"
         "    end if\n\n"
@@ -661,10 +703,10 @@ def test_character_kind(
         f"    character(len=256), pointer :: ptr_character_star\n\n"
         f"    type_string = ''\n"
         f"    select type(type_selector)\n"
-        f"  type is (character(len = *))\n"
-        f"  type_string = \"character_star\"\n"
-        f"  ptr_character_star => type_selector\n"
-        f"end select\n"
+        f"      type is (character(len = *))\n"
+        f"      type_string = \"character_star\"\n"
+        f"      ptr_character_star => type_selector\n"
+        f"    end select\n"
         f"    if (type_string == 'character_star') then\n"
         f"      character_type = ptr_character_star\n"
         f"    end if\n\n"
@@ -713,10 +755,10 @@ def test_class_target(
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star\n\n"
         f"    type_string = ''\n"
         f"    SELECT TYPE(type_selector)\n"
-        f"  TYPE IS (CHARACTER(LEN = *))\n"
-        f"  type_string = \"character_star\"\n"
-        f"  ptr_CHARACTER_star => type_selector\n"
-        f"END SELECT\n"
+        f"      TYPE IS (CHARACTER(LEN = *))\n"
+        f"      type_string = \"character_star\"\n"
+        f"      ptr_CHARACTER_star => type_selector\n"
+        f"    END SELECT\n"
         f"    if (type_string == 'character_star') then\n"
         f"      character_type = ptr_CHARACTER_star\n"
         f"    end if\n\n"
