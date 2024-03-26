@@ -51,7 +51,7 @@ the original code is translated.
 '''
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import IntrinsicCall, Assignment
+from psyclone.psyir.nodes import IntrinsicCall, Assignment, Loop
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
     Min2CodeTrans, Max2CodeTrans, HoistTrans, AllArrayAccess2LoopTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
@@ -116,12 +116,10 @@ def trans(psy):
         # #1387. However, it is known that it is safe do apply this
         # transformation to this particular code
         # (tra_adv_compute.F90).
-        for loop in schedule.loops():
-            # outermost only
-            if loop.loop_type == "levels":
-                for child in loop.loop_body[:]:
-                    if isinstance(child, Assignment):
-                        hoist_trans.apply(child)
+        for loop in schedule.walk(Loop, stop_type=Loop):  # outermost only
+            for child in loop.loop_body[:]:
+                if isinstance(child, Assignment):
+                    hoist_trans.apply(child)
 
         kern = fortran_writer(schedule)
         print(kern)

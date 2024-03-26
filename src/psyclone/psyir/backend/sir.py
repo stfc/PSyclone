@@ -39,10 +39,9 @@ limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
 gen() method to generate Fortran.
 
 '''
-from psyclone.nemo import NemoLoop
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (
-    ArrayReference, BinaryOperation, CodeBlock, Literal,
+    ArrayReference, BinaryOperation, CodeBlock, Literal, Loop,
     Reference, UnaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import ScalarType
 
@@ -162,14 +161,14 @@ class SIRWriter(PSyIRVisitor):
         result += f"{self._nindent}[ {type(node).__name__} end ]\n"
         return result
 
-    def nemoloop_node(self, loop_node):
-        '''Supported NEMO loops are triply nested with particular indices (not
+    def loop_node(self, loop_node):
+        '''Supported loops are triply nested with particular indices (not
         yet checked) and should contain only computation. If this is not the
         case then it is not possible to translate so an exception is
         raised.
 
-        :param loop_node: a NemoLoop PSyIR node.
-        :type loop_node: subclass of :py:class:`psyclone.nemo.NemoLoop`
+        :param loop_node: a Loop PSyIR node.
+        :type loop_node: subclass of :py:class:`psyclone.psyir.nodes.Loop`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -178,20 +177,20 @@ class SIRWriter(PSyIRVisitor):
                               within the triply nested loop.
 
         '''
-        loops = loop_node.walk(NemoLoop)
+        loops = loop_node.walk(Loop)
         if len(loops) != 3:
             raise VisitorError("Only triply-nested loops are supported.")
 
         # Check first loop has a single loop as a child.
         loop_content = loops[0].loop_body.children
         if not (len(loop_content) == 1 and
-                isinstance(loop_content[0], NemoLoop)):
+                isinstance(loop_content[0], Loop)):
             raise VisitorError("Child of loop should be a single loop.")
 
         # Check second loop has a single loop as a child.
         loop2_content = loops[1].loop_body.children
         if not (len(loop2_content) == 1 and
-                isinstance(loop2_content[0], NemoLoop)):
+                isinstance(loop2_content[0], Loop)):
             raise VisitorError(
                 "Child of child of loop should be a single loop.")
 
