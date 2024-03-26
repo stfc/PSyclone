@@ -1078,9 +1078,9 @@ class Fparser2Reader():
             'class default'.
         :param intrinsic_type_name: the base intrinsic string name for the
             particular clause or None if there is no intrinsic type. e.g.
-            'type is(REAL*4)', 'type is(mytype)' becomes ['REAL', None].
-            These are ordered as they are found in the the select-type
-            construct's 'type is, 'class is' and 'class default' clauses.
+            'type is(REAL*4)' becomes 'REAL' and 'type is(mytype)' becomes
+            None. These are ordered as they occur in the select-type
+            construct's clauses.
         :param clause_type: the name of the clause in the select-type construct
             i.e. one of 'type is', 'class is' and 'class default'. These are
             ordered as they occur within the select-type construct.
@@ -3503,6 +3503,8 @@ class Fparser2Reader():
         :returns: the newly created PSyIR IfBlock.
         :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
+        :raises NotImplementedError: if there is a CodeBlock that contains a
+            reference to the type-selector variable.
         '''
         outer_ifblock = None
         ifblock = None
@@ -3540,6 +3542,14 @@ class Fparser2Reader():
             # Add If_body
             ifbody = Schedule(parent=ifblock)
             self.process_nodes(parent=ifbody, nodes=select_type.stmts[idx])
+            # Check that there are no CodeBlocks with references to the type
+            # selector variable.
+            for cblock in ifbody.walk(CodeBlock):
+                names = cblock.get_symbol_names()
+                if select_type.selector in names:
+                    raise NotImplementedError(
+                        f"CodeBlock contains reference to type-selector "
+                        f"variable '{select_type.selector}'")
             # Replace references to the type selector variable with
             # references to the appropriate pointer.
             for reference in ifbody.walk(Reference):
@@ -3562,7 +3572,7 @@ class Fparser2Reader():
 
     @staticmethod
     def _create_select_type(
-            parent, select_type, pointer_symbols, type_string_name=None):
+            parent, select_type, type_string_name=None):
         '''Use the contents of the supplied dataclass instance (`select_type`)
         to create a CodeBlock containing a select type to capture its control
         logic without capturing its content.
@@ -3578,18 +3588,18 @@ class Fparser2Reader():
         :param select_type: instance of the SelectTypeClass dataclass
             containing information about the select type construct.
         :type select_type: :py:class:`dataclasses.dataclass`
-        :param pointer_symbols: a list of symbols that point to the
-            different select type types within the select type codeblock.
-        :type pointer_symbols:
-            list[Optional[:py:class:`psyclone.psyir.symbols.Symbol`]]
         :param Optional[str] type_string_name: the base name to use
             for the newly created type_string symbol.
 
         :returns: the DataSymbol representing the character variable which
-                  will hold the 'name' of the type.
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+                  will hold the 'name' of the type and a list of symbols that
+                  point to the different select-type types within the select
+                  type codeblock.
+        :rtype: tuple[:py:class:`psyclone.psyir.symbols.DataSymbol`,
+            list[Optional[:py:class:`psyclone.psyir.symbols.Symbol`]]]
 
         '''
+        pointer_symbols = []
         # Create a symbol from the supplied base name. Store as an
         # UnknownFortranType in the symbol table as we do not natively support
         # character strings (as opposed to scalars) in the PSyIR at the moment.
@@ -3682,7 +3692,7 @@ class Fparser2Reader():
             Reference(type_string_symbol), Literal("", CHARACTER_TYPE)))
         parent.addchild(code_block)
 
-        return type_string_symbol
+        return (type_string_symbol, pointer_symbols)
 
     @staticmethod
     def _create_select_type_info(node):
@@ -3699,7 +3709,6 @@ class Fparser2Reader():
         :rtype: :py:class:`dataclasses.dataclass`
 
         '''
-
         select_type = Fparser2Reader.SelectTypeClass()
 
         select_idx = -1
@@ -3722,6 +3731,7 @@ class Fparser2Reader():
                 # Found one of the type stmt guard clauses ('type is',
                 # 'class is', or 'class default').
                 select_idx += 1
+                select_type.stmts.append([])
                 # Extract the fparser2 Type_Specification
                 # e.g. 'real(kind=4)'
                 type_spec = child.children[1]
@@ -3733,7 +3743,7 @@ class Fparser2Reader():
                     type_name = None
                 elif isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
                     # The guard type selector is an intrinsic type
-                    # e.g. 'type is(REAL)' Set the intrinsic base name
+                    # e.g. 'type is(REAL)'. Set the intrinsic base name
                     # as there is a base intrinsic type.
                     intrinsic_base_name = str(type_spec.children[0]).lower()
                     # Determine type_name for all the different cases
@@ -3774,11 +3784,7 @@ class Fparser2Reader():
                 # select case or select type clauses in fparser2 are *siblings*
                 # of the various select case or select-type statements, rather
                 # than children of them (as one might expect).
-                try:
-                    select_type.stmts[select_idx].append(child)
-                except IndexError:
-                    select_type.stmts.append([])
-                    select_type.stmts[select_idx].append(child)
+                select_type.stmts[select_idx].append(child)
         select_type.num_clauses = select_idx + 1
 
         return select_type
@@ -3786,7 +3792,8 @@ class Fparser2Reader():
     def _select_type_construct_handler(self, node, parent):
         '''
         Transforms an fparser2 Select_Type_Construct to the PSyIR
-        representation.
+        representation (consisting of an Assignment, a CodeBlock
+        and an IfBlock
 
         :param node: node in fparser2 tree.
         :type node: :py:class:`fparser.two.Fortran2003.Select_Type_Construct`
@@ -3796,48 +3803,57 @@ class Fparser2Reader():
         :returns: PSyIR representation of the node.
         :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
-        :raises InternalError: If the fparser2 tree has an unexpected
-            structure.
-        :raises NotImplementedError: If the fparser2 tree contains an
-            unsupported structure and should be placed in a CodeBlock.
+        :raises NotImplementedError: if the symbol representing the type-
+            selector variable is not resolved or is not a DataSymbol.
 
         '''
-        # Step1: Search for all the TYPE IS and CLASS IS clauses in
+        # Step 1: Search for all the TYPE IS and CLASS IS clauses in
         # the Select_Type_Construct and extract the required
         # information. This makes for easier code generation later in
         # the routine.
-        # list of pointers to the selector variable
-        pointer_symbols = []
+        insert_index = len(parent.children) - 1
         # Create the required type information in a dataclass instance.
         select_type = self._create_select_type_info(node)
 
-        # Step2: Recreate the select type clause within a CodeBlock
+        # We don't immediately add our new nodes into the PSyIR tree in
+        # case we encounter something we don't support.
+        tmp_parent = Schedule(parent=parent)
+
+        # Step 2: Recreate the select type clause within a CodeBlock
         # with the content of the clauses being replaced by a string
         # capturing the name of the type or class clauses
         # ('type_string'). The string symbol is returned for use in
-        # step3. Also add any required pointer symbols.
-        type_string_symbol = self._create_select_type(
-            parent, select_type, pointer_symbols,
-            type_string_name="type_string")
+        # step 3, as is the list of any pointers to the selector variable.
+        type_string_symbol, pointer_symbols = self._create_select_type(
+            tmp_parent, select_type, type_string_name="type_string")
 
-        # Step3: Create the (potentially nested) if statement that
+        # Step 3: Create the (potentially nested) if statement that
         # replicates the content of the select type options (as select
         # type is not supported directly in the PSyIR) allowing the
         # PSyIR to 'see' the select type content.
-
-        # The string will be used in a loop nest created in step4 to
-        # allow the content of the clauses to be replicated, or be an
-        # empty string if it contains the 'class default' clause.
         outer_ifblock = self._create_ifblock(
             parent, select_type, type_string_symbol, pointer_symbols)
 
-        # Step4. Ensure that the type selector variable declaration
+        # Step 4: Ensure that the type selector variable declaration
         # has the pointer or target attribute as we need to create
         # pointers that point to it to get the specific type.
         symbol_table = outer_ifblock.scope.symbol_table
         symbol = symbol_table.lookup(select_type.selector)
+        if symbol.is_unresolved or not isinstance(symbol, DataSymbol):
+            raise NotImplementedError(
+                f"Unexpected symbol '{symbol}' found when searching for the "
+                f"type-selector variable: it must be resolved and a "
+                f"DataSymbol")
         datatype = symbol.datatype
         self._add_target_attribute(datatype)
+
+        # Step 5: We didn't encounter any problems so finally attach our new
+        # nodes to the PSyIR tree in the location we saved earlier.
+        for child in reversed(tmp_parent.pop_all_children()):
+            parent.addchild(child, index=insert_index)
+        # Ensure any Symbols are moved over too.
+        parent.scope.symbol_table.merge(tmp_parent.symbol_table)
+        del tmp_parent
 
         return outer_ifblock
 
