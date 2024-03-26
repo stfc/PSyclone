@@ -53,9 +53,8 @@ from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import IntrinsicCall, Assignment
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
-    Min2CodeTrans, Max2CodeTrans, HoistTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
-    NemoAllArrayAccess2LoopTrans
+    Min2CodeTrans, Max2CodeTrans, HoistTrans, AllArrayAccess2LoopTrans
+from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 
 
 def trans(psy):
@@ -75,7 +74,7 @@ def trans(psy):
     min_trans = Min2CodeTrans()
     max_trans = Max2CodeTrans()
     array_range_trans = NemoAllArrayRange2LoopTrans()
-    array_access_trans = NemoAllArrayAccess2LoopTrans()
+    array_access_trans = AllArrayAccess2LoopTrans()
     hoist_trans = HoistTrans()
 
     sir_writer = SIRWriter()

@@ -44,14 +44,13 @@ the original code is translated.
 from psyclone.psyir.backend.sir import SIRWriter
 
 from psyclone.psyir.nodes import Assignment
-from psyclone.psyir.transformations import HoistTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
-    NemoAllArrayAccess2LoopTrans
+from psyclone.psyir.transformations import HoistTrans, AllArrayAccess2LoopTrans
+from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 
 
 def trans(psy):
     '''Transformation routine for use with PSyclone. Applies the
-    NemoAllArrayRange2LoopTrans, NemoAllArrayAccess2LoopTrans and
+    NemoAllArrayRange2LoopTrans, AllArrayAccess2LoopTrans and
     HoistTrans transformations to the supplied invokes. This
     transformation routine is limited to the NEMO API.
 
@@ -63,7 +62,7 @@ def trans(psy):
     '''
 
     array_range_trans = NemoAllArrayRange2LoopTrans()
-    array_access_trans = NemoAllArrayAccess2LoopTrans()
+    array_access_trans = AllArrayAccess2LoopTrans()
     hoist_trans = HoistTrans()
 
     sir_writer = SIRWriter()

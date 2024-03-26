@@ -184,6 +184,18 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.AllArrayAccess2LoopTrans
+    :members: apply
+    :noindex:
+  
+####
+
+.. autoclass:: psyclone.psyir.transformations.ArrayAccess2LoopTrans
+    :members: apply
+    :noindex:
+  
+####
+
 .. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
     :members: apply
     :noindex:
