@@ -4963,6 +4963,8 @@ class Fparser2Reader():
                  if not isinstance(subprogram, Fortran2003.Contains_Stmt)]
             if module_subprograms:
                 self.process_nodes(parent=container, nodes=module_subprograms)
+        except SymbolError as err:
+            raise NotImplementedError(str(err.value))
         except ValueError:
             pass
 
