@@ -71,7 +71,7 @@ from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE, ScalarType,
-    Symbol, SymbolError)
+    Symbol, SymbolError, RoutineSymbol, IntrinsicSymbol)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
@@ -434,6 +434,10 @@ class OMPDeclareTargetTrans(Transformation):
         # Check that the kernel does not access any data or routines via a
         # module 'use' statement or that are not captured by the SymbolTable
         for candidate in node.walk((Reference, CodeBlock)):
+            if isinstance(candidate, Reference):
+                if isinstance(candidate.symbol,
+                              (RoutineSymbol, IntrinsicSymbol)):
+                    continue
             if isinstance(candidate, CodeBlock):
                 names = candidate.get_symbol_names()
             else:
