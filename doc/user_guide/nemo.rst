@@ -178,18 +178,6 @@ The following transformations are specific to the NEMO API.
     :noindex:
     :members: apply, validate
 
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoArrayAccess2LoopTrans
-    :noindex:
-    :members: apply, validate
-
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoAllArrayAccess2LoopTrans
-    :noindex:
-    :members: apply, validate
-
 .. _limitations:
 
 Limitations
