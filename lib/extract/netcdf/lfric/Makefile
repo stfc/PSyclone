@@ -77,7 +77,7 @@ default: $(PSYDATA_LIB)
 .PHONY: default clean allclean
 
 $(PSYDATA_LIB): $(INF_LIB) $(OBJS)
-	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
+	${AR} ${ARFLAGS} ${PSYDATA_LIB} $(OBJS)
 
 # Create LFRic infrastructure library
 $(INF_LIB):
