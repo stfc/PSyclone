@@ -78,7 +78,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # Determine the arguments to the intrinsic
         args = [None, None, None]
         arg_names_map = {"array": 0, "dim": 1, "mask": 2}
-        for idx, child in enumerate(node.children):
+        for idx, child in enumerate(node.arguments):
             if not node.argument_names[idx]:
                 # positional arg
                 args[idx] = child

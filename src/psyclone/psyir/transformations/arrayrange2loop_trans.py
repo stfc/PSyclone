@@ -52,7 +52,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import ArrayReference, Assignment, Call, \
     IntrinsicCall, Loop, Literal, Range, Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
-        UnresolvedType, UnsupportedType, ArrayType
+        UnresolvedType, UnsupportedType, ArrayType, NoType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -250,10 +250,10 @@ class ArrayRange2LoopTrans(Transformation):
                 try:
                     # Skip unresolved types
                     if (isinstance(child.datatype,
-                                   (UnresolvedType, UnsupportedType)) or
-                        (isinstance(child.datatype, ArrayType) and
-                         isinstance(child.datatype.datatype,
-                                    (UnresolvedType, UnsupportedType)))):
+                                   (UnresolvedType, UnsupportedType, NoType))
+                        or (isinstance(child.datatype, ArrayType) and
+                            isinstance(child.datatype.datatype,
+                                       (UnresolvedType, UnsupportedType)))):
                         continue
                     if (child.datatype.intrinsic ==
                             ScalarType.Intrinsic.CHARACTER):

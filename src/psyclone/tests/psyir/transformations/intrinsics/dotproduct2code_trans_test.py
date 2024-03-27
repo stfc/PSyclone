@@ -121,7 +121,7 @@ def test_bound_explicit(fortran_reader, dim1, dim2):
     dot_product = psyir.walk(IntrinsicCall)[0]
     assert dot_product.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT
     lower, upper, step = _get_array_bound(
-        dot_product.children[0], dot_product.children[1])
+        dot_product.arguments[0], dot_product.arguments[1])
     assert lower.value == '2'
     assert upper.value == '10'
     assert step.value == '1'
@@ -142,7 +142,7 @@ def test_bound_unknown(fortran_reader, fortran_writer):
     dot_product = psyir.walk(IntrinsicCall)[0]
     assert dot_product.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT
     lower, upper, step = _get_array_bound(
-        dot_product.children[0], dot_product.children[1])
+        dot_product.arguments[0], dot_product.arguments[1])
     assert 'LBOUND(v1, dim=1)' in fortran_writer(lower)
     assert 'UBOUND(v1, dim=1)' in fortran_writer(upper)
     assert step.value == '1'

@@ -63,5 +63,5 @@ def test_size(expression):
     assert isinstance(fake_parent[0], Assignment)
     assert isinstance(fake_parent[0].rhs, IntrinsicCall)
     assert fake_parent[0].rhs.intrinsic == IntrinsicCall.Intrinsic.SIZE
-    assert isinstance(fake_parent[0].rhs.children[0], Reference)
-    assert isinstance(fake_parent[0].rhs.children[1], Literal)
+    assert isinstance(fake_parent[0].rhs.arguments[0], Reference)
+    assert isinstance(fake_parent[0].rhs.arguments[1], Literal)

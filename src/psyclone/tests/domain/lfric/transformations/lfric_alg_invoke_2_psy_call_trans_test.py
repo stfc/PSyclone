@@ -318,11 +318,11 @@ def test_lfai2psycall_apply(fortran_reader):
         name="kernel_type")
     kernel_psyir = LFRicKernelContainer.create(
         "kernel_mod", metadata, SymbolTable(), [])
-    trans.apply(aic, options={"kernels": {id(aic.children[0]): kernel_psyir}})
+    trans.apply(aic, options={"kernels": {id(aic.arguments[0]): kernel_psyir}})
     assert psyir.walk(LFRicAlgorithmInvokeCall) == []
     calls = psyir.walk(Call)
     assert len(calls) == 1
-    assert isinstance(calls[0].routine, RoutineSymbol)
+    assert isinstance(calls[0].routine.symbol, RoutineSymbol)
     assert calls[0].routine.name == "invoke_0_kernel_type"
     routine = psyir.walk(Routine)[0]
     assert "invoke" not in routine.symbol_table._symbols
@@ -357,12 +357,12 @@ def test_lfai2psycall_builtin_apply(fortran_reader):
         "kern_mod", kern_metadata, SymbolTable(), [])
 
     trans.apply(aic, options={"kernels": {
-        id(aic.children[0]): kernel_psyir1,
-        id(aic.children[1]): kernel_psyir2}})
+        id(aic.arguments[0]): kernel_psyir1,
+        id(aic.arguments[1]): kernel_psyir2}})
     assert psyir.walk(LFRicAlgorithmInvokeCall) == []
     calls = psyir.walk(Call)
     assert len(calls) == 1
-    assert isinstance(calls[0].routine, RoutineSymbol)
+    assert isinstance(calls[0].routine.symbol, RoutineSymbol)
     assert calls[0].routine.name == "invoke_0"
     routine = psyir.walk(Routine)[0]
     # Check that both the 'invoke' and 'setval_c' symbols have been removed.
@@ -411,9 +411,9 @@ def test_lfai2psycall_multi_invokes(fortran_reader):
         "setval_x_mod", setval_x_metadata, SymbolTable(), [])
 
     trans.apply(invokes[1], options={"kernels": {
-        id(invokes[1].children[0]): kernel_psyir1,
-        id(invokes[1].children[1]): kernel_psyir2,
-        id(invokes[1].children[2]): kernel_psyir3}})
+        id(invokes[1].arguments[0]): kernel_psyir1,
+        id(invokes[1].arguments[1]): kernel_psyir2,
+        id(invokes[1].arguments[2]): kernel_psyir3}})
 
     invokes = psyir.walk(LFRicAlgorithmInvokeCall)
     assert len(invokes) == 1
@@ -423,8 +423,8 @@ def test_lfai2psycall_multi_invokes(fortran_reader):
 
     # Apply the transformation to the one remaining invoke.
     trans.apply(invokes[0], options={"kernels": {
-        id(invokes[0].children[0]): kernel_psyir1,
-        id(invokes[0].children[1]): kernel_psyir2}})
+        id(invokes[0].arguments[0]): kernel_psyir1,
+        id(invokes[0].arguments[1]): kernel_psyir2}})
 
     assert not psyir.walk(LFRicAlgorithmInvokeCall)
     assert "invoke" not in routine.symbol_table._symbols

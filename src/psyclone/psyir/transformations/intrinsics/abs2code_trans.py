@@ -128,7 +128,7 @@ class Abs2CodeTrans(Intrinsic2CodeTrans):
 
         # tmp_var=X
         lhs = Reference(symbol_tmp_var)
-        rhs = node.children[0].detach()
+        rhs = node.arguments[0].detach()
         new_assignment = Assignment.create(lhs, rhs)
         assignment.parent.children.insert(assignment.position, new_assignment)
 

@@ -441,7 +441,7 @@ def test_driver_creation_add_all_kernel_symbols_errors():
     # First provide a structured type that is not an r2d_field:
     edc = ExtractDriverCreator()
     ref = schedule_copy.children[0].loop_body.children[0] \
-        .loop_body.children[0].children[2]
+        .loop_body.children[0].arguments[2]
     assert ref.symbol.name == "out_fld"
     assert ref.symbol.datatype.name == "r2d_field"
     ref.symbol.datatype._name = "unknown type"

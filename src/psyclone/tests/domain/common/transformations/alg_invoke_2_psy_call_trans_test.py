@@ -68,11 +68,12 @@ def check_call(call, routine_name, container_name, args_info):
                    str | :py:class:`psyclone.psyir.nodes.BinaryOperation`]]
 
     '''
-    assert isinstance(call.routine, RoutineSymbol)
+    assert isinstance(call.routine.symbol, RoutineSymbol)
     assert call.routine.name == routine_name
-    assert call.routine.is_import
-    assert call.routine.interface.container_symbol.name == container_name
-    args = call.children
+    assert call.routine.symbol.is_import
+    assert (call.routine.symbol.interface.container_symbol.name ==
+            container_name)
+    args = call.arguments
     assert len(args) == len(args_info)
     for idx, arg_info in enumerate(args_info):
         arg_type = arg_info[0]
@@ -170,7 +171,7 @@ def test_ai2psycall_apply(fortran_reader):
     assert psyir.walk(AlgorithmInvokeCall) == []
     calls = psyir.walk(Call)
     assert len(calls) == 1
-    assert isinstance(calls[0].routine, RoutineSymbol)
+    assert isinstance(calls[0].routine.symbol, RoutineSymbol)
     assert calls[0].routine.name == "invoke_0_kern"
 
 
@@ -236,7 +237,7 @@ def test_ai2psycall_apply_expr(fortran_reader):
     invoke = subroutine.children[0]
     trans = GOceanAlgInvoke2PSyCallTrans()
     trans.apply(invoke)
-    assert len(subroutine.children[0].children) == 1
+    assert len(subroutine.children[0].arguments) == 1
 
 
 def test_ai2psycall_apply_single(fortran_reader):
@@ -383,10 +384,10 @@ def test_ai2psycall_apply_multi_invoke(fortran_reader):
     assert "invoke" not in call2.scope.symbol_table._symbols
 
     assert call1.routine.name == "invoke_0_kern1_1"
-    assert call1.routine.interface.container_symbol.name == "psy_alg1_1"
+    assert call1.routine.symbol.interface.container_symbol.name == "psy_alg1_1"
 
     assert call2.routine.name == "invoke_1_kern2"
-    assert call2.routine.interface.container_symbol.name == "psy_alg1_1"
+    assert call2.routine.symbol.interface.container_symbol.name == "psy_alg1_1"
 
 
 def test_ai2psycall_apply_invoke_symbols(fortran_reader):

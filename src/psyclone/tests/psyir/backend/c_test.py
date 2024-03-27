@@ -46,7 +46,8 @@ from psyclone.psyir.nodes import ArrayReference, Assignment, BinaryOperation, \
     UnaryOperation, Loop, OMPTaskloopDirective, OMPMasterDirective, \
     OMPParallelDirective, IntrinsicCall
 from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_TYPE, REAL_TYPE
+    BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_TYPE, REAL_TYPE, \
+    IntrinsicSymbol
 
 
 def test_cw_gen_declaration():
@@ -374,15 +375,17 @@ def test_cw_intrinsiccall():
                  (IntrinsicCall.Intrinsic.ABS, 'abs(a)'),
                  (IntrinsicCall.Intrinsic.REAL, '(float)a'))
     ref1 = Reference(DataSymbol("a", REAL_TYPE))
-    icall = IntrinsicCall.create(IntrinsicCall.Intrinsic.SQRT, [ref1])
     for intrinsic, expected in test_list:
-        icall._intrinsic = intrinsic
+        icall = IntrinsicCall.create(intrinsic, [ref1.copy()])
         assert cwriter(icall) == expected
 
     # Check that operator-style formatting with a number of children different
     # than 2 produces an error
     with pytest.raises(VisitorError) as err:
-        icall._intrinsic = IntrinsicCall.Intrinsic.MOD
+        icall.children[0].replace_with(
+            Reference(
+                IntrinsicSymbol(IntrinsicCall.Intrinsic.MOD.name,
+                                IntrinsicCall.Intrinsic.MOD)))
         _ = cwriter(icall)
     assert ("The C Writer binary_operator formatter for IntrinsicCall only "
             "supports intrinsics with 2 children, but found '%' with '1' "
@@ -395,14 +398,16 @@ def test_cw_intrinsiccall():
     )
     ref1 = Reference(DataSymbol("a", REAL_TYPE))
     ref2 = Reference(DataSymbol("b", REAL_TYPE))
-    icall = IntrinsicCall.create(IntrinsicCall.Intrinsic.MOD, [ref1, ref2])
     for intrinsic, expected in test_list:
-        icall._intrinsic = intrinsic
+        icall = IntrinsicCall.create(intrinsic, [ref1.copy(), ref2.copy()])
         assert cwriter(icall) == expected
 
     # Check that casts with more than one children produce an error
     with pytest.raises(VisitorError) as err:
-        icall._intrinsic = IntrinsicCall.Intrinsic.REAL
+        icall.children[0].replace_with(
+            Reference(
+                IntrinsicSymbol(IntrinsicCall.Intrinsic.REAL.name,
+                                IntrinsicCall.Intrinsic.REAL)))
         _ = cwriter(icall)
     assert ("The C Writer IntrinsicCall cast-style formatter only supports "
             "intrinsics with 1 child, but found 'float' with '2' children."

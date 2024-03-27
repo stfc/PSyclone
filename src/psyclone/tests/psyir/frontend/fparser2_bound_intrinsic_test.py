@@ -68,6 +68,6 @@ def test_bound_intrinsics(bound, expression):
         assert fake_parent[0].rhs.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     else:
         assert fake_parent[0].rhs.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-    assert isinstance(fake_parent[0].rhs.children[0], Reference)
-    assert isinstance(fake_parent[0].rhs.children[1],
+    assert isinstance(fake_parent[0].rhs.arguments[0], Reference)
+    assert isinstance(fake_parent[0].rhs.arguments[1],
                       (Literal, BinaryOperation))

@@ -4701,15 +4701,12 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
             "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL m2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n"
             "        CALL testkern_code(nlayers, ginger, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, "
@@ -4740,8 +4737,7 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
                 "      !\n"
                 "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
                 "        CALL f1_proxy%halo_exchange(depth=1)\n"
-                "      END IF\n"
-                "      !\n")
+                "      END IF\n")
             output_dm_2 = output_dm_2.replace(
                 "      ! Call kernels and communication routines\n"
                 "      !\n", f1_hex_code)

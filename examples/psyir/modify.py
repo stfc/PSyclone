@@ -94,7 +94,7 @@ def modify_psyir_tree():
 
     # By default `replace_with` will conserve a node name in its context, but
     # this can be disabled with the `keep_name_in_context` parameter.
-    dot_product_1st_arg = subroutine[5].rhs.children[0]
+    dot_product_1st_arg = subroutine[5].rhs.arguments[0]
     dot_product_1st_arg.replace_with(
         Literal('2', INTEGER_TYPE),
         keep_name_in_context=False)

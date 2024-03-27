@@ -182,7 +182,7 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     master = OMPSingleTrans()
     parallel = OMPParallelTrans()
     calls = my_test.walk(Call)
-    calls[0].routine.is_pure = True
+    calls[0].routine.symbol.is_pure = True
     loops = my_test.walk(Loop)
     trans.apply(loops[1])
     master.apply(my_test.children[:])

@@ -121,7 +121,7 @@ def test_correct(func, output, tmpdir):
         f"    res_abs = tmp_abs * -1.0\n"
         f"  end if\n"
         f"  psyir_tmp = res_abs\n\n"
-        f"end subroutine abs_example\n") in result
+        f"end subroutine abs_example\n") == result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None

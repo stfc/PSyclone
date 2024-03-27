@@ -366,11 +366,11 @@ def test_stencil_args_unique_2(dist_mem, tmpdir):
     assert output5 in result
     if dist_mem:
         assert (
-            "IF (f2_proxy%is_dirty(depth=max(f2_info+1,"
-            "f2_info_2+1))) THEN" in result)
+            "IF (f2_proxy%is_dirty(depth=MAX(f2_info + 1, "
+            "f2_info_2 + 1))) THEN" in result)
         assert (
-            "CALL f2_proxy%halo_exchange(depth=max(f2_info+1,"
-            "f2_info_2+1))" in result)
+            "CALL f2_proxy%halo_exchange(depth=MAX(f2_info + 1, "
+            "f2_info_2 + 1))" in result)
         assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL f3_proxy%halo_exchange(depth=1)" in result
         assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
@@ -404,11 +404,11 @@ def test_stencil_args_unique_3(dist_mem, tmpdir):
         "my_info_f2_info)" in result)
     if dist_mem:
         assert (
-            "IF (f2_proxy%is_dirty(depth=max(my_info_f2_info+1,"
-            "my_info_f2_info_2+1))) THEN" in result)
+            "IF (f2_proxy%is_dirty(depth=MAX(my_info_f2_info + 1, "
+            "my_info_f2_info_2 + 1))) THEN" in result)
         assert (
-            "CALL f2_proxy%halo_exchange(depth=max(my_info_f2_info+1,"
-            "my_info_f2_info_2+1))" in result)
+            "CALL f2_proxy%halo_exchange(depth=MAX(my_info_f2_info + 1, "
+            "my_info_f2_info_2 + 1))" in result)
         assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL f3_proxy%halo_exchange(depth=1)" in result
         assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
@@ -838,8 +838,8 @@ def test_stencil_region(dist_mem, tmpdir):
     assert output4 in result
     if dist_mem:
         output5 = (
-            "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+            "      IF (f2_proxy%is_dirty(depth=f2_extent + 1)) THEN\n"
+            "        CALL f2_proxy%halo_exchange(depth=f2_extent + 1)\n"
             "      END IF\n")
         assert output5 in result
     output6 = (
@@ -1092,12 +1092,11 @@ def test_multiple_stencils(dist_mem, tmpdir):
     assert output5 in result
     if dist_mem:
         output6 = (
-            "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+            "      IF (f2_proxy%is_dirty(depth=f2_extent + 1)) THEN\n"
+            "        CALL f2_proxy%halo_exchange(depth=f2_extent + 1)\n"
             "      END IF\n"
-            "      !\n"
-            "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
-            "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
+            "      IF (f3_proxy%is_dirty(depth=f3_extent + 1)) THEN\n"
+            "        CALL f3_proxy%halo_exchange(depth=f3_extent + 1)\n"
             "      END IF\n")
         assert output6 in result
     output7 = (
@@ -1186,11 +1185,9 @@ def test_multiple_stencils_int_field(dist_mem, tmpdir):
     assert output5 in result
     if dist_mem:
         output6 = (
-            "      !\n"
             "      IF (f3_proxy%is_dirty(depth=f3_extent)) THEN\n"
             "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (f4_proxy%is_dirty(depth=2)) THEN\n"
             "        CALL f4_proxy%halo_exchange(depth=2)\n"
             "      END IF\n")

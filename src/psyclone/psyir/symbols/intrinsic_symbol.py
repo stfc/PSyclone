@@ -50,6 +50,13 @@ class IntrinsicSymbol(RoutineSymbol):
     :type kwargs: unwrapped dict.
 
     '''
+    def __init__(self, name, intrinsic, **kwargs):
+        super().__init__(name, **kwargs)
+        self._intrinsic = intrinsic
+
+    @property
+    def intrinsic(self):
+        return self._intrinsic
 
 
 # For Sphinx AutoAPI documentation generation

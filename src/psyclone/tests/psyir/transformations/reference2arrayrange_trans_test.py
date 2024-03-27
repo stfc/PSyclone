@@ -41,7 +41,7 @@ import pytest
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import IfBlock, IntrinsicCall, Literal, Reference
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, IntrinsicSymbol
 from psyclone.psyir.transformations import (Reference2ArrayRangeTrans,
                                             TransformationError)
 
@@ -106,9 +106,9 @@ def test_get_array_bound(fortran_reader):
     assert upper_bound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     assert isinstance(step, Literal)
     assert step.value == "1"
-    reference = lower_bound.children[0]
+    reference = lower_bound.arguments[0]
     assert symbol is reference.symbol
-    reference = upper_bound.children[0]
+    reference = upper_bound.arguments[0]
     assert symbol is reference.symbol
 
     # non-zero array index
@@ -269,7 +269,7 @@ def test_validate_query(fortran_reader):
     loop = psyir.children[0].children[0]
     locations = [loop.start_expr, loop.stop_expr]
     for text, location in zip(["LBOUND", "UBOUND"], locations):
-        for reference in location.walk(Reference):
+        for reference in location.walk(Reference)[1:]:
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
             assert (f"References to arrays passed as arguments to intrinsic "
@@ -280,9 +280,10 @@ def test_validate_query(fortran_reader):
     # intrinsics within 'b(:)' do not get modified.
     assignment = psyir.children[0].children[1]
     for reference in assignment.walk(Reference):
-        # We want to avoid subclasses such as ArrayReference
+        # We want to avoid IntrinsicSymbols and ArrayReference
         # pylint: disable=unidiomatic-typecheck
-        if type(reference) is Reference:
+        if (type(reference) is Reference and not
+                isinstance(reference.symbol, IntrinsicSymbol)):
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
             assert ("References to arrays passed as arguments to intrinsic "
@@ -290,7 +291,7 @@ def test_validate_query(fortran_reader):
 
     # Check the reference to 'b' in the size intrinsics does not get modified
     assignment = psyir.children[0].children[2]
-    reference = assignment.children[1].children[0]
+    reference = assignment.children[1].arguments[0]
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
     assert ("References to arrays passed as arguments to intrinsic enquiry "
@@ -300,7 +301,7 @@ def test_validate_query(fortran_reader):
     allocd = ifblock.condition
     assert isinstance(allocd, IntrinsicCall)
     with pytest.raises(TransformationError) as info:
-        trans.validate(allocd.children[0])
+        trans.validate(allocd.arguments[0])
     assert ("References to arrays passed as arguments to intrinsic enquiry "
             "routine 'ALLOCATED' should not be transformed" in str(info.value))
 
@@ -337,7 +338,7 @@ def test_validate_deallocate(fortran_reader):
         "  deallocate(a)\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
-    reference = psyir.walk(Reference)[1]
+    reference = psyir.walk(Reference)[3]
     trans = Reference2ArrayRangeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)

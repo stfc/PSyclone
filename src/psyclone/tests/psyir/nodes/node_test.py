@@ -1228,12 +1228,12 @@ def test_replace_with_named_context():
         ("name2", node2),
         ("name3", node3),
         ])
-    parent_node.children = [node1, node2, node3]
+    parent_node.children = [parent_node.routine, node1, node2, node3]
 
     # Replace a node keeping the name
     new_node = Literal('20', INTEGER_TYPE)
     node2.replace_with(new_node)
-    assert parent_node.children[1] is new_node
+    assert parent_node.children[2] is new_node
     assert new_node.parent is parent_node
     assert node2.parent is None
     assert parent_node.argument_names == ["name1", "name2", "name3"]
@@ -1241,7 +1241,7 @@ def test_replace_with_named_context():
     # Replace a node keeping the name
     new_node = Literal('10', INTEGER_TYPE)
     node1.replace_with(new_node, keep_name_in_context=False)
-    assert parent_node.children[0] is new_node
+    assert parent_node.children[1] is new_node
     assert new_node.parent is parent_node
     assert node1.parent is None
     assert parent_node.argument_names == [None, "name2", "name3"]
@@ -1352,7 +1352,7 @@ def test_detach():
     lit = Literal("1", REAL_TYPE)
     e_ref2 = Reference(e_sym)
     f_ref = Reference(f_sym)
-    node1 = Call(routine)
+    node1 = Call.create(routine)
     node1.addchild(e_ref)
     node1.addchild(lit)
     node1.addchild(e_ref2)
@@ -1363,10 +1363,10 @@ def test_detach():
 
     # Check that the resulting nodes and connections are correct
     assert e_ref2.parent is None
-    assert len(node1.children) == 3
-    assert node1.children[0] is e_ref
-    assert node1.children[1] is lit
-    assert node1.children[2] is f_ref
+    assert len(node1.children) == 4
+    assert node1.children[1] is e_ref
+    assert node1.children[2] is lit
+    assert node1.children[3] is f_ref
 
     # Executing it again still succeeds
     assert e_ref2.detach() is e_ref2

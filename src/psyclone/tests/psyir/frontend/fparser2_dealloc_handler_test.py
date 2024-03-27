@@ -61,11 +61,11 @@ end program test_dealloc
     calls = psyir.walk(IntrinsicCall)
     assert len(calls) == 3
     call = calls[0]
-    assert len(call.children) == 1
+    assert len(call.arguments) == 1
     assert isinstance(call.children[0], Reference)
-    assert call.children[0].symbol.name == "var1"
+    assert call.arguments[0].symbol.name == "var1"
     call = calls[1]
     assert call.argument_names == [None, None, "STAT"]
-    assert call.children[1].symbol.name == "var3"
+    assert call.arguments[1].symbol.name == "var3"
     call = calls[2]
-    assert isinstance(call.children[0], StructureReference)
+    assert isinstance(call.arguments[0], StructureReference)

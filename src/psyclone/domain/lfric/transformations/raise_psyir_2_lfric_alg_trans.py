@@ -70,7 +70,7 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
 
         factory = LFRicBuiltinFunctorFactory.get()
 
-        for idx, call_arg in enumerate(call.children):
+        for idx, call_arg in enumerate(call.arguments):
 
             if call.argument_names[idx]:
                 call_name = f"{call_arg.value}"
@@ -103,7 +103,7 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
                                                                args))
 
         invoke_call = LFRicAlgorithmInvokeCall.create(
-            call.routine, calls, index, name=call_name)
+            call.routine.symbol, calls, index, name=call_name)
         call.replace_with(invoke_call)
 
 
