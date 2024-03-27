@@ -38,12 +38,12 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.containersymbols file '''
 
-from __future__ import absolute_import
 import os
 import pytest
+
 from psyclone.psyir.symbols import SymbolError, Symbol
-from psyclone.psyir.symbols.containersymbol import ContainerSymbol, \
-    ContainerSymbolInterface, FortranModuleInterface
+from psyclone.psyir.symbols.containersymbol import (
+    ContainerSymbol, ContainerSymbolInterface, FortranModuleInterface)
 from psyclone.psyir.nodes import Container
 from psyclone.configuration import Config
 
@@ -147,6 +147,18 @@ def test_containersymbol_str():
 
     sym._reference = Container("my_mod")
     assert str(sym) == "my_mod: ContainerSymbol<linked>"
+
+
+def test_containersymbol_comparison():
+    '''Test that two ContainerSymbols are considered equal if their names
+    match.'''
+
+    sym = ContainerSymbol("my_mod")
+    assert sym != "my_mod"
+    sym2 = ContainerSymbol("other_mod")
+    assert sym != sym2
+    sym3 = ContainerSymbol("MY_mod")
+    assert sym == sym3
 
 
 def test_containersymbol_resolve_external_container(monkeypatch):
