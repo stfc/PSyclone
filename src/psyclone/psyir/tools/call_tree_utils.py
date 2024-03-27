@@ -371,8 +371,12 @@ class CallTreeUtils():
                 # generic interfaces:
                 all_routines = mod_info.resolve_routine(signature[0])
                 for routine_name in all_routines:
-                    routine = \
-                        mod_info.get_psyir().get_routine_psyir(routine_name)
+                    try:
+                        routine = mod_info.get_psyir().\
+                            get_routine_psyir(routine_name)
+                    except AttributeError:
+                        # TODO #2120: Handle error
+                        routine = None
                     if routine:
                         # Add the list of non-locals to our todo list:
                         outstanding_nonlocals.extend(
@@ -414,6 +418,7 @@ class CallTreeUtils():
                     if sym.is_constant:
                         continue
                 except KeyError:
+                    print(f"Cannot find signature '{signature}'")
                     sym = None
                 # Otherwise fall through to the code that adds a reference:
 

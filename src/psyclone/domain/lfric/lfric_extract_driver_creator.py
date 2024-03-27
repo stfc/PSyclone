@@ -1001,17 +1001,8 @@ class LFRicExtractDriverCreator:
         :raises NotImplementedError: if the driver creation fails.
 
         '''
-        try:
-            file_container = self.create(nodes, read_write_info, prefix,
-                                         postfix, region_name)
-        # TODO #2120 (Handle failures in Kernel Extraction): Now that all
-        # built-ins are lowered, an alternative way of triggering a
-        # NotImplementedError is needed.
-        except NotImplementedError:
-            # print(f"Cannot create driver for '{region_name[0]}-"
-            #      f"{region_name[1]}' because:")
-            # print(str(err))
-            return ""
+        file_container = self.create(nodes, read_write_info, prefix,
+                                     postfix, region_name)
 
         module_dependencies = self.collect_all_required_modules(file_container)
         # Sort the modules by dependencies, i.e. start with modules
@@ -1086,12 +1077,6 @@ class LFRicExtractDriverCreator:
                                          postfix, region_name, writer=writer)
         fll = FortLineLength()
         code = fll.process(code)
-        if not code:
-            # This indicates an error that was already printed,
-            # so ignore it here.
-            # TODO #2120 (Handle failures in Kernel Extraction): revisit
-            # how this is handled in 'get_driver_as_string'.
-            return
         module_name, local_name = region_name
         with open(f"driver-{module_name}-{local_name}.F90", "w",
                   encoding='utf-8') as out:
