@@ -3657,7 +3657,7 @@ class Fparser2Reader():
             # type can be used in a subsequent if block hierarchy
             # (otherwise Fortran complains that the type is generic).
             pointer_type = UnsupportedFortranType(
-                f"{tmp_type}, pointer :: {pointer_name}")
+                f"{tmp_type}, pointer :: {pointer_name} => null()")
             pointer_symbol = DataSymbol(pointer_name, pointer_type)
             parent.scope.symbol_table.add(pointer_symbol)
             pointer_symbols.append(pointer_symbol)
