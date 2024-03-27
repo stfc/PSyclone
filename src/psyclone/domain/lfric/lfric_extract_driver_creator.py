@@ -815,12 +815,12 @@ class LFRicExtractDriverCreator:
 
         # PSyIR does not support allocatable strings, so create the two
         # variables we need in a loop.
-        # TODO #2137: The UnknownFortranType could be reused for all
+        # TODO #2137: The UnsupportedFortranType could be reused for all
         #             variables once this is fixed.
         for str_name in ["psydata_filename", "psydata_arg"]:
             str_unique_name = \
                 program_symbol_table.next_available_name(str_name)
-            str_type = UnknownFortranType(
+            str_type = UnsupportedFortranType(
                 f"character(:), allocatable :: {str_unique_name}")
             sym = DataTypeSymbol(str_unique_name, str_type)
             program_symbol_table.add(sym)
