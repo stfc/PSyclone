@@ -49,9 +49,9 @@ import copy
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
-    DataSymbol, ImportInterface, ContainerSymbol, DataTypeSymbol,
-    GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError,
-    UnresolvedInterface)
+    DataSymbol, ContainerSymbol, DataTypeSymbol, GenericInterfaceSymbol,
+    ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
+from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -587,6 +587,11 @@ class SymbolTable():
                 f"check_for_clashes: 'symbols_to_skip' must be an instance of "
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
+        # Check whether there are any wildcard imports common to both tables.
+        self_wildcard_imports = self.wildcard_imports(collect_all=True)
+        shared_wildcard_imports = self_wildcard_imports.intersection(
+            other_table.wildcard_imports(collect_all=True))
+
         for other_sym in other_table.symbols:
             if other_sym.name not in self or other_sym in symbols_to_skip:
                 continue
@@ -597,19 +602,44 @@ class SymbolTable():
             if (isinstance(this_sym, ContainerSymbol) and
                     isinstance(other_sym, ContainerSymbol)):
                 continue
+
             if other_sym.is_import and this_sym.is_import:
-                # Both symbols are imported. That's fine as long as they are
-                # imported from the same Container.
-                if not self._has_same_name(
-                        other_sym.interface.container_symbol,
-                        this_sym.interface.container_symbol):
+                # Both symbols are imported. That's fine as long as they have
+                # the same import interface (are imported from the same
+                # Container and refer to the same Symbol in that Container).
+                if this_sym.interface != other_sym.interface:
                     raise SymbolError(
-                        f"This table has an import of '{this_sym.name}' from "
-                        f"Container "
-                        f"'{this_sym.interface.container_symbol.name}' but "
-                        f"the supplied table imports it from Container "
-                        f"'{other_sym.interface.container_symbol.name}'.")
+                        f"This table has an import of '{this_sym.name}' via "
+                        f"interface '{this_sym.interface}' but the supplied "
+                        f"table imports it via '{other_sym.interface}'.")
                 continue
+
+            if other_sym.is_unresolved and this_sym.is_unresolved:
+                # Both Symbols are unresolved.
+                if shared_wildcard_imports:
+                    # The tables have one or more wildcard imports in common.
+                    # Therefore we assume that the two symbols in fact
+                    # represent the same memory location.
+                    continue
+                # pylint: disable=import-outside-toplevel
+                from psyclone.psyir.nodes import IntrinsicCall
+                try:
+                    # An unresolved symbol representing an intrinisc is fine.
+                    _ = IntrinsicCall.Intrinsic[this_sym.name.upper()]
+                    # Take this opportunity to specialise the symbol(s).
+                    if not isinstance(this_sym, IntrinsicSymbol):
+                        this_sym.specialise(IntrinsicSymbol)
+                    if not isinstance(other_sym, IntrinsicSymbol):
+                        other_sym.specialise(IntrinsicSymbol)
+                    continue
+                except KeyError:
+                    pass
+                # We can't rename a symbol if we don't know its origin.
+                raise SymbolError(
+                    f"A symbol named '{this_sym.name}' is present but "
+                    f"unresolved in both tables and they do not share a "
+                    f"wildcard import that could be bringing it into scope.")
+
             # Can either of them be renamed?
             try:
                 self.rename_symbol(this_sym, "", dry_run=True)
@@ -679,7 +709,8 @@ class SymbolTable():
                         self.lookup(csym.name),
                         orig_name=isym.interface.orig_name)
 
-    def _add_symbols_from_table(self, other_table, symbols_to_skip=()):
+    def _add_symbols_from_table(self, other_table, shared_wildcard_imports,
+                                symbols_to_skip=()):
         '''
         Takes symbols from the supplied symbol table and adds them to this
         table (unless they appear in `symbols_to_skip`).
@@ -689,6 +720,9 @@ class SymbolTable():
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param set[str] shared_wildcard_imports: set of the names of any
+            ContainerSymbols from which there were wildcard imports in both
+            tables originally.
         :param symbols_to_skip: an optional list of symbols to exclude from
                                 the merge.
         :type symbols_to_skip: Iterable[
@@ -710,27 +744,73 @@ class SymbolTable():
 
             except KeyError:
                 # We have a clash with a symbol in this table.
-                if old_sym.is_import:
-                    # This symbol is imported from a Container so should
-                    # already have been updated so as to be imported from the
-                    # corresponding container in this table.
-                    self_csym = self.lookup(
-                        old_sym.interface.container_symbol.name)
-                    if old_sym.interface.container_symbol is not self_csym:
-                        # pylint: disable=raise-missing-from
-                        raise InternalError(
-                            f"Symbol '{old_sym.name}' imported from "
-                            f"'{self_csym.name}' has not been updated to refer"
-                            f" to the corresponding container in the "
-                            f"current table.")
-                else:
-                    # A Symbol with the same name already exists so we rename
-                    # the one that we are adding. (We don't just create a new
-                    # Symbol because we need to preserve any References to it.)
-                    new_name = self.next_available_name(
-                        old_sym.name, other_table=other_table)
-                    other_table.rename_symbol(old_sym, new_name)
-                    self.add(old_sym)
+                self._handle_symbol_clash(old_sym, other_table,
+                                          shared_wildcard_imports)
+
+    def _handle_symbol_clash(self, old_sym, other_table,
+                             shared_wildcard_imports):
+        '''
+        Adds the supplied Symbol to the current table in the presence
+        of a name clash.
+
+        :param old_sym: the Symbol to be added to self.
+        :type old_sym: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param other_table: the other table containing the symbol that we are
+                            trying to add to self.
+        :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param set[str] shared_wildcard_imports: set of the names of any
+            ContainerSymbols from which there were wildcard imports in both
+            tables originally.
+
+        :raises InternalError: if the supplied symbol is imported from a
+            Container that is not represented in this table.
+        :raises InternalError: if the supplied symbol is unresolved in both
+            this and `other_table`.
+
+        '''
+        if old_sym.is_import:
+            # This symbol is imported from a Container so should
+            # already have been updated so as to be imported from the
+            # corresponding container in this table.
+            self_csym = self.lookup(old_sym.interface.container_symbol.name)
+            if old_sym.interface.container_symbol is self_csym:
+                return
+            raise InternalError(
+                f"Symbol '{old_sym.name}' imported from '{self_csym.name}' "
+                f"has not been updated to refer to the corresponding "
+                f"container in the current table.")
+        self_sym = self.lookup(old_sym.name)
+        if old_sym.is_unresolved and self_sym.is_unresolved:
+            if shared_wildcard_imports:
+                # The clashing symbols are both unresolved and there are
+                # wildcard imports that are common to both tables. Therefore
+                # we assume that the two symbols are referring to the same
+                # memory location and we don't have to do anything.
+                return
+            if (isinstance(old_sym, IntrinsicSymbol) or
+                    isinstance(self_sym, IntrinsicSymbol)):
+                # The clashing symbols represent an intrinsic so that's fine.
+                return
+            # The clashing symbols are unresolved and we don't know how they're
+            # being brought into scope. Therefore, we cannot rename either of
+            # them. This should have been picked up in _check_for_clashes().
+            raise InternalError(
+                f"An unresolved Symbol named '{old_sym.name}' is present in "
+                f"both tables and there are no common wildcard imports. This "
+                f"should have been caught by "
+                f"SymbolTable._check_for_clashes().")
+
+        # A Symbol with the same name already exists so we attempt to rename
+        # first the one that we are adding and failing that, the existing
+        # symbol in this table.
+        new_name = self.next_available_name(
+            old_sym.name, other_table=other_table)
+        try:
+            other_table.rename_symbol(old_sym, new_name)
+            self.add(old_sym)
+        except SymbolError:
+            self.rename_symbol(self_sym, new_name)
+            self.add(old_sym)
 
     def merge(self, other_table, symbols_to_skip=()):
         '''Merges all of the symbols found in `other_table` into this
@@ -758,6 +838,13 @@ class SymbolTable():
             raise TypeError(
                 f"SymbolTable.merge() expects 'symbols_to_skip' to be an "
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
+
+        # Before we begin merging, check whether there are any wildcard
+        # imports that are common to both tables.
+        shared_wildcard_imports = self.wildcard_imports(collect_all=True)
+        shared_wildcard_imports.intersection(
+            other_table.wildcard_imports(collect_all=True))
+
         try:
             self.check_for_clashes(other_table,
                                    symbols_to_skip=symbols_to_skip)
@@ -771,7 +858,7 @@ class SymbolTable():
 
         # Copy each Symbol from the supplied table into this one, excluding
         # ContainerSymbols and any listed in `symbols_to_skip`.
-        self._add_symbols_from_table(other_table,
+        self._add_symbols_from_table(other_table, shared_wildcard_imports,
                                      symbols_to_skip=symbols_to_skip)
 
     def swap_symbol_properties(self, symbol1, symbol2):
@@ -993,6 +1080,66 @@ class SymbolTable():
         self.remove(old_symbol)
         self.add(new_symbol)
 
+    def _remove_routinesymbol(self, symbol):
+        '''
+        Removes the supplied RoutineSymbol from this table when possible.
+        If the symbol is the target of a Call or is a member of an interface
+        definition then removal is only possible if the symbol is shadowing a
+        declaration in an outer scope. In that case the Call or Interface is
+        updated to refer to that instance of the symbol.
+
+        :param symbol: the Symbol to remove.
+        :type symbol: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+
+        :raises ValueError: if the Symbol cannot be removed.
+
+        '''
+        is_shadowed = False
+        if self.node and self.node.parent:
+            try:
+                shadowed_sym = self.node.parent.scope.symbol_table.lookup(
+                    symbol.name)
+                # pylint: disable=unidiomatic-typecheck
+                is_shadowed = (shadowed_sym == symbol or
+                               (type(shadowed_sym) is Symbol and
+                                shadowed_sym.interface == symbol.interface))
+            except KeyError:
+                pass
+
+        # Check for Calls or GenericInterfaceSymbols that reference it.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import Call
+        all_calls = self.node.walk(Call) if self.node else []
+        for call in all_calls:
+            if call.routine is not symbol:
+                continue
+            if is_shadowed:
+                # Update the Call to use the shadowed symbol.
+                if not isinstance(shadowed_sym, RoutineSymbol):
+                    shadowed_sym.specialise(RoutineSymbol)
+                call.routine = shadowed_sym
+            else:
+                raise ValueError(
+                    f"Cannot remove RoutineSymbol '{symbol.name}' "
+                    f"because it is referenced by '{call.debug_string()}'")
+        # Check for any references to it within interfaces.
+        for sym in self._symbols.values():
+            if not isinstance(sym, GenericInterfaceSymbol):
+                continue
+            rt_list = sym.routines[:]
+            for idx, rt_info in enumerate(rt_list):
+                if rt_info.symbol is not symbol:
+                    continue
+                if is_shadowed:
+                    if not isinstance(shadowed_sym, RoutineSymbol):
+                        shadowed_sym.specialise(RoutineSymbol)
+                    rt_list[idx] = (shadowed_sym, rt_list[idx][1])
+                    continue
+                raise ValueError(
+                    f"Cannot remove RoutineSymbol '{symbol.name}' "
+                    f"because it is referenced in interface '{sym.name}'")
+            sym.routines = rt_list
+
     def remove(self, symbol):
         '''
         Remove the supplied symbol from the Symbol Table. This has a high
@@ -1006,16 +1153,16 @@ class SymbolTable():
         TODO #898. This method should check for any references/uses of
         the target symbol.
 
-        :param symbol: the container symbol to remove.
-        :type symbol: :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        :param symbol: the symbol to remove.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
 
-        :raises TypeError: if the supplied symbol is not of type Symbol.
-        :raises NotImplementedError: the removal of this symbol type is not \
+        :raises TypeError: if the supplied parameter is not of type Symbol.
+        :raises NotImplementedError: the removal of this symbol type is not
                                      supported yet.
         :raises KeyError: if the supplied symbol is not in the symbol table.
-        :raises ValueError: if the supplied container symbol is referenced \
+        :raises ValueError: if the supplied container symbol is referenced
                             by one or more DataSymbols.
-        :raises InternalError: if the supplied symbol is not the same as the \
+        :raises InternalError: if the supplied symbol is not the same as the
                                entry with that name in this SymbolTable.
         '''
         if not isinstance(symbol, Symbol):
@@ -1055,24 +1202,10 @@ class SymbolTable():
                 f" {[sym.name for sym in self.symbols_imported_from(symbol)]} "
                 f"are imported from it - remove them first.")
 
+        # RoutineSymbols require special consideration as they may be the
+        # target of a Call or a member of a GenericInterfaceSymbol.
         if isinstance(symbol, RoutineSymbol):
-            # Check for Calls.
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.nodes import Call
-            all_calls = self.node.walk(Call) if self.node else []
-            for call in all_calls:
-                if call.routine is symbol:
-                    raise ValueError(
-                        f"Cannot remove RoutineSymbol '{symbol.name}' "
-                        f"because it is referenced by '{call.debug_string()}'")
-            # Check for any references to it within interfaces.
-            for sym in self._symbols.values():
-                if isinstance(sym, GenericInterfaceSymbol):
-                    if symbol in [rt.symbol for rt in sym.routines]:
-                        raise ValueError(
-                            f"Cannot remove RoutineSymbol '{symbol.name}' "
-                            f"because it is referenced in interface "
-                            f"'{sym.name}'")
+            self._remove_routinesymbol(symbol)
 
         # If the symbol had a tag, it should be disassociated
         for tag, tagged_symbol in list(self._tags.items()):
@@ -1550,19 +1683,19 @@ class SymbolTable():
         :param symbol: the symbol to be renamed.
         :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param str name: the new name.
-        :param bool dry_run: if True then only the validation checks are \
+        :param bool dry_run: if True then only the validation checks are
                              performed.
 
         :raises TypeError: if the symbol is not a Symbol.
         :raises TypeError: if the name is not a str.
-        :raises ValueError: if the given symbol does not belong to this \
+        :raises ValueError: if the given symbol does not belong to this
                             symbol table.
-        :raises KeyError: if the given variable name already exists in the \
-                          symbol table.
-        :raises SymbolError: if the specified Symbol is a ContainerSymbol, is \
-                             imported or is a formal routine argument.
-        :raises SymbolError: if the specified Symbol is accessed within a \
-                             CodeBlock in the scope of this table.
+        :raises KeyError: if the given variable name already exists in the
+                symbol table.
+        :raises SymbolError: if the specified Symbol is a ContainerSymbol, is
+            imported/unresolved or is a formal routine argument.
+        :raises SymbolError: if the specified Symbol is accessed within a
+            CodeBlock in the scope of this table.
         :raises SymbolError: if the symbol has a common block interface.
 
         '''
@@ -1585,6 +1718,11 @@ class SymbolTable():
                 f"Cannot rename symbol '{symbol.name}' because it is imported "
                 f"(from Container '{symbol.interface.container_symbol.name}')."
             )
+
+        if symbol.is_unresolved:
+            raise SymbolError(
+                f"Cannot rename symbol '{symbol.name}' because it is "
+                f"unresolved.")
 
         if symbol.is_argument:
             raise SymbolError(
@@ -1636,22 +1774,32 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def has_wildcard_imports(self):
+    def wildcard_imports(self, collect_all=False):
         '''
         Searches this symbol table and then up through any parent symbol
-        tables for a ContainerSymbol that has a wildcard import.
+        tables for a ContainerSymbol that has a wildcard import. If
+        `collect_all` is false then the returned set will just contain the
+        name of the first one found. Otherwise, it will contain the names
+        of all containers which have wildcard imports into this scope.
 
-        :returns: True if a wildcard import is found, False otherwise.
-        :rtype: bool
+        :param bool collect_all: whether or not to collect all containers
+            with wildcard imports or just return the first one found.
+
+        :returns: the name(s) of containers which have wildcard imports
+            into the current scope.
+        :rtype: set[str]
 
         '''
+        wildcards = set()
         current_table = self
         while current_table:
             for sym in current_table.containersymbols:
                 if sym.wildcard_import:
-                    return True
+                    wildcards.add(sym.name)
+                    if not collect_all:
+                        return wildcards
             current_table = current_table.parent_symbol_table()
-        return False
+        return wildcards
 
     def view(self):
         '''

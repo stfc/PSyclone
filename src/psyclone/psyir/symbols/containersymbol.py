@@ -137,6 +137,11 @@ class ContainerSymbol(Symbol):
             string += "not linked>"
         return string
 
+    def __eq__(self, other):
+        if not isinstance(other, ContainerSymbol):
+            return False
+        return self.name.lower() == other.name.lower()
+
     @property
     def wildcard_import(self):
         '''

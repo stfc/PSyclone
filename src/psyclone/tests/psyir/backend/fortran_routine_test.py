@@ -322,3 +322,34 @@ def test_fw_routine_flatten_tables(fortran_reader, fortran_writer):
     assert "real :: strummer_1" in code
     assert "integer :: joe_1" in code
     # We can't test for compilation because of the `use` statements.
+
+
+def test_fw_routine_flatten_tables_unresolved_sym(fortran_reader,
+                                                  fortran_writer):
+    '''
+    Check that the flattening process works correctly when nested scopes
+    contain the same, unresolved symbol being brought into scope at the
+    module level.
+
+    '''
+    code = ("module test\n"
+            "use some_mod\n"
+            "implicit none\n"
+            "contains\n"
+            "subroutine sub(b)\n"
+            "  real, intent(inout) :: b\n"
+            "  integer :: ii\n"
+            "  do ii = 1, 10\n"
+            "    b = ii + b\n"
+            "    call iom_put(ii)\n"
+            "  end do\n"
+            "  call iom_put(b)\n"
+            "end subroutine sub\n"
+            "end module test")
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    # We should still have the wildcard import.
+    assert "use some_mod\n" in output
+    # The calls to iom_put() should be unaffected.
+    assert "call iom_put(ii)" in output
+    assert "call iom_put(b)" in output

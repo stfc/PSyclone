@@ -138,6 +138,13 @@ def test_importinterface():
     assert ("ImportInterface orig_name parameter must be of type str or None, "
             "but found 'list'." in str(info.value))
 
+    # Two import interfaces are considered 'equal' if they are importing from
+    # a container of the same name, independent of case.
+    container_symbol2 = ContainerSymbol("my_MOD")
+    import_interface2 = ImportInterface(container_symbol2)
+    assert import_interface == import_interface2
+    assert import_interface != "my_mod"
+
 
 def test_importinterface_container_symbol_getter_setter():
     '''Test that the container_symbol getter and setter properties
