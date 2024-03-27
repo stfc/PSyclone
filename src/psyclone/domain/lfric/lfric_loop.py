@@ -804,7 +804,7 @@ class LFRicLoop(PSyLoop):
             if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if self._upper_bound_halo_depth:
                     # TODO: #696 Add kind (precision) once the
-                    # DynInvokeSchedule constructor has been extended to
+                    # LFRicInvokeSchedule constructor has been extended to
                     # create the necessary symbols.
                     halo_depth = Literal(str(self._upper_bound_halo_depth),
                                          INTEGER_TYPE)

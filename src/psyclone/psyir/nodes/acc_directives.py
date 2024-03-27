@@ -121,11 +121,11 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
         '''
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynInvokeSchedule
+        from psyclone.domain.lfric import LFRicInvokeSchedule
         from psyclone.gocean1p0 import GOInvokeSchedule
         from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 
-        if self.ancestor((DynInvokeSchedule, GOInvokeSchedule)):
+        if self.ancestor((LFRicInvokeSchedule, GOInvokeSchedule)):
             # Look-up the kernels that are children of this node
             sig_set = set()
             for call in self.kernels():
