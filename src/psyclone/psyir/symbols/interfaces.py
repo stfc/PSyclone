@@ -180,8 +180,11 @@ class ImportInterface(SymbolInterface):
     def __eq__(self, other):
         if type(other) is not type(self):
             return False
-        return (self.container_symbol.name.lower() ==
-                other.container_symbol.name.lower())
+        if self.container_symbol != other.container_symbol:
+            return False
+        orig_name = self.orig_name.lower() if self.orig_name else ""
+        other_oname = other.orig_name.lower() if other.orig_name else ""
+        return orig_name == other_oname
 
     def copy(self):
         '''

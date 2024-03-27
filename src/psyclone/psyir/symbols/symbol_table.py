@@ -604,17 +604,14 @@ class SymbolTable():
                 continue
 
             if other_sym.is_import and this_sym.is_import:
-                # Both symbols are imported. That's fine as long as they are
-                # imported from the same Container.
-                if not self._has_same_name(
-                        other_sym.interface.container_symbol,
-                        this_sym.interface.container_symbol):
+                # Both symbols are imported. That's fine as long as they have
+                # the same import interface (are imported from the same
+                # Container and refer to the same Symbol in that Container).
+                if this_sym.interface != other_sym.interface:
                     raise SymbolError(
-                        f"This table has an import of '{this_sym.name}' from "
-                        f"Container "
-                        f"'{this_sym.interface.container_symbol.name}' but "
-                        f"the supplied table imports it from Container "
-                        f"'{other_sym.interface.container_symbol.name}'.")
+                        f"This table has an import of '{this_sym.name}' via "
+                        f"interface '{this_sym.interface}' but the supplied "
+                        f"table imports it via '{other_sym.interface}'.")
                 continue
 
             if other_sym.is_unresolved and this_sym.is_unresolved:

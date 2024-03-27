@@ -917,6 +917,54 @@ def test_merge_container_syms():
     assert "due to unresolvable name clashes." in err_txt
 
 
+def test_merge_with_use_renaming(fortran_reader):
+    '''Test that merging works when both tables contain a use of
+    a specific variable from a module but give it different local names.
+
+    '''
+    code = '''\
+subroutine A
+  use modA, only : var_a => var_b
+end subroutine A
+subroutine B
+  use modA, only : var_c => var_b
+end subroutine B
+subroutine C
+  use modA, only: var_b => other_var
+end subroutine C
+subroutine D
+  use modA, only: var_b => another_var
+end subroutine D
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routines = psyir.walk(Routine)
+    table = routines[0].symbol_table
+    # Routine B
+    table.merge(routines[1].symbol_table)
+    cntr = table.lookup("moda")
+    imported_syms = table.symbols_imported_from(cntr)
+    assert len(imported_syms) == 2
+    asym = table.lookup("var_a")
+    csym = table.lookup("var_c")
+    assert asym in imported_syms
+    assert csym in imported_syms
+    assert asym.interface.orig_name == "var_b"
+    assert csym.interface.orig_name == "var_b"
+    # Routine C
+    table.merge(routines[2].symbol_table)
+    imported_syms = table.symbols_imported_from(cntr)
+    assert len(imported_syms) == 3
+    bsym = table.lookup("var_b")
+    assert bsym in imported_syms
+    assert bsym.interface.orig_name == "other_var"
+    # Routine D. These tables cannot be merged because the same local name
+    # is associated with a different module variable.
+    print(str(routines[3].symbol_table))
+    with pytest.raises(symbols.SymbolError) as err:
+        table.merge(routines[3].symbol_table)
+    assert "Cannot merge Symbol Table of Routine 'D'" in str(err.value)
+
+
 def test_add_container_symbols_from_table():
     '''Test that the _add_container_symbols_from_table method copies Container
     symbols into the current table and updates any import interfaces.'''
@@ -1700,9 +1748,9 @@ def test_copy_external_import():
     assert "my_mod" in symtab
     assert var.interface.container_symbol.name == "my_mod"
     # The symtab items should be new copies not connected to the original
-    assert symtab.lookup("a") != var
-    assert symtab.lookup("my_mod") != container
-    assert symtab.lookup("a").interface.container_symbol != container
+    assert symtab.lookup("a") is not var
+    assert symtab.lookup("my_mod") is not container
+    assert symtab.lookup("a").interface.container_symbol is not container
 
     # Copy a second imported_var with a reference to the same external
     # Container
@@ -1713,13 +1761,13 @@ def test_copy_external_import():
     assert "b" in symtab
     assert "my_mod" in symtab
     assert var2.interface.container_symbol.name == "my_mod"
-    assert symtab.lookup("b") != var2
-    assert symtab.lookup("my_mod") != container2
-    assert symtab.lookup("b").interface.container_symbol != container2
+    assert symtab.lookup("b") is not var2
+    assert symtab.lookup("my_mod") is not container2
+    assert symtab.lookup("b").interface.container_symbol is not container2
 
     # The new imported_var should reuse the available container reference
-    assert symtab.lookup("a").interface.container_symbol == \
-        symtab.lookup("b").interface.container_symbol
+    assert (symtab.lookup("a").interface.container_symbol is
+            symtab.lookup("b").interface.container_symbol)
 
     # The copy of imported_vars that already exist is supported
     var3 = symbols.DataSymbol("b", symbols.UnresolvedType(),
