@@ -661,7 +661,7 @@ code. This allows us to generate a "vanilla" PSy layer. For example::
         CONTAINS
         SUBROUTINE invoke_0(field)
           TYPE(field_type), intent(in) :: field
-          INTEGER df
+          INTEGER(KIND=i_def) df
           INTEGER(KIND=i_def) loop0_start, loop0_stop
           TYPE(field_proxy_type) field_proxy
           INTEGER(KIND=i_def) undf_aspc1_field
