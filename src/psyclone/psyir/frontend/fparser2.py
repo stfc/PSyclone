@@ -43,7 +43,7 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
 import os
-from typing import Optional
+from typing import Optional, List
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import C99Preprocessor, Fortran2003, utils
@@ -1099,12 +1099,13 @@ class Fparser2Reader():
 
         """
         # 'str | None' syntax is only supported in Python >=3.10 so use
-        # Optional[].
-        guard_type: list[Optional[str]] = field(default_factory=list)
-        guard_type_name: list[Optional[str]] = field(default_factory=list)
-        intrinsic_type_name: list[Optional[str]] = field(default_factory=list)
-        clause_type: list[str] = field(default_factory=list)
-        stmts: list[list[StmtBase]] = field(default_factory=list)
+        # 'typing.Optional[]'. Similarly, 'list[str]' is only valid in
+        # Python >=3.9 so use 'typing.List[str]'.
+        guard_type: List[Optional[str]] = field(default_factory=list)
+        guard_type_name: List[Optional[str]] = field(default_factory=list)
+        intrinsic_type_name: List[Optional[str]] = field(default_factory=list)
+        clause_type: List[str] = field(default_factory=list)
+        stmts: List[List[StmtBase]] = field(default_factory=list)
         selector: str = ""
         num_clauses: int = -1
         default_idx: int = -1
