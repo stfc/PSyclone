@@ -40,7 +40,7 @@ parallelisation approach, or if the performance in the inline code is
 better than the intrinsic.
 
 '''
-from psyclone.psyir.nodes import Reference, IntrinsicCall
+from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations.intrinsics.array_reduction_base_trans \
     import ArrayReductionBaseTrans
 
