@@ -69,7 +69,7 @@ class AssignmentTrans(AdjointTransformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         # Split the RHS of the assignment into [-]<term> +- <term> +- ...
         rhs_terms = self._split_nodes(

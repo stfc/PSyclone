@@ -101,7 +101,9 @@ def test_real_to_real_x(tmpdir, monkeypatch, annexed, dist_mem):
 
     # Check built-in loop for 'r_def'
     output = (
-        "      DO df=loop1_start,loop1_stop\n"
+        "      DO df = loop1_start, loop1_stop, 1\n"
+        "        ! Built-in: real_to_real_X (convert a real-valued to "
+        "a real-valued field)\n"
         "        f1_data(df) = REAL(f3_data(df), kind=r_def)\n"
         "      END DO\n"
         )
@@ -109,7 +111,9 @@ def test_real_to_real_x(tmpdir, monkeypatch, annexed, dist_mem):
 
     # Check built-in loop for 'r_tran'
     output = (
-        "      DO df=loop0_start,loop0_stop\n"
+        "      DO df = loop0_start, loop0_stop, 1\n"
+        "        ! Built-in: real_to_real_X (convert a real-valued to "
+        "a real-valued field)\n"
         "        f2_data(df) = REAL(f1_data(df), kind=r_tran)\n"
         "      END DO\n"
         )
@@ -117,7 +121,9 @@ def test_real_to_real_x(tmpdir, monkeypatch, annexed, dist_mem):
 
     # Check built-in loop for 'r_solver'
     output = (
-        "      DO df=loop2_start,loop2_stop\n"
+        "      DO df = loop2_start, loop2_stop, 1\n"
+        "        ! Built-in: real_to_real_X (convert a real-valued to "
+        "a real-valued field)\n"
         "        f3_data(df) = REAL(f2_data(df), kind=r_solver)\n"
         "      END DO\n"
         )
