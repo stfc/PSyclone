@@ -80,6 +80,9 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
 	# issue: dg_inc_matrix_vector_kernel: multi-precision kernels not supported
 	$(MAKE) single -e TL_KERNEL_NAME=dg_inc_matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
+	# Active stencil. Re-written so that stencil computation is performed by a
+	# subroutine which is passed cell indices.
+	$(MAKE) single -e TL_KERNEL_NAME=poly1d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
 
 compile:
 	@echo No compilation supported.
