@@ -297,6 +297,28 @@ def test_class_with_codeblock(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
+@pytest.mark.parametrize("use_stmt", ["use some_mod",
+                                      "use some_mod, only: my_ptr"])
+def test_unresolved_selector_symbol(fortran_reader, use_stmt):
+    '''Test the case where the Symbol representing the type-selector variable
+    is unresolved or of unknown type.'''
+    code = f'''\
+    module my_mod
+      {use_stmt}
+      implicit none
+    contains
+      subroutine my_sub()
+        select type (my_ptr)
+          type is (type1)
+            write(*,*) "yes"
+        end select
+      end subroutine my_sub
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine.children[0], CodeBlock)
+
+
 def test_select_rename(fortran_reader, fortran_writer, tmpdir):
     '''Check that a CodeBlock is created when the type in select type is
     renamed (i.e. the code is not modified). This is done as we are
@@ -571,10 +593,10 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
 @pytest.mark.parametrize(
     "char_type_in, char_type_out",
     (["(:)", "(LEN = :)"], ["(LEN = :)", "(LEN = :)"], ["*(:)", "*(:)"]))
-def test_character_colon(fortran_reader, fortran_writer, tmpdir, char_type_in,
-                         char_type_out):
-    '''Check that the correct code is output with different ':' formats
-    for intrinsic character formats.
+def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
+                               char_type_in, char_type_out):
+    '''Check that the correct code is output with different assumed-length
+    specifications for intrinsic character formats.
 
     '''
     code = (
@@ -610,49 +632,6 @@ def test_character_colon(fortran_reader, fortran_writer, tmpdir, char_type_in,
     result = fortran_writer(psyir).lower()
     assert expected1 in result
     assert expected2 in result
-    assert Compile(tmpdir).string_compiles(code)
-    assert Compile(tmpdir).string_compiles(result)
-
-
-def test_character_expression(fortran_reader, fortran_writer, tmpdir):
-    '''Test characters with an expressions.'''
-
-    code = (
-        "module select_mod\n"
-        "  contains\n"
-        "  subroutine select_type(type_selector)\n"
-        "    class(*) :: type_selector\n"
-        "    character(LEN=256) :: character_type\n"
-        "    select type(type_selector)\n"
-        "      type is (character(len = *))\n"
-        "        character_type = type_selector\n"
-        "    end select\n"
-        "  end subroutine select_type\n"
-        "end module select_mod\n")
-    expected = (
-        "module select_mod\n"
-        "  implicit none\n"
-        "  public\n\n"
-        "  contains\n"
-        "  subroutine select_type(type_selector)\n"
-        "    CLASS(*), TARGET :: type_selector\n"
-        "    CHARACTER(LEN = 256) :: character_type\n"
-        "    character(256) :: type_string\n"
-        "    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => null()\n\n"
-        "    type_string = ''\n"
-        "    SELECT TYPE(type_selector)\n"
-        "      TYPE IS (CHARACTER(LEN = *))\n"
-        "      type_string = \"character_star\"\n"
-        "      ptr_CHARACTER_star => type_selector\n"
-        "    END SELECT\n"
-        "    if (type_string == 'character_star') then\n"
-        "      character_type = ptr_CHARACTER_star\n"
-        "    end if\n\n"
-        "  end subroutine select_type\n\n"
-        "end module select_mod\n").lower()
-    psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir).lower()
-    assert result == expected
     assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 

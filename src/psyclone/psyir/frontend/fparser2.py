@@ -3842,7 +3842,12 @@ class Fparser2Reader():
         # has the pointer or target attribute as we need to create
         # pointers that point to it to get the specific type.
         symbol_table = outer_ifblock.scope.symbol_table
-        symbol = symbol_table.lookup(select_type.selector)
+        try:
+            symbol = symbol_table.lookup(select_type.selector)
+        except KeyError as err:
+            raise NotImplementedError(
+                f"Type-selector variable' {select_type.selector}' is "
+                f"unresolved") from err
         if symbol.is_unresolved or not isinstance(symbol, DataSymbol):
             raise NotImplementedError(
                 f"Unexpected symbol '{symbol}' found when searching for the "
