@@ -100,7 +100,9 @@ def test_int_to_real_x(tmpdir, monkeypatch, annexed, dist_mem):
 
     # Check built-in loop
     output = (
-        "      DO df=loop0_start,loop0_stop\n"
+        "      DO df = loop0_start, loop0_stop, 1\n"
+        "        ! Built-in: int_to_real_X (convert an integer-valued to a "
+        "real-valued field)\n"
         "        f2_data(df) = REAL(f1_data(df), kind=r_def)\n"
         "      END DO\n")
     assert output in code
@@ -185,5 +187,7 @@ def test_int_to_real_x_lowering(fortran_writer):
     loop = first_invoke.schedule.walk(Loop)[0]
     code = fortran_writer(loop)
     assert ("do df = loop0_start, loop0_stop, 1\n"
+            "  ! Built-in: int_to_real_X (convert an integer-valued to a "
+            "real-valued field)\n"
             "  f2_data(df) = REAL(f1_data(df), kind=r_def)\n"
             "enddo") in code

@@ -45,21 +45,15 @@ import re
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import Arg, parse
-from psyclone.parse.kernel import Descriptor
+from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
 from psyclone.gocean1p0 import (GOKern, GOLoop, GOKernelArgument,
-                                GOKernelArguments, GOKernelGridArgument,
-                                GOBuiltInCallFactory)
+                                GOKernelGridArgument, GOBuiltInCallFactory)
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.tests.gocean_build import GOceanBuild
-from psyclone.psyir.nodes import (Node, StructureReference, Member,
-                                  StructureMember, Reference, Literal)
-from psyclone.psyir.symbols import (
-    ContainerSymbol, ImportInterface, SymbolTable,
-    INTEGER_TYPE, DataTypeSymbol, ScalarType)
+from psyclone.psyir.symbols import ContainerSymbol, ImportInterface
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 
 API = "gocean1.0"
@@ -1081,35 +1075,6 @@ def test_find_grid_access(monkeypatch):
     # find_grid_access should now return None
     arg = kern.arguments.find_grid_access()
     assert arg is None
-
-
-def test_raw_arg_list_error(monkeypatch):
-    ''' Test that we raise an internal error in the
-    GOKernelArguments.raw_arg_list method if there's no argument from which
-    to get the grid properties. '''
-    _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
-                           API, idx=0)
-    schedule = invoke.schedule
-    kern = schedule.coded_kernels()[0]
-    assert isinstance(kern, GOKern)
-    raw_list = kern.arguments.raw_arg_list()
-    assert raw_list == ['i', 'j', 'z_fld%data', 'p_fld%data', 'u_fld%data',
-                        'v_fld%data', 'p_fld%grid%dx', 'p_fld%grid%dy']
-    # Now monkeypatch find_grid_access()
-    monkeypatch.setattr(kern.arguments, "find_grid_access", lambda: None)
-    kern.arguments._raw_arg_list = None
-    with pytest.raises(GenerationError) as err:
-        _ = kern.arguments.raw_arg_list()
-    assert ("kernel compute_z_code requires grid property dx but does not "
-            "have any arguments that are fields" in str(err.value))
-    # Now monkeypatch one of the kernel arguments so that it has an
-    # unrecognised type
-    monkeypatch.setattr(kern.arguments._args[0]._arg, "_argument_type",
-                        "broken")
-    with pytest.raises(InternalError) as err:
-        _ = kern.arguments.raw_arg_list()
-    assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
-            "'broken'" in str(err.value))
 
 
 def test_invalid_access_type():

@@ -1300,57 +1300,6 @@ class GOKernelArguments(Arguments):
                                  f"['grid_property', 'scalar', 'field'].")
         self._dofs = []
 
-    def raw_arg_list(self):
-        '''
-        :returns: a list of all of the actual arguments to the \
-                  kernel call.
-        :rtype: list of str
-
-        :raises GenerationError: if the kernel requires a grid property \
-                                 but has no field arguments.
-        :raises InternalError: if we encounter a kernel argument with an \
-                               unrecognised type.
-        '''
-        if self._raw_arg_list:
-            return self._raw_arg_list
-
-        # Before we do anything else, go through the arguments and
-        # determine the best one from which to obtain the grid properties.
-        grid_arg = self.find_grid_access()
-
-        # A GOcean 1.0 kernel always requires the [i,j] indices of the
-        # grid-point that is to be updated
-        arguments = ["i", "j"]
-        for arg in self._args:
-
-            if arg.argument_type == "scalar":
-                # Scalar arguments require no de-referencing
-                arguments.append(arg.name)
-            elif arg.argument_type == "field":
-                # Field objects are Fortran derived-types
-                api_config = Config.get().api_conf("gocean1.0")
-                # TODO: #676 go_grid_data is actually a field property
-                data = api_config.grid_properties["go_grid_data"].fortran\
-                    .format(arg.name)
-                arguments.append(data)
-            elif arg.argument_type == "grid_property":
-                # Argument is a property of the grid which we can access via
-                # the grid member of any field object.
-                # We use the most suitable field as chosen above.
-                if grid_arg is None:
-                    raise GenerationError(
-                        f"Error: kernel {self._parent_call.name} requires "
-                        f"grid property {arg.name} but does not have any "
-                        f"arguments that are fields")
-                arguments.append(arg.dereference(grid_arg.name))
-            else:
-                raise InternalError(f"Kernel {self._parent_call.name}, "
-                                    f"argument {arg.name} has "
-                                    f"unrecognised type: "
-                                    f"'{arg.argument_type}'")
-        self._raw_arg_list = arguments
-        return self._raw_arg_list
-
     def psyir_expressions(self):
         '''
         :returns: the PSyIR expressions representing this Argument list.
@@ -1480,7 +1429,6 @@ class GOKernelArguments(Arguments):
         arg = Arg("variable", name)
         argument = GOKernelArgument(descriptor, arg, self._parent_call)
         self.args.append(argument)
-        # self.raw_arg_list().append(name)
 
 
 class GOKernelArgument(KernelArgument):

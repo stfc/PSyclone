@@ -51,8 +51,6 @@ have already been preprocessed (if required).
 '''
 
 from __future__ import print_function, absolute_import
-from psyclone.psyGen import InlinedKern
-from psyclone.psyir.nodes import CodeBlock
 
 
 def trans(psy):

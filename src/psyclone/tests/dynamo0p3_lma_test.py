@@ -56,6 +56,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.psyir.backend.visitor import VisitorError
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -624,8 +625,7 @@ def test_operator_different_spaces(tmpdir):
         "        CALL coord_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
         "nlayers, mapping_proxy%ncell_3d, mapping_local_stencil, "
         "coord_1_data, coord_2_data, coord_3_data, "
@@ -742,7 +742,7 @@ def test_operator_read_level1_halo(tmpdir):
     # (of the operator)
     loop.set_upper_bound("cell_halo", index=2)
     # Attempt to generate the code
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("Kernel 'testkern_operator_read_code' reads from an operator and "
             "therefore cannot be used for cells beyond the level 1 halo. "
@@ -792,7 +792,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     monkeypatch.setattr(arg, "_argument_type", value="gh_field")
     # We have to add a tag to the Symbol table to get to the desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("Expected an LMA operator from which to look-up boundary dofs "
             "but kernel enforce_operator_bc_code has argument gh_field") \
@@ -815,7 +815,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     # this argument. We take a copy because otherwise, when we change
     # the type of arg 1 below, we change it for both.
     call.arguments.args.append(copy.copy(arg))
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
             "should only have 1 (an LMA operator)") in str(excinfo.value)
@@ -823,7 +823,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     call.arguments.args[1]._argument_type = "gh_field"
     # We have to add a tag to the Symbol table to get to the desired error.
     schedule.symbol_table.find_or_create_tag("op_a:data")
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
             "should only have 1 (an LMA operator)") in str(excinfo.value)
@@ -842,7 +842,7 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem):
     call = loop.loop_body[0]
     arg = call.arguments.args[0]
     arg._access = AccessType.READ
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("applies boundary conditions to an operator. However its "
             "operator argument has access gh_read rather than "
