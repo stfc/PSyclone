@@ -42,7 +42,7 @@ import os
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import Signature
+from psyclone.core import Signature, SingleVariableAccessInfo
 from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn
@@ -487,3 +487,24 @@ def testcall_tree_utils_non_local_inout_parameters(capsys):
             in rw_info.write_list)
     assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
             in rw_info.write_list)
+
+
+# -----------------------------------------------------------------------------
+def test_call_tree_errors(capsys):
+    '''Tests that trying to import a variable from a module that does not
+    contain the variable is handled, i.e. printing a warning and otherwise
+    ignores (TODO #2120)
+    '''
+    test_dir = os.path.join(get_base_path("dynamo0.3"))
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(test_dir)
+
+    read_write_info = ReadWriteInfo()
+    ctu = CallTreeUtils()
+    sva = SingleVariableAccessInfo(Signature("a"))
+    ctu._resolve_calls_and_unknowns([("unknown", "constants_mod",
+                                      Signature("does_not_exist"), sva)],
+                                    read_write_info)
+    out, _ = capsys.readouterr()
+
+    assert "Cannot find signature 'does_not_exist'" in out
