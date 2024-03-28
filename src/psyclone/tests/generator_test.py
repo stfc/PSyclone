@@ -58,6 +58,7 @@ from psyclone import generator
 from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
     generate, main, check_psyir, add_builtins_use)
@@ -66,7 +67,6 @@ from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.version import __VERSION__
 
 
@@ -494,7 +494,7 @@ def test_script_trans_dynamo0p3():
     schedule = invoke.schedule
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
-    trans = LoopFuseTrans()
+    trans = LFRicLoopFuseTrans()
     trans.apply(loop1, loop2)
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script

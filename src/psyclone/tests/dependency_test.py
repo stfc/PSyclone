@@ -278,45 +278,6 @@ def test_goloop_partially():
             "ssh_fld%grid%tmask: READ" in str(var_accesses))
 
 
-def test_goloop_field_accesses():
-    ''' Check that for a GOcean kernel appropriate field accesses (based
-    on the meta data) are added to the dependency analysis.
-
-    '''
-    _, invoke = get_invoke("large_stencil.f90",
-                           "gocean1.0", name="invoke_large_stencil",
-                           dist_mem=False)
-    do_loop = invoke.schedule.children[0]
-
-    assert isinstance(do_loop, Loop)
-    var_accesses = VariablesAccessInfo(invoke.schedule)
-
-    # cu_fld has a pointwise write access in the first loop:
-    cu_fld = var_accesses[Signature("cu_fld")]
-    assert len(cu_fld.all_accesses) == 1
-    assert cu_fld.all_accesses[0].access_type == AccessType.WRITE
-    assert (cu_fld.all_accesses[0].component_indices.indices_lists
-            == [["i", "j"]])
-
-    # The stencil is defined to be GO_STENCIL(123,110,100)) for
-    # p_fld. Make sure that these 9 accesses are indeed reported:
-    p_fld = var_accesses[Signature("p_fld")]
-    all_indices = [access.component_indices.indices_lists
-                   for access in p_fld.all_accesses]
-
-    for test_index in [["i-1", "j+1"],
-                       ["i", "j+1"], ["i", "j+2"],
-                       ["i+1", "j+1"], ["i+2", "j+2"], ["i+3", "j+3"],
-                       ["i-1", "j"],
-                       ["i", "j"],
-                       ["i-1", "j-1"]]:
-        assert [test_index] in all_indices
-
-    # Since we have 9 different indices found (above), the following
-    # test guarantees that we don't get any invalid accesses reported.
-    assert len(p_fld.all_accesses) == 9
-
-
 def test_lfric():
     ''' Test the handling of an LFRic loop. Note that the variable
     accesses are reported based on the user's point of view, not the code

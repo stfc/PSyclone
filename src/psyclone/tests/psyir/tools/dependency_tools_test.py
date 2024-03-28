@@ -42,6 +42,7 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyir.tools import DependencyTools, DTCode
+from psyclone.tests.utilities import get_invoke
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -59,17 +60,17 @@ def test_messages():
 
     # There aren't currently any INFO messages so we invent one by simply
     # adding one to the minimum INFO error code.
-    dep_tools._add_message("info-test", DTCode.INFO_MIN+1,
+    dep_tools._add_message("info-test.", DTCode.INFO_MIN+1,
                            ["a", "b"])
     msg = dep_tools.get_all_messages()[0]
-    assert str(msg) == "Info: info-test"
+    assert str(msg) == "Info: info-test. Variables: ['a', 'b']."
     assert msg.code == DTCode.INFO_MIN + 1
     assert msg.var_names == ["a", "b"]
 
-    dep_tools._add_message("warning-test", DTCode.WARN_SCALAR_REDUCTION,
+    dep_tools._add_message("warning-test.", DTCode.WARN_SCALAR_REDUCTION,
                            ["a"])
     msg = dep_tools.get_all_messages()[1]
-    assert str(msg) == "Warning: warning-test"
+    assert str(msg) == "Warning: warning-test. Variable: 'a'."
     assert msg.code == DTCode.WARN_SCALAR_REDUCTION
     assert msg.var_names == ["a"]
 
@@ -179,11 +180,11 @@ def test_arrays_parallelise(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(ji,jj)' and to 'mask(ji,jj + 1)' are "
-            "dependent and cannot be parallelised."
-            in str(msg))
+    assert ("The write access to 'mask(ji,jj)' and the read access to "
+            "'mask(ji,jj + 1)' are dependent and cannot be parallelised. "
+            "Variable: 'mask'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
-    assert msg.var_names == ["mask(ji,jj)", "mask(ji,jj + 1)"]
+    assert msg.var_names == ["mask"]
 
 
 # -----------------------------------------------------------------------------
@@ -584,10 +585,11 @@ def test_derived_type(fortran_reader):
     # next assignment to a derived type.
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'a%b(ji,jj)' and to 'a%b(ji,jj - 1)' are "
-            "dependent and cannot be parallelised." in str(msg))
+    assert ("The write access to 'a%b(ji,jj)' and the read access to "
+            "'a%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+            "Variable: 'a%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
-    assert msg.var_names == ["a%b(ji,jj)", "a%b(ji,jj - 1)"]
+    assert msg.var_names == ["a%b"]
 
     parallel = dep_tools.can_loop_be_parallelised(loops[1],
                                                   test_all_variables=True)
@@ -595,14 +597,16 @@ def test_derived_type(fortran_reader):
     # Now we must have two messages, one for each of the two assignments
     assert len(dep_tools.get_all_messages()) == 2
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'a%b(ji,jj)' and to 'a%b(ji,jj - 1)' are "
-            "dependent and cannot be parallelised." in str(msg))
-    assert msg.var_names == ["a%b(ji,jj)", "a%b(ji,jj - 1)"]
+    assert ("The write access to 'a%b(ji,jj)' and the read access "
+            "to 'a%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+            "Variable: 'a%b'." in str(msg))
+    assert msg.var_names == ["a%b"]
     msg = dep_tools.get_all_messages()[1]
-    assert ("The write access to 'b%b(ji,jj)' and to 'b%b(ji,jj - 1)' are "
-            "dependent and cannot be parallelised." in str(msg))
+    assert ("The write access to 'b%b(ji,jj)' and the read access to "
+            "'b%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+            "Variable: 'b%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
-    assert msg.var_names == ["b%b(ji,jj)", "b%b(ji,jj - 1)"]
+    assert msg.var_names == ["b%b"]
 
     # Test that variables are ignored as expected.
     parallel = dep_tools.\
@@ -611,10 +615,11 @@ def test_derived_type(fortran_reader):
     assert parallel is False
     assert len(dep_tools.get_all_messages()) == 1
     msg = dep_tools.get_all_messages()[0]
-    assert ("he write access to 'b%b(ji,jj)' and to 'b%b(ji,jj - 1)' are "
-            "dependent and cannot be parallelised" in str(msg))
+    assert ("The write access to 'b%b(ji,jj)' and the read access to "
+            "'b%b(ji,jj - 1)' are dependent and cannot be parallelised. "
+            "Variable: 'b%b'." in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
-    assert msg.var_names == ["b%b(ji,jj)", "b%b(ji,jj - 1)"]
+    assert msg.var_names == ["b%b"]
 
     # If both derived types are ignored, the loop should be marked
     # to be parallelisable
@@ -710,8 +715,29 @@ def test_reserved_words(fortran_reader):
     parallel = dep_tools.can_loop_be_parallelised(loops[3])
     assert parallel is False
     msg = dep_tools.get_all_messages()[0]
-    assert ("The write access to 'mask(ji,lambda)' and to "
-            "'mask(ji,lambda + 1)' are dependent and cannot be parallelised."
+    assert ("The write access to 'mask(ji,lambda)' and "
+            "the read access to 'mask(ji,lambda + 1)' are "
+            "dependent and cannot be parallelised. Variable: 'mask'."
             in str(msg))
     assert msg.code == DTCode.ERROR_DEPENDENCY
-    assert msg.var_names == ["mask(ji,lambda)", "mask(ji,lambda + 1)"]
+    assert msg.var_names == ["mask"]
+
+
+# -----------------------------------------------------------------------------
+def test_gocean_parallel():
+    '''Check that PSyclones gives useful error messages for a GOKern.'''
+
+    # TODO #2531: this kernel should not be accepted in the first place.
+    _, invoke = get_invoke("test31_stencil_not_parallel.f90",
+                           api="gocean1.0", idx=0, dist_mem=False)
+
+    loop = invoke.schedule.children[0]
+    dep_tools = DependencyTools()
+    parallel = dep_tools.can_loop_be_parallelised(loop)
+    assert not parallel
+
+    assert ("The write access to 'u_fld(i,j)' in '< kern call: "
+            "stencil_not_parallel_code >' and the read access to "
+            "'u_fld(i,j - 1)' in '< kern call: stencil_not_parallel_code >' "
+            "are dependent and cannot be parallelised. Variable: 'u_fld'."
+            in str(dep_tools.get_all_messages()[0]))
