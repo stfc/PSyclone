@@ -143,23 +143,23 @@ subroutine poly2d_reconstruction_code( nlayers,              &
   do p = 1,cells_in_stencil
     if (p == 1) then
        ! Diagonal (owned-cell) update.
-       call compute_reconstruction( &
-            p, nfaces, reconstruction, map_md(1), &
-            coeff, map_c(1), tracer, stencil_map(1,p), nl)
+       !call compute_reconstruction( &
+       !     p, nfaces, stencil_size, reconstruction, map_md(1), &
+       !     coeff, map_c(1), tracer, stencil_map(1,p), nl)
     else
        ! Off-diagonal update.
-       call compute_reconstruction( &
-            p, nfaces, reconstruction, map_md(1), &
-            coeff, map_c(1), tracer, stencil_map(1,p), nl)
+       !call compute_reconstruction( &
+       !     p, nfaces, stencil_size, reconstruction, map_md(1), &
+       !     coeff, map_c(1), tracer, stencil_map(1,p), nl)
     end if
   end do
 
 end subroutine poly2d_reconstruction_code
 
 subroutine compute_reconstruction(          &
-     p, nfaces, reconstruction, recon_cell, &
+     p, nfaces, stencil_size, reconstruction, recon_cell, &
      coeff, coeff_cell, tracer, tracer_cell, nl)
-  integer, intent(in) :: p, nfaces, nl
+  integer, intent(in) :: p, nfaces, stencil_size, nl
   integer, intent(in) :: recon_cell, coeff_cell, tracer_cell
   real(kind=r_tran), intent(inout) :: reconstruction(:)
   real(kind=r_tran), intent(in) :: tracer(:), coeff(:)
@@ -175,6 +175,6 @@ subroutine compute_reconstruction(          &
                                  + tracer( id_t + k )*coeff( id_c )
      end do
   end do
-end subroutine compute_recon
+end subroutine compute_reconstruction
 
 end module poly2d_reconstruction_kernel_mod
