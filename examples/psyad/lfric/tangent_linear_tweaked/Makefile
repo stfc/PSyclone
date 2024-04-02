@@ -83,6 +83,7 @@ transform:
 	# Active stencil. Re-written so that stencil computation is performed by a
 	# subroutine which is passed cell indices.
 	$(MAKE) single -e TL_KERNEL_NAME=poly1d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
+	$(MAKE) single -e TL_KERNEL_NAME=poly2d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
 
 compile:
 	@echo No compilation supported.
