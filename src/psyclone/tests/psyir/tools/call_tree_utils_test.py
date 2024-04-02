@@ -46,7 +46,7 @@ from psyclone.core import Signature, SingleVariableAccessInfo
 from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn
-from psyclone.psyir.nodes import Reference, Schedule
+from psyclone.psyir.nodes import CodeBlock, Reference, Schedule
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -490,14 +490,14 @@ def testcall_tree_utils_non_local_inout_parameters(capsys):
 
 
 # -----------------------------------------------------------------------------
-def test_call_tree_errors(capsys):
+def test_call_tree_error_var_not_found(capsys):
     '''Tests that trying to import a variable from a module that does not
     contain the variable is handled, i.e. printing a warning and otherwise
     ignores (TODO #2120)
     '''
-    test_dir = os.path.join(get_base_path("dynamo0.3"))
+    dyn_test_dir = get_base_path("dynamo0.3")
     mod_man = ModuleManager.get()
-    mod_man.add_search_path(test_dir)
+    mod_man.add_search_path(os.path.join(dyn_test_dir, "infrastructure"))
 
     read_write_info = ReadWriteInfo()
     ctu = CallTreeUtils()
@@ -508,3 +508,30 @@ def test_call_tree_errors(capsys):
     out, _ = capsys.readouterr()
 
     assert "Cannot find signature 'does_not_exist'" in out
+
+
+# -----------------------------------------------------------------------------
+def test_call_tree_error_module_is_codeblock(capsys):
+    '''Tests that a module that cannot be parsed and becomes a codeblock
+    is handled correctly.
+    '''
+    dyn_test_dir = get_base_path("dynamo0.3")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(os.path.join(dyn_test_dir, "driver_creation"))
+
+    cblock = CodeBlock([], "dummy")
+    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
+    # get_psyir returns the module PSyIR, which we need to replace with
+    # the codeblock in order to reproduce this error:
+    container = mod_info.get_psyir()
+    container.replace_with(cblock)
+
+    ctu = CallTreeUtils()
+    sva = SingleVariableAccessInfo(Signature("a"))
+    read_write_info = ReadWriteInfo()
+    ctu._resolve_calls_and_unknowns(
+        [("routine", "testkern_import_symbols_mod",
+          Signature("testkern_import_symbols_code"), sva)], read_write_info)
+    out, _ = capsys.readouterr()
+    assert ("Cannot find symbol 'testkern_import_symbols_code' in module "
+            "'testkern_import_symbols_mod' - ignored." in out)
