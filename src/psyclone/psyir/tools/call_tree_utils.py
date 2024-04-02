@@ -371,6 +371,8 @@ class CallTreeUtils():
                 # generic interfaces:
                 all_routines = mod_info.resolve_routine(signature[0])
                 for routine_name in all_routines:
+                    # We need a try statement here in case that a whole
+                    # module becomes a CodeBlock
                     try:
                         routine = mod_info.get_psyir().\
                             get_routine_psyir(routine_name)
