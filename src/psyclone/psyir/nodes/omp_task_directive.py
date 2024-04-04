@@ -112,6 +112,14 @@ class OMPTaskDirective(OMPRegionDirective):
         return False
 
     @property
+    def firstprivate_clause(self):
+        """
+        :returns: the OMPFirstPrivateClause child of this node.
+        :rtype: :py:class:`psyclones.psyir.nodes.OMPFirstPrivateClause`
+        """
+        return self.children[2]
+
+    @property
     def input_depend_clause(self):
         """
         :returns: the OMPDependClause child of this node corresponding to \

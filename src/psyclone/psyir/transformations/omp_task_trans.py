@@ -196,9 +196,17 @@ class OMPTaskTrans(ParallelLoopTrans):
         :param options: a dictionary with options for transformations\
                         and validation.
         :type options: dictionary of string:values or None
+        :param bool options["enable-otter"]: whether to have the task region
+                                             profiled by the Otter task
+                                             profiling toool.
         '''
         self.validate(node, options=options)
         if not options:
             options = {}
         self._inline_kernels(node)
         super().apply(node, options)
+
+        enable_otter = options.get("enable-otter", False)
+        if enable_otter:
+            task = node.parent
+            task.otter_enabled = True
