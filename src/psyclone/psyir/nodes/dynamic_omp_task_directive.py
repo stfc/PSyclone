@@ -164,7 +164,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
     def __init__(self, children=None, parent=None, enable_otter=False):
         super().__init__(
-            children=children, parent=parent
+            children=children, parent=parent, enable_otter=enable_otter
         )
         # We don't know if we have a parent OMPParallelClause at initialisation
         # so we can only create dummy clauses for now.
@@ -186,26 +186,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         self._parent_parallel = None
         self._parallel_private = None
         self._parallel_firstprivate = None
-        self._otter_enabled = enable_otter
 
         # We need to do extra steps when inside a Kern to correctly identify
         # symbols.
         self._in_kern = False
-
-    @property
-    def otter_enabled(self):
-        '''
-        :returns: whether this node is adding otter profiling calls.
-        '''
-        return self._otter_enabled
-
-    @otter_enabled.setter
-    def otter_enabled(self, otter_enabled):
-        '''
-        :param bool otter_enabled: whether to enable otter profiling for this
-                                   task region.
-        '''
-        self._otter_enabled = otter_enabled
 
     def _array_for_clause_combination_helper(self, ref, temp_list,
                                              base_member=None):

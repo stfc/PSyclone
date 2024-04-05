@@ -1060,6 +1060,89 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             loc = taskwait_loc.position
             node_parent.addchild(OMPTaskwaitDirective(), loc)
 
+    def _add_otter_profiling(self):
+        '''
+        Docs TODO
+        '''
+        taskwaits = self.walk(OMPTaskwaitDirective)
+        add_around_self_and_parallel = False
+        if (isinstance(self.parent.parent, OMPParallelDirective) and
+                self.parent.children[-1] is self):
+            add_around_self_and_parallel = True
+
+        if len(taskwaits) == 0 and not add_around_self_and_parallel:
+            return
+
+        # Get the otter module and symbols from the symbol table.
+        routine_table = self.ancestor(Routine).symbol_table
+        iso_c_binding = routine_table.find_or_create_tag(
+                "iso_c_binding", root_name="iso_c_binding",
+                symbol_type=ContainerSymbol
+        )
+        c_ptr_type = routine_table.find_or_create_tag(
+                "iso_c_ptr_type", root_name="c_ptr",
+                symbol_type=DataTypeSymbol,
+                interface=ImportInterface(iso_c_binding)
+        )
+        c_null_ptr = routine_table.find_or_create_tag(
+                "iso_c_null_ptr", root_name="c_null_ptr",
+                symbol_type=DataSymbol,
+                interface=ImportInterface(iso_c_binding)
+        )
+        module_symbol = routine_table.find_or_create_tag(
+                "otter_module", root_name="otter_task_graph",
+                symbol_type=ContainerSymbol
+        )
+        task_synchronise = routine_table.find_or_create_tag(
+                "fortran_otterSynchroniseTasks",
+                root_name="fortran_otterSynchroniseTasks",
+                symbol_type=RoutineSymbol,
+                interface=ImportInterface(module_symbol)
+        )
+        otter_endpoint_enter = routine_table.find_or_create_tag(
+                "otter_endpoint_end",
+                root_name="otter_endpoint_end",
+                symbol_type=DataSymbol,
+                interface=ImportInterface(module_symbol)
+        )
+        otter_endpoint_leave = routine_table.find_or_create_tag(
+                "otter_endpoint_leave",
+                root_name="otter_endpoint_leave",
+                symbol_type=DataSymbol,
+                interface=ImportInterface(module_symbol)
+        )
+
+        for taskwait in taskwaits:
+            sync_enter_call = Call.create(task_synchronise,
+                                          [Reference(c_null_ptr),
+                                           Literal("1", INTEGER_TYPE),
+                                           Reference(otter_endpoint_enter)]
+                              )
+            sync_leave_call = Call.create(task_synchronise,
+                                          [Reference(c_null_ptr),
+                                           Literal("1", INTEGER_TYPE),
+                                           Reference(otter_endpoint_leave)]
+                              )
+            pos = taskwait.position
+            taskwait.parent.addchild(sync_leave_call, pos+1)
+            taskwait.parent.addchild(sync_enter_call, pos)
+        if add_around_self_and_parallel:
+            sync_enter_call = Call.create(task_synchronise,
+                                          [Reference(c_null_ptr),
+                                           Literal("1", INTEGER_TYPE),
+                                           Reference(otter_endpoint_enter)]
+                              )
+            sync_leave_call = Call.create(task_synchronise,
+                                          [Reference(c_null_ptr),
+                                           Literal("1", INTEGER_TYPE),
+                                           Reference(otter_endpoint_leave)]
+                              )
+            self.children[0].addchild(sync_enter_call)
+            # Add the leave after the parallel, which is parent.parent
+            pos = self.parent.parent.position
+            self.parent.parent.parent.addchild(sync_leave_call, pos+1)
+
+
     def lower_to_language_level(self):
         '''
         Checks that any task dependencies inside this node are valid.
@@ -1069,6 +1152,13 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
         # Validate any task dependencies in this OMPSerialRegion.
         self._validate_task_dependencies()
+
+        # Check if any of the tasks have otter profiling enabled.
+        otter_profiling = False
+        for task in self.walk(OMPTaskDirective):
+            otter_profiling = otter_profiling and task.otter_enabled
+        if otter_profiling:
+            self._add_otter_profiling()
 
     def validate_global_constraints(self):
         '''
