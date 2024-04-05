@@ -238,8 +238,8 @@ def test_argumentinterface_copy():
     new_interface.access = ArgumentInterface.Access.READ
     assert arg_interface.access == ArgumentInterface.Access.WRITE
 
+
 def test_preprocessorinterface():
     ''' Test the PreprocessorInterface method.'''
     interface = PreprocessorInterface()
     assert str(interface) == "Preprocessor"
-

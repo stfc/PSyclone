@@ -253,6 +253,7 @@ class ArgumentInterface(SymbolInterface):
         '''
         return self.__class__(access=self.access)
 
+
 class PreprocessorInterface(SymbolInterface):
     '''The symbol exists in the file through preprocessor directives or
     language extensions.'''
