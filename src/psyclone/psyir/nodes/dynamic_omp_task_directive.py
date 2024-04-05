@@ -84,6 +84,7 @@ from psyclone.psyir.symbols import (
     ImportInterface,
     RoutineSymbol,
     ScalarType,
+    StructureType,
     UnresolvedInterface,
     UnresolvedType,
     UnsupportedFortranType,
@@ -2205,17 +2206,20 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         c_ptr_type = routine_table.find_or_create_tag(
                 "iso_c_ptr_type", root_name="c_ptr",
                 symbol_type=DataTypeSymbol,
+                datatype=StructureType(),
                 interface=ImportInterface(iso_c_binding)
         )
 
         c_bool_precision = routine_table.find_or_create_tag(
                 "iso_c_bool_precision", root_name="c_bool",
                 symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE,
                 interface=ImportInterface(iso_c_binding)
         )
         c_null_ptr = routine_table.find_or_create_tag(
                 "iso_c_null_ptr", root_name="c_null_ptr",
                 symbol_type=DataSymbol,
+                datatype=c_ptr_type,
                 interface=ImportInterface(iso_c_binding)
         )
 
@@ -2247,6 +2251,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 "otter_add_to_pool",
                 root_name="otter_add_to_pool",
                 symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(""),  # Imported only.
                 interface=ImportInterface(module_symbol)
         )
 
@@ -2275,7 +2280,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 datatype=ScalarType(ScalarType.Intrinsic.BOOLEAN,
                                     c_bool_precision),
                 is_constant=True,
-                initial_value="True"
+                initial_value=True
         )
 
         # Some preprocessor macros

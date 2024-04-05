@@ -3487,3 +3487,49 @@ def test_lowering_containing_kern_error():
     assert ("Attempted to lower to OMPTaskDirective node, but the "
             "node contains a Kern which must be inlined first."
             in str(excinfo.value))
+
+
+def test_omp_task_directive_full_step_input_access_with_otter(
+        fortran_reader, fortran_writer, tmpdir
+        ):
+    ''' Test the code generation makes the correct Otter code.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer, dimension(11, 10) :: B
+        integer :: i
+        integer :: j
+        integer :: k
+        do i = 1, 10
+            do j = 1, 10
+                A(j, i) = k
+                A(j, i) = B(j, i+1) + k
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective(enable_otter=True)
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''
+  otter_task_id = 
+  !$omp task private(j), firstprivate(i), shared(a,b), \
+depend(in: k,b(:,i + 1)), depend(out: a(:,i))
+    do j = 1, 10, 1
+      a(j,i) = k
+      a(j,i) = b(j,i + 1) + k
+    enddo
+    !$omp end task
+  '''
+    print(fortran_writer(tree))
+    assert correct in fortran_writer(tree)
+    assert Compile(tmpdir).string_compiles(fortran_writer(tree))
