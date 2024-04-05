@@ -417,7 +417,8 @@ class SymbolTable():
         except KeyError:
             return self.new_symbol(name, **new_symbol_args)
 
-    def find_or_create_tag(self, tag, root_name=None, **new_symbol_args):
+    def find_or_create_tag(self, tag, root_name=None, exact_name=False,
+                           **new_symbol_args):
         ''' Lookup a tag, if it doesn't exist create a new symbol with the
         given tag. By default it creates a generic Symbol with the tag as the
         root of the symbol name. Optionally, a different root_name or any of
@@ -427,6 +428,8 @@ class SymbolTable():
         :param str tag: tag identifier.
         :param str root_name: optional name of the new symbol if it needs \
                               to be created. Otherwise it is ignored.
+        :param bool exact_name: whether to disallow renaming of the
+                                     created symbol.
         :param new_symbol_args: arguments to create a new symbol.
         :type new_symbol_args: unwrapped Dict[str, object]
 
@@ -436,6 +439,9 @@ class SymbolTable():
         :raises SymbolError: if the symbol already exists but the type_symbol \
                              argument does not match the type of the symbol \
                              found.
+        :raises SymbolError: if the the symbol needs to be created but would
+                             need to be renamed to be created and exact_name
+                             is True.
 
         '''
         try:
@@ -454,6 +460,15 @@ class SymbolTable():
         except KeyError:
             if not root_name:
                 root_name = tag
+            if exact_name:
+                symbols = self.get_symbols()
+                existing_names = set(symbols.keys())
+                if root_name in existing_names:
+                    raise SymbolError(
+                        f"Attempted to create a symbol with name "
+                        f"'{root_name}' but a symbol with that name already "
+                        f"exists, and using the exact name was required."
+                    )
             return self.new_symbol(root_name, tag, **new_symbol_args)
 
     def next_available_name(self, root_name=None, shadowing=False,

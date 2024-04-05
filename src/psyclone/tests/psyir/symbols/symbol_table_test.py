@@ -2025,6 +2025,17 @@ def test_find_or_create_tag():
     assert ("Expected symbol with tag 'tag3' to be of type 'RoutineSymbol' "
             "but found type 'DataSymbol'." in str(err.value))
 
+    tag5 = symtab.find_or_create_tag("tag5", root_name="var",
+                                     exact_name=False)
+    assert tag5.name == "var_1"
+    # Check that it fails if exact_name was specified but we couldn't create
+    # a variable with that name.
+    with pytest.raises(symbols.SymbolError) as err:
+        symtab.find_or_create_tag("tag6", root_name="var",
+                                  exact_name=True)
+    assert ("Attempted to create a symbol with name 'var' but a "
+            "symbol with that name already exists, and using the exact "
+            "name was required." in str(err.value))
     # TODO #1057: It should also fail the symbol is found but the properties
     # are different than the requested ones.
 
