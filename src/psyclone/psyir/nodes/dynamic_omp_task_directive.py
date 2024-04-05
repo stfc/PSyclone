@@ -40,6 +40,7 @@ import itertools
 import math
 from collections import namedtuple
 
+from fparser.two import Fortran2003
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
     ArrayMember,
@@ -47,9 +48,11 @@ from psyclone.psyir.nodes import (
     ArrayReference,
     Assignment,
     Call,
+    CodeBlock,
     IfBlock,
     IntrinsicCall,
     Reference,
+    Routine,
     StructureReference,
 )
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -72,7 +75,19 @@ from psyclone.psyir.nodes.omp_directives import (
 from psyclone.psyir.nodes.omp_task_directive import (
     OMPTaskDirective
 )
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
+from psyclone.psyir.symbols import (
+    CHARACTER_TYPE,
+    INTEGER_TYPE,
+    ContainerSymbol,
+    DataSymbol,
+    DataTypeSymbol,
+    ImportInterface,
+    RoutineSymbol,
+    ScalarType,
+    UnresolvedInterface,
+    UnresolvedType,
+    UnsupportedFortranType,
+)
 
 
 class DynamicOMPTaskDirective(OMPTaskDirective):
@@ -2205,7 +2220,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # despite it not really being a structure.
         c_ptr_type = routine_table.find_or_create_tag(
                 "iso_c_ptr_type", root_name="c_ptr",
-                symbol_type=DataTypeSymbol, 
+                symbol_type=DataTypeSymbol,
                 interface=ImportInterface(iso_c_binding)
         )
 
@@ -2295,13 +2310,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 datatype=UnresolvedType(),
                 interface=UnresolvedInterface()
         )
-      
+
         # Now we have the symbols we need, we need to work out the loop name
         # for the otter_task_id character object.
         routine_name = self.ancestor(Routine).name
         # Since we need to "write" to a string, we have to create codeblocks
         # to do this, since PSyclone doesn't support write statements.
-        if not isinstance(task.parent.parent, Loop):
+        if not isinstance(self.parent.parent, Loop):
             # No parent loop, we just call this {routinename}_task_{position}
             rname_task = f"{routine_name}_task_"
             rname_task_len = len(rname_task)
@@ -2314,7 +2329,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # Find the parent loop index, call this
             # {routinename}_task_{position}_{parent_loop_variable_value}
             # The latter one is a runtime value
-            var_name = task.parent.parent.variable.name
+            var_name = self.parent.parent.variable.name
             rname_task = f"{routine_name}_task_"
             rname_task_len = len(rname_task)
             format_stmt = f"(A{rname_task_len}, I0.5, A1, I0.8)"
@@ -2327,21 +2342,23 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         position = self.position
         self.parent.addchild(cblock, position)
 
-        # Now we have the write statement added, we should do the Initialise call.
+        # Now we have the write statement added,
+        # we should do the Initialise call.
         initialise_call = Assignment.create(
                 Reference(otter_task_obj),
                 Call.create(task_initialise,
-                    [Reference(c_null_ptr),
-                     Literal("-1", INTEGER_TYPE),
-                     Reference(otter_add_to_pool),
-                     Reference(otter_c_true),
-                     Reference(__FILE__),
-                     Literal(f"{routine_name}_{self.position}",
-                             CHARACTER_TYPE),
-                     Reference(__LINE__),
-                     Reference(otter_task_id)
-                    ]
-                )
+                            [Reference(c_null_ptr),
+                             Literal("-1", INTEGER_TYPE),
+                             Reference(otter_add_to_pool),
+                             Reference(otter_c_true),
+                             Reference(__FILE__),
+                             Literal(f"{routine_name}_{self.position}",
+                                     CHARACTER_TYPE
+                                     ),
+                             Reference(__LINE__),
+                             Reference(otter_task_id)
+                             ]
+                            )
         )
 
         # Add the initialise call before this task
@@ -2351,25 +2368,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # We added the calls before the node, now we need to add the
         # start and end calls inside the task.
         start_call = Assignment.create(
-                Reference(otter_task_obj)
+                Reference(otter_task_obj),
                 Call.create(task_start,
-                    [Reference(otter_task_obj),
-                     Reference(__FILE__),
-                     Reference(otter_task_id),
-                     Reference(__LINE__)]
-                )
+                            [Reference(otter_task_obj),
+                             Reference(__FILE__),
+                             Reference(otter_task_id),
+                             Reference(__LINE__)]
+                            )
         )
 
         end_call = Call.create(task_end,
-                [Reference(otter_task_obj),
-                 Reference(__FILE__),
-                 Reference(otter_Task_id),
-                 Reference(__LINE__)]
-        )
+                               [Reference(otter_task_obj),
+                                Reference(__FILE__),
+                                Reference(otter_task_id),
+                                Reference(__LINE__)]
+                               )
 
         self.children[0].addchild(end_call)
         self.children[0].addchild(start_call, 0)
-
 
         # We need to add otter_task_obj and otter_task_id to firstprivate
         # clause
