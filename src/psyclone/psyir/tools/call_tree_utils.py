@@ -411,8 +411,8 @@ class CallTreeUtils():
                                                   signature, access_info))
                     continue
                 # Check if it is a constant (the symbol should always be found,
-                # but if a module cannot be parsed and get_symbol it will
-                # return None)
+                # but if a module cannot be parsed then the symbol table won't
+                # have been populated)
                 sym_tab = \
                     mod_info.get_psyir().symbol_table
                 try:
@@ -420,7 +420,8 @@ class CallTreeUtils():
                     if sym.is_constant:
                         continue
                 except KeyError:
-                    print(f"Cannot find signature '{signature}'")
+                    print(f"Unable to check if signature '{signature}' "
+                          f"is constant.")
                     sym = None
                 # Otherwise fall through to the code that adds a reference:
 

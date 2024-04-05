@@ -41,6 +41,9 @@ module testkern_w0_kernel_mod
 
   use constants_mod
 
+  ! This is used to showcase the ability of the kernel extraction
+  ! to write and for the driver creation to read non-local module variables
+  ! when importing them in the module scope
   use dummy_mod, only: dummy_var1, dummy_code
 
   implicit none
@@ -69,6 +72,9 @@ contains
   subroutine testkern_w0_code(nlayers, fld1, fld2, chi1, chi2, chi3, &
                               some_logical, ndf_w0, undf_w0, map_w0)
 
+    ! This is used to showcase the ability of the kernel extraction
+    ! to write and for the driver creation to read non-local module
+    ! variables when importing them in the kernel itself.
     use dummy_mod, only: dummy_var2, dummy_var3, dummy_func, dummy_code
     implicit none
 

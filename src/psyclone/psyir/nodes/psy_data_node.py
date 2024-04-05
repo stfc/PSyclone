@@ -81,17 +81,17 @@ class PSyDataNode(Statement):
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node. These \
         will be made children of the child Schedule of this PSyDataNode.
-    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
+    :type children: list[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param options: a dictionary with options for transformations.
-    :type options: Optional[Dict[str, Any]]
+    :param options: a dict[ionary with options for transformations.
+    :type options: Optional[dict[[str, Any]]
     :param str options["prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType \
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
         It defaults to "", which means the module name used will just be \
         ``psy_data_mod``, and the data type ``PSyDataType``.
-    :param Tuple[str,str] options["region_name"]: an optional name to \
+    :param tuple[str,str] options["region_name"]: an optional name to \
         use for this PSyDataNode, provided as a 2-tuple containing a \
         module name followed by a local name. The pair of strings should \
         uniquely identify a region unless aggregate information is required \
@@ -217,8 +217,8 @@ class PSyDataNode(Statement):
 
     @property
     def options(self):
-        ''':returns: the option dictionary of this class.
-        :rtype: Dict[str,Any]
+        ''':returns: the option dict[ionary of this class.
+        :rtype: dict[[str,Any]
 
         '''
         return self._options
@@ -273,21 +273,21 @@ class PSyDataNode(Statement):
 
         :param children: the PSyIR nodes that will become children of the \
             new PSyData node.
-        :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :type children: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param symbol_table: the associated SymbolTable to which symbols \
             must be added.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :parent ast: reference to fparser2 parse tree for the routine being \
             instrumented with PSyData calls.
         :type ast: :py:class:`fparser.two.Fortran2003.Base`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :param options: a dict[ionary with options for transformations.
+        :type options: Optional[dict[[str, Any]]
         :param str options[prefix"]: a prefix to use for the PSyData module \
             name (``prefix_psy_data_mod``) and the PSyDataType \
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
             It defaults to "", which means the module name used will just be \
             ``psy_data_mod``, and the data type ``PSyDataType``.
-        :param Tuple[str,str] options["region_name"]: an optional name to use \
+        :param tuple[str,str] options["region_name"]: an optional name to use \
             for this PSyDataNode, provided as a 2-tuple containing a module \
             name followed by a local name. The pair of strings should \
             uniquely identify a region unless aggregate information is \
@@ -394,7 +394,7 @@ class PSyDataNode(Statement):
     def region_identifier(self):
         ''':returns: the unique region identifier, which is a tuple \
             consisting of the module name and region name.
-        :rtype: Tuple[str, str]
+        :rtype: tuple[str, str]
 
         '''
         return self._region_identifier
@@ -468,7 +468,7 @@ class PSyDataNode(Statement):
         :param parent: parent node into which to insert the calls.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param arguments: optional arguments for the method call.
-        :type arguments: Optional[List[str]]
+        :type arguments: Optional[list[str]]
         '''
         call = CallGen(parent, f"{self._var_name}%{name}", arguments)
         parent.add(call)
@@ -478,16 +478,18 @@ class PSyDataNode(Statement):
         '''This function takes a list of (module_name, signature) tuple, and
         for any name that is already in the symbol table (i.e. creating a
         name clash), creates a new, unique symbol and adds it to the symbol
-        table. It returns a list of three-element entries: module name
-        original_signature, unique_signature. The unique signature and
-        original signature are identical if the original name was not in the
-        symbol table.
+        table with a tag "symbol@module". It returns a list of three-element
+        entries: module name, original_signature, unique_signature. The unique
+        signature and original signature are identical if the original name
+        was not in the symbol table.
 
         :param var_list: the variable information list.
-        :type var_list: List[Tuple[str, :py:class:`psyclone.core.Signature`]]
+        :type var_list: list[tuple[str, :py:class:`psyclone.core.Signature`]]
+        :param symbol_table: the symbol table used to create unique names in
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: a new list which has a unique signature name added.
-        :rtype: List[Tuple[str, :py:class:`psyclone.core.Signature`,
+        :rtype: list[tuple[str, :py:class:`psyclone.core.Signature`,
             :py:class:`psyclone.core.Signature`]]
 
         '''
@@ -518,18 +520,18 @@ class PSyDataNode(Statement):
 
         :param parent: the parent of this node in the f2pygen AST.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :param options: a dict[ionary with options for transformations.
+        :type options: Optional[dict[[str, Any]]
         :param options["pre_var_list"]: container name and variable name to \
             be supplied before the first child. The container name is \
             supported to be able to handle variables that are imported from \
             a different container (module in Fortran).
-        :type options["pre_var_list"]: List[Tuple[str, str]]
+        :type options["pre_var_list"]: list[tuple[str, str]]
         :param options["post_var_list"]: container name and variable name to \
             be supplied after the last child. The container name is \
             supported to be able to handle variables that are imported from \
             a different container (module in Fortran).
-        :type options["post_var_list"]: List[Tuple[str, str]]
+        :type options["post_var_list"]: list[tuple[str, str]]
         :param str options["pre_var_postfix"]: an optional postfix that will \
             be added to each variable name in the pre_var_list.
         :param str options["post_var_postfix"]: an optional postfix that will \
@@ -687,18 +689,18 @@ class PSyDataNode(Statement):
         the Fortran backend is capable of producing code representing the
         PSyDataNode.
 
-        :param options: dictionary of the PSyData generation options.
-        :type options: Optional[Dict[str, Any]]
+        :param options: dict[ionary of the PSyData generation options.
+        :type options: Optional[dict[[str, Any]]
         :param options["pre_var_list"]: container- and variable-names to be \
             supplied before the first child. The container names are \
             supported to be able to handle variables that are imported from \
             a different container (module in Fortran).
-        :type options["pre_var_list"]: List[Tuple[str, str]]
+        :type options["pre_var_list"]: list[tuple[str, str]]
         :param options["post_var_list"]: container- and variable-names to be \
             supplied after the last child. The container names are \
             supported to be able to handle variables that are imported from \
             a different container (module in Fortran).
-        :type options["post_var_list"]: List[Tuple[str, str]]
+        :type options["post_var_list"]: list[tuple[str, str]]
         :param str options["pre_var_postfix"]: an optional postfix that will \
             be added to each variable name in the pre_var_list.
         :param str options["post_var_postfix"]: an optional postfix that will \
@@ -719,10 +721,10 @@ class PSyDataNode(Statement):
             :param str typename: the name of the base type.
             :param str methodname: the name of the method to be called.
             :param argument_list: the list of arguments in the method call.
-            :type argument_list: List[str]
+            :type argument_list: list[str]
             :param annotations: the list of node annotations to add to the \
                                 generated CodeBlock.
-            :type annotations: List[str]
+            :type annotations: list[str]
 
             :returns: a CodeBlock representing the type bound call.
             :rtype: :py:class:`psyclone.psyir.nodes.CodeBlock`

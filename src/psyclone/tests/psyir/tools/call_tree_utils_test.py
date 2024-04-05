@@ -507,7 +507,7 @@ def test_call_tree_error_var_not_found(capsys):
                                     read_write_info)
     out, _ = capsys.readouterr()
 
-    assert "Cannot find signature 'does_not_exist'" in out
+    assert "Unable to check if signature 'does_not_exist' is constant" in out
 
 
 # -----------------------------------------------------------------------------

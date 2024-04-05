@@ -55,13 +55,13 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 class ExtractNode(PSyDataNode):
     '''
-    This class can be inserted into a Schedule to mark Nodes for \
-    code extraction using the ExtractRegionTrans transformation. By \
-    applying the transformation the Nodes marked for extraction become \
+    This class can be inserted into a Schedule to mark Nodes for
+    code extraction using the ExtractRegionTrans transformation. By
+    applying the transformation the Nodes marked for extraction become
     children of (the Schedule of) an ExtractNode.
 
-    :param ast: reference into the fparser2 parse tree corresponding to \
-                this node.
+    :param ast: reference into the fparser2 parse tree corresponding to
+        this node.
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node.
     :type children: list of :py:class:`psyclone.psyir.nodes.Node`
@@ -69,18 +69,18 @@ class ExtractNode(PSyDataNode):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options provided via transformations.
     :type options: Optional[Dict[str, Any]]
-    :param str options["prefix"]: a prefix to use for the PSyData module name \
+    :param str options["prefix"]: a prefix to use for the PSyData module name
         (``prefix_psy_data_mod``) and the PSyDataType
-        (``prefix_PSyDataType``) - a "_" will be added automatically. \
-        It defaults to "extract", which means the module name used will be \
+        (``prefix_PSyDataType``) - a "_" will be added automatically.
+        It defaults to "extract", which means the module name used will be
         ``extract_psy_data_mode``, and the data type ``extract_PSyDataType``.
-    :param str options["post_var_postfix"]: a postfix to be used when \
-        creating names to store values of output variable. A variable 'a' \
-        would store its value as 'a', and its output values as 'a_post' with \
+    :param str options["post_var_postfix"]: a postfix to be used when
+        creating names to store values of output variable. A variable 'a'
+        would store its value as 'a', and its output values as 'a_post' with
         the default post_var_postfix of '_post'.
-    :param options["read_write_info"]: information about variables that are \
+    :param options["read_write_info"]: information about variables that are
         read and/or written in the instrumented code.
-    :type options["read_write_info"]:\
+    :type options["read_write_info"]:
         py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
     '''
@@ -110,7 +110,7 @@ class ExtractNode(PSyDataNode):
             options = {}
         self._post_name = options.get("post_var_postfix", "_post")
 
-        # Keep a copy of the parameter list:
+        # Keep a copy of the argument list:
         self._read_write_info = options.get("read_write_info")
 
     def __eq__(self, other):
@@ -179,7 +179,7 @@ class ExtractNode(PSyDataNode):
 
         '''
         if self._read_write_info is None:
-            # Typically. _read_write_info should be set at the constructor,
+            # Typically, _read_write_info should be set at the constructor,
             # but some tests do not provide the required information. To
             # support these tests, allow creation of the read_write info
             # here (it can't be done in the constructor, since this node

@@ -530,8 +530,13 @@ creation code:
   the value cannot be written to the file, and compilation will abort.
   The only solution is to modify this file and make all variables public.
   This mostly affects ``log_mod.F90``, but a few other modules as well.
-  The created driver will modify the attributes of all variables so that
-  they can be written when reading in the modified values.
+- For now, the created driver modifies the attributes of all variables so that
+  they can be written when reading in the modified values. This
+  means that the driver will at least compile and work, but the previously
+  mentioned work is still required for the extraction process (TODO #2536).
+- The new build system FAB will be able to remove ``private`` and
+  ``protected`` declarations in any source files, meaning no manual
+  modification of files is required anymore (TODO #2536).
 
 Extraction for NEMO
 ++++++++++++++++++++

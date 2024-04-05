@@ -673,12 +673,12 @@ def test_lfric_driver_external_symbols_error(capsys):
     out, _ = capsys.readouterr()
     assert ("Cannot find symbol 'non_existent_func' in module "
             "'module_with_error_mod' - ignored." in out)
-    assert ("Index error finding 'non_existent_var' in "
+    assert ("Error finding symbol 'non_existent_var' in "
             "'module_with_error_mod'." in out)
 
     # This error comes from the driver creation: a variable is in the list
     # of variables to be processed, but its type cannot be found.
-    assert ("Cannot find variable with tag 'non_existent_var@module_with_"
+    assert ("Cannot find symbol with tag 'non_existent_var@module_with_"
             "error_mod' - likely a symptom of an earlier parsing problem."
             in out)
     # This variable will be ignored (for now, see TODO 2120) so no code will
