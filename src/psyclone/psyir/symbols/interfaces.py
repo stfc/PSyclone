@@ -252,3 +252,9 @@ class ArgumentInterface(SymbolInterface):
         :rtype: :py:class:`psyclone.psyir.symbol.SymbolInterface`
         '''
         return self.__class__(access=self.access)
+
+class PreprocessorInterface(SymbolInterface):
+    '''The symbol exists in the file through preprocessor directives or
+    language extensions.'''
+    def __str__(self):
+        return "Preprocessor"
