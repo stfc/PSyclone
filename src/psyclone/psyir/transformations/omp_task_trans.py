@@ -208,5 +208,5 @@ class OMPTaskTrans(ParallelLoopTrans):
 
         enable_otter = options.get("enable-otter", False)
         if enable_otter:
-            task = node.parent
+            task = node.parent.parent
             task.otter_enabled = True

@@ -42,7 +42,8 @@ import pytest
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import Kern, PSyFactory
-from psyclone.psyir.nodes import Call, CodeBlock, Container, Loop
+from psyclone.psyir.nodes import Call, CodeBlock, Container, Loop, \
+    OMPTaskDirective
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import OMPParallelTrans, \
     OMPSingleTrans
@@ -188,6 +189,30 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     master.apply(my_test.children[:])
     parallel.apply(my_test.children[:])
     assert len(my_test.walk(Call, Kern)) == 0
+
+
+def test_omptask_otter_enabling(fortran_reader):
+    ''' Test that the enable-otter option results in the correct
+    property being set to True.
+    '''
+    code = '''
+    subroutine sub()
+        integer :: ji, jj, n
+        integer, dimension(10, 10) :: t
+        integer, dimension(10, 10) :: s
+        do jj = 1, 10
+            do ji = 1, SIZE(ji,2)
+                t(ji, jj) = INT(s(ji, jj))
+            end do
+        end do
+    end subroutine sub
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = OMPTaskTrans()
+    loops = psyir.walk(Loop)
+    trans.apply(loops[1], options={"enable-otter": True})
+    task = psyir.walk(OMPTaskDirective)[0]
+    assert task.otter_enabled
 
 
 # This test relies on inline functionality not yet supported
