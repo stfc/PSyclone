@@ -74,7 +74,7 @@ class OMPTaskDirective(OMPRegionDirective):
     )
 
     def __init__(self, children=None, parent=None, clauses=None,
-            enable_otter=False):
+                 enable_otter=False):
         super().__init__(children=children, parent=parent)
         if clauses:
             for child in clauses:

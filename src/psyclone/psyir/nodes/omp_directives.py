@@ -73,7 +73,14 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import (
+    INTEGER_TYPE,
+    ContainerSymbol,
+    DataSymbol,
+    ImportInterface,
+    ScalarType,
+    RoutineSymbol
+)
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -1079,11 +1086,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 "iso_c_binding", root_name="iso_c_binding",
                 symbol_type=ContainerSymbol
         )
-        c_ptr_type = routine_table.find_or_create_tag(
-                "iso_c_ptr_type", root_name="c_ptr",
-                symbol_type=DataTypeSymbol,
-                interface=ImportInterface(iso_c_binding)
-        )
         c_null_ptr = routine_table.find_or_create_tag(
                 "iso_c_null_ptr", root_name="c_null_ptr",
                 symbol_type=DataSymbol,
@@ -1117,12 +1119,12 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                           [Reference(c_null_ptr),
                                            Literal("1", INTEGER_TYPE),
                                            Reference(otter_endpoint_enter)]
-                              )
+                                          )
             sync_leave_call = Call.create(task_synchronise,
                                           [Reference(c_null_ptr),
                                            Literal("1", INTEGER_TYPE),
                                            Reference(otter_endpoint_leave)]
-                              )
+                                          )
             pos = taskwait.position
             taskwait.parent.addchild(sync_leave_call, pos+1)
             taskwait.parent.addchild(sync_enter_call, pos)
@@ -1131,22 +1133,23 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                           [Reference(c_null_ptr),
                                            Literal("1", INTEGER_TYPE),
                                            Reference(otter_endpoint_enter)]
-                              )
+                                          )
             sync_leave_call = Call.create(task_synchronise,
                                           [Reference(c_null_ptr),
                                            Literal("1", INTEGER_TYPE),
                                            Reference(otter_endpoint_leave)]
-                              )
+                                          )
             self.children[0].addchild(sync_enter_call)
             # Add the leave after the parallel, which is parent.parent
             pos = self.parent.parent.position
             self.parent.parent.parent.addchild(sync_leave_call, pos+1)
 
-
     def lower_to_language_level(self):
         '''
         Checks that any task dependencies inside this node are valid.
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
         # Perform parent ops
         super().lower_to_language_level()
 
