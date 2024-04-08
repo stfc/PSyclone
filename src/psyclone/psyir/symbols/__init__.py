@@ -45,7 +45,7 @@ from psyclone.psyir.symbols.generic_interface_symbol import (
     GenericInterfaceSymbol)
 from psyclone.psyir.symbols.interfaces import (
      ArgumentInterface, AutomaticInterface, CommonBlockInterface,
-     DefaultModuleInterface, ImportInterface,
+     DefaultModuleInterface, ImportInterface, PreprocessorInterface,
      StaticInterface, UnknownInterface, UnresolvedInterface)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol

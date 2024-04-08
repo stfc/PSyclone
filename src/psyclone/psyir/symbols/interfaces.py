@@ -255,7 +255,10 @@ class ArgumentInterface(SymbolInterface):
 
 
 class PreprocessorInterface(SymbolInterface):
-    '''The symbol exists in the file through preprocessor directives or
-    language extensions.'''
+    '''The symbol exists in the file through compiler macros or preprocessor
+    directives.
+    Note that this is different from UnresolvedInterface because the backend
+    will not check if is importing statements that could bring them into
+    scope.'''
     def __str__(self):
         return "Preprocessor"
