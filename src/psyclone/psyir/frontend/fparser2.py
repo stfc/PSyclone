@@ -3423,17 +3423,21 @@ class Fparser2Reader():
         return ifblock
 
     @staticmethod
-    def _add_target_attribute(datatype):
-        '''Ensure that the supplied datatype has a pointer or target
-        attribute and if not, add the target attribute. The datatype is
+    def _add_target_attribute(symbol):
+        '''Ensure that the datatype of the supplied symbol has a pointer or
+        target attribute and if not, add the target attribute. The datatype is
         stored as text within an UnknownFortranType. We therefore
         re-create the datatype as an fparser2 ast, add the attribute if
         required and update the UnknownFortranType with the new text.
 
-        :param datatype: the supplied datatype.
-        :type datatype: :py:class:`psyclone.psyir.symbols.UnknownFortranType`
+        :param symbol: the symbol for which we attempt to modify the datatype.
+        :type datatype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises NotImplementedError: if the supplied Symbol needs to be given
+            the target attribute but represents a routine argument.
 
         '''
+        datatype = symbol.datatype
         # Create Fortran text for the supplied datatype from the
         # supplied UnknownFortranType text, then parse this into an
         # fparser2 tree and store the fparser2 representation of the
@@ -3461,7 +3465,13 @@ class Fparser2Reader():
                     # There is already a target or pointer attribute
                     return
 
-        # TARGET needs to be added as an additional attribute
+        # TARGET needs to be added as an additional attribute. We cannot
+        # do this if the Symbol represents a formal argument to a routine.
+        if symbol.is_argument:
+            raise NotImplementedError(
+                f"Type-selector variable '{symbol.name}' is a formal routine "
+                f"argument and thus cannot be given the TARGET attribute")
+
         if attr_spec_str_list:
             # At least one attribute already exists but it is not
             # or they are not the target or pointer attributes.
@@ -3509,6 +3519,7 @@ class Fparser2Reader():
 
         :raises NotImplementedError: if there is a CodeBlock that contains a
             reference to the type-selector variable.
+
         '''
         outer_ifblock = None
         ifblock = None
@@ -3846,15 +3857,14 @@ class Fparser2Reader():
             symbol = symbol_table.lookup(select_type.selector)
         except KeyError as err:
             raise NotImplementedError(
-                f"Type-selector variable' {select_type.selector}' is "
+                f"Type-selector variable '{select_type.selector}' is "
                 f"unresolved") from err
         if symbol.is_unresolved or not isinstance(symbol, DataSymbol):
             raise NotImplementedError(
                 f"Unexpected symbol '{symbol}' found when searching for the "
                 f"type-selector variable: it must be resolved and a "
                 f"DataSymbol")
-        datatype = symbol.datatype
-        self._add_target_attribute(datatype)
+        self._add_target_attribute(symbol)
 
         # Step 5: We didn't encounter any problems so finally attach our new
         # nodes to the PSyIR tree in the location we saved earlier.

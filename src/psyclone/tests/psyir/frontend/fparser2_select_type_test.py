@@ -53,7 +53,7 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "module select_mod\n"
         "contains\n"
         "subroutine select_type(type_selector)\n"
-        "  class(*) :: type_selector\n"
+        "  class(*), target :: type_selector\n"
         "  integer :: branch1, branch2\n"
         "  integer :: iinfo\n"
         "  real :: rinfo\n"
@@ -114,7 +114,7 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
         "module select_mod\n"
         "contains\n"
         "subroutine select_type(type)\n"
-        "  class(*) :: type\n"
+        "  class(*), target :: type\n"
         "  integer :: branch1, branch2, branch3\n"
         "  integer :: iinfo\n"
         "  real :: rinfo\n"
@@ -175,7 +175,7 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "module select_mod\n"
         "contains\n"
         "subroutine select_type(type)\n"
-        "  class(*) :: type\n"
+        "  class(*), pointer :: type\n"
         "  type type2\n"
         "    integer :: scalar\n"
         "  end type\n"
@@ -203,7 +203,7 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
-    expected1 = "CLASS(*), TARGET :: type".lower()
+    expected1 = "class(*), pointer :: type"
     expected2 = (
         "    character(256) :: type_string\n"
         "    type(type2), pointer :: ptr_type2 => null()\n"
@@ -361,7 +361,7 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "module select_mod\n"
         "contains\n"
         "subroutine select_type(type)\n"
-        "  class(*) :: type\n"
+        "  class(*), target :: type\n"
         "  integer :: branch1, branch2\n"
         "  real(kind=4) :: rinfo1\n"
         "  real(kind=8) :: rinfo2\n"
@@ -422,7 +422,7 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "module select_mod\n"
         "contains\n"
         "subroutine select_type(type)\n"
-        "  class(*) :: type\n"
+        "  class(*), target :: type\n"
         "  type field_type\n"
         "    integer :: x\n"
         "  end type\n"
@@ -474,7 +474,7 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "module select_mod\n"
         "contains\n"
         "subroutine select_type(type_selector)\n"
-        "  class(*) :: type_selector\n"
+        "  class(*), target :: type_selector\n"
         "  integer :: branch1, branch2, branch3\n"
         "  logical :: logical_type\n"
         "  character(len = 256) :: character_type\n"
@@ -557,7 +557,7 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
         f"module select_mod\n"
         f"contains\n"
         f"subroutine select_type(type_selector)\n"
-        f"  class(*) :: type_selector\n"
+        f"  class(*), target :: type_selector\n"
         f"  character{char_type_in} :: character_type\n"
         f"  SELECT TYPE (type_selector)\n"
         f"    TYPE IS (CHARACTER(len = *))\n"
@@ -603,7 +603,7 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
         f"module select_mod\n"
         f"contains\n"
         f"subroutine select_type(type_selector)\n"
-        f"  class(*) :: type_selector\n"
+        f"  class(*), target :: type_selector\n"
         f"  character{char_type_in}, pointer :: character_type => null()\n"
         f"  SELECT TYPE (type_selector)\n"
         f"    TYPE IS (CHARACTER(len = *))\n"
@@ -663,7 +663,7 @@ def test_character_kind(
         f"module select_mod\n"
         f"  contains\n"
         f"  subroutine select_type(type_selector, character_type)\n"
-        f"    class(*) :: type_selector\n"
+        f"    class(*), target :: type_selector\n"
         f"    character{char_type_in}{pointer} :: character_type\n"
         f"    select type(type_selector)\n"
         f"      type is (character(len = *))\n"
@@ -745,7 +745,14 @@ def test_class_target(
         f"  end subroutine select_type\n\n"
         f"end module select_mod\n").lower()
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir).lower()
-    assert result == expected
-    assert Compile(tmpdir).string_compiles(code)
-    assert Compile(tmpdir).string_compiles(result)
+    if pre_attribute == "ALLOCATABLE":
+        # If the argument doesn't already have a POINTER/TARGET attribute
+        # then we can't handle it and should get a CodeBlock.
+        routine = psyir.walk(Routine)[0]
+        assert len(routine.children) == 1
+        assert isinstance(routine.children[0], CodeBlock)
+    else:
+        result = fortran_writer(psyir).lower()
+        assert result == expected
+        assert Compile(tmpdir).string_compiles(code)
+        assert Compile(tmpdir).string_compiles(result)
