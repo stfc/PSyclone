@@ -44,6 +44,7 @@ from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
+from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
@@ -598,6 +599,11 @@ def test_lfric_driver_external_symbols():
             "module_with_var_mod', module_var_a_post)" in driver)
     assert "if (module_var_a == module_var_a_post)" in driver
 
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-import-test.F90")
+
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
@@ -638,6 +644,11 @@ def test_lfric_driver_external_symbols_name_clash():
     assert ("call extract_psy_data%ReadVariable("
             "'f2_data_post@module_with_name_clash_mod', f2_data_1_post)"
             in driver)
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-import-test.F90")
 
 
 # ----------------------------------------------------------------------------
@@ -686,6 +697,9 @@ def test_lfric_driver_external_symbols_error(capsys):
     # the module is still inlined), but no ReadVariable code should be created:
     assert "call extract_psy_data%ReadVariable('non_existent@" not in driver
 
+    # Note that this driver cannot be compiled, since one of the inlined
+    # source files is invalid Fortran.
+
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
@@ -718,3 +732,12 @@ def test_lfric_driver_rename_externals():
             in code)
     assert ("call extract_psy_data%ReadVariable("
             "'module_var_a@module_with_var_mod', module_var_a_1)" in code)
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files. The string also needs
+    # to be wrapped explicitly (which the driver creation only does
+    # when writing the result to a file).
+    build = Compile(".")
+    fll = FortLineLength()
+    code = fll.process(code)
+    build.string_compiles(code)
