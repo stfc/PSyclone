@@ -238,7 +238,8 @@ class CallTreeUtils():
         and collect any other variables that will be read or written when
         executing the nodes specified in the node list. The corresponding
         module name for these variables will be included in the ReadWriteInfo
-        result object.
+        result object. For this to work it is essential that the correct
+        search paths are specified for the module manager.
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]

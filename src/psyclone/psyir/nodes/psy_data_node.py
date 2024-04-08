@@ -575,8 +575,9 @@ class PSyDataNode(Statement):
         if not options:
             options = {}
 
-        # Get the list of variables, and handle name clashes: an imported
-        # symbol might be the same as a local variable. Convert the lists
+        # Get the list of variables, and handle name clashes: a now newly
+        # imported symbol (from a module that is used directly or indirectly
+        # from a kernel) might clash with a local variable. Convert the lists
         # of 2-tuples (module_name, signature) to a list of 3-tuples
         # (module_name, signature, unique_signature):
 
