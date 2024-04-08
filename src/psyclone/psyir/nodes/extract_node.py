@@ -106,8 +106,9 @@ class ExtractNode(PSyDataNode):
         # variable 'a' exists, which creates 'a_out' for the output variable,
         # which would clash with a variable 'a_out' used in the program unit).
 
-        if not options:
+        if options is None:
             options = {}
+
         self._post_name = options.get("post_var_postfix", "_post")
 
         # Keep a copy of the argument list:
@@ -156,6 +157,23 @@ class ExtractNode(PSyDataNode):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
 
         '''
+        if self._read_write_info is None:
+            # Typically, _read_write_info should be set at the constructor,
+            # but some tests do not provide the required information. To
+            # support these tests, allow creation of the read_write info here.
+            # We cannot do this in the constructor, since at construction
+            # time of this node it is not yet part of the PSyIR tree, so it
+            # does not have children from which we can collect the input/output
+            # parameters.
+
+            # Avoid circular dependency
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
+            # Determine the variables to write:
+            ctu = CallTreeUtils()
+            self._read_write_info = \
+                ctu.get_in_out_parameters(self, options=self.options)
+
         options = {'pre_var_list': self._read_write_info.read_list,
                    'post_var_list': self._read_write_info.write_list,
                    'post_var_postfix': self._post_name}
