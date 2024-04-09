@@ -72,8 +72,12 @@ default: $(PSYDATA_LIB)
 
 .PHONY: default clean allclean
 
-$(PSYDATA_LIB): $(INF_LIB) $(OBJS)
-	${AR} ${ARFLAGS} ${PSYDATA_LIB} $^
+# We add read_kernel_data_mod as a convenience for using this
+# in LFRic: all required file for kernel extractions and drivers
+# are then in this directory. That file does not need to be compiled,
+# it will be included in the created driver programs.
+$(PSYDATA_LIB): $(INF_LIB) $(OBJS) read_kernel_data_mod.f90
+	${AR} ${ARFLAGS} ${PSYDATA_LIB} $(OBJS)
 
 # Create LFRic infrastructure library
 $(INF_LIB):
@@ -88,6 +92,9 @@ kernel_data_standalone.f90: kernel_data_standalone.jinja Makefile
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
+read_kernel_data_mod.f90: $(LIB_TMPLT_DIR)/read_kernel_data_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > read_kernel_data_mod.f90
+
 extract_standalone_base.f90: $(LIB_TMPLT_DIR)/extract_standalone_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_base.f90
 
@@ -101,7 +108,8 @@ compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinj
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90 \
+	read_kernel_data_mod.f90
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean
