@@ -238,7 +238,8 @@ class CallTreeUtils():
         and collect any other variables that will be read or written when
         executing the nodes specified in the node list. The corresponding
         module name for these variables will be included in the ReadWriteInfo
-        result object.
+        result object. For this to work it is essential that the correct
+        search paths are specified for the module manager.
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
@@ -294,12 +295,14 @@ class CallTreeUtils():
                 # by querying the module that contains the kernel:
                 try:
                     mod_info = mod_manager.get_module_info(kernel.module_name)
-                except FileNotFoundError:
+                except FileNotFoundError as err:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
                     print(f"[CallTreeUtils.get_non_local_read_write_info] "
                           f"Could not find module '{kernel.module_name}' - "
                           f"ignored.")
+                    # This includes the currently defined search path:
+                    print(str(err))
                     continue
 
                 # TODO #2435: once we have interface support, this will be
@@ -411,8 +414,8 @@ class CallTreeUtils():
                                                   signature, access_info))
                     continue
                 # Check if it is a constant (the symbol should always be found,
-                # but if a module cannot be parsed and get_symbol it will
-                # return None)
+                # but if a module cannot be parsed then the symbol table won't
+                # have been populated)
                 sym_tab = \
                     mod_info.get_psyir().symbol_table
                 try:
@@ -420,7 +423,8 @@ class CallTreeUtils():
                     if sym.is_constant:
                         continue
                 except KeyError:
-                    print(f"Cannot find signature '{signature}'")
+                    print(f"Unable to check if signature '{signature}' "
+                          f"is constant.")
                     sym = None
                 # Otherwise fall through to the code that adds a reference:
 

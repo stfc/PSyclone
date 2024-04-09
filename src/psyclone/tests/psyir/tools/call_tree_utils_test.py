@@ -39,6 +39,8 @@
 ''' This module contains the pytest tests for the Routine class. '''
 
 import os
+import re
+
 import pytest
 
 from psyclone.configuration import Config
@@ -237,7 +239,14 @@ def test_get_non_local_read_write_info(capsys):
     psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
     schedule = psyir.invokes.invoke_list[0].schedule
 
-    # First call without setting up the module manager. This will result
+    # Set up the module manager with a search directory that does not
+    # contain any files used here:
+    kernels_dir = os.path.join(get_base_path("dynamo0.3"),
+                               "kernels", "dead_end", "no_really")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(kernels_dir)
+
+    # Since the right search path is missing, this will result
     # in the testkern_import_symbols_mod module not being found:
     read_write_info = ReadWriteInfo()
     rw_info = ctu.get_non_local_read_write_info(schedule, read_write_info)
@@ -245,7 +254,12 @@ def test_get_non_local_read_write_info(capsys):
     assert ("Could not find module 'testkern_import_symbols_mod' - ignored."
             in out)
 
-    # Now add the search path of the driver creation tests to the
+    # The search directories are absolute, so use a regex:
+    assert re.search("Could not find source file for module "
+                     "'testkern_import_symbols_mod' in any of the "
+                     "directories '.*kernels/dead_end/no_really'.", out)
+
+    # Now add the correct search path of the driver creation tests to the
     # module manager:
     test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
     mod_man = ModuleManager.get()
@@ -507,7 +521,7 @@ def test_call_tree_error_var_not_found(capsys):
                                     read_write_info)
     out, _ = capsys.readouterr()
 
-    assert "Cannot find signature 'does_not_exist'" in out
+    assert "Unable to check if signature 'does_not_exist' is constant" in out
 
 
 # -----------------------------------------------------------------------------

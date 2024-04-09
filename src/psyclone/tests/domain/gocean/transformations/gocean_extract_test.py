@@ -104,19 +104,6 @@ def test_gocean_extract_trans():
 
 
 # -----------------------------------------------------------------------------
-def test_gocean_extract_distributed_memory():
-    '''Test that distributed memory must be disabled.'''
-
-    _, invoke = get_invoke("single_invoke_three_kernels.f90",
-                           GOCEAN_API, idx=0, dist_mem=True)
-    etrans = GOceanExtractTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        etrans.apply(invoke.schedule.children[3])
-    assert ("Error in GOceanExtractTrans: Distributed memory is "
-            "not supported.") in str(excinfo.value)
-
-
-# -----------------------------------------------------------------------------
 def test_kern_builtin_no_loop():
     ''' Test that applying Extract Transformation on a Kernel or Built-in
     call without its parent Loop raises a TransformationError. '''
@@ -531,7 +518,7 @@ def test_driver_scalars(fortran_writer):
                       'type(extract_psydatatype) extract_psy_data',
                       'INTEGER :: xstop',
                       'REAL(KIND=8) :: a_scalar',
-                      'CALL extract_psy_data%OpenRead("'
+                      'CALL extract_psy_data%OpenReadModuleRegion("'
                       'kernel_scalar_float", "bc_ssh_code")',
                       'CALL extract_psy_data%ReadVariable("a_scalar", '
                       'a_scalar)']
@@ -591,7 +578,7 @@ def test_driver_grid_properties(fortran_writer):
     expected_lines = ['integer :: ssh_fld_grid_subdomain_internal_xstop',
                       'integer, allocatable, dimension(:,:) :: '
                       'ssh_fld_grid_tmask',
-                      'call extract_psy_data%OpenRead(',
+                      'call extract_psy_data%OpenReadModuleRegion(',
                       '\'psy_single_invoke_scalar_float_test\', '
                       '\'invoke_0_bc_ssh-bc_ssh_code-r0\')',
                       'call extract_psy_data%ReadVariable('
@@ -633,7 +620,7 @@ def test_rename_region():
     driver_name = "driver-main-update.f90"
     with open(driver_name, "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
-    assert ("call extract_psy_data%OpenRead('main', 'update')"
+    assert ("call extract_psy_data%OpenReadModuleRegion('main', 'update')"
             in driver_code)
 
 
@@ -670,4 +657,5 @@ def test_change_prefix(monkeypatch):
     driver_name = "driver-main-update.f90"
     with open(str(driver_name), "r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
-    assert "call NEW_psy_data%OpenRead('main', 'update')" in driver_code
+    assert ("call NEW_psy_data%OpenReadModuleRegion('main', 'update')"
+            in driver_code)

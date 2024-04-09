@@ -580,7 +580,7 @@ class ExtractDriverCreator:
 
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
-        self.add_call(program, f"{psy_data.name}%OpenRead",
+        self.add_call(program, f"{psy_data.name}%OpenReadModuleRegion",
                       [module_str, region_str])
 
         output_symbols = self.create_read_in_code(program, psy_data,

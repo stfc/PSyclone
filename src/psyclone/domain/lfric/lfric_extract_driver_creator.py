@@ -316,7 +316,9 @@ class LFRicExtractDriverCreator:
         :param proxy_name_mapping: a mapping of proxy names to the original \
             names.
         :type proxy_name_mapping: Dict[str,str]
-
+        :param read_write_info: information about all input and output
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
         # pylint: disable=too-many-locals
@@ -379,15 +381,12 @@ class LFRicExtractDriverCreator:
             if not module_name:
                 # Ignore local symbols, which will have been added above
                 continue
-            try:
-                container = symbol_table.lookup(module_name)
-            except KeyError:
-                container = ContainerSymbol(module_name)
-                symbol_table.add(container)
+            container = symbol_table.find_or_create(
+                module_name, symbol_type=ContainerSymbol)
 
             # Now look up the original symbol. While the variable could
-            # be declared Deferred here (i.e. just imported), we need the
-            # type information for # the output variables (VAR_post), which
+            # be declared Unresolved here (i.e. just imported), we need the
+            # type information for the output variables (VAR_post), which
             # are created later and which will query the original symbol for
             # its type. And since they are not imported, they need to be
             # explicitly declared.
@@ -457,6 +456,10 @@ class LFRicExtractDriverCreator:
         the size of the _post variable) and initialised to 0.
         This function also handles array of fields, which need to get
         an index number added.
+        If a module_name is specified, this indicates that this variable
+        is imported from an external module. The name of the module will
+        be appended to the tag used in the extracted kernel file, e.g.
+        `dummy_var2@dummy_mod`.
 
         :param str name: the name of original variable (i.e.
             without _post), which will be looked up as a tag in the symbol
@@ -473,6 +476,9 @@ class LFRicExtractDriverCreator:
             values, which are read from the file.
         :param index: if present, the index to the component of a field vector.
         :type index: Optional[int]
+        :param str module_name: if the variable is part of an external module,
+            this contains the module name from which it is imported.
+            Otherwise, this must either not be specified or an empty string.
 
         :returns: a 2-tuple containing the output Symbol after the kernel,
              and the expected output read from the file.
@@ -480,8 +486,13 @@ class LFRicExtractDriverCreator:
                       :py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''
-        # Look up the corresponding non-written variable to get the required
-        # type information for declaring the _POST/output variable:
+        # For each variable that is written, we need to declare a new variable
+        # that stores the expected value which is contained in the kernel data
+        # file, which has `_post` appended to the name (so `a` is the variable
+        # that is written, and `a_post` is the corresponding variable that
+        # has the expected results for verification). Since the written
+        # variable and the one storing the expected results have the same
+        # type, look up the 'original' variable and declare the _POST variable
         symbol_table = program.symbol_table
         if module_name:
             sym = symbol_table.lookup_with_tag(f"{name}@{module_name}")
@@ -605,7 +616,7 @@ class LFRicExtractDriverCreator:
                     orig_sym = sym_tab.lookup(signature[0])
                 except KeyError:
                     # TODO 2120: We likely couldn't parse the module.
-                    print(f"Index error finding '{sig_str}' in "
+                    print(f"Error finding symbol '{sig_str}' in "
                           f"'{module_name}'.")
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
@@ -625,7 +636,7 @@ class LFRicExtractDriverCreator:
                 try:
                     sym = symbol_table.lookup_with_tag(tag)
                 except KeyError:
-                    print(f"Cannot find variable with tag '{tag}' - likely "
+                    print(f"Cannot find symbol with tag '{tag}' - likely "
                           f"a symptom of an earlier parsing problem.")
                     # TODO #2120: Better error handling, at this stage
                     # we likely could not find a module variable (e.g.
@@ -671,7 +682,8 @@ class LFRicExtractDriverCreator:
                     sym_tuple = \
                         self._create_output_var_code(flattened, program,
                                                      is_input, read_var,
-                                                     postfix, index=i)
+                                                     postfix, index=i,
+                                                     module_name=module_name)
                     output_symbols.append(sym_tuple)
             else:
                 sig_str = str(signature)
@@ -1077,8 +1089,6 @@ class LFRicExtractDriverCreator:
         :returns: the driver in the selected language.
         :rtype: str
 
-        :raises NotImplementedError: if the driver creation fails.
-
         '''
         file_container = self.create(nodes, read_write_info, prefix,
                                      postfix, region_name)
@@ -1104,6 +1114,8 @@ class LFRicExtractDriverCreator:
         out = []
         # An optional comma and spaces, followed by either protected
         # or private as word:
+        # TODO #2536: FAB is able to remove this automatically, so this
+        # will not be required anymore.
         remove_regex = re.compile(r"(, *)?(\b(protected|private)\b)")
 
         for module in sorted_modules:
