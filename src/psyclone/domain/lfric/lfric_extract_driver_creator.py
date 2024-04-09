@@ -378,11 +378,8 @@ class LFRicExtractDriverCreator:
             if not module_name:
                 # Ignore local symbols, which will have been added above
                 continue
-            try:
-                container = symbol_table.lookup(module_name)
-            except KeyError:
-                container = ContainerSymbol(module_name)
-                symbol_table.add(container)
+            container = symbol_table.find_or_create(
+                module_name, symbol_type=ContainerSymbol)
 
             # Now look up the original symbol. While the variable could
             # be declared Unresolved here (i.e. just imported), we need the
