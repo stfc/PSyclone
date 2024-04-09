@@ -78,7 +78,7 @@ def test_extract_node_gen_code():
     code = str(invoke.gen())
     expected = [
         'CALL psydata%PreStart("single_invoke_psy", '
-        '"invoke_important_invoke:testkern_code:r0", 17, 2)',
+        '"invoke_important_invoke-testkern_code-r0", 17, 2)',
         'CALL psydata%PreDeclareVariable("a", a)',
         'CALL psydata%PreDeclareVariable("f1_data", f1_data)',
         'CALL psydata%PreDeclareVariable("f2_data", f2_data)',
