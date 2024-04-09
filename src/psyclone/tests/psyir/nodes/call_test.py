@@ -55,7 +55,7 @@ def test_call_init():
     property.
 
     '''
-    # Initialise with a RoutineSymbol
+    # Initialise without a RoutineSymbol
     call = Call()
     # By default everything is None
     assert call.routine is None
@@ -462,10 +462,10 @@ def test_call_argumentnames_after_replacearg():
     assert len(call.arguments) == 2
     assert len(call._argument_names) == 2
     # argument_names property makes _argument_names list consistent.
-    assert call._argument_names[0][0] != id(call.children[1])
+    assert call._argument_names[0][0] != id(call.arguments[0])
     assert call.argument_names == [None, "name2"]
     assert len(call._argument_names) == 2
-    assert call._argument_names[0][0] == id(call.children[1])
+    assert call._argument_names[0][0] == id(call.arguments[0])
 
 
 def test_call_argumentnames_after_reorderarg():
@@ -562,7 +562,7 @@ def test_copy():
     op1 = Literal("1", INTEGER_TYPE)
     op2 = Literal("2", INTEGER_TYPE)
     call = Call.create(RoutineSymbol("name"), [("name1", op1), ("name2", op2)])
-    # consistent call
+    # Call copy with consitent internal state of _arguments_name
     call2 = call.copy()
     assert call._argument_names[0] == (id(call.arguments[0]), "name1")
     assert call._argument_names[1] == (id(call.arguments[1]), "name2")
@@ -573,12 +573,18 @@ def test_copy():
     # Swap position of arguments
     call.children.extend([op2.detach(), op1.detach()])
 
+    # The internal state of the argument_names is now inconsistent:
+    # name1=op2, name2=op1 (until we call a public method)
     assert call._argument_names[0] != (id(call.arguments[0]), "name2")
     assert call._argument_names[1] != (id(call.arguments[1]), "name1")
-    # inconsistent call
+
+    # Calling the copy method must reconcile the argument names before doing
+    # the copy, so name2=op2 is at position 0, and name1=op1 is at position 1
     call2 = call.copy()
     assert call._argument_names[0] == (id(call.arguments[0]), "name2")
     assert call._argument_names[1] == (id(call.arguments[1]), "name1")
     assert call2._argument_names[0] == (id(call2.arguments[0]), "name2")
     assert call2._argument_names[1] == (id(call2.arguments[1]), "name1")
+
+    # And the ids are not the same (each one has their own)
     assert call._argument_names != call2._argument_names

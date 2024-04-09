@@ -607,6 +607,8 @@ class SymPyWriter(FortranWriter):
         try:
             name = self._symbol_table.lookup_with_tag(node.name).name
         except KeyError:
+            # If the tag did not exist it means that this symbol has not
+            # been re-named, and we can use it as is.
             name = node.name
         if not node.is_array:
             # This reference is not an array, just return the name
