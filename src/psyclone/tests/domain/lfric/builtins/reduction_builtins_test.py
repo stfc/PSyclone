@@ -164,20 +164,20 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
         assert output in code
     else:
         assert (
-            "    SUBROUTINE invoke_0(asum, f1, f2, b)\n"
-            "      REAL(KIND=r_def), intent(out) :: asum\n"
-            "      REAL(KIND=r_def), intent(in) :: b\n"
-            "      TYPE(field_type), intent(in) :: f1, f2\n"
-            "      INTEGER(KIND=i_def) df\n"
-            "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
-            "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
-            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "  SUBROUTINE invoke_0(asum, f1, f2, b)\n"
+            "    REAL(KIND=r_def), intent(out) :: asum\n"
+            "    REAL(KIND=r_def), intent(in) :: b\n"
+            "    TYPE(field_type), intent(in) :: f1, f2\n"
+            "    INTEGER(KIND=i_def) :: df\n"
+            "    INTEGER(KIND=i_def) :: loop2_start, loop2_stop\n"
+            "    INTEGER(KIND=i_def) :: loop1_start, loop1_stop\n"
+            "    INTEGER(KIND=i_def) :: loop0_start, loop0_stop\n"
+            "    REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
             "null()\n"
-            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "    REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
             "null()\n"
-            "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_aspc1_f1\n") in code
+            "    TYPE(field_proxy_type) :: f1_proxy, f2_proxy\n"
+            "    INTEGER(KIND=i_def) :: undf_aspc1_f1\n").lower() == code
         assert (
             "      f1_proxy = f1%get_proxy()\n"
             "      f1_data => f1_proxy%data\n"

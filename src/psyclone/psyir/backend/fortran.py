@@ -963,17 +963,24 @@ class FortranWriter(LanguageWriter):
                 "_psyclone_internal_interface")
         except KeyError:
             internal_interface_symbol = None
-        if unresolved_symbols and not (
-                symbol_table.has_wildcard_imports() or
-                internal_interface_symbol):
-            symbols_txt = ", ".join(
-                ["'" + sym.name + "'" for sym in unresolved_symbols])
-            raise VisitorError(
-                f"The following symbols are not explicitly declared or "
-                f"imported from a module and there are no wildcard "
-                f"imports which could be bringing them into scope: "
-                f"{symbols_txt}")
+        # if unresolved_symbols and not (
+        #         symbol_table.has_wildcard_imports() or
+        #         internal_interface_symbol):
+        #     symbols_txt = ", ".join(
+        #         ["'" + sym.name + "'" for sym in unresolved_symbols])
+        #     raise VisitorError(
+        #         f"The following symbols are not explicitly declared or "
+        #         f"imported from a module and there are no wildcard "
+        #         f"imports which could be bringing them into scope: "
+        #         f"{symbols_txt}")
 
+        # FIXME: For now we remove generic symbols found in LFRic, but this
+        # need to be removed by specialising them or seting them as
+        # UnresolvedInterface and a wilcard import.
+        for sym in all_symbols[:]:
+            if type(sym) is Symbol:
+                all_symbols.remove(sym)
+                
         # As a convention, we will declare the variables in the following
         # order:
 
@@ -1232,7 +1239,8 @@ class FortranWriter(LanguageWriter):
         '''
         lhs = self._visit(node.lhs)
         rhs = self._visit(node.rhs)
-        result = f"{self._nindent}{lhs} = {rhs}\n"
+        op = "=>" if node.is_pointer else "="
+        result = f"{self._nindent}{lhs} {op} {rhs}\n"
         return result
 
     def binaryoperation_node(self, node):

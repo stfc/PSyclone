@@ -49,6 +49,7 @@ from psyclone import psyGen
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.f2pygen import DeclGen, TypeDeclGen
+from psyclone.psyir.symbols import ArgumentInterface
 
 
 class LFRicFields(LFRicCollection):
@@ -110,15 +111,20 @@ class LFRicFields(LFRicCollection):
                 # new entry
                 field_datatype_map[(arg.data_type, arg.module_name)] = [arg]
 
+        symtab = self._invoke.schedule.symbol_table
         # Add the Invoke subroutine argument declarations for the
         # different fields types. They are declared as intent "in" as
         # they contain a pointer to the data that is modified.
         for fld_type, fld_mod in field_datatype_map:
             args = field_datatype_map[(fld_type, fld_mod)]
-            arg_list = [arg.declaration_name for arg in args]
-            parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=arg_list,
-                                   intent="in"))
+            for arg in args:
+                arg_symbol = symtab.lookup(arg.name)
+                arg_symbol.interface.access = ArgumentInterface.Access.READ
+
+            # arg_list = [arg.declaration_name for arg in args]
+            # parent.add(TypeDeclGen(parent, datatype=fld_type,
+            #                        entity_decls=arg_list,
+            #                        intent="in"))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
 

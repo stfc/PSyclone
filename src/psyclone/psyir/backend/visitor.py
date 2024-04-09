@@ -261,6 +261,8 @@ class PSyIRVisitor():
                     if not parent or valid:
                         if node.preceding_comment and self._COMMENT_PREFIX:
                             lines = node.preceding_comment.split('\n')
+                            if node.position != 1:
+                                result += "\n"
                             for line in lines:
                                 result += (self._nindent +
                                            self._COMMENT_PREFIX +

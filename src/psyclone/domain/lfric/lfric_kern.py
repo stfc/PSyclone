@@ -44,16 +44,18 @@ from collections import OrderedDict, namedtuple
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import (KernCallArgList, KernStubArgList,
-                                   KernelInterface, LFRicConstants)
+from psyclone.domain.lfric import (
+    KernCallArgList, KernStubArgList, LFRicTypes, KernelInterface,
+    LFRicConstants)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import ModuleGen, SubroutineGen, UseGen
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import (Loop, Literal, Reference,
-                                  KernelSchedule)
-from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
+from psyclone.psyir.nodes import (
+    Loop, Literal, Reference, KernelSchedule)
+from psyclone.psyir.symbols import (
+    DataSymbol, ScalarType, ArrayType, UnsupportedFortranType)
 
 
 class LFRicKern(CodedKern):
@@ -314,8 +316,11 @@ class LFRicKern(CodedKern):
             # name for the whole Invoke.
             if qr_arg.varname:
                 tag = "AlgArgs_" + qr_arg.text
-                qr_name = self.ancestor(InvokeSchedule).symbol_table.\
-                    find_or_create_integer_symbol(qr_arg.varname, tag=tag).name
+                # qr_name = self.ancestor(InvokeSchedule).symbol_table.\
+                #     find_or_create_integer_symbol(qr_arg.varname, tag=tag).name
+                qr_name = self.ancestor(InvokeSchedule).symbol_table.new_symbol(
+                    qr_arg.varname, tag=tag, symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(f"missing decl {qr_arg.varname}")).name
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.

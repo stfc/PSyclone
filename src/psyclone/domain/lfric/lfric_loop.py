@@ -49,10 +49,11 @@ from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
-from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
-                                  ArrayReference, ACCRegionDirective,
-                                  OMPRegionDirective, Routine)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.nodes import (
+    Loop, Literal, Schedule, Reference, ArrayReference, ACCRegionDirective,
+    OMPRegionDirective, Routine, StructureReference, Call,
+    ArrayOfStructuresReference)
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface
 
 
 class LFRicLoop(PSyLoop):
@@ -129,6 +130,12 @@ class LFRicLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        # Set halo clean/dirty for all fields that are modified
+        if Config.get().distributed_memory:
+            if self._loop_type != "colour":
+                if self.unique_modified_args("gh_field"):
+                    self.gen_mark_halos_clean_dirty(None, self.position - 1)
+
         if self._loop_type != "null":
             # This is not a 'domain' loop (i.e. there is a real loop). First
             # check that there isn't any validation issues with the node.
@@ -167,7 +174,24 @@ class LFRicLoop(PSyLoop):
             lowered_node = self.loop_body[0].detach()
             self.replace_with(lowered_node)
 
+
+        if self.ancestor((ACCRegionDirective, OMPRegionDirective)):
+            # We cannot include calls to set halos dirty/clean within OpenACC
+            # or OpenMP regions. This is handled by the appropriate Directive
+            # class instead.
+            # TODO #1755 can this check be made more general (e.g. to include
+            # Extraction regions)?
+            return lowered_node
+
         return lowered_node
+
+    def validate_global_constraints(self):
+        
+        # Check that we're not within an OpenMP parallel region if
+        # we are a loop over colours.
+        if self._loop_type == "colours" and self.is_openmp_parallel():
+            raise GenerationError("Cannot have a loop over colours within an "
+                                  "OpenMP parallel region.")
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
@@ -515,6 +539,146 @@ class LFRicLoop(PSyLoop):
             f"Unsupported upper bound name '{self._upper_bound_name}' found "
             f"in lfricloop.upper_bound_fortran()")
 
+    def _upper_bound_psyir(self):
+        ''' Create the PSyIR that gives the appropriate upper bound
+        value for this type of loop.
+
+        :returns: the upper bound of this loop.
+        :rtype: #FIXME
+
+        '''
+        # pylint: disable=too-many-branches, too-many-return-statements
+        # precompute halo_index as a string as we use it in more than
+        # one of the if clauses
+        # import pdb; pdb.set_trace()
+        sym_tab = self.ancestor(InvokeSchedule).symbol_table
+        halo_index = ""
+        if self._upper_bound_halo_depth:
+            halo_index = str(self._upper_bound_halo_depth)
+
+        if self._upper_bound_name == "ncolours":
+            # Loop over colours
+            kernels = self.walk(LFRicKern)
+            if not kernels:
+                raise InternalError(
+                    "Failed to find a kernel within a loop over colours.")
+            # Check that all kernels have been coloured. We can't check the
+            # number of colours since that is only known at runtime.
+            for kern in kernels:
+                if not kern.ncolours_var:
+                    raise InternalError(
+                        f"All kernels within a loop over colours must have "
+                        f"been coloured but kernel '{kern.name}' has not")
+            return kernels[0].ncolours_var
+
+        if self._upper_bound_name == "ncolour":
+            # Loop over cells of a particular colour when DM is disabled.
+            # We use the same, DM API as that returns sensible values even
+            # when running without MPI.
+            root_name = "last_edge_cell_all_colours"
+            if self._kern.is_intergrid:
+                root_name += "_" + self._field_name
+            sym = self.ancestor(
+                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
+            return f"{sym.name}(colour)"
+        if self._upper_bound_name == "colour_halo":
+            # Loop over cells of a particular colour when DM is enabled. The
+            # LFRic API used here allows for colouring with redundant
+            # computation.
+            if halo_index:
+                # The colouring API provides a 2D array that holds the last
+                # halo cell for a given colour and halo depth.
+                depth = halo_index
+            else:
+                # If no depth is specified then we go to the full halo depth
+                depth = sym_tab.find_or_create_tag(
+                    f"max_halo_depth_{self._mesh_name}").name
+            root_name = "last_halo_cell_all_colours"
+            if self._kern.is_intergrid:
+                root_name += "_" + self._field_name
+            sym = sym_tab.find_or_create_tag(root_name)
+            return f"{sym.name}(colour, {depth})"
+        if self._upper_bound_name in ["ndofs", "nannexed"]:
+            if Config.get().distributed_memory:
+                if self._upper_bound_name == "ndofs":
+                    method = "get_last_dof_owned"
+                else:
+                    method = "get_last_dof_annexed"
+                result = Call.create(
+                    StructureReference.create(
+                        sym_tab.lookup(self.field.proxy_name_indexed),
+                        [self.field.ref_name(), method]
+                    )
+                )
+            else:
+                result = Reference(sym_tab.lookup(self._kern.undf_name))
+            return result
+        if self._upper_bound_name == "ncells":
+            if Config.get().distributed_memory:
+                result = Call.create(
+                    StructureReference.create(
+                        sym_tab.lookup(self._mesh_name),
+                        ["get_last_edge_cell"]
+                    )
+                )
+                # result = f"{self._mesh_name}%get_last_edge_cell()"
+            else:
+                result = Call.create(
+                    StructureReference.create(
+                        sym_tab.lookup(self.field.proxy_name_indexed),
+                        [self.field.ref_name(), "get_ncell"]
+                    )
+                )
+                # result = (f"{self.field.proxy_name_indexed}%"
+                #           f"{self.field.ref_name()}%get_ncell()")
+            return result
+        if self._upper_bound_name == "cell_halo":
+            if Config.get().distributed_memory:
+                result = Call.create(
+                    StructureReference.create(
+                        sym_tab.lookup(self._mesh_name),
+                        ["get_last_edge_cell"]
+                    )
+                )
+                result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
+                return result
+            raise GenerationError(
+                "'cell_halo' is not a valid loop upper bound for "
+                "sequential/shared-memory code")
+        if self._upper_bound_name == "dof_halo":
+            if Config.get().distributed_memory:
+                result = Call.create(
+                    StructureReference.create(
+                        sym_tab.lookup(self.field.proxy_name_indexed),
+                        [self.field.ref_name(), "get_last_dof_halo"]
+                    )
+                )
+                result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
+                return result
+                # return (f"{self.field.proxy_name_indexed}%"
+                #         f"{self.field.ref_name()}%get_last_dof_halo("
+                #         f"{halo_index})")
+            raise GenerationError(
+                "'dof_halo' is not a valid loop upper bound for "
+                "sequential/shared-memory code")
+        if self._upper_bound_name == "inner":
+            if Config.get().distributed_memory:
+                result = Call.create(
+                    StructureReference.create(
+                        sym_tab.lookup(self._mesh_name),
+                        ["get_last_inner_cell"]
+                    )
+                )
+                result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
+                return result
+                # return f"{self._mesh_name}%get_last_inner_cell({halo_index})"
+            raise GenerationError(
+                "'inner' is not a valid loop upper bound for "
+                "sequential/shared-memory code")
+        raise GenerationError(
+            f"Unsupported upper bound name '{self._upper_bound_name}' found "
+            f"in lfricloop.upper_bound_fortran()")
+
     def _halo_read_access(self, arg):
         '''
         Determines whether the supplied argument has (or might have) its
@@ -845,12 +1009,7 @@ class LFRicLoop(PSyLoop):
 
 
         '''
-        # pylint: disable=too-many-statements, too-many-branches
-        # Check that we're not within an OpenMP parallel region if
-        # we are a loop over colours.
-        if self._loop_type == "colours" and self.is_openmp_parallel():
-            raise GenerationError("Cannot have a loop over colours within an "
-                                  "OpenMP parallel region.")
+        self.validate_global_constraints()
 
         super().gen_code(parent)
         # TODO #1010: gen_code of this loop calls the PSyIR lowering version,
@@ -888,7 +1047,7 @@ class LFRicLoop(PSyLoop):
 
         parent.add(CommentGen(parent, ""))
 
-    def gen_mark_halos_clean_dirty(self, parent):
+    def gen_mark_halos_clean_dirty(self, parent, insert_loc):
         '''
         Generates the necessary code to mark halo regions for all modified
         fields as clean or dirty following execution of this loop.
@@ -902,9 +1061,17 @@ class LFRicLoop(PSyLoop):
 
         sym_table = self.ancestor(InvokeSchedule).symbol_table
 
+        # import pdb; pdb.set_trace()
         # First set all of the halo dirty unless we are
         # subsequently going to set all of the halo clean
         for field in fields:
+            try:
+                field_symbol = sym_table.lookup(field.proxy_name)
+            except KeyError:
+                field_symbol = sym_table.new_symbol(field.proxy_name,
+                                                    symbol_type=DataSymbol,
+                                                    datatype=UnresolvedType(),
+                                                    interface=UnresolvedInterface())
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import HaloWriteAccess
@@ -917,11 +1084,16 @@ class LFRicLoop(PSyLoop):
                     # the range function below returns values from 1 to the
                     # vector size which is what we require in our Fortran code
                     for index in range(1, field.vector_size+1):
-                        parent.add(CallGen(parent, name=field.proxy_name +
-                                           f"({index})%set_dirty()"))
+                        self.parent.addchild(
+                            Call.create(ArrayOfStructuresReference.create(
+                                field_symbol, index, ["set_dirty"])),
+                            self.position)
                 else:
-                    parent.add(CallGen(parent, name=field.proxy_name +
-                                       "%set_dirty()"))
+                    self.parent.addchild(
+                        Call.create(StructureReference.create(
+                            field_symbol, ["set_dirty"])),
+                        self.position)
+
             # Now set appropriate parts of the halo clean where
             # redundant computation has been performed.
             if hwa.literal_depth:
@@ -934,6 +1106,11 @@ class LFRicLoop(PSyLoop):
                         # The range function below returns values from 1 to the
                         # vector size, as required in our Fortran code.
                         for index in range(1, field.vector_size+1):
+                            set_clean = Call.create(
+                                ArrayOfStructuresReference.create(
+                                    field_symbol, index, ["set_clean"]))
+                            set_clean.addchild(Literal(halo_depth, INTEGER_TYPE))
+                            
                             parent.add(CallGen(
                                 parent, name=f"{field.proxy_name}({index})%"
                                 f"set_clean({halo_depth})"))

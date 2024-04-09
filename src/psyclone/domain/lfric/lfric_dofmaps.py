@@ -54,6 +54,8 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicCollection
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
+from psyclone.psyir.nodes import Assignment, Reference, Call, StructureReference
+from psyclone.psyir.symbols import UnsupportedFortranType, DataSymbol
 
 
 class LFRicDofmaps(LFRicCollection):
@@ -163,16 +165,25 @@ class LFRicDofmaps(LFRicCollection):
 
         # If we've got no dofmaps then we do nothing
         if self._unique_fs_maps:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Look-up dofmaps for each function space"))
-            parent.add(CommentGen(parent, ""))
+            # parent.add(CommentGen(parent, ""))
+            # parent.add(CommentGen(parent,
+            #                       " Look-up dofmaps for each function space"))
+            # parent.add(CommentGen(parent, ""))
 
+            first=True
             for dmap, field in self._unique_fs_maps.items():
-                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=field.proxy_name_indexed +
-                                     "%" + field.ref_name() +
-                                     "%get_whole_dofmap()"))
+                stmt = Assignment.create(
+                        lhs=Reference(self._symbol_table.lookup(dmap)),
+                        rhs=field.generate_method_call("get_whole_dofmap"),
+                        is_pointer=True)
+                if first:
+                    stmt.preceding_comment = "Look-up dofmaps for each function space"
+                    first = False
+                self._invoke.schedule.addchild(stmt)
+                # parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+                #                      rhs=field.proxy_name_indexed +
+                #                      "%" + field.ref_name() +
+                #                      "%get_whole_dofmap()"))
         if self._unique_cbanded_maps:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent,
@@ -208,13 +219,19 @@ class LFRicDofmaps(LFRicCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         # Function space dofmaps
-        decl_map_names = \
-            [dmap+"(:,:) => null()" for dmap in sorted(self._unique_fs_maps)]
+        # decl_map_names = \
+        #     [dmap+"(:,:) => null()" for dmap in sorted(self._unique_fs_maps)]
 
-        if decl_map_names:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=decl_map_names))
+        for dmap in sorted(self._unique_fs_maps):
+            dmap_sym = DataSymbol(
+                dmap, UnsupportedFortranType(
+                    f"integer(kind=i_def), pointer :: {dmap}(:,:) => null()"))
+            self._symbol_table.add(dmap_sym)
+
+        # if decl_map_names:
+        #     parent.add(DeclGen(parent, datatype="integer",
+        #                        kind=api_config.default_kind["integer"],
+        #                        pointer=True, entity_decls=decl_map_names))
 
         # Column-banded dofmaps
         decl_bmap_names = \

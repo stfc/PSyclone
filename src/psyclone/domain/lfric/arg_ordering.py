@@ -199,7 +199,7 @@ class ArgOrdering:
         '''
         if tag is None:
             tag = name
-        sym = self._symtab.find_or_create_integer_symbol(name, tag)
+        sym = self._symtab.lookup(name)
         self.psyir_append(Reference(sym))
         return sym
 
@@ -230,10 +230,7 @@ class ArgOrdering:
         if not tag:
             tag = array_name
         if not symbol:
-            symbol = self._symtab.find_or_create_array(array_name,
-                                                       len(indices),
-                                                       intrinsic_type,
-                                                       tag)
+            symbol = self._symtab.lookup(array_name)
         else:
             if symbol.name != array_name:
                 raise InternalError(f"Specified symbol '{symbol.name}' has a "

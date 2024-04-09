@@ -42,7 +42,7 @@
 # Imports
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
                               UseGen)
@@ -262,6 +262,32 @@ class LFRicInvoke(Invoke):
                 return field
         return None
 
+    def declare(self):
+        # Declare all quantities required by this PSy routine (Invoke)
+        # import pdb; pdb.set_trace()
+        # self.schedule.parent.symbol_table.new_symbol("i_def")
+        for entities in [self.scalar_args, self.fields, self.lma_ops,
+                         self.stencil, self.meshes,
+                         self.function_spaces, self.dofmaps, self.cma_ops,
+                         self.boundary_conditions, self.evaluators,
+                         self.proxies, self.cell_iterators,
+                         self.reference_element_properties,
+                         self.mesh_properties, self.loop_bounds,
+                         self.run_time_checks]:
+            print("Declare", type(entities))
+            entities.declarations(None)
+        for entities in [self.proxies, self.run_time_checks,
+                         self.cell_iterators, self.meshes,
+                         self.stencil, self.dofmaps,
+                         self.cma_ops, self.boundary_conditions,
+                         self.function_spaces, self.evaluators,
+                         self.reference_element_properties,
+                         self.mesh_properties, self.loop_bounds]:
+            print("Initialise", type(entities))
+            entities.initialise(None)
+        # Deallocate any basis arrays
+        self.evaluators.deallocate(None)
+
     def gen_code(self, parent):
         '''
         Generates LFRic-specific invocation code (the subroutine
@@ -336,7 +362,8 @@ class LFRicInvoke(Invoke):
         invoke_sub.add(CommentGen(invoke_sub, ""))
 
         # Add content from the schedule
-        self.schedule.gen_code(invoke_sub)
+        # self.schedule.gen_code(invoke_sub)
+        invoke_sub.add(PSyIRGen(invoke_sub, self.schedule))
 
         # Deallocate any basis arrays
         self.evaluators.deallocate(invoke_sub)

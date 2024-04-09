@@ -333,32 +333,30 @@ def test_any_space_1(tmpdir):
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = str(psy.gen)
+    code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert ("INTEGER(KIND=i_def), pointer :: map_aspc1_a(:,:) => null(), "
-            "map_aspc2_b(:,:) => null(), map_w0(:,:) => null()\n"
-            in generated_code)
-    assert ("REAL(KIND=r_def), allocatable :: basis_aspc1_a_qr(:,:,:,:),"
-            " basis_aspc2_b_qr(:,:,:,:)" in generated_code)
-    assert ("ALLOCATE (basis_aspc1_a_qr(dim_aspc1_a, ndf_aspc1_a, "
-            "np_xy_qr, np_z_qr))" in generated_code)
-    assert ("ALLOCATE (basis_aspc2_b_qr(dim_aspc2_b, ndf_aspc2_b, "
-            "np_xy_qr, np_z_qr))" in generated_code)
-    assert ("map_aspc1_a => a_proxy%vspace%get_whole_dofmap()" in
-            generated_code)
-    assert ("map_aspc2_b => b_proxy%vspace%get_whole_dofmap()" in
-            generated_code)
-    assert ("CALL testkern_any_space_1_code(nlayers, a_data, rdt, "
+    assert "integer(kind=i_def), pointer :: map_aspc1_a(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_aspc2_b(:,:) => null()" in code
+    assert "integer(kind=i_def), pointer :: map_w0(:,:) => null()" in code
+    assert "real(kind=r_def), allocatable :: basis_aspc1_a_qr(:,:,:,:)" in code
+    assert "real(kind=r_def), allocatable :: basis_aspc2_b_qr(:,:,:,:)" in code
+    assert ("ALLOCATE(basis_aspc1_a_qr(dim_aspc1_a,ndf_aspc1_a,"
+            "np_xy_qr,np_z_qr))" in code)
+    assert ("ALLOCATE(basis_aspc2_b_qr(dim_aspc2_b,ndf_aspc2_b,"
+            "np_xy_qr,np_z_qr))" in code)
+    assert "map_aspc1_a => a_proxy%vspace%get_whole_dofmap()" in code
+    assert "map_aspc2_b => b_proxy%vspace%get_whole_dofmap()" in code
+    assert ("call testkern_any_space_1_code(nlayers, a_data, rdt, "
             "b_data, c_1_data, c_2_data, c_3_data, "
             "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell), "
             "basis_aspc1_a_qr, ndf_aspc2_b, undf_aspc2_b, "
             "map_aspc2_b(:,cell), basis_aspc2_b_qr, ndf_w0, undf_w0, "
             "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
-            "weights_xy_qr, weights_z_qr)" in generated_code)
-    assert ("DEALLOCATE (basis_aspc1_a_qr, basis_aspc2_b_qr, diff_basis_w0_qr)"
-            in generated_code)
+            "weights_xy_qr, weights_z_qr)" in code)
+    assert ("DEALLOCATE(basis_aspc1_a_qr, basis_aspc2_b_qr, diff_basis_w0_qr)"
+            in code)
 
 
 def test_any_space_2(tmpdir):

@@ -42,6 +42,8 @@
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicCollection
 from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
+from psyclone.psyir.nodes import Assignment, Reference, Literal
+from psyclone.psyir.symbols import INTEGER_TYPE
 
 
 class LFRicLoopBounds(LFRicCollection):
@@ -73,9 +75,9 @@ class LFRicLoopBounds(LFRicCollection):
         if not loops:
             return
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Set-up all of the loop bounds"))
-        parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent, " Set-up all of the loop bounds"))
+        # parent.add(CommentGen(parent, ""))
 
         sym_table = self._invoke.schedule.symbol_table
         config = Config.get()
@@ -90,21 +92,33 @@ class LFRicLoopBounds(LFRicCollection):
             root_name = f"loop{idx}_start"
             lbound = sym_table.find_or_create_integer_symbol(root_name,
                                                              tag=root_name)
-            parent.add(AssignGen(parent, lhs=lbound.name,
-                                 rhs=loop._lower_bound_fortran()))
-            entities = [lbound.name]
+            self._invoke.schedule.addchild(
+                Assignment.create(
+                    lhs=Reference(lbound),
+                    rhs=Literal("1", INTEGER_TYPE),  # FIXME
+                )
+            )
+            # parent.add(AssignGen(parent, lhs=lbound.name,
+            #                      rhs=loop._lower_bound_fortran()))
+            # entities = [lbound.name]
 
             if loop.loop_type != "colour":
                 root_name = f"loop{idx}_stop"
                 ubound = sym_table.find_or_create_integer_symbol(root_name,
                                                                  tag=root_name)
-                entities.append(ubound.name)
-                parent.add(AssignGen(parent, lhs=ubound.name,
-                                     rhs=loop._upper_bound_fortran()))
+                self._invoke.schedule.addchild(
+                    Assignment.create(
+                        lhs=Reference(ubound),
+                        rhs=loop._upper_bound_psyir()
+                    )
+                )
+                # entities.append(ubound.name)
+                # parent.add(AssignGen(parent, lhs=ubound.name,
+                #                      rhs=loop._upper_bound_fortran()))
 
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=entities))
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    entity_decls=entities))
 
 
 # ---------- Documentation utils -------------------------------------------- #

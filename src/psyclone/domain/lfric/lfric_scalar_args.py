@@ -45,10 +45,11 @@ an Invoke or a Kernel stub.
 # Imports
 from collections import OrderedDict, Counter
 
-from psyclone.domain.lfric import LFRicCollection, LFRicConstants
+from psyclone.domain.lfric import LFRicCollection, LFRicConstants, LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import DeclGen
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
+from psyclone.psyir.symbols import DataSymbol, ArgumentInterface
 
 # pylint: disable=too-many-lines
 # pylint: disable=too-many-locals
@@ -142,7 +143,7 @@ class LFRicScalarArgs(LFRicCollection):
                     f"different kernels. This is invalid.")
 
         # Create declarations
-        self._create_declarations(parent)
+        self._create_declarations()
 
     def _stub_declarations(self, parent):
         '''
@@ -179,16 +180,12 @@ class LFRicScalarArgs(LFRicCollection):
                         f"are {const.VALID_SCALAR_DATA_TYPES}.")
 
         # Create declarations
-        self._create_declarations(parent)
+        self._create_declarations()
 
-    def _create_declarations(self, parent):
+    def _create_declarations(self):
         '''Add declarations for the scalar arguments.
 
-        :param parent: the f2pygen node in which to insert declarations \
-                       (Invoke or Kernel).
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: if neither self._invoke nor \
+        :raises InternalError: if neither self._invoke nor
             self._kernel are set.
 
         '''
@@ -196,8 +193,11 @@ class LFRicScalarArgs(LFRicCollection):
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
         const_mod_uses = None
         if self._invoke:
+            symtab = self._invoke.schedule.symbol_table
             const_mod_uses = self._invoke.invokes.psy.infrastructure_modules[
                 const_mod]
+        else:
+            symtab = self._kern.schedule.symbol_table
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
@@ -215,14 +215,21 @@ class LFRicScalarArgs(LFRicCollection):
                 # Declare scalars
                 for real_scalar_kind, real_scalars_list in \
                         real_scalars_precision_map.items():
-                    real_scalar_type = real_scalars_list[0].intrinsic_type
-                    real_scalar_names = [arg.declaration_name for arg
-                                         in real_scalars_list]
-                    parent.add(
-                        DeclGen(parent, datatype=real_scalar_type,
-                                kind=real_scalar_kind,
-                                entity_decls=real_scalar_names,
-                                intent=intent))
+                    for arg in real_scalars_list:
+                        symbol = symtab.lookup(arg.declaration_name)
+                        if intent == "out":
+                            symbol.interface.access = \
+                                ArgumentInterface.Access.WRITE
+                        elif intent == "in":
+                            symbol.interface.access = \
+                                ArgumentInterface.Access.READ
+                    # real_scalar_names = [arg.declaration_name for arg
+                    #                      in real_scalars_list]
+                    # parent.add(
+                    #     DeclGen(parent, datatype=real_scalar_type,
+                    #             kind=real_scalar_kind,
+                    #             entity_decls=real_scalar_names,
+                    #             intent=intent))
                     if self._invoke:
                         const_mod_uses.add(real_scalar_kind)
                     elif self._kernel:
@@ -238,12 +245,19 @@ class LFRicScalarArgs(LFRicCollection):
             if self._integer_scalars[intent]:
                 dtype = self._integer_scalars[intent][0].intrinsic_type
                 dkind = self._integer_scalars[intent][0].precision
-                integer_scalar_names = [arg.declaration_name for arg
-                                        in self._integer_scalars[intent]]
-                parent.add(
-                    DeclGen(parent, datatype=dtype, kind=dkind,
-                            entity_decls=integer_scalar_names,
-                            intent=intent))
+                for arg in self._integer_scalars[intent]:
+                    symbol = symtab.lookup(arg.declaration_name)
+                    if intent == "out":
+                        symbol.interface.access = \
+                            ArgumentInterface.Access.WRITE
+                    elif intent == "in":
+                        symbol.interface.access = \
+                            ArgumentInterface.Access.READ
+
+                # parent.add(
+                #     DeclGen(parent, datatype=dtype, kind=dkind,
+                #             entity_decls=integer_scalar_names,
+                #             intent=intent))
                 if self._invoke:
                     const_mod_uses.add(dkind)
                 elif self._kernel:
@@ -259,12 +273,18 @@ class LFRicScalarArgs(LFRicCollection):
             if self._logical_scalars[intent]:
                 dtype = self._logical_scalars[intent][0].intrinsic_type
                 dkind = self._logical_scalars[intent][0].precision
-                logical_scalar_names = [arg.declaration_name for arg
-                                        in self._logical_scalars[intent]]
-                parent.add(
-                    DeclGen(parent, datatype=dtype, kind=dkind,
-                            entity_decls=logical_scalar_names,
-                            intent=intent))
+                for arg in self._logical_scalars[intent]:
+                    symbol = symtab.lookup(arg.declaration_name)
+                    if intent == "out":
+                        symbol.interface.access = \
+                            ArgumentInterface.Access.WRITE
+                    elif intent == "in":
+                        symbol.interface.access = \
+                            ArgumentInterface.Access.READ
+                # parent.add(
+                #     DeclGen(parent, datatype=dtype, kind=dkind,
+                #             entity_decls=logical_scalar_names,
+                #             intent=intent))
                 if self._invoke:
                     const_mod_uses.add(dkind)
                 elif self._kernel:

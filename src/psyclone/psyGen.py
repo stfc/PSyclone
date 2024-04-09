@@ -49,7 +49,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CommentGen,
-                              DeclGen, DeallocateGen, DoGen, UseGen)
+                              DeclGen, DeallocateGen, DoGen, UseGen, PSyIRGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (ArrayReference, Call, Container, Literal,
@@ -377,7 +377,8 @@ class Invokes():
                     f"An invoke.schedule element of the invoke_list is a "
                     f"'{type(invoke.schedule).__name__}', but it should be an "
                     f"'InvokeSchedule'.")
-            invoke.gen_code(parent)
+            # invoke.gen_code(parent)
+            parent.add(PSyIRGen(parent, invoke.schedule))
 
 
 class Invoke():
@@ -792,7 +793,8 @@ class InvokeSchedule(Routine):
                               funcnames=var_list))
 
         for entity in self.children:
-            entity.gen_code(parent)
+            parent.add(PSyIRGen(parent, entity))
+            # entity.gen_code(parent)
 
 
 class GlobalSum(Statement):
