@@ -251,8 +251,8 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         assert "halo_exchange(depth=extent)" not in result
         assert "loop0_stop = f0_proxy%vspace%get_ncell()" in result
         assert "loop1_stop = f3_proxy%vspace%get_ncell()" in result
-    assert "DO cell=loop0_start,loop0_stop" in result
-    assert "DO cell=loop1_start,loop1_stop" in result
+    assert "DO cell = loop0_start, loop0_stop" in result
+    assert "DO cell = loop1_start, loop1_stop" in result
 
 
 def test_stencil_args_unique_1(dist_mem, tmpdir):

@@ -83,7 +83,7 @@ def have_graphviz():
     also have been installed for dag generation to work correctly. '''
     try:
         # pylint: disable=import-outside-toplevel, unused-import
-        import graphviz
+        import graphviz  # noqa: F401
     except ImportError:
         return False
     return True

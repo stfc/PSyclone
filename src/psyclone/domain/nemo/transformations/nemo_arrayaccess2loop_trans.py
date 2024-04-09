@@ -116,7 +116,7 @@ class NemoArrayAccess2LoopTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         array_index = node.position
         array_reference = node.parent

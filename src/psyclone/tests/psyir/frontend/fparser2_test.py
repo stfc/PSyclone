@@ -63,7 +63,7 @@ from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
-    SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
+    SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, RoutineSymbol,
     UnsupportedFortranType, UnresolvedType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface,
     StructureType, DataTypeSymbol)
@@ -1860,8 +1860,14 @@ def test_process_use_stmts_with_default_visibility():
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use this_mod\n"
-                                 "use other_mod, only: var1, var2\n")
+                                 "use other_mod, only: var1, var2, sub1\n")
     fparser2spec = Specification_Part(reader)
+
+    # In some cases we might already know that one of the symbols being
+    # brought into scope is a Routine so include this situation.
+    table = fake_parent.symbol_table
+    table.add(RoutineSymbol("sub1"))
+
     processor._process_use_stmts(fake_parent, fparser2spec.content)
 
     symtab = fake_parent.symbol_table
@@ -1870,15 +1876,19 @@ def test_process_use_stmts_with_default_visibility():
         container = symtab.lookup(module_name)
         assert isinstance(container, ContainerSymbol)
         assert container.name == module_name
-        assert not container._reference  # It is not evaluated explicitly told
+        # It is not evaluated unless explicitly requested
+        assert not container._reference
 
     for var in ["some_var", "var1", "var2"]:
         assert symtab.lookup(var).name == var
 
-    assert symtab.lookup("some_var").interface.container_symbol \
-        == symtab.lookup("my_mod")
-    assert symtab.lookup("var2").interface.container_symbol \
-        == symtab.lookup("other_mod")
+    assert (symtab.lookup("some_var").interface.container_symbol ==
+            symtab.lookup("my_mod"))
+    assert (symtab.lookup("var2").interface.container_symbol ==
+            symtab.lookup("other_mod"))
+    # The existing RoutineSymbol should have had its interface updated.
+    assert (symtab.lookup("sub1").interface.container_symbol ==
+            symtab.lookup("other_mod"))
 
     assert symtab.lookup("this_mod").visibility == Symbol.Visibility.PUBLIC
     assert symtab.lookup("var1").visibility == Symbol.Visibility.PUBLIC
@@ -2703,6 +2713,11 @@ def test_nodes_to_code_block_1(f2008_parser):
     schedule = psy.invokes.invoke_list[0].schedule
     assert isinstance(schedule[0], CodeBlock)
     assert schedule[0].structure == CodeBlock.Structure.STATEMENT
+    # Check that the error message that generated the codeblock has been
+    # added as a preceding comment by nodes_to_code_block
+    assert (schedule[0].preceding_comment ==
+            "PSyclone CodeBlock (unsupported code) reason:\n"
+            " - Unsupported label reference within DO")
 
 
 # (2/3) fparser2reader::nodes_to_code_block
@@ -2728,6 +2743,11 @@ def test_nodes_to_code_block_2(f2008_parser):
     schedule = psy.invokes.invoke_list[0].schedule
     assert isinstance(schedule[0].if_body[0], CodeBlock)
     assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
+    # Check that the error message that generated the codeblock has been
+    # added as a preceding comment by nodes_to_code_block
+    assert (schedule[0].if_body[0].preceding_comment ==
+            "PSyclone CodeBlock (unsupported code) reason:\n"
+            " - Unsupported label reference within DO")
 
 
 # (3/3) fparser2reader::nodes_to_code_block

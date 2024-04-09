@@ -100,7 +100,7 @@ class ModuleInfo:
         self._used_modules = None
 
         # This is a dictionary containing the sets of symbols imported from
-        # each module, indexed by the module names: dict[str, set[str].
+        # each module, indexed by the module names: dict[str, set[str]].
         self._used_symbols_from_module = None
 
         # This variable will be a set that stores the name of all routines
@@ -109,10 +109,12 @@ class ModuleInfo:
         # None so we avoid trying to parse a file more than once (parsing
         # errors would cause routine_names to be empty, so we can test
         # if routine_name is None vs if routine_names is empty)
+        # TODO #2435: To be changed once we have support for interfaces
         self._routine_names = None
 
         # This map contains the list of routine names that are part
         # of the same generic interface.
+        # TODO #2435: To be changed once we have support for interfaces
         self._generic_interfaces = {}
 
         self._processor = Fparser2Reader()
