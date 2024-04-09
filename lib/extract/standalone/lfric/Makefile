@@ -101,7 +101,8 @@ extract_standalone_base.f90: $(LIB_TMPLT_DIR)/extract_standalone_base.jinja Make
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90 \
+	read_kernel_data_mod.f90
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean
