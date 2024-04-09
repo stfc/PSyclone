@@ -295,12 +295,14 @@ class CallTreeUtils():
                 # by querying the module that contains the kernel:
                 try:
                     mod_info = mod_manager.get_module_info(kernel.module_name)
-                except FileNotFoundError:
+                except FileNotFoundError as err:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
                     print(f"[CallTreeUtils.get_non_local_read_write_info] "
                           f"Could not find module '{kernel.module_name}' - "
                           f"ignored.")
+                    # This includes the currently defined search path:
+                    print(str(err))
                     continue
 
                 # TODO #2435: once we have interface support, this will be
