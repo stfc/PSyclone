@@ -1,7 +1,7 @@
  ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2023, Science and Technology Facilities Council.
+! Copyright (c) 2017-2024, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,9 @@
 
 module testkern_rename_symbols_mod
 
+  ! The kernel here calls a function that will rename a symbol it imports.
+  ! This is used to test the handling of non-local renamed symbols in the
+  ! extraction and driver creation.
   use argument_mod
   use fs_continuity_mod
   use kernel_mod

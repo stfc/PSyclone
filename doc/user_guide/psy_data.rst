@@ -266,13 +266,17 @@ build environment is:
 
 - In the LFRic source tree create a new directory under ``infrastructure/source``, 
   e.g. ``infrastructure/source/psydata``.
-- Build the PSyData wrapper stand-alone in the PSyclone source tree. The compiled
+- Build the PSyData wrapper stand-alone in ``lib/extract/netcdf/lfric`` (which
+  will use NetCDF as output format) or ``lib/extract/standalone/lfric`` (which
+  uses standard Fortran binary output format) by executing ``make``. The compiled
   files will actually not be used, but this step will create all source
-  files (some of which are created by jinja). It is not recommended to copy
+  files (some of which are created by jinja). Do not copy
   the compiled files into your LFRic build tree, since these files might be
   compiled with an outdated version of the infrastructure files and be
   incompatible with files in a current LFRic version.
-- Copy all processed source files into ``infrastructure/source/psydata``
+- Copy all processed source files (``extract_netcdf_base.f90``,
+  ``kernel_data_netcdf.f90``, ``psy_data_base.f90``,
+  ``read_kernel_data_mod.f90``) into ``infrastructure/source/psydata``
 - Start the LFRic build process as normal. The LFRic build environment will
   copy the PSyData source files into the working directory and compile
   them.
@@ -289,3 +293,6 @@ build environment is:
     Only one PSyData library can be integrated at a time. Otherwise there
     will be potentially several modules with the same name (e.g.
     ``psy_data_base``), resulting in errors at compile time.
+
+.. note::
+    With the new build system FAB this process might change.

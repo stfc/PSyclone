@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023, Science and Technology Facilities Council
+! Copyright (c) 2023-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,9 @@
 
 program invoke_kernel_with_imported_symbols
 
-  ! Description: single function specified in a named invoke call
+  ! Description: The kernel will call a subroutine which renames a symbol
+  ! it imports. This is used to test the handling of non-local renamed
+  ! variables in extraction and driver creation.
   use constants_mod, only: r_def
   use field_mod,     only: field_type
   use testkern_rename_symbols_mod,  only: testkern_rename_symbols_type
