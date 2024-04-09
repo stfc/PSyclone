@@ -158,8 +158,7 @@ class AlgorithmInvokeCall(Call):
         '''
         if position == 0:
             return isinstance(child, Reference)
-        else:
-            return isinstance(child, KernelFunctor)
+        return isinstance(child, KernelFunctor)
 
     def node_str(self, colour=True):
         '''Construct a text representation of this node, optionally
