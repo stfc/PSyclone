@@ -178,6 +178,8 @@ def test_gen_decls(fortran_writer):
                       "type(grid_type) :: grid\n")
     result = fortran_writer.gen_decls(symbol_table)
 
+    # Add a Symbol with PreprocessorInterface which has to be ignored by
+    # the gen_decl method (as no declarations is needed)
     preprocessor_variable = DataSymbol("__LINE__", CHARACTER_TYPE,
                                        interface=PreprocessorInterface())
     symbol_table.add(preprocessor_variable)
