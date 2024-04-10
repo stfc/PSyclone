@@ -266,6 +266,19 @@ def test_new_symbol_5():
                 == "symbol1")
 
 
+def test_new_symbol_import_interface():
+    '''Check that if a symbol is renamed and is from an import it has
+     the correct original name.'''
+    sym_table = symbols.SymbolTable()
+    my_mod = symbols.ContainerSymbol("my_mod")
+    sym_table.add(my_mod)
+    sym_table.new_symbol("generic")
+    renamed = sym_table.new_symbol("generic",
+                                   interface=symbols.ImportInterface(my_mod))
+    assert renamed.name == "generic_1"
+    assert renamed.interface.orig_name == "generic"
+
+
 def test_add_1():
     '''Test that the add method inserts new symbols in the symbol table,
     but raises appropriate errors when provided with an invalid symbol
@@ -2026,16 +2039,16 @@ def test_find_or_create_tag():
             "but found type 'DataSymbol'." in str(err.value))
 
     tag5 = symtab.find_or_create_tag("tag5", root_name="var",
-                                     exact_name=False)
+                                     allow_renaming=True)
     assert tag5.name == "var_1"
     # Check that it fails if exact_name was specified but we couldn't create
     # a variable with that name.
     with pytest.raises(symbols.SymbolError) as err:
         symtab.find_or_create_tag("tag6", root_name="var",
-                                  exact_name=True)
-    assert ("Attempted to create a symbol with name 'var' but a "
-            "symbol with that name already exists, and using the exact "
-            "name was required." in str(err.value))
+                                  allow_renaming=False)
+    assert ("Cannot create symbol 'var' as a symbol with that name already "
+            "exists in this scope, and renaming is disallowed."
+            in str(err.value))
     # TODO #1057: It should also fail the symbol is found but the properties
     # are different than the requested ones.
 

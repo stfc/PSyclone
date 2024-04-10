@@ -52,6 +52,7 @@ from psyclone.psyir.symbols import (
     DataSymbol, ImportInterface, ContainerSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError,
     UnresolvedInterface)
+from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -340,7 +341,7 @@ class SymbolTable():
         return cls._normalize(string1) == cls._normalize(string2)
 
     def new_symbol(self, root_name=None, tag=None, shadowing=False,
-                   symbol_type=None, **symbol_init_args):
+                   symbol_type=None, allow_renaming=True, **symbol_init_args):
         ''' Create a new symbol. Optional root_name and shadowing
         arguments can be given to choose the name following the rules of
         next_available_name(). An optional tag can also be given.
@@ -348,22 +349,29 @@ class SymbolTable():
         and any additional initialization keyword arguments of this
         symbol_type can be provided to refine the created Symbol.
 
-        :param root_name: optional name to use when creating a new \
-            symbol name. This will be appended with an integer if the name \
+        :param root_name: optional name to use when creating a new
+            symbol name. This will be appended with an integer if the name
             clashes with an existing symbol name.
         :type root_name: str or NoneType
         :param str tag: optional tag identifier for the new symbol.
-        :param bool shadowing: optional logical flag indicating whether the \
-            name can be overlapping with a symbol in any of the ancestors \
+        :param bool shadowing: optional logical flag indicating whether the
+            name can be overlapping with a symbol in any of the ancestors
             symbol tables. Defaults to False.
         :param symbol_type: class type of the new symbol.
-        :type symbol_type: type object of class (or subclasses) of \
+        :type symbol_type: type object of class (or subclasses) of
                            :py:class:`psyclone.psyir.symbols.Symbol`
+        :param bool allow_renaming: whether to allow the newly created
+                                    symbol to be renamed from root_name.
+                                    Defaults to True.
         :param symbol_init_args: arguments to create a new symbol.
         :type symbol_init_args: unwrapped Dict[str] = object
 
-        :raises TypeError: if the type_symbol argument is not the type of a \
+        :raises TypeError: if the type_symbol argument is not the type of a
                            Symbol object class or one of its subclasses.
+        :raises SymbolError: if the the symbol needs to be created but would
+                             need to be renamed to be created and
+                             allow_renaming is False, or the datatype of the
+                             new symbol is an UnsupportedFortranType.
 
         '''
         # Only type-check symbol_type, the other arguments are just passed down
@@ -383,7 +391,26 @@ class SymbolTable():
         if "visibility" not in symbol_init_args:
             symbol_init_args["visibility"] = self.default_visibility
 
+        datatype = None
+        if "datatype" in symbol_init_args:
+            datatype = symbol_init_args["datatype"]
+
         available_name = self.next_available_name(root_name, shadowing)
+        if ((not allow_renaming or isinstance(datatype,
+                                              UnsupportedFortranType))
+                and available_name != root_name):
+            raise SymbolError(
+                f"Cannot create symbol '{root_name}' as a symbol with that "
+                f"name already exists in this scope, and renaming is "
+                f"disallowed."
+            )
+        if "interface" in symbol_init_args and available_name != root_name:
+            interface = symbol_init_args["interface"]
+            if isinstance(interface, ImportInterface):
+                symbol_init_args["interface"] = ImportInterface(
+                    symbol_init_args["interface"].container_symbol,
+                    root_name
+                )
         symbol = symbol_type(available_name, **symbol_init_args)
         self.add(symbol, tag)
         return symbol
@@ -417,7 +444,7 @@ class SymbolTable():
         except KeyError:
             return self.new_symbol(name, **new_symbol_args)
 
-    def find_or_create_tag(self, tag, root_name=None, exact_name=False,
+    def find_or_create_tag(self, tag, root_name=None,
                            **new_symbol_args):
         ''' Lookup a tag, if it doesn't exist create a new symbol with the
         given tag. By default it creates a generic Symbol with the tag as the
@@ -428,8 +455,16 @@ class SymbolTable():
         :param str tag: tag identifier.
         :param str root_name: optional name of the new symbol if it needs \
                               to be created. Otherwise it is ignored.
-        :param bool exact_name: whether to disallow renaming of the
-                                     created symbol.
+        :param bool shadowing: optional logical flag indicating whether the
+            name can be overlapping with a symbol in any of the ancestors
+            symbol tables. Defaults to False.
+        :param symbol_type: class type of the new symbol.
+        :type symbol_type: type object of class (or subclasses) of
+                           :py:class:`psyclone.psyir.symbols.Symbol`
+        :param bool allow_renaming: whether to allow the newly created
+        :param bool allow_renaming: whether to allow the newly created
+                                    symbol to be renamed from root_name.
+                                    Defaults to True.
         :param new_symbol_args: arguments to create a new symbol.
         :type new_symbol_args: unwrapped Dict[str, object]
 
@@ -439,9 +474,6 @@ class SymbolTable():
         :raises SymbolError: if the symbol already exists but the type_symbol \
                              argument does not match the type of the symbol \
                              found.
-        :raises SymbolError: if the the symbol needs to be created but would
-                             need to be renamed to be created and exact_name
-                             is True.
 
         '''
         try:
@@ -460,15 +492,6 @@ class SymbolTable():
         except KeyError:
             if not root_name:
                 root_name = tag
-            if exact_name:
-                symbols = self.get_symbols()
-                existing_names = set(symbols.keys())
-                if root_name in existing_names:
-                    raise SymbolError(
-                        f"Attempted to create a symbol with name "
-                        f"'{root_name}' but a symbol with that name already "
-                        f"exists, and using the exact name was required."
-                    )
             return self.new_symbol(root_name, tag, **new_symbol_args)
 
     def next_available_name(self, root_name=None, shadowing=False,
