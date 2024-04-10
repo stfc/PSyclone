@@ -39,7 +39,7 @@ directives into Nemo code. '''
 
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
-    Call, Loop, Directive, Assignment, OMPAtomicDirective)
+    Loop, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
 
