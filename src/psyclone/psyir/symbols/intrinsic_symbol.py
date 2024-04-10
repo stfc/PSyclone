@@ -52,7 +52,7 @@ class IntrinsicSymbol(RoutineSymbol):
     # TODO #2541: Currently name and the intrinsic should match, we really
     # just need the name, and make all the Intrinsic singature information
     # live inside the IntrinsicSymbol class.
-    
+
     '''
     def __init__(self, name, intrinsic, **kwargs):
         super().__init__(name, **kwargs)

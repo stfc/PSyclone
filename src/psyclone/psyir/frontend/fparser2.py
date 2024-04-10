@@ -4148,6 +4148,7 @@ class Fparser2Reader():
 
         :raises NotImplementedError: if the parse tree contains unsupported
             elements.
+
         '''
         # Fortran 2003 standard R1221 says that:
         #    procedure-designator is procedure-name
@@ -4155,7 +4156,6 @@ class Fparser2Reader():
         #                         or data-ref % binding-name
         # and R611 says that:
         #    data-ref             is part-ref [% part-ref]
-                        
         if isinstance(node, Fortran2003.Procedure_Designator):
             # If it is a Procedure_Designator split it in its components.
             # Note that this won't fail for procedure-name and proc-component
@@ -4175,14 +4175,14 @@ class Fparser2Reader():
             member_nodes = []
 
         if isinstance(top_ref, Fortran2003.Name):
-            # We can update the top_ref symbol information knowing that it exits
+            # Update the top_ref symbol information knowing that it exits
             base_sym = _find_or_create_unresolved_symbol(
                 parent, top_ref.string.lower(),
                 symbol_type=DataSymbol, datatype=UnresolvedType())
             base_indices = []
             base_ref = StructureReference
         elif isinstance(top_ref, Fortran2003.Part_Ref):
-            # We can update the top_ref symbol information knowing that it exits
+            # Update the top_ref symbol information knowing that it exits
             base_sym = _find_or_create_unresolved_symbol(
                 parent, top_ref.children[0].string.lower(),
                 symbol_type=DataSymbol, datatype=UnresolvedType())

@@ -267,6 +267,9 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
     assert out_files == [new_kernels[1].module_name+".f90"]
 
 
+# The following tests test the MarkRoutineForGPUMixin validation, for this
+# it uses the ACCRoutineTrans as instance of this Mixin.
+
 def test_accroutine_validate_wrong_node_type():
     '''
     Test that the validate() method of ACCRoutineTrans rejects a node of the
@@ -393,7 +396,8 @@ def test_accroutinetrans_validate_no_call():
 
     # The same error happens for unsupported GPU intrinsics
     call = kernel.get_kernel_schedule().walk(Call)[0]
-    call.replace_with(IntrinsicCall.create(IntrinsicCall.Intrinsic.GET_COMMAND))
+    call.replace_with(
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.GET_COMMAND))
     with pytest.raises(TransformationError) as err:
         rtrans.validate(kernel)
     assert ("Kernel 'testkern_with_call_code' calls another routine "
