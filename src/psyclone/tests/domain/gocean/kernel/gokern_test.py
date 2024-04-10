@@ -132,7 +132,7 @@ def test_gok_reference_accesses(fortran_writer):
     information are PSyIR nodes.
 
     '''
-    # Large stencil has 123,110,100
+    # Large stencil has 100, 110, 123 as stencil
     _, invoke = get_invoke("large_stencil.f90", "gocean1.0", idx=0)
     schedule = invoke.schedule
 
@@ -153,7 +153,7 @@ def test_gok_reference_accesses(fortran_writer):
         for indices in access.component_indices:
             result.add(str([fortran_writer(index) for index in indices]))
 
-    # The stencil is declared as 123, 110, 100 - test that appropriate
+    # The stencil is 100, 110, 123 - test that appropriate
     # accesses were added for each direction
     expected = {
         # First stencil direction of 123: 1
