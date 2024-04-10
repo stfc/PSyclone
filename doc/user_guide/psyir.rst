@@ -463,6 +463,8 @@ Interfaces are:
 
 - .. autoclass:: psyclone.psyir.symbols.UnknownInterface
 
+- .. autoclass:: psyclone.psyir.symbols.PreprocessorInterface
+
 
 Creating PSyIR
 ==============
