@@ -433,6 +433,8 @@ are:
 
 - .. autoclass:: psyclone.psyir.symbols.RoutineSymbol
 
+- .. autoclass:: psyclone.psyir.symbols.GenericInterfaceSymbol
+
 See the reference guide for the full API documentation of the
 :ref_guide:`SymbolTable psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable`
 and the :ref_guide:`Symbol types psyclone.psyir.symbols.html#module-psyclone.psyir.symbols`.
@@ -460,6 +462,8 @@ Interfaces are:
 - .. autoclass:: psyclone.psyir.symbols.UnresolvedInterface
 
 - .. autoclass:: psyclone.psyir.symbols.UnknownInterface
+
+- .. autoclass:: psyclone.psyir.symbols.PreprocessorInterface
 
 
 Creating PSyIR

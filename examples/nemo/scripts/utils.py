@@ -158,7 +158,7 @@ def normalise_loops(
         # Apply the HoistLocalArraysTrans when possible
         try:
             HoistLocalArraysTrans().apply(schedule)
-        except TransformationError as _:
+        except TransformationError:
             pass
 
     if convert_array_notation:
@@ -171,7 +171,7 @@ def normalise_loops(
             if isinstance(reference.symbol, DataSymbol):
                 try:
                     Reference2ArrayRangeTrans().apply(reference)
-                except TransformationError as _:
+                except TransformationError:
                     pass
 
     if loopify_array_intrinsics:
