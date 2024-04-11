@@ -117,6 +117,10 @@ class OMPRegionDirective(OMPDirective, RegionDirective, metaclass=abc.ABCMeta):
 
         '''
         result = []
+
+        if Config.get().api not in ('gocean1.0', 'dynamo0.3'):
+            return result
+
         const = Config.get().api_conf().get_constants()
         for call in self.kernels():
             for arg in call.arguments.args:
