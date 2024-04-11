@@ -41,7 +41,7 @@
 '''
 
 from psyclone.transformations import Transformation, TransformationError
-from psyclone.psyir.nodes import Routine, Loop, Node
+from psyclone.psyir.nodes import Routine, Node
 from psyclone.domain.nemo.transformations import \
     CreateNemoInvokeScheduleTrans
 

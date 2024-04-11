@@ -43,13 +43,10 @@
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
-from psyclone.core import Signature
-from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, InlinedKern
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (ACCEnterDataDirective, ACCUpdateDirective,
-                                  Schedule, Routine, Loop)
+from psyclone.psyir.nodes import Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
