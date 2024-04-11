@@ -221,4 +221,4 @@ def test_name():
     class returns the expected value.
 
     '''
-    assert (AllArrayAccess2LoopTrans().name == "AllArrayAccess2LoopTrans")
+    assert AllArrayAccess2LoopTrans().name == "AllArrayAccess2LoopTrans"

@@ -44,12 +44,6 @@ from psyclone.errors import InternalError
 from psyclone.psyir.tools import DependencyTools, DTCode
 
 
-@pytest.fixture(scope="function", autouse=True)
-def clear_config_instance():
-    '''The tests in this file all assume that the Nemo API is used.'''
-    Config.get().api = "nemo"
-
-
 # -----------------------------------------------------------------------------
 def test_messages():
     '''Tests the messaging system of the dependency tools.'''
@@ -91,12 +85,6 @@ def test_messages():
 def test_dep_tool_constructor_errors():
     '''Test that invalid loop types raise an error in the constructor.
     '''
-    with pytest.raises(TypeError) as err:
-        _ = DependencyTools(loop_types_to_parallelise=["lon", "invalid"])
-    assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
-            "values for API 'nemo' are ['lat', 'levels', 'lon', 'tracers', "
-            "'unknown']." in str(err.value))
-
     # Test that a a change to the API works as expected, i.e. does
     # not raise an exception with a valid loop type, but still raises
     # one with an invalid loop type

@@ -32,13 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
-# Modified: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: A. B. G. Chalk and S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation from an Assignment node
 containing an Array Reference node in its left-hand-side which in turn
 has at least one PSyIR Range node specifying an access to an array
 index (equivalent to an array assignment statement in Fortran) to the
-equivalent loop representation using a NemoLoop node. The outermost
+equivalent loop representation using a Loop node. The outermost
 Range is chosen to be replaced as replacing any other Range node would
 result in a reordering of the array accesses.
 
@@ -55,7 +55,7 @@ from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans import \
 
 class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
     '''Provides a transformation from the outermost PSyIR ArrayReference
-    Range to a PSyIR NemoLoop. For example:
+    Range to a PSyIR Loop. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -88,7 +88,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         Range node specifying an access to an array index. If this is
         the case then the outermost Range nodes within array
         references within the assignment are replaced with references
-        to a loop index. A NemoLoop loop (with the same loop index) is
+        to a loop index. A loop (with the same loop index) is
         also placed around the modified assignment statement.
 
         The name of the loop index is taken from the PSyclone
@@ -98,7 +98,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         not, the loop bounds are taken from the PSyclone configuration
         file if bounds values are supplied. If not, the LBOUND or
         UBOUND intrinsics are used as appropriate. The type of the
-        NemoLoop is also taken from the configuration file if it is
+        Loop is also taken from the configuration file if it is
         supplied for that index, otherwise it is specified as being
         "unknown".
 
@@ -124,7 +124,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
 
     def __str__(self):
         return ("Convert a PSyIR assignment to the outermost ArrayReference "
-                "Range into a PSyIR NemoLoop.")
+                "Range into a PSyIR Loop.")
 
     @property
     def name(self):

@@ -38,16 +38,16 @@
 '''Module providing a transformation that given an Assignment node to an
 ArrayReference in its left-hand-side which has at least one PSyIR Range
 node (equivalent to an array assignment statement in Fortran), it converts it
-to the equivalent explicit loop representation using a NemoLoop node.
+to the equivalent explicit loop representation using a Loop node.
 
 '''
 
 from psyclone.errors import LazyString, InternalError
-from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
-    Assignment, CodeBlock, ArrayMember, Routine, IntrinsicCall, \
-    StructureReference, StructureMember, Node, Literal
+from psyclone.psyir.nodes import (
+    Range, Reference, ArrayReference, Call, Assignment, CodeBlock, ArrayMember,
+    Routine, IntrinsicCall, Loop, StructureReference, StructureMember, Node,
+    Literal)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
         UnresolvedType, UnsupportedType, ArrayType
@@ -106,9 +106,6 @@ class NemoArrayRange2LoopTrans(Transformation):
         to indicate which array index should be transformed. This can only
         be applied to the outermost Range of the ArrayReference.
 
-        This is currently specific to the 'nemo' API in that it will create
-        NemoLoops.
-
         :param node: a Range node.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
         :param options: a dictionary with options for \
@@ -159,14 +156,14 @@ class NemoArrayRange2LoopTrans(Transformation):
         # Replace the assignment with the new explicit loop structure
         position = assignment.position
         start, stop, step = node.pop_all_children()
-        loop = NemoLoop.create(loop_variable_symbol, start, stop, step,
-                               [assignment.detach()])
+        loop = Loop.create(loop_variable_symbol, start, stop, step,
+                           [assignment.detach()])
         parent.children.insert(position, loop)
 
     def __str__(self):
         return (
             "Convert the PSyIR assignment for a specified ArrayReference "
-            "Range into a PSyIR NemoLoop.")
+            "Range into a PSyIR Loop.")
 
     @property
     def name(self):

@@ -82,6 +82,10 @@ class Loop(Statement):
     _text_name = "Loop"
     _colour = "red"
 
+    # Set of rules that give the loop a certain loop_type name by inspecting
+    # their variable and start/stop expressions.
+    _loop_type_inference_rules = None
+
     def __init__(self, variable=None, annotations=None, **kwargs):
         # Although the base class checks on the annotations individually, we
         # need to do further checks here
@@ -117,6 +121,61 @@ class Loop(Statement):
         is_eq = is_eq and self.variable.name == other.variable.name
 
         return is_eq
+
+    @property
+    def loop_type(self):
+        '''
+        :returns: the type of this loop.
+        :rtype: str
+        '''
+        if Loop._loop_type_inference_rules:
+            if self.variable.name in Loop._loop_type_inference_rules:
+                return Loop._loop_type_inference_rules[self.variable.name]
+        return None
+
+    @classmethod
+    def set_loop_type_inference_rules(cls, rules):
+        '''
+        Specify the rules that define a loop type by inspecting its variable,
+        name and values of the start and stop expressions. This affects all
+        instances of the Loop class. For example:
+
+        rules = {
+            "lon": {"var": "ji", "start": "1", "stop": "jpi"},
+            "lat": {"var": "jj", "start": "1", "stop": "jpj"}
+        }
+        '''
+        if rules is None:
+            cls._loop_type_inference_rules = None
+            return
+
+        # Check that the provided rules have the right format
+        if not isinstance(rules, dict):
+            raise TypeError(f"The rules argument must be of type 'dict' but "
+                            f"found '{type(rules)}'.")
+        for key, rule in rules.items():
+            if not isinstance(key, str):
+                raise TypeError(f"The rules keys must be of type 'str' but "
+                                f"found '{type(key)}'.")
+            if not isinstance(rule, dict):
+                raise TypeError(f"The rules values must be of type 'dict' but "
+                                f"found '{type(rule)}'.")
+            for rkey, value in rule.items():
+                if not isinstance(rkey, str) or not isinstance(value, str):
+                    raise TypeError(
+                        f"All the values of the rule definition must be "
+                        f"of type 'str' but found '{rule}'.")
+            if "var" not in rule:
+                raise TypeError(f"A rule must at least have a 'var' field to "
+                                f"specify the loop variable name that defines "
+                                f"this loop_type, but the rule for '{key}' "
+                                f"does not have it.")
+
+        # Convert the rules to a dictionary with var as a key
+        inference_rules = {}
+        for key, rule in rules.items():
+            inference_rules[rule["var"]] = key
+        cls._loop_type_inference_rules = inference_rules
 
     @staticmethod
     def _check_variable(variable):
@@ -322,7 +381,11 @@ class Loop(Statement):
         :rtype: str
 
         '''
-        return f"{self.coloured_name(colour)}[variable='{self.variable.name}']"
+        result = f"{self.coloured_name(colour)}["
+        result += f"variable='{self.variable.name}'"
+        if self.loop_type:
+            result += f", loop_type='{self.loop_type}'"
+        return result + "]"
 
     @property
     def variable(self):
@@ -349,8 +412,10 @@ class Loop(Statement):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
-        result += "variable:'" + self.variable.name
-        result += "']\n"
+        result += f"variable:'{self.variable.name}'"
+        if self.loop_type:
+            result += f", loop_type:'{self.loop_type}'"
+        result += "]\n"
         for entity in self._children:
             result += str(entity) + "\n"
         result += "End " + name

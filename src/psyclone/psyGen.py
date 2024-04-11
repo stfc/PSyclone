@@ -105,6 +105,8 @@ def get_api(api):
     '''
     if api == "":
         api = Config.get().default_api
+    elif api == "nemo":
+        pass  # Does nothing special
     else:
         if api not in Config.get().supported_apis:
             raise GenerationError(f"get_api: Unsupported API '{api}' "

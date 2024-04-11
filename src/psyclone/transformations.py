@@ -2352,7 +2352,7 @@ class ACCEnterDataTrans(Transformation):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
                 AccEnterDataDir
         elif isinstance(sched, NemoInvokeSchedule):
-            from psyclone.nemo import NemoACCEnterDataDirective as \
+            from psyclone.psyir.nodes import ACCEnterDataDirective as \
                 AccEnterDataDir
         else:
             # Should not get here provided that validate() has done its job

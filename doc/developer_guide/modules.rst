@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by L. Turner, Met Office
 
 Modules
@@ -173,7 +173,6 @@ There three constant objects can be imported as follows:
 
 - ``from psyclone.domain.gocean import GOceanConstants``
 - ``from psyclone.domain.lfric import LFRicConstants``
-- ``from psyclone.domain.nemo import NemoConstants``
 
 These objects can be used in two different ways:
 

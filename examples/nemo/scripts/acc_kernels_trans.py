@@ -60,7 +60,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 import logging
 from utils import add_profiling
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoInvokeSchedule,  NemoLoop
+from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, Loop, WhileLoop, \
@@ -188,7 +188,7 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (CodeBlock, Return, Call, IfBlock, NemoLoop, WhileLoop)
+    excluded_types = (CodeBlock, Return, Call, IfBlock, Loop, WhileLoop)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
@@ -226,7 +226,7 @@ def valid_acc_kernel(node):
                         "IF references 1D arrays that may be static", enode)
                 return False
 
-        elif isinstance(enode, NemoLoop):
+        elif isinstance(enode, Loop):
             # Heuristic:
             # We don't want to put loops around 3D loops into KERNELS regions
             # and nor do we want to put loops over levels into KERNELS regions

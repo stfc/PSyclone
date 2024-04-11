@@ -87,7 +87,7 @@ def test_explicit_do_sched():
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
     # The schedule should contain 3 loop objects
-    loops = sched.walk(nemo.NemoLoop)
+    loops = sched.walk(Loop)
     assert len(loops) == 3
     # The schedule should contain just assignments
     assert isinstance(loops[2].loop_body[0], Assignment)
@@ -109,7 +109,7 @@ def test_complex_code():
     multiple statements of different types '''
     _, invoke_info = get_invoke("code_block.f90", api=API, idx=0)
     sched = invoke_info.schedule
-    loops = sched.walk(nemo.NemoLoop)
+    loops = sched.walk(Loop)
     assert len(loops) == 4
     kerns = sched.coded_kernels()
     assert len(kerns) == 0
@@ -119,10 +119,16 @@ def test_schedule_view():
     ''' Check the schedule view/str methods work as expected '''
     _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
     sched = invoke_info.schedule
+    Loop.set_loop_type_inference_rules({
+            "lon": {"var": "ji", "start": "1", "stop": "jpi"},
+            "lat": {"var": "jj", "start": "1", "stop": "jpj"},
+            "levels": {"var": "jk", "start": "1", "stop": "jpk"},
+            "tracers": {"var": "jt", "start": "1", "stop": ""}
+    })
     sched_str = str(sched)
-    assert "NemoLoop[variable:'ji', loop_type:'lon']" in sched_str
-    assert "NemoLoop[variable:'jj', loop_type:'lat']" in sched_str
-    assert "NemoLoop[variable:'jk', loop_type:'levels']" in sched_str
+    assert "Loop[variable:'ji', loop_type:'lon']" in sched_str
+    assert "Loop[variable:'jj', loop_type:'lat']" in sched_str
+    assert "Loop[variable:'jk', loop_type:'levels']" in sched_str
     output = sched.view()
 
     # Have to allow for colouring of output text
@@ -136,24 +142,21 @@ def test_schedule_view():
 
     expected_sched = (
         isched_str + "[invoke='io_in_loop']\n" +
-        indent + "0: " + loop_str + "[type='levels', field_space='None', "
-        "it_space='None']\n" +
+        indent + "0: " + loop_str + "[variable='jk', loop_type='levels']\n" +
         2*indent + lit_str + "[value:'1', Scalar<INTEGER, "
         "UNDEFINED>]\n" +
         2*indent + ref_str + "[name:'jpk']\n" +
         2*indent + lit_str + "[value:'1', Scalar<INTEGER, "
         "UNDEFINED>]\n" +
         2*indent + sched_str + "[]\n" +
-        3*indent + "0: " + loop_str + "[type='lat', field_space='None', "
-        "it_space='None']\n" +
+        3*indent + "0: " + loop_str + "[variable='jj', loop_type='lat']\n" +
         4*indent + lit_str + "[value:'1', Scalar<INTEGER, "
         "UNDEFINED>]\n" +
         4*indent + ref_str + "[name:'jpj']\n" +
         4*indent + lit_str + "[value:'1', Scalar<INTEGER, "
         "UNDEFINED>]\n" +
         4*indent + sched_str + "[]\n" +
-        5*indent + "0: " + loop_str + "[type='lon', "
-        "field_space='None', it_space='None']\n" +
+        5*indent + "0: " + loop_str + "[variable='ji', loop_type='lon']\n" +
         6*indent + lit_str + "[value:'1', Scalar<INTEGER, "
         "UNDEFINED>]\n" +
         6*indent + ref_str + "[name:'jpi']\n" +

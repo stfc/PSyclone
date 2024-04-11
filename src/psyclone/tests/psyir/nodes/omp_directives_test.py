@@ -296,10 +296,7 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelLoopTrans()
     loops = tree.walk(Loop)
-    loop = loops[0]
-    loop.loop_type = None
     ptrans.apply(loops[0])
-
     assert isinstance(tree.children[0].children[0], OMPParallelDoDirective)
     pdir = tree.children[0].children[0]
     pdir.lower_to_language_level()

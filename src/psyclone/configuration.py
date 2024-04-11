@@ -385,7 +385,7 @@ class Config:
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
                 elif api == "nemo":
-                    self._api_conf[api] = NemoConfig(self, self._config[api])
+                    pass
                 else:
                     raise NotImplementedError(
                         f"Configuration file contains a {api} section but no "
@@ -744,9 +744,8 @@ class Config:
 
     def get_constants(self):
         ''':returns: the constants instance of the current API.
-        :rtype: either :py:class:`psyclone.domain.lfric.LFRicConstants`, \
-            :py:class:`psyclone.domain.gocean.GOceanConstants`, or \
-            :py:class:`psyclone.domain.nemo.NemoConstants`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicConstants` |
+            :py:class:`psyclone.domain.gocean.GOceanConstants`
         '''
         return self.api_conf().get_constants()
 
@@ -881,9 +880,8 @@ class APISpecificConfig:
     @abc.abstractmethod
     def get_constants(self):
         ''':returns: an object containing all constants for the API.
-        :rtype: either :py:class:`psyclone.domain.lfric.LFRicConstants`, \
-            :py:class:`psyclone.domain.gocean.GOceanConstants`, or \
-            :py:class:`psyclone.domain.nemo.NemoConstants`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicConstants` |
+            :py:class:`psyclone.domain.gocean.GOceanConstants`
         '''
 
 
@@ -1408,16 +1406,6 @@ class NemoConfig(APISpecificConfig):
         :rtype: list of str.
         '''
         return self._index_order
-
-    # ---------------------------------------------------------------------
-    def get_constants(self):
-        ''':returns: an object containing all constants for Nemo.
-        :rtype: :py:class:`psyclone.domain.nemo.NemoConstants`
-        '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.nemo import NemoConstants
-        return NemoConstants()
 
 
 # ---------- Documentation utils -------------------------------------------- #

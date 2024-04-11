@@ -34,6 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
 # Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 
 '''Tests for class storing API-specific constants.'''
@@ -42,7 +43,6 @@ from __future__ import absolute_import, print_function
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.nemo import NemoConstants
 
 
 def test_lfric_const():
@@ -79,35 +79,3 @@ def test_lfric_const():
     # Make sure the 'INVALID' value is reset when the constant
     # object is created again.
     LFRicConstants.HAS_BEEN_INITIALISED = False
-
-
-def test_nemo_const():
-    '''Tests the Nemo constant object.
-    '''
-
-    # This guarantees that the first time we use the constant object,
-    # we read it from the config file.
-    NemoConstants.HAS_BEEN_INITIALISED = False
-    nemo_config = Config.get().api_conf("nemo")
-
-    nemo_const = nemo_config.get_constants()
-    assert nemo_const.VALID_INTRINSIC_TYPES == []
-    assert nemo_const.VALID_ARG_TYPE_NAMES == []
-    assert nemo_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
-
-    assert NemoConstants.HAS_BEEN_INITIALISED
-    # Test that we don't re-evalue the constants, i.e. if
-    # we modify them, the modified value will not be overwritten.
-    NemoConstants.VALID_INTRINSIC_TYPES = "INVALID"
-    nemo_const = NemoConstants()
-    assert nemo_const.VALID_INTRINSIC_TYPES == "INVALID"
-    assert nemo_const.VALID_ARG_TYPE_NAMES == []
-    assert nemo_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
-
-    # Make sure the loop types are transferred correctly from the config
-    # file to the constant object.
-    assert nemo_const.VALID_LOOP_TYPES == nemo_config.get_valid_loop_types()
-
-    # Make sure the 'INVALID' value is reset when the constant
-    # object is created again.
-    NemoConstants.HAS_BEEN_INITIALISED = False

@@ -85,7 +85,6 @@ The top-level raising transformation creates NEMO PSy layer PSyIR:
 
 This transformation is itself implemented using two separate transformations:
 
-.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoLoopTrans
 .. autoclass:: psyclone.domain.nemo.transformations.CreateNemoInvokeScheduleTrans
 
 Raising Transformations for the LFRic API
