@@ -91,7 +91,7 @@ The ``psyclone-kern`` command has the following arguments:
       -h, --help            show this help message and exit
       -gen {alg,stub)       what to generate for the supplied kernel
                             (alg=algorithm layer, stub=kernel-stub subroutine).
-			    Defaults to stub.
+                            Defaults to stub.
       -o OUT_FILE           filename for created code.
       -api API              choose a particular API from ['dynamo0.3',
                             'gocean1.0', 'nemo'], default 'dynamo0.3'.
@@ -103,7 +103,8 @@ The ``psyclone-kern`` command has the following arguments:
                             apply limit to both input and output
                             Fortran. Use 'output' to apply line-length
                             limit to output Fortran only.
-      --config CONFIG       config file with PSyclone specific options.
+      --config CONFIG, -c CONFIG
+                            config file with PSyclone specific options.
       -v, --version         display version information (\ |release|\ )
 
 The ``-o`` option allows the user to specify that the output should be
