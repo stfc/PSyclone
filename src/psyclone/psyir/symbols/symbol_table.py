@@ -52,7 +52,6 @@ from psyclone.psyir.symbols import (
     DataSymbol, ImportInterface, ContainerSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, RoutineSymbol, Symbol, SymbolError,
     UnresolvedInterface)
-from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -370,8 +369,7 @@ class SymbolTable():
                            Symbol object class or one of its subclasses.
         :raises SymbolError: if the the symbol needs to be created but would
                              need to be renamed to be created and
-                             allow_renaming is False, or the datatype of the
-                             new symbol is an UnsupportedFortranType.
+                             allow_renaming is False.
 
         '''
         # Only type-check symbol_type, the other arguments are just passed down
@@ -391,14 +389,9 @@ class SymbolTable():
         if "visibility" not in symbol_init_args:
             symbol_init_args["visibility"] = self.default_visibility
 
-        datatype = None
-        if "datatype" in symbol_init_args:
-            datatype = symbol_init_args["datatype"]
-
         available_name = self.next_available_name(root_name, shadowing)
-        if ((not allow_renaming or isinstance(datatype,
-                                              UnsupportedFortranType))
-                and available_name != root_name):
+        # TODO #2546 - we should disallow renaming of UnsupportedFortranTypes
+        if (not allow_renaming and available_name != root_name):
             raise SymbolError(
                 f"Cannot create symbol '{root_name}' as a symbol with that "
                 f"name already exists in this scope, and renaming is "
