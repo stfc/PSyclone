@@ -329,7 +329,7 @@ epub_author = 'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, ' \
     'Sergi Siso and Joseph Wallwork'
 epub_publisher = 'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, ' \
     'Sergi Siso and Joseph Wallwork'
-epub_copyright = copyright
+epub_copyright = project_copyright
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.
