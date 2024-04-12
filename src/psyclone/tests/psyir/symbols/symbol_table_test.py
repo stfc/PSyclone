@@ -266,6 +266,52 @@ def test_new_symbol_5():
                 == "symbol1")
 
 
+def test_new_symbol_import_interface():
+    '''Check that if a symbol is renamed and is from an import it has
+     the correct original name.'''
+    sym_table = symbols.SymbolTable()
+    my_mod = symbols.ContainerSymbol("my_mod")
+    sym_table.add(my_mod)
+    sym_table.new_symbol("generic")
+    renamed = sym_table.new_symbol("generic",
+                                   interface=symbols.ImportInterface(my_mod))
+    assert renamed.name == "generic_1"
+    assert renamed.interface.orig_name == "generic"
+
+
+def test_new_symbol_fails_on_duplicate_without_renaming():
+    '''Check if a new symbol has the same name as an existing symbol, and
+    that symbol is not allowed to be renamed we get the appropriate exception.
+    '''
+    # Prepare the symbol table hierarchy for the test
+    schedule_symbol_table, _ = create_hierarchy()
+    symbol = schedule_symbol_table.lookup("symbol1")
+    symbol.constant_value = 3
+    symbol2 = schedule_symbol_table.lookup("symbol2")
+
+    # Create multiple references to the symbol
+    array_type = symbols.ArrayType(symbols.REAL_TYPE, [Reference(symbol)])
+    schedule_symbol_table.new_symbol("array",
+                                     symbol_type=symbols.DataSymbol,
+                                     datatype=array_type)
+    sched = schedule_symbol_table.node
+    ref1 = Reference(symbol2)
+    ref2 = Reference(symbol)
+    assignment = Assignment.create(ref1, ref2)
+    sched.addchild(assignment)
+
+    # Check we fail if we attempt to add another symbol with the same name
+    # and disallow renaming.
+    with pytest.raises(symbols.SymbolError) as err:
+        schedule_symbol_table.new_symbol("array",
+                                         symbol_type=symbols.DataSymbol,
+                                         datatype=array_type,
+                                         allow_renaming=False)
+    assert ("Cannot create symbol 'array' as a symbol with that name already "
+            "exists in this scope, and renaming is disallowed."
+            in str(err.value))
+
+
 def test_add_1():
     '''Test that the add method inserts new symbols in the symbol table,
     but raises appropriate errors when provided with an invalid symbol
@@ -2025,6 +2071,17 @@ def test_find_or_create_tag():
     assert ("Expected symbol with tag 'tag3' to be of type 'RoutineSymbol' "
             "but found type 'DataSymbol'." in str(err.value))
 
+    tag5 = symtab.find_or_create_tag("tag5", root_name="var",
+                                     allow_renaming=True)
+    assert tag5.name == "var_1"
+    # Check that it fails if exact_name was specified but we couldn't create
+    # a variable with that name.
+    with pytest.raises(symbols.SymbolError) as err:
+        symtab.find_or_create_tag("tag6", root_name="var",
+                                  allow_renaming=False)
+    assert ("Cannot create symbol 'var' as a symbol with that name already "
+            "exists in this scope, and renaming is disallowed."
+            in str(err.value))
     # TODO #1057: It should also fail the symbol is found but the properties
     # are different than the requested ones.
 
