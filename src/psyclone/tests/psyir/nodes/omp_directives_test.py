@@ -4648,3 +4648,57 @@ def test_omp_serial_check_dependency_valid_pairing():
     assert test_dir._check_dependency_pairing_valid(
                array_reference1, array_reference2, None, None
            )
+
+
+def test_omp_serial_add_otter_around_taskwaits(fortran_reader):
+    code = '''subroutine my_sub()
+    integer :: i
+    integer :: a
+        do i =1, 100
+            a = i
+        end do
+        do i = 1, 100
+            a = i
+        end do
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    test_dir = OMPSingleDirective()
+    parallel_dir = OMPParallelDirective()
+    taskwait1 = OMPTaskwaitDirective()
+    taskwait2 = OMPTaskwaitDirective()
+
+    subroutine = psyir.children[0]
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    loop1.detach()
+    loop2.detach()
+    subroutine.addchild(parallel_dir)
+    parallel_dir.dir_body.addchild(test_dir)
+    test_dir.dir_body.addchild(loop1)
+    test_dir.dir_body.addchild(taskwait1)
+    test_dir.dir_body.addchild(loop2)
+    test_dir.dir_body.addchild(taskwait2)
+
+    test_dir._add_otter_profiling()
+
+    otter_calls = test_dir.walk(Call)
+    assert len(otter_calls) == 4
+    assert (otter_calls[0].debug_string() ==
+            "call fortran_otterSynchroniseTasks(c_null_ptr, 1, "
+            "otter_endpoint_enter)\n")
+    assert isinstance(test_dir.dir_body.children[otter_calls[0].position+1],
+                      OMPTaskwaitDirective)
+    assert (otter_calls[1].debug_string() ==
+            "call fortran_otterSynchroniseTasks(c_null_ptr, 1, "
+            "otter_endpoint_leave)\n")
+    assert otter_calls[1].position == otter_calls[0].position + 2
+    assert (otter_calls[2].debug_string() ==
+            "call fortran_otterSynchroniseTasks(c_null_ptr, 1, "
+            "otter_endpoint_enter)\n")
+    assert isinstance(test_dir.dir_body.children[otter_calls[2].position+1],
+                      OMPTaskwaitDirective)
+    assert (otter_calls[3].debug_string() ==
+            "call fortran_otterSynchroniseTasks(c_null_ptr, 1, "
+            "otter_endpoint_leave)\n")
+    assert otter_calls[3].position == otter_calls[2].position + 2
