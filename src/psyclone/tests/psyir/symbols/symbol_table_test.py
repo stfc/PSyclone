@@ -279,6 +279,39 @@ def test_new_symbol_import_interface():
     assert renamed.interface.orig_name == "generic"
 
 
+def test_new_symbol_fails_on_duplicate_without_renaming():
+    '''Check if a new symbol has the same name as an existing symbol, and
+    that symbol is not allowed to be renamed we get the appropriate exception.
+    '''
+    # Prepare the symbol table hierarchy for the test
+    schedule_symbol_table, _ = create_hierarchy()
+    symbol = schedule_symbol_table.lookup("symbol1")
+    symbol.constant_value = 3
+    symbol2 = schedule_symbol_table.lookup("symbol2")
+
+    # Create multiple references to the symbol
+    array_type = symbols.ArrayType(symbols.REAL_TYPE, [Reference(symbol)])
+    schedule_symbol_table.new_symbol("array",
+                                     symbol_type=symbols.DataSymbol,
+                                     datatype=array_type)
+    sched = schedule_symbol_table.node
+    ref1 = Reference(symbol2)
+    ref2 = Reference(symbol)
+    assignment = Assignment.create(ref1, ref2)
+    sched.addchild(assignment)
+
+    # Check we fail if we attempt to add another symbol with the same name
+    # and disallow renaming.
+    with pytest.raises(symbols.SymbolError) as err:
+        schedule_symbol_table.new_symbol("array",
+                                         symbol_type=symbols.DataSymbol,
+                                         datatype=array_type,
+                                         allow_renaming=False)
+    assert ("Cannot create symbol 'array' as a symbol with that name already "
+            "exists in this scope, and renaming is disallowed."
+            in str(err.value))
+
+
 def test_add_1():
     '''Test that the add method inserts new symbols in the symbol table,
     but raises appropriate errors when provided with an invalid symbol

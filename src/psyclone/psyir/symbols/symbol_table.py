@@ -348,10 +348,11 @@ class SymbolTable():
         and any additional initialization keyword arguments of this
         symbol_type can be provided to refine the created Symbol.
 
-        :param root_name: optional name to use when creating a new
-            symbol name. This will be appended with an integer if the name
-            clashes with an existing symbol name.
-        :type root_name: str or NoneType
+        :param root_name: optional name to use when creating a
+                          new symbol name. This will be appended
+                          with an integer if the name
+                          clashes with an existing symbol name.
+        :type root_name: Optional[str]
         :param str tag: optional tag identifier for the new symbol.
         :param bool shadowing: optional logical flag indicating whether the
             name can be overlapping with a symbol in any of the ancestors
@@ -363,7 +364,7 @@ class SymbolTable():
                                     symbol to be renamed from root_name.
                                     Defaults to True.
         :param symbol_init_args: arguments to create a new symbol.
-        :type symbol_init_args: unwrapped Dict[str] = object
+        :type symbol_init_args: dict[str, Any]
 
         :raises TypeError: if the type_symbol argument is not the type of a
                            Symbol object class or one of its subclasses.
