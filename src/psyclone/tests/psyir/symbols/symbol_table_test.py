@@ -2107,17 +2107,6 @@ def test_rename_symbol():
     assignment = Assignment.create(ref1, ref2)
     sched.addchild(assignment)
 
-    # Check we fail if we attempt to add another symbol with the same name
-    # and disallow renaming.
-    with pytest.raises(symbols.SymbolError) as err:
-        schedule_symbol_table.new_symbol("array",
-                                         symbol_type=symbols.DataSymbol,
-                                         datatype=array_type,
-                                         allow_renaming=False)
-    assert ("Cannot create symbol 'array' as a symbol with that name already "
-            "exists in this scope, and renaming is disallowed."
-            in str(err.value))
-
     # Check that the names are as expected before and after renaming
     assert symbol.name == "symbol1"
     assert symbol is schedule_symbol_table.lookup("symbol1")

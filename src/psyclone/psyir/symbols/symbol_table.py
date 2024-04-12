@@ -364,7 +364,7 @@ class SymbolTable():
                                     symbol to be renamed from root_name.
                                     Defaults to True.
         :param symbol_init_args: arguments to create a new symbol.
-        :type symbol_init_args: dict[str, Any]
+        :type symbol_init_args: unwrapped dict[str, Any]
 
         :raises TypeError: if the type_symbol argument is not the type of a
                            Symbol object class or one of its subclasses.
@@ -460,7 +460,7 @@ class SymbolTable():
                                     symbol to be renamed from root_name.
                                     Defaults to True.
         :param new_symbol_args: arguments to create a new symbol.
-        :type new_symbol_args: unwrapped Dict[str, object]
+        :type new_symbol_args: unwrapped dict[str, Any]
 
         :returns: symbol associated with the given tag.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
