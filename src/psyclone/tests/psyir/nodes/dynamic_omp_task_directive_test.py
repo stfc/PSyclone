@@ -3520,16 +3520,42 @@ def test_omp_task_directive_full_step_input_access_with_otter(
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''
-  otter_task_id = 
-  !$omp task private(j), firstprivate(i), shared(a,b), \
-depend(in: k,b(:,i + 1)), depend(out: a(:,i))
+    correct = '''use iso_c_binding, only : c_bool, c_null_ptr, c_ptr
+  use otter_task_graph, only : fortran_otterSynchroniseTasks, \
+fortran_otterTaskEnd, fortran_otterTaskInitialise, fortran_otterTaskStart, \
+otter_add_to_pool, otter_endpoint_enter, otter_endpoint_leave
+  logical(kind=c_bool), parameter :: c_true = .true._c_bool
+  integer, dimension(10,10) :: a
+  integer, dimension(11,10) :: b
+  integer :: i
+  integer :: j
+  integer :: k
+  type(c_ptr) :: otter_task
+  CHARACTER(LEN=150) :: otter_task_id
+
+  !$omp parallel default(shared), private(i,j,otter_task)
+  !$omp single
+  do i = 1, 10, 1
+    WRITE(otter_task_id, "(A19, I0.5, A1, I0.8)") "my_subroutine_task_", \
+0, "_", i
+    otter_task = fortran_otterTaskInitialise(c_null_ptr, -1, \
+otter_add_to_pool, c_true, __FILE__, 'my_subroutine_1', __LINE__, \
+otter_task_id)
+    !$omp task private(j), firstprivate(i,otter_task,otter_task_id), \
+shared(a,b), depend(in: k,b(:,i + 1)), depend(out: a(:,i))
+    otter_task = fortran_otterTaskStart(otter_task, __FILE__, otter_task_id, \
+__LINE__)
     do j = 1, 10, 1
       a(j,i) = k
       a(j,i) = b(j,i + 1) + k
     enddo
+    call fortran_otterTaskEnd(otter_task, __FILE__, otter_task_id, __LINE__)
     !$omp end task
-  '''
-    print(fortran_writer(tree))
+  enddo
+  call fortran_otterSynchroniseTasks(c_null_ptr, 1, otter_endpoint_enter)
+  !$omp taskwait
+  call fortran_otterSynchroniseTasks(c_null_ptr, 1, otter_endpoint_leave)
+  !$omp end single
+  !$omp end parallel'''
     assert correct in fortran_writer(tree)
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))

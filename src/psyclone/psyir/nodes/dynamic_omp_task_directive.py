@@ -82,10 +82,10 @@ from psyclone.psyir.symbols import (
     DataSymbol,
     DataTypeSymbol,
     ImportInterface,
+    PreprocessorInterface,
     RoutineSymbol,
     ScalarType,
     StructureType,
-    UnresolvedInterface,
     UnresolvedType,
     UnsupportedFortranType,
 )
@@ -2268,7 +2268,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 root_name="otter_task_id",
                 symbol_type=DataSymbol,
                 datatype=UnsupportedFortranType(
-                        "CHARACTER(LEN=150)"
+                    "CHARACTER(LEN=150) :: otter_task_id"
                 )
         )
 
@@ -2289,7 +2289,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 root_name="__FILE__",
                 symbol_type=DataSymbol,
                 datatype=UnresolvedType(),
-                interface=UnresolvedInterface()
+                interface=PreprocessorInterface()
         )
 
         __LINE__ = routine_table.find_or_create_tag(
@@ -2297,7 +2297,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 root_name="__LINE__",
                 symbol_type=DataSymbol,
                 datatype=UnresolvedType(),
-                interface=UnresolvedInterface()
+                interface=PreprocessorInterface()
         )
 
         # Now we have the symbols we need, we need to work out the loop name

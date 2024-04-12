@@ -77,9 +77,12 @@ from psyclone.psyir.symbols import (
     INTEGER_TYPE,
     ContainerSymbol,
     DataSymbol,
+    DataTypeSymbol,
     ImportInterface,
     ScalarType,
-    RoutineSymbol
+    StructureType,
+    RoutineSymbol,
+    UnsupportedFortranType
 )
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
@@ -1071,14 +1074,13 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         '''
         Docs TODO
         '''
-        taskwaits = self.walk(OMPTaskwaitDirective)
-        add_around_self_and_parallel = False
-        if (isinstance(self.parent.parent, OMPParallelDirective) and
-                self.parent.children[-1] is self):
-            add_around_self_and_parallel = True
+        # We add a taskwait at the end of the region if that last child is not
+        # already a taskwait. This allows us to tell otter than final
+        # synchronization point, which is otherwise difficult.
+        if not isinstance(self.dir_body.children[-1], OMPTaskwaitDirective):
+            self.dir_body.addchild(OMPTaskwaitDirective())
 
-        if len(taskwaits) == 0 and not add_around_self_and_parallel:
-            return
+        taskwaits = self.walk(OMPTaskwaitDirective)
 
         # Get the otter module and symbols from the symbol table.
         routine_table = self.ancestor(Routine).symbol_table
@@ -1086,9 +1088,16 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 "iso_c_binding", root_name="iso_c_binding",
                 symbol_type=ContainerSymbol
         )
+        c_ptr_type = routine_table.find_or_create_tag(
+                "iso_c_ptr_type", root_name="c_ptr",
+                symbol_type=DataTypeSymbol,
+                datatype=StructureType(),
+                interface=ImportInterface(iso_c_binding)
+                )
         c_null_ptr = routine_table.find_or_create_tag(
                 "iso_c_null_ptr", root_name="c_null_ptr",
                 symbol_type=DataSymbol,
+                datatype=c_ptr_type,
                 interface=ImportInterface(iso_c_binding)
         )
         module_symbol = routine_table.find_or_create_tag(
@@ -1102,15 +1111,17 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 interface=ImportInterface(module_symbol)
         )
         otter_endpoint_enter = routine_table.find_or_create_tag(
-                "otter_endpoint_end",
-                root_name="otter_endpoint_end",
+                "otter_endpoint_enter",
+                root_name="otter_endpoint_enter",
                 symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(""),  # Imported only.
                 interface=ImportInterface(module_symbol)
         )
         otter_endpoint_leave = routine_table.find_or_create_tag(
                 "otter_endpoint_leave",
                 root_name="otter_endpoint_leave",
                 symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(""),  # Imported only.
                 interface=ImportInterface(module_symbol)
         )
 
@@ -1128,21 +1139,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             pos = taskwait.position
             taskwait.parent.addchild(sync_leave_call, pos+1)
             taskwait.parent.addchild(sync_enter_call, pos)
-        if add_around_self_and_parallel:
-            sync_enter_call = Call.create(task_synchronise,
-                                          [Reference(c_null_ptr),
-                                           Literal("1", INTEGER_TYPE),
-                                           Reference(otter_endpoint_enter)]
-                                          )
-            sync_leave_call = Call.create(task_synchronise,
-                                          [Reference(c_null_ptr),
-                                           Literal("1", INTEGER_TYPE),
-                                           Reference(otter_endpoint_leave)]
-                                          )
-            self.children[0].addchild(sync_enter_call)
-            # Add the leave after the parallel, which is parent.parent
-            pos = self.parent.parent.position
-            self.parent.parent.parent.addchild(sync_leave_call, pos+1)
 
     def lower_to_language_level(self):
         '''
@@ -1159,7 +1155,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # Check if any of the tasks have otter profiling enabled.
         otter_profiling = False
         for task in self.walk(OMPTaskDirective):
-            otter_profiling = otter_profiling and task.otter_enabled
+            otter_profiling = otter_profiling or task.otter_enabled
         if otter_profiling:
             self._add_otter_profiling()
 
