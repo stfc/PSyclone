@@ -1316,5 +1316,6 @@ the symbol information of externally declared symbols can be resolved by
 requesting the following operation to the symbol table:
 
 .. code-block:: python
-	import_symbol = symbol_table.lookup(module_name)
-	symbol_table.resolve_imports(container_symbols=[import_symbol])
+
+   import_symbol = symbol_table.lookup(module_name)
+   symbol_table.resolve_imports(container_symbols=[import_symbol])
