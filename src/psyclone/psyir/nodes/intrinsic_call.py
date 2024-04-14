@@ -812,17 +812,17 @@ class IntrinsicCall(Call):
         :param arguments: list of arguments for this intrinsic, these
             can be PSyIR nodes or tuples of string,Node for named arguments.
         :type arguments: Optional[Iterable[
-            Union[:py:class:``psyclone.psyir.nodes.DataNode``,
-                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]]
+            Union[:py:class:`psyclone.psyir.nodes.DataNode`,
+                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]]
 
         :returns: an instance of this class.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :raises TypeError: if any of the arguments are of the wrong type.
-        :raises ValueError: if any optional arguments have incorrect names \
+        :raises ValueError: if any optional arguments have incorrect names
             or if a positional argument is listed *after* a named argument.
-        :raises ValueError: if the number of supplied arguments is not valid \
-            for the specified intrinsic intrinsic.
+        :raises ValueError: if the number of supplied arguments is not valid
+            for the specified intrinsic.
 
         '''
         call = IntrinsicCall(intrinsic)

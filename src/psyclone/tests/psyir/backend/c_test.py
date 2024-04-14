@@ -41,13 +41,14 @@ import pytest
 
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import ArrayReference, Assignment, BinaryOperation, \
-    CodeBlock, IfBlock, Literal, Node, Reference, Return, Schedule, \
-    UnaryOperation, Loop, OMPTaskloopDirective, OMPMasterDirective, \
-    OMPParallelDirective, IntrinsicCall
-from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    IntrinsicSymbol
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, BinaryOperation, CodeBlock, IfBlock, Literal,
+    Node, Reference, Return, Schedule, UnaryOperation, Loop,
+    OMPTaskloopDirective, OMPMasterDirective, OMPParallelDirective,
+    IntrinsicCall)
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol,
+    INTEGER_TYPE, REAL_TYPE, IntrinsicSymbol)
 
 
 def test_cw_gen_declaration():

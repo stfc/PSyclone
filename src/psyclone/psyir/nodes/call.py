@@ -98,8 +98,8 @@ class Call(Statement, DataNode):
         :param arguments: optional list of arguments for this call, these
             can be PSyIR nodes or tuples of string,Node for named arguments.
         :type arguments: Optional[Iterable[
-            Union[:py:class:``psyclone.psyir.nodes.DataNode``,
-                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]]
+            Union[:py:class:`psyclone.psyir.nodes.DataNode`,
+                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]]
 
         :returns: an instance of cls.
         :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
@@ -138,8 +138,8 @@ class Call(Statement, DataNode):
         :param arguments: list of arguments for this call, these
             can be PSyIR nodes or tuples of string,Node for named arguments.
         :type arguments: Iterable[
-            Union[:py:class:``psyclone.psyir.nodes.DataNode``,
-                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]
+            Union[:py:class:`psyclone.psyir.nodes.DataNode`,
+                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]
 
         :raises GenerationError: if the contents of the arguments
             argument are not in the expected form or of the expected
@@ -221,6 +221,8 @@ class Call(Statement, DataNode):
                 f"'Call' node should be an int but found "
                 f"{type(index).__name__}.")
         self._argument_names.insert(index, (id(arg), name))
+        # The n'th argument is placed at the n'th+1 children position
+        # because the 1st child is the routine reference
         self.children.insert(index + 1, arg)
 
     def replace_named_arg(self, existing_name, arg):
@@ -252,6 +254,8 @@ class Call(Statement, DataNode):
                 f"The value of the existing_name argument ({existing_name}) "
                 f"in 'replace_named_arg' in the 'Call' node was not found "
                 f"in the existing arguments.")
+        # The n'th argument is placed at the n'th+1 children position
+        # because the 1st child is the routine reference
         self.children[index + 1] = arg
         self._argument_names[index] = (id(arg), existing_name)
 
@@ -295,7 +299,7 @@ class Call(Statement, DataNode):
 
         # TODO #2271: This may skip references in inner expressions of
         # structure calls, but to implement properly we new a new kind of
-        # AccessType that represents beign called (USED but not READ, maybe
+        # AccessType that represents being called (USED but not READ, maybe
         # the same that we need for INQUIRY type attributes?)
         for arg in self.arguments:
             if isinstance(arg, Reference):
@@ -317,7 +321,7 @@ class Call(Statement, DataNode):
     def routine(self):
         '''
         :returns: the routine reference that this call calls.
-        :rtype: py:class:`psyclone.psyir.nodes.Reference`
+        :rtype: Optional[py:class:`psyclone.psyir.nodes.Reference`]
         '''
         if len(self._children) >= 1:
             return self.children[0]
@@ -327,7 +331,7 @@ class Call(Statement, DataNode):
     def arguments(self):
         '''
         :returns: the children of this node that represent its arguments.
-        :rtype: List[py:class:`psyclone.psyir.nodes.DataNode`]
+        :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
         '''
         if len(self._children) >= 2:
             return self.children[1:]

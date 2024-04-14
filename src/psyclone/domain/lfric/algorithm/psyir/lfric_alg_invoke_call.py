@@ -61,8 +61,7 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         '''
         if position == 0:
             return isinstance(child, Reference)
-        else:
-            return isinstance(child, LFRicFunctor)
+        return isinstance(child, LFRicFunctor)
 
     @staticmethod
     def _def_container_root_name(node):

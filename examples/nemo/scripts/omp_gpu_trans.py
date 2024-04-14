@@ -39,9 +39,9 @@ directives into Nemo code. '''
 
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
-    Call, Loop, Directive, Assignment, OMPAtomicDirective)
+    Loop, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
-from psyclone.transformations import OMPDeclareTargetTrans
+from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
 
 from utils import insert_explicit_loop_parallelism, normalise_loops, \
     enhance_tree_information, add_profiling
@@ -115,10 +115,14 @@ def trans(psy):
         # For performance in lib_fortran, mark serial routines as GPU-enabled
         if psy.name == "psy_lib_fortran_psy":
             if not invoke.schedule.walk(Loop):
-                calls = invoke.schedule.walk(Call)
-                if all(call.is_available_on_device() for call in calls):
-                    OMPDeclareTargetTrans().apply(invoke.schedule)
-                    continue
+                try:
+                    # We need the 'force' option.
+                    # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
+                    # array notation. (TODO #717)
+                    OMPDeclareTargetTrans().apply(invoke.schedule,
+                                                  options={"force": True})
+                except TransformationError as err:
+                    print(err)
 
         # For now this is a special case for stpctl.f90 because it forces
         # loops to parallelise without many safety checks

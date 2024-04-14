@@ -4132,7 +4132,7 @@ class Fparser2Reader():
 
     def _structure_accessor_handler(self, node, parent):
         '''
-        Create the PSyIR for structure accessors foun in fparser2 Data_Ref and
+        Create the PSyIR for structure accessors found in fparser2 Data_Ref and
         Procedure_Designator (representing an access to a derived type data and
         methods respectively).
 
@@ -4148,10 +4148,19 @@ class Fparser2Reader():
 
         :raises NotImplementedError: if the parse tree contains unsupported
             elements.
+
         '''
+        # Fortran 2003 standard R1221 says that:
+        #    procedure-designator is procedure-name
+        #                         or proc-component-ref
+        #                         or data-ref % binding-name
+        # and R611 says that:
+        #    data-ref             is part-ref [% part-ref]
         if isinstance(node, Fortran2003.Procedure_Designator):
-            # In Procedure_Designator the last accessor is in the RHS
-            # We replace node, because the LHS can in turn be a Data_Ref
+            # If it is a Procedure_Designator split it in its components.
+            # Note that this won't fail for procedure-name and proc-component
+            # -ref, the binding_name will just become None, if we have a
+            # binding_name we store it to add it as the last structure access
             node, _, binding_name = node.children
         else:
             binding_name = None
@@ -4165,19 +4174,15 @@ class Fparser2Reader():
             top_ref = node
             member_nodes = []
 
-        # If we encounter array ranges while processing this derived-type
-        # access then we will need the symbol being referred to so we create
-        # that first.
         if isinstance(top_ref, Fortran2003.Name):
+            # Update the top_ref symbol information knowing that it exits
             base_sym = _find_or_create_unresolved_symbol(
                 parent, top_ref.string.lower(),
                 symbol_type=DataSymbol, datatype=UnresolvedType())
             base_indices = []
             base_ref = StructureReference
-
         elif isinstance(top_ref, Fortran2003.Part_Ref):
-            # Base of reference is an array access. Lookup the corresponding
-            # symbol.
+            # Update the top_ref symbol information knowing that it exits
             base_sym = _find_or_create_unresolved_symbol(
                 parent, top_ref.children[0].string.lower(),
                 symbol_type=DataSymbol, datatype=UnresolvedType())
@@ -4193,11 +4198,12 @@ class Fparser2Reader():
             base_ref = ArrayOfStructuresReference
 
         else:
+            # If it's not a plain name or an array, we don't support it.
             raise NotImplementedError(str(node))
 
         # Now construct the list of 'members' making up the derived-type
-        # accessors and array indices for "var%region(1)%start" this will be:
-        # [("region", [Literal("1")]), "start"].
+        # accessors and array indices, e.g for "var%region(1)%start" this will
+        # be: [("region", [Literal("1")]), "start"].
         members = []
         for child in member_nodes:
             if isinstance(child, Fortran2003.Name):
@@ -4602,7 +4608,7 @@ class Fparser2Reader():
         call = Call(parent=parent)
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
-        # If its a plain reference, promote the symbol to a RoutineSymbol
+        # If it's a plain reference, promote the symbol to a RoutineSymbol
         # pylint: disable=unidiomatic-typecheck
         if type(routine) is Reference:
             routine_symbol = routine.symbol

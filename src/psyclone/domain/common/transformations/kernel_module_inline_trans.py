@@ -119,10 +119,9 @@ class KernelModuleInlineTrans(Transformation):
         # this yet).
         # These can only be found in References, Calls and CodeBlocks
         for var in kernel_schedule.walk(Reference):
-            if isinstance(var, Reference):
-                if isinstance(var.symbol, IntrinsicSymbol):
-                    continue
-                symbol = var.symbol
+            symbol = var.symbol
+            if isinstance(symbol, IntrinsicSymbol):
+                continue
             if not symbol.is_import:
                 try:
                     var.scope.symbol_table.lookup(

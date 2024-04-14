@@ -43,11 +43,15 @@ class IntrinsicSymbol(RoutineSymbol):
     '''Symbol identifying a callable intrinsic routine.
 
     :param str name: name of the symbol.
-    :param datatype: data type of the symbol. Default to NoType().
-    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param kwargs: additional keyword arguments provided by \
+    :param intrinsic: the intrinsic enum describing this Symbol.
+    :type intrinsic: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
+    :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
+
+    # TODO #2541: Currently name and the intrinsic should match, we really
+    # just need the name, and make all the Intrinsic singature information
+    # live inside the IntrinsicSymbol class.
 
     '''
     def __init__(self, name, intrinsic, **kwargs):
@@ -56,6 +60,10 @@ class IntrinsicSymbol(RoutineSymbol):
 
     @property
     def intrinsic(self):
+        '''
+        :resturns: the intrinsic enum describing this Symbol.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
+        '''
         return self._intrinsic
 
 

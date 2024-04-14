@@ -1528,6 +1528,8 @@ class Node():
                 f"Node class should be None but found "
                 f"'{type(node.parent).__name__}'.")
 
+        # The n'th argument is placed at the n'th+1 children position
+        # because the 1st child is the routine reference
         if keep_name_in_context and hasattr(self.parent, "argument_names") \
                 and self.parent.argument_names[self.position - 1] is not None:
             # If it is a named context it will have a specific method for
