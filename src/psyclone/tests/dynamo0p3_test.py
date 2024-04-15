@@ -50,6 +50,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import (DynACCEnterDataDirective,
                                 DynBoundaryConditions, DynCellIterators,
                                 DynGlobalSum, DynKernelArguments, DynProxies,
@@ -64,7 +65,6 @@ from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
                                   Reference, Routine)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
-from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.psyir.backend.visitor import VisitorError
 
@@ -1099,7 +1099,7 @@ def test_loopfuse(dist_mem, tmpdir):
         index = 4
     loop1 = schedule.children[index]
     loop2 = schedule.children[index+1]
-    trans = LoopFuseTrans()
+    trans = LFRicLoopFuseTrans()
     trans.apply(loop1, loop2)
     generated_code = psy.gen
     # only one loop
