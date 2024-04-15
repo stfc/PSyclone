@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-24, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford, STFC Daresbury Lab
+#          A. R. Porter, STFC Daresbury Lab
 
 '''Module containing pytest tests for the handling of select type
 construction for the Fparser->PSyIR frontend.
@@ -39,7 +40,10 @@ construction for the Fparser->PSyIR frontend.
 '''
 import pytest
 
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Routine
+from psyclone.psyir.symbols import (AutomaticInterface, UnsupportedFortranType,
+                                    DataSymbol)
 from psyclone.tests.utilities import Compile
 
 
@@ -761,3 +765,48 @@ def test_class_target(
         assert result == expected
         assert Compile(tmpdir).string_compiles(code)
         assert Compile(tmpdir).string_compiles(result)
+
+
+def test_add_target_attribute(fortran_reader):
+    '''Check that _add_target_attribute works when a declaration either has
+    or has no existing attributes.
+
+    This is complicated because it appears that the only way for
+    something that is not an argument to have a dynamic type is for it
+    to be class(*). The fparser2 frontend cannot handle this and we
+    end up with an UnsupportedFortranType with an UnknownInterface. We
+    therefore have to explicitly fix the interface before we can test the
+    functionality.
+
+    '''
+    code = '''\
+module my_mod
+  implicit none
+contains
+
+  subroutine my_sub()
+    ! class(*) must have the ALLOCATABLE or POINTER attribute if it is not
+    ! a dummy argument.
+    class(*), allocatable, dimension(:) :: something
+  end subroutine my_sub
+end module my_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    table = psyir.children[0].children[0].symbol_table
+    sym = table.lookup("something")
+    # Fix the interface of the symbol.
+    sym.interface = AutomaticInterface()
+    fp2reader = Fparser2Reader()
+    # Test that _add_target_attribute now works for this Symbol.
+    fp2reader._add_target_attribute("something", table)
+    assert ("CLASS(*), ALLOCATABLE, DIMENSION(:), TARGET :: something"
+            in str(sym.datatype))
+    # Test in the absence of any attributes on the original declaration.
+    # This is probably not reachable in normal use (but we want to make sure
+    # that the code handles it in case it happens) so create our own
+    # UnsupportedFortranType using a simple declaration.
+    new_type = UnsupportedFortranType("integer :: a_local")
+    sym2 = DataSymbol("a_local", datatype=new_type)
+    table.add(sym2)
+    fp2reader._add_target_attribute("a_local", table)
+    assert "INTEGER, TARGET :: a_local" in str(sym2.datatype)

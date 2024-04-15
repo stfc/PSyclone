@@ -3423,20 +3423,37 @@ class Fparser2Reader():
         return ifblock
 
     @staticmethod
-    def _add_target_attribute(symbol):
-        '''Ensure that the datatype of the supplied symbol has a pointer or
-        target attribute and if not, add the target attribute. The datatype is
-        stored as text within an UnsupportedFortranType. We therefore
-        re-create the datatype as an fparser2 ast, add the attribute if
-        required and update the UnsupportedFortranType with the new text.
+    def _add_target_attribute(var_name, table):
+        '''Ensure that the datatype of the symbol with the supplied name has a
+        pointer or target attribute and if not, add the target attribute.
 
-        :param symbol: the symbol for which we attempt to modify the datatype.
-        :type datatype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        The datatype is stored as text within an UnsupportedFortranType. We
+        therefore re-create the datatype as an fparser2 ast, add the attribute
+        if required and update the UnsupportedFortranType with the new text.
 
-        :raises NotImplementedError: if the supplied Symbol needs to be given
-            the target attribute but represents a routine argument.
+        :param str var_name: the name of the symbol for which we attempt to
+                             modify the datatype.
+        :param table: a SymbolTable in which to search for the symbol.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :raises NotImplementedError: if the variable cannot be found, is
+            unresolved or is not a DataSymbol.
+        :raises NotImplementedError: if the variable needs to be given
+            the target attribute but represents a symbol defined externally
+            (e.g. a routine argument or an imported symbol).
 
         '''
+        try:
+            symbol = table.lookup(var_name)
+        except KeyError as err:
+            raise NotImplementedError(
+                f"Cannot add TARGET attribute to variable '{var_name}' "
+                f"because it is unresolved") from err
+        if symbol.is_unresolved or not isinstance(symbol, DataSymbol):
+            raise NotImplementedError(
+                f"Cannot add TARGET attribute to symbol '{symbol}': it must "
+                f"be resolved and a DataSymbol")
+
         datatype = symbol.datatype
         # Create Fortran text for the supplied datatype from the
         # supplied UnsupportedFortranType text, then parse this into an
@@ -3494,12 +3511,15 @@ class Fparser2Reader():
             self, parent, select_type, type_string_symbol, pointer_symbols):
         '''Use the contents of the supplied SelectTypeInfo instance
         to create an if nest to capture the content of the associated
-        select type construct. This allows the PSyIR to 'see' the
-        content of the select type despite not supporting the select
-        type clause directly in PSyIR. Note, a CodeBlock to capture
-        the logic of the select type without capturing its content is
-        created before this if nest to capture the logic of the select
-        type via the 'type_string_symbol'.
+        select type construct.
+
+        This allows the PSyIR to 'see' the content of the select type
+        despite not supporting the select type clause directly in
+        PSyIR. A Codeblock preceding this condition will capture the
+        conditional logic of the select type and the chosen type will
+        be communicated to the if nest at runtime via the
+        'type_string_symbol'. The if nest created here captures the
+        content of each branch of the original select type.
 
         :param parent: the PSyIR parent to which we are going to add
             the PSyIR ifblock and any required symbols.
@@ -3507,11 +3527,11 @@ class Fparser2Reader():
         :param select_type: information on the select type construct.
         :type select_type: :py:class:\
             `psyclone.psyir.frontend.fparser2.Fparser2Reader.SelectTypeInfo`
-        :param type_string_symbol: a type_string symbol capturing a
-            particular 'select type' 'type is' or 'class is' clause.
+        :param type_string_symbol: a run-time symbol capturing (as a string)
+            the value chosen by the select type construct.
         :type type_string_symbol: :py:class:`psyclone.psyir.type.DataSymbol`
         :param pointer_symbols: a list of symbols that point to the
-            different select type types within the select type codeblock.
+            different select-type types within the select type codeblock.
         :type pointer_symbols:
             list[Optional[:py:class:`psyclone.psyir.symbols.Symbol`]]
 
@@ -3589,7 +3609,7 @@ class Fparser2Reader():
     @staticmethod
     def _create_select_type(
             parent, select_type, type_string_name=None):
-        '''Use the contents of the supplied dataclass instance (`select_type`)
+        '''Use the contents of the supplied SelectTypeInfo, `select_type`,
         to create a CodeBlock containing a select type to capture its control
         logic without capturing its content.
 
@@ -3603,7 +3623,7 @@ class Fparser2Reader():
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param select_type: instance of the SelectTypeInfo dataclass
             containing information about the select type construct.
-        :type select_type: :py:class:`dataclasses.dataclass`
+        :type select_type: :py:class:`Self.SelectTypeInfo`
         :param Optional[str] type_string_name: the base name to use
             for the newly created type_string symbol.
 
@@ -3620,16 +3640,18 @@ class Fparser2Reader():
         # UnsupportedFortranType in the symbol table as we do not natively
         # support character strings (as opposed to scalars) in the PSyIR at
         # the moment.
+        # TODO #2550 will improve this by using an integer instead.
         type_string_name = parent.scope.symbol_table.next_available_name(
             type_string_name)
         # Length is hardcoded here so could potentially be too short.
+        # TODO #2550 will improve this by using an integer instead.
         type_string_type = UnsupportedFortranType(
             f"character(256) :: {type_string_name}")
         type_string_symbol = DataSymbol(type_string_name, type_string_type)
         parent.scope.symbol_table.add(type_string_symbol)
 
         # Create text for a select type construct using the information
-        # captured in the `select_type` SelectTypeInfo (dataclass) instance.
+        # captured in the `select_type` SelectTypeInfo instance.
         # Also add any required pointer symbols to the symbol table as
         # UnsupportedFortranType, as pointers are not natively supported in the
         # PSyIR at the moment.
@@ -3713,17 +3735,17 @@ class Fparser2Reader():
 
     @staticmethod
     def _create_select_type_info(node):
-        '''Create and return a dataclass instance that stores the required
-        information for a select type construct to be used by
+        '''Create and return a SelectTypeInfo instance that stores the required
+        information for a select-type construct to be used by
         subsequent methods.
 
-        :param node: fparser2 node from which to extract the dataclass
-            instance information.
+        :param node: fparser2 node from which to extract the select-type
+            information.
         :type node: :py:class:`fparser2.Fortran2003.Select_Type_Construct`
 
         :returns: instance of the SelectTypeInfo dataclass containing
-            information about the select type construct.
-        :rtype: :py:class:`dataclasses.dataclass`
+            information about the select-type construct.
+        :rtype: :py:class:`Self.SelectTypeInfo`
 
         '''
         select_type = Fparser2Reader.SelectTypeInfo()
@@ -3810,7 +3832,7 @@ class Fparser2Reader():
         '''
         Transforms an fparser2 Select_Type_Construct to the PSyIR
         representation (consisting of an Assignment, a CodeBlock
-        and an IfBlock
+        and an IfBlock).
 
         :param node: node in fparser2 tree.
         :type node: :py:class:`fparser.two.Fortran2003.Select_Type_Construct`
@@ -3833,7 +3855,8 @@ class Fparser2Reader():
         select_type = self._create_select_type_info(node)
 
         # We don't immediately add our new nodes into the PSyIR tree in
-        # case we encounter something we don't support.
+        # case we encounter something we don't support (in which case
+        # an exception will be raised and a CodeBlock created).
         tmp_parent = Schedule(parent=parent)
 
         # Step 2: Recreate the select type clause within a CodeBlock
@@ -3841,6 +3864,8 @@ class Fparser2Reader():
         # capturing the name of the type or class clauses
         # ('type_string'). The string symbol is returned for use in
         # step 3, as is the list of any pointers to the selector variable.
+        # TODO #2550 - use an integer instead of a string to encode
+        # which branch is chosen at run-time.
         type_string_symbol, pointer_symbols = self._create_select_type(
             tmp_parent, select_type, type_string_name="type_string")
 
@@ -3854,19 +3879,8 @@ class Fparser2Reader():
         # Step 4: Ensure that the type selector variable declaration
         # has the pointer or target attribute as we need to create
         # pointers that point to it to get the specific type.
-        symbol_table = outer_ifblock.scope.symbol_table
-        try:
-            symbol = symbol_table.lookup(select_type.selector)
-        except KeyError as err:
-            raise NotImplementedError(
-                f"Type-selector variable '{select_type.selector}' is "
-                f"unresolved") from err
-        if symbol.is_unresolved or not isinstance(symbol, DataSymbol):
-            raise NotImplementedError(
-                f"Unexpected symbol '{symbol}' found when searching for the "
-                f"type-selector variable: it must be resolved and a "
-                f"DataSymbol")
-        self._add_target_attribute(symbol)
+        self._add_target_attribute(select_type.selector,
+                                   outer_ifblock.scope.symbol_table)
 
         # Step 5: We didn't encounter any problems so finally attach our new
         # nodes to the PSyIR tree in the location we saved earlier.
@@ -3874,7 +3888,6 @@ class Fparser2Reader():
             parent.addchild(child, index=insert_index)
         # Ensure any Symbols are moved over too.
         parent.scope.symbol_table.merge(tmp_parent.symbol_table)
-        del tmp_parent
 
         return outer_ifblock
 
