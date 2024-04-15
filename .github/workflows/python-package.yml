@@ -160,7 +160,9 @@ jobs:
       env:
         LC_ALL: C
         LANG: C
-    - name: Upload coverage to Codecov
+    - name: Upload coverage to Codecov with GitHub Action
       uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       with:
         verbose: true
