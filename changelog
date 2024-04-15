@@ -31,6 +31,11 @@
 
 	12) PR #2521 for #2520. Fix issue with line_length runme example.
 
+	13) PR #2539 for #2538. Add PSyIR Symbol PreprocessorInterface.
+
+	14) PR #2540 for #2537. Add 'allow_renaming' parameter to the symbol_table
+	new_symbol method and improve its import handling.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

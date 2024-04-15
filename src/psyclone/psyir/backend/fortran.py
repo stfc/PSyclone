@@ -50,9 +50,10 @@ from psyclone.psyir.nodes import (
     Operation, Range, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    GenericInterfaceSymbol, IntrinsicSymbol, RoutineSymbol,
-    ScalarType, StructureType, Symbol, SymbolTable, UnresolvedInterface,
-    UnresolvedType, UnsupportedFortranType, UnsupportedType, )
+    GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
+    RoutineSymbol, ScalarType, StructureType, Symbol, SymbolTable,
+    UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
+    UnsupportedType, )
 
 
 # Mapping from PSyIR types to Fortran data types. Simply reverse the
@@ -945,6 +946,9 @@ class FortranWriter(LanguageWriter):
             if isinstance(sym, IntrinsicSymbol) or (
                     isinstance(sym, RoutineSymbol) and
                     isinstance(sym.interface, UnresolvedInterface)):
+                all_symbols.remove(sym)
+            # We ignore all symbols with a PreprocessorInterface
+            if isinstance(sym.interface, PreprocessorInterface):
                 all_symbols.remove(sym)
 
         # If the symbol table contains any symbols with an
