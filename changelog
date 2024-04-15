@@ -36,6 +36,11 @@
 	14) PR #2540 for #2537. Add 'allow_renaming' parameter to the symbol_table
 	new_symbol method and improve its import handling.
 
+	15) PR #2497 for #2496. Updates the GOcean access-info functionality
+	to use PSyIR rather than strings for indices.
+
+	16) PR #2549 for #2548. Update Codecov action.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
