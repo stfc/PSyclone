@@ -1057,7 +1057,7 @@ class Fparser2Reader():
         ('.or.', BinaryOperation.Operator.OR)])
 
     @dataclass
-    class SelectTypeClass:
+    class SelectTypeInfo:
         """Class for storing required information from an fparser2
         Select_Type_Construct.
 
@@ -3426,9 +3426,9 @@ class Fparser2Reader():
     def _add_target_attribute(symbol):
         '''Ensure that the datatype of the supplied symbol has a pointer or
         target attribute and if not, add the target attribute. The datatype is
-        stored as text within an UnknownFortranType. We therefore
+        stored as text within an UnsupportedFortranType. We therefore
         re-create the datatype as an fparser2 ast, add the attribute if
-        required and update the UnknownFortranType with the new text.
+        required and update the UnsupportedFortranType with the new text.
 
         :param symbol: the symbol for which we attempt to modify the datatype.
         :type datatype: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -3439,7 +3439,7 @@ class Fparser2Reader():
         '''
         datatype = symbol.datatype
         # Create Fortran text for the supplied datatype from the
-        # supplied UnknownFortranType text, then parse this into an
+        # supplied UnsupportedFortranType text, then parse this into an
         # fparser2 tree and store the fparser2 representation of the
         # datatype in type_decl_stmt.
         dummy_code = (
@@ -3466,15 +3466,17 @@ class Fparser2Reader():
                     return
 
         # TARGET needs to be added as an additional attribute. We cannot
-        # do this if the Symbol represents a formal argument to a routine.
-        if symbol.is_argument:
+        # do this if the Symbol has an interface that means it is defined
+        # externally.
+        if not (symbol.is_automatic or symbol.is_modulevar):
             raise NotImplementedError(
-                f"Type-selector variable '{symbol.name}' is a formal routine "
-                f"argument and thus cannot be given the TARGET attribute")
+                f"Type-selector variable '{symbol.name}' is defined externally"
+                f" (has interface '{symbol.interface}') and thus cannot be "
+                f"given the TARGET attribute")
 
         if attr_spec_str_list:
-            # At least one attribute already exists but it is not
-            # or they are not the target or pointer attributes.
+            # At least one attribute already exists but it is/they are not
+            # the 'target' or 'pointer' attributes.
             attr_spec_str_list.append("TARGET")
             attr_spec_list = Fortran2003.Attr_Spec_List(
                 ", ".join(attr_spec_str_list))
@@ -3488,13 +3490,13 @@ class Fparser2Reader():
         # pylint: disable=protected-access
         datatype._declaration = str(type_decl_stmt)
 
-    def _create_ifblock(
+    def _create_ifblock_for_select_type_content(
             self, parent, select_type, type_string_symbol, pointer_symbols):
-        '''Use the contents from the supplied dataclass instance (select_type)
+        '''Use the contents of the supplied SelectTypeInfo instance
         to create an if nest to capture the content of the associated
         select type construct. This allows the PSyIR to 'see' the
         content of the select type despite not supporting the select
-        type clause directly in PSyIR. Note, a codeblock to capture
+        type clause directly in PSyIR. Note, a CodeBlock to capture
         the logic of the select type without capturing its content is
         created before this if nest to capture the logic of the select
         type via the 'type_string_symbol'.
@@ -3502,10 +3504,9 @@ class Fparser2Reader():
         :param parent: the PSyIR parent to which we are going to add
             the PSyIR ifblock and any required symbols.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param select_type: instance of the SelectTypeClass dataclass
-            containing information about the select type construct.
+        :param select_type: information on the select type construct.
         :type select_type: :py:class:\
-            `psyclone.psyir.frontend.fparser2.Fparser2Reader.SelectTypeClass`
+            `psyclone.psyir.frontend.fparser2.Fparser2Reader.SelectTypeInfo`
         :param type_string_symbol: a type_string symbol capturing a
             particular 'select type' 'type is' or 'class is' clause.
         :type type_string_symbol: :py:class:`psyclone.psyir.type.DataSymbol`
@@ -3600,7 +3601,7 @@ class Fparser2Reader():
         :param parent: the PSyIR parent to which we are going to add
             the PSyIR codeblock and any required symbols.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
-        :param select_type: instance of the SelectTypeClass dataclass
+        :param select_type: instance of the SelectTypeInfo dataclass
             containing information about the select type construct.
         :type select_type: :py:class:`dataclasses.dataclass`
         :param Optional[str] type_string_name: the base name to use
@@ -3616,8 +3617,9 @@ class Fparser2Reader():
         '''
         pointer_symbols = []
         # Create a symbol from the supplied base name. Store as an
-        # UnknownFortranType in the symbol table as we do not natively support
-        # character strings (as opposed to scalars) in the PSyIR at the moment.
+        # UnsupportedFortranType in the symbol table as we do not natively
+        # support character strings (as opposed to scalars) in the PSyIR at
+        # the moment.
         type_string_name = parent.scope.symbol_table.next_available_name(
             type_string_name)
         # Length is hardcoded here so could potentially be too short.
@@ -3627,9 +3629,9 @@ class Fparser2Reader():
         parent.scope.symbol_table.add(type_string_symbol)
 
         # Create text for a select type construct using the information
-        # captured in the `select_type` SelectTypeClass (dataclass) instance.
+        # captured in the `select_type` SelectTypeInfo (dataclass) instance.
         # Also add any required pointer symbols to the symbol table as
-        # UnknownFortranType, as pointers are not natively supported in the
+        # UnsupportedFortranType, as pointers are not natively supported in the
         # PSyIR at the moment.
         code = "program dummy\n"
         code += f"select type({select_type.selector})\n"
@@ -3719,12 +3721,12 @@ class Fparser2Reader():
             instance information.
         :type node: :py:class:`fparser2.Fortran2003.Select_Type_Construct`
 
-        :returns: instance of the SelectTypeClass dataclass containing
+        :returns: instance of the SelectTypeInfo dataclass containing
             information about the select type construct.
         :rtype: :py:class:`dataclasses.dataclass`
 
         '''
-        select_type = Fparser2Reader.SelectTypeClass()
+        select_type = Fparser2Reader.SelectTypeInfo()
 
         select_idx = -1
         for child in node.children:
@@ -3846,7 +3848,7 @@ class Fparser2Reader():
         # replicates the content of the select type options (as select
         # type is not supported directly in the PSyIR) allowing the
         # PSyIR to 'see' the select type content.
-        outer_ifblock = self._create_ifblock(
+        outer_ifblock = self._create_ifblock_for_select_type_content(
             parent, select_type, type_string_symbol, pointer_symbols)
 
         # Step 4: Ensure that the type selector variable declaration

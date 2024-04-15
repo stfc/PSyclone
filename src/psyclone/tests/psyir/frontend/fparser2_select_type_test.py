@@ -751,6 +751,11 @@ def test_class_target(
         routine = psyir.walk(Routine)[0]
         assert len(routine.children) == 1
         assert isinstance(routine.children[0], CodeBlock)
+        # The reason for the CodeBlock should be in a comment.
+        output = fortran_writer(routine)
+        assert ("Type-selector variable 'type_selector' is defined externally "
+                "(has interface 'Argument(Access.UNKNOWN)') and thus cannot "
+                "be given the TARGET attribute" in output)
     else:
         result = fortran_writer(psyir).lower()
         assert result == expected
