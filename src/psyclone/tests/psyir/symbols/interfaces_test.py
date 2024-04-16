@@ -124,10 +124,11 @@ def test_importinterface():
     assert import_interface.container_symbol is container_symbol
     assert str(import_interface) == "Import(container='my_mod')"
 
-    import_interface = ImportInterface(container_symbol, orig_name="orig_name")
-    assert import_interface.container_symbol is container_symbol
-    assert str(import_interface) == ("Import(container='my_mod', "
-                                     "orig_name='orig_name')")
+    import_interface1 = ImportInterface(container_symbol,
+                                        orig_name="orig_name")
+    assert import_interface1.container_symbol is container_symbol
+    assert str(import_interface1) == ("Import(container='my_mod', "
+                                      "orig_name='orig_name')")
 
     with pytest.raises(TypeError) as info:
         _ = ImportInterface("hello")
@@ -144,6 +145,8 @@ def test_importinterface():
     import_interface2 = ImportInterface(container_symbol2)
     assert import_interface == import_interface2
     assert import_interface != "my_mod"
+    # But they must have the same original name.
+    assert import_interface2 != import_interface1
 
 
 def test_importinterface_container_symbol_getter_setter():
