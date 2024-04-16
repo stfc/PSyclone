@@ -91,7 +91,8 @@ def test_omp_task_validate_child():
 
 
 def test_omp_task_directive_clause_accessors(fortran_reader):
-    ''' Test the input_depend_clause and output_depend_clause methods.'''
+    ''' Test the input_depend_clause, firstprivate_clause
+    and output_depend_clause methods.'''
     code = '''
     subroutine my_subroutine()
         integer, dimension(10, 10) :: A
@@ -131,6 +132,7 @@ def test_omp_task_directive_clause_accessors(fortran_reader):
     assert isinstance(task_dir.output_depend_clause, OMPDependClause)
     assert (task_dir.output_depend_clause._operand ==
             OMPDependClause.DependClauseTypes.OUT)
+    assert isinstance(task_dir.firstprivate_clause, OMPFirstprivateClause)
 
 
 def test_omp_task_directive_begin_end_string():
