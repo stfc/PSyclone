@@ -1713,7 +1713,6 @@ def test_validate_unresolved_precision_sym(fortran_reader, code_body):
         f"  use kinds_mod\n"
         f"contains\n"
         f"  subroutine run_it()\n"
-        f"    use a_mod\n"
         f"    integer :: i\n"
         f"    i = 10_i_def\n"
         f"    call sub(i)\n"
@@ -1739,16 +1738,14 @@ def test_validate_unresolved_precision_sym(fortran_reader, code_body):
 
 def test_validate_resolved_precision_sym(fortran_reader, monkeypatch,
                                          tmpdir):
-    '''Test that a routine that uses a resolved precision symbol is
-    rejected.'''
+    '''Test that a routine that uses a resolved precision symbol from its
+    parent Container is rejected.'''
     code = (
         "module test_mod\n"
         "  use kinds_mod\n"
         "contains\n"
         "  subroutine run_it()\n"
-        "    use a_mod\n"
         "    integer :: i\n"
-        "    a_var = a_clash\n"
         "    i = 10_i_def\n"
         "    call sub(i)\n"
         "    call sub2(i)\n"
