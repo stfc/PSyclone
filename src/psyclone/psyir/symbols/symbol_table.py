@@ -614,25 +614,40 @@ class SymbolTable():
             when importing symbols from `other_table` into this table.
 
         '''
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.psyir.nodes import IntrinsicCall
+
         if not isinstance(symbols_to_skip, Iterable):
             raise TypeError(
                 f"check_for_clashes: 'symbols_to_skip' must be an instance of "
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
         # Check whether there are any wildcard imports common to both tables.
-        self_wildcard_imports = self.wildcard_imports(collect_all=True)
+        self_wildcard_imports = self.wildcard_imports()
+        other_wildcard_imports = other_table.wildcard_imports()
         shared_wildcard_imports = self_wildcard_imports.intersection(
-            other_table.wildcard_imports(collect_all=True))
+            other_wildcard_imports)
+        # Whether there are any wildcard imports that appear in one table but
+        # not in the other.
+        diff1 = self_wildcard_imports.difference(other_wildcard_imports)
+        diff2 = other_wildcard_imports.difference(self_wildcard_imports)
+        non_shared_wildcard_imports = diff1 or diff2
 
         for other_sym in other_table.symbols:
             if other_sym.name not in self or other_sym in symbols_to_skip:
                 continue
             # We have a name clash.
             this_sym = self.lookup(other_sym.name)
+
             # If they are both ContainerSymbols then that's OK as they refer to
             # the same Container.
             if (isinstance(this_sym, ContainerSymbol) and
                     isinstance(other_sym, ContainerSymbol)):
+                continue
+
+            # If they are both IntrinsicSymbol then that's fine.
+            if (isinstance(this_sym, IntrinsicSymbol) and
+                    isinstance(other_sym, IntrinsicSymbol)):
                 continue
 
             if other_sym.is_import and this_sym.is_import:
@@ -648,29 +663,29 @@ class SymbolTable():
 
             if other_sym.is_unresolved and this_sym.is_unresolved:
                 # Both Symbols are unresolved.
-                if shared_wildcard_imports:
-                    # The tables have one or more wildcard imports in common.
-                    # Therefore we assume that the two symbols in fact
-                    # represent the same memory location.
+                if shared_wildcard_imports and not non_shared_wildcard_imports:
+                    # The tables have one or more wildcard imports in common
+                    # and no wildcard imports unique to one table. Therefore
+                    # the two symbols represent the same memory location.
                     continue
-                # pylint: disable=import-outside-toplevel
-                from psyclone.psyir.nodes import IntrinsicCall
-                try:
-                    # An unresolved symbol representing an intrinisc is fine.
-                    _ = IntrinsicCall.Intrinsic[this_sym.name.upper()]
-                    # Take this opportunity to specialise the symbol(s).
-                    if not isinstance(this_sym, IntrinsicSymbol):
-                        this_sym.specialise(IntrinsicSymbol)
-                    if not isinstance(other_sym, IntrinsicSymbol):
-                        other_sym.specialise(IntrinsicSymbol)
-                    continue
-                except KeyError:
-                    pass
+                if not (self_wildcard_imports or other_wildcard_imports):
+                    # Neither table has any wildcard imports.
+                    try:
+                        # An unresolved symbol representing an intrinisc is
+                        # fine.
+                        _ = IntrinsicCall.Intrinsic[this_sym.name.upper()]
+                        # Take this opportunity to specialise the symbol(s).
+                        if not isinstance(this_sym, IntrinsicSymbol):
+                            this_sym.specialise(IntrinsicSymbol)
+                        if not isinstance(other_sym, IntrinsicSymbol):
+                            other_sym.specialise(IntrinsicSymbol)
+                        continue
+                    except KeyError:
+                        pass
                 # We can't rename a symbol if we don't know its origin.
                 raise SymbolError(
                     f"A symbol named '{this_sym.name}' is present but "
-                    f"unresolved in both tables and they do not share a "
-                    f"wildcard import that could be bringing it into scope.")
+                    f"unresolved in one or both tables.")
 
             # Can either of them be renamed?
             try:
@@ -873,9 +888,8 @@ class SymbolTable():
 
         # Before we begin merging, check whether there are any wildcard
         # imports that are common to both tables.
-        shared_wildcard_imports = self.wildcard_imports(collect_all=True)
-        shared_wildcard_imports.intersection(
-            other_table.wildcard_imports(collect_all=True))
+        shared_wildcard_imports = self.wildcard_imports()
+        shared_wildcard_imports.intersection(other_table.wildcard_imports())
 
         try:
             self.check_for_clashes(other_table,
@@ -1806,16 +1820,10 @@ class SymbolTable():
         # Re-insert modified symbol
         self.add(symbol)
 
-    def wildcard_imports(self, collect_all=False):
+    def wildcard_imports(self):
         '''
         Searches this symbol table and then up through any parent symbol
-        tables for a ContainerSymbol that has a wildcard import. If
-        `collect_all` is false then the returned set will just contain the
-        name of the first one found. Otherwise, it will contain the names
-        of all containers which have wildcard imports into this scope.
-
-        :param bool collect_all: whether or not to collect all containers
-            with wildcard imports or just return the first one found.
+        tables for a ContainerSymbol that has a wildcard import.
 
         :returns: the name(s) of containers which have wildcard imports
             into the current scope.
@@ -1828,8 +1836,6 @@ class SymbolTable():
             for sym in current_table.containersymbols:
                 if sym.wildcard_import:
                     wildcards.add(sym.name)
-                    if not collect_all:
-                        return wildcards
             current_table = current_table.parent_symbol_table()
         return wildcards
 

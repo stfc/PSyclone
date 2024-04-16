@@ -761,9 +761,9 @@ def test_check_for_clashes_imports():
     table2.add(clash4)
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
-    assert ("This table has an import of 'dent' from Container 'arthur' but "
-            "the supplied table imports it from Container 'Ford'." in
-            str(err.value))
+    assert ("This table has an import of 'dent' via interface "
+            "'Import(container='arthur')' but the supplied table imports it "
+            "via 'Import(container='Ford')'." in str(err.value))
 
 
 def test_check_for_clashes_cannot_rename():
@@ -827,7 +827,8 @@ def test_check_for_clashes_wildcard_import():
     table1 = symbols.SymbolTable()
     table2 = symbols.SymbolTable()
     # A Symbol representing an intrinsic will be unresolved but shouldn't
-    # affect the ability to merge.
+    # affect the ability to merge so long as we are certain that it cannot
+    # be imported from anywhere.
     table1.new_symbol("random_number", symbol_type=symbols.RoutineSymbol,
                       interface=symbols.UnresolvedInterface())
     table2.new_symbol("random_number", symbol_type=symbols.RoutineSymbol,
@@ -843,18 +844,26 @@ def test_check_for_clashes_wildcard_import():
     # Both symbols unresolved but no common wildcard import.
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
-    assert ("A symbol named 'stavro' is present but unresolved in both tables "
-            "and they do not share a wildcard import that could be bringing "
-            "it into scope" in str(err.value))
+    assert ("A symbol named 'stavro' is present but unresolved in one or "
+            "both tables." in str(err.value))
     # Add a wildcard import to the second table but from a different container.
     table2.add(symbols.ContainerSymbol("romula", wildcard_import=True))
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
-    assert ("A symbol named 'stavro' is present but unresolved in both tables "
-            "and they do not share a wildcard import that could be bringing "
-            "it into scope" in str(err.value))
+    assert ("A symbol named 'stavro' is present but unresolved in one or "
+            "both tables." in str(err.value))
     # Add a wildcard import from the same container as in the first table.
     table2.add(symbols.ContainerSymbol("beta", wildcard_import=True))
+    # We can't safely rename the symbol because it's possible that it is being
+    # brought into scope from different containers.
+    with pytest.raises(symbols.SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("A symbol named 'stavro' is present but unresolved in one or "
+            "both tables." in str(err.value))
+    # Remove the wildcard import that is unique to table2.
+    table2.remove(table2.lookup("romula"))
+    # Now that we are confident that 'stavro' must come from container 'beta'
+    # in both tables we know there isn't a clash.
     table1.check_for_clashes(table2)
 
 
