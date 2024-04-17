@@ -3506,20 +3506,31 @@ def test_omp_task_directive_full_step_input_access_with_otter(
                 A(j, i) = B(j, i+1) + k
             end do
         end do
+        do i = 1, 10
+            A(j, i) = k
+        end do
     end subroutine
     '''
     tree = fortran_reader.psyir_from_source(code)
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective(enable_otter=True)
-    loops = tree.walk(Loop, stop_type=Loop)
+    tdir2 = DynamicOMPTaskDirective(enable_otter=True)
+    loops = tree.walk(Loop)
     loop = loops[0].children[3].children[0]
     parent = loop.parent
     loop.detach()
     tdir.children[0].addchild(loop)
     parent.addchild(tdir, index=0)
-    strans.apply(loops[0])
-    ptrans.apply(loops[0].parent.parent)
+    loop = loops[2]
+    parent = loop.parent
+    loop.detach()
+    tdir2.children[0].addchild(loop)
+    parent.addchild(tdir2)
+    strans.apply(tdir2.parent.children[:])
+    ptrans.apply(loop.parent.parent.parent.parent)
+#    strans.apply(loops[0])
+#    ptrans.apply(loops[0].parent.parent)
     correct = '''use iso_c_binding, only : c_bool, c_null_ptr, c_ptr
   use otter_task_graph, only : fortran_otterSynchroniseTasks, \
 fortran_otterTaskEnd, fortran_otterTaskInitialise, fortran_otterTaskStart, \
@@ -3552,6 +3563,21 @@ __LINE__)
     call fortran_otterTaskEnd(otter_task, __FILE__, otter_task_id, __LINE__)
     !$omp end task
   enddo
+  WRITE(otter_task_id, "(A19, I0.5)") "my_subroutine_task_", 1
+  otter_task = fortran_otterTaskInitialise(c_null_ptr, -1, otter_add_to_pool, \
+c_true, __FILE__, 'my_subroutine_2', __LINE__, otter_task_id)
+  call fortran_otterSynchroniseTasks(c_null_ptr, 1, otter_endpoint_enter)
+  !$omp taskwait
+  call fortran_otterSynchroniseTasks(c_null_ptr, 1, otter_endpoint_leave)
+  !$omp task private(i), firstprivate(j,otter_task,otter_task_id), shared(a), \
+depend(in: k), depend(out: a(j,:))
+  otter_task = fortran_otterTaskStart(otter_task, __FILE__, otter_task_id, \
+__LINE__)
+  do i = 1, 10, 1
+    a(j,i) = k
+  enddo
+  call fortran_otterTaskEnd(otter_task, __FILE__, otter_task_id, __LINE__)
+  !$omp end task
   call fortran_otterSynchroniseTasks(c_null_ptr, 1, otter_endpoint_enter)
   !$omp taskwait
   call fortran_otterSynchroniseTasks(c_null_ptr, 1, otter_endpoint_leave)
