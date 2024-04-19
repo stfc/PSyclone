@@ -39,7 +39,9 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-from psyclone.core import AccessType, Signature
+import sys
+
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
@@ -190,6 +192,38 @@ class Reference(DataNode):
             # We don't even have a DataSymbol
             return UnresolvedType()
         return self.symbol.datatype
+
+    def next_access(self):
+        '''
+        :returns: the next reference to the symbol accessed by this Reference.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or None
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        # The scope is as far as the Routine that contains this
+        # Reference.
+        var_access = VariablesAccessInfo(nodes=self.ancestor(Routine))
+        signature, indices = self.get_signature_and_indices()
+        single_accesses_to_this = var_access[signature]
+        all_accesses = single_accesses_to_this.all_accesses
+        closest_location = sys.maxsize
+        current_node = None
+        my_loc = 0
+        # Find my position in the VariablesAccesInfo
+        for access in all_accesses:
+            if access.node is self:
+                my_loc = access.location
+                break
+        # Naive option ignoring conditionals for now
+        for access in all_accesses:
+            if access.location > my_loc and access.location < closest_location:
+                current_node = access.node
+                closest_location = access.location
+
+        # current_node now contains the next access with the same signature
+        # that occurs after
+        return current_node
 
 
 # For AutoAPI documentation generation

@@ -214,3 +214,110 @@ def test_reference_can_be_copied():
     # Modifying the new reference does not affect the original
     ref1._symbol = scalar_symbol
     assert ref.symbol is array_symbol
+
+
+def test_reference_next_access(fortran_reader):
+    '''Test the next_access function for a Reference'''
+    code = '''subroutine my_sub()
+    integer :: a
+    integer :: b
+    a = 1
+    b = 1
+    a = b
+    end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    b = routine.children[1].lhs
+    a_2 = routine.children[2].lhs
+    b_2 = routine.children[2].rhs
+    assert a.next_access() is a_2
+    assert b.next_access() is b_2
+    assert a_2.next_access() is None
+
+    code = '''subroutine my_sub()
+    integer :: a
+    integer :: b
+    a = 1
+    do a = 0, 10
+        b = a
+    end do
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    loop = routine.children[1]
+    b_a = loop.loop_body.children[0].lhs
+    a_2 = loop.loop_body.children[0].rhs
+    assert a.next_access() is loop
+    assert b_a.next_access() is None
+
+    # Check the function for basic structures
+    code = '''subroutine my_sub()
+    type :: x
+       integer :: a
+       real :: b
+    end type
+    type(x) :: i
+    i%a = 2
+    i%b = 0.1
+    i%a = 3
+    i%b = 0.2
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    b = routine.children[1].lhs
+    a_2 = routine.children[2].lhs
+    b_2 = routine.children[3].lhs
+    assert a.next_access() is a_2
+    assert b.next_access() is b_2
+    assert a_2.next_access() is None
+    assert b_2.next_access() is None
+
+    # Check the function for array access
+    code = '''subroutine my_sub()
+    integer, dimension(100) :: a
+    a(0) = 2
+    a(1) = 2
+    end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].lhs
+    assert a.next_access() is a_2
+    assert a_2.next_access() is None
+
+    # Check if statements don't affect
+    code = '''subroutine my_sub()
+   integer :: a
+   logical :: b = .false.
+   a = 1
+   if(b) then
+     a = 0
+   end if
+   a = 2
+   end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].if_body.children[0].lhs
+    a_3 = routine.children[2].lhs
+    assert a.next_access() is a_2
+    assert a_2.next_access() is a_3
+    assert a_3.next_access() is None
+
+
+@pytest.xfail("#2271 Codeblocks don't currently support reference_accesses")
+def test_reference_next_access_with_codeblock(fortran_reader):
+    code = '''subroutine my_sub()
+    character, dimension(100) :: a
+    a = "test"
+    write(a, "A") "mytest"
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    codeblock = routine.children[1]
+    assert a.next_access() is codeblock
