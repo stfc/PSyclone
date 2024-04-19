@@ -308,7 +308,6 @@ def test_reference_next_access(fortran_reader):
     assert a_3.next_access() is None
 
 
-@pytest.xfail("#2271 Codeblocks don't currently support reference_accesses")
 def test_reference_next_access_with_codeblock(fortran_reader):
     code = '''subroutine my_sub()
     character, dimension(100) :: a
@@ -320,4 +319,6 @@ def test_reference_next_access_with_codeblock(fortran_reader):
     routine = psyir.children[0]
     a = routine.children[0].lhs
     codeblock = routine.children[1]
-    assert a.next_access() is codeblock
+    if a.next_access() is not codeblock:
+        pytest.xfail("#2271 Codeblocks don't currently support "
+                     "reference_accesses")
