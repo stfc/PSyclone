@@ -193,6 +193,32 @@ class Reference(DataNode):
             return UnresolvedType()
         return self.symbol.datatype
 
+    def previous_access(self):
+        '''
+        :returns: the previous reference to the symbol accessed by this
+                  Reference.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node` or None
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        # The scope is as far as the Routine that contains this
+        # Reference.
+        var_access = VariablesAccessInfo(nodes=self.ancestor(Routine))
+        signature, indices = self.get_signature_and_indices()
+        single_accesses_to_this = var_access[signature]
+        all_accesses = single_accesses_to_this.all_accesses
+        index = sys.maxsize
+        # Find my position in the VariablesAccesInfo
+        for i, access in enumerate(all_accesses):
+            if access.node is self:
+                index = i
+                break
+
+        if index > 0:
+            return all_accesses[index-1].node
+        return None
+
     def next_access(self):
         '''
         :returns: the next reference to the symbol accessed by this Reference.

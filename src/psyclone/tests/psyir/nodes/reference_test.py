@@ -322,3 +322,113 @@ def test_reference_next_access_with_codeblock(fortran_reader):
     if a.next_access() is not codeblock:
         pytest.xfail("#2271 Codeblocks don't currently support "
                      "reference_accesses")
+
+
+def test_reference_previous_access(fortran_reader):
+    '''Test the previous_access function for a Reference'''
+    code = '''subroutine my_sub()
+    integer :: a
+    integer :: b
+    a = 1
+    b = 1
+    a = b
+    end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    b = routine.children[1].lhs
+    a_2 = routine.children[2].lhs
+    b_2 = routine.children[2].rhs
+    assert a.previous_access() is None
+    assert b.previous_access() is None
+    assert a_2.previous_access() is a
+    assert b_2.previous_access() is b
+
+    code = '''subroutine my_sub()
+    integer :: a
+    integer :: b
+    a = 1
+    do a = 0, 10
+        b = a
+    end do
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    loop = routine.children[1]
+    b_a = loop.loop_body.children[0].lhs
+    a_2 = loop.loop_body.children[0].rhs
+    assert a.previous_access() is None
+    assert b_a.previous_access() is None
+    assert a_2.previous_access() is loop
+
+    # Check the function for basic structures
+    code = '''subroutine my_sub()
+    type :: x
+       integer :: a
+       real :: b
+    end type
+    type(x) :: i
+    i%a = 2
+    i%b = 0.1
+    i%a = 3
+    i%b = 0.2
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    b = routine.children[1].lhs
+    a_2 = routine.children[2].lhs
+    b_2 = routine.children[3].lhs
+    assert a.previous_access() is None
+    assert b.previous_access() is None
+    assert a_2.previous_access() is a
+    assert b_2.previous_access() is b
+
+    # Check the function for array access
+    code = '''subroutine my_sub()
+    integer, dimension(100) :: a
+    a(0) = 2
+    a(1) = 2
+    end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].lhs
+    assert a.previous_access() is None
+    assert a_2.previous_access() is a
+
+    # Check if statements don't affect
+    code = '''subroutine my_sub()
+   integer :: a
+   logical :: b = .false.
+   a = 1
+   if(b) then
+     a = 0
+   end if
+   a = 2
+   end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].if_body.children[0].lhs
+    a_3 = routine.children[2].lhs
+    assert a.previous_access() is None
+    assert a_2.previous_access() is a
+    assert a_3.previous_access() is a_2
+
+
+def test_reference_previous_access_with_codeblock(fortran_reader):
+    code = '''subroutine my_sub()
+    character, dimension(100) :: a
+    write(a, "A") "mytest"
+    a = "test"
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[1].lhs
+    codeblock = routine.children[1]
+    if a.previous_access() is not codeblock:
+        pytest.xfail("#2271 Codeblocks don't currently support "
+                     "reference_accesses")
