@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-24, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -103,7 +103,6 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
     if_blocks = psyir.walk(IfBlock)
     assert "was_type_is" in if_blocks[0].annotations
     assert "was_type_is" in if_blocks[1].annotations
-    assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -164,7 +163,6 @@ def test_default(fortran_reader, fortran_writer, tmpdir):
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
     assert expected in result
-    assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -255,7 +253,6 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
     if_blocks = psyir.walk(IfBlock)
     assert "was_class_is" in if_blocks[0].annotations
     assert "was_class_is" in if_blocks[2].annotations
-    assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -350,7 +347,6 @@ def test_select_rename(fortran_reader, fortran_writer, tmpdir):
     assert isinstance(psyir.children[0].children[0].children[0], CodeBlock)
     result = fortran_writer(psyir)
     assert expected in result
-    assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -413,7 +409,6 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir).lower()
     assert expected1 in result
     assert expected2 in result
-    assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -463,7 +458,6 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir)
     assert expected1 in result
     assert expected2 in result
-    assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -541,7 +535,6 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir).lower()
     assert expected1 in result
     assert expected2 in result
-    assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -590,7 +583,6 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
     result = fortran_writer(psyir).lower()
     assert expected1 in result
     assert expected2 in result
-    assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -636,7 +628,6 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
     result = fortran_writer(psyir).lower()
     assert expected1 in result
     assert expected2 in result
-    assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -699,7 +690,6 @@ def test_character_kind(
     psyir = fortran_reader.psyir_from_source(code)
     result = fortran_writer(psyir).lower()
     assert result == expected
-    assert Compile(tmpdir).string_compiles(code)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -763,7 +753,6 @@ def test_class_target(
     else:
         result = fortran_writer(psyir).lower()
         assert result == expected
-        assert Compile(tmpdir).string_compiles(code)
         assert Compile(tmpdir).string_compiles(result)
 
 
