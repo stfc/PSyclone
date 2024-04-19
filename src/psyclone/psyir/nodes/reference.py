@@ -207,23 +207,16 @@ class Reference(DataNode):
         signature, indices = self.get_signature_and_indices()
         single_accesses_to_this = var_access[signature]
         all_accesses = single_accesses_to_this.all_accesses
-        closest_location = sys.maxsize
-        current_node = None
-        my_loc = 0
+        index = sys.maxsize
         # Find my position in the VariablesAccesInfo
-        for access in all_accesses:
+        for i, access in enumerate(all_accesses):
             if access.node is self:
-                my_loc = access.location
+                index = i
                 break
-        # Naive option ignoring conditionals for now
-        for access in all_accesses:
-            if access.location > my_loc and access.location < closest_location:
-                current_node = access.node
-                closest_location = access.location
 
-        # current_node now contains the next access with the same signature
-        # that occurs after
-        return current_node
+        if len(all_accesses) > index+1:
+            return all_accesses[index+1].node
+        return None
 
 
 # For AutoAPI documentation generation
