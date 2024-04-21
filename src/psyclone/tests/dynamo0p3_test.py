@@ -50,6 +50,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import (FunctionSpace, LFRicArgDescriptor,
                                    LFRicConstants, LFRicKern,
                                    LFRicKernMetadata, LFRicLoop)
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import (DynACCEnterDataDirective,
                                 DynBoundaryConditions, DynCellIterators,
                                 DynGlobalSum, DynKernelArguments, DynProxies,
@@ -64,8 +65,8 @@ from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
                                   Reference, Routine)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
                                     UnsupportedFortranType)
-from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.psyir.backend.visitor import VisitorError
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -315,7 +316,7 @@ def test_kernel_call_invalid_iteration_space():
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1.14_single_invoke_dofs.f90"), api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     assert ("The LFRic API supports calls to user-supplied kernels that "
             "operate on one of ['cell_column', 'domain'], but "
@@ -862,7 +863,7 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     # function which we create using lambda.
     monkeypatch.setattr(arg, "ref_name",
                         lambda function_space=None: "vspace")
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(VisitorError) as excinfo:
         _ = psy.gen
     const = LFRicConstants()
     assert (f"Expected an argument of {const.VALID_FIELD_NAMES} type "
@@ -1098,7 +1099,7 @@ def test_loopfuse(dist_mem, tmpdir):
         index = 4
     loop1 = schedule.children[index]
     loop2 = schedule.children[index+1]
-    trans = LoopFuseTrans()
+    trans = LFRicLoopFuseTrans()
     trans.apply(loop1, loop2)
     generated_code = psy.gen
     # only one loop
@@ -2471,7 +2472,7 @@ def test_halo_exchange(tmpdir):
         "      !\n")
     assert output1 in generated_code
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
-    assert "DO cell=loop0_start,loop0_stop\n" in generated_code
+    assert "DO cell = loop0_start, loop0_stop, 1\n" in generated_code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -2518,13 +2519,13 @@ def test_halo_exchange_inc(monkeypatch, annexed):
         "        CALL e_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n")
+        "      DO cell = loop0_start, loop0_stop, 1\n")
     output2 = (
         "      IF (f_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop1_start,loop1_stop\n")
+        "      DO cell = loop1_start, loop1_stop, 1\n")
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
     assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in result
     assert output1 in result
@@ -2607,7 +2608,7 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
                     "        CALL f1_proxy(3)%halo_exchange(depth=1)\n"
                     "      END IF\n"
                     "      !\n"
-                    "      DO cell=loop0_start,loop0_stop\n")
+                    "      DO cell = loop0_start, loop0_stop, 1\n")
         assert expected in result
 
 
@@ -2640,7 +2641,7 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
                 "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent+1)\n"
                 "      END IF\n"
                 "      !\n"
-                "      DO cell=loop0_start,loop0_stop\n")
+                "      DO cell = loop0_start, loop0_stop, 1\n")
     assert expected in result
 
 
@@ -2669,7 +2670,7 @@ def test_halo_exchange_depths(tmpdir):
                 "        CALL f4_proxy%halo_exchange(depth=extent)\n"
                 "      END IF\n"
                 "      !\n"
-                "      DO cell=loop0_start,loop0_stop\n")
+                "      DO cell = loop0_start, loop0_stop, 1\n")
     assert expected in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -2711,7 +2712,7 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
         "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n")
+        "      DO cell = loop0_start, loop0_stop, 1\n")
     if not annexed:
         assert expected1 in result
     assert expected2 in result
@@ -3135,8 +3136,7 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "        CALL f3_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n"
-            "        !\n"
+            "      DO cell = loop0_start, loop0_stop, 1\n"
             "        CALL testkern_multi_anyw2_code(nlayers, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "
             "undf_any_w2, map_any_w2(:,cell))\n"
@@ -3165,8 +3165,7 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "      !\n"
             "      ! Call our kernels\n"
             "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n"
-            "        !\n"
+            "      DO cell = loop0_start, loop0_stop, 1\n"
             "        CALL testkern_multi_anyw2_code(nlayers, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "
             "undf_any_w2, map_any_w2(:,cell))\n"

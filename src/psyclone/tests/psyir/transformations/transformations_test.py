@@ -410,8 +410,8 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
         omplooptrans.validate(loops[0])
     assert ("Transformation Error: Dependency analysis failed with the "
             "following messages:\nError: The write access to 'zwt(ji,jj,jk)' "
-            "and to 'zwt(ji,jj,jk - 1)' are dependent and cannot be "
-            "parallelised" in str(err.value))
+            "and the read access to 'zwt(ji,jj,jk - 1)' are dependent and "
+            "cannot be parallelised. Variable: 'zwt'." in str(err.value))
 
     # However, the inner loop can be parallelised because the dependency is
     # just with 'jk' and it is not modified in the inner loops
