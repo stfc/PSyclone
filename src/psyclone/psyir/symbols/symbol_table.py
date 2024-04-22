@@ -1511,16 +1511,16 @@ class SymbolTable():
         referred external container. A single symbol to resolve can be
         specified for a more targeted import.
 
-        :param container_symbols: list of container symbols to search in \
-            order to resolve imported symbols. Defaults to all container \
+        :param container_symbols: list of container symbols to search in
+            order to resolve imported symbols. Defaults to all container
             symbols in the symbol table.
-        :type container_symbols: list of \
-            :py:class:`psyclone.psyir.symbols.ContainerSymbol`
-        :param symbol_target: If a symbol is given, this method will just \
-            resolve information for the given symbol. Otherwise it will \
+        :type container_symbols: list[
+            :py:class:`psyclone.psyir.symbols.ContainerSymbol`]
+        :param symbol_target: If a symbol is given, this method will just
+            resolve information for the given symbol. Otherwise it will
             resolve all possible symbols information. Defaults to None.
-        :type symbol_target: :py:class:`psyclone.psyir.symbols.Symbol` \
-            or NoneType
+        :type symbol_target: Optional[
+            :py:class:`psyclone.psyir.symbols.Symbol`]
 
         :raises SymbolError: if a symbol name clash is found between multiple \
             imports or an import and a local symbol.
