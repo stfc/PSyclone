@@ -187,7 +187,11 @@ class InlineTrans(Transformation):
         # so we can merge symbol tables later if required.
         ancestor_table = node.ancestor(Routine).scope.symbol_table
         scope = node.scope
+
         # Copy the nodes from the Routine into the call site.
+        # TODO #924 - while doing this we should ensure that any References
+        # to common/shared Symbols in the inlined code are updated to point
+        # to the ones at the call site.
         if isinstance(new_stmts[-1], Return):
             # If the final statement of the routine is a return then
             # remove it from the list.

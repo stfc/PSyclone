@@ -66,7 +66,7 @@ def test_call_init():
     with pytest.raises(TypeError) as err:
         call.routine = "joford"
     assert ("Error setting 'routine' property of Call. Expected a "
-            "'RoutineSymbol' but got 'str'" in str(err.value))
+            "'Symbol' (or sub-class) but got 'str'" in str(err.value))
     assert call.parent is None
     assert call.children == []
 

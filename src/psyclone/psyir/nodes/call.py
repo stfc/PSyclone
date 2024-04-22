@@ -41,7 +41,7 @@ from psyclone.core import AccessType
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.psyir.symbols import RoutineSymbol, Symbol
 from psyclone.errors import GenerationError
 
 
@@ -329,26 +329,26 @@ class Call(Statement, DataNode):
     @routine.setter
     def routine(self, value):
         '''
-        Set the RoutineSymbol that this Call targets.
+        Set the Symbol that this Call targets.
 
-        :param value: the new RoutineSymbol target of the Call.
-        :type value: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :param value: the new Symbol target of the Call.
+        :type value: :py:class:`psyclone.psyir.symbols.Symbol`
 
         :raises TypeError: if `value` is of the wrong type.
 
         '''
-        if not isinstance(value, RoutineSymbol):
+        if not isinstance(value, Symbol):
             raise TypeError(
                 f"Error setting 'routine' property of Call. Expected a "
-                f"'RoutineSymbol' but got '{type(value).__name__}'")
+                f"'Symbol' (or sub-class) but got '{type(value).__name__}'")
         self._routine = value
 
     @property
     def is_elemental(self):
         '''
-        :returns: whether the routine being called is elemental (provided with\
-            an input array it will apply the operation individually to each of\
-            the array elements and return an array with the results). If this \
+        :returns: whether the routine being called is elemental (provided with
+            an input array it will apply the operation individually to each of
+            the array elements and return an array with the results). If this
             information is not known then it returns None.
         :rtype: NoneType | bool
         '''

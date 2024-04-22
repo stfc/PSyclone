@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Perform py.test tests on the psyclone.psyir.symbols.symboltable file '''
+''' Perform py.test tests on the psyclone.psyir.symbols.symbol_table file '''
 
 import re
 import os
@@ -45,7 +45,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    Call, CodeBlock, Container, KernelSchedule,
+    CodeBlock, Container, KernelSchedule,
     Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir import symbols
 
@@ -529,71 +529,6 @@ end module my_mod
             "'call my_sub()" in str(err))
 
 
-def test_remove_shadowed_routinesymbol_called(fortran_reader):
-    '''Check that remove() removes a RoutineSymbol if it is the target of a
-    Call but is shadowing a RoutineSymbol in an outer scope.
-
-    '''
-    psyir = fortran_reader.psyir_from_source(
-        '''
-module my_mod
-  use some_mod, only: my_sub
-  implicit none
-
-contains
-
-  subroutine runnit()
-    use power, only: generator
-    use some_mod, only: my_sub
-    call generator()
-    call my_sub()
-  end subroutine runnit
-
-end module my_mod
-''')
-    routines = psyir.walk(Routine)
-    call = psyir.walk(Call)[1]
-    shadow_sym = call.routine
-    #routines[0].symbol_table.remove(shadow_sym)
-    # Call must be updated to point to Symbol in outer scope.
-    #outer_sym = psyir.children[0].symbol_table.lookup("my_sub")
-    #assert call.routine is outer_sym
-
-
-def test_remove_shadowed_routinesymbol_interface(fortran_reader):
-    '''Check that remove() removes a RoutineSymbol if it is a member of a
-    GenericInterfaceSymbol but is shadowing a RoutineSymbol in an outer scope.
-
-    '''
-    psyir = fortran_reader.psyir_from_source(
-        '''
-module my_mod
-  use some_mod, only: my_sub
-  implicit none
-
-contains
-
-  subroutine runnit()
-    use some_mod, only: my_sub
-    interface diesel
-      module procedure :: MY_sub
-      procedure :: other_sub
-    end interface diesel
-  end subroutine runnit
-
-end module my_mod
-''')
-    routines = psyir.walk(Routine)
-    shadow_sym = routines[0].symbol_table.lookup("my_sub")
-    #routines[0].symbol_table.remove(shadow_sym)
-    # GenericInterfaceSymbol must be updated to point to Symbol in outer scope.
-    #outer_sym = psyir.children[0].symbol_table.lookup("my_sub")
-    #gsym = routines[0].symbol_table.lookup("diesel")
-    #for rt_info in gsym.routines:
-    #    if rt_info.symbol.name.lower() == "my_sub":
-    #        assert rt_info.symbol is outer_sym
-
-
 def test_no_remove_routinesymbol_interface(fortran_reader):
     '''Check that remove() refuses to remove a RoutineSymbol if it is
     referred to in an interface.'''
@@ -835,14 +770,19 @@ def test_check_for_clashes_wildcard_import():
     table2.new_symbol("random_number", symbol_type=symbols.RoutineSymbol,
                       interface=symbols.UnresolvedInterface())
     table1.check_for_clashes(table2)
-    table1.add(symbols.ContainerSymbol("beta", wildcard_import=True))
     table1.new_symbol("stavro", symbol_type=symbols.DataSymbol,
                       datatype=symbols.UnresolvedType(),
                       interface=symbols.UnresolvedInterface())
     table2.new_symbol("stavro", symbol_type=symbols.DataSymbol,
                       datatype=symbols.UnresolvedType(),
                       interface=symbols.UnresolvedInterface())
+    # Both symbols unresolved and not an intrinsic.
+    with pytest.raises(symbols.SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("A symbol named 'stavro' is present but unresolved in one or "
+            "both tables." in str(err.value))
     # Both symbols unresolved but no common wildcard import.
+    table1.add(symbols.ContainerSymbol("beta", wildcard_import=True))
     with pytest.raises(symbols.SymbolError) as err:
         table1.check_for_clashes(table2)
     assert ("A symbol named 'stavro' is present but unresolved in one or "
@@ -971,6 +911,34 @@ def test_merge_container_syms():
     err_txt = str(err.value)
     assert "Cannot merge Symbol Table:" in err_txt
     assert "due to unresolvable name clashes." in err_txt
+
+
+def test_merge_same_routine_symbol(fortran_reader):
+    '''
+    Check that we can merge two tables containing clashing symbols that
+    refer to the same routine.
+
+    '''
+    code = '''\
+    module my_mod
+      implicit none
+    contains
+      subroutine sub1()
+        use slartibartfast, only: norway
+        call norway()
+      end subroutine sub1
+      subroutine sub2()
+        use slartibartfast, only: norway
+        call norway()
+      end subroutine sub2
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routines = psyir.walk(Routine)
+    norway = routines[0].symbol_table.lookup("norway")
+    routines[0].symbol_table.merge(routines[1].symbol_table)
+    # Since the two routines are referring to the same "norway" symbol,
+    # the member of the original table should be unchanged.
+    assert routines[0].symbol_table.lookup("norway") is norway
 
 
 def test_merge_with_use_renaming(fortran_reader):
