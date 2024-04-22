@@ -814,7 +814,8 @@ def test_check_for_clashes_cannot_rename():
             "and as such may be named in a Call." in str(err.value))
     # This clash can be ignored by telling the checker to ignore any routine
     # arguments.
-    table1.check_for_clashes(table2, symbols_to_skip=table2.argument_list[:])
+    table1.check_for_clashes(
+        table2, symbols_to_skip=[arg.name for arg in table2.argument_list])
     # Ensure the symbols_to_skip argument is type-checked.
     with pytest.raises(TypeError) as err:
         table1.check_for_clashes(table2, symbols_to_skip=None)
@@ -896,7 +897,7 @@ def test_table_merge():
     table2.add(symbols.DataSymbol(
         "marvin",
         symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL, wp_sym)))
-    table1.merge(table2, symbols_to_skip=[dent])
+    table1.merge(table2, symbols_to_skip=["dent"])
     assert table1.lookup("beeblebrox")
     assert "dent" not in table1
     assert "marvin" in table1
@@ -1110,15 +1111,10 @@ def test_add_symbols_from_table_wildcard_import():
     table2.new_symbol("concierto", symbol_type=symbols.DataSymbol,
                       datatype=symbols.UnresolvedType(),
                       interface=symbols.UnresolvedInterface())
-    # With no shared wildcard imports this should raise an InternalError.
-    with pytest.raises(InternalError) as err:
-        table1._add_symbols_from_table(table2, shared_wildcard_imports={})
-    assert ("An unresolved Symbol named 'concierto' is present in both "
-            "tables and there are no common wildcard imports. This should "
-            "have been caught by SymbolTable._check_for_clashes()"
-            in str(err.value))
-    # With a shared wildcard import, table1 should be left unchanged.
-    table1._add_symbols_from_table(table2, shared_wildcard_imports={"john"})
+    # Since this method requires that check_for_clashes() be called first,
+    # it assumes that any unresolved symbol clashes refer to the same symbol
+    # and therefore, table1 should be left unchanged.
+    table1._add_symbols_from_table(table2)
     assert len(table1._symbols) == 2
     assert "adagio" in table1
     assert "concierto" in table1
@@ -1135,7 +1131,7 @@ def test_add_symbols_from_table_rename_existing():
     table2.new_symbol("concierto", symbol_type=symbols.DataSymbol,
                       datatype=symbols.UnresolvedType(),
                       interface=symbols.UnresolvedInterface())
-    table1._add_symbols_from_table(table2, shared_wildcard_imports={})
+    table1._add_symbols_from_table(table2)
     assert len(table1._symbols) == 2
     # The original, integer scalar symbol should have been renamed.
     orig_sym = table1.lookup("concierto_1")

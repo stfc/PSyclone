@@ -2292,14 +2292,14 @@ def test_symbols_to_skip():
     table.add(arg1)
     table.specify_argument_list([arg1])
     skipped = inline_trans._symbols_to_skip(table)
-    assert skipped == [arg1]
+    assert skipped == {arg1.name}
     # Add a RoutineSymbol and tag it so that it appears to represents the
     # routine associated with the table. This too should be skipped.
     rsym = RoutineSymbol("me_myself")
     table.add(rsym, tag="own_routine_symbol")
     skipped = inline_trans._symbols_to_skip(table)
     assert len(skipped) == 2
-    assert arg1 in skipped and rsym in skipped
+    assert arg1.name in skipped and rsym.name in skipped
 
 
 # _find_routine_in_container

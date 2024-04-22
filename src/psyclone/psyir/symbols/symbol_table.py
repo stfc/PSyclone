@@ -623,18 +623,14 @@ class SymbolTable():
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
         # Check whether there are any wildcard imports common to both tables.
-        self_wildcard_imports = self.wildcard_imports()
-        other_wildcard_imports = other_table.wildcard_imports()
-        shared_wildcard_imports = self_wildcard_imports.intersection(
-            other_wildcard_imports)
-        # Whether there are any wildcard imports that appear in one table but
-        # not in the other.
-        diff1 = self_wildcard_imports.difference(other_wildcard_imports)
-        diff2 = other_wildcard_imports.difference(self_wildcard_imports)
-        non_shared_wildcard_imports = diff1 or diff2
+        self_imports = self.wildcard_imports()
+        other_imports = other_table.wildcard_imports()
+        shared_wildcard_imports = self_imports & other_imports
+        # Any wildcard imports that appear in one table but not in the other.
+        unique_wildcard_imports = self_imports ^ other_imports
 
         for other_sym in other_table.symbols:
-            if other_sym.name not in self or other_sym in symbols_to_skip:
+            if other_sym.name not in self or other_sym.name in symbols_to_skip:
                 continue
             # We have a name clash.
             this_sym = self.lookup(other_sym.name)
@@ -663,12 +659,12 @@ class SymbolTable():
 
             if other_sym.is_unresolved and this_sym.is_unresolved:
                 # Both Symbols are unresolved.
-                if shared_wildcard_imports and not non_shared_wildcard_imports:
+                if shared_wildcard_imports and not unique_wildcard_imports:
                     # The tables have one or more wildcard imports in common
                     # and no wildcard imports unique to one table. Therefore
                     # the two symbols represent the same memory location.
                     continue
-                if not (self_wildcard_imports or other_wildcard_imports):
+                if not (self_imports or other_imports):
                     # Neither table has any wildcard imports.
                     try:
                         # An unresolved symbol representing an intrinisc is
@@ -756,8 +752,7 @@ class SymbolTable():
                         self.lookup(csym.name),
                         orig_name=isym.interface.orig_name)
 
-    def _add_symbols_from_table(self, other_table, shared_wildcard_imports,
-                                symbols_to_skip=()):
+    def _add_symbols_from_table(self, other_table, symbols_to_skip=()):
         '''
         Takes symbols from the supplied symbol table and adds them to this
         table (unless they appear in `symbols_to_skip`).
@@ -767,9 +762,6 @@ class SymbolTable():
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param set[str] shared_wildcard_imports: set of the names of any
-            ContainerSymbols from which there were wildcard imports in both
-            tables originally.
         :param symbols_to_skip: an optional list of symbols to exclude from
                                 the merge.
         :type symbols_to_skip: Iterable[
@@ -781,8 +773,8 @@ class SymbolTable():
         '''
         for old_sym in other_table.symbols:
 
-            if old_sym in symbols_to_skip or isinstance(old_sym,
-                                                        ContainerSymbol):
+            if old_sym.name in symbols_to_skip or isinstance(old_sym,
+                                                             ContainerSymbol):
                 # We've dealt with Container symbols in _add_container_symbols.
                 continue
 
@@ -791,28 +783,22 @@ class SymbolTable():
 
             except KeyError:
                 # We have a clash with a symbol in this table.
-                self._handle_symbol_clash(old_sym, other_table,
-                                          shared_wildcard_imports)
+                self._handle_symbol_clash(old_sym, other_table)
 
-    def _handle_symbol_clash(self, old_sym, other_table,
-                             shared_wildcard_imports):
+    def _handle_symbol_clash(self, old_sym, other_table):
         '''
         Adds the supplied Symbol to the current table in the presence
-        of a name clash.
+        of a name clash. `check_for_clashes` MUST have been called
+        prior to this one in order check for any unresolvable cases.
 
         :param old_sym: the Symbol to be added to self.
         :type old_sym: :py:class:`psyclone.psyir.symbols.Symbol`
         :param other_table: the other table containing the symbol that we are
                             trying to add to self.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param set[str] shared_wildcard_imports: set of the names of any
-            ContainerSymbols from which there were wildcard imports in both
-            tables originally.
 
         :raises InternalError: if the supplied symbol is imported from a
             Container that is not represented in this table.
-        :raises InternalError: if the supplied symbol is unresolved in both
-            this and `other_table`.
 
         '''
         if old_sym.is_import:
@@ -826,26 +812,13 @@ class SymbolTable():
                 f"Symbol '{old_sym.name}' imported from '{self_csym.name}' "
                 f"has not been updated to refer to the corresponding "
                 f"container in the current table.")
+
         self_sym = self.lookup(old_sym.name)
         if old_sym.is_unresolved and self_sym.is_unresolved:
-            if shared_wildcard_imports:
-                # The clashing symbols are both unresolved and there are
-                # wildcard imports that are common to both tables. Therefore
-                # we assume that the two symbols are referring to the same
-                # memory location and we don't have to do anything.
-                return
-            if (isinstance(old_sym, IntrinsicSymbol) or
-                    isinstance(self_sym, IntrinsicSymbol)):
-                # The clashing symbols represent an intrinsic so that's fine.
-                return
-            # The clashing symbols are unresolved and we don't know how they're
-            # being brought into scope. Therefore, we cannot rename either of
-            # them. This should have been picked up in _check_for_clashes().
-            raise InternalError(
-                f"An unresolved Symbol named '{old_sym.name}' is present in "
-                f"both tables and there are no common wildcard imports. This "
-                f"should have been caught by "
-                f"SymbolTable._check_for_clashes().")
+            # The clashing symbols are both unresolved so we ASSUME that
+            # check_for_clashes has previously determined that they must
+            # refer to the same thing and we don't have to do anything.
+            return
 
         # A Symbol with the same name already exists so we attempt to rename
         # first the one that we are adding and failing that, the existing
@@ -886,11 +859,6 @@ class SymbolTable():
                 f"SymbolTable.merge() expects 'symbols_to_skip' to be an "
                 f"Iterable but got '{type(symbols_to_skip).__name__}'")
 
-        # Before we begin merging, check whether there are any wildcard
-        # imports that are common to both tables.
-        shared_wildcard_imports = self.wildcard_imports()
-        shared_wildcard_imports.intersection(other_table.wildcard_imports())
-
         try:
             self.check_for_clashes(other_table,
                                    symbols_to_skip=symbols_to_skip)
@@ -904,7 +872,7 @@ class SymbolTable():
 
         # Copy each Symbol from the supplied table into this one, excluding
         # ContainerSymbols and any listed in `symbols_to_skip`.
-        self._add_symbols_from_table(other_table, shared_wildcard_imports,
+        self._add_symbols_from_table(other_table,
                                      symbols_to_skip=symbols_to_skip)
 
     def swap_symbol_properties(self, symbol1, symbol2):

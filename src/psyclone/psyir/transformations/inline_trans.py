@@ -241,19 +241,21 @@ class InlineTrans(Transformation):
 
         :returns: those Symbols that must be skipped when merging the
                   supplied table into the one at the call site.
-        :rtype: list[:py:class:`psyclone.psyir.symbols.Symbol`]
+        :rtype: set[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''
+        symbols_to_skip = set()
         # We need to exclude formal arguments and any RoutineSymbol
         # representing the routine itself.
-        symbols_to_skip = table.argument_list[:]
+        for arg in table.argument_list[:]:
+            symbols_to_skip.add(arg.name)
         try:
             # We don't want or need the symbol representing that routine.
             rsym = table.lookup_with_tag("own_routine_symbol")
             if isinstance(rsym, RoutineSymbol):
                 # We only want to skip RoutineSymbols, not DataSymbols (which
                 # we may have if we have a Fortran function).
-                symbols_to_skip.append(rsym)
+                symbols_to_skip.add(rsym.name)
         except KeyError:
             pass
         return symbols_to_skip
