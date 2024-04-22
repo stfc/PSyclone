@@ -1543,7 +1543,8 @@ class FortranWriter(LanguageWriter):
             for ast_node in node.get_ast_nodes:
                 # Using tofortran() ensures we get any label associated
                 # with this statement.
-                result += f"{self._nindent}{ast_node.tofortran()}\n"
+                for line in ast_node.tofortran().split("\n"):
+                    result += f"{self._nindent}{line}\n"
         elif node.structure == CodeBlock.Structure.EXPRESSION:
             for ast_node in node.get_ast_nodes:
                 result += str(ast_node)
