@@ -756,7 +756,7 @@ class SymbolTable():
         '''
         Takes symbols from the supplied symbol table and adds them to this
         table (unless they appear in `symbols_to_skip`).
-        _add_container_symbols_from_table() must have been called
+        _add_container_symbols_from_table() MUST have been called
         before this method in order to handle any Container Symbols and update
         those Symbols imported from them.
 
@@ -789,7 +789,7 @@ class SymbolTable():
         '''
         Adds the supplied Symbol to the current table in the presence
         of a name clash. `check_for_clashes` MUST have been called
-        prior to this one in order check for any unresolvable cases.
+        prior to this method in order to check for any unresolvable cases.
 
         :param old_sym: the Symbol to be added to self.
         :type old_sym: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -1108,17 +1108,17 @@ class SymbolTable():
         :raises ValueError: if the Symbol cannot be removed.
 
         '''
-        is_shadowed = False
-        if self.node and self.node.parent:
-            try:
-                shadowed_sym = self.node.parent.scope.symbol_table.lookup(
-                    symbol.name)
-                # pylint: disable=unidiomatic-typecheck
-                is_shadowed = (shadowed_sym == symbol or
-                               (type(shadowed_sym) is Symbol and
-                                shadowed_sym.interface == symbol.interface))
-            except KeyError:
-                pass
+        #is_shadowed = False
+        #if self.node and self.node.parent:
+        #    try:
+        #        shadowed_sym = self.node.parent.scope.symbol_table.lookup(
+        #            symbol.name)
+        #        # pylint: disable=unidiomatic-typecheck
+        #        is_shadowed = (shadowed_sym == symbol or
+        #                       (type(shadowed_sym) is Symbol and
+        #                        shadowed_sym.interface == symbol.interface))
+        #    except KeyError:
+        #        pass
 
         # Check for Calls or GenericInterfaceSymbols that reference it.
         # pylint: disable=import-outside-toplevel
@@ -1127,15 +1127,15 @@ class SymbolTable():
         for call in all_calls:
             if call.routine is not symbol:
                 continue
-            if is_shadowed:
-                # Update the Call to use the shadowed symbol.
-                if not isinstance(shadowed_sym, RoutineSymbol):
-                    shadowed_sym.specialise(RoutineSymbol)
-                call.routine = shadowed_sym
-            else:
-                raise ValueError(
-                    f"Cannot remove RoutineSymbol '{symbol.name}' "
-                    f"because it is referenced by '{call.debug_string()}'")
+            #if is_shadowed:
+            #    # Update the Call to use the shadowed symbol.
+            #    if not isinstance(shadowed_sym, RoutineSymbol):
+            #        shadowed_sym.specialise(RoutineSymbol)
+            #    call.routine = shadowed_sym
+            #else:
+            raise ValueError(
+                f"Cannot remove RoutineSymbol '{symbol.name}' "
+                f"because it is referenced by '{call.debug_string()}'")
         # Check for any references to it within interfaces.
         for sym in self._symbols.values():
             if not isinstance(sym, GenericInterfaceSymbol):
@@ -1144,11 +1144,11 @@ class SymbolTable():
             for idx, rt_info in enumerate(rt_list):
                 if rt_info.symbol is not symbol:
                     continue
-                if is_shadowed:
-                    if not isinstance(shadowed_sym, RoutineSymbol):
-                        shadowed_sym.specialise(RoutineSymbol)
-                    rt_list[idx] = (shadowed_sym, rt_list[idx][1])
-                    continue
+                #f is_shadowed:
+                #   if not isinstance(shadowed_sym, RoutineSymbol):
+                #       shadowed_sym.specialise(RoutineSymbol)
+                #   rt_list[idx] = (shadowed_sym, rt_list[idx][1])
+                #   continue
                 raise ValueError(
                     f"Cannot remove RoutineSymbol '{symbol.name}' "
                     f"because it is referenced in interface '{sym.name}'")
