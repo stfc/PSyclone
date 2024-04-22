@@ -84,7 +84,6 @@ class ArrayRange2LoopTrans(Transformation):
     >>> print(schedule.view())
 
     '''
-
     def apply(self, node, options=None):
         '''Apply the ArrayRange2Loop transformation to the specified node. The
         node must be an assignment. The rightmost range node in each array
@@ -101,9 +100,13 @@ class ArrayRange2LoopTrans(Transformation):
 
         '''
         self.validate(node, options)
-
-        parent = node.parent
         symbol_table = node.scope.symbol_table
+
+
+
+    def _range_to_loop(node, range_idx, symtab):
+        ''
+        parent = node.parent
         loop_variable = symbol_table.new_symbol("idx", symbol_type=DataSymbol,
                                                 datatype=INTEGER_TYPE)
 
@@ -175,21 +178,28 @@ class ArrayRange2LoopTrans(Transformation):
         if not isinstance(node, Assignment):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
-                f"argument should be a PSyIR Assignment, but found "
+                f"should be a PSyIR Assignment, but found "
                 f"'{type(node).__name__}'.")
 
-        if not isinstance(node.lhs, ArrayReference):
+        array_accessors = node.lhs.walk(ArrayMixin)
+        if not (isinstance(node.lhs, Reference) and array_accessors):
             raise TransformationError(
-                f"Error in {self.name} transformation. The lhs of the "
-                f"supplied Assignment node should be a PSyIR ArrayReference, "
-                f"but found '{type(node.lhs).__name__}'.")
+                f"Error in {self.name} transformation. The LHS of the supplied"
+                f" assignment node should be a Reference that contains an "
+                f"array access somewhere in the expression, "
+                f"but found '{node.lhs}'.")
+
 
         if not [dim for dim in node.lhs.children if isinstance(dim, Range)]:
             raise TransformationError(
                 f"Error in {self.name} transformation. The lhs of the supplied"
                 f" Assignment node should be a PSyIR ArrayReference with at "
-                f"least one of its dimensions being a Range, but found None "
-                f"in '{node.lhs}'.")
+                f"least one of its dimensions being a Range, but none were "
+                f"found in '{node.debug_string()}'.")
+
+        if options and options.get("verbose", False):
+            # Add error comment
+            pass
 
         # TODO #2004: Note that the NEMOArrayRange2Loop transforamtion has
         # a different implementation that accepts many more statemetns (e.g.
@@ -205,7 +215,8 @@ class ArrayRange2LoopTrans(Transformation):
                 continue
             raise TransformationError(
                 f"Error in {self.name} transformation. The rhs of the supplied"
-                f" Assignment contains a call '{call.debug_string()}'.")
+                f" Assignment contains a non-elemental call to "
+                f"'{call.debug_string()}'.")
 
         # Find the outermost range for the array on the lhs of the
         # assignment and save its index.
