@@ -265,6 +265,7 @@ class LFRicInvoke(Invoke):
     def declare(self):
         # Declare all quantities required by this PSy routine (Invoke)
         # import pdb; pdb.set_trace()
+        cursor = 0
         # self.schedule.parent.symbol_table.new_symbol("i_def")
         for entities in [self.scalar_args, self.fields, self.lma_ops,
                          self.stencil, self.meshes,
@@ -275,7 +276,7 @@ class LFRicInvoke(Invoke):
                          self.mesh_properties, self.loop_bounds,
                          self.run_time_checks]:
             print("Declare", type(entities))
-            entities.declarations(None)
+            entities.declarations(cursor=cursor)
         for entities in [self.proxies, self.run_time_checks,
                          self.cell_iterators, self.meshes,
                          self.stencil, self.dofmaps,
@@ -284,9 +285,9 @@ class LFRicInvoke(Invoke):
                          self.reference_element_properties,
                          self.mesh_properties, self.loop_bounds]:
             print("Initialise", type(entities))
-            entities.initialise(None)
+            entities.initialise(cursor=cursor)
         # Deallocate any basis arrays
-        self.evaluators.deallocate(None)
+        self.evaluators.deallocate(cursor=cursor)
 
     def gen_code(self, parent):
         '''

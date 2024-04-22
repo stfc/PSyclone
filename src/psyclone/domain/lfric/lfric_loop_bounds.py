@@ -42,7 +42,7 @@
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicCollection
 from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
-from psyclone.psyir.nodes import Assignment, Reference, Literal
+from psyclone.psyir.nodes import Assignment, Reference, Literal, Loop
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 
@@ -52,7 +52,7 @@ class LFRicLoopBounds(LFRicCollection):
     an LFRic PSy-layer routine.
     '''
 
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''
         Only needed because method is virtual in parent class.
 
@@ -61,7 +61,7 @@ class LFRicLoopBounds(LFRicCollection):
 
         '''
 
-    def initialise(self, parent):
+    def initialise(self, cursor):
         '''
         Updates the f2pygen AST so that all of the variables holding the lower
         and upper bounds of all loops in an Invoke are initialised.
@@ -85,7 +85,7 @@ class LFRicLoopBounds(LFRicCollection):
 
         for idx, loop in enumerate(loops):
 
-            if loop.loop_type == "null":
+            if type(loop) is Loop or loop.loop_type == "null":
                 # 'null' loops don't need any bounds.
                 continue
 

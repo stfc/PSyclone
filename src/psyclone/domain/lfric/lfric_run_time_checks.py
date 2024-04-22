@@ -55,7 +55,7 @@ class LFRicRunTimeChecks(LFRicCollection):
 
     '''
 
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''Insert declarations of all data and functions required by the
         run-time checks code into the PSy layer.
 
@@ -195,7 +195,7 @@ class LFRicRunTimeChecks(LFRicCollection):
             if_then.add(call_abort)
             parent.add(if_then)
 
-    def initialise(self, parent):
+    def initialise(self, cursor):
         '''Add runtime checks to make sure that the arguments being passed
         from the algorithm layer are consistent with the metadata
         specified in the associated kernels. Currently checks are

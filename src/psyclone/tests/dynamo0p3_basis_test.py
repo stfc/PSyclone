@@ -195,104 +195,98 @@ def test_single_kern_eval(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Check module declarations
-    expected_module_declns = (
-        "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
-    assert expected_module_declns in gen_code
+    assert "use constants_mod, only : r_def" in gen_code  # FIXME: i_def?
+    assert "use field_mod, only : field_proxy_type, field_type" in gen_code
 
     # Check subroutine declarations
-    expected_decl = (
-        "    SUBROUTINE invoke_0_testkern_eval_type(f0, cmap)\n"
-        "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
-        "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
-        "      TYPE(field_type), intent(in) :: f0, cmap\n"
-        "      INTEGER(KIND=i_def) cell\n"
-        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) df_nodal, df_w0, df_w1\n"
-        "      REAL(KIND=r_def), allocatable :: basis_w0_on_w0(:,:,:), "
-        "diff_basis_w1_on_w0(:,:,:)\n"
-        "      INTEGER(KIND=i_def) dim_w0, diff_dim_w1\n"
-        "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: "
-        "cmap_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f0_data => null()\n"
-        "      TYPE(field_proxy_type) f0_proxy, cmap_proxy\n"
-        "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null(), "
-        "map_w1(:,:) => null()\n"
-        "      INTEGER(KIND=i_def) ndf_w0, undf_w0, ndf_w1, undf_w1\n")
-    assert expected_decl in gen_code
+    assert "  subroutine invoke_0_testkern_eval_type(f0, cmap)" in gen_code
+    assert "    use testkern_eval_mod, only : testkern_eval_code" in gen_code
+    assert "    use function_space_mod, only : BASIS, DIFF_BASIS" in gen_code
+    assert "    type(field_type), intent(in) :: f0" in gen_code
+    assert "    type(field_type), intent(in) :: cmap" in gen_code
+    assert "    integer(kind=i_def) :: cell" in gen_code
+    assert "    integer(kind=i_def) :: loop0_start" in gen_code
+    assert "    integer(kind=i_def) :: loop0_stop" in gen_code
+    assert "    integer(kind=i_def) :: df_nodal" in gen_code
+    assert "    integer(kind=i_def) :: df_w0" in gen_code
+    assert "    integer(kind=i_def) :: df_w1" in gen_code
+    assert "    real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:)" in gen_code
+    assert "    real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:)" in gen_code
+    assert "    integer(kind=i_def) :: dim_w0" in gen_code
+    assert "    integer(kind=i_def) :: diff_dim_w1" in gen_code
+    assert "    real(kind=r_def), pointer :: nodes_w0(:,:) => null()" in gen_code
+    assert "    integer(kind=i_def) :: nlayers" in gen_code
+    assert "    real(kind=r_def), pointer, dimension(:) :: cmap_data => null()" in gen_code
+    assert "    real(kind=r_def), pointer, dimension(:) :: f0_data => null()" in gen_code
+    assert "    type(field_proxy_type) :: f0_proxy" in gen_code
+    assert "    type(field_proxy_type) :: cmap_proxy" in gen_code
+    assert "    integer(kind=i_def), pointer :: map_w0(:,:) => null()" in gen_code
+    assert "    integer(kind=i_def), pointer :: map_w1(:,:) => null()" in gen_code
+    assert "    integer(kind=i_def) :: ndf_w0" in gen_code
+    assert "    integer(kind=i_def) :: undf_w0" in gen_code
+    assert "    integer(kind=i_def) :: ndf_w1" in gen_code
+    assert "    integer(kind=i_def) :: undf_w1" in gen_code
     # Second, check the executable statements
+    print(gen_code)
     expected_code = (
-        "      !\n"
-        "      ! Initialise field and/or operator proxies\n"
-        "      !\n"
-        "      f0_proxy = f0%get_proxy()\n"
-        "      f0_data => f0_proxy%data\n"
-        "      cmap_proxy = cmap%get_proxy()\n"
-        "      cmap_data => cmap_proxy%data\n"
-        "      !\n"
-        "      ! Initialise number of layers\n"
-        "      !\n"
-        "      nlayers = f0_proxy%vspace%get_nlayers()\n"
-        "      !\n"
-        "      ! Look-up dofmaps for each function space\n"
-        "      !\n"
-        "      map_w0 => f0_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w1 => cmap_proxy%vspace%get_whole_dofmap()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w0\n"
-        "      !\n"
-        "      ndf_w0 = f0_proxy%vspace%get_ndf()\n"
-        "      undf_w0 = f0_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise number of DoFs for w1\n"
-        "      !\n"
-        "      ndf_w1 = cmap_proxy%vspace%get_ndf()\n"
-        "      undf_w1 = cmap_proxy%vspace%get_undf()\n"
-        "      !\n"
-        "      ! Initialise evaluator-related quantities for the target "
+        "\n"
+        "    ! Initialise field and/or operator proxies\n"
+        "    f0_proxy = f0%get_proxy()\n"
+        "    f0_data => f0_proxy%data\n"
+        "    cmap_proxy = cmap%get_proxy()\n"
+        "    cmap_data => cmap_proxy%data\n"
+        "\n"
+        "    ! Initialise number of layers\n"
+        "    nlayers = f0_proxy%vspace%get_nlayers()\n"
+        "\n"
+        "    ! Look-up dofmaps for each function space\n"
+        "    map_w0 => f0_proxy%vspace%get_whole_dofmap()\n"
+        "    map_w1 => cmap_proxy%vspace%get_whole_dofmap()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w0\n"
+        "    ndf_w0 = f0_proxy%vspace%get_ndf()\n"
+        "    undf_w0 = f0_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise number of DoFs for w1\n"
+        "    ndf_w1 = cmap_proxy%vspace%get_ndf()\n"
+        "    undf_w1 = cmap_proxy%vspace%get_undf()\n"
+        "\n"
+        "    ! Initialise evaluator-related quantities for the target "
         "function spaces\n"
-        "      !\n"
-        "      nodes_w0 => f0_proxy%vspace%get_nodes()\n"
-        "      !\n"
-        "      ! Allocate basis/diff-basis arrays\n"
-        "      !\n"
-        "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
-        "      diff_dim_w1 = cmap_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_w0))\n"
-        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_w0))\n"
-        "      !\n"
-        "      ! Compute basis/diff-basis arrays\n"
-        "      !\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w0=1,ndf_w0\n"
-        "          basis_w0_on_w0(:,df_w0,df_nodal) = "
+        "    nodes_w0 => f0_proxy%vspace%get_nodes()\n"
+        "\n"
+        "    ! Allocate basis/diff-basis arrays\n"
+        "    dim_w0 = f0_proxy%vspace%get_dim_space()\n"
+        "    diff_dim_w1 = cmap_proxy%vspace%get_dim_space_diff()\n"
+        "    ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_w0))\n"
+        "    ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_w0))\n"
+        " \n"
+        "    ! Compute basis/diff-basis arrays\n"
+        "    do df_nodal = 1, ndf_w0, 1\n"
+        "      do df_w0 = 1, ndf_w0, 1\n"
+        "        basis_w0_on_w0(:,df_w0,df_nodal) = "
         "f0_proxy%vspace%call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w1=1,ndf_w1\n"
-        "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = cmap_proxy%vspace%"
+        "      enddo\n"
+        "    enddo\n"
+        "    do df_nodal = 1, ndf_w0, 1\n"
+        "      do df_w1 = 1, ndf_w1, 1\n"
+        "        diff_basis_w1_on_w0(:,df_w1,df_nodal) = cmap_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      !\n"
-        "      ! Set-up all of the loop bounds\n"
-        "      !\n"
-        "      loop0_start = 1\n"
-        "      loop0_stop = f0_proxy%vspace%get_ncell()\n"
-        "      !\n"
-        "      ! Call our kernels\n"
-        "      !\n"
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_eval_code(nlayers, f0_data, "
+        "      enddo\n"
+        "    enddo\n"
+        "\n"
+        "    ! Set-up all of the loop bounds\n"
+        "    loop0_start = 1\n"
+        "    loop0_stop = f0_proxy%vspace%get_ncell()\n"
+        "\n"
+        "    ! Call our kernels\n"
+        "    do cell = loop0_start, loop0_stop, 1\n"
+        "      call testkern_eval_code(nlayers, f0_data, "
         "cmap_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO\n"
-        "      !\n"
+        "    enddo\n"
     )
-    assert expected_code in gen_code
+    assert expected_code == gen_code
     dealloc_code = (
         "      DEALLOCATE (basis_w0_on_w0, diff_basis_w1_on_w0)\n"
         "      !\n"

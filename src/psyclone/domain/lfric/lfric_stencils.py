@@ -441,7 +441,7 @@ class LFRicStencils(LFRicCollection):
         self._declare_unique_max_branch_length_vars(parent)
         self._declare_maps_stub(parent)
 
-    def initialise(self, parent):
+    def initialise(self, cursor):
         '''
         Adds in the code to initialise stencil dofmaps to the PSy layer.
 

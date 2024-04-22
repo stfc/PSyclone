@@ -157,7 +157,7 @@ class LFRicDofmaps(LFRicCollection):
                             "argument": cma_args[0],
                             "direction": "from"}
 
-    def initialise(self, parent):
+    def initialise(self, cursor):
         ''' Generates the calls to the LFRic infrastructure that
         look-up the necessary dofmaps. Adds these calls as children
         of the supplied parent node. This must be an appropriate
@@ -170,7 +170,7 @@ class LFRicDofmaps(LFRicCollection):
             #                       " Look-up dofmaps for each function space"))
             # parent.add(CommentGen(parent, ""))
 
-            first=True
+            first = True
             for dmap, field in self._unique_fs_maps.items():
                 stmt = Assignment.create(
                         lhs=Reference(self._symbol_table.lookup(dmap)),
@@ -179,11 +179,13 @@ class LFRicDofmaps(LFRicCollection):
                 if first:
                     stmt.preceding_comment = "Look-up dofmaps for each function space"
                     first = False
-                self._invoke.schedule.addchild(stmt)
+                self._invoke.schedule.addchild(stmt, cursor)
+                cursor += 1
                 # parent.add(AssignGen(parent, pointer=True, lhs=dmap,
                 #                      rhs=field.proxy_name_indexed +
                 #                      "%" + field.ref_name() +
                 #                      "%get_whole_dofmap()"))
+
         if self._unique_cbanded_maps:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent,

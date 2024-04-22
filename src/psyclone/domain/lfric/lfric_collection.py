@@ -89,25 +89,24 @@ class LFRicCollection():
         else:
             self._dofs_only = False
 
-    def declarations(self, parent):
+    def declarations(self, cursor):
         '''
         Insert declarations for all necessary variables into the AST of
         the generated code. Simply calls either '_invoke_declarations()' or
         '_stub_declarations()' depending on whether we're handling an Invoke
         or a Kernel stub.
 
-        :param parent: the node in the f2pygen AST representing the routine \
-                       in which to insert the declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
 
         :raises InternalError: if neither 'self._invoke' nor 'self._kernel' \
                                are set.
 
         '''
         if self._invoke:
-            self._invoke_declarations(parent)
+            self._invoke_declarations(cursor)
         elif self._kernel:
-            self._stub_declarations(parent)
+            self._stub_declarations(cursor)
         else:
             raise InternalError("LFRicCollection has neither a Kernel "
                                 "nor an Invoke - should be impossible.")
@@ -125,24 +124,22 @@ class LFRicCollection():
         '''
 
     @abc.abstractmethod
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''
         Add all necessary declarations for an Invoke.
 
-        :param parent: node in the f2pygen AST representing the Invoke to \
-                       which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
 
         '''
 
-    def _stub_declarations(self, parent):
+    def _stub_declarations(self, cursor):
         '''
         Add all necessary declarations for a Kernel stub. Not abstract because
         not all entities need representing within a Kernel.
 
-        :param parent: node in the f2pygen AST representing the Kernel stub \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
 
         '''
 
