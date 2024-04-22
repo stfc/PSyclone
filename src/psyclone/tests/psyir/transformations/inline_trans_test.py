@@ -1260,6 +1260,42 @@ def test_validate_non_local_import(fortran_reader):
             "'trouble' from its parent container." in str(err.value))
 
 
+def test_apply_shared_routine_call(fortran_reader):
+    '''
+    Test the inlining of a routine that itself calls another routine that
+    is also called from within the scope of the call site.
+    '''
+    code = '''\
+    module my_mod
+      implicit none
+    contains
+      subroutine sub1()
+        use slartibartfast, only: norway
+        call fijord()
+        call norway()
+      end subroutine sub1
+      subroutine fijord()
+        use slartibartfast, only: norway
+        call norway()
+      end subroutine fijord
+    end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    calls = psyir.walk(Call)
+    inline_trans = InlineTrans()
+    inline_trans.apply(calls[0])
+    routines = psyir.walk(Routine)
+    # After inlining we should have two calls to norway()
+    calls = routines[0].walk(Call)
+    assert len(calls) == 2
+    # Both of these calls should refer to the 'norway' symbol in scope
+    # at the call site.
+    nsym = routines[0].symbol_table.lookup("norway")
+    for call in calls:
+        if call.routine is not nsym:
+            pytest.xfail("#924 cannot reliably update references in inlined "
+                         "code.")
+
+
 def test_apply_function(fortran_reader, fortran_writer, tmpdir):
     '''Check that the apply() method works correctly for a simple call to
     a function.
