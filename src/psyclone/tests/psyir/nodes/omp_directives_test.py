@@ -2348,14 +2348,14 @@ def test_omp_serial_valid_dependence_ref_binop_dict_cases():
 
     # Check the case where only 1 of the references results in a
     # dict output from compute_accesses returns False
-    parent_loop = Loop.create(
+    Loop.create(
         outer_var,
         Reference(start),
         Reference(stop),
         Literal("32", INTEGER_SINGLE_TYPE),
         [task]
     )
-    parent_loop2 = Loop.create(
+    Loop.create(
         outer_var,
         Literal("1", INTEGER_SINGLE_TYPE),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2369,7 +2369,7 @@ def test_omp_serial_valid_dependence_ref_binop_dict_cases():
 
     # Check the case where the steps are not equal
     task2 = OMPTaskDirective()
-    parent_loop2 = Loop.create(
+    Loop.create(
         outer_var,
         Reference(start),
         Reference(stop),
@@ -2382,7 +2382,7 @@ def test_omp_serial_valid_dependence_ref_binop_dict_cases():
     # Check the case where the starts offset is not an integer multiple
     # of the step.
     task2 = OMPTaskDirective()
-    parent_loop2 = Loop.create(
+    Loop.create(
         outer_var,
         BinaryOperation.create(
             BinaryOperation.Operator.ADD,
@@ -2414,8 +2414,7 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
     )
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
-    # pylint: disable=unused-variable
-    loop = Loop.create(
+    Loop.create(
         tmp,
         Reference(tmp2),
         Literal("1", INTEGER_SINGLE_TYPE),
@@ -2439,16 +2438,14 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
         ref.copy(),
         Literal("1", INTEGER_SINGLE_TYPE),
     )
-    # pylint: disable=unused-variable
-    loop = Loop.create(
+    Loop.create(
         tmp,
         Reference(tmp2),
         Literal("1", INTEGER_SINGLE_TYPE),
         Literal("32", INTEGER_SINGLE_TYPE),
         [task2],
     )
-    # pylint: disable=unused-variable
-    loop2 = Loop.create(
+    loop = Loop.create(
         tmp,
         Literal("1", INTEGER_SINGLE_TYPE),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2464,15 +2461,15 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
     task3 = OMPTaskDirective()
     tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
     tmp4 = DataSymbol("tmp4", INTEGER_SINGLE_TYPE)
-    loop = Loop.create(
+    Loop.create(
         tmp2,
         Reference(tmp3),
         Literal("128", INTEGER_SINGLE_TYPE),
         Literal("32", INTEGER_SINGLE_TYPE),
         [task3],
     )
-    loop2.children[3].pop_all_children()
-    loop2 = Loop.create(
+    loop.children[3].pop_all_children()
+    Loop.create(
         tmp,
         Reference(tmp4),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2483,7 +2480,7 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
 
     task2 = OMPTaskDirective()
     task = OMPTaskDirective()
-    loop = Loop.create(
+    Loop.create(
         tmp,
         Literal("1", INTEGER_SINGLE_TYPE),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2495,7 +2492,7 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
         ref.copy(),
         Literal("1", INTEGER_SINGLE_TYPE),
     )
-    loop2 = Loop.create(
+    Loop.create(
         tmp,
         Literal("1", INTEGER_SINGLE_TYPE),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2507,14 +2504,14 @@ def test_omp_serial_valid_dependence_ref_binop_fails():
 
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
-    loop = Loop.create(
+    Loop.create(
         tmp,
         Reference(tmp2),
         Literal("128", INTEGER_SINGLE_TYPE),
         Literal("32", INTEGER_SINGLE_TYPE),
         [task],
     )
-    loop2 = Loop.create(
+    Loop.create(
         tmp,
         Reference(tmp2),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2536,9 +2533,7 @@ def test_omp_serial_valid_dependence_ref_binops():
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
 
-    # Pylint incorrectly flags these loops as unused
-    # pylint: disable=unused-variable
-    loop = Loop.create(
+    Loop.create(
         tmp,
         Literal("1", INTEGER_SINGLE_TYPE),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2550,8 +2545,7 @@ def test_omp_serial_valid_dependence_ref_binops():
         ref.copy(),
         Literal("1", INTEGER_SINGLE_TYPE),
     )
-    # pylint: disable=unused-variable
-    loop2 = Loop.create(
+    Loop.create(
         tmp,
         Literal("0", INTEGER_SINGLE_TYPE),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2563,7 +2557,7 @@ def test_omp_serial_valid_dependence_ref_binops():
 
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
-    loop = Loop.create(
+    Loop.create(
         tmp,
         Literal("1", INTEGER_SINGLE_TYPE),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2575,7 +2569,7 @@ def test_omp_serial_valid_dependence_ref_binops():
         ref.copy(),
         Literal("16", INTEGER_SINGLE_TYPE),
     )
-    loop2 = Loop.create(
+    Loop.create(
         tmp,
         Literal("1", INTEGER_SINGLE_TYPE),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2587,7 +2581,7 @@ def test_omp_serial_valid_dependence_ref_binops():
 
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
-    loop = Loop.create(
+    Loop.create(
         tmp,
         Literal("1", INTEGER_SINGLE_TYPE),
         Literal("128", INTEGER_SINGLE_TYPE),
@@ -2599,7 +2593,7 @@ def test_omp_serial_valid_dependence_ref_binops():
         ref.copy(),
         Literal("1", INTEGER_SINGLE_TYPE),
     )
-    loop2 = Loop.create(
+    Loop.create(
         tmp,
         Literal("129", INTEGER_SINGLE_TYPE),
         Literal("256", INTEGER_SINGLE_TYPE),
@@ -2611,14 +2605,14 @@ def test_omp_serial_valid_dependence_ref_binops():
 
     task = OMPTaskDirective()
     task2 = OMPTaskDirective()
-    loop = Loop.create(
+    Loop.create(
         tmp,
         Reference(tmp2),
         Literal("128", INTEGER_SINGLE_TYPE),
         Literal("32", INTEGER_SINGLE_TYPE),
         [task],
     )
-    loop2 = Loop.create(
+    Loop.create(
         tmp,
         Reference(tmp2),
         Literal("128", INTEGER_SINGLE_TYPE),

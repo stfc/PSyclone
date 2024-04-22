@@ -392,7 +392,7 @@ def test_acckernelsdirective_gencode(default_present):
         string = " default(present)"
     assert (
         f"      !$acc kernels{string}\n"
-        f"      DO cell=loop0_start,loop0_stop\n" in code)
+        f"      DO cell = loop0_start, loop0_stop, 1\n" in code)
     assert (
         "      END DO\n"
         "      !$acc end kernels\n" in code)

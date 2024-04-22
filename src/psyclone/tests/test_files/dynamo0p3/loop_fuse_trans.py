@@ -43,9 +43,7 @@
     not perform any error checking. It is used by the test system to
     ensure that transformation scripts work correctly.
 '''
-from __future__ import absolute_import
-
-from psyclone.psyir.transformations import LoopFuseTrans
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 
 
 def trans(psy):
@@ -55,6 +53,6 @@ def trans(psy):
     schedule = invoke.schedule
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
-    transform = LoopFuseTrans()
+    transform = LFRicLoopFuseTrans()
     transform.apply(loop1, loop2)
     return psy
