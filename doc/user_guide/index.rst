@@ -47,15 +47,26 @@ PSyclone User Guide
 
 .. only:: html
 
-    PSyclone is a code generation system developed to support domain-specific
-    languages (DSLs) for finite element, finite volume and finite difference
-    codes. Notably, it is used in the
-    `LFRic Project <https://www.metoffice.gov.uk/research/modelling-systems/
-    lfric/>`_, and it also supports the
+    PSyclone is a source-to-source Fortran compiler designed to programmatically
+    optimise and parallelise HPC applications using user-provided transformation
+    scripts. These scripts offer a separation of concerns between the science code
+    and the performance portability implementation choices, allowing to experiment
+    and develop with each side independenly.
+    Additonally, PSyclone supports the development of kernel-based Fortran-embedded
+    DSLs following the PSyKAl model
+    developed in the
+    `GungHo project <https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation>`_.
+
+    Notably, it is used to support the
+    `LFRic <https://www.metoffice.gov.uk/research/modelling-systems/lfric/>`
+    PSyKAl mixed finite-element DSL for the UK MetOffice's next generation
+    modelling system and the
     `GOcean <https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1>`_
-    (2D, finite difference) DSL. In addition it is being extended
-    to support the processing of existing finite difference codes such as the 
-    `NEMO <https://www.nemo-ocean.eu/>`_ ocean model. 
+    finite difference prototype DSL.
+    It is also used to insert GPU offloading directives to existing
+    directly-addressed MPI applications such as the
+    `NEMO ocean model <https://www.nemo-ocean.eu/>`_ ocean model.
+
     Find more information in the
     `Developer's Guide <https://psyclone-dev.readthedocs.io/>`_
     and the
