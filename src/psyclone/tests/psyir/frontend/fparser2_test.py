@@ -1436,6 +1436,40 @@ def test_process_array_declarations():
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_process_array_declarations_bound_expressions():
+    ''' Test that Fparser2Reader.process_declarations() handles
+    array declarations that use expressions to specify the bounds.
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    # Simple expression for upper bound
+    reader = FortranStringReader("integer :: l3(l1+1)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    l3_var = fake_parent.symbol_table.lookup("l3")
+    dtype = l3_var.datatype
+    assert isinstance(dtype, ArrayType)
+    assert isinstance(dtype.shape[0], ArrayType.ArrayBounds)
+    assert dtype.shape[0].lower.value == "1"
+    assert isinstance(dtype.shape[0].upper, BinaryOperation)
+    # Complicated expressions using intrinsics.
+    reader = FortranStringReader(
+        "integer :: l5(nint(minval(l4)):nint(maxval(l4)))")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    l5_var = fake_parent.symbol_table.lookup("l5")
+    l5dtype = l5_var.datatype
+    assert isinstance(l5dtype, ArrayType)
+    assert isinstance(l5dtype.shape[0], ArrayType.ArrayBounds)
+    assert isinstance(l5dtype.shape[0].lower, IntrinsicCall)
+    assert l5dtype.shape[0].lower.intrinsic is IntrinsicCall.Intrinsic.NINT
+    assert isinstance(l5dtype.shape[0].upper, IntrinsicCall)
+    assert l5dtype.shape[0].upper.intrinsic is IntrinsicCall.Intrinsic.NINT
+    assert l5dtype.shape[0].upper.debug_string() == "NINT(MAXVAL(l4))"
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_process_not_supported_declarations():
     '''Test that process_declarations method raises the proper errors when
     declarations contain unsupported attributes.
@@ -1700,22 +1734,24 @@ def test_process_declarations_unsupported_node():
 def test_parse_array_dimensions_attributes():
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
-    '''
 
-    sym_table = SymbolTable()
+    '''
+    processor = Fparser2Reader()
+    sched = KernelSchedule("a_test")
+    sym_table = sched.symbol_table
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    shape = processor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [None]
 
     reader = FortranStringReader("dimension(:,:,:)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    shape = processor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [None, None, None]
 
     reader = FortranStringReader("dimension(3,5)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    shape = processor._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 2
     assert shape[0][0].value == "1"
     assert shape[0][1].value == "3"
@@ -1727,14 +1763,14 @@ def test_parse_array_dimensions_attributes():
 
     reader = FortranStringReader("dimension(var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    shape = processor._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
     assert shape[0][0].value == "1"
     assert shape[0][1].symbol == sym_table.lookup('var1')
 
     reader = FortranStringReader("dimension(0:3,var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    shape = processor._parse_dimensions(fparser2spec, sym_table)
     # First dim is specified with both lower and upper bounds so should
     # have a tuple
     assert isinstance(shape[0], tuple)
@@ -1746,7 +1782,7 @@ def test_parse_array_dimensions_attributes():
 
     reader = FortranStringReader("dimension(0:3,var1:var1_upper)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    shape = processor._parse_dimensions(fparser2spec, sym_table)
     assert isinstance(shape[0], tuple)
     assert len(shape[0]) == 2
     assert shape[0][0].value == "0"
@@ -1760,30 +1796,9 @@ def test_parse_array_dimensions_attributes():
     reader = FortranStringReader("dimension(*)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
-        _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+        _ = processor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert "Assumed-size arrays are not supported." in str(error.value)
-
-    # Explicit shape symbols must be integer
-    reader = FortranStringReader("dimension(var2)")
-    fparser2spec = Dimension_Attr_Spec(reader)
-    with pytest.raises(NotImplementedError) as error:
-        sym_table.add(DataSymbol("var2", REAL_TYPE))
-        _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
-    assert "Could not process " in str(error.value)
-    assert ("Only scalar integer literals or symbols are supported for "
-            "explicit-shape array declarations.") in str(error.value)
-
-    # Explicit shape symbols can only be Literal or Symbol
-    with pytest.raises(NotImplementedError) as error:
-        class UnrecognizedType():
-            '''Type guaranteed to not be part of the _parse_dimensions
-            conditional type handler.'''
-        fparser2spec.items[1].items[0].items[1].__class__ = UnrecognizedType
-        _ = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
-    assert "Could not process " in str(error.value)
-    assert ("Only scalar integer literals or symbols are supported for "
-            "explicit-shape array declarations.") in str(error.value)
 
     # Shape specified by an unknown Symbol
     reader = FortranStringReader("dimension(var3)")
@@ -1792,19 +1807,17 @@ def test_parse_array_dimensions_attributes():
     vsym = sym_table.new_symbol("var3", interface=ImportInterface(csym))
     # pylint: disable=unidiomatic-typecheck
     assert type(vsym) is Symbol
-    shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
+    shape = processor._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
     assert shape[0][0].value == "1"
     assert isinstance(shape[0][1], Reference)
-    # Symbol is the same object but is now a DataSymbol
+    # Symbol is the same object.
     assert shape[0][1].symbol is vsym
-    assert isinstance(shape[0][1].symbol, DataSymbol)
     assert shape[0][1].symbol.name == "var3"
     assert isinstance(shape[0][1].symbol.interface, ImportInterface)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
-    processor = Fparser2Reader()
     reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec],
@@ -1843,7 +1856,6 @@ def test_unresolved_array_size():
     processor.process_declarations(fake_parent, fparser2spec, [])
     dim_sym = fake_parent.symbol_table.lookup("n")
     assert isinstance(dim_sym.interface, UnresolvedInterface)
-    assert dim_sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     # Check that the lookup of the dimensioning symbol is not case sensitive
     reader = FortranStringReader("real, dimension(N) :: array4")
     fparser2spec = Specification_Part(reader).content
@@ -2006,9 +2018,9 @@ def test_parse_array_dimensions_unhandled(monkeypatch):
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(InternalError) as error:
-        _ = Fparser2Reader._parse_dimensions(fparser2spec, None)
-    assert "Reached end of loop body and array-shape specification" \
-        in str(error.value)
+        _ = Fparser2Reader()._parse_dimensions(fparser2spec, None)
+    assert ("Reached end of loop body and array-shape specification"
+            in str(error.value))
     assert " has not been handled." in str(error.value)
 
 

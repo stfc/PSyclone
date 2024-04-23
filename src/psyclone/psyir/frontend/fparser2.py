@@ -1336,8 +1336,23 @@ class Fparser2Reader():
 
         return selected_routines
 
-    @staticmethod
-    def _parse_dimensions(dimensions, symbol_table):
+    def _process_array_bound(self, bound_expr, table):
+        '''Process the supplied fparser2 parse tree for the upper/lower
+        bound of a dimension in an array declaration.
+
+        :param bound_expr: fparser2 parse tree for lower/upper bound.
+        :type bound_expr: :py:class:`fparser.two.utils.Base`
+
+        :returns: PSyIR for the bound.
+        :rtype: :py:class:`psyclone.psyir.nodes.DataNode`
+
+        '''
+        dummy = Assignment(parent=table.node)
+        self.process_nodes(parent=dummy, nodes=[bound_expr])
+
+        return dummy.children[0].detach()
+
+    def _parse_dimensions(self, dimensions, symbol_table):
         '''
         Parse the fparser dimension attribute into a shape list. Each entry of
         this list is either None (if the extent is unknown) or a 2-tuple
@@ -1347,81 +1362,25 @@ class Fparser2Reader():
         UnresolvedType.
 
         :param dimensions: fparser dimension attribute.
-        :type dimensions: \
+        :type dimensions:
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
         :param symbol_table: symbol table of the declaration context.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns: shape of the attribute in column-major order (leftmost \
-            index is contiguous in memory). Each entry represents an array \
-            dimension. If it is 'None' the extent of that dimension is \
-            unknown, otherwise it holds a 2-tuple with the upper and lower \
-            bounds of the dimension. If it is an empty list then the symbol \
+        :returns: shape of the attribute in column-major order (leftmost
+            index is contiguous in memory). Each entry represents an array
+            dimension. If it is 'None' the extent of that dimension is
+            unknown, otherwise it holds a 2-tuple with the upper and lower
+            bounds of the dimension. If it is an empty list then the symbol
             represents a scalar.
-        :rtype: list of NoneType or 2-tuples of \
-                :py:class:`psyclone.psyir.nodes.DataNode`
+        :rtype: list[Optional[
+            tuple[:py:class:`psyclone.psyir.nodes.DataNode`,
+                  :py:class:`psyclone.psyir.nodes.DataNode`]]]
 
-        :raises NotImplementedError: if anything other than scalar, integer \
+        :raises NotImplementedError: if anything other than scalar, integer
             literals or symbols are encounted in the dimensions list.
 
         '''
-        def _process_bound(bound_expr):
-            '''Process the supplied fparser2 parse tree for the upper/lower
-            bound of a dimension in an array declaration.
-
-            :param bound_expr: fparser2 parse tree for lower/upper bound.
-            :type bound_expr: :py:class:`fparser.two.utils.Base`
-
-            :returns: PSyIR for the bound.
-            :rtype: :py:class:`psyclone.psyir.nodes.DataNode`
-
-            :raises NotImplementedError: if an unsupported form of array \
-                                         bound is found.
-            :raises GenerationError: invalid Fortran declaration of an \
-                upper bound without an associated lower bound.
-
-            '''
-            if isinstance(bound_expr, Fortran2003.Int_Literal_Constant):
-                return Literal(bound_expr.items[0], INTEGER_TYPE)
-
-            if isinstance(bound_expr, Fortran2003.Name):
-                # Fortran does not regulate the order in which variables
-                # may be declared so it's possible for the shape
-                # specification of an array to reference variables that
-                # come later in the list of declarations. The reference
-                # may also be to a symbol present in a parent symbol table
-                # (e.g. if the variable is declared in an outer, module
-                # scope).
-                dim_name = bound_expr.string.lower()
-                try:
-                    sym = symbol_table.lookup(dim_name)
-                    # pylint: disable=unidiomatic-typecheck
-                    if type(sym) is Symbol:
-                        # An entry for this symbol exists but it's only a
-                        # generic Symbol and we now know it must be a
-                        # DataSymbol.
-                        sym.specialise(DataSymbol, datatype=UnresolvedType())
-                    elif isinstance(sym.datatype, (UnsupportedType,
-                                                   UnresolvedType)):
-                        # Allow symbols of Unsupported/UnresolvedType.
-                        pass
-                    elif not (isinstance(sym.datatype, ScalarType) and
-                              sym.datatype.intrinsic ==
-                              ScalarType.Intrinsic.INTEGER):
-                        # It's not of Unsupported/UnresolvedType and it's not
-                        # an integer scalar.
-                        raise NotImplementedError(
-                                "Unsupported shape dimension")
-                except KeyError:
-                    # We haven't seen this symbol before so create a new
-                    # one with a unresolved interface (since we don't
-                    # currently know where it is declared).
-                    sym = DataSymbol(dim_name, default_integer_type(),
-                                     interface=UnresolvedInterface())
-                    symbol_table.add(sym)
-                return Reference(sym)
-
-            raise NotImplementedError("Unsupported shape dimension")
 
         one = Literal("1", INTEGER_TYPE)
         shape = []
@@ -1437,10 +1396,13 @@ class Fparser2Reader():
                 # ":" -> Assumed_Shape_Spec(None, None)
                 # "4:" -> Assumed_Shape_Spec(Int_Literal_Constant('4', None),
                 #                            None)
-                lower = (_process_bound(dim.children[0]) if dim.children[0]
-                         else None)
+                lower = None
+                if dim.children[0]:
+                    lower = self._process_array_bound(dim.children[0],
+                                                      symbol_table)
                 if dim.children[1]:
-                    upper = _process_bound(dim.children[1])
+                    upper = self._process_array_bound(dim.children[1],
+                                                      symbol_table)
                 else:
                     upper = ArrayType.Extent.ATTRIBUTE if lower else None
 
@@ -1455,19 +1417,15 @@ class Fparser2Reader():
                     shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
-                try:
-                    upper = _process_bound(dim.items[1])
-                    if dim.items[0]:
-                        lower = _process_bound(dim.items[0])
-                        shape.append((lower, upper))
-                    else:
-                        # Lower bound defaults to 1 in Fortran
-                        shape.append((one.copy(), upper))
-                except NotImplementedError as err:
-                    raise NotImplementedError(
-                        f"Could not process {dimensions}. Only scalar integer "
-                        f"literals or symbols are supported for explicit-shape"
-                        f" array declarations.") from err
+                upper = self._process_array_bound(dim.items[1],
+                                                  symbol_table)
+                if dim.items[0]:
+                    lower = self._process_array_bound(dim.items[0],
+                                                      symbol_table)
+                    shape.append((lower, upper))
+                else:
+                    # Lower bound defaults to 1 in Fortran
+                    shape.append((one.copy(), upper))
 
             elif isinstance(dim, Fortran2003.Assumed_Size_Spec):
                 raise NotImplementedError(
@@ -4296,14 +4254,7 @@ class Fparser2Reader():
                     if array.is_full_range(idx):
                         # The access to this index is to the full range of
                         # the array.
-                        # TODO #949 - ideally we would try to find the lower
-                        # bound of the array by interrogating `array.symbol.
-                        # datatype` but the fparser2 frontend doesn't currently
-                        # support array declarations with explicit lower bounds
-                        lbound = IntrinsicCall.create(
-                            IntrinsicCall.Intrinsic.LBOUND,
-                            [base_ref.copy(),
-                             ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+                        lbound = array.get_lbound_expression(idx)
                     else:
                         # We need the lower bound of this access.
                         lbound = child.start.copy()
@@ -4481,6 +4432,9 @@ class Fparser2Reader():
         integer_type = default_integer_type()
 
         # Now create a loop nest of depth `rank`
+        add_op = BinaryOperation.Operator.ADD
+        sub_op = BinaryOperation.Operator.SUB
+        one = Literal("1", INTEGER_TYPE)
         new_parent = parent
         for idx in range(rank, 0, -1):
 
@@ -4507,7 +4461,16 @@ class Fparser2Reader():
                                           ("dim", Literal(str(idx),
                                                           integer_type))]))
             else:
-                loop.addchild(mask_shape[idx-1].upper.copy())
+                lbound = mask_shape[idx-1].lower
+                if isinstance(lbound, Literal) and lbound.value == "1":
+                    # Lower bound is unity so size is just the upper bound.
+                    expr2 = mask_shape[idx-1].upper.copy()
+                else:
+                    # Size = upper-bound - lower-bound + 1
+                    expr = BinaryOperation.create(
+                        sub_op, mask_shape[idx-1].upper.copy(), lbound.copy())
+                    expr2 = BinaryOperation.create(add_op, expr, one.copy())
+                loop.addchild(expr2)
 
             # Add loop increment
             loop.addchild(Literal("1", integer_type))

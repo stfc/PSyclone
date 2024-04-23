@@ -190,7 +190,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # First, walk up to the parent reference and get its type. For a simple
         # ArrayReference this will just be self.
         root_ref = self.ancestor(Reference, include_self=True)
-        cursor_type = root_ref.symbol.datatype
+        if hasattr(root_ref.symbol, "datatype"):
+            cursor_type = root_ref.symbol.datatype
+        else:
+            cursor_type = UnresolvedType
 
         # Walk back down the structure, looking up the type information as we
         # go. We also collect the necessary information for creating a new
