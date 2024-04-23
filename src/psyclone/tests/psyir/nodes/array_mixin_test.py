@@ -261,13 +261,11 @@ def test_is_bound_extent(fortran_reader):
     ("10", "1", True, False), ("10", "10", False, True),
     ("10", "5", False, False), ("n", "1", True, False),
     ("n", "n", False, True), ("n", "n-4", False, False),
-    ("10", "5+5", False, True)])
+    ("10", "5+5", False, True), ("n+8", "n+8", False, True),
+    ("n-5:n+5", "n-5", True, False)])
 def test_is_bound_access(fortran_reader, bounds, access, lower, upper):
     '''Test the _is_bound method returns True when the array access
-    matches the array declaration and False if not. Note, the method
-    supports array declarations that are expressions, however,
-    currently the PSyIR does not recognise these so they can't be
-    tested (TODO issue #949).
+    matches the array declaration and False if not.
 
     '''
     code = (
