@@ -61,7 +61,7 @@ class IntrinsicSymbol(RoutineSymbol):
     @property
     def intrinsic(self):
         '''
-        :resturns: the intrinsic enum describing this Symbol.
+        :returns: the intrinsic enum describing this Symbol.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
         '''
         return self._intrinsic

@@ -4175,14 +4175,16 @@ class Fparser2Reader():
             member_nodes = []
 
         if isinstance(top_ref, Fortran2003.Name):
-            # Update the top_ref symbol information knowing that it exits
+            # Add the structure root reference to the symbol table if its
+            # not already there.
             base_sym = _find_or_create_unresolved_symbol(
                 parent, top_ref.string.lower(),
                 symbol_type=DataSymbol, datatype=UnresolvedType())
             base_indices = []
             base_ref = StructureReference
         elif isinstance(top_ref, Fortran2003.Part_Ref):
-            # Update the top_ref symbol information knowing that it exits
+            # Add the structure root reference to the symbol table if its
+            # not already there.
             base_sym = _find_or_create_unresolved_symbol(
                 parent, top_ref.children[0].string.lower(),
                 symbol_type=DataSymbol, datatype=UnresolvedType())

@@ -288,6 +288,8 @@ class SymPyWriter(FortranWriter):
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
         for expr in list_of_expressions:
+            # TODO #2542. References should be iterated with the
+            # reference_acess method when its issues are fixed.
             for ref in expr.walk(Reference):
                 if (isinstance(ref.parent, Call) and
                         ref.parent.children[0] is ref):
