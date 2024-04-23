@@ -3205,3 +3205,21 @@ def test_structures_constant_use(fortran_reader, fortran_writer):
         "      integer :: i = N + M\n"
         "      integer :: j\n"
         "    end type my_type\n" in result)
+
+
+def test_structures_duplicate_name(f2008_parser):
+    '''
+    '''
+    test_code = '''\
+    subroutine test()
+      type :: y
+        integer, dimension(3) :: jp
+      end type
+      type :: x
+        type(y) :: y
+      end type
+    end subroutine'''
+    reader = FortranStringReader(test_code)
+    ptree = f2008_parser(reader)
+    processor = Fparser2Reader()
+    psyir = processor.generate_psyir(ptree)

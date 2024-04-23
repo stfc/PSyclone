@@ -315,7 +315,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     # tree has not been built so the symbol table is not connected to
     # a node.
     symbol_table = location.scope.symbol_table
-    while symbol_table.node and not isinstance(
+    while symbol_table and symbol_table.node and not isinstance(
             symbol_table.node, (Routine, Container)):
         symbol_table = symbol_table.parent_symbol_table()
 
@@ -2129,13 +2129,13 @@ class Fparser2Reader():
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
         :param decl: fparser2 parse tree of declaration to process.
         :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
-        :param visibility_map: mapping of symbol name to visibility (for \
+        :param visibility_map: mapping of symbol name to visibility (for
             those symbols listed in an accessibility statement).
-        :type visibility_map: dict with str keys and \
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
+        :type visibility_map: dict[str,
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
-        :raises SymbolError: if a Symbol already exists with the same name \
-            as the derived type being defined and it is not a DataTypeSymbol \
+        :raises SymbolError: if a Symbol already exists with the same name
+            as the derived type being defined and it is not a DataTypeSymbol
             or is not of UnresolvedType.
 
         '''
@@ -2208,15 +2208,27 @@ class Fparser2Reader():
                 raise NotImplementedError(
                     "Derived-type definition has a CONTAINS statement.")
 
-            # Re-use the existing code for processing symbols
-            local_table = SymbolTable(
-                default_visibility=default_compt_visibility)
+            # Re-use the existing code for processing symbols. This needs to
+            # be able to find any symbols declared in an outer scope but
+            # referenced within the type definition (e.g. a type name).
+            fake_sched = Container("andy", parent=parent)
+            local_table = fake_sched.symbol_table
+            #import pdb; pdb.set_trace()
+            local_table.default_visibility = default_compt_visibility
+            #local_table = SymbolTable(
+            #    default_visibility=default_compt_visibility)
             for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
                 self._process_decln(parent, local_table, child)
             # Convert from Symbols to type information
             for symbol in local_table.symbols:
-                dtype.add(symbol.name, symbol.datatype, symbol.visibility,
-                          symbol.initial_value)
+                if type(symbol) is Symbol:
+                    datatype = UnresolvedType()
+                    initial_value = None
+                else:
+                    datatype = symbol.datatype
+                    initial_value = symbol.initial_value
+                dtype.add(symbol.name, datatype, symbol.visibility,
+                          initial_value)
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype
@@ -2275,8 +2287,10 @@ class Fparser2Reader():
             else:
                 node.items[1].items = tuple(entry_list)
 
-        # Try to parse the modified node.
-        symbol_table = SymbolTable()
+        # Try to parse the modified node. We use a temporary symbol table as
+        # we don't want to add the resulting symbol to the actual table as it
+        # doesn't have all the properties of the original.
+        symbol_table = scope.symbol_table #  SymbolTable()
         try:
             self._process_decln(scope, symbol_table, node,
                                 visibility_map)
@@ -2285,6 +2299,8 @@ class Fparser2Reader():
             new_sym = symbol_table.lookup(symbol_name)
             datatype = new_sym.datatype
             init_expr = new_sym.initial_value
+            # Remove the Symbol that has just been added.
+            symbol_table._symbols.pop(new_sym.name)
         except NotImplementedError:
             datatype = None
             init_expr = None
