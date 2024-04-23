@@ -397,9 +397,6 @@ def test_where_mask_starting_value(fortran_reader, fortran_writer):
     Check handling of a case where the mask array is indexed from values other
     than unity.
 
-    # TODO #949 - we can't currently take advantage of any knowledge of the
-    # declared lower bounds of arrays because the fparser2 frontend doesn't yet
-    # capture this information (we get an UnsupportedFortranType).
     '''
     code = '''\
     program my_sub
