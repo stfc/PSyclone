@@ -97,8 +97,8 @@ class Call(Statement, DataNode):
             py:class:`psyclone.psyir.nodes.Reference`
         :param arguments: optional list of arguments for this call, these
             can be PSyIR nodes or tuples of string,Node for named arguments.
-        :type arguments: Optional[Iterable[
-            Union[:py:class:`psyclone.psyir.nodes.DataNode`,
+        :type arguments: Optional[Iterable[\
+            Union[:py:class:`psyclone.psyir.nodes.DataNode`,\
                   Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]]
 
         :returns: an instance of cls.
