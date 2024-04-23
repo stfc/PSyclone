@@ -848,7 +848,7 @@ types.
    an ``integer``-valued field as an argument.
 
 .. _lfric-no-cma-mdata-rules:
-   
+
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -972,6 +972,59 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 2) All fields must be on discontinuous function spaces.
 
 3) Stencil accesses are not permitted.
+
+.. _lfric-dof-kernel-rules:
+
+Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DoF Kernels and :ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly
+in their scope, and the conventions that DoF Kernels must follow are influenced
+by those for built-ins as a result. This includes :ref:`metadata arguments
+<dynamo0.3-api-built-ins-metadata>` and :ref:`valid data types
+and access modes<lfric-built-ins-dtype-access>`. Naming conventions for DoF
+Kernels should follow those for General-Purpose Kernels.
+
+The list of rules for DoF Kernels is as follows:
+
+1) A DoF Kernel must have at least one argument that is a field.
+   This rule reflects that a Kernel operates on some subset of the
+   whole domain and is therefore designed to be called from within
+   a loop that iterates over those subsets of the domain. Only fields
+   are accepted for a Kernel operating on DoFs because fields are the
+   only argument type that contain DoFs (i.e. field vectors are not allowed).
+
+2) All Kernel arguments must be either fields or scalars (`real-`` and/or
+   `integer`-valued). DoF Kernels cannot accept operators.
+
+3) All field arguments to a given DoF Kernel must be on the same function
+   space. This is because all fields should have the same number.
+   It also means that PSyclone can determine the number of DoFs uniquely when
+   writing to a scalar.
+
+4) They must have at least one modified (i.e. writen to) argument. Unlike
+   built-ins, this is not limited and more than one modified argument is
+   allowed.
+
+5) A Kernel may not write to a scalar argument. (Only built-ins are permitted
+   to do this.) Any scalar arguments must therefore be declared in the metadata
+   as `GH_READ` - see :ref:`below<dynamo0-3-kernel-valid-access>`
+
+The field arguments in DoF Kernels are the derived types that represent the
+LFRic fields, however mathematical operations are actually performed on the
+data of the field proxies (e.g. field1_proxy%data(:)). For example, this loop
+adds the values of two fields accessed via their proxies in a loop over DoFs:
+
+.. code-block:: fortran
+
+  DO df=loop0_start,loop0_stop
+     field3_proxy%data(df) = field1_proxy%data(df) + field2_proxy%data(df)
+
+where the precise values of the loop limits depend on the use of
+:ref:`distributed memory <distributed_memory>`,
+:ref:`annexed DoFs <lfric-annexed_dofs>` or both. DoF Kernels will not accept
+dofmaps as accessors to a field. DoF access follows a standard loop over the
+field passed to the Kernel.
 
 .. _dynamo0.3-api-kernel-metadata:
 
@@ -1277,7 +1330,7 @@ modes depend upon the argument type and the function space it is on:
 |                        |                              | GH_READWRITE       |
 +------------------------+------------------------------+--------------------+
 | GH_FIELD               | Continuous                   | GH_READ, GH_WRITE, |
-|                        |                              | GH_INC, GH_READINC | 
+|                        |                              | GH_INC, GH_READINC |
 +------------------------+------------------------------+--------------------+
 | GH_OPERATOR            | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
