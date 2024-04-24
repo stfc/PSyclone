@@ -46,7 +46,8 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
-from psyclone.psyir.nodes import DataNode, Range, Reference, IntrinsicCall
+from psyclone.psyir.nodes import (
+    DataNode, Range, Reference, IntrinsicCall, Call)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
 
 
@@ -287,7 +288,13 @@ class SymPyWriter(FortranWriter):
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
         for expr in list_of_expressions:
+            # TODO #2542. References should be iterated with the
+            # reference_acess method when its issues are fixed.
             for ref in expr.walk(Reference):
+                if (isinstance(ref.parent, Call) and
+                        ref.parent.children[0] is ref):
+                    continue
+
                 name = ref.name
                 # The reserved Python keywords do not have tags, so they
                 # will not be found.
@@ -599,7 +606,12 @@ class SymPyWriter(FortranWriter):
         # Support renaming a symbol (e.g. if it is a reserved Python name).
         # Look up with the name as tag, which will return the symbol with
         # a unique name (e.g. lambda --> lambda_1):
-        name = self._symbol_table.lookup_with_tag(node.name).name
+        try:
+            name = self._symbol_table.lookup_with_tag(node.name).name
+        except KeyError:
+            # If the tag did not exist it means that this symbol has not
+            # been re-named, and we can use it as is.
+            name = node.name
         if not node.is_array:
             # This reference is not an array, just return the name
             return name
