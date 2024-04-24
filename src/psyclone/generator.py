@@ -485,7 +485,7 @@ def main(args):
               "are performed by default."))
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
-    parser.add_argument("--config", help="Config file with "
+    parser.add_argument("--config", "-c", help="Config file with "
                         "PSyclone specific options.")
     parser.add_argument(
         '--version', '-v', action='version',
