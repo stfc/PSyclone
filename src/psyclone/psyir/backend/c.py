@@ -447,7 +447,7 @@ class CWriter(LanguageWriter):
                 f"The C backend does not support the '{node.intrinsic.name}' "
                 f"intrinsic.") from err
 
-        return formatter(opstring, [self._visit(ch) for ch in node.children])
+        return formatter(opstring, [self._visit(ch) for ch in node.arguments])
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in

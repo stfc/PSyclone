@@ -553,15 +553,15 @@ class SIRWriter(PSyIRVisitor):
             # implementation).
             # [F] SIGN(A,B) == [C] FABS(A)*SIGN(B)
             c_abs_fun = (f"make_fun_call_expr(\"math::fabs\", "
-                         f"[{self._visit(node.children[0]).strip()}])")
+                         f"[{self._visit(node.arguments[0]).strip()}])")
             c_sign_fun = (f"make_fun_call_expr(\"math::sign\", "
-                          f"[{self._visit(node.children[1]).strip()}])")
+                          f"[{self._visit(node.arguments[1]).strip()}])")
             result = (f"make_binary_operator({c_abs_fun}, "
                       f"\"*\", {c_sign_fun})")
         else:
             # Everything else it is a SIR intrinsics
             arg_list = []
-            for child in node.children:
+            for child in node.arguments:
                 arg_list.append(f"[{self._visit(child).strip()}]")
             arg_str = ", ".join(arg_list)
             result = (f"{self._nindent}{self._indent}make_fun_call_expr("

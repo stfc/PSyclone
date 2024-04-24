@@ -1539,7 +1539,8 @@ class FortranWriter(LanguageWriter):
             for ast_node in node.get_ast_nodes:
                 # Using tofortran() ensures we get any label associated
                 # with this statement.
-                result += f"{self._nindent}{ast_node.tofortran()}\n"
+                for line in ast_node.tofortran().split("\n"):
+                    result += f"{self._nindent}{line}\n"
         elif node.structure == CodeBlock.Structure.EXPRESSION:
             for ast_node in node.get_ast_nodes:
                 result += str(ast_node)
@@ -1670,7 +1671,7 @@ class FortranWriter(LanguageWriter):
 
         # All arguments have been validated, proceed to generate them
         result_list = []
-        for idx, child in enumerate(node.children):
+        for idx, child in enumerate(node.arguments):
             if node.argument_names[idx]:
                 result_list.append(
                     f"{node.argument_names[idx]}={self._visit(child)}")
@@ -1694,10 +1695,10 @@ class FortranWriter(LanguageWriter):
             # An allocate/deallocate doesn't have 'call'.
             return f"{self._nindent}{node.routine.name}({args})\n"
         if not node.parent or isinstance(node.parent, Schedule):
-            return f"{self._nindent}call {node.routine.name}({args})\n"
+            return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
 
         # Otherwise it is inside-expression function call
-        return f"{node.routine.name}({args})"
+        return f"{self._visit(node.routine)}({args})"
 
     def kernelfunctor_node(self, node):
         '''
