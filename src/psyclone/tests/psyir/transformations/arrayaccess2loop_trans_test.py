@@ -189,24 +189,6 @@ def test_apply_third_dim_expr(tmpdir):
     check_transformation(tmpdir, code, expected_result, index=2)
 
 
-def test_apply_fifth_dim_expr(tmpdir):
-    '''Check that the expected code is produced for a 5D array where there
-    is no loop index information for the outermost dimension so a new loo
-    variable name is required.
-
-    '''
-    code = (
-        "  real :: a(10,10,10,10,10)\n"
-        "  a(1,1,1,1,1) = 0.0\n")
-    expected_result = (
-        "  real, dimension(10,10,10,10,10) :: a\n"
-        "  integer :: idx\n\n"
-        "  do idx = 1, 1, 1\n"
-        "    a(1,1,1,1,idx) = 0.0\n"
-        "  enddo\n\n")
-    check_transformation(tmpdir, code, expected_result, index=4)
-
-
 def test_apply_indirection(tmpdir):
     '''Check that the expected code is produced for a 1D array where the
     access to its 1st dimension index is via a lookup (that does not

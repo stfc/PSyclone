@@ -35,11 +35,9 @@
 
 '''Module providing a transformation that transforms all constant
 index accesses to an array (i.e. ones that do not contain loop
-iterators) to single trip loops.
+iterators) to single-trip loops.
 
 '''
-
-from __future__ import absolute_import
 
 from psyclone.psyir.transformations.arrayaccess2loop_trans import \
     ArrayAccess2LoopTrans
@@ -51,7 +49,7 @@ from psyclone.psyir.transformations.transformation_error \
 
 class AllArrayAccess2LoopTrans(Transformation):
     '''Provides a transformation from a PSyIR Assignment containing
-    constant index accesses to an array into single trip loops. For
+    constant index accesses to an array into single-trip loops. For
     example:
 
     >>> from psyclone.psyir.transformations import AllArrayAccess2LoopTrans
@@ -88,10 +86,9 @@ class AllArrayAccess2LoopTrans(Transformation):
         '''Apply the AllArrayAccess2Loop transformation if the supplied
         node is an Assignment with an Array Reference on its
         left-hand-side. Each constant array index access (i.e. one not
-        containing a loop iterator or a range) is then transformed
-        into an iterator and the assignment placed within a single
-        trip loop, subject to any constraints in the
-        ArrayAccess2Loop transformation.
+        containing a loop iterator or a range) is then transformed into
+        an iterator and the assignment placed within a single-trip loop,
+        subject to any constraints in the ArrayAccess2Loop transformation.
 
         If any of the AllArrayAccess2Loop constraints are not
         satisfied for a loop index then this transformation does
@@ -135,8 +132,8 @@ class AllArrayAccess2LoopTrans(Transformation):
 
     def __str__(self):
         return (
-            "Convert the constant indices of a PSyIR array assignment into "
-            "Loops.")
+            "Convert the constant indices of a PSyIR array-element assignment "
+            "into single-trip Loops.")
 
     @property
     def name(self):

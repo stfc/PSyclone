@@ -213,7 +213,8 @@ def test_str():
 
     '''
     assert (str(AllArrayAccess2LoopTrans()) == "Convert the constant "
-            "indices of a PSyIR array assignment into Loops.")
+            "indices of a PSyIR array-element assignment into single-trip"
+            " Loops.")
 
 
 def test_name():
