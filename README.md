@@ -16,13 +16,13 @@ Additionally, PSyclone supports the development of kernel-based Fortran-embedded
 DSLs following the PSyKAl model developed in the
 [GungHo project](https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation).
 
-PSyclone is currently used to support the [LFRic PSyKAl mixed finite-element
-DSL](https://www.metoffice.gov.uk/research/modelling-systems/lfric/)
+PSyclone is currently used to support the [LFRic mixed finite-element PSyKAl
+DSL](https://psyclone.readthedocs.io/en/latest/dynamo0p3.html)
 for the [UK MetOffice's next generation modelling
 system](https://www.metoffice.gov.uk/research/modelling-systems/lfric/) and
-the [GOcean finite difference
+the [GOcean finite-difference PSyKAl
 DSL](https://psyclone.readthedocs.io/en/latest/gocean1p0.html) for a [prototype
-2D ocean model](https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1).
+2D ocean modelling system](https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1).
 It is also used to [insert GPU offloading
 directives](https://psyclone.readthedocs.io/en/latest/nemo.html) to existing
 directly-addressed MPI applications such as the

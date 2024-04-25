@@ -60,11 +60,11 @@ PSyclone User Guide
     `GungHo project <https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation>`_.
 
     PSyclone is currently used to support the
-    `LFRic <https://www.metoffice.gov.uk/research/modelling-systems/lfric/>`
-    PSyKAl mixed finite-element DSL for the UK MetOffice's next generation
+    `LFRic <https://www.metoffice.gov.uk/research/modelling-systems/lfric/>`_
+    mixed finite-element PSyKAl DSL for the UK MetOffice's next generation
     modelling system and the
     `GOcean <https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1>`_
-    finite difference prototype DSL.
+    finite-difference PSyKAl DSL for a prototype 2D ocean modelling system.
     It is also used to insert GPU offloading directives to existing
     directly-addressed MPI applications such as the
     `NEMO ocean model <https://www.nemo-ocean.eu/>`_ ocean model.
