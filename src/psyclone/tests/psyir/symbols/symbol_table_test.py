@@ -749,8 +749,7 @@ def test_check_for_clashes_cannot_rename():
             "and as such may be named in a Call." in str(err.value))
     # This clash can be ignored by telling the checker to ignore any routine
     # arguments.
-    table1.check_for_clashes(
-        table2, symbols_to_skip=[arg.name for arg in table2.argument_list])
+    table1.check_for_clashes(table2, symbols_to_skip=table2.argument_list[:])
     # Ensure the symbols_to_skip argument is type-checked.
     with pytest.raises(TypeError) as err:
         table1.check_for_clashes(table2, symbols_to_skip=None)
@@ -837,7 +836,7 @@ def test_table_merge():
     table2.add(symbols.DataSymbol(
         "marvin",
         symbols.ScalarType(symbols.ScalarType.Intrinsic.REAL, wp_sym)))
-    table1.merge(table2, symbols_to_skip=["dent"])
+    table1.merge(table2, symbols_to_skip=[dent])
     assert table1.lookup("beeblebrox")
     assert "dent" not in table1
     assert "marvin" in table1
@@ -2045,7 +2044,7 @@ def test_symbols_tags_dict():
     assert schedule_symbol_table.symbols_dict is schedule_symbol_table._symbols
     assert schedule_symbol_table.tags_dict is schedule_symbol_table._tags
     rdict = schedule_symbol_table.get_reverse_tags_dict()
-    assert rdict[symbol1.name] == symbol1_tag
+    assert rdict[symbol1] == symbol1_tag
 
 
 def test_new_symbol():

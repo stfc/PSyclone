@@ -348,6 +348,7 @@ class Call(Statement, DataNode):
         :raises TypeError: if `value` is of the wrong type.
 
         '''
+        import pdb; pdb.set_trace()
         if not isinstance(value, Symbol):
             raise TypeError(
                 f"Error setting 'routine' property of Call. Expected a "
