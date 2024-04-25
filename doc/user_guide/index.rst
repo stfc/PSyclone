@@ -37,7 +37,7 @@
 .. only:: html
 
     .. image:: ../logo/psyclone_v1.0.png
-        :width: 75%
+        :width: 100%
         :align: center
         :alt: PSyclone
 
@@ -48,16 +48,18 @@ PSyclone User Guide
 .. only:: html
 
     PSyclone is a source-to-source Fortran compiler designed to programmatically
-    optimise and parallelise HPC applications using user-provided transformation
-    scripts. These scripts offer a separation of concerns between the science code
-    and the performance portability implementation choices, allowing to experiment
-    and develop with each side independenly.
-    Additonally, PSyclone supports the development of kernel-based Fortran-embedded
-    DSLs following the PSyKAl model
-    developed in the
+    optimise, parallelise and instrument HPC applications via user-provide
+    transformation scripts.
+
+    By encapsulating the performance-portability aspects (e.g. whether to
+    parallelise with OpenMP or OpenACC), these scripts enable a separation of
+    concerns between the scientific implementation and the optimisation choices.
+    This allows each aspect to be explored and developed largely independently.
+    Additionally, PSyclone supports the development of kernel-based Fortran-embedded
+    DSLs following the PSyKAl model developed in the
     `GungHo project <https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation>`_.
 
-    Notably, it is used to support the
+    PSyclone is currently used to support the
     `LFRic <https://www.metoffice.gov.uk/research/modelling-systems/lfric/>`
     PSyKAl mixed finite-element DSL for the UK MetOffice's next generation
     modelling system and the
@@ -67,8 +69,8 @@ PSyclone User Guide
     directly-addressed MPI applications such as the
     `NEMO ocean model <https://www.nemo-ocean.eu/>`_ ocean model.
 
-    Find more information in the
-    `Developer's Guide <https://psyclone-dev.readthedocs.io/>`_
+    More detailed implementation information is available in the
+    `Developer Guide <https://psyclone-dev.readthedocs.io/>`_
     and the
     `Reference Guide <https://psyclone-ref.readthedocs.io/>`_.
 

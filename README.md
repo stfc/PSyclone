@@ -1,27 +1,35 @@
-<p align="center">
-  <img width="460" src="doc/logo/psyclone_v1.0.png">
+<p align="left">
+  <img width="500" src="doc/logo/psyclone_v1.0.png">
 </p>
 
 ![Build Status](https://github.com/stfc/PSyclone/workflows/PSyclone%20tests%20and%20examples/badge.svg)
 [![codecov](https://codecov.io/gh/stfc/PSyclone/branch/master/graph/badge.svg)](https://codecov.io/gh/stfc/PSyclone)
 
 PSyclone is a source-to-source Fortran compiler designed to programmatically
-optimise and parallelise HPC applications using user-provided transformation
-scripts. These scripts offer a separation of concerns between the science code
-and the performance portability implementation choices, allowing to experiment
-and develop with each side independenly. Additonally, PSyclone supports the
-development of kernel-based Fortran-embedded DSLs following the PSyKAl model
-developed in the [GungHo project](https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation).
+optimise, parallelise and instrument HPC applications via user-provided
+transformation scripts. By encapsulating the performance-portability aspects
+(e.g. whether to parallelise with OpenMP or OpenACC), these scripts enable
+a separation of concerns between the scientific implementation and the
+optimisation choices. This allows each aspect to be explored and developed
+largely independently.
+Additionally, PSyclone supports the development of kernel-based Fortran-embedded
+DSLs following the PSyKAl model developed in the
+[GungHo project](https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation).
 
-PSyclone is currently used to support the
-[LFRic PSyKAl mixed finete elements DSL](https://www.metoffice.gov.uk/research/modelling-systems/lfric/)
-for the UK MetOffice's next generation modelling system and the
-[GOcean finite difference prototype DSL](https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1).
-It is also used to insert GPU offloading directives to existing
-directly-addressed MPI applications such as the [NEMO ocean model](https://www.nemo-ocean.eu/).
+PSyclone is currently used to support the [LFRic PSyKAl mixed finite-element
+DSL](https://www.metoffice.gov.uk/research/modelling-systems/lfric/)
+for the [UK MetOffice's next generation modelling
+system](https://www.metoffice.gov.uk/research/modelling-systems/lfric/) and
+the [GOcean finite difference
+DSL](https://psyclone.readthedocs.io/en/latest/gocean1p0.html) for a [prototype
+2D ocean model](https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1).
+It is also used to [insert GPU offloading
+directives](https://psyclone.readthedocs.io/en/latest/nemo.html) to existing
+directly-addressed MPI applications such as the
+[NEMO ocean model](https://www.nemo-ocean.eu/).
 
-For more detailed information see the [psyclone.pdf](psyclone.pdf) in this directory
-or the [PSyclone User's Guide](http://psyclone.readthedocs.io).
+For more detailed information see the [psyclone.pdf](psyclone.pdf) in this
+directory or the [PSyclone User Guide](http://psyclone.readthedocs.io).
 
 # Installation #
 
@@ -29,7 +37,8 @@ You can install the latest release of psyclone from PyPI by using:
 
     $ pip install psyclone
 
-or, if you do not have root access or want an isolated installation:
+or, if you want an isolated installation in a [python virtual
+environment](https://docs.python.org/3/library/venv.html):
 
     $ python -m venv <virtual_env_name>
     $ source <virtual_env_name>/bin/activate
@@ -41,14 +50,14 @@ cloning this repository and using:
     $ pip install .
 
 For more information about the installation process see
-[this section of the user's guide](https://psyclone.readthedocs.io/en/stable/system_specific_setup.html).
+[this section of the User Guide](https://psyclone.readthedocs.io/en/latest/system_specific_setup.html).
 
 # Try it on Binder #
 
 Some of the examples are available as Jupyter notebooks. These may
 be launched using Binder from the links below. (Note that the first time
 this is done, Binder has to construct a Container and install the necessary
-software. This can  take several minutes. You can track its progress
+software. This can take several minutes. You can track its progress
 by clicking the 'show' link next to the 'Build logs' heading.)
 
  * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=tutorial%2Fnotebooks%2Fintroduction.ipynb) The **PSyclone Tutorial**. Note that we currently recommend following the more up-to-date README files under the `tutorials/practicals` directory.
