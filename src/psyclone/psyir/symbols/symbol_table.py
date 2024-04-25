@@ -1093,7 +1093,7 @@ class SymbolTable():
             from psyclone.psyir.nodes import Call
             all_calls = self.node.walk(Call) if self.node else []
             for call in all_calls:
-                if call.routine is symbol:
+                if call.routine.symbol is symbol:
                     raise ValueError(
                         f"Cannot remove RoutineSymbol '{symbol.name}' "
                         f"because it is referenced by '{call.debug_string()}'")
