@@ -1,5 +1,5 @@
 <p align="left">
-  <img width="500" src="doc/logo/psyclone_v1.0.png">
+  <img width="460" src="doc/logo/psyclone_v1.0.png">
 </p>
 
 ![Build Status](https://github.com/stfc/PSyclone/workflows/PSyclone%20tests%20and%20examples/badge.svg)
