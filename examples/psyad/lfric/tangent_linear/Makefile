@@ -63,6 +63,7 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=strong_curl_kernel ACTIVE_VAR_LIST="xi res_dot_product curl_u u"
 	$(MAKE) single -e TL_KERNEL_NAME=poly1d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=poly2d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
+	$(MAKE) single -e TL_KERNEL_NAME=apply_helmholtz_operator_kernel ACTIVE_VAR_LIST="y x"
 	# The following files no not need any modification after PSyAD processing so
 	# go straight into the adjoint directory.
 	$(MAKE) single -e TL_KERNEL_NAME=transpose_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x_e x" OUT_DIR="../adjoint"
