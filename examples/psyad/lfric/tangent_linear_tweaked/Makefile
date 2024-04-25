@@ -84,7 +84,7 @@ transform:
 	# subroutine which is passed cell indices.
 	$(MAKE) single -e TL_KERNEL_NAME=poly1d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=poly2d_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction tracer"
-	$(MAKE) single -e TL_KERNEL_NAME=tl_pressure_gradient_bd_kernel ACTIVE_VAR_LIST="r_u_bd exner pressure_gradient_bd_e bdary_term exner_av theta_v_at_fquad theta_v_e exner_e exner_next_e theta moist_dyn_tot moist_dyn_gas"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_pressure_gradient_bd_kernel ACTIVE_VAR_LIST="r_u_bd exner bdary_term exner_av theta_v_at_fquad theta_v_e exner_e exner_next_e theta moist_dyn_tot moist_dyn_gas"
 	# Uses array constructors to initialise two arrays.
 	$(MAKE) single -e TL_KERNEL_NAME=poly_adv_update_kernel ACTIVE_VAR_LIST="tracer reconstruction dtdy dtdx advective"
 
