@@ -337,24 +337,6 @@ class Call(Statement, DataNode):
             return self.children[1:]
         return []
 
-    @routine.setter
-    def routine(self, value):
-        '''
-        Set the Symbol that this Call targets.
-
-        :param value: the new Symbol target of the Call.
-        :type value: :py:class:`psyclone.psyir.symbols.Symbol`
-
-        :raises TypeError: if `value` is of the wrong type.
-
-        '''
-        import pdb; pdb.set_trace()
-        if not isinstance(value, Symbol):
-            raise TypeError(
-                f"Error setting 'routine' property of Call. Expected a "
-                f"'Symbol' (or sub-class) but got '{type(value).__name__}'")
-        self._routine = value
-
     @property
     def is_elemental(self):
         '''
