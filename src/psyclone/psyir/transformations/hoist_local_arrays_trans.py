@@ -168,12 +168,12 @@ then
             # symbol name already present at container scope. (The validate()
             # method will already have checked for tag clashes.)
             try:
-                container.symbol_table.add(sym, tag=tags_dict.get(sym.name))
+                container.symbol_table.add(sym, tag=tags_dict.get(sym))
             except KeyError:
                 new_name = container.symbol_table.next_available_name(
                     sym.name, other_table=node.symbol_table)
                 node.symbol_table.rename_symbol(sym, new_name)
-                container.symbol_table.add(sym, tag=tags_dict.get(sym.name))
+                container.symbol_table.add(sym, tag=tags_dict.get(sym))
 
             # Create the array reference that will be the argument to the
             # new memory allocation statement.

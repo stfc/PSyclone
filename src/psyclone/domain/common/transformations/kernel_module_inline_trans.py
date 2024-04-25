@@ -189,43 +189,41 @@ class KernelModuleInlineTrans(Transformation):
         # pylint: disable=too-many-branches
         source_container = code_to_inline.ancestor(Container)
 
-        # First make a dict with all symbols used inside the subroutine
-        all_symbols = {}
+        # First make a set with all symbols used inside the subroutine
+        all_symbols = set()
         for scope in code_to_inline.walk(ScopingNode):
             for symbol in scope.symbol_table.symbols:
-                all_symbols[symbol.name] = symbol
+                all_symbols.add(symbol)
         for reference in code_to_inline.walk(Reference):
-            all_symbols[reference.symbol.name] = reference.symbol
+            all_symbols.add(reference.symbol)
         for literal in code_to_inline.walk(Literal):
             # Literals may reference symbols in their precision
             if isinstance(literal.datatype.precision, Symbol):
-                sym = literal.datatype.precision
-                all_symbols[sym.name] = literal.datatype.precision
+                all_symbols.add(literal.datatype.precision)
         for caller in code_to_inline.walk(Call):
             all_symbols.add(caller.routine.symbol)
         for cblock in code_to_inline.walk(CodeBlock):
             for name in cblock.get_symbol_names():
-                all_symbols[name] = cblock.scope.symbol_table.lookup(name)
+                all_symbols.add(cblock.scope.symbol_table.lookup(name))
 
         # Then decide which symbols need to be brought inside the subroutine
-        symbols_to_bring_in = {}
-        for symbol in all_symbols.values():
+        symbols_to_bring_in = set()
+        for symbol in all_symbols:
             if symbol.is_unresolved or symbol.is_import:
                 # This symbol is already in the symbol table, but adding it
                 # to the 'symbols_to_bring_in' will make the next step bring
                 # into the subroutine all modules that it could come from.
-                symbols_to_bring_in[symbol.name] = symbol
+                symbols_to_bring_in.add(symbol)
             if isinstance(symbol, DataSymbol):
                 # DataTypes can reference other symbols
                 if isinstance(symbol.datatype, DataTypeSymbol):
-                    symbols_to_bring_in[symbol.datatype.name] = symbol.datatype
+                    symbols_to_bring_in.add(symbol.datatype)
                 elif hasattr(symbol.datatype, 'precision'):
                     if isinstance(symbol.datatype.precision, Symbol):
-                        sym = symbol.datatype.precision
-                        symbols_to_bring_in[sym.name] = sym
+                        symbols_to_bring_in.add(symbol.datatype.precision)
 
         # Bring the selected symbols inside the subroutine
-        for symbol in symbols_to_bring_in.values():
+        for symbol in symbols_to_bring_in:
             if symbol.name not in code_to_inline.symbol_table:
                 code_to_inline.symbol_table.add(symbol)
             # And when necessary the modules where they come from
