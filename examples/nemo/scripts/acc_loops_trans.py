@@ -37,11 +37,12 @@
 ''' PSyclone transformation script showing the introduction of OpenACC loop
 directives into Nemo code. '''
 
-from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information, add_profiling
-from psyclone.psyir.nodes import Call, Loop
-from psyclone.transformations import ACCParallelTrans, ACCLoopTrans
-from psyclone.transformations import ACCRoutineTrans
+from utils import (
+    insert_explicit_loop_parallelism, normalise_loops,
+    enhance_tree_information, add_profiling)
+from psyclone.psyir.nodes import Loop
+from psyclone.transformations import (
+    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans, TransformationError)
 
 PROFILING_ENABLED = True
 
@@ -119,13 +120,14 @@ def trans(psy):
         # For performance in lib_fortran, mark serial routines as GPU-enabled
         if psy.name == "psy_lib_fortran_psy":
             if not invoke.schedule.walk(Loop):
-                calls = invoke.schedule.walk(Call)
-                if all(call.is_available_on_device() for call in calls):
+                try:
+                    # We need the 'force' option.
                     # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
                     # array notation. (TODO #717)
                     ACCRoutineTrans().apply(invoke.schedule,
                                             options={"force": True})
-                    continue
+                except TransformationError as err:
+                    print(err)
 
         insert_explicit_loop_parallelism(
             invoke.schedule,

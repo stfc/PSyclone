@@ -46,7 +46,8 @@ from psyclone.psyir.symbols import (
     DataSymbol, DataTypeSymbol, ContainerSymbol, GenericInterfaceSymbol,
     RoutineSymbol, ScalarType, Symbol, SymbolTable, UnresolvedType,
     StructureType, ImportInterface, UnresolvedInterface, ArgumentInterface,
-    INTEGER_TYPE, REAL_TYPE, StaticInterface)
+    INTEGER_TYPE, REAL_TYPE, StaticInterface, PreprocessorInterface,
+    CHARACTER_TYPE)
 
 
 def test_gen_param_decls_dependencies(fortran_writer):
@@ -176,6 +177,21 @@ def test_gen_decls(fortran_writer):
                       "integer :: local\n"
                       "type(grid_type) :: grid\n")
     result = fortran_writer.gen_decls(symbol_table)
+
+    # Add a Symbol with PreprocessorInterface which has to be ignored by
+    # the gen_decl method (as no declarations is needed)
+    preprocessor_variable = DataSymbol("__LINE__", CHARACTER_TYPE,
+                                       interface=PreprocessorInterface())
+    symbol_table.add(preprocessor_variable)
+    result = fortran_writer.gen_decls(symbol_table)
+    assert (result == "integer, parameter :: rlg = 8\n"
+                      "integer :: arg\n"
+                      "type :: field\n"
+                      "  integer :: flag\n"
+                      "end type field\n"
+                      "integer :: local\n"
+                      "type(grid_type) :: grid\n")
+
     # We can't have an argument if these declarations are in a module.
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_decls(symbol_table, is_module_scope=True)
