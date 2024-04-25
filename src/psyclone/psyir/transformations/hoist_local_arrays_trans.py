@@ -246,7 +246,7 @@ then
             # support DataSymbols.
             # pylint: disable=protected-access
             del node.symbol_table._symbols[sym.name]
-            tag = tags_dict.get(sym.name)
+            tag = tags_dict.get(sym)
             if tag:
                 del node.symbol_table._tags[tag]
 
@@ -353,7 +353,7 @@ then
         tags_dict = node.symbol_table.get_reverse_tags_dict()
         cont_tags_dict = container.symbol_table.tags_dict
         for sym in auto_arrays:
-            tag = tags_dict.get(sym.name)
+            tag = tags_dict.get(sym)
             if tag in cont_tags_dict:
                 raise TransformationError(
                     f"The supplied routine '{node.name}' contains a local "

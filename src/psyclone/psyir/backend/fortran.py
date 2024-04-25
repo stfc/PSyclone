@@ -1189,13 +1189,11 @@ class FortranWriter(LanguageWriter):
                 sched_table = schedule.symbol_table
                 # We can't declare a routine inside itself so make sure we
                 # skip any RoutineSymbol representing this routine.
-                skip = set()
                 try:
                     rsym = sched_table.lookup_with_tag("own_routine_symbol")
-                    if isinstance(rsym, RoutineSymbol):
-                        skip.add(rsym.name)
+                    skip = [rsym] if isinstance(rsym, RoutineSymbol) else []
                 except KeyError:
-                    pass
+                    skip = []
                 whole_routine_scope.merge(sched_table, skip)
                 if schedule is node:
                     # Replace the Routine's symbol table as soon as we've

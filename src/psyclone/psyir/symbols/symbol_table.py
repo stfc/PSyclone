@@ -630,7 +630,7 @@ class SymbolTable():
         unique_wildcard_imports = self_imports ^ other_imports
 
         for other_sym in other_table.symbols:
-            if other_sym.name not in self or other_sym.name in symbols_to_skip:
+            if other_sym.name not in self or other_sym in symbols_to_skip:
                 continue
             # We have a name clash.
             this_sym = self.lookup(other_sym.name)
@@ -772,8 +772,8 @@ class SymbolTable():
         '''
         for old_sym in other_table.symbols:
 
-            if old_sym.name in symbols_to_skip or isinstance(old_sym,
-                                                             ContainerSymbol):
+            if old_sym in symbols_to_skip or isinstance(old_sym,
+                                                        ContainerSymbol):
                 # We've dealt with Container symbols in _add_container_symbols.
                 continue
 
@@ -1289,7 +1289,7 @@ class SymbolTable():
         Constructs and returns a reverse of the map returned by tags_dict
         method.
 
-        :returns: ordered dictionary of tags indexed by symbol name.
+        :returns: ordered dictionary of tags indexed by symbol.
         :rtype: OrderedDict[:py:class:`psyclone.psyir.symbols.Symbol`, str]
 
         '''
@@ -1298,7 +1298,7 @@ class SymbolTable():
         # with a particular Symbol. At present this is guaranteed by the
         # SymbolTable interface but this restriction may be lifted in future.
         for tag, sym in self._tags.items():
-            tags_dict_reversed[sym.name] = tag
+            tags_dict_reversed[sym] = tag
         return tags_dict_reversed
 
     @property
