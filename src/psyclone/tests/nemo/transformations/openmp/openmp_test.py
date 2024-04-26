@@ -57,9 +57,9 @@ def test_omp_explicit_gen():
     schedule = invoke_info.schedule
     omp_trans = TransInfo().get_trans_name('OMPParallelLoopTrans')
     Loop.set_loop_type_inference_rules({
-            "lon": {"var": "ji", "start": "1", "stop": "jpi"},
-            "lat": {"var": "jj", "start": "1", "stop": "jpj"},
-            "levels": {"var": "jk", "start": "1", "stop": "jpk"}
+            "lon": {"variable": "ji"},
+            "lat": {"variable": "jj"},
+            "levels": {"variable": "jk"}
     })
 
     for loop in schedule.loops():

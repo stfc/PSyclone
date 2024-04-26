@@ -141,9 +141,12 @@ class Loop(Statement):
         instances of the Loop class. For example:
 
         rules = {
-            "lon": {"var": "ji", "start": "1", "stop": "jpi"},
-            "lat": {"var": "jj", "start": "1", "stop": "jpj"}
+            "lon": {"variable": "ji"},
+            "lat": {"variable": "jj"}
         }
+
+        :param rules: new set of rules to infere loop_types.
+        :type rules: dict[src, dict[src, src]]
         '''
         if rules is None:
             cls._loop_type_inference_rules = None
@@ -165,16 +168,16 @@ class Loop(Statement):
                     raise TypeError(
                         f"All the values of the rule definition must be "
                         f"of type 'str' but found '{rule}'.")
-            if "var" not in rule:
-                raise TypeError(f"A rule must at least have a 'var' field to "
-                                f"specify the loop variable name that defines "
-                                f"this loop_type, but the rule for '{key}' "
-                                f"does not have it.")
+            if "variable" not in rule:
+                raise TypeError(f"A rule must at least have a 'variable' field"
+                                f" to specify the loop variable name that "
+                                f"defines this loop_type, but the rule for "
+                                f"'{key}' does not have it.")
 
         # Convert the rules to a dictionary with var as a key
         inference_rules = {}
         for key, rule in rules.items():
-            inference_rules[rule["var"]] = key
+            inference_rules[rule["variable"]] = key
         cls._loop_type_inference_rules = inference_rules
 
     @staticmethod

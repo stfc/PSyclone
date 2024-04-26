@@ -120,10 +120,10 @@ def test_schedule_view():
     _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
     sched = invoke_info.schedule
     Loop.set_loop_type_inference_rules({
-            "lon": {"var": "ji", "start": "1", "stop": "jpi"},
-            "lat": {"var": "jj", "start": "1", "stop": "jpj"},
-            "levels": {"var": "jk", "start": "1", "stop": "jpk"},
-            "tracers": {"var": "jt", "start": "1", "stop": ""}
+            "lon": {"variable": "ji"},
+            "lat": {"variable": "jj"},
+            "levels": {"variable": "jk"},
+            "tracers": {"variable": "jt"}
     })
     sched_str = str(sched)
     assert "Loop[variable:'ji', loop_type:'lon']" in sched_str

@@ -510,11 +510,11 @@ def test_set_loop_type_inference_rules():
             "but found" in str(err.value))
     with pytest.raises(TypeError) as err:
         Loop.set_loop_type_inference_rules({"a": {"invalid": "name"}})
-    assert ("A rule must at least have a 'var' field to specify the loop "
+    assert ("A rule must at least have a 'variable' field to specify the loop "
             "variable name that defines this loop_type, but the rule for "
             "'a' does not have it." in str(err.value))
 
-    Loop.set_loop_type_inference_rules({"a": {"var": "name"}})
+    Loop.set_loop_type_inference_rules({"a": {"variable": "name"}})
 
 
 def test_loop_type(fortran_reader):
@@ -533,8 +533,8 @@ def test_loop_type(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source(code)
     Loop.set_loop_type_inference_rules({
-            "lon": {"var": "ji", "start": "1", "stop": "jpi"},
-            "lat": {"var": "jj", "start": "1", "stop": "jpj"}
+            "lon": {"variable": "ji"},
+            "lat": {"variable": "jj"}
     })
     outer_loop = psyir.walk(Loop)[0]
     assert outer_loop.loop_type == "lat"

@@ -41,11 +41,13 @@ from psyclone.psyGen import TransInfo
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.nodes import Loop
 
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
 Loop.set_loop_type_inference_rules({
-        "lon": {"var": "ji", "start": "1", "stop": "jpi"},
-        "lat": {"var": "jj", "start": "1", "stop": "jpj"},
-        "levels": {"var": "jk", "start": "1", "stop": "jpk"},
-        "tracers": {"var": "jt", "start": "1", "stop": ""}
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
 })
 
 
