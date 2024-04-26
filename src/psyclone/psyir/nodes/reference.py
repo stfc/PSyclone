@@ -208,7 +208,7 @@ class Reference(DataNode):
         if routine is None:
             routine = self.root
         var_access = VariablesAccessInfo(nodes=routine)
-        signature, indices = self.get_signature_and_indices()
+        signature, _ = self.get_signature_and_indices()
         all_accesses = var_access[signature].all_accesses
         index = -1
         # Find my position in the VariablesAccesInfo

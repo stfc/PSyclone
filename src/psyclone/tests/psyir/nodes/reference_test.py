@@ -332,6 +332,7 @@ def test_reference_next_access(fortran_reader):
 
 
 def test_reference_next_access_with_codeblock(fortran_reader):
+    ''' Test when te next_access is a Codeblock. '''
     code = '''subroutine my_sub()
     character, dimension(100) :: a
     a = "test"
@@ -488,9 +489,12 @@ end module my_mod'''
     refs = b_sym.initial_value.walk(Reference)
     assert refs[0].next_access() == refs[1]
     assert refs[1].previous_access() == refs[0]
+    assert refs[0].previous_access() is None
+    assert refs[1].next_access() is None
 
 
 def test_reference_previous_access_with_codeblock(fortran_reader):
+    ''' Test when te previous_access is a Codeblock. '''
     code = '''subroutine my_sub()
     character, dimension(100) :: a
     write(a, "A") "mytest"
