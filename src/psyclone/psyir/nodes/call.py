@@ -340,9 +340,9 @@ class Call(Statement, DataNode):
     @property
     def is_elemental(self):
         '''
-        :returns: whether the routine being called is elemental (provided with\
-            an input array it will apply the operation individually to each of\
-            the array elements and return an array with the results). If this \
+        :returns: whether the routine being called is elemental (provided with
+            an input array it will apply the operation individually to each of
+            the array elements and return an array with the results). If this
             information is not known then it returns None.
         :rtype: NoneType | bool
         '''
