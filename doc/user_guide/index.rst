@@ -48,7 +48,7 @@ PSyclone User Guide
 .. only:: html
 
     PSyclone is a source-to-source Fortran compiler designed to programmatically
-    optimise, parallelise and instrument HPC applications via user-provide
+    optimise, parallelise and instrument HPC applications via user-provided
     transformation scripts.
 
     By encapsulating the performance-portability aspects (e.g. whether to
@@ -65,9 +65,9 @@ PSyclone User Guide
     modelling system and the
     `GOcean <https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1>`_
     finite-difference PSyKAl DSL for a prototype 2D ocean modelling system.
-    It is also used to insert GPU offloading directives to existing
+    It is also used to insert GPU offloading directives into existing
     directly-addressed MPI applications such as the
-    `NEMO ocean model <https://www.nemo-ocean.eu/>`_ ocean model.
+    `NEMO ocean model <https://www.nemo-ocean.eu/>`_.
 
     More detailed implementation information is available in the
     `Developer Guide <https://psyclone-dev.readthedocs.io/>`_

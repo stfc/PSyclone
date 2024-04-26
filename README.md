@@ -24,7 +24,7 @@ the [GOcean finite-difference PSyKAl
 DSL](https://psyclone.readthedocs.io/en/latest/gocean1p0.html) for a [prototype
 2D ocean modelling system](https://gtr.ukri.org/projects?ref=NE%2FL01209X%2F1).
 It is also used to [insert GPU offloading
-directives](https://psyclone.readthedocs.io/en/latest/nemo.html) to existing
+directives](https://psyclone.readthedocs.io/en/latest/nemo.html) into existing
 directly-addressed MPI applications such as the
 [NEMO ocean model](https://www.nemo-ocean.eu/).
 
