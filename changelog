@@ -29,6 +29,34 @@
 	11) PR #2511 for #2510. Array2Loop transformations avoid character arrays
 	unless requested in the transformation options.
 
+	12) PR #2521 for #2520. Fix issue with line_length runme example.
+
+	13) PR #2539 for #2538. Add PSyIR Symbol PreprocessorInterface.
+
+	14) PR #2540 for #2537. Add 'allow_renaming' parameter to the symbol_table
+	new_symbol method and improve its import handling.
+
+	15) PR #2497 for #2496. Updates the GOcean access-info functionality
+	to use PSyIR rather than strings for indices.
+
+	16) PR #2549 for #2548. Update Codecov action.
+
+	17) PR #2396 for #2229. Add PSyIR support for select-type (the selector is
+	still a CodeBlock but the case bodies are transferred to a conditional
+	construct after the CodeBlock).
+
+	18) PR #2545 for #2544. Accept -c as shortcut for --config in the CLIs.
+
+	19) PR #2527 for #1495. Add PSyIR support for type-bound procedure
+	calls.
+
+	20) PR #2529 towards #1779. Generalise NemoArrayAccess2Loop
+	transformation to ArrayAccess2Loop.
+
+	21) PR #2517 for #2515. Fix bugs in the symbol_table merge method.
+
+	22) PR #2553 for #2449. Add next/previous_access reference method.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

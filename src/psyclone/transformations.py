@@ -58,10 +58,9 @@ from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
                              BuiltIn)
 from psyclone.psyir.nodes import (
-    ACCDataDirective, ACCDirective,
-    ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective,
-    ACCParallelDirective, ACCRoutineDirective, Assignment, Call, CodeBlock,
-    Directive, IntrinsicCall, Loop, Node, OMPDeclareTargetDirective,
+    ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
+    ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective, Assignment,
+    Call, CodeBlock, Directive, Loop, Node, OMPDeclareTargetDirective,
     OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
@@ -356,7 +355,133 @@ class OMPTaskloopTrans(ParallelLoopTrans):
             self.omp_nogroup = current_nogroup
 
 
-class OMPDeclareTargetTrans(Transformation):
+class MarkRoutineForGPUMixin:
+    ''' This Mixin provides the "validate_it_can_run_on_gpu" method that
+    given a routine or kernel node, it checks that the callee code is valid
+    to run on a GPU. It is implemented as a Mixin because transformations
+    from multiple programming models, e.g. OpenMP and OpenACC, can reuse
+    the same logic.
+
+    '''
+    def validate_it_can_run_on_gpu(self, node, options):
+        '''
+        Check that the supplied node can be marked as available to be
+        called on GPU.
+
+        :param node: the kernel or routine to validate.
+        :type node: :py:class:`psyclone.psyGen.Kern` |
+                    :py:class:`psyclone.psyir.nodes.Routine`
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
+
+        :raises TransformationError: if the node is not a kernel or a routine.
+        :raises TransformationError: if the target is a built-in kernel.
+        :raises TransformationError: if it is a kernel but without an
+                                     associated PSyIR.
+        :raises TransformationError: if any of the symbols in the kernel are
+                                     accessed via a module use statement.
+        :raises TransformationError: if the kernel contains any calls to other
+                                     routines.
+        '''
+        force = options.get("force", False) if options else False
+
+        if not isinstance(node, (Kern, Routine)):
+            raise TransformationError(
+                f"The {type(self).__name__} must be applied to a sub-class of "
+                f"Kern or Routine but got '{type(node).__name__}'.")
+
+        # If it is a kernel call it must have an accessible implementation
+        if isinstance(node, BuiltIn):
+            raise TransformationError(
+                f"Applying {type(self).__name__} to a built-in kernel is not "
+                f"yet supported and kernel '{node.name}' is of type "
+                f"'{type(node).__name__}'")
+
+        if isinstance(node, Kern):
+            # Get the PSyIR routine from the associated kernel. If there is an
+            # exception (this could mean that there is no associated tree
+            # or that the frontend failed to convert it into PSyIR) reraise it
+            # as a TransformationError
+            try:
+                kernel_schedule = node.get_kernel_schedule()
+            except Exception as error:
+                raise TransformationError(
+                    f"Failed to create PSyIR for kernel '{node.name}'. "
+                    f"Cannot transform such a kernel.") from error
+            k_or_r = "Kernel"
+        else:
+            # Supplied node is a PSyIR Routine which *is* a Schedule.
+            kernel_schedule = node
+            k_or_r = "routine"
+
+        # Check that the routine does not access any data that is imported via
+        # a 'use' statement.
+        # TODO #2271 - this implementation will not catch symbols from literal
+        # precisions or intialisation expressions.
+        refs = kernel_schedule.walk(Reference)
+        for ref in refs:
+            if ref.symbol.is_import:
+                # resolve_type does nothing if the Symbol type is known.
+                try:
+                    ref.symbol.resolve_type()
+                except SymbolError:
+                    # TODO #11 - log that we failed to resolve this Symbol.
+                    pass
+                if (isinstance(ref.symbol, DataSymbol) and
+                        ref.symbol.is_constant):
+                    # An import of a compile-time constant is fine.
+                    continue
+                raise TransformationError(
+                    f"{k_or_r} '{node.name}' accesses the symbol "
+                    f"'{ref.symbol}' which is imported. If this symbol "
+                    f"represents data then it must first be converted to a "
+                    f"{k_or_r} argument using the KernelImportsToArguments "
+                    f"transformation.")
+
+        # We forbid CodeBlocks because we can't be certain that what they
+        # contain can be executed on a GPU. However, we do permit the user
+        # to override this check.
+        cblocks = kernel_schedule.walk(CodeBlock)
+        if not force:
+            if cblocks:
+                cblock_txt = ("\n  " + "\n  ".join(str(node) for node in
+                                                   cblocks[0].get_ast_nodes)
+                              + "\n")
+                option_txt = "options={'force': True}"
+                raise TransformationError(
+                    f"Cannot safely apply {type(self).__name__} to {k_or_r} "
+                    f"'{node.name}' because its PSyIR contains one or more "
+                    f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
+                    f"override this check.")
+        else:
+            # Check any accesses within CodeBlocks.
+            # TODO #2271 - this will be handled as part of the checking to be
+            # implemented using the dependence analysis.
+            for cblock in cblocks:
+                names = cblock.get_symbol_names()
+                for name in names:
+                    sym = kernel_schedule.symbol_table.lookup(name)
+                    if sym.is_import:
+                        raise TransformationError(
+                            f"{k_or_r} '{node.name}' accesses the symbol "
+                            f"'{sym.name}' within a CodeBlock and this symbol "
+                            f"is imported. {type(self).__name__} cannot be "
+                            f"applied to such a {k_or_r}.")
+
+        calls = kernel_schedule.walk(Call)
+        for call in calls:
+            if not call.is_available_on_device():
+                call_str = call.debug_string().rstrip("\n")
+                raise TransformationError(
+                    f"{k_or_r} '{node.name}' calls another routine "
+                    f"'{call_str}' which is not available on the "
+                    f"accelerator device and therefore cannot have "
+                    f"{type(self).__name__} applied to it (TODO #342).")
+
+
+class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
     '''
     Adds an OpenMP declare target directive to the specified routine.
 
@@ -416,49 +541,28 @@ class OMPDeclareTargetTrans(Transformation):
     def validate(self, node, options=None):
         ''' Check that an OMPDeclareTargetDirective can be inserted.
 
-        :param node: the PSyIR node to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param node: the kernel or routine which is the target of this
+            transformation.
+        :type node: :py:class:`psyclone.psyGen.Kern` |
+                    :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
 
-        :raises TransformationError: if the node is not a Routine
+        :raises TransformationError: if the node is not a kernel or a routine.
+        :raises TransformationError: if the target is a built-in kernel.
+        :raises TransformationError: if it is a kernel but without an
+                                     associated PSyIR.
+        :raises TransformationError: if any of the symbols in the kernel are
+                                     accessed via a module use statement.
+        :raises TransformationError: if the kernel contains any calls to other
+                                     routines.
 
         '''
         super().validate(node, options=options)
-        # Check that the supplied Node is a Routine
-        if not isinstance(node, Routine):
-            raise TransformationError(
-                f"The OMPDeclareTargetTrans must be applied to a Routine, "
-                f"but found: '{type(node).__name__}'.")
 
-        # Check that the kernel does not access any data or routines via a
-        # module 'use' statement or that are not captured by the SymbolTable
-        for candidate in node.walk((Reference, CodeBlock)):
-            if isinstance(candidate, CodeBlock):
-                names = candidate.get_symbol_names()
-            else:
-                names = [candidate.name]
-            for name in names:
-                try:
-                    candidate.scope.symbol_table.lookup(name, scope_limit=node)
-                except KeyError as err:
-                    raise TransformationError(
-                        f"Kernel '{node.name}' contains accesses to data "
-                        f"(variable '{name}') that are not present in the "
-                        f"Symbol Table(s) within the scope of this routine. "
-                        f"Cannot transform such a kernel.") from err
-
-        imported_variables = node.symbol_table.imported_symbols
-        if imported_variables:
-            raise TransformationError(
-                f"The Symbol Table for kernel '{node.name}' contains the "
-                f"following symbol(s) with imported interface: "
-                f"{[sym.name for sym in imported_variables]}. If these "
-                f"symbols represent data then they must first be converted"
-                f" to kernel arguments using the KernelImportsToArguments "
-                f"transformation. If the symbols represent external "
-                f"routines then PSyclone cannot currently transform this "
-                f"kernel for execution on an OpenMP target.")
+        self.validate_it_can_run_on_gpu(node, options)
 
 
 class ACCLoopTrans(ParallelLoopTrans):
@@ -2405,7 +2509,7 @@ class ACCEnterDataTrans(Transformation):
                                       "region - cannot add an enter data.")
 
 
-class ACCRoutineTrans(Transformation):
+class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
     '''
     Transform a kernel or routine by adding a "!$acc routine" directive
     (causing it to be compiled for the OpenACC accelerator device).
@@ -2471,11 +2575,14 @@ class ACCRoutineTrans(Transformation):
         '''
         Perform checks that the supplied kernel or routine can be transformed.
 
-        :param node: the kernel which is the target of the transformation.
+        :param node: the kernel or routine which is the target of this
+            transformation.
         :type node: :py:class:`psyclone.psyGen.Kern` |
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
@@ -2488,99 +2595,7 @@ class ACCRoutineTrans(Transformation):
         '''
         super().validate(node, options)
 
-        force = options.get("force", False) if options else False
-
-        if not isinstance(node, Kern) and not isinstance(node, Routine):
-            raise TransformationError(
-                f"The ACCRoutineTrans must be applied to a sub-class of "
-                f"Kern or Routine but got '{type(node).__name__}'.")
-
-        # If it is a kernel call it must have an accessible implementation
-        if isinstance(node, BuiltIn):
-            raise TransformationError(
-                f"Applying ACCRoutineTrans to a built-in kernel is not yet"
-                f" supported and kernel '{node.name}' is of type "
-                f"'{type(node).__name__}'")
-
-        if isinstance(node, Kern):
-            # Get the PSyIR routine from the associated kernel. If there is an
-            # exception (this could mean that there is no associated tree
-            # or that the frontend failed to convert it into PSyIR) reraise it
-            # as a TransformationError
-            try:
-                kernel_schedule = node.get_kernel_schedule()
-            except Exception as error:
-                raise TransformationError(
-                    f"Failed to create PSyIR for kernel '{node.name}'. "
-                    f"Cannot transform such a kernel.") from error
-            k_or_r = "Kernel"
-        else:
-            # Supplied node is a PSyIR Routine which *is* a Schedule.
-            kernel_schedule = node
-            k_or_r = "routine"
-
-        # Check that the routine does not access any data that is imported via
-        # a 'use' statement.
-        # TODO #2271 - this implementation will not catch symbols from literal
-        # precisions or intialisation expressions.
-        refs = kernel_schedule.walk(Reference)
-        for ref in refs:
-            if ref.symbol.is_import:
-                # resolve_type does nothing if the Symbol type is known.
-                try:
-                    ref.symbol.resolve_type()
-                except SymbolError:
-                    # TODO #11 - log that we failed to resolve this Symbol.
-                    pass
-                if (isinstance(ref.symbol, DataSymbol) and
-                        ref.symbol.is_constant):
-                    # An import of a compile-time constant is fine.
-                    continue
-                raise TransformationError(
-                    f"{k_or_r} '{node.name}' accesses the symbol "
-                    f"'{ref.symbol}' which is imported. If this symbol "
-                    f"represents data then it must first be converted to a "
-                    f"{k_or_r} argument using the KernelImportsToArguments "
-                    f"transformation.")
-
-        # We forbid CodeBlocks because we can't be certain that what they
-        # contain can be executed on a GPU. However, we do permit the user
-        # to override this check.
-        cblocks = kernel_schedule.walk(CodeBlock)
-        if not force:
-            if cblocks:
-                cblock_txt = ("\n  " + "\n  ".join(str(node) for node in
-                                                   cblocks[0].get_ast_nodes)
-                              + "\n")
-                option_txt = "options={'force': True}"
-                raise TransformationError(
-                    f"Cannot safely add 'ACC routine' to {k_or_r} "
-                    f"'{node.name}' because its PSyIR contains one or more "
-                    f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
-                    f"override this check.")
-        else:
-            # Check any accesses within CodeBlocks.
-            # TODO #2271 - this will be handled as part of the checking to be
-            # implemented using the dependence analysis.
-            for cblock in cblocks:
-                names = cblock.get_symbol_names()
-                for name in names:
-                    sym = kernel_schedule.symbol_table.lookup(name)
-                    if sym.is_import:
-                        raise TransformationError(
-                            f"{k_or_r} '{node.name}' accesses the symbol "
-                            f"'{sym.name}' within a CodeBlock and this symbol "
-                            f"is imported. 'ACC routine' cannot be added to "
-                            f"such a {k_or_r}.")
-
-        calls = kernel_schedule.walk(Call)
-        for call in calls:
-            if not isinstance(call, IntrinsicCall):
-                call_str = call.debug_string().rstrip("\n")
-                raise TransformationError(
-                    f"{k_or_r} '{node.name}' calls another routine "
-                    f"'{call_str}' and therefore cannot have "
-                    f"'ACC routine' added to it (TODO #342).")
+        self.validate_it_can_run_on_gpu(node, options)
 
 
 class ACCKernelsTrans(RegionTrans):

@@ -50,7 +50,7 @@ from psyclone.psyir.nodes import (
     Literal)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
-        UnresolvedType, UnsupportedType, ArrayType
+        UnresolvedType, UnsupportedType, ArrayType, NoType
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
@@ -247,16 +247,15 @@ class NemoArrayRange2LoopTrans(Transformation):
                     f" that contain nested Range structures, but found:"
                     f"\n{assignment.debug_string()}"))
 
+        # Do a single walk to avoid doing a separate one for each type we need
+        nodes_to_check = assignment.walk((CodeBlock, Reference))
+
         # Does the rhs of the assignment have any operations/calls that are not
         # elemental?
         for cnode in assignment.rhs.walk(Call):
-            # Allow non elemental UBOUND and LBOUND.
-            # TODO #2156 - add support for marking routines as being 'inquiry'
-            # to improve this special-casing.
+            nodes_to_check.remove(cnode.routine)
             if isinstance(cnode, IntrinsicCall):
-                if cnode.intrinsic is IntrinsicCall.Intrinsic.LBOUND:
-                    continue
-                if cnode.intrinsic is IntrinsicCall.Intrinsic.UBOUND:
+                if cnode.intrinsic.is_inquiry:
                     continue
                 name = cnode.intrinsic.name
                 type_txt = "IntrinsicCall"
@@ -271,9 +270,6 @@ class NemoArrayRange2LoopTrans(Transformation):
                     f"-elemental {type_txt}s on the rhs of the associated "
                     f"Assignment node, but found '{name}' in:\n"
                     f"{assignment.debug_string()}'."))
-
-        # Do a single walk to avoid doing a separate one for each type we need
-        nodes_to_check = assignment.walk((CodeBlock, Reference))
 
         # Do not allow to transform expressions with CodeBlocks
         if any(isinstance(n, CodeBlock) for n in nodes_to_check):
@@ -336,10 +332,10 @@ class NemoArrayRange2LoopTrans(Transformation):
                 try:
                     # Skip unresolved types
                     if (isinstance(child.datatype,
-                                   (UnresolvedType, UnsupportedType)) or
-                        (isinstance(child.datatype, ArrayType) and
-                         isinstance(child.datatype.datatype,
-                                    (UnresolvedType, UnsupportedType)))):
+                                   (UnresolvedType, UnsupportedType, NoType))
+                        or (isinstance(child.datatype, ArrayType) and
+                            isinstance(child.datatype.datatype,
+                                       (UnresolvedType, UnsupportedType)))):
                         continue
                     if (child.datatype.intrinsic ==
                             ScalarType.Intrinsic.CHARACTER):

@@ -651,8 +651,8 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert not isinstance(call, CodedKern)
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
-    assert len(call.children) == number_of_arguments
-    assert isinstance(call.children[0], Literal)
+    assert len(call.arguments) == number_of_arguments
+    assert isinstance(call.arguments[0], Literal)
 
     # A RoutineSymbol and the ContainerSymbol from where it is imported are
     # in the symbol table
