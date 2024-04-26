@@ -42,7 +42,7 @@ from psyclone.core import AccessType
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import RoutineSymbol, Symbol
+from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.errors import GenerationError
 
 
