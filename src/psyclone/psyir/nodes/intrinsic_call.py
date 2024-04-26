@@ -796,6 +796,7 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
             IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
             # The one below are not documented on nvidia compiler
+            IntrinsicCall.Intrinsic.PRODUCT,
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
             IntrinsicCall.Intrinsic.UBOUND)
 
