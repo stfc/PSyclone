@@ -307,6 +307,29 @@ def test_reference_next_access(fortran_reader):
     assert a_2.next_access() is a_3
     assert a_3.next_access() is None
 
+    # Check else block behaviour
+    code = '''subroutine my_sub()
+   integer :: a
+   logical :: b = .false.
+   a = 1
+   if(b) then
+     a = 0
+   else
+     a = 1
+   end if
+   a = 2
+   end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].if_body.children[0].lhs
+    a_3 = routine.children[1].else_body.children[0].lhs
+    a_4 = routine.children[2].lhs
+    assert a.next_access() is a_2
+    assert a_2.next_access() is a_3
+    assert a_3.next_access() is a_4
+    assert a_4.next_access() is None
+
 
 def test_reference_next_access_with_codeblock(fortran_reader):
     code = '''subroutine my_sub()
@@ -398,7 +421,7 @@ def test_reference_previous_access(fortran_reader):
     assert a.previous_access() is None
     assert a_2.previous_access() is a
 
-    # Check if statements don't affect
+    # Check if statements
     code = '''subroutine my_sub()
    integer :: a
    logical :: b = .false.
@@ -416,6 +439,55 @@ def test_reference_previous_access(fortran_reader):
     assert a.previous_access() is None
     assert a_2.previous_access() is a
     assert a_3.previous_access() is a_2
+
+    # Check else block behaviour
+    code = '''subroutine my_sub()
+   integer :: a
+   logical :: b = .false.
+   a = 1
+   if(b) then
+     a = 0
+   else
+     a = 1
+   end if
+   a = 2
+   end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0]
+    a = routine.children[0].lhs
+    a_2 = routine.children[1].if_body.children[0].lhs
+    a_3 = routine.children[1].else_body.children[0].lhs
+    a_4 = routine.children[2].lhs
+    assert a.previous_access() is None
+    assert a_2.previous_access() is a
+    assert a_3.previous_access() is a_2
+    assert a_4.previous_access() is a_3
+
+
+def test_reference_accesses_initialisation_statement(fortran_reader):
+    ''' Test the behaviour of next and previous access
+    with initialisation statements, and also for initial_value since
+    this is outside of a Routine tree. '''
+    # Previous access doesn't find initial values from the symbol table
+    code = '''module my_mod
+   use external_mod, only: a
+   contains
+   subroutine my_sub()
+      integer :: b = a + a +1
+      b = a + 3
+   end subroutine my_sub
+end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.children[0].children[0]
+    a = routine.children[0].lhs
+    assert a.previous_access() is None
+
+    sym_tab = routine.symbol_table
+    symbols = sym_tab.get_symbols()
+    b_sym = symbols['b']
+    refs = b_sym.initial_value.walk(Reference)
+    assert refs[0].next_access() == refs[1]
+    assert refs[1].previous_access() == refs[0]
 
 
 def test_reference_previous_access_with_codeblock(fortran_reader):

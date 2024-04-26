@@ -39,7 +39,6 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-import sys
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 # We cannot import from 'nodes' directly due to circular import
@@ -195,20 +194,23 @@ class Reference(DataNode):
 
     def previous_access(self):
         '''
-        :returns: the previous reference to the symbol accessed by this
-                  Reference.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node` or None
+        :returns: the previous reference to the same symbol.
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine
         # The scope is as far as the Routine that contains this
         # Reference.
-        var_access = VariablesAccessInfo(nodes=self.ancestor(Routine))
+        routine = self.ancestor(Routine)
+        # Handle the case when this is a subtree without an ancestor
+        # Routine
+        if routine is None:
+            routine = self.root
+        var_access = VariablesAccessInfo(nodes=routine)
         signature, indices = self.get_signature_and_indices()
-        single_accesses_to_this = var_access[signature]
-        all_accesses = single_accesses_to_this.all_accesses
-        index = sys.maxsize
+        all_accesses = var_access[signature].all_accesses
+        index = -1
         # Find my position in the VariablesAccesInfo
         for i, access in enumerate(all_accesses):
             if access.node is self:
@@ -221,19 +223,23 @@ class Reference(DataNode):
 
     def next_access(self):
         '''
-        :returns: the next reference to the symbol accessed by this Reference.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node` or None
+        :returns: the next reference to the same symbol.
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine
         # The scope is as far as the Routine that contains this
         # Reference.
-        var_access = VariablesAccessInfo(nodes=self.ancestor(Routine))
-        signature, indices = self.get_signature_and_indices()
-        single_accesses_to_this = var_access[signature]
-        all_accesses = single_accesses_to_this.all_accesses
-        index = sys.maxsize
+        routine = self.ancestor(Routine)
+        # Handle the case when this is a subtree without an ancestor
+        # Routine
+        if routine is None:
+            routine = self.root
+        var_access = VariablesAccessInfo(nodes=routine)
+        signature, _ = self.get_signature_and_indices()
+        all_accesses = var_access[signature].all_accesses
+        index = len(all_accesses)
         # Find my position in the VariablesAccesInfo
         for i, access in enumerate(all_accesses):
             if access.node is self:
