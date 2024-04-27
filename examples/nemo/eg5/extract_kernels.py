@@ -70,7 +70,7 @@ been preprocessed (if required).
 
 from psyclone.transformations import TransformationError
 from psyclone.psyir.transformations import ExtractTrans
-from psylcone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop
 
 
 def trans(psy):
