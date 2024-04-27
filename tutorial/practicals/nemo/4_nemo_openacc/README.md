@@ -89,17 +89,30 @@ various ways in which PSyclone can be used.)
 
 1. Modify the supplied `kernels_trans.py` optimisation script to apply the
    `ACCKernelsTrans` transformation to every loop over vertical levels
-   within the outer, iteration loop of the mini-app. The script already
-   locates that loop:
+   within the outer, iteration loop of the mini-app. As we did in the
+   profiling and OpenMP tutorials, we can facilitate the identification
+   of certain NEMO domain loops by setting loop_type inference rules by
+   relying on the variable names requires by the NEMO Code Conventions:
 
    ```python
-    # Find the outer, 'iteration' loop
-    tloop = None
-    for node in sched.children:
-        if isinstance(node, Loop) and node.loop_type == "tracers":
-            tloop = node
-            break
-    ```
+   Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+   })
+   ```
+
+   Then we can locate that loop with:
+
+   ```python
+   # Find the outer, 'iteration' loop
+   tloop = None
+   for node in sched.children:
+       if isinstance(node, Loop) and node.loop_type == "tracers":
+           tloop = node
+           break
+   ```
 
    Similar to what has been done in previous tutorials, you will need to
    loop over the children of that loop, identify those that are loops of
@@ -146,7 +159,7 @@ each of these regions acts as an implicit data region. This means that
 data will be copied from the host to the GPU before each region and
 then back again afterwards.
 
-If we are to get any sort of reasonabe performance then these memory
+If we are to get any sort of reasonable performance then these memory
 copies must be eliminated by keeping data on the GPU for as long as
 possible. In order to do that we must first ensure that all computation
 is performed on the GPU.

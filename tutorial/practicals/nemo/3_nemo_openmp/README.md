@@ -65,7 +65,15 @@ tutorial:
    particular routine may be required.
 
  * it blindly applies a transformation to each loop over vertical levels
-   that is an immediate child of the Schedule:
+   that is an immediate child of the Schedule. As we did with then inserting
+   profiling. We can identify loops over `levels` by the fact that they use
+   the 'jk' loop variable as required in the NEMO Code Conventions. To do this
+   we can set the following loop_type inference rule:
+   ```python
+    Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"}})
+   ```
+   With this, we can use the `loop_type` property and then enclose each of
+   them within a profiling region:
    ```python
    for child in sched.children:
        if isinstance(child, Loop) and child.loop_type == "levels":
@@ -108,13 +116,13 @@ the number of MPI processes and resulting inter-process communication.)
 
    and the `write` statement is represented as a CodeBlock in the PSyIR:
    ```
-    20: Loop[type='levels', field_space='None', it_space='None']
+    20: Loop[variable='jk', loop_type='levels']
         ...
         Schedule[]
-            0: Loop[type='lat', field_space='None', it_space='None']
+            0: Loop[variable='jj']
                ...
                Schedule[]
-                   0: Loop[type='lon', field_space='None', it_space='None']
+                   0: Loop[variable='ji']
                       ...
                       Schedule[]
                           0: CodeBlock[[<class 'fparser.two.Fortran2003.Write_Stmt'>]]
@@ -144,12 +152,12 @@ the number of MPI processes and resulting inter-process communication.)
 
        14: OMPParallelDoDirective[omp_schedule=auto]
            Schedule[]
-               0: Loop[type='levels', field_space='None', it_space='None']
+               0: Loop[variable='jk', loop_type='levels']
                    Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
                    Reference[name:'jpk']
                    Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
                    Schedule[]
-                       0: Loop[type='lat', field_space='None', it_space='None']
+                       0: Loop[variable='jj']
                            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
 
    and the corresponding Fortran looks like:
