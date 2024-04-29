@@ -536,21 +536,15 @@ def test_call_node_reconcile_reorder():
     # Swap position of arguments
     call.children.extend([op2.detach(), op1.detach()])
 
-    # The internal state of the argument_names is now inconsistent:
-    # name1=op2, name2=op1 (until we call a public method)
-    assert call._argument_names[0] != (id(call.arguments[0]), "name2")
-    assert call._argument_names[1] != (id(call.arguments[1]), "name1")
-
-    # Calling the copy method must reconcile the argument names before doing
-    # the copy, so name2=op2 is at position 0, and name1=op1 is at position 1
-    call2 = call.copy()
+    # Now the private _argument_names are inconsistent with thir node ids
+    assert len(call._argument_names) == 2
+    assert call._argument_names[0] != (id(call.arguments[0]), "name1")
+    assert call._argument_names[1] != (id(call.arguments[1]), "name2")
+    call._reconcile()
+    # consistent
+    assert len(call._argument_names) == 2
     assert call._argument_names[0] == (id(call.arguments[0]), "name2")
     assert call._argument_names[1] == (id(call.arguments[1]), "name1")
-    assert call2._argument_names[0] == (id(call2.arguments[0]), "name2")
-    assert call2._argument_names[1] == (id(call2.arguments[1]), "name1")
-
-    # And the ids are not the same (each one has their own)
-    assert call._argument_names != call2._argument_names
 
 
 def test_call_node_str():
@@ -581,16 +575,24 @@ def test_copy():
     assert call2._argument_names[1] == (id(call2.arguments[1]), "name2")
     assert call._argument_names != call2._argument_names
 
-    call.children = [op2.detach(), op1.detach()]
-    assert call._argument_names[0] != (id(call.children[0]), "name2")
-    assert call._argument_names[1] != (id(call.children[1]), "name1")
-    # inconsistent call
-    call_copy = call.copy()
-    assert call._argument_names[0] == (id(call.children[0]), "name2")
-    assert call._argument_names[1] == (id(call.children[1]), "name1")
-    assert call_copy._argument_names[0] == (id(call_copy.children[0]), "name2")
-    assert call_copy._argument_names[1] == (id(call_copy.children[1]), "name1")
-    assert call._argument_names != call_copy._argument_names
+    # Swap position of arguments
+    call.children.extend([op2.detach(), op1.detach()])
+
+    # The internal state of the argument_names is now inconsistent:
+    # name1=op2, name2=op1 (until we call a public method)
+    assert call._argument_names[0] != (id(call.arguments[0]), "name2")
+    assert call._argument_names[1] != (id(call.arguments[1]), "name1")
+
+    # Calling the copy method must reconcile the argument names before doing
+    # the copy, so name2=op2 is at position 0, and name1=op1 is at position 1
+    call2 = call.copy()
+    assert call._argument_names[0] == (id(call.arguments[0]), "name2")
+    assert call._argument_names[1] == (id(call.arguments[1]), "name1")
+    assert call2._argument_names[0] == (id(call2.arguments[0]), "name2")
+    assert call2._argument_names[1] == (id(call2.arguments[1]), "name1")
+
+    # And the ids are not the same (each one has their own)
+    assert call._argument_names != call2._argument_names
 
 
 def test_call_get_callees_local(fortran_reader):
@@ -753,7 +755,7 @@ end module my_mod
     # replace it with a Call. Once #2429 is fixed the next two lines can be
     # removed.
     assert isinstance(assign.rhs, CodeBlock)
-    assign.rhs.replace_with(Call(rsym))
+    assign.rhs.replace_with(Call.create(rsym))
     call = psyir.walk(Call)[0]
     with pytest.raises(NotImplementedError) as err:
         _ = call.get_callees()

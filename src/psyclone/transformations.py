@@ -426,7 +426,7 @@ class MarkRoutineForGPUMixin:
                 # resolve_type does nothing if the Symbol type is known.
                 try:
                     ref.symbol.resolve_type()
-                except SymbolError:
+                except (SymbolError, FileNotFoundError):
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
                 if (isinstance(ref.symbol, DataSymbol) and

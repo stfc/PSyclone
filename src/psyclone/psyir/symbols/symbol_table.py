@@ -751,8 +751,7 @@ class SymbolTable():
                         self.lookup(csym.name),
                         orig_name=isym.interface.orig_name)
 
-    def _add_symbols_from_table(self, other_table, shared_wildcard_imports,
-                                symbols_to_skip=()):
+    def _add_symbols_from_table(self, other_table, symbols_to_skip=()):
         '''
         Takes symbols from the supplied symbol table and adds them to this
         table (unless they appear in `symbols_to_skip`).
@@ -762,9 +761,6 @@ class SymbolTable():
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param set[str] shared_wildcard_imports: set of the names of any
-            ContainerSymbols from which there were wildcard imports in both
-            tables originally.
         :param symbols_to_skip: an optional list of symbols to exclude from
                                 the merge.
         :type symbols_to_skip: Iterable[
@@ -870,27 +866,12 @@ class SymbolTable():
                 f"Cannot merge {other_table.view()} with {self.view()} due to "
                 f"unresolvable name clashes.") from err
 
-        # Before we begin merging, check whether there are any wildcard
-        # imports that are common to both tables.
-        shared_wildcard_imports = set()
-        self_csyms = self.containersymbols
-        for csym in self_csyms:
-            if not csym.wildcard_import:
-                continue
-            try:
-                other_sym = other_table.lookup(csym.name)
-                if (isinstance(other_sym, ContainerSymbol) and
-                        other_sym.wildcard_import):
-                    shared_wildcard_imports.add(csym.name)
-            except KeyError:
-                continue
-
         # Deal with any Container symbols first.
         self._add_container_symbols_from_table(other_table)
 
         # Copy each Symbol from the supplied table into this one, excluding
         # ContainerSymbols and any listed in `symbols_to_skip`.
-        self._add_symbols_from_table(other_table, shared_wildcard_imports,
+        self._add_symbols_from_table(other_table,
                                      symbols_to_skip=symbols_to_skip)
 
     def swap_symbol_properties(self, symbol1, symbol2):
