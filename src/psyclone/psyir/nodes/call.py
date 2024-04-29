@@ -36,6 +36,7 @@
 
 ''' This module contains the Call node implementation.'''
 
+from collections.abc import Iterable
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
@@ -56,33 +57,18 @@ class Call(Statement, DataNode):
     TODO #1437: The combined Statement and Expression implementation is simple
     but it has some shortcomings that may need to be addressed.
 
-    :param routine: the routine that this call calls.
-    :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
-    :raises TypeError: if the routine argument is not a RoutineSymbol.
-
     '''
     # Textual description of the node.
-    _children_valid_format = "[DataNode]*"
+    _children_valid_format = "Reference, [DataNode]*"
     _text_name = "Call"
     _colour = "cyan"
 
-    #: The type of Symbol this Call must refer to. Used for type checking in
-    #: the constructor.
-    _symbol_type = RoutineSymbol
-
-    def __init__(self, routine, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        if not isinstance(routine, self._symbol_type):
-            raise TypeError(
-                f"{self._text_name} 'routine' argument should be a "
-                f"{self._symbol_type.__name__} but found "
-                f"'{type(routine).__name__}'.")
-
-        self._routine = routine
         # The internal _argument_names list can be inconsistent with
         # the order of the children. Use the property/methods
         # internally and/or the _reconcile() method to make consistent
@@ -100,46 +86,50 @@ class Call(Statement, DataNode):
         :rtype: bool
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and self.routine == other.routine
         is_eq = is_eq and self.argument_names == other.argument_names
 
         return is_eq
 
     @classmethod
-    def create(cls, routine, arguments):
+    def create(cls, routine, arguments=()):
         '''Create an instance of class cls given valid instances of a routine
         symbol, and a list of child nodes (or name and node tuple) for
         its arguments.
 
         :param routine: the routine that class cls calls.
-        :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
-        :param arguments: the arguments to this routine, and/or \
-            2-tuples containing an argument name and the \
-            argument. Arguments are added as child nodes.
-        :type arguments: List[ \
-            Union[:py:class:``psyclone.psyir.nodes.DataNode``, \
-                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]
+        :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol` |
+            py:class:`psyclone.psyir.nodes.Reference`
+        :param arguments: optional list of arguments for this call, these
+            can be PSyIR nodes or tuples of string,Node for named arguments.
+        :type arguments: Optional[Iterable[\
+            Union[:py:class:`psyclone.psyir.nodes.DataNode`,\
+                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]]
 
         :returns: an instance of cls.
         :rtype: :py:class:`psyclone.psyir.nodes.Call` or a subclass thereof.
 
-        :raises GenerationError: if the routine argument is not a \
-            RoutineSymbol.
-        :raises GenerationError: if the arguments argument is not a \
-            list.
+        :raises TypeError: if the routine argument is not a RoutineSymbol.
+        :raises GenerationError: if the arguments argument is not an Iterable.
 
         '''
-        if not isinstance(routine, RoutineSymbol):
-            raise GenerationError(
-                f"Call create routine argument should be a RoutineSymbol but "
+        if not isinstance(routine, (Reference, RoutineSymbol)):
+            raise TypeError(
+                f"The Call routine argument should be a Reference to a "
+                f"RoutineSymbol or a RoutineSymbol, but "
                 f"found '{type(routine).__name__}'.")
-        if not isinstance(arguments, list):
-            raise GenerationError(
-                f"Call create arguments argument should be a list but found "
-                f"'{type(arguments).__name__}'.")
 
-        call = cls(routine)
-        cls._add_args(call, arguments)
+        if not isinstance(arguments, Iterable):
+            raise GenerationError(
+                f"Call.create 'arguments' argument should be an Iterable but "
+                f"found '{type(arguments).__name__}'.")
+
+        call = cls()
+        if isinstance(routine, Reference):
+            call.addchild(routine)
+        else:
+            call.addchild(Reference(routine))
+        if arguments:
+            cls._add_args(call, arguments)
         return call
 
     @staticmethod
@@ -149,14 +139,13 @@ class Call(Statement, DataNode):
 
         :param call: the supplied call node.
         :type call: :py:class:`psyclone.psyir.nodes.Call`
-        :param arguments: the arguments to this call, and/or \
-            2-tuples containing an argument name and the \
-            argument.
-        :type arguments: List[ \
-            Union[:py:class:``psyclone.psyir.nodes.DataNode``, \
-                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]
+        :param arguments: list of arguments for this call, these
+            can be PSyIR nodes or tuples of string,Node for named arguments.
+        :type arguments: Iterable[
+            Union[:py:class:`psyclone.psyir.nodes.DataNode`,
+                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]
 
-        :raises GenerationError: if the contents of the arguments \
+        :raises GenerationError: if the contents of the arguments
             argument are not in the expected form or of the expected
             type.
 
@@ -236,7 +225,9 @@ class Call(Statement, DataNode):
                 f"'Call' node should be an int but found "
                 f"{type(index).__name__}.")
         self._argument_names.insert(index, (id(arg), name))
-        self.children.insert(index, arg)
+        # The n'th argument is placed at the n'th+1 children position
+        # because the 1st child is the routine reference
+        self.children.insert(index + 1, arg)
 
     def replace_named_arg(self, existing_name, arg):
         '''Replace one named argument node with another node keeping the
@@ -267,7 +258,9 @@ class Call(Statement, DataNode):
                 f"The value of the existing_name argument ({existing_name}) "
                 f"in 'replace_named_arg' in the 'Call' node was not found "
                 f"in the existing arguments.")
-        self.children[index] = arg
+        # The n'th argument is placed at the n'th+1 children position
+        # because the 1st child is the routine reference
+        self.children[index + 1] = arg
         self._argument_names[index] = (id(arg), existing_name)
 
     @staticmethod
@@ -281,6 +274,8 @@ class Call(Statement, DataNode):
         :rtype: bool
 
         '''
+        if position == 0:
+            return isinstance(child, Reference)
         return isinstance(child, DataNode)
 
     def reference_accesses(self, var_accesses):
@@ -306,7 +301,11 @@ class Call(Statement, DataNode):
             # We conservatively default to READWRITE otherwise (TODO #446).
             default_access = AccessType.READWRITE
 
-        for arg in self.children:
+        # TODO #2271: This may skip references in inner expressions of
+        # structure calls, but to implement properly we new a new kind of
+        # AccessType that represents being called (USED but not READ, maybe
+        # the same that we need for INQUIRY type attributes?)
+        for arg in self.arguments:
             if isinstance(arg, Reference):
                 # This argument is pass-by-reference.
                 sig, indices_list = arg.get_signature_and_indices()
@@ -325,21 +324,35 @@ class Call(Statement, DataNode):
     @property
     def routine(self):
         '''
-        :returns: the routine symbol that this call calls.
-        :rtype: py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        :returns: the routine reference that this call calls.
+        :rtype: Optional[py:class:`psyclone.psyir.nodes.Reference`]
         '''
-        return self._routine
+        if len(self._children) >= 1:
+            return self.children[0]
+        return None
+
+    @property
+    def arguments(self):
+        '''
+        :returns: the children of this node that represent its arguments.
+        :rtype: list[py:class:`psyclone.psyir.nodes.DataNode`]
+        '''
+        if len(self._children) >= 2:
+            return self.children[1:]
+        return []
 
     @property
     def is_elemental(self):
         '''
-        :returns: whether the routine being called is elemental (provided with\
-            an input array it will apply the operation individually to each of\
-            the array elements and return an array with the results). If this \
+        :returns: whether the routine being called is elemental (provided with
+            an input array it will apply the operation individually to each of
+            the array elements and return an array with the results). If this
             information is not known then it returns None.
         :rtype: NoneType | bool
         '''
-        return self._routine.is_elemental
+        if self.routine and self.routine.symbol:
+            return self.routine.symbol.is_elemental
+        return None
 
     @property
     def is_pure(self):
@@ -349,11 +362,13 @@ class Call(Statement, DataNode):
             values).  If this information is not known then it returns None.
         :rtype: NoneType | bool
         '''
-        return self._routine.is_pure
+        if self.routine and self.routine.symbol:
+            return self.routine.symbol.is_pure
+        return None
 
     def is_available_on_device(self):
         '''
-        :returns: whether this intrinsic is available on an accelerated device.
+        :returns: whether this call is available on an accelerated device.
         :rtype: bool
 
         '''
@@ -375,7 +390,7 @@ class Call(Statement, DataNode):
 
         '''
         new_argument_names = []
-        for child in self.children:
+        for child in self.arguments:
             for arg in self._argument_names:
                 if id(child) == arg[0]:
                     new_argument_names.append(arg)
@@ -395,7 +410,8 @@ class Call(Statement, DataNode):
         :rtype: str
 
         '''
-        return f"{self.coloured_name(colour)}[name='{self.routine.name}']"
+        return (f"{self.coloured_name(colour)}"
+                f"[name='{self.routine.debug_string()}']")
 
     def __str__(self):
         return self.node_str(False)
@@ -417,7 +433,7 @@ class Call(Statement, DataNode):
         # Fix invalid id's in _argument_names after copying.
         # pylint: disable=protected-access
         new_list = []
-        for idx, child in enumerate(new_copy.children):
+        for idx, child in enumerate(new_copy.arguments):
             my_tuple = (id(child), new_copy._argument_names[idx][1])
             new_list.append(my_tuple)
         new_copy._argument_names = new_list

@@ -45,6 +45,21 @@
 	still a CodeBlock but the case bodies are transferred to a conditional
 	construct after the CodeBlock).
 
+	18) PR #2545 for #2544. Accept -c as shortcut for --config in the CLIs.
+
+	19) PR #2527 for #1495. Add PSyIR support for type-bound procedure
+	calls.
+
+	20) PR #2529 towards #1779. Generalise NemoArrayAccess2Loop
+	transformation to ArrayAccess2Loop.
+
+	21) PR #2517 for #2515. Fix bugs in the symbol_table merge method.
+
+	22) PR #2553 for #2449. Add next/previous_access reference method.
+
+	23) PR #2557 towards #2543. Update the introduction to the User
+	Guide and the top-level README.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

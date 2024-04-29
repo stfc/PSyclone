@@ -2467,10 +2467,9 @@ def test_halo_exchange(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     output1 = (
-        "     IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
-        "      END IF\n"
-        "      !\n")
+        "     IF (f2_proxy%is_dirty(depth=f2_extent + 1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=f2_extent + 1)\n"
+        "      END IF\n")
     assert output1 in generated_code
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in generated_code
     assert "DO cell = loop0_start, loop0_stop, 1\n" in generated_code
@@ -2497,35 +2496,28 @@ def test_halo_exchange_inc(monkeypatch, annexed):
     output0 = (
         "      IF (a_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL a_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      !\n")
+        "      END IF\n")
     output1 = (
         "      IF (b_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL b_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (d_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL d_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (e_proxy(1)%is_dirty(depth=1)) THEN\n"
         "        CALL e_proxy(1)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (e_proxy(2)%is_dirty(depth=1)) THEN\n"
         "        CALL e_proxy(2)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (e_proxy(3)%is_dirty(depth=1)) THEN\n"
         "        CALL e_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      DO cell = loop0_start, loop0_stop, 1\n")
     output2 = (
         "      IF (f_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      DO cell = loop1_start, loop1_stop, 1\n")
     assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
     assert "loop1_stop = mesh%get_last_halo_cell(1)\n" in result
@@ -2608,7 +2600,6 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
         expected = ("      IF (f1_proxy(3)%is_dirty(depth=1)) THEN\n"
                     "        CALL f1_proxy(3)%halo_exchange(depth=1)\n"
                     "      END IF\n"
-                    "      !\n"
                     "      DO cell = loop0_start, loop0_stop, 1\n")
         assert expected in result
 
@@ -2636,12 +2627,11 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
             assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
     for idx in range(1, 4):
         assert ("f2_proxy("+str(idx)+")%halo_exchange("
-                "depth=f2_extent+1)" in result)
-    expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent+1)) "
+                "depth=f2_extent + 1)" in result)
+    expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent + 1)) "
                 "THEN\n"
-                "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent+1)\n"
+                "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent + 1)\n"
                 "      END IF\n"
-                "      !\n"
                 "      DO cell = loop0_start, loop0_stop, 1\n")
     assert expected in result
 
@@ -2662,15 +2652,12 @@ def test_halo_exchange_depths(tmpdir):
     expected = ("      IF (f2_proxy%is_dirty(depth=extent)) THEN\n"
                 "        CALL f2_proxy%halo_exchange(depth=extent)\n"
                 "      END IF\n"
-                "      !\n"
                 "      IF (f3_proxy%is_dirty(depth=extent)) THEN\n"
                 "        CALL f3_proxy%halo_exchange(depth=extent)\n"
                 "      END IF\n"
-                "      !\n"
                 "      IF (f4_proxy%is_dirty(depth=extent)) THEN\n"
                 "        CALL f4_proxy%halo_exchange(depth=extent)\n"
                 "      END IF\n"
-                "      !\n"
                 "      DO cell = loop0_start, loop0_stop, 1\n")
     assert expected in result
 
@@ -2698,21 +2685,17 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
     expected1 = (
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL f1_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      !\n")
+        "      END IF\n")
     expected2 = (
-        "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+        "      IF (f2_proxy%is_dirty(depth=f2_extent + 1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=f2_extent + 1)\n"
         "      END IF\n"
-        "      !\n"
-        "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
-        "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
+        "      IF (f3_proxy%is_dirty(depth=f3_extent + 1)) THEN\n"
+        "        CALL f3_proxy%halo_exchange(depth=f3_extent + 1)\n"
         "      END IF\n"
-        "      !\n"
-        "      IF (f4_proxy%is_dirty(depth=f4_extent+1)) THEN\n"
-        "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
+        "      IF (f4_proxy%is_dirty(depth=f4_extent + 1)) THEN\n"
+        "        CALL f4_proxy%halo_exchange(depth=f4_extent + 1)\n"
         "      END IF\n"
-        "      !\n"
         "      DO cell = loop0_start, loop0_stop, 1\n")
     if not annexed:
         assert expected1 in result
@@ -3128,15 +3111,12 @@ def test_multi_anyw2(dist_mem, tmpdir):
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f1_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (f3_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL f3_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      DO cell = loop0_start, loop0_stop, 1\n"
             "        CALL testkern_multi_anyw2_code(nlayers, "
             "f1_data, f2_data, f3_data, ndf_any_w2, "
@@ -4337,11 +4317,9 @@ def test_read_only_fields_hex(tmpdir):
         "      IF (f2_proxy(1)%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy(1)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy(2)%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy(2)%halo_exchange(depth=1)\n"
         "      END IF\n"
-        "      !\n"
         "      IF (f2_proxy(3)%is_dirty(depth=1)) THEN\n"
         "        CALL f2_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n")

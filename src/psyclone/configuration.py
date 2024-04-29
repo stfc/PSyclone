@@ -1378,18 +1378,6 @@ class NemoConfig(APISpecificConfig):
         '''
         return self._loop_type_mapping
 
-    def get_loop_type_data(self):
-        '''
-        :returns: the mapping of a loop type (lon, ...) to a dictionary \
-            containing the corresponding variable name and start/stop values.\
-            Example: = {"lon": {"var": "ji", "start": "1", "stop": "jpi"}, \
--                       "lat": {"var": "jj", "start": "1", "stop": "jpj"} }
-
-        :rtype: dictionary with str keys, with each value being a \
-            dictionary mapping 'var', 'start', and 'stop' to str.
-        '''
-        return self._loop_type_data
-
     def get_valid_loop_types(self):
         '''
         The list is sorted to have reproducible results for testing.
@@ -1400,14 +1388,6 @@ class NemoConfig(APISpecificConfig):
         valid_types_list = list(self._loop_type_data)
         valid_types_list.sort()
         return valid_types_list
-
-    def get_index_order(self):
-        '''
-        :returns: the order in which loops should be created in \
-            NemoExplicitLoopTrans.
-        :rtype: list of str.
-        '''
-        return self._index_order
 
     # ---------------------------------------------------------------------
     def get_constants(self):
