@@ -151,7 +151,7 @@ def inline_calls(schedule):
     for call in all_calls:
         if isinstance(call, IntrinsicCall):
             continue
-        rsym = call.routine
+        rsym = call.routine.symbol
         name = rsym.name.lower()
         if any(excl_name in name for excl_name in excluding):
             print(f"Inlining of routine '{name}' is disabled.")
