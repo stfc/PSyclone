@@ -1107,6 +1107,18 @@ class SymbolTable():
         :raises ValueError: if the Symbol cannot be removed.
 
         '''
+        parent_table = self.parent_symbol_table()
+        if parent_table:
+            try:
+                # If the supplied symbol object has already been added to an
+                # outer scope then we can safely delete its entry in this table
+                # as all references to it will remain valid.
+                outer_sym = parent_table.lookup(symbol.name)
+                if outer_sym is symbol:
+                    return
+            except KeyError:
+                pass
+
         # Check for Calls or GenericInterfaceSymbols that reference it.
         # TODO #2271 - this walk will fail to find some symbols (e.g. in
         # variable initialisation expressions or CodeBlocks).

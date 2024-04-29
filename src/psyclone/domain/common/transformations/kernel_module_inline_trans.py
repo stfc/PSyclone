@@ -441,7 +441,6 @@ class KernelModuleInlineTrans(Transformation):
             table = routine_symbol.find_symbol_table(node)
             if table.node is not container:
                 container.symbol_table.add(routine_symbol)
-                # TODO ARPDBG this doesn't work because we still have a call
                 table.remove(routine_symbol)
 
         # We only modify the kernel call name after the equality check to
