@@ -40,6 +40,7 @@ includes, and external symbol usage.
 '''
 
 import os
+import codecs
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import (Function_Subprogram, Interface_Block,
@@ -53,6 +54,23 @@ from psyclone.errors import InternalError, PSycloneError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Container, FileContainer
 from psyclone.psyir.symbols import SymbolError
+
+
+# ============================================================================
+def log_decode_error_handler(err):
+    '''
+    A custom error handler for use when reading files. Simply skips any
+    characters that cause decoding errors.
+
+    :returns: 2-tuple containing replacement for bad chars (an empty string
+              and the position from where encoding should continue).
+    :rtype: tuple[str, int]
+
+    '''
+    return ("", err.end)
+
+
+codecs.register_error("file-error-handler", log_decode_error_handler)
 
 
 # ============================================================================
@@ -79,16 +97,17 @@ class ModuleInfo:
     cache the fparser AST.
 
     :param str name: the module name.
-    :param str filename: the name of the source file that stores this module \
+    :param str filename: the name of the source file that stores this module
         (including path).
+    :param Optional[str] src: the source code containing the module definition.
 
     '''
 
-    def __init__(self, name, filename):
+    def __init__(self, name, filename, src=None):
         self._name = name
         self._filename = filename
         # A cache for the source code:
-        self._source_code = None
+        self._source_code = src
 
         # A cache for the fparser tree
         self._parse_tree = None
@@ -152,14 +171,25 @@ class ModuleInfo:
         '''
         if self._source_code is None:
             try:
-                with open(self._filename, "r", encoding='utf-8') as file_in:
-                    self._source_code = file_in.read()
+                self._source_code = self.read_source(self._filename)
             except FileNotFoundError as err:
                 raise ModuleInfoError(
                     f"Could not find file '{self._filename}' when trying to "
                     f"read source code for module '{self._name}'") from err
 
         return self._source_code
+
+    # ------------------------------------------------------------------------
+    @staticmethod
+    def read_source(path):
+        '''
+        '''
+        # Error handler is defined at the top of this file. It simply skips any
+        # characters that result in decoding errors. (Comments in a code may
+        # contain all sorts of weird things.)
+        with open(path, "r", encoding='utf-8',
+                  errors='file-error-handler') as file_in:
+            return file_in.read()
 
     # ------------------------------------------------------------------------
     def get_parse_tree(self):

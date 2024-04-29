@@ -67,17 +67,13 @@ def test_mod_manager_get_modules_in_file(tmpdir):
     mod_man = ModuleManager.get()
     # Check that any decoding errors are handled successfully. The e acute
     # character (\xe9) in latin-1 cannot be decoded in utf-8 so we use that.
-    with open(os.path.join(tmpdir, "a_mod.F90"), "w",
-              encoding="latin-1") as f_out:
-        f_out.write(
-            "module utf_char_mod\n"
+    code = ("module utf_char_mod\n"
             "contains\n"
             "  subroutine my_sub()\n"
             "    write(*,*) 'max (at the Equator) for e1=1\xe9)'\n"
             "  end subroutine my_sub\n"
             "end module utf_char_mod")
-    assert (mod_man.get_modules_in_file(os.path.join(tmpdir, "a_mod.F90")) ==
-            ["utf_char_mod"])
+    assert mod_man.get_modules_in_file(code) == ["utf_char_mod"]
     # assert mod_man.get_modules_in_file("a_mod.f90") == ["a_mod"]
     # assert mod_man.get_modules_in_file("b_mod.F90") == ["b_mod"]
     # assert mod_man.get_modules_in_file("c_mod.x90") == ["c_mod"]

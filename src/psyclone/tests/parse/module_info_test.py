@@ -36,6 +36,7 @@
 
 '''Module containing tests for the ModuleInfo class.'''
 
+import os
 import pytest
 
 from fparser.two import Fortran2003
@@ -65,18 +66,33 @@ def test_module_info():
 
     mod_info = mod_man.get_module_info("a_mod")
     assert isinstance(mod_info, ModuleInfo)
-    assert mod_info._source_code is None
+    assert mod_info._source_code.startswith("module a_mod\n")
     source_code = mod_info.get_source_code()
-    assert source_code.startswith("module a_mod")
     # Make sure the source code is cached:
-    assert mod_info._source_code.startswith("module a_mod")
-    assert "end module a_mod" in mod_info._source_code
+    assert source_code is mod_info._source_code
 
     # Now access the parse tree:
     assert mod_info._parse_tree is None
     parse_tree = mod_info.get_parse_tree()
     assert mod_info._parse_tree is parse_tree
     assert isinstance(mod_info._parse_tree, Fortran2003.Program)
+
+
+def test_module_info_read_source(tmpdir):
+    # Check that any decoding errors are handled successfully. The e acute
+    # character (\xe9) in latin-1 cannot be decoded in utf-8 so we use that.
+    code = ("module utf_char_mod\n"
+            "contains\n"
+            "  subroutine my_sub()\n"
+            "    write(*,*) 'max (at the Equator) for e1=1\xe9)'\n"
+            "  end subroutine my_sub\n"
+            "end module utf_char_mod")
+    with open(os.path.join(tmpdir, "a_mod.F90"), "w",
+              encoding="latin-1") as f_out:
+        f_out.write(code)
+    src = ModuleInfo.read_source(os.path.join(tmpdir, "a_mod.F90"))
+    assert "for e1=1)'\n" in src
+    assert src.endswith("end module utf_char_mod")
 
 
 # -----------------------------------------------------------------------------

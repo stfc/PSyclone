@@ -328,7 +328,7 @@ class KernelModuleInlineTrans(Transformation):
             Routine that maps to an Interface block as this is not yet
             supported (TODO #924).
         '''
-        # TODO - once CodedKern has been migrated so that it subclasses
+        # TODO #2054 - once CodedKern has been migrated so that it subclasses
         # Call then this if/else (and thus this whole routine) can be removed.
         if isinstance(node, CodedKern):
             # We have a call to a Kernel in a PSyKAl API.

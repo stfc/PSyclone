@@ -41,7 +41,6 @@ from collections import OrderedDict
 import copy
 import os
 import re
-import codecs
 
 from psyclone.errors import InternalError
 from psyclone.parse.module_info import ModuleInfo
@@ -51,22 +50,6 @@ from psyclone.parse.module_info import ModuleInfo
 # e.g. "module procedure :: some_sub".
 _MODULE_PATTERN = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
                              flags=(re.IGNORECASE | re.MULTILINE))
-
-
-def log_decode_error_handler(err):
-    """
-    A custom error handler for use when reading files. Simply skips any
-    characters that cause decoding errors.
-
-    :returns: 2-tuple containing replacement for bad chars (an empty string
-              and the position from where encoding should continue).
-    :rtype: tuple[str, int]
-
-    """
-    return ("", err.end)
-
-
-codecs.register_error("file-error-handler", log_decode_error_handler)
 
 
 class ModuleManager:
@@ -157,8 +140,9 @@ class ModuleManager:
                 if full_path in self._visited_files:
                     continue
                 self._visited_files.add(full_path)
+                src = ModuleInfo.read_source(full_path)
                 # Obtain the names of all modules defined in this source file.
-                all_modules = self.get_modules_in_file(full_path)
+                all_modules = self.get_modules_in_file(src)
                 for module in all_modules:
                     # Pre-processed file should always take precedence
                     # over non-pre-processed files. So if a module already
@@ -166,9 +150,9 @@ class ModuleManager:
                     # file is pre-processed (i.e. .f90). This still means that
                     # if files are not preprocessed (.F90), they will still be
                     # added (but might cause problems parsing later).
-                    if module not in self._mod_2_filename or \
-                            ext in [".f90", ".x90"]:
-                        mod_info = ModuleInfo(module, full_path)
+                    if (module not in self._mod_2_filename or
+                            ext in [".f90", ".x90"]):
+                        mod_info = ModuleInfo(module, full_path, src)
                         self._mod_2_filename[module] = mod_info
 
     # ------------------------------------------------------------------------
@@ -231,7 +215,7 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, filename):
+    def get_modules_in_file(self, source_code):
         '''
         Uses a regex search to find all modules defined in the file with the
         supplied name.
@@ -243,12 +227,6 @@ class ModuleManager:
         :rtype: list[str]
 
         '''
-        # Error handler is defined in parse/__init__.py. It simply skips any
-        # characters that result in decoding errors. (Comments in a code may
-        # contain all sorts of weird things.)
-        with open(filename, "r", encoding='utf-8',
-                  errors='file-error-handler') as file_in:
-            source_code = file_in.read()
         mod_names = _MODULE_PATTERN.findall(source_code)
 
         return [name.lower() for name in mod_names]
