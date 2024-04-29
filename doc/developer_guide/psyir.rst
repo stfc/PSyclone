@@ -573,6 +573,11 @@ IntrinsicCalls, like Calls, have properties to inform if the call is to a
 pure, elemental, inquiry (does not touch the first argument data) function
 or is available on a GPU device.
 
+`SUM`, `PRODUCT`, `LBOUND`, and `UBOUND` are not documented as having
+support on GPUs according to the current Nvidia documentation, however we
+have confirmed them experimentally and so PSyclone treats them as
+available on GPU devices.
+
 CodeBlock Node
 --------------
 

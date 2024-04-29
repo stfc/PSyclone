@@ -120,7 +120,9 @@ def test_intrinsiccall_is_inquiry():
                 (IntrinsicCall.Intrinsic.MAX, True),
                 (IntrinsicCall.Intrinsic.MAXVAL, False),
                 (IntrinsicCall.Intrinsic.ALLOCATE, False),
-                (IntrinsicCall.Intrinsic.MATMUL, False)])
+                (IntrinsicCall.Intrinsic.MATMUL, False),
+                (IntrinsicCall.Intrinsic.PRODUCT, True),
+                (IntrinsicCall.Intrinsic.SUM, True)])
 def test_intrinsiccall_is_available_on_device(intrinsic, result):
     '''Tests that the is_available_on_device() method works as expected.'''
     intrinsic_call = IntrinsicCall(intrinsic)
