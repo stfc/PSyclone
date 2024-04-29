@@ -40,12 +40,11 @@
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, InlinedKern
+from psyclone.psyGen import PSyFactory
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
-from psyclone.psyir.nodes import Assignment, IfBlock, Literal, Loop, \
-    Reference, Schedule
+from psyclone.psyir.nodes import Assignment, Literal, Loop, Reference, Schedule
 from psyclone.psyir.nodes.node import colored
 
 

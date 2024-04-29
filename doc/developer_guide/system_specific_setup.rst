@@ -172,11 +172,7 @@ You can now run the PSyclone python tests::
 In order to see whether the Python code conforms to the pep8
 standards, use::
 
-   > pycodestyle code.py
-
-.. note::
-    ``pycodestyle`` is a replacement for the older ``pep8`` program.
-
+   > flake8 code.py
 
 Verifying the pylint standards is done with::
 

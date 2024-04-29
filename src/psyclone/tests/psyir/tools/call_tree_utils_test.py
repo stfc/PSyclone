@@ -52,7 +52,8 @@ from psyclone.tests.utilities import get_base_path, get_invoke
 
 # pylint: disable=unused-import
 # This is used in a fixture
-from psyclone.tests.parse.conftest import mod_man_test_setup_directories
+from psyclone.tests.parse.conftest \
+    import mod_man_test_setup_directories  # noqa: F401
 # pylint: enable=unused-import
 
 

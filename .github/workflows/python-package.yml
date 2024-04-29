@@ -138,10 +138,7 @@ jobs:
       run: |
         # Stop the build if there are Python syntax errors or undefined names.
         # See PSyclone/setup.cfg for configuration of this check.
-        flake8 --count --select=E9,F63,F7,F82 --show-source --statistics src examples tutorial
-    - name: Lint against the conventions in PEP 8 with pycodestyle
-      run: |
-        pycodestyle src examples tutorial
+        flake8 --count --show-source --statistics .
     - name: Run examples
       run: |
         ( make -j 2 -C examples transform > /dev/null )
@@ -163,7 +160,9 @@ jobs:
       env:
         LC_ALL: C
         LANG: C
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+    - name: Upload coverage to Codecov with GitHub Action
+      uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       with:
         verbose: true
