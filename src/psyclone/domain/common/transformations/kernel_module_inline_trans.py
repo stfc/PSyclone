@@ -45,8 +45,8 @@ from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
-    RoutineSymbol, DataSymbol, DataTypeSymbol, Symbol, ContainerSymbol,
-    DefaultModuleInterface)
+    ContainerSymbol, DataSymbol, DataTypeSymbol, DefaultModuleInterface,
+    IntrinsicSymbol, RoutineSymbol, Symbol)
 from psyclone.psyir.nodes import (
     Container, FileContainer, Reference, Routine, ScopingNode,
     Literal, CodeBlock, Call, IntrinsicCall)
@@ -116,7 +116,7 @@ class KernelModuleInlineTrans(Transformation):
                 raise TransformationError(
                     f"Cannot module-inline a call to an intrinsic (got "
                     f"'{node.debug_string()}')")
-            routine_sym = node.routine
+            routine_sym = node.routine.symbol
             kname = routine_sym.name
             kern_or_call = "routine"
         else:
@@ -441,6 +441,7 @@ class KernelModuleInlineTrans(Transformation):
             table = routine_symbol.find_symbol_table(node)
             if table.node is not container:
                 container.symbol_table.add(routine_symbol)
+                # TODO ARPDBG this doesn't work because we still have a call
                 table.remove(routine_symbol)
 
         # We only modify the kernel call name after the equality check to

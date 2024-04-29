@@ -470,7 +470,7 @@ class Call(Statement, DataNode):
             last_line = out_lines[idx]
             return f"code:\n'{out_lines[0]}\n...\n{last_line}'"
 
-        rsym = self.routine
+        rsym = self.routine.symbol
         if rsym.is_unresolved:
 
             # Check for any "raw" Routines, i.e. ones that are not

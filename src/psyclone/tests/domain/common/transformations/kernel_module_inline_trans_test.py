@@ -781,7 +781,7 @@ def test_get_psyir_to_inline(monkeypatch):
     '''
     sym = RoutineSymbol("my_sym")
     rout = Routine.create("my_sym", SymbolTable(), [])
-    node = Call(sym)
+    node = Call.create(sym)
     # For simplicity we just monkeypatch Call.get_callees() so that it appears
     # to return more than one Routine.
     monkeypatch.setattr(node, "get_callees", lambda: [rout, rout])
