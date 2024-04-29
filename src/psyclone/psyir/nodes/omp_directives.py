@@ -118,6 +118,7 @@ class OMPRegionDirective(OMPDirective, RegionDirective, metaclass=abc.ABCMeta):
         '''
         result = []
 
+        # TODO #514: not yet working with generic PSyIR, so skip for now
         if Config.get().api not in ('gocean1.0', 'dynamo0.3'):
             return result
 

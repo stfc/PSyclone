@@ -532,6 +532,9 @@ def test_loop_type(fortran_reader):
     end subroutine basic_loop
     '''
     psyir = fortran_reader.psyir_from_source(code)
+
+    # We can set inference rules, which will provide the right behaviour for
+    # the generic loop.loop_type property
     Loop.set_loop_type_inference_rules({
             "lon": {"variable": "ji"},
             "lat": {"variable": "jj"}
@@ -540,3 +543,8 @@ def test_loop_type(fortran_reader):
     assert outer_loop.loop_type == "lat"
     inner_loop = psyir.walk(Loop)[1]
     assert inner_loop.loop_type == "lon"
+
+    # The rules can also be unset, which will mean that no loop has a loop_type
+    Loop.set_loop_type_inference_rules(None)
+    assert outer_loop.loop_type is None
+    assert inner_loop.loop_type is None

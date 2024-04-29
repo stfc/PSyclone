@@ -385,6 +385,9 @@ class Config:
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
                 elif api == "nemo":
+                    # TODO #1779: This can be deleted when "nemo" stops going
+                    # through the PSy->Invoke (psyGen) code
+                    # pragma: no cover
                     pass
                 else:
                     raise NotImplementedError(

@@ -40,6 +40,7 @@
 
 import os
 import pytest
+from psyclone.configuration import Config
 from psyclone.errors import UnresolvedDependencyError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -281,6 +282,9 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     ''' Check that lowering an OMP Parallel Do leaves it with the
     appropriate begin_string and clauses for the backend to generate
     the right code'''
+
+    Config._instance = None
+    Config.get().api = "nemo"
     code = '''
     subroutine my_subroutine()
         integer, dimension(321, 10) :: A
@@ -299,6 +303,7 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     ptrans.apply(loops[0])
     assert isinstance(tree.children[0].children[0], OMPParallelDoDirective)
     pdir = tree.children[0].children[0]
+    assert pdir.begin_string() == "omp parallel do"
     pdir.lower_to_language_level()
     assert len(pdir.children) == 5
     assert isinstance(pdir.children[2], OMPPrivateClause)
