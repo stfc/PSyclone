@@ -103,6 +103,8 @@ from psyclone.psyir.transformations.replace_induction_variables_trans import \
      ReplaceInductionVariablesTrans
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
+from psyclone.psyir.transformations.scalarization_trans import \
+    ScalarizationTrans
 
 
 # For AutoAPI documentation generation
@@ -143,4 +145,5 @@ __all__ = ['ACCUpdateTrans',
            'Reference2ArrayRangeTrans',
            'RegionTrans',
            'ReplaceInductionVariablesTrans',
+           'ScalarizationTrans',
            'TransformationError']
