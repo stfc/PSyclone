@@ -1396,12 +1396,17 @@ class DynProxies(LFRicCollection):
                 # Make sure we're going to create a Symbol with a unique
                 # name (since this is hardwired into the
                 # UnsupportedFortranType).
+                tag = f"{arg.name}:{suffix}"
                 new_name = self._symbol_table.next_available_name(
                     f"{arg.name}_{suffix}")
-                tag = f"{arg.name}:{suffix}"
                 # The data for an operator lives in a rank-3 array.
                 rank = 1 if arg not in op_args else 3
                 self._add_symbol(new_name, tag, intrinsic_type, arg, rank)
+                if suffix == "local_stencil":
+                    suffix = "proxy"
+                    new_name = self._symbol_table.next_available_name(
+                        f"{arg.name}_{suffix}")
+                    self._add_symbol(new_name, new_name, intrinsic_type, arg, rank)
 
     def _add_symbol(self, name, tag, intrinsic_type, arg, rank):
         '''
@@ -1457,7 +1462,7 @@ class DynProxies(LFRicCollection):
             # existing tag may occur which we can safely ignore.
             pass
 
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''
         Insert declarations of all proxy-related quantities into the PSy layer.
 
@@ -1556,21 +1561,38 @@ class DynProxies(LFRicCollection):
         # Declare the operator proxies
         for operator_datatype, operators_list in \
                 operators_datatype_map.items():
-            operators_names = [arg.proxy_declaration_name for
-                               arg in operators_list]
-            parent.add(TypeDeclGen(parent, datatype=operator_datatype,
-                                   entity_decls=operators_names))
-            for arg in operators_list:
-                name = arg.name
-                suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
-                ttext = f"{name}:{suffix}"
-                sym = table.lookup_with_tag(ttext)
+            op_datatype_symbol = table.find_or_create(
+                                            operator_datatype,
+                                            symbol_type=DataTypeSymbol,
+                                            datatype=UnresolvedType())
+            for op in operators_list:
+                table.new_symbol(op.declaration_name,
+                                 symbol_type=DataSymbol,
+                                 datatype=op_datatype_symbol)
+
+            # operators_names = [arg.proxy_declaration_name for
+            #                    arg in operators_list]
+            # parent.add(TypeDeclGen(parent, datatype=operator_datatype,
+            #                        entity_decls=operators_names))
+
+            #FIXME: Do we need this?
+            # for arg in operators_list:
+            #     name = arg.name
+            #     suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
+            #     ttext = f"{name}:{suffix}"
+            #     sym = table.lookup_with_tag(ttext)
+            #     kind = api_config.default_kind["real"]
+            #     symbol = symtab.new_symbol(
+            #         name, symbol_type=DataSymbol,
+            #         datatype=UnsupportedFortranType(
+            #             f"real(kind={kind}), pointer :: {name}"
+            #             f"(:,:,:) => null()"))
                 # Declare the pointer to the stencil array.
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=arg.precision,
-                                   dimension=":,:,:",
-                                   entity_decls=[f"{sym.name} => null()"],
-                                   pointer=True))
+                # parent.add(DeclGen(parent, datatype="real",
+                #                    kind=arg.precision,
+                #                    dimension=":,:,:",
+                #                    entity_decls=[f"{sym.name} => null()"],
+                #                    pointer=True))
             op_mod = operators_list[0].module_name
             # Ensure the appropriate derived datatype will be imported.
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
@@ -1688,13 +1710,22 @@ class DynProxies(LFRicCollection):
                         # CMA operator arguments are handled in DynCMAOperators
                         pass
                     elif arg.argument_type == "gh_operator":
-                        name = self._symbol_table.lookup_with_tag(
-                            f"{arg.name}:{suffix}").name
-                        parent.add(
-                            AssignGen(parent,
-                                      lhs=name,
-                                      rhs=f"{arg.proxy_name}%local_stencil",
-                                      pointer=True))
+                        symbol = self._symbol_table.lookup_with_tag(
+                            f"{arg.name}:{suffix}")
+                        self._invoke.schedule.addchild(
+                            Assignment.create(
+                                lhs=Reference(symbol),
+                                rhs=Call.create(StructureReference.create(
+                                    symtab.lookup(arg.proxy_name),
+                                    ["local_stencil"])),
+                                is_pointer=True),
+                            cursor)
+                        cursor += 1
+                        # parent.add(
+                        #     AssignGen(parent,
+                        #               lhs=name,
+                        #               rhs=f"{arg.proxy_name}%local_stencil",
+                        #               pointer=True))
                     else:
                         raise InternalError(
                             f"Kernel argument '{arg.name}' is a recognised "
@@ -1835,7 +1866,7 @@ class DynLMAOperators(LFRicCollection):
                                intent=arg.intent,
                                entity_decls=[arg.name]))
 
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''
         Declare all LMA-related quantities in a PSy-layer routine.
         Note: PSy layer in LFRic does not modify the LMA operator objects.
@@ -1847,6 +1878,7 @@ class DynLMAOperators(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
+        table = self._symbol_table
         # Add the Invoke subroutine argument declarations for operators
         op_args = self._invoke.unique_declarations(
             argument_types=["gh_operator"])
@@ -1860,10 +1892,15 @@ class DynLMAOperators(LFRicCollection):
                 operators_datatype_map[op_arg.data_type] = [op_arg]
         # Declare the operators
         for op_datatype, op_list in operators_datatype_map.items():
-            operators_names = [arg.declaration_name for arg in op_list]
-            parent.add(TypeDeclGen(
-                parent, datatype=op_datatype,
-                entity_decls=operators_names, intent="in"))
+            op_datatype_symbol = table.lookup(op_datatype)
+            for arg in op_list:
+                table.new_symbol(arg.declaration_name,
+                                 symbol_type=DataSymbol,
+                                 datatype=op_datatype_symbol)
+            # operators_names = [arg.declaration_name for arg in op_list]
+            # parent.add(TypeDeclGen(
+            #     parent, datatype=op_datatype,
+            #     entity_decls=operators_names, intent="in"))
             op_mod = op_list[0].module_name
             # Record that we will need to import this operator
             # datatype from the appropriate infrastructure module
@@ -3444,7 +3481,7 @@ class DynBasisFunctions(LFRicCollection):
         # This shape is not yet supported so we do nothing
         return
 
-    def _initialise_xyoz_qr(self, parent):
+    def _initialise_xyoz_qr(self, cursor):
         '''
         Add in the initialisation of variables needed for XYoZ
         quadrature

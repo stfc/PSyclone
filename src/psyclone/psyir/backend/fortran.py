@@ -716,10 +716,11 @@ class FortranWriter(LanguageWriter):
         result += f" :: {symbol.name}\n"
 
         if isinstance(symbol.datatype, UnresolvedType):
-            raise VisitorError(
-                f"Local Symbol '{symbol.name}' is of UnresolvedType and "
-                f"therefore no declaration can be created for it. Should it "
-                f"have an ImportInterface?")
+            return result
+            # raise VisitorError(
+            #     f"Local Symbol '{symbol.name}' is of UnresolvedType and "
+            #     f"therefore no declaration can be created for it. Should it "
+            #     f"have an ImportInterface?")
 
         self._depth += 1
 

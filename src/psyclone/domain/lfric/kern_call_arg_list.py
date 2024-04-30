@@ -127,9 +127,9 @@ class KernCallArgList(ArgOrdering):
             interface=ImportInterface(module))
         # Declare the actual user symbol in the local symbol table, using
         # the datatype from the root table:
-        sym = self._symtab.new_symbol(name, tag=tag,
-                                      symbol_type=DataSymbol,
-                                      datatype=user_type_symbol)
+        sym = self._symtab.find_or_create(name, tag=tag,
+                                          symbol_type=DataSymbol,
+                                          datatype=user_type_symbol)
         return sym
 
     def append_structure_reference(self, module_name, user_type, member_list,

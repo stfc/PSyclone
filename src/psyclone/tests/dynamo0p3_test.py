@@ -372,15 +372,17 @@ def test_any_space_2(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "INTEGER(KIND=i_def), intent(in) :: istp" in generated_code
-    assert ("INTEGER(KIND=i_def), pointer :: map_aspc1_a(:,:) => null()"
+    print(generated_code)
+    assert "integer(kind=i_def), intent(in) :: istp" in generated_code
+    assert ("integer(kind=i_def), pointer :: map_aspc1_a(:,:) => null()"
             in generated_code)
-    assert "INTEGER(KIND=i_def) ndf_aspc1_a, undf_aspc1_a" in generated_code
+    assert "integer(kind=i_def) :: ndf_aspc1_a" in generated_code
+    assert "integer(kind=i_def) :: undf_aspc1_a" in generated_code
     assert "ndf_aspc1_a = a_proxy%vspace%get_ndf()" in generated_code
     assert "undf_aspc1_a = a_proxy%vspace%get_undf()" in generated_code
     assert ("map_aspc1_a => a_proxy%vspace%get_whole_dofmap()"
             in generated_code)
-    assert ("CALL testkern_any_space_2_code(cell, nlayers, a_data, "
+    assert ("call testkern_any_space_2_code(cell, nlayers, a_data, "
             "b_data, c_proxy%ncell_3d, c_local_stencil, istp, "
             "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell))"
             in generated_code)
