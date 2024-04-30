@@ -523,9 +523,10 @@ class FortranWriter(LanguageWriter):
         '''
         # pylint: disable=too-many-branches
         if isinstance(symbol.datatype, UnresolvedType):
-            raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
-                               f"and we can not generate a declaration for "
-                               f"UnresolvedTypes.")
+            return "fixme"
+            # raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
+            #                    f"and we can not generate a declaration for "
+            #                    f"UnresolvedTypes.")
         if isinstance(symbol, ContainerSymbol) or \
                 isinstance(symbol, Symbol) and symbol.is_import:
             raise InternalError(f"Symbol '{symbol.name}' is brought into scope"

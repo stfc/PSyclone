@@ -318,7 +318,7 @@ class LFRicKern(CodedKern):
                 tag = "AlgArgs_" + qr_arg.text
                 # qr_name = self.ancestor(InvokeSchedule).symbol_table.\
                 #     find_or_create_integer_symbol(qr_arg.varname, tag=tag).name
-                qr_name = self.ancestor(InvokeSchedule).symbol_table.new_symbol(
+                qr_name = self.ancestor(InvokeSchedule).symbol_table.find_or_create(
                     qr_arg.varname, tag=tag, symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(f"missing decl {qr_arg.varname}")).name
             else:

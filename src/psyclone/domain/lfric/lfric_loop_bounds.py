@@ -96,8 +96,8 @@ class LFRicLoopBounds(LFRicCollection):
                 Assignment.create(
                     lhs=Reference(lbound),
                     rhs=Literal("1", INTEGER_TYPE),  # FIXME
-                )
-            )
+                ), cursor)
+            cursor += 1
             # parent.add(AssignGen(parent, lhs=lbound.name,
             #                      rhs=loop._lower_bound_fortran()))
             # entities = [lbound.name]
@@ -106,12 +106,14 @@ class LFRicLoopBounds(LFRicCollection):
                 root_name = f"loop{idx}_stop"
                 ubound = sym_table.find_or_create_integer_symbol(root_name,
                                                                  tag=root_name)
+                string = loop._upper_bound_fortran()
+                psyir = loop._upper_bound_psyir()
                 self._invoke.schedule.addchild(
                     Assignment.create(
                         lhs=Reference(ubound),
                         rhs=loop._upper_bound_psyir()
-                    )
-                )
+                    ), cursor)
+                cursor += 1
                 # entities.append(ubound.name)
                 # parent.add(AssignGen(parent, lhs=ubound.name,
                 #                      rhs=loop._upper_bound_fortran()))

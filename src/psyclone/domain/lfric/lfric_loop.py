@@ -186,7 +186,6 @@ class LFRicLoop(PSyLoop):
         return lowered_node
 
     def validate_global_constraints(self):
-        
         # Check that we're not within an OpenMP parallel region if
         # we are a loop over colours.
         if self._loop_type == "colours" and self.is_openmp_parallel():
@@ -637,7 +636,7 @@ class LFRicLoop(PSyLoop):
                 result = Call.create(
                     StructureReference.create(
                         sym_tab.lookup(self._mesh_name),
-                        ["get_last_edge_cell"]
+                        ["get_last_halo_cell"]
                     )
                 )
                 result.addchild(Literal(f"{halo_index}", INTEGER_TYPE))
@@ -1084,15 +1083,16 @@ class LFRicLoop(PSyLoop):
                     # the range function below returns values from 1 to the
                     # vector size which is what we require in our Fortran code
                     for index in range(1, field.vector_size+1):
+                        idx_literal = Literal(str(index), INTEGER_TYPE)
                         self.parent.addchild(
                             Call.create(ArrayOfStructuresReference.create(
-                                field_symbol, index, ["set_dirty"])),
-                            self.position)
+                                field_symbol, [idx_literal], ["set_dirty"])),
+                            self.position + 1)  # after the loop
                 else:
                     self.parent.addchild(
                         Call.create(StructureReference.create(
                             field_symbol, ["set_dirty"])),
-                        self.position)
+                        self.position + 1)  # after the loop
 
             # Now set appropriate parts of the halo clean where
             # redundant computation has been performed.
@@ -1111,7 +1111,6 @@ class LFRicLoop(PSyLoop):
                                     field_symbol, index, ["set_clean"]))
                             set_clean.addchild(Literal(str(halo_depth), INTEGER_TYPE))
                             self.parent.addchild(set_clean, self.position)
-                            
                             # parent.add(CallGen(
                             #     parent, name=f"{field.proxy_name}({index})%"
                             #     f"set_clean({halo_depth})"))

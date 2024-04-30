@@ -40,12 +40,16 @@
     associated with a PSy-layer routine or Kernel stub in the LFRic API.  '''
 
 from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicTypes
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen,
                               IfThenGen, TypeDeclGen, UseGen)
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import (
+    ScalarType, DataSymbol, UnsupportedFortranType, INTEGER_TYPE, UnresolvedType)
+from psyclone.psyir.nodes import (
+    Assignment, Reference, Call, StructureReference)
 
 
 class LFRicStencils(LFRicCollection):
@@ -181,7 +185,10 @@ class LFRicStencils(LFRicCollection):
         '''
         root_name = arg.name + "_stencil_map"
         unique = LFRicStencils.stencil_unique_str(arg, "map")
-        return self._symbol_table.find_or_create_tag(unique, root_name).name
+        # FIXME: This is not the type
+        return self._symbol_table.find_or_create_tag(
+            unique, root_name, symbol_type=DataSymbol,
+            datatype=UnresolvedType()).name
 
     @staticmethod
     def dofmap_symbol(symtab, arg):
@@ -346,6 +353,7 @@ class LFRicStencils(LFRicCollection):
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
+        table = self._symbol_table
 
         if self._unique_extent_vars:
             if self._kernel:
@@ -364,11 +372,15 @@ class LFRicStencils(LFRicCollection):
                             entity_decls=self._unique_extent_vars,
                             intent="in"))
             elif self._invoke:
-                parent.add(DeclGen(
-                    parent, datatype="integer",
-                    kind=api_config.default_kind["integer"],
-                    entity_decls=self._unique_extent_vars, intent="in"
-                ))
+                for var in self._unique_extent_vars:
+                    table.new_symbol(
+                        var, symbol_type=DataSymbol,
+                        datatype= LFRicTypes("LFRicIntegerScalarDataType")())
+                # parent.add(DeclGen(
+                #     parent, datatype="integer",
+                #     kind=api_config.default_kind["integer"],
+                #     entity_decls=self._unique_extent_vars, intent="in"
+                # ))
 
     @property
     def _unique_direction_vars(self):
@@ -455,9 +467,9 @@ class LFRicStencils(LFRicCollection):
         if not self._kern_args:
             return
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
-        parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
+        # parent.add(CommentGen(parent, ""))
         api_config = Config.get().api_conf("dynamo0.3")
         stencil_map_names = []
         const = LFRicConstants()
@@ -509,22 +521,53 @@ class LFRicStencils(LFRicCollection):
                             f"'{arg.descriptor.stencil['type']}' supplied. "
                             f"Supported mappings are "
                             f"{str(const.STENCIL_MAPPING)}") from err
-                    parent.add(
-                        AssignGen(parent, pointer=True, lhs=map_name,
-                                  rhs=arg.proxy_name_indexed +
-                                  "%vspace%get_stencil_dofmap(" +
-                                  stencil_name + "," +
-                                  self.extent_value(arg) + ")"))
+                    rhs = arg.generate_method_call("get_stencil_dofmap")
+                    rhs.addchild(Reference(symtab.lookup(stencil_name))) 
+                    rhs.addchild(
+                         Reference(symtab.lookup(self.extent_value(arg))))
+                    self._invoke.schedule.addchild(
+                        Assignment.create(
+                            lhs=Reference(symtab.lookup(arg.proxy_name)),
+                            rhs=rhs),
+                        cursor)
+                    cursor += 1
+                    # parent.add(
+                    #     AssignGen(parent, pointer=True, lhs=map_name,
+                    #               rhs=arg.proxy_name_indexed +
+                    #               "%vspace%get_stencil_dofmap(" +
+                    #               stencil_name + "," +
+                    #               self.extent_value(arg) + ")"))
 
-                parent.add(AssignGen(parent, pointer=True,
-                                     lhs=self.dofmap_symbol(symtab, arg).name,
-                                     rhs=map_name + "%get_whole_dofmap()"))
+                map_symbol = symtab.lookup(map_name)
+                self._invoke.schedule.addchild(
+                    Assignment.create(
+                        lhs=Reference(self.dofmap_symbol(symtab,arg)),
+                        rhs=Call.create(
+                            StructureReference.create(
+                                symtab.lookup(map_name),
+                                ["get_whole_dofmap()"])),
+                        is_pointer=True),
+                    cursor)
+                cursor += 1
+                # parent.add(AssignGen(parent, pointer=True,
+                #                      lhs=self.dofmap_symbol(symtab, arg).name,
+                #                      rhs=map_name + "%get_whole_dofmap()"))
 
                 # Add declaration and look-up of stencil size
-                dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
-                parent.add(AssignGen(parent, pointer=True,
-                                     lhs=dofmap_size_name,
-                                     rhs=map_name + "%get_stencil_sizes()"))
+                self._invoke.schedule.addchild(
+                    Assignment.create(
+                        lhs=Reference(self.dofmap_size_symbol(symtab,arg)),
+                        rhs=Call.create(
+                            StructureReference.create(
+                                symtab.lookup(map_name),
+                                ["get_stencil_sizes()"])),
+                        is_pointer=True),
+                    cursor)
+                cursor += 1
+                # dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
+                # parent.add(AssignGen(parent, pointer=True,
+                #                      lhs=dofmap_size_name,
+                #                      rhs=map_name + "%get_stencil_sizes()"))
 
     def _declare_maps_invoke(self, parent):
         '''
@@ -583,8 +626,8 @@ class LFRicStencils(LFRicCollection):
             else:
                 smap_type = const.STENCIL_TYPE_MAP["stencil_dofmap"]["type"]
                 smap_mod = const.STENCIL_TYPE_MAP["stencil_dofmap"]["module"]
-                parent.add(UseGen(parent, name=smap_mod,
-                                  only=True, funcnames=[smap_type]))
+                # parent.add(UseGen(parent, name=smap_mod,
+                #                   only=True, funcnames=[smap_type]))
                 if stencil_type == 'xory1d':
                     drct_mod = const.STENCIL_TYPE_MAP["direction"]["module"]
                     parent.add(UseGen(parent, name=drct_mod,
@@ -602,24 +645,31 @@ class LFRicStencils(LFRicCollection):
                             f"'{arg.descriptor.stencil['type']}' supplied. "
                             f"Supported mappings are "
                             f"{const.STENCIL_MAPPING}") from err
-                    parent.add(UseGen(parent, name=smap_mod,
-                                      only=True, funcnames=[stencil_name]))
+                    # parent.add(UseGen(parent, name=smap_mod,
+                    #                   only=True, funcnames=[stencil_name]))
 
-                parent.add(TypeDeclGen(parent, pointer=True,
-                                       datatype=smap_type,
-                                       entity_decls=[map_name+" => null()"]))
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   pointer=True,
-                                   entity_decls=[self.dofmap_symbol(symtab,
-                                                                    arg).name +
-                                                 "(:,:,:) => null()"]))
-                dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   pointer=True,
-                                   entity_decls=[f"{dofmap_size_name}(:) "
-                                                 f"=> null()"]))
+                dtype = UnsupportedFortranType(
+                    f"type({smap_type}), pointer :: {map_name} => null()")
+                symtab.new_symbol(arg.declaration_name,
+                                  symbol_type=DataSymbol,
+                                  datatype=dtype)
+                # parent.add(TypeDeclGen(parent, pointer=True,
+                #                        datatype=smap_type,
+                #                        entity_decls=[map_name+" => null()"]))
+
+                # FIXME: Do we need these?
+                # parent.add(DeclGen(parent, datatype="integer",
+                #                    kind=api_config.default_kind["integer"],
+                #                    pointer=True,
+                #                    entity_decls=[self.dofmap_symbol(symtab,
+                #                                                     arg).name +
+                #                                  "(:,:,:) => null()"]))
+                # dofmap_size_name = self.dofmap_size_symbol(symtab, arg).name
+                # parent.add(DeclGen(parent, datatype="integer",
+                #                    kind=api_config.default_kind["integer"],
+                #                    pointer=True,
+                #                    entity_decls=[f"{dofmap_size_name}(:) "
+                #                                  f"=> null()"]))
 
     def _declare_maps_stub(self, parent):
         '''

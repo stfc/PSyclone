@@ -3926,10 +3926,18 @@ class DynBoundaryConditions(LFRicCollection):
 
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True,
-                               entity_decls=[name+"(:,:) => null()"]))
+            kind = api_config.default_kind["integer"]
+            dtype = UnsupportedFortranType(
+                f"integer(kind={kind}), pointer "
+                f":: {name}(:,:) => null()")
+            self._invoke.schedule.symbol_table.new_symbol(
+                name,
+                symbol_type=DataSymbol,
+                datatype=dtype)
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    pointer=True,
+            #                    entity_decls=[name+"(:,:) => null()"]))
 
     def _stub_declarations(self, cursor):
         '''
@@ -3958,13 +3966,23 @@ class DynBoundaryConditions(LFRicCollection):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        symtab = self._invoke.schedule.symbol_table
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
-            parent.add(AssignGen(
-                parent, pointer=True, lhs=name,
-                rhs="%".join([dofs.argument.proxy_name,
-                              dofs.argument.ref_name(dofs.function_space),
-                              "get_boundary_dofs()"])))
+            self._invoke.schedule.addchild(
+                Assignment.create(
+                    lhs=Reference(symtab.lookup(name)),
+                    rhs=dofs.argument.generate_method_call("get_boundary_dofs"),
+                    is_pointer=True
+                ),
+                cursor)
+            cursor += 1
+
+            # parent.add(AssignGen(
+            #     parent, pointer=True, lhs=name,
+            #     rhs="%".join([dofs.argument.proxy_name,
+            #                   dofs.argument.ref_name(dofs.function_space),
+            #                   "get_boundary_dofs()"])))
 
 
 class DynInvokeSchedule(InvokeSchedule):
