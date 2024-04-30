@@ -40,9 +40,16 @@ which module is contained in which file (including full location). '''
 from collections import OrderedDict
 import copy
 import os
+import re
 
 from psyclone.errors import InternalError
 from psyclone.parse.module_info import ModuleInfo
+
+
+# regex to find Fortran module names. Have to be careful not to match
+# e.g. "module procedure :: some_sub".
+_MODULE_PATTERN = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
+                             flags=(re.IGNORECASE | re.MULTILINE))
 
 
 class ModuleManager:
@@ -72,6 +79,7 @@ class ModuleManager:
                                 "to get the singleton instance.")
         # Cached mapping from module name to filename.
         self._mod_2_filename = {}
+        self._visited_files = set()
 
         # The list of all search paths which have not yet all their files
         # checked. It is stored as an ordered dict to make it easier to avoid
@@ -129,8 +137,12 @@ class ModuleManager:
                         ext not in [".F90", ".f90", ".X90", ".x90"]:
                     continue
                 full_path = os.path.join(directory, entry.name)
+                if full_path in self._visited_files:
+                    continue
+                self._visited_files.add(full_path)
+                src = ModuleInfo.read_source(full_path)
                 # Obtain the names of all modules defined in this source file.
-                all_modules = self.get_modules_in_file(full_path)
+                all_modules = self.get_modules_in_file(src)
                 for module in all_modules:
                     # Pre-processed file should always take precedence
                     # over non-pre-processed files. So if a module already
@@ -138,9 +150,9 @@ class ModuleManager:
                     # file is pre-processed (i.e. .f90). This still means that
                     # if files are not preprocessed (.F90), they will still be
                     # added (but might cause problems parsing later).
-                    if module not in self._mod_2_filename or \
-                            ext in [".f90", ".x90"]:
-                        mod_info = ModuleInfo(module, full_path)
+                    if (module not in self._mod_2_filename or
+                            ext in [".f90", ".x90"]):
+                        mod_info = ModuleInfo(module, full_path, src)
                         self._mod_2_filename[module] = mod_info
 
     # ------------------------------------------------------------------------
@@ -170,7 +182,7 @@ class ModuleManager:
         :returns: the filename that contains the module
         :rtype: str
 
-        :raises FileNotFoundError: if the module_name is not found in
+        :raises FileNotFoundError: if the module_name is not found in \
             either the cached data nor in the search path.
 
         '''
@@ -203,26 +215,21 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, filename):
-        '''This function returns the list of modules defined in the specified
-        file. The base implementation assumes the use of the LFRic coding
-        style: the file `a_mod.f90` implements the module `a_mod`. This
-        function can be implemented in a derived class to actually parse the
-        source file if required.
+    def get_modules_in_file(self, source_code):
+        '''
+        Uses a regex search to find all modules defined in the file with the
+        supplied name.
 
-        :param str filename: the file name for which to find the list \
-            of modules it contains.
+        :param str filename: the fully-qualified name of the file to check for
+                             Fortran modules.
 
-        :returns: the list of all modules contained in the specified file.
+        :returns: the names of any modules present in the supplied file.
         :rtype: list[str]
 
         '''
-        basename = os.path.basename(filename)
-        root, _ = os.path.splitext(basename)
-        if root.lower().endswith("_mod"):
-            return [root]
+        mod_names = _MODULE_PATTERN.findall(source_code)
 
-        return []
+        return [name.lower() for name in mod_names]
 
     # ------------------------------------------------------------------------
     def get_all_dependencies_recursively(self, all_mods):
