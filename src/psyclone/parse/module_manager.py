@@ -170,7 +170,7 @@ class ModuleManager:
         :returns: the filename that contains the module
         :rtype: str
 
-        :raises FileNotFoundError: if the module_name is not found in \
+        :raises FileNotFoundError: if the module_name is not found in
             either the cached data nor in the search path.
 
         '''

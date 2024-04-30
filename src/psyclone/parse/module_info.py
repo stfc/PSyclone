@@ -344,11 +344,20 @@ class ModuleInfo:
                 self._psyir = FileContainer(os.path.basename(self._filename))
                 module = Container("invalid-module")
                 self._psyir.children.append(module)
+                return module
 
-        # TODO #2462: needs to be fixed to properly support multiple modules
-        # in one file
-        # Return the actual module Container (not the FileContainer)
-        return self._psyir.children[0]
+        for cntr in self._psyir.walk(Container):
+            if cntr.name.lower() == self.name.lower():
+                return cntr
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.psyir.nodes import CodeBlock
+        if (self._psyir.children and isinstance(self._psyir.children[0],
+                                                CodeBlock)):
+            raise NotImplementedError(
+                f"Cannot find Fortran module '{self.name}' because the "
+                f"file '{self._filename}' is not representable in PSyIR.")
+        raise InternalError(f"The PSyIR for file '{self._filename}' does not "
+                            f"contain a module named '{self.name}'.")
 
     # ------------------------------------------------------------------------
     def resolve_routine(self, routine_name):
