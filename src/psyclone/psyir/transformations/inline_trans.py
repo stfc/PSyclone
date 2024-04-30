@@ -42,7 +42,7 @@ from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
     CodeBlock, IntrinsicCall, Node, Range, Routine, Reference,
-    Return, Literal, Assignment, StructureMember, StructureReference)
+    Return, Literal, Statement, StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, UnresolvedType, INTEGER_TYPE,
@@ -199,7 +199,7 @@ class InlineTrans(Transformation):
 
         if routine.return_symbol:
             # This is a function
-            assignment = node.ancestor(Assignment)
+            assignment = node.ancestor(Statement)
             parent = assignment.parent
             idx = assignment.position-1
             for child in new_stmts:
