@@ -282,7 +282,7 @@ def test_scalarization_trans_check_valid_following_access(fortran_reader):
 #         integer, dimension(1:100) :: arr
 #         integer, dimension(1:100) :: b
 #         integer, dimension(1:100) :: c
-# 
+#
 #         do i = 1, 100
 #            arr(i) = i
 #            arr(i) = exp(arr(i))
@@ -297,7 +297,7 @@ def test_scalarization_trans_check_valid_following_access(fortran_reader):
 #     '''
 #     strans = ScalarizationTrans()
 #     psyir = fortran_reader.psyir_from_source(code)
-# 
+#
 #     loop = psyir.children[0].children[0]
 #     strans.apply(loop)
 #     print(fortran_writer(psyir))
