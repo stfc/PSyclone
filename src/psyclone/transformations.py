@@ -356,15 +356,38 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
 
 class MarkRoutineForGPUMixin:
+    ''' This Mixin provides the "validate_it_can_run_on_gpu" method that
+    given a routine or kernel node, it checks that the callee code is valid
+    to run on a GPU. It is implemented as a Mixin because transformations
+    from multiple programming models, e.g. OpenMP and OpenACC, can reuse
+    the same logic.
 
+    '''
     def validate_it_can_run_on_gpu(self, node, options):
         '''
-        Check that an this node can be marked as available to be called on
-        GPU.
+        Check that the supplied node can be marked as available to be
+        called on GPU.
+
+        :param node: the kernel or routine to validate.
+        :type node: :py:class:`psyclone.psyGen.Kern` |
+                    :py:class:`psyclone.psyir.nodes.Routine`
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
+
+        :raises TransformationError: if the node is not a kernel or a routine.
+        :raises TransformationError: if the target is a built-in kernel.
+        :raises TransformationError: if it is a kernel but without an
+                                     associated PSyIR.
+        :raises TransformationError: if any of the symbols in the kernel are
+                                     accessed via a module use statement.
+        :raises TransformationError: if the kernel contains any calls to other
+                                     routines.
         '''
         force = options.get("force", False) if options else False
 
-        if not isinstance(node, Kern) and not isinstance(node, Routine):
+        if not isinstance(node, (Kern, Routine)):
             raise TransformationError(
                 f"The {type(self).__name__} must be applied to a sub-class of "
                 f"Kern or Routine but got '{type(node).__name__}'.")
@@ -518,12 +541,23 @@ class OMPDeclareTargetTrans(Transformation, MarkRoutineForGPUMixin):
     def validate(self, node, options=None):
         ''' Check that an OMPDeclareTargetDirective can be inserted.
 
-        :param node: the PSyIR node to validate.
-        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param node: the kernel or routine which is the target of this
+            transformation.
+        :type node: :py:class:`psyclone.psyGen.Kern` |
+                    :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
 
-        :raises TransformationError: if the node is not a Routine
+        :raises TransformationError: if the node is not a kernel or a routine.
+        :raises TransformationError: if the target is a built-in kernel.
+        :raises TransformationError: if it is a kernel but without an
+                                     associated PSyIR.
+        :raises TransformationError: if any of the symbols in the kernel are
+                                     accessed via a module use statement.
+        :raises TransformationError: if the kernel contains any calls to other
+                                     routines.
 
         '''
         super().validate(node, options=options)
@@ -2541,11 +2575,14 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         '''
         Perform checks that the supplied kernel or routine can be transformed.
 
-        :param node: the kernel which is the target of the transformation.
+        :param node: the kernel or routine which is the target of this
+            transformation.
         :type node: :py:class:`psyclone.psyGen.Kern` |
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.

@@ -289,6 +289,8 @@ class AdjointVisitor(PSyIRVisitor):
         for expr, description in [(node.start_expr, "lower bound"),
                                   (node.stop_expr, "upper bound"),
                                   (node.step_expr, "step")]:
+            # TODO #2542. References should be iterated with the
+            # reference_acess method when its issues are fixed.
             for ref in expr.walk(Reference):
                 if (isinstance(ref.parent, Call) and
                         ref is ref.parent.children[0]):

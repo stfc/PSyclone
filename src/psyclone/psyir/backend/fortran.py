@@ -968,16 +968,15 @@ class FortranWriter(LanguageWriter):
                 "_psyclone_internal_interface")
         except KeyError:
             internal_interface_symbol = None
-        # if unresolved_symbols and not (
-        #         symbol_table.has_wildcard_imports() or
-        #         internal_interface_symbol):
-        #     symbols_txt = ", ".join(
-        #         ["'" + sym.name + "'" for sym in unresolved_symbols])
-        #     raise VisitorError(
-        #         f"The following symbols are not explicitly declared or "
-        #         f"imported from a module and there are no wildcard "
-        #         f"imports which could be bringing them into scope: "
-        #         f"{symbols_txt}")
+        if unresolved_symbols and not (
+                symbol_table.wildcard_imports() or internal_interface_symbol):
+            symbols_txt = ", ".join(
+                ["'" + sym.name + "'" for sym in unresolved_symbols])
+            raise VisitorError(
+                f"The following symbols are not explicitly declared or "
+                f"imported from a module and there are no wildcard "
+                f"imports which could be bringing them into scope: "
+                f"{symbols_txt}")
 
         # FIXME: For now we remove generic symbols found in LFRic, but this
         # need to be removed by specialising them or seting them as
@@ -1204,10 +1203,13 @@ class FortranWriter(LanguageWriter):
                 except KeyError:
                     skip = []
                 whole_routine_scope.merge(sched_table, skip)
-
-            # Replace the symbol table
-            node.symbol_table.detach()
-            whole_routine_scope.attach(node)
+                if schedule is node:
+                    # Replace the Routine's symbol table as soon as we've
+                    # merged it into the new one. This ensures that the new
+                    # table has full information on outer scopes which is
+                    # important when merging.
+                    node.symbol_table.detach()
+                    whole_routine_scope.attach(node)
 
         # Generate module imports
         imports = ""
@@ -1548,7 +1550,8 @@ class FortranWriter(LanguageWriter):
             for ast_node in node.get_ast_nodes:
                 # Using tofortran() ensures we get any label associated
                 # with this statement.
-                result += f"{self._nindent}{ast_node.tofortran()}\n"
+                for line in ast_node.tofortran().split("\n"):
+                    result += f"{self._nindent}{line}\n"
         elif node.structure == CodeBlock.Structure.EXPRESSION:
             for ast_node in node.get_ast_nodes:
                 result += str(ast_node)

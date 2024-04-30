@@ -2599,11 +2599,11 @@ def test_handling_unaryopbase():
     tree structure.
     '''
     reader = FortranStringReader("x=-4")
-    fp2unaryop = Execution_Part.match(reader)[0][0]
+    assign_stmt = Execution_Part.match(reader)[0][0]
 
     fake_parent = Schedule()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fp2unaryop])
+    processor.process_nodes(fake_parent, [assign_stmt])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent[0].rhs
@@ -2621,10 +2621,10 @@ def test_handling_unaryopbase():
         # Manipulate the fparser2 ParseTree so that it contains the operator
         # under test
         reader = FortranStringReader("x=" + opstring + "4")
-        fp2unaryop = Execution_Part.match(reader)[0][0]
+        assign_stmt = Execution_Part.match(reader)[0][0]
         # And then translate it to PSyIR again.
         fake_parent = Schedule()
-        processor.process_nodes(fake_parent, [fp2unaryop])
+        processor.process_nodes(fake_parent, [assign_stmt])
         assert len(fake_parent.children) == 1
         assert isinstance(fake_parent[0].rhs, UnaryOperation), \
             "Fails when parsing '" + opstring + "'"
@@ -2632,10 +2632,10 @@ def test_handling_unaryopbase():
             "Fails when parsing '" + opstring + "'"
 
     # Test that an unsupported unary operator creates a CodeBlock
-    fp2unaryop.items = (fp2unaryop.items[0], fp2unaryop.items[1],
-                        ('unsupported', fp2unaryop.items[2].items[1]))
+    fp2unaryop = assign_stmt.children[2]
+    fp2unaryop.items = ('unsupported', fp2unaryop.children[1])
     fake_parent = Schedule()
-    processor.process_nodes(fake_parent, [fp2unaryop])
+    processor.process_nodes(fake_parent, [assign_stmt])
 
     assert len(fake_parent.children) == 1
     new_node = fake_parent[0].rhs

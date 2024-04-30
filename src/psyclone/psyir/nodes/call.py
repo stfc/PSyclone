@@ -97,8 +97,8 @@ class Call(Statement, DataNode):
             py:class:`psyclone.psyir.nodes.Reference`
         :param arguments: optional list of arguments for this call, these
             can be PSyIR nodes or tuples of string,Node for named arguments.
-        :type arguments: Optional[Iterable[
-            Union[:py:class:`psyclone.psyir.nodes.DataNode`,
+        :type arguments: Optional[Iterable[\
+            Union[:py:class:`psyclone.psyir.nodes.DataNode`,\
                   Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]]
 
         :returns: an instance of cls.
@@ -340,9 +340,9 @@ class Call(Statement, DataNode):
     @property
     def is_elemental(self):
         '''
-        :returns: whether the routine being called is elemental (provided with\
-            an input array it will apply the operation individually to each of\
-            the array elements and return an array with the results). If this \
+        :returns: whether the routine being called is elemental (provided with
+            an input array it will apply the operation individually to each of
+            the array elements and return an array with the results). If this
             information is not known then it returns None.
         :rtype: NoneType | bool
         '''
