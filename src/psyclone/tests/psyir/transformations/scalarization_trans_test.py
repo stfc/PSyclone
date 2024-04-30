@@ -36,16 +36,13 @@
 '''This module tests the scalarization transformation.
 '''
 
-import os
-import pytest
-
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.transformations import ScalarizationTrans
-from psyclone.tests.utilities import Compile
+# from psyclone.tests.utilities import Compile
 
 
 def test_scalarizationtrans_potential_array_symbols(fortran_reader):
-    ''' Test the possible code paths in the 
+    ''' Test the possible code paths in the
     _find_potential_scalarizable_array_symbols function.'''
     code = '''subroutine test()
         integer :: i
@@ -278,30 +275,30 @@ def test_scalarization_trans_check_valid_following_access(fortran_reader):
     assert potential_targets[0].var_name == "arr"
 
 
-#def test_scal_quick(fortran_reader, fortran_writer):
-#    code = '''subroutine test()
-#        integer :: i
-#        integer :: k
-#        integer, dimension(1:100) :: arr
-#        integer, dimension(1:100) :: b
-#        integer, dimension(1:100) :: c
-#
-#        do i = 1, 100
-#           arr(i) = i
-#           arr(i) = exp(arr(i))
-#           k = i
-#           b(i) = arr(i) * 3
-#           c(k) = i
-#        end do
-#        do i = 1, 100
-#           b(i) = b(i) + 1
-#        end do
-#    end subroutine
-#    '''
-#    strans = ScalarizationTrans()
-#    psyir = fortran_reader.psyir_from_source(code)
-#
-#    loop = psyir.children[0].children[0]
-#    strans.apply(loop)
-#    print(fortran_writer(psyir))
-#    assert False
+# def test_scal_quick(fortran_reader, fortran_writer):
+#     code = '''subroutine test()
+#         integer :: i
+#         integer :: k
+#         integer, dimension(1:100) :: arr
+#         integer, dimension(1:100) :: b
+#         integer, dimension(1:100) :: c
+# 
+#         do i = 1, 100
+#            arr(i) = i
+#            arr(i) = exp(arr(i))
+#            k = i
+#            b(i) = arr(i) * 3
+#            c(k) = i
+#         end do
+#         do i = 1, 100
+#            b(i) = b(i) + 1
+#         end do
+#     end subroutine
+#     '''
+#     strans = ScalarizationTrans()
+#     psyir = fortran_reader.psyir_from_source(code)
+# 
+#     loop = psyir.children[0].children[0]
+#     strans.apply(loop)
+#     print(fortran_writer(psyir))
+#     assert False
