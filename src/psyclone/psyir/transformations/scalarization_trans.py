@@ -37,23 +37,15 @@
 
 import itertools
 
-from psyclone.core import AccessType, SymbolicMaths, VariablesAccessInfo, \
-    Signature
-from psyclone.domain.common.psylayer import PSyLoop
+from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Assignment, Call, CodeBlock, IfBlock,\
+from psyclone.psyir.nodes import Assignment, Call, CodeBlock, IfBlock, \
         Reference, Routine
 from psyclone.psyir.symbols import DataSymbol
-from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations.loop_trans import LoopTrans
-from psyclone.psyir.transformations.transformation_error import \
-    TransformationError, LazyString
 
 
 class ScalarizationTrans(LoopTrans):
-
-    #def validate(self, node, options=None):
-
 
     def _find_potential_scalarizable_array_symbols(self, node, var_accesses):
 
@@ -99,6 +91,7 @@ class ScalarizationTrans(LoopTrans):
         potential_arrays = []
 
         for signature in potentials:
+            print(signature)
             # Find the last access of each signature
             last_access = var_accesses[signature].all_accesses[-1].node
             # Find the next access to this symbol
@@ -115,31 +108,32 @@ class ScalarizationTrans(LoopTrans):
 
             # If abs_position of if_ancestor is > node.abs_position
             # its not an ancestor of us.
-            if (if_ancestor is not None and 
-                if_ancestor.abs_position > node.abs_position):
+            if (if_ancestor is not None and
+                    if_ancestor.abs_position > node.abs_position):
                 # Not a valid next_access pattern.
                 continue
 
             # If next access is the LHS of an assignment, we need to
             # check that it doesn't also appear on the RHS. If so its
             # not a valid access
+            # I'm not sure this code is reachable
             if (isinstance(next_access.parent, Assignment) and
                 next_access.parent.lhs is next_access and
-                (next_access.next_access().ancestor(Assignment) is
+                (next_access.next_access() is not None and
+                 next_access.next_access().ancestor(Assignment) is
                  next_access.parent)):
-                    continue
+                continue
 
-            # If its a read Reference then we can't use it too, or if its
-            # ancestor is a CodeBlock or Call or Kern?
-            if (next_access.ancestor((Assignment, CodeBlock, Call, Kern)) 
+            # If it has an ancestor that is a CodeBlock or Call or Kern
+            # then we can't guarantee anything, so we remove it.
+            if (next_access.ancestor((CodeBlock, Call, Kern))
                     is not None):
                 continue
-            
+
             potential_arrays.append(signature)
 
-
         return potential_arrays
-     
+
     def apply(self, node, options=None):
         '''TODO Docs'''
         # For each array reference in the Loop:
@@ -166,7 +160,7 @@ class ScalarizationTrans(LoopTrans):
         potential_targets = self._check_first_access_is_write(
                 node, var_accesses, potential_targets)
 
-        # Check the values written to these arrays are not used after this loop.
+        # Check the values written to these arrays are not used after this loop
         finalised_targets = self._check_valid_following_access(
                 node, var_accesses, potential_targets)
 

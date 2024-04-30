@@ -39,18 +39,14 @@
 import os
 import pytest
 
-from psyclone.configuration import Config
-from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine, Loop
-from psyclone.psyir.symbols import (
-    ArgumentInterface, AutomaticInterface, DataSymbol, INTEGER_TYPE,
-    RoutineSymbol, SymbolTable, UnresolvedType)
-from psyclone.psyir.transformations import (
-    ScalarizationTrans, TransformationError)
+from psyclone.core import VariablesAccessInfo
+from psyclone.psyir.transformations import ScalarizationTrans
 from psyclone.tests.utilities import Compile
 
 
-def test_scal_quick(fortran_reader, fortran_writer):
+def test_scalarizationtrans_potential_array_symbols(fortran_reader):
+    ''' Test the possible code paths in the 
+    _find_potential_scalarizable_array_symbols function.'''
     code = '''subroutine test()
         integer :: i
         integer :: k
@@ -60,10 +56,119 @@ def test_scal_quick(fortran_reader, fortran_writer):
 
         do i = 1, 100
            arr(i) = i
+        end do
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    potential_targets = strans._find_potential_scalarizable_array_symbols(
+            node, var_accesses)
+    assert len(potential_targets) == 1
+    assert potential_targets[0].var_name == "arr"
+
+    code = '''subroutine test()
+        integer :: i
+        integer :: k
+        integer, dimension(1:100) :: arr
+        integer, dimension(1:100) :: b
+        integer, dimension(1:100) :: c
+
+        do i = 1, 99
+           k = i + 1
+           arr(k) = i
+        end do
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    potential_targets = strans._find_potential_scalarizable_array_symbols(
+            node, var_accesses)
+    assert len(potential_targets) == 0
+
+    code = '''subroutine test()
+        integer :: i
+        integer :: k
+        integer, dimension(1:100) :: arr
+        integer, dimension(1:100) :: b
+        integer, dimension(1:100) :: c
+        k = 3
+        do i = 1, 99
+           arr(i) = i + 1
+           arr(k) = arr(i) + 1
+        end do
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[1]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    potential_targets = strans._find_potential_scalarizable_array_symbols(
+            node, var_accesses)
+    assert len(potential_targets) == 0
+
+
+def test_scalarization_first_access_is_write(fortran_reader):
+    ''' Test the scalarization transformation's
+    _check_first_access_is_write function.'''
+    code = '''subroutine test()
+        integer :: i
+        integer :: k
+        integer, dimension(1:100) :: arr
+        integer, dimension(1:100) :: b
+        integer, dimension(1:100) :: c
+
+        do i = 1, 100
+           arr(i) = i
+        end do
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    potentials = [var_accesses.all_signatures[0]]
+    potential_targets = strans._check_first_access_is_write(
+            node, var_accesses, potentials)
+
+    assert len(potential_targets) == 1
+    assert potential_targets[0].var_name == "arr"
+    code = '''subroutine test()
+        integer :: i
+        integer :: k
+        integer, dimension(1:100) :: arr
+        integer, dimension(1:100) :: b
+        integer, dimension(1:100) :: c
+
+        do i = 1, 100
+           arr(i) = arr(i) + 1
+        end do
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    potentials = [var_accesses.all_signatures[0]]
+    potential_targets = strans._check_first_access_is_write(
+            node, var_accesses, potentials)
+
+    assert len(potential_targets) == 0
+
+
+def test_scalarization_trans_check_valid_following_access(fortran_reader):
+    ''' Test the scalarization transformation's
+    _check_valid_following_access function.'''
+    code = '''subroutine test()
+        integer :: i
+        integer :: k
+        integer, dimension(1:100) :: arr
+        integer, dimension(1:100) :: b
+
+        do i = 1, 100
            arr(i) = exp(arr(i))
-           k = i
            b(i) = arr(i) * 3
-           c(k) = i
         end do
         do i = 1, 100
            b(i) = b(i) + 1
@@ -72,8 +177,131 @@ def test_scal_quick(fortran_reader, fortran_writer):
     '''
     strans = ScalarizationTrans()
     psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    # Only arr makes it through the 2 prior stages
+    potentials = [var_accesses.all_signatures[0]]
+    potential_targets = strans._check_valid_following_access(
+            node, var_accesses, potentials)
+    assert len(potential_targets) == 1
+    assert potential_targets[0].var_name == "arr"
 
-    loop = psyir.children[0].children[0]
-    strans.apply(loop)
-    print(fortran_writer(psyir))
-    assert False
+    # Test we ignore array next_access if they're in an if statement
+    code = '''subroutine test()
+        integer :: i
+        integer :: k
+        integer, dimension(1:100) :: arr
+        integer, dimension(1:100) :: b
+        logical :: x = .FALSE.
+
+        do i = 1, 100
+           arr(i) = exp(arr(i))
+           b(i) = arr(i) * 3
+        end do
+        if(x) then
+          do i = 1, 100
+            b(i) = 1
+          end do
+        end if
+        end subroutine test
+        '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    potentials = [var_accesses.all_signatures[0],
+                  var_accesses.all_signatures[1]]
+    potential_targets = strans._check_valid_following_access(
+            node, var_accesses, potentials)
+    assert len(potential_targets) == 1
+    assert potential_targets[0].var_name == "arr"
+    # Test we don't ignore array next_access if they're in an if statement
+    # that is an ancestor of the loop we're scalarizing
+    code = '''subroutine test()
+        integer :: i
+        integer :: k
+        integer, dimension(1:100) :: arr
+        integer, dimension(1:100) :: b
+
+        if(.false.) then
+          do i = 1, 100
+           arr(i) = exp(arr(i))
+           b(i) = arr(i) * 3
+          end do
+          do i = 1, 100
+            b(i) = 1
+          end do
+        end if
+        end subroutine test
+        '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0].if_body.children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    potentials = [var_accesses.all_signatures[0],
+                  var_accesses.all_signatures[1]]
+    potential_targets = strans._check_valid_following_access(
+            node, var_accesses, potentials)
+    assert len(potential_targets) == 2
+    assert potential_targets[0].var_name == "arr"
+    assert potential_targets[1].var_name == "b"
+
+    # Test we don't ignore array next_access if they have an ancestor
+    # that is a Call
+    code = '''subroutine test()
+        use my_mod
+        integer :: i
+        integer :: k
+        integer, dimension(1:100) :: arr
+        integer, dimension(1:100) :: b
+
+        if(.false.) then
+          do i = 1, 100
+           arr(i) = exp(arr(i))
+           b(i) = arr(i) * 3
+          end do
+          do i = 1, 100
+            Call some_func(b(i))
+          end do
+        end if
+        end subroutine test
+        '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0].if_body.children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    potentials = [var_accesses.all_signatures[0],
+                  var_accesses.all_signatures[1]]
+    potential_targets = strans._check_valid_following_access(
+            node, var_accesses, potentials)
+    assert len(potential_targets) == 1
+    assert potential_targets[0].var_name == "arr"
+
+
+#def test_scal_quick(fortran_reader, fortran_writer):
+#    code = '''subroutine test()
+#        integer :: i
+#        integer :: k
+#        integer, dimension(1:100) :: arr
+#        integer, dimension(1:100) :: b
+#        integer, dimension(1:100) :: c
+#
+#        do i = 1, 100
+#           arr(i) = i
+#           arr(i) = exp(arr(i))
+#           k = i
+#           b(i) = arr(i) * 3
+#           c(k) = i
+#        end do
+#        do i = 1, 100
+#           b(i) = b(i) + 1
+#        end do
+#    end subroutine
+#    '''
+#    strans = ScalarizationTrans()
+#    psyir = fortran_reader.psyir_from_source(code)
+#
+#    loop = psyir.children[0].children[0]
+#    strans.apply(loop)
+#    print(fortran_writer(psyir))
+#    assert False
