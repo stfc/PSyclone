@@ -1309,7 +1309,8 @@ class DynFunctionSpaces(LFRicCollection):
                 self._invoke.schedule.addchild(
                     Assignment.create(
                         lhs=Reference(symtab.lookup(ndf_name)),
-                        rhs=arg.generate_method_call("get_ndf")),
+                        rhs=arg.generate_method_call(
+                              "get_ndf", function_space=function_space)),
                     cursor)
                 cursor += 1
                 # parent.add(AssignGen(parent, lhs=ndf_name,
@@ -1599,7 +1600,7 @@ class DynProxies(LFRicCollection):
              add(operator_datatype))
             # Ensure the appropriate kind parameter will be imported.
             (self._invoke.invokes.psy.infrastructure_modules[const_mod].
-             add(arg.precision))
+             add(operators_list[0].precision))
 
         # Declarations of CMA operator proxies
         cma_op_args = self._invoke.unique_declarations(
@@ -1823,9 +1824,12 @@ class DynCellIterators(LFRicCollection):
             symbol = self._symbol_table.lookup_with_tag("nlayers")
             stmt = Assignment.create(
                     lhs=Reference(symbol),
-                    rhs=Call.create(StructureReference.create(
-                        self._symbol_table.lookup(self._first_var.proxy_name),
-                        [self._first_var.ref_name(), "get_nlayers"])))
+                    rhs=self._first_var.generate_method_call("get_nlayers"))
+            # stmt = Assignment.create(
+            #         lhs=Reference(symbol),
+            #         rhs=Call.create(StructureReference.create(
+            #             self._symbol_table.lookup(self._first_var.proxy_name_indexed),
+            #             [self._first_var.ref_name(), "get_nlayers"])))
             stmt.preceding_comment = "Initialise number of layers"
             self._invoke.schedule.addchild(stmt, cursor)
             cursor += 1
@@ -2518,9 +2522,10 @@ class DynMeshes():
             mesh_sym = symtab.lookup_with_tag(self._mesh_tag_names[0])
             self._schedule.addchild(Assignment.create(
                 lhs=Reference(mesh_sym),
-                rhs=Call.create(StructureReference.create(
-                    symtab.lookup(self._first_var.proxy_name_indexed),
-                    [self._first_var.ref_name(), "get_mesh"])),
+                rhs=self._first_var.generate_method_call("get_mesh"),
+                # rhs=Call.create(StructureReference.create(
+                #     symtab.lookup(self._first_var.proxy_name_indexed),
+                #     [self._first_var.ref_name(), "get_mesh"])),
                 is_pointer=True),
                 cursor)
             cursor += 1

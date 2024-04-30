@@ -1109,15 +1109,21 @@ class LFRicLoop(PSyLoop):
                             set_clean = Call.create(
                                 ArrayOfStructuresReference.create(
                                     field_symbol, index, ["set_clean"]))
-                            set_clean.addchild(Literal(halo_depth, INTEGER_TYPE))
+                            set_clean.addchild(Literal(str(halo_depth), INTEGER_TYPE))
+                            self.parent.addchild(set_clean, self.position)
                             
-                            parent.add(CallGen(
-                                parent, name=f"{field.proxy_name}({index})%"
-                                f"set_clean({halo_depth})"))
+                            # parent.add(CallGen(
+                            #     parent, name=f"{field.proxy_name}({index})%"
+                            #     f"set_clean({halo_depth})"))
                     else:
-                        parent.add(CallGen(
-                            parent, name=f"{field.proxy_name}%set_clean("
-                            f"{halo_depth})"))
+                        set_clean = Call.create(
+                            StructureReference.create(
+                                field_symbol, ["set_clean"]))
+                        set_clean.addchild(Literal(str(halo_depth), INTEGER_TYPE))
+                        self.parent.addchild(set_clean, self.position)
+                        # parent.add(CallGen(
+                        #     parent, name=f"{field.proxy_name}%set_clean("
+                        #     f"{halo_depth})"))
             elif hwa.max_depth:
                 # halo accesses(s) is/are to the full halo
                 # depth (-1 if continuous)
