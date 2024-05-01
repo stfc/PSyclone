@@ -315,8 +315,8 @@ def test_get_bound_expression():
     lbnd = dtref._get_bound_expression(1, "lower")
     assert isinstance(lbnd, IntrinsicCall)
     assert lbnd.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-    assert lbnd.children[0].symbol is dtsym
-    assert lbnd.children[1] == Literal("2", INTEGER_TYPE)
+    assert lbnd.arguments[0].symbol is dtsym
+    assert lbnd.arguments[1] == Literal("2", INTEGER_TYPE)
 
     # Tests for ubound
 
@@ -344,8 +344,8 @@ def test_get_bound_expression():
     ubnd = dtref._get_bound_expression(1, "upper")
     assert isinstance(ubnd, IntrinsicCall)
     assert ubnd.intrinsic == IntrinsicCall.Intrinsic.UBOUND
-    assert ubnd.children[0].symbol is dtsym
-    assert ubnd.children[1] == Literal("2", INTEGER_TYPE)
+    assert ubnd.arguments[0].symbol is dtsym
+    assert ubnd.arguments[1] == Literal("2", INTEGER_TYPE)
 
 
 @pytest.mark.parametrize("extent", [ArrayType.Extent.DEFERRED,
@@ -362,12 +362,12 @@ def test_get_bound_expression_unknown_size(extent):
     lbnd = aref._get_bound_expression(1, "lower")
     assert isinstance(lbnd, IntrinsicCall)
     assert lbnd.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-    assert lbnd.children[0].symbol is symbol
+    assert lbnd.arguments[0].symbol is symbol
 
     ubnd = aref._get_bound_expression(1, "upper")
     assert isinstance(ubnd, IntrinsicCall)
     assert ubnd.intrinsic == IntrinsicCall.Intrinsic.UBOUND
-    assert ubnd.children[0].symbol is symbol
+    assert ubnd.arguments[0].symbol is symbol
 
 
 def test_aref_to_aos_bound_expression():

@@ -175,7 +175,7 @@ def test_array_shape(fortran_reader, monkeypatch):
     node = psyir.children[0].children[0].children[1]
 
     # Modify array shape from node to create exception
-    array_ref = node.children[0]
+    array_ref = node.arguments[0]
     array_symbol = array_ref.symbol
     monkeypatch.setattr(array_symbol._datatype, "_shape", [None])
 
@@ -202,7 +202,7 @@ def test_unexpected_shape(fortran_reader, monkeypatch):
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
-    array_ref = node.children[0]
+    array_ref = node.arguments[0]
     # Modify the shape of the array reference shape to create an
     # exception
     monkeypatch.setattr(array_ref.symbol._datatype, "_shape", [1])
@@ -227,7 +227,7 @@ def test_not_assignment(fortran_reader):
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Call/IntrinsicCall
-    node = psyir.children[0].children[0].children[0]
+    node = psyir.children[0].children[0].arguments[0]
     trans = Maxval2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
