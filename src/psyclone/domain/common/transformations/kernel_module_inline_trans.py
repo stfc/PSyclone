@@ -41,10 +41,11 @@
 
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
-    DataTypeSymbol, Symbol, ContainerSymbol, DefaultModuleInterface
-from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine, \
-    Literal, CodeBlock, Call, IntrinsicCall
+from psyclone.psyir.symbols import (
+    RoutineSymbol, DataSymbol, IntrinsicSymbol, DataTypeSymbol, Symbol,
+    ContainerSymbol, DefaultModuleInterface)
+from psyclone.psyir.nodes import (
+    Container, ScopingNode, Reference, Routine, Literal, CodeBlock, Call)
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -117,13 +118,9 @@ class KernelModuleInlineTrans(Transformation):
         # create new imports to this module for those, and we don't do
         # this yet).
         # These can only be found in References, Calls and CodeBlocks
-        for var in kernel_schedule.walk((Reference, Call)):
-            if isinstance(var, Reference):
-                symbol = var.symbol
-            elif isinstance(var, Call) and not isinstance(var, IntrinsicCall):
-                symbol = var.routine
-            else:
-                # At this point it can only be a IntrinsicCall
+        for var in kernel_schedule.walk(Reference):
+            symbol = var.symbol
+            if isinstance(symbol, IntrinsicSymbol):
                 continue
             if not symbol.is_import:
                 try:
@@ -204,7 +201,7 @@ class KernelModuleInlineTrans(Transformation):
             if isinstance(literal.datatype.precision, Symbol):
                 all_symbols.add(literal.datatype.precision)
         for caller in code_to_inline.walk(Call):
-            all_symbols.add(caller.routine)
+            all_symbols.add(caller.routine.symbol)
         for cblock in code_to_inline.walk(CodeBlock):
             for name in cblock.get_symbol_names():
                 all_symbols.add(cblock.scope.symbol_table.lookup(name))

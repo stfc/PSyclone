@@ -2599,11 +2599,11 @@ def test_handling_unaryopbase():
     tree structure.
     '''
     reader = FortranStringReader("x=-4")
-    fp2unaryop = Execution_Part.match(reader)[0][0]
+    assign_stmt = Execution_Part.match(reader)[0][0]
 
     fake_parent = Schedule()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fp2unaryop])
+    processor.process_nodes(fake_parent, [assign_stmt])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent[0].rhs
@@ -2621,10 +2621,10 @@ def test_handling_unaryopbase():
         # Manipulate the fparser2 ParseTree so that it contains the operator
         # under test
         reader = FortranStringReader("x=" + opstring + "4")
-        fp2unaryop = Execution_Part.match(reader)[0][0]
+        assign_stmt = Execution_Part.match(reader)[0][0]
         # And then translate it to PSyIR again.
         fake_parent = Schedule()
-        processor.process_nodes(fake_parent, [fp2unaryop])
+        processor.process_nodes(fake_parent, [assign_stmt])
         assert len(fake_parent.children) == 1
         assert isinstance(fake_parent[0].rhs, UnaryOperation), \
             "Fails when parsing '" + opstring + "'"
@@ -2632,10 +2632,10 @@ def test_handling_unaryopbase():
             "Fails when parsing '" + opstring + "'"
 
     # Test that an unsupported unary operator creates a CodeBlock
-    fp2unaryop.items = (fp2unaryop.items[0], fp2unaryop.items[1],
-                        ('unsupported', fp2unaryop.items[2].items[1]))
+    fp2unaryop = assign_stmt.children[2]
+    fp2unaryop.items = ('unsupported', fp2unaryop.children[1])
     fake_parent = Schedule()
-    processor.process_nodes(fake_parent, [fp2unaryop])
+    processor.process_nodes(fake_parent, [assign_stmt])
 
     assert len(fake_parent.children) == 1
     new_node = fake_parent[0].rhs
@@ -2861,16 +2861,16 @@ def test_call_args(f2008_parser, args, arg_names):
     call_node = psyir.walk(Call)[0]
     assert isinstance(call_node, Call)
     assert call_node.ast == fparser2_call_node
-    assert len(call_node._argument_names) == len(call_node.children)
-    for idx, child in enumerate(call_node.children):
+    assert len(call_node._argument_names) == len(call_node.arguments)
+    for idx, child in enumerate(call_node.arguments):
         assert call_node._argument_names[idx] == (id(child), arg_names[idx])
     assert call_node.argument_names == arg_names
-    assert len(call_node.children) == 3
-    assert isinstance(call_node.children[0], Literal)
-    assert call_node.children[0].value == "1.0"
-    assert isinstance(call_node.children[1], Reference)
-    assert call_node.children[1].name == "a"
-    assert isinstance(call_node.children[2], BinaryOperation)
+    assert len(call_node.arguments) == 3
+    assert isinstance(call_node.arguments[0], Literal)
+    assert call_node.arguments[0].value == "1.0"
+    assert isinstance(call_node.arguments[1], Reference)
+    assert call_node.arguments[1].name == "a"
+    assert isinstance(call_node.arguments[2], BinaryOperation)
 
 
 def test_intrinsiccall_args(f2008_parser):
@@ -2894,19 +2894,19 @@ def test_intrinsiccall_args(f2008_parser):
 
     intrinsic_node = psyir.walk(IntrinsicCall)[0]
     assert isinstance(intrinsic_node, IntrinsicCall)
-    assert len(intrinsic_node._argument_names) == len(intrinsic_node.children)
+    assert len(intrinsic_node._argument_names) == len(intrinsic_node.arguments)
     arg_names = [None, "dim", "mask"]
-    for idx, child in enumerate(intrinsic_node.children):
+    for idx, child in enumerate(intrinsic_node.arguments):
         assert intrinsic_node._argument_names[idx] == (
             id(child), arg_names[idx])
     assert intrinsic_node.argument_names == arg_names
-    assert len(intrinsic_node.children) == 3
-    assert isinstance(intrinsic_node.children[0], Reference)
-    assert intrinsic_node.children[0].name == "a"
-    assert isinstance(intrinsic_node.children[1], Reference)
-    assert intrinsic_node.children[1].name == "d"
-    assert isinstance(intrinsic_node.children[2], Reference)
-    assert intrinsic_node.children[2].name == "m"
+    assert len(intrinsic_node.arguments) == 3
+    assert isinstance(intrinsic_node.arguments[0], Reference)
+    assert intrinsic_node.arguments[0].name == "a"
+    assert isinstance(intrinsic_node.arguments[1], Reference)
+    assert intrinsic_node.arguments[1].name == "d"
+    assert isinstance(intrinsic_node.arguments[2], Reference)
+    assert intrinsic_node.arguments[2].name == "m"
 
 
 def test_call_codeblock_args(fortran_reader):
@@ -2924,13 +2924,13 @@ def test_call_codeblock_args(fortran_reader):
     psyir = fortran_reader.psyir_from_source(test_code)
     call_node = psyir.walk(Call)[0]
     assert isinstance(call_node, Call)
-    assert len(call_node.children) == 4
-    assert isinstance(call_node.children[0], Reference)
-    assert call_node.children[0].name == "a"
-    assert isinstance(call_node.children[1], CodeBlock)
-    assert isinstance(call_node.children[2], CodeBlock)
-    assert isinstance(call_node.children[3], Reference)
-    assert call_node.children[3].name == "b"
+    assert len(call_node.arguments) == 4
+    assert isinstance(call_node.arguments[0], Reference)
+    assert call_node.arguments[0].name == "a"
+    assert isinstance(call_node.arguments[1], CodeBlock)
+    assert isinstance(call_node.arguments[2], CodeBlock)
+    assert isinstance(call_node.arguments[3], Reference)
+    assert call_node.arguments[3].name == "b"
 
 
 def test_declarations_with_initialisations_errors(parser):
