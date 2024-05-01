@@ -346,4 +346,3 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     out = fortran_writer(psyir)
     assert correct in out
     assert Compile(tmpdir).string_compiles(out)
-
