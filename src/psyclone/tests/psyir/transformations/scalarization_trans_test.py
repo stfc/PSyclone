@@ -38,7 +38,7 @@
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.transformations import ScalarizationTrans
-# from psyclone.tests.utilities import Compile
+from psyclone.tests.utilities import Compile
 
 
 def test_scalarizationtrans_potential_array_symbols(fortran_reader):
@@ -299,7 +299,7 @@ def test_scalarization_trans_check_valid_following_access(fortran_reader):
     assert potential_targets[0].var_name == "arr"
 
 
-def test_scalarization_trans_apply(fortran_reader, fortran_writer):
+def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
     ''' Test the application of the scalarization transformation.'''
     code = '''subroutine test()
          integer :: i
@@ -345,3 +345,5 @@ def test_scalarization_trans_apply(fortran_reader, fortran_writer):
   enddo'''
     out = fortran_writer(psyir)
     assert correct in out
+    assert Compile(tmpdir).string_compiles(out)
+
