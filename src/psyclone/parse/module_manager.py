@@ -39,6 +39,7 @@ which module is contained in which file (including full location). '''
 
 from collections import OrderedDict
 import copy
+from difflib import SequenceMatcher
 import os
 import re
 
