@@ -55,6 +55,10 @@ class ScalarizationTrans(LoopTrans):
             # Skip over non-arrays
             if not var_accesses[signature].is_array():
                 continue
+            # Skip over non-local symbols
+            base_symbol = var_accesses[signature].all_accesses[0].node.symbol
+            if not base_symbol.is_automatic:
+                continue
             array_indices = None
             scalarizable = True
             for access in var_accesses[signature].all_accesses:
@@ -91,7 +95,6 @@ class ScalarizationTrans(LoopTrans):
         potential_arrays = []
 
         for signature in potentials:
-            print(signature)
             # Find the last access of each signature
             last_access = var_accesses[signature].all_accesses[-1].node
             # Find the next access to this symbol
@@ -117,11 +120,18 @@ class ScalarizationTrans(LoopTrans):
             # check that it doesn't also appear on the RHS. If so its
             # not a valid access
             # I'm not sure this code is reachable
-            if (isinstance(next_access.parent, Assignment) and
-                next_access.parent.lhs is next_access and
-                (next_access.next_access() is not None and
-                 next_access.next_access().ancestor(Assignment) is
-                 next_access.parent)):
+#            if (isinstance(next_access.parent, Assignment) and
+#                next_access.parent.lhs is next_access and
+#                (next_access.next_access() is not None and
+#                 next_access.next_access().ancestor(Assignment) is
+#                 next_access.parent)):
+#                continue
+
+            # If next access is the RHS of an assignment then we need to
+            # skip it
+            ancestor_assign = next_access.ancestor(Assignment)
+            if (ancestor_assign is not None and
+                    ancestor_assign.lhs is not next_access):
                 continue
 
             # If it has an ancestor that is a CodeBlock or Call or Kern
@@ -135,7 +145,27 @@ class ScalarizationTrans(LoopTrans):
         return potential_arrays
 
     def apply(self, node, options=None):
-        '''TODO Docs'''
+        '''Apply the scalarization transformation to a loop.
+        All of the array accesses that are identified as being able to be
+        scalarized will be transformed by this transformation.
+
+        An array access will be scalarized if:
+        1. All accesses to the array use the same indexing statement.
+        2. All References contained in the indexing statement are not modified
+           inside of the loop (loop variables are ok).
+        3. The array symbol is either not accessed again or is written to
+           as its next access. If the next access is inside a conditional
+           that is not an ancestor of the input loop, then PSyclone will
+           assume that we cannot scalarize that value instead of attempting to
+           understand the control flow.
+        4. TODO - The array symbol is a local variable.
+
+        :param node: the supplied loop to apply scalarization to.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+
+        '''
         # For each array reference in the Loop:
         # Find every access to the same symbol in the loop
         # They all have to be accessed with the same index statement, and

@@ -105,6 +105,30 @@ def test_scalarizationtrans_potential_array_symbols(fortran_reader):
             node, var_accesses)
     assert len(potential_targets) == 0
 
+    # Ensure that we don't access imports or arguments or unknowns
+    # for scalarization
+    # Not sure if we should expand this for anything else?
+    code = '''subroutine test(b)
+        use mymod, only: arr
+        integer :: i
+        integer :: k
+        integer, dimension(1:100) :: b
+
+        do i = 1, 100
+           arr(i) = i
+           b(i) = i
+           c(i) = i
+        end do
+    end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+    node = psyir.children[0].children[0]
+    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
+    potential_targets = strans._find_potential_scalarizable_array_symbols(
+            node, var_accesses)
+    assert len(potential_targets) == 0
+
 
 def test_scalarization_first_access_is_write(fortran_reader):
     ''' Test the scalarization transformation's
@@ -275,30 +299,49 @@ def test_scalarization_trans_check_valid_following_access(fortran_reader):
     assert potential_targets[0].var_name == "arr"
 
 
-# def test_scal_quick(fortran_reader, fortran_writer):
-#     code = '''subroutine test()
-#         integer :: i
-#         integer :: k
-#         integer, dimension(1:100) :: arr
-#         integer, dimension(1:100) :: b
-#         integer, dimension(1:100) :: c
-#
-#         do i = 1, 100
-#            arr(i) = i
-#            arr(i) = exp(arr(i))
-#            k = i
-#            b(i) = arr(i) * 3
-#            c(k) = i
-#         end do
-#         do i = 1, 100
-#            b(i) = b(i) + 1
-#         end do
-#     end subroutine
-#     '''
-#     strans = ScalarizationTrans()
-#     psyir = fortran_reader.psyir_from_source(code)
-#
-#     loop = psyir.children[0].children[0]
-#     strans.apply(loop)
-#     print(fortran_writer(psyir))
-#     assert False
+def test_scalarization_trans_apply(fortran_reader, fortran_writer):
+    ''' Test the application of the scalarization transformation.'''
+    code = '''subroutine test()
+         integer :: i
+         integer :: k
+         integer, dimension(1:100) :: arr
+         integer, dimension(1:100) :: b
+         integer, dimension(1:100) :: c
+
+         do i = 1, 100
+            arr(i) = i
+            arr(i) = exp(arr(i))
+            k = i
+            b(i) = arr(i) * 3
+            c(k) = i
+         end do
+         do i = 1, 100
+            b(i) = b(i) + 1
+         end do
+     end subroutine
+    '''
+    strans = ScalarizationTrans()
+    psyir = fortran_reader.psyir_from_source(code)
+
+    loop = psyir.children[0].children[0]
+    strans.apply(loop)
+    correct = '''subroutine test()
+  integer :: i
+  integer :: k
+  integer, dimension(100) :: arr
+  integer, dimension(100) :: b
+  integer, dimension(100) :: c
+  integer :: arr_scalar
+
+  do i = 1, 100, 1
+    arr_scalar = i
+    arr_scalar = EXP(arr_scalar)
+    k = i
+    b(i) = arr_scalar * 3
+    c(k) = i
+  enddo
+  do i = 1, 100, 1
+    b(i) = b(i) + 1
+  enddo'''
+    out = fortran_writer(psyir)
+    assert correct in out
