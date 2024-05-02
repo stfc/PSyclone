@@ -403,6 +403,3 @@ def test_fw_routine_prefixes_nomod(fortran_reader, fortran_writer):
         pytest.xfail(reason="Issue #2156: Routine prefixes aren't handled by "
                             " the fparser frontend when the Routine isn't "
                             "contained inside a module.")
-    else:
-        # This should xfail - if we get here then this test needs changing
-        assert False
