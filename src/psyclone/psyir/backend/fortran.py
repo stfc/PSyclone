@@ -46,8 +46,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
-    BinaryOperation, Call, CodeBlock, DataNode, IntrinsicCall, Literal,
-    Operation, Range, Routine, Schedule, UnaryOperation)
+    BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
+    Literal, Operation, Range, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
@@ -1157,6 +1157,22 @@ class FortranWriter(LanguageWriter):
             result = f"{self._nindent}program {node.name}\n"
             routine_type = "program"
         else:
+            # Find RoutineSymbol
+            container = node.ancestor(Container)
+            rsym = None
+            if container:
+                rsym = container.symbol_table.get_symbols().get(
+                    node.name, None)
+            prefix = ""
+            if rsym:
+                if rsym.is_elemental:
+                    if rsym.is_pure:
+                        prefix = "elemental "
+                    else:
+                        prefix = "impure elemental "
+                elif rsym.is_pure:
+                    prefix = "pure "
+
             args = [symbol.name for symbol in node.symbol_table.argument_list]
             suffix = ""
             if node.return_symbol:
@@ -1166,7 +1182,7 @@ class FortranWriter(LanguageWriter):
                     suffix = f" result({node.return_symbol.name})"
             else:
                 routine_type = "subroutine"
-            result = f"{self._nindent}{routine_type} {node.name}("
+            result = f"{self._nindent}{prefix}{routine_type} {node.name}("
             result += ", ".join(args) + f"){suffix}\n"
 
         self._depth += 1

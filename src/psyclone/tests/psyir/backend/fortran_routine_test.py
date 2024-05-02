@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the Routine node handler in the
@@ -353,3 +354,35 @@ def test_fw_routine_flatten_tables_unresolved_sym(fortran_reader,
     # The calls to iom_put() should be unaffected.
     assert "call iom_put(ii)" in output
     assert "call iom_put(b)" in output
+
+
+def test_fw_routine_prefixes(fortran_reader, fortran_writer):
+    '''
+        Test the pure, impure and elemental routine prefixes.
+    '''
+    code = '''module test
+    contains
+    elemental subroutine sub()
+    end subroutine sub
+    end module test'''
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    assert "elemental" in output
+
+    code = '''module test
+    contains
+    pure subroutine sub()
+    end subroutine sub
+    end module test'''
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    assert "pure" in output
+
+    code = '''module test
+    contains
+    impure elemental subroutine sub()
+    end subroutine sub
+    end module test'''
+    container = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(container)
+    assert "impure elemental" in output
