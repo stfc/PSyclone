@@ -368,6 +368,8 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
     assert "elemental" in output
+    # elemental => pure unless impure specified.
+    assert "impure" not in output
 
     code = '''module test
     contains

@@ -1166,7 +1166,8 @@ class FortranWriter(LanguageWriter):
             prefix = ""
             if rsym:
                 if rsym.is_elemental:
-                    if rsym.is_pure:
+                    # elemental => pure unless known to be False
+                    if rsym.is_pure or rsym.is_pure is None:
                         prefix = "elemental "
                     else:
                         prefix = "impure elemental "
