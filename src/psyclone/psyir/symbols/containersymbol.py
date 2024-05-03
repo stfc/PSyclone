@@ -63,6 +63,7 @@ class ContainerSymbol(Symbol):
 
         self._reference = None
         self._has_wildcard_import = False
+        self._intrinsic = False
 
         self._process_arguments(wildcard_import=wildcard_import, **kwargs)
 
@@ -75,6 +76,7 @@ class ContainerSymbol(Symbol):
             :param bool wildcard_import: if all public Symbols of the \
                 Container are imported into the current scope. Defaults to \
                 False.\n
+            :param bool intrinsic: if the module is an intrinsic import.
             and the arguments in :py:class:`psyclone.psyir.symbols.Symbol`
         :type kwargs: unwrapped dict.
 
@@ -89,6 +91,9 @@ class ContainerSymbol(Symbol):
             self.wildcard_import = kwargs.pop("wildcard_import")
         elif not hasattr(self, '_has_wildcard_import'):
             self._has_wildcard_import = False
+
+        if "intrinsic" in kwargs:
+            self.intrinsic = kwargs.pop("intrinsic")
 
         # TODO #1298: ContainerSymbol currently defaults to
         # FortranModuleInterface expecting externally defined containers
@@ -115,6 +120,7 @@ class ContainerSymbol(Symbol):
         # Use the generic Symbol copy and add the wildcard import value
         new_symbol = super(ContainerSymbol, self).copy()
         new_symbol.wildcard_import = self.wildcard_import
+        new_symbol.intrinsic = self.intrinsic
         return new_symbol
 
     @property
@@ -162,6 +168,27 @@ class ContainerSymbol(Symbol):
             raise TypeError(f"wildcard_import must be a bool but got: "
                             f"'{type(value).__name__}'")
         self._has_wildcard_import = value
+
+    @property
+    def intrinsic(self):
+        '''
+        :returns: whether or not this module is an intrinsic module.
+        :rtype: bool
+        '''
+        return self._intrinsic
+
+    @intrinsic.setter
+    def intrinsic(self, value):
+        '''
+        Set whether or not this is an intrinsic module import.
+        :param bool value: whether or not this is an intrinsic module.
+
+        :raises TypeError: if the supplied `value` is not a bool.
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(f"intrinsic must be a bool but got: "
+                            f"'{type(value).__name__}'")
+        self._intrinsic = value
 
 
 class ContainerSymbolInterface(SymbolInterface):

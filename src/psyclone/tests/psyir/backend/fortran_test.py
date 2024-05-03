@@ -581,6 +581,10 @@ def test_fw_gen_use(fortran_writer):
     assert "use my_module, only : dummy1=>orig_name, my_sub" not in result
     assert "use my_module\n" in result
 
+    container_symbol.intrinsic = True
+    result = fortran_writer.gen_use(container_symbol, symbol_table)
+    assert "intrinsic" in result
+
     # container2 has no symbols associated with it and has not been marked
     # as having a wildcard import. It should therefore result in a USE
     # with an empty 'ONLY' list (which serves to keep the module in scope

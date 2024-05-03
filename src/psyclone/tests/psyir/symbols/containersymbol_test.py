@@ -120,15 +120,17 @@ def test_containersymbol_specialise_and_process_arguments():
 
     # Now with a wildcard_import argument
     sym2 = Symbol("symbol1")
-    sym2.specialise(ContainerSymbol, wildcard_import=True)
+    sym2.specialise(ContainerSymbol, wildcard_import=True, intrinsic=True)
     assert isinstance(sym1, ContainerSymbol)
     assert sym2.wildcard_import is True
+    assert sym2.intrinsic is True
 
 
 def test_containersymbol_can_be_copied():
     '''Test that a ContainerSymbol instance can be copied. '''
     symbol = ContainerSymbol("my_mod")
     symbol.wildcard_import = True
+    symbol.intrinsic = True
     new_symbol = symbol.copy()
 
     assert new_symbol is not symbol
@@ -137,6 +139,7 @@ def test_containersymbol_can_be_copied():
     # Disable false positive no-member pylint error
     # pylint: disable=no-member
     assert new_symbol.wildcard_import is True
+    assert new_symbol.intrinsic is True
 
 
 def test_containersymbol_str():
@@ -231,3 +234,14 @@ def test_containersymbol_wildcard_import():
     with pytest.raises(TypeError) as err:
         csym.wildcard_import = "false"
     assert "wildcard_import must be a bool but got" in str(err.value)
+
+
+def test_container_symbol_intrinsic():
+    ''' Check the setter and getter for the intrinsic property. '''
+    csym = ContainerSymbol("my_mod")
+    assert not csym.intrinsic
+    csym.intrinsic = True
+    assert csym.intrinsic
+    with pytest.raises(TypeError) as err:
+        csym.intrinsic = "true"
+    assert "intrinsic must be a bool but got" in str(err.value)
