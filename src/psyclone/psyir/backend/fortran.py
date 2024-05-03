@@ -969,8 +969,7 @@ class FortranWriter(LanguageWriter):
         except KeyError:
             internal_interface_symbol = None
         if unresolved_symbols and not (
-                symbol_table.has_wildcard_imports() or
-                internal_interface_symbol):
+                symbol_table.wildcard_imports() or internal_interface_symbol):
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(
@@ -1197,10 +1196,13 @@ class FortranWriter(LanguageWriter):
                 except KeyError:
                     skip = []
                 whole_routine_scope.merge(sched_table, skip)
-
-            # Replace the symbol table
-            node.symbol_table.detach()
-            whole_routine_scope.attach(node)
+                if schedule is node:
+                    # Replace the Routine's symbol table as soon as we've
+                    # merged it into the new one. This ensures that the new
+                    # table has full information on outer scopes which is
+                    # important when merging.
+                    node.symbol_table.detach()
+                    whole_routine_scope.attach(node)
 
         # Generate module imports
         imports = ""
@@ -1690,7 +1692,7 @@ class FortranWriter(LanguageWriter):
 
         # All arguments have been validated, proceed to generate them
         result_list = []
-        for idx, child in enumerate(node.children):
+        for idx, child in enumerate(node.arguments):
             if node.argument_names[idx]:
                 result_list.append(
                     f"{node.argument_names[idx]}={self._visit(child)}")
@@ -1714,10 +1716,10 @@ class FortranWriter(LanguageWriter):
             # An allocate/deallocate doesn't have 'call'.
             return f"{self._nindent}{node.routine.name}({args})\n"
         if not node.parent or isinstance(node.parent, Schedule):
-            return f"{self._nindent}call {node.routine.name}({args})\n"
+            return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
 
         # Otherwise it is inside-expression function call
-        return f"{node.routine.name}({args})"
+        return f"{self._visit(node.routine)}({args})"
 
     def kernelfunctor_node(self, node):
         '''

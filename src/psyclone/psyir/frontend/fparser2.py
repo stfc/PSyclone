@@ -496,8 +496,8 @@ def _is_bound_full_extent(array, dim, intrinsic):
     if not isinstance(bound, IntrinsicCall):
         return False
 
-    reference = bound.children[0]
-    literal = bound.children[1]
+    reference = bound.arguments[0]
+    literal = bound.arguments[1]
 
     if bound.intrinsic != intrinsic:
         return False
@@ -1116,7 +1116,8 @@ class Fparser2Reader():
             Fortran2003.Allocate_Stmt: self._allocate_handler,
             Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
-            Fortran2003.Data_Ref: self._data_ref_handler,
+            Fortran2003.Data_Ref: self._structure_accessor_handler,
+            Fortran2003.Procedure_Designator: self._structure_accessor_handler,
             Fortran2003.Deallocate_Stmt: self._deallocate_handler,
             Fortran2003.Function_Subprogram: self._subroutine_handler,
             Fortran2003.Name: self._name_handler,
@@ -4144,7 +4145,8 @@ class Fparser2Reader():
                 # If the loop did not encounter a break, we don't know which
                 # operator is needed, so we use the generic interface instead
                 cmp_symbol = _find_or_create_psyclone_internal_cmp(parent)
-                call = Call(cmp_symbol, parent=parent)
+                call = Call(parent=parent)
+                call.addchild(Reference(cmp_symbol))
                 parent.addchild(call)
                 call.children.extend(fake_parent.pop_all_children())
 
@@ -4660,39 +4662,63 @@ class Fparser2Reader():
 
         return assignment
 
-    def _data_ref_handler(self, node, parent):
+    def _structure_accessor_handler(self, node, parent):
         '''
-        Create the PSyIR for an fparser2 Data_Ref (representing an access
-        to a derived type).
+        Create the PSyIR for structure accessors found in fparser2 Data_Ref and
+        Procedure_Designator (representing an access to a derived type data and
+        methods respectively).
 
         :param node: node in fparser2 parse tree.
-        :type node: :py:class:`fparser.two.Fortran2003.Data_Ref`
+        :type node: :py:class:`fparser.two.Fortran2003.Data_Ref` |
+                    :py:class:`fparser.two.Fortran2003.Process_Designator`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.StructureReference`
+        :rtype: :py:class:`psyclone.psyir.nodes.StructureReference` |
+                :py:class:`psyclone.psyir.nodes.ArrayOfStructuresReference`
 
-        :raises NotImplementedError: if the parse tree contains unsupported \
-                                     elements.
+        :raises NotImplementedError: if the parse tree contains unsupported
+            elements.
+
         '''
-        # If we encounter array ranges while processing this derived-type
-        # access then we will need the symbol being referred to so we create
-        # that first.
-        if isinstance(node.children[0], Fortran2003.Name):
-            # Base of reference is a scalar entity and must be a DataSymbol.
+        # Fortran 2003 standard R1221 says that:
+        #    procedure-designator is procedure-name
+        #                         or proc-component-ref
+        #                         or data-ref % binding-name
+        # and R611 says that:
+        #    data-ref             is part-ref [% part-ref]
+        if isinstance(node, Fortran2003.Procedure_Designator):
+            # If it is a Procedure_Designator split it in its components.
+            # Note that this won't fail for procedure-name and proc-component
+            # -ref, the binding_name will just become None, if we have a
+            # binding_name we store it to add it as the last structure access
+            node, _, binding_name = node.children
+        else:
+            binding_name = None
+
+        if isinstance(node, Fortran2003.Data_Ref):
+            # Separate the top_ref, that sets the PSyIR node type and symbol
+            # from the member nodes, which set the accessors (PSyIR members)
+            top_ref = node.children[0]
+            member_nodes = node.children[1:]
+        else:
+            top_ref = node
+            member_nodes = []
+
+        if isinstance(top_ref, Fortran2003.Name):
+            # Add the structure root reference to the symbol table if its
+            # not already there.
             base_sym = _find_or_create_unresolved_symbol(
-                parent, node.children[0].string.lower(),
+                parent, top_ref.string.lower(),
                 symbol_type=DataSymbol, datatype=UnresolvedType())
             base_indices = []
             base_ref = StructureReference
-
-        elif isinstance(node.children[0], Fortran2003.Part_Ref):
-            # Base of reference is an array access. Lookup the corresponding
-            # symbol.
-            part_ref = node.children[0]
+        elif isinstance(top_ref, Fortran2003.Part_Ref):
+            # Add the structure root reference to the symbol table if its
+            # not already there.
             base_sym = _find_or_create_unresolved_symbol(
-                parent, part_ref.children[0].string.lower(),
+                parent, top_ref.children[0].string.lower(),
                 symbol_type=DataSymbol, datatype=UnresolvedType())
             # Processing the array-index expressions requires access to the
             # symbol table so create an ArrayReference node.
@@ -4701,18 +4727,19 @@ class Fparser2Reader():
             # The children of this node will represent the indices of the
             # ArrayOfStructuresReference.
             self.process_nodes(parent=aref,
-                               nodes=part_ref.children[1].children)
+                               nodes=top_ref.children[1].children)
             base_indices = aref.pop_all_children()
             base_ref = ArrayOfStructuresReference
 
         else:
+            # If it's not a plain name or an array, we don't support it.
             raise NotImplementedError(str(node))
 
-        # Now construct the full list of 'members' making up the
-        # derived-type reference. e.g. for "var%region(1)%start" this
-        # will be [("region", [Literal("1")]), "start"].
+        # Now construct the list of 'members' making up the derived-type
+        # accessors and array indices, e.g for "var%region(1)%start" this will
+        # be: [("region", [Literal("1")]), "start"].
         members = []
-        for child in node.children[1:]:
+        for child in member_nodes:
             if isinstance(child, Fortran2003.Name):
                 # Members of a structure do not refer to symbols
                 members.append(child.string)
@@ -4750,6 +4777,9 @@ class Fparser2Reader():
                 # Found an unsupported entry in the parse tree. This will
                 # result in a CodeBlock.
                 raise NotImplementedError(str(node))
+
+        if binding_name:
+            members.append(str(binding_name))
 
         # Now we have the list of members, use the `create()` method of the
         # appropriate Reference subclass.
@@ -4914,7 +4944,8 @@ class Fparser2Reader():
         symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
         if isinstance(symbol, RoutineSymbol):
-            call_or_array = Call(symbol, parent=parent)
+            call_or_array = Call(parent=parent)
+            call_or_array.addchild(Reference(symbol))
         else:
             call_or_array = ArrayReference(symbol, parent=parent)
         self.process_nodes(parent=call_or_array, nodes=node.items[1].items)
@@ -5104,15 +5135,17 @@ class Fparser2Reader():
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Call`
 
-        :raises GenerationError: if the symbol associated with the \
+        :raises GenerationError: if the symbol associated with the
             name of the call is an unsupported type.
 
         '''
-        call_name = node.items[0].string
-        symbol_table = parent.scope.symbol_table
-        try:
-            routine_symbol = symbol_table.lookup(call_name)
-            # pylint: disable=unidiomatic-typecheck
+        call = Call(parent=parent)
+        self.process_nodes(parent=call, nodes=[node.items[0]])
+        routine = call.children[0]
+        # If it's a plain reference, promote the symbol to a RoutineSymbol
+        # pylint: disable=unidiomatic-typecheck
+        if type(routine) is Reference:
+            routine_symbol = routine.symbol
             if type(routine_symbol) is Symbol:
                 # Specialise routine_symbol from a Symbol to a
                 # RoutineSymbol
@@ -5122,16 +5155,10 @@ class Fparser2Reader():
                 pass
             else:
                 raise GenerationError(
-                    f"Expecting the symbol '{call_name}', to be of type "
-                    f"'Symbol' or 'RoutineSymbol', but found "
+                    f"Expecting the symbol '{routine_symbol.name}', to be of "
+                    f"type 'Symbol' or 'RoutineSymbol', but found "
                     f"'{type(routine_symbol).__name__}'.")
-        except KeyError:
-            # A call must be to a subroutine which has no type in Fortran.
-            routine_symbol = RoutineSymbol(
-                call_name, interface=UnresolvedInterface())
-            symbol_table.add(routine_symbol)
 
-        call = Call(routine_symbol, parent=parent)
         return self._process_args(node, call)
 
     def _process_args(self, node, call, canonicalise=None):
@@ -5205,12 +5232,12 @@ class Fparser2Reader():
 
         self.process_nodes(parent=call, nodes=arg_nodes)
 
-        # Detach the children and add them again with the argument
+        # Detach the arguments and add them again with the argument
         # names
-        child_list = call.children[:]
-        for child in child_list:
+        arg_list = call.arguments[:]
+        for child in arg_list:
             child.detach()
-        for idx, child in enumerate(child_list):
+        for idx, child in enumerate(arg_list):
             call.append_named_arg(arg_names[idx], child)
 
         # Point to the original CALL statement in the parse tree.
@@ -5476,6 +5503,8 @@ class Fparser2Reader():
                  if not isinstance(subprogram, Fortran2003.Contains_Stmt)]
             if module_subprograms:
                 self.process_nodes(parent=container, nodes=module_subprograms)
+        except SymbolError as err:
+            raise NotImplementedError(str(err.value))
         except ValueError:
             pass
 
