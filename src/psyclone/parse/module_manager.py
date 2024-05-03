@@ -44,6 +44,7 @@ import os
 import re
 
 from psyclone.errors import InternalError
+from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo
 
 
