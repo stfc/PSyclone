@@ -484,7 +484,6 @@ class FortranWriter(LanguageWriter):
                 only_list.append(dsym.name)
 
         intrinsic_str = ""
-        print(symbol.intrinsic)
         if symbol.intrinsic:
             intrinsic_str = "intrinsic "
 
