@@ -98,18 +98,19 @@ class LFRicCollection():
 
         :param int cursor: position where to add the next initialisation
             statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if neither 'self._invoke' nor 'self._kernel' \
                                are set.
 
         '''
         if self._invoke:
-            self._invoke_declarations(cursor)
-        elif self._kernel:
-            self._stub_declarations(cursor)
-        else:
-            raise InternalError("LFRicCollection has neither a Kernel "
-                                "nor an Invoke - should be impossible.")
+            return self._invoke_declarations(cursor)
+        if self._kernel:
+            return self._stub_declarations(cursor)
+        raise InternalError("LFRicCollection has neither a Kernel "
+                            "nor an Invoke - should be impossible.")
 
     def initialise(self, parent):
         '''
@@ -117,9 +118,10 @@ class LFRicCollection():
         We do nothing by default - it is up to the sub-class to override
         this method if initialisation is required.
 
-        :param parent: the node in the f2pygen AST to which to add \
-                       initialisation code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
 
@@ -130,6 +132,8 @@ class LFRicCollection():
 
         :param int cursor: position where to add the next initialisation
             statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
 
@@ -140,6 +144,8 @@ class LFRicCollection():
 
         :param int cursor: position where to add the next initialisation
             statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
 

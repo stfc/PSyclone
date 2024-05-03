@@ -668,8 +668,10 @@ class LFRicMeshProperties(LFRicCollection):
         Creates the necessary declarations for variables needed in order to
         provide mesh properties to a kernel call.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if this class has been instantiated for a \
                                kernel instead of an invoke.
@@ -711,14 +713,17 @@ class LFRicMeshProperties(LFRicCollection):
                     f"Found unsupported mesh property '{prop}' when generating"
                     f" invoke declarations. Only members of the MeshProperty "
                     f"Enum are permitted ({list(MeshProperty)}).")
+        return cursor
 
     def _stub_declarations(self, cursor):
         '''
         Creates the necessary declarations for the variables needed in order
         to provide properties of the mesh in a kernel stub.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if the class has been instantiated for an \
                                invoke and not a kernel.
@@ -761,14 +766,17 @@ class LFRicMeshProperties(LFRicCollection):
                     f"Found unsupported mesh property '{prop}' when generating"
                     f" declarations for kernel stub. Only members of the "
                     f"MeshProperty Enum are permitted ({list(MeshProperty)})")
+        return cursor
 
     def initialise(self, cursor):
         '''
         Creates the f2pygen nodes for the initialisation of properties of
         the mesh.
 
-        :param parent: node in the f2pygen tree to which to add statements.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if an unsupported mesh property is encountered.
 
@@ -792,7 +800,7 @@ class LFRicMeshProperties(LFRicCollection):
             # If no mesh properties are required and there's no colouring
             # (which requires a mesh object to lookup loop bounds) then we
             # need do nothing.
-            return
+            return cursor
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise mesh properties"))
@@ -834,6 +842,7 @@ class LFRicMeshProperties(LFRicCollection):
                 "last_edge_cell_all_colours").name
             rhs = f"{mesh}%get_last_edge_cell_all_colours()"
             parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+        return cursor
 
 
 class DynReferenceElement(LFRicCollection):
@@ -1031,8 +1040,10 @@ class DynReferenceElement(LFRicCollection):
         Create the necessary declarations for the variables needed in order
         to provide properties of the reference element in a Kernel call.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         # Get the list of the required scalars
@@ -1045,7 +1056,7 @@ class DynReferenceElement(LFRicCollection):
             nface_vars = [self._nfaces_h_symbol]
         else:
             # No reference-element properties required
-            return
+            return cursor
 
         api_config = Config.get().api_conf("dynamo0.3")
         const = LFRicConstants()
@@ -1065,7 +1076,7 @@ class DynReferenceElement(LFRicCollection):
 
         if not self._properties:
             # We only need the number of horizontal faces so we're done
-            return
+            return cursor
 
         # Declare the necessary arrays
         array_decls = [f"{sym.name}(:,:)"
@@ -1078,20 +1089,23 @@ class DynReferenceElement(LFRicCollection):
         const_mod_uses = self._invoke.invokes.psy.infrastructure_modules[
             const_mod]
         const_mod_uses.add(my_kind)
+        return cursor
 
     def _stub_declarations(self, cursor):
         '''
         Create the necessary declarations for the variables needed in order
         to provide properties of the reference element in a Kernel stub.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
         if not (self._properties or self._nfaces_h_required):
-            return
+            return cursor
 
         # Declare the necessary scalars (duplicates are ignored by parent.add)
         scalars = list(self._arg_properties.values())
@@ -1112,18 +1126,21 @@ class DynReferenceElement(LFRicCollection):
                                kind=api_config.default_kind["real"],
                                intent="in", dimension=dimension,
                                entity_decls=[arr.name]))
+        return cursor
 
     def initialise(self, cursor):
         '''
         Creates the f2pygen nodes representing the necessary initialisation
         code for properties of the reference element.
 
-        :param parent: node in the f2pygen tree to which to add statements.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         if not (self._properties or self._nfaces_h_required):
-            return
+            return cursor
 
         parent.add(CommentGen(parent, ""))
         parent.add(
@@ -1193,6 +1210,7 @@ class DynReferenceElement(LFRicCollection):
                     parent,
                     name=f"{self._ref_elem_name}%get_outward_normals_to_"
                     f"faces({self._face_out_normals_symbol.name})"))
+        return cursor
 
 
 class DynFunctionSpaces(LFRicCollection):
@@ -1234,13 +1252,14 @@ class DynFunctionSpaces(LFRicCollection):
                     function_space.field_on_space(self._kernel.arguments):
                 self._var_list.append(function_space.undf_name)
 
-    def _stub_declarations(self, parent):
+    def _stub_declarations(self, cursor):
         '''
         Add function-space-related declarations to a Kernel stub.
 
-        :param parent: the node in the f2pygen AST representing the kernel \
-                       stub to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -1250,14 +1269,16 @@ class DynFunctionSpaces(LFRicCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=self._var_list))
+        return cursor
 
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''
         Add function-space-related declarations to a PSy-layer routine.
 
-        :param parent: the node in the f2pygen AST to which to add \
-                       declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -1267,6 +1288,7 @@ class DynFunctionSpaces(LFRicCollection):
                 var,
                 symbol_type=DataSymbol,
                 datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+        return cursor
 
         # if self._var_list:
         #     # Declare ndf and undf for all function spaces
@@ -1278,12 +1300,14 @@ class DynFunctionSpaces(LFRicCollection):
         '''
         Create the code that initialises function-space quantities.
 
-        :param parent: the node in the f2pygen AST representing the PSy-layer \
-                       routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         symtab = self._invoke.schedule.symbol_table
+        first = True
         # Loop over all unique function spaces used by the kernels in
         # the invoke
         for function_space in self._function_spaces:
@@ -1306,12 +1330,16 @@ class DynFunctionSpaces(LFRicCollection):
             # Initialise ndf for this function space.
             if not self._dofs_only:
                 ndf_name = function_space.ndf_name
-                self._invoke.schedule.addchild(
-                    Assignment.create(
+                assignment = Assignment.create(
                         lhs=Reference(symtab.lookup(ndf_name)),
                         rhs=arg.generate_method_call(
-                              "get_ndf", function_space=function_space)),
-                    cursor)
+                              "get_ndf", function_space=function_space))
+                if first:
+                    assignment.preceding_comment = (
+                        f"Initialise number of DoFs for "
+                        f"{function_space.mangled_name}")
+                    first = False
+                self._invoke.schedule.addchild(assignment, cursor)
                 cursor += 1
                 # parent.add(AssignGen(parent, lhs=ndf_name,
                 #                      rhs=name +
@@ -1335,6 +1363,7 @@ class DynFunctionSpaces(LFRicCollection):
                     #                      rhs=name + "%" +
                     #                      arg.ref_name(function_space) +
                     #                      "%get_undf()"))
+        return cursor
 
 
 class DynProxies(LFRicCollection):
@@ -1467,9 +1496,10 @@ class DynProxies(LFRicCollection):
         '''
         Insert declarations of all proxy-related quantities into the PSy layer.
 
-        :param parent: the node in the f2pygen AST representing the PSy- \
-                       layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         const = LFRicConstants()
@@ -1615,14 +1645,16 @@ class DynProxies(LFRicCollection):
                                    entity_decls=cma_op_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(op_type))
+        return cursor
 
     def initialise(self, cursor):
         '''
         Insert code into the PSy layer to initialise all necessary proxies.
 
-        :param parent: node in the f2pygen AST representing the PSy-layer
-                       routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if a kernel argument of an unrecognised type
             is encountered.
@@ -1737,6 +1769,7 @@ class DynProxies(LFRicCollection):
                         f"Kernel argument '{arg.name}' of type "
                         f"'{arg.argument_type}' not "
                         f"handled in DynProxies.initialise()")
+            return cursor
 
 
 class DynCellIterators(LFRicCollection):
@@ -1772,12 +1805,14 @@ class DynCellIterators(LFRicCollection):
                 "Cannot create an Invoke with no field/operator arguments.")
         self._first_var = first_var
 
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''
         Declare entities required for iterating over cells in the Invoke.
 
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -1788,14 +1823,17 @@ class DynCellIterators(LFRicCollection):
         #     parent.add(DeclGen(parent, datatype="integer",
         #                        kind=api_config.default_kind["integer"],
         #                        entity_decls=[self._nlayers_name]))
+        return cursor
 
-    def _stub_declarations(self, parent):
+    def _stub_declarations(self, cursor):
         '''
         Declare entities required for a kernel stub that operates on
         cell-columns.
 
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -1804,13 +1842,16 @@ class DynCellIterators(LFRicCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                intent="in", entity_decls=[self._nlayers_name]))
+        return cursor
 
     def initialise(self, cursor):
         '''
         Look-up the number of vertical layers in the mesh in the PSy layer.
 
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         if not self._dofs_only:
@@ -1833,18 +1874,21 @@ class DynCellIterators(LFRicCollection):
             stmt.preceding_comment = "Initialise number of layers"
             self._invoke.schedule.addchild(stmt, cursor)
             cursor += 1
+        return cursor
 
 
 class DynLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.
     '''
-    def _stub_declarations(self, parent):
+    def _stub_declarations(self, cursor):
         '''
         Declare all LMA-related quantities in a Kernel stub.
 
-        :param parent: the f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -1869,6 +1913,7 @@ class DynLMAOperators(LFRicCollection):
                                                    ndf_name_from, size]),
                                intent=arg.intent,
                                entity_decls=[arg.name]))
+        return cursor
 
     def _invoke_declarations(self, cursor):
         '''
@@ -1878,8 +1923,10 @@ class DynLMAOperators(LFRicCollection):
         kernels is only pointed to from the LMA operator object and is thus
         not a part of the object).
 
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         table = self._symbol_table
@@ -1910,6 +1957,7 @@ class DynLMAOperators(LFRicCollection):
             # datatype from the appropriate infrastructure module
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(op_datatype))
+        return cursor
 
 
 class DynCMAOperators(LFRicCollection):
@@ -2008,13 +2056,15 @@ class DynCMAOperators(LFRicCollection):
         the various components of each CMA operator. Adds these as
         children of the supplied parent node.
 
-        :param parent: f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
-            return
+            return cursor
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent,
@@ -2039,6 +2089,7 @@ class DynCMAOperators(LFRicCollection):
                 parent.add(AssignGen(parent, lhs=param_name,
                                      rhs=self._cma_ops[op_name]["arg"].
                                      proxy_name_indexed+"%"+param))
+        return cursor
 
     def _invoke_declarations(self, cursor):
         '''
@@ -2049,15 +2100,17 @@ class DynCMAOperators(LFRicCollection):
         kernels is only pointed to from the column-wise operator object and is
         thus not a part of the object).
 
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
-            return
+            return cursor
 
         # Add the Invoke subroutine argument declarations for column-wise
         # operators
@@ -2107,21 +2160,24 @@ class DynCMAOperators(LFRicCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                entity_decls=param_names))
+        return cursor
 
     def _stub_declarations(self, cursor):
         '''
         Generate all necessary declarations for CMA operators being passed to
         a Kernel stub.
 
-        :param parent: f2pygen node representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
-            return
+            return cursor
 
         symtab = self._symbol_table
 
@@ -2161,6 +2217,7 @@ class DynCMAOperators(LFRicCollection):
                                dimension=",".join([bandwidth,
                                                    nrow, "ncell_2d"]),
                                intent=intent, entity_decls=[op_name]))
+        return cursor
 
 
 class DynMeshes():
@@ -2286,8 +2343,10 @@ class DynMeshes():
 
         name_list = []
         for name in mesh_tags:
+            dt=UnsupportedFortranType(
+                f"type({mtype_sym.name}), pointer :: {name} => null()")
             name_list.append(self._symbol_table.find_or_create_tag(
-                name, symbol_type=DataSymbol, datatype=mtype_sym).name)
+                name, symbol_type=DataSymbol, datatype=dt).name)
 
         if Config.get().distributed_memory:
             # If distributed memory is enabled then we require a variable
@@ -2384,6 +2443,8 @@ class DynMeshes():
 
         :param int cursor: position where to add the next initialisation
             statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         # pylint: disable=too-many-locals, too-many-statements
@@ -2491,20 +2552,23 @@ class DynMeshes():
                                    kind=api_config.default_kind["integer"],
                                    allocatable=True,
                                    entity_decls=[last_cell.name+"(:)"]))
+        return cursor
 
     def initialise(self, cursor):
         '''
         Initialise parameters specific to inter-grid kernels.
 
-        :param parent: the parent node to which to add the initialisations.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         # pylint: disable=too-many-branches
         # If we haven't got any need for a mesh in this invoke then we
         # don't do anything
         if not self._mesh_tag_names:
-            return
+            return cursor
 
         symtab = self._schedule.symbol_table
         # parent.add(CommentGen(parent, ""))
@@ -2520,14 +2584,15 @@ class DynMeshes():
             #     self._mesh_tag_names[0]).name
             # parent.add(AssignGen(parent, pointer=True, lhs=mesh_name, rhs=rhs))
             mesh_sym = symtab.lookup_with_tag(self._mesh_tag_names[0])
-            self._schedule.addchild(Assignment.create(
+            assignment = Assignment.create(
                 lhs=Reference(mesh_sym),
                 rhs=self._first_var.generate_method_call("get_mesh"),
                 # rhs=Call.create(StructureReference.create(
                 #     symtab.lookup(self._first_var.proxy_name_indexed),
                 #     [self._first_var.ref_name(), "get_mesh"])),
-                is_pointer=True),
-                cursor)
+                is_pointer=True)
+            assignment.preceding_comment = "Create a mesh object"
+            self._schedule.addchild(assignment, cursor)
             cursor += 1
             if Config.get().distributed_memory:
                 # If distributed memory is enabled then we need the maximum
@@ -2558,7 +2623,7 @@ class DynMeshes():
                 # Get the colour map
                 parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
                                      rhs=f"{mesh_name}%get_colour_map()"))
-            return
+            return cursor
 
         parent.add(CommentGen(
             parent,
@@ -2675,6 +2740,7 @@ class DynMeshes():
                     name = "%get_last_edge_cell_all_colours()"
                 parent.add(AssignGen(parent, lhs=sym.name,
                                      rhs=coarse_mesh + name))
+        return cursor
 
     @property
     def intergrid_kernels(self):
@@ -3095,8 +3161,10 @@ class DynBasisFunctions(LFRicCollection):
         '''
         Add basis-function declarations to the PSy layer.
 
-        :param parent: f2pygen node represening the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         const = LFRicConstants()
@@ -3172,6 +3240,7 @@ class DynBasisFunctions(LFRicCollection):
                 #         datatype=const.
                 #         QUADRATURE_TYPE_MAP[shape]["proxy_type"],
                 #         entity_decls=var_names))
+            return cursor
 
     def initialise(self, cursor):
         '''
@@ -3179,9 +3248,10 @@ class DynBasisFunctions(LFRicCollection):
         basis-functions required by an invoke. These are added as children
         of the supplied parent node in the AST.
 
-        :param parent: the node in the f2pygen AST that will be the
-                       parent of all of the declarations and assignments.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if an invalid entry is encountered in the \
                                self._basis_fns list.
@@ -3225,11 +3295,11 @@ class DynBasisFunctions(LFRicCollection):
                     datatype=UnresolvedType(),
                     interface=ImportInterface(module))
 
-            self._initialise_xyz_qr(cursor)
-            self._initialise_xyoz_qr(cursor)
-            self._initialise_xoyoz_qr(cursor)
-            self._initialise_face_or_edge_qr(cursor, "face")
-            self._initialise_face_or_edge_qr(cursor, "edge")
+            cursor = self._initialise_xyz_qr(cursor)
+            cursor = self._initialise_xyoz_qr(cursor)
+            cursor = self._initialise_xoyoz_qr(cursor)
+            cursor = self._initialise_face_or_edge_qr(cursor, "face")
+            cursor = self._initialise_face_or_edge_qr(cursor, "edge")
 
         if self._eval_targets:
             pass
@@ -3322,12 +3392,11 @@ class DynBasisFunctions(LFRicCollection):
         #     symbol = symtab.find_or_create(
         #         name, symbol_type=DataSymbol,
         #         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
-          
             # parent.add(DeclGen(parent, datatype="integer",
             #                  kind=api_config.default_kind["integer"],
             #                  entity_decls=var_dims))
 
-        basis_declarations = []      
+        basis_declarations = []
         for basis in basis_arrays:
             dims = "("+",".join([":"]*len(basis_arrays[basis]))+")"
             symbol = symtab.find_or_create(
@@ -3358,7 +3427,8 @@ class DynBasisFunctions(LFRicCollection):
         #     # declare it here.
 
         # Compute the values for any basis arrays
-        self._compute_basis_fns(cursor)
+        cursor = self._compute_basis_fns(cursor)
+        return cursor
 
     def _basis_fn_declns(self):
         '''
@@ -3472,28 +3542,30 @@ class DynBasisFunctions(LFRicCollection):
 
         return (var_dim_list, basis_arrays)
 
-    def _initialise_xyz_qr(self, parent):
+    def _initialise_xyz_qr(self, cursor):
         '''
         Add in the initialisation of variables needed for XYZ
         quadrature
 
-        :param parent: the node in the AST representing the PSy subroutine
-                       in which to insert the initialisation
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         # pylint: disable=unused-argument
         # This shape is not yet supported so we do nothing
-        return
+        return cursor
 
     def _initialise_xyoz_qr(self, cursor):
         '''
         Add in the initialisation of variables needed for XYoZ
         quadrature
 
-        :param parent: the node in the AST representing the PSy subroutine
-                       in which to insert the initialisation
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -3501,7 +3573,7 @@ class DynBasisFunctions(LFRicCollection):
         const = LFRicConstants()
 
         if "gh_quadrature_xyoz" not in self._qr_vars:
-            return
+            return cursor
 
         for qr_arg_name in self._qr_vars["gh_quadrature_xyoz"]:
 
@@ -3582,31 +3654,34 @@ class DynBasisFunctions(LFRicCollection):
                 #     AssignGen(parent, pointer=True,
                 #               lhs=qr_var+"_"+qr_arg_name,
                 #               rhs=proxy_name+"%"+qr_var))
+            return cursor
 
-    def _initialise_xoyoz_qr(self, parent):
+    def _initialise_xoyoz_qr(self, cursor):
         '''
         Add in the initialisation of variables needed for XoYoZ
         quadrature.
 
-        :param parent: the node in the AST representing the PSy subroutine \
-                       in which to insert the initialisation.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         # pylint: disable=unused-argument
         # This shape is not yet supported so we do nothing
-        return
+        return cursor
 
-    def _initialise_face_or_edge_qr(self, parent, qr_type):
+    def _initialise_face_or_edge_qr(self, cursor, qr_type):
         '''
         Add in the initialisation of variables needed for face or edge
         quadrature.
 
-        :param parent: the node in the AST representing the PSy subroutine \
-                       in which to insert the initialisation.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
         :param str qr_type: whether to generate initialisation code for \
                             "face" or "edge" quadrature.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if `qr_type` is not "face" or "edge".
 
@@ -3619,7 +3694,7 @@ class DynBasisFunctions(LFRicCollection):
         quadrature_name = f"gh_quadrature_{qr_type}"
 
         if quadrature_name not in self._qr_vars:
-            return
+            return cursor
 
         api_config = Config.get().api_conf("dynamo0.3")
         symbol_table = self._symbol_table
@@ -3674,15 +3749,17 @@ class DynBasisFunctions(LFRicCollection):
                     AssignGen(parent, pointer=True,
                               lhs=qr_var+"_"+qr_arg_name,
                               rhs=proxy_name+"%"+qr_var))
+        return cursor
 
-    def _compute_basis_fns(self, parent):
+    def _compute_basis_fns(self, cursor):
         '''
         Generates the necessary Fortran to compute the values of
         any basis/diff-basis arrays required
 
-        :param parent: Node in the f2pygen AST which will be the parent
-                       of the assignments created in this routine
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         # pylint: disable=too-many-locals
@@ -3808,14 +3885,16 @@ class DynBasisFunctions(LFRicCollection):
         #     parent.add(DeclGen(parent, datatype="integer",
         #                        kind=api_config.default_kind["integer"],
         #                        entity_decls=sorted(loop_var_list)))
+        return cursor
 
     def deallocate(self, cursor):
         '''
         Add code to deallocate all basis/diff-basis function arrays
 
-        :param parent: node in the f2pygen AST to which the deallocate \
-                       calls will be added.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if an unrecognised type of basis function \
                                is encountered.
@@ -3859,6 +3938,7 @@ class DynBasisFunctions(LFRicCollection):
             self._invoke.schedule.addchild(dealloc, cursor)
             cursor += 1
             # parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
+        return cursor
 
 
 class DynBoundaryConditions(LFRicCollection):
@@ -3918,8 +3998,10 @@ class DynBoundaryConditions(LFRicCollection):
         '''
         Add declarations for any boundary-dofs arrays required by an Invoke.
 
-        :param parent: node in the PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -3938,13 +4020,16 @@ class DynBoundaryConditions(LFRicCollection):
             #                    kind=api_config.default_kind["integer"],
             #                    pointer=True,
             #                    entity_decls=[name+"(:,:) => null()"]))
+        return cursor
 
     def _stub_declarations(self, cursor):
         '''
         Add declarations for any boundary-dofs arrays required by a kernel.
 
-        :param parent: node in the PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -3957,13 +4042,16 @@ class DynBoundaryConditions(LFRicCollection):
                                intent="in",
                                dimension=",".join([ndf_name, "2"]),
                                entity_decls=[name]))
+        return cursor
 
     def initialise(self, cursor):
         '''
         Initialise any boundary-dofs arrays required by an Invoke.
 
-        :param parent: node in PSyIR to which to add declarations.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         symtab = self._invoke.schedule.symbol_table
@@ -3983,6 +4071,7 @@ class DynBoundaryConditions(LFRicCollection):
             #     rhs="%".join([dofs.argument.proxy_name,
             #                   dofs.argument.ref_name(dofs.function_space),
             #                   "get_boundary_dofs()"])))
+        return cursor
 
 
 class DynInvokeSchedule(InvokeSchedule):

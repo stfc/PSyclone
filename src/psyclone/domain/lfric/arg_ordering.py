@@ -51,7 +51,7 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import (
     MetadataToArgumentsRules)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.symbols import ScalarType, DataSymbol, ArrayType
 
 
 class ArgOrdering:
@@ -197,9 +197,12 @@ class ArgOrdering:
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
+        from psyclone.domain.lfric import LFRicTypes
         if tag is None:
             tag = name
-        sym = self._symtab.lookup(name)
+        sym = self._symtab.find_or_create(
+                name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
         self.psyir_append(Reference(sym))
         return sym
 
@@ -230,7 +233,10 @@ class ArgOrdering:
         if not tag:
             tag = array_name
         if not symbol:
-            symbol = self._symtab.lookup(array_name)
+            # FIXME: indices
+            symbol = self._symtab.find_or_create(
+                array_name, symbol_type=DataSymbol,
+                datatype=ArrayType(ScalarType(intrinsic_type, 4), [1 for _ in indices]))
         else:
             if symbol.name != array_name:
                 raise InternalError(f"Specified symbol '{symbol.name}' has a "

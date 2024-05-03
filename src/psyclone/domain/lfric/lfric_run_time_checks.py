@@ -59,9 +59,10 @@ class LFRicRunTimeChecks(LFRicCollection):
         '''Insert declarations of all data and functions required by the
         run-time checks code into the PSy layer.
 
-        :param parent: the node in the f2pygen AST representing the PSy- \
-                       layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         if Config.get().api_conf("dynamo0.3").run_time_checks:
@@ -74,16 +75,18 @@ class LFRicRunTimeChecks(LFRicCollection):
                               UTILITIES_MOD_MAP["logging"]["module"],
                               only=True,
                               funcnames=["log_event", "LOG_LEVEL_ERROR"]))
+        return cursor
 
-    def _check_field_fs(self, parent):
+    def _check_field_fs(self, cursor):
         '''
         Internal method that adds run-time checks to make sure that the
         field's function space is consistent with the appropriate
         kernel metadata function spaces.
 
-        :param parent: the node in the f2pygen AST representing the PSy- \
-                       layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         parent.add(CommentGen(
@@ -142,8 +145,9 @@ class LFRicRunTimeChecks(LFRicCollection):
                     f"kernel metadata '{fs_name}'.\", LOG_LEVEL_ERROR)")
                 if_then.add(call_abort)
                 parent.add(if_then)
+        return cursor
 
-    def _check_field_ro(self, parent):
+    def _check_field_ro(self, cursor):
         '''
         Internal method that adds runtime checks to make sure that if the
         field is on a read-only function space then the associated
@@ -160,9 +164,10 @@ class LFRicRunTimeChecks(LFRicCollection):
         not be picked up where the error occured. Therefore adding
         checks here is still useful.
 
-        :param parent: the node in the f2pygen AST representing the PSy- \
-                       layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         # When issue #30 is addressed (with issue #79 helping further)
@@ -194,6 +199,7 @@ class LFRicRunTimeChecks(LFRicCollection):
                 f"'{call.name}'.\", LOG_LEVEL_ERROR)")
             if_then.add(call_abort)
             parent.add(if_then)
+        return cursor
 
     def initialise(self, cursor):
         '''Add runtime checks to make sure that the arguments being passed
@@ -202,14 +208,15 @@ class LFRicRunTimeChecks(LFRicCollection):
         limited to ensuring that field function spaces are consistent
         with the associated kernel function-space metadata.
 
-        :param parent: the node in the f2pygen AST representing the PSy- \
-                       layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         if not Config.get().api_conf("dynamo0.3").run_time_checks:
             # Run-time checks are not requested.
-            return
+            return cursor
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Perform run-time checks"))
@@ -217,15 +224,16 @@ class LFRicRunTimeChecks(LFRicCollection):
 
         # Check that field function spaces are compatible with the
         # function spaces specified in the kernel metadata.
-        self._check_field_fs(parent)
+        cursor = self._check_field_fs(cursor)
 
         # Check that fields on read-only function spaces are not
         # passed into a kernel where the kernel metadata specifies
         # that the field will be modified.
-        self._check_field_ro(parent)
+        cursor = self._check_field_ro(cursor)
 
         # These checks should be expanded. Issue #768 suggests
         # extending function space checks to operators.
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #

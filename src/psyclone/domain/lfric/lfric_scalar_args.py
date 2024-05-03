@@ -82,14 +82,15 @@ class LFRicScalarArgs(LFRicCollection):
             self._integer_scalars[intent] = []
             self._logical_scalars[intent] = []
 
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''
         Create argument lists and declarations for all scalar arguments
         in an Invoke.
 
-        :param parent: the f2pygen node representing the PSy-layer routine \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: for unsupported argument intrinsic types.
         :raises GenerationError: if the same scalar argument has different \
@@ -143,16 +144,17 @@ class LFRicScalarArgs(LFRicCollection):
                     f"different kernels. This is invalid.")
 
         # Create declarations
-        self._create_declarations()
+        return self._create_declarations(cursor)
 
-    def _stub_declarations(self, parent):
+    def _stub_declarations(self, cursor):
         '''
         Create and add declarations for all scalar arguments in
         a Kernel stub.
 
-        :param parent: node in the f2pygen AST representing the Kernel stub \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: for an unsupported argument data type.
 
@@ -180,10 +182,15 @@ class LFRicScalarArgs(LFRicCollection):
                         f"are {const.VALID_SCALAR_DATA_TYPES}.")
 
         # Create declarations
-        self._create_declarations()
+        return self._create_declarations(cursor)
 
-    def _create_declarations(self):
+    def _create_declarations(self, cursor):
         '''Add declarations for the scalar arguments.
+
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: if neither self._invoke nor
             self._kernel are set.
@@ -294,9 +301,11 @@ class LFRicScalarArgs(LFRicCollection):
                         "Expected the declaration of logical scalar kernel "
                         "arguments to be for either an invoke or a "
                         "kernel stub, but it is neither.")
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
 __all__ = ['LFRicScalarArgs']
+    

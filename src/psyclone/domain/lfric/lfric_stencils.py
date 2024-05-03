@@ -341,15 +341,16 @@ class LFRicStencils(LFRicCollection):
                                 "impossible.")
         return names
 
-    def _declare_unique_extent_vars(self, parent):
+    def _declare_unique_extent_vars(self, cursor):
         '''
         Declare all unique extent arguments as integers with intent 'in' and
         add the declaration as a child of the parent argument passed
         in.
 
-        :param parent: the node in the f2pygen AST to which to add the
-                       declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -381,6 +382,7 @@ class LFRicStencils(LFRicCollection):
                 #     kind=api_config.default_kind["integer"],
                 #     entity_decls=self._unique_extent_vars, intent="in"
                 # ))
+        return cursor
 
     @property
     def _unique_direction_vars(self):
@@ -398,15 +400,16 @@ class LFRicStencils(LFRicCollection):
                 names.append(arg.name+"_direction")
         return names
 
-    def _declare_unique_direction_vars(self, parent):
+    def _declare_unique_direction_vars(self, cursor):
         '''
         Declare all unique direction arguments as integers with intent 'in'
         and add the declaration as a child of the parent argument
         passed in.
 
-        :param parent: the node in the f2pygen AST to which to add the
-                       declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -416,6 +419,7 @@ class LFRicStencils(LFRicCollection):
                                kind=api_config.default_kind["integer"],
                                entity_decls=self._unique_direction_vars,
                                intent="in"))
+        return cursor
 
     @property
     def unique_alg_vars(self):
@@ -427,45 +431,52 @@ class LFRicStencils(LFRicCollection):
         '''
         return self._unique_extent_vars + self._unique_direction_vars
 
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''
         Declares all stencil maps, extent and direction arguments passed into
         the PSy layer.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
-        self._declare_unique_extent_vars(parent)
-        self._declare_unique_direction_vars(parent)
-        self._declare_maps_invoke(parent)
+        cursor = self._declare_unique_extent_vars(cursor)
+        cursor = self._declare_unique_direction_vars(cursor)
+        cursor = self._declare_maps_invoke(cursor)
+        return cursor
 
-    def _stub_declarations(self, parent):
+    def _stub_declarations(self, cursor):
         '''
         Declares all stencil-related quanitites for a Kernel stub.
 
-        :param parent: node in the f2pygen AST to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
-        self._declare_unique_extent_vars(parent)
-        self._declare_unique_direction_vars(parent)
-        self._declare_unique_max_branch_length_vars(parent)
-        self._declare_maps_stub(parent)
+        cursor = self._declare_unique_extent_vars(parent)
+        cursor = self._declare_unique_direction_vars(parent)
+        cursor = self._declare_unique_max_branch_length_vars(parent)
+        cursor = self._declare_maps_stub(parent)
+        return cursor
 
     def initialise(self, cursor):
         '''
         Adds in the code to initialise stencil dofmaps to the PSy layer.
 
-        :param parent: the node in the f2pygen AST to which to add the
-                       initialisations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises GenerationError: if an unsupported stencil type is encountered.
 
         '''
         if not self._kern_args:
-            return
+            return cursor
 
         # parent.add(CommentGen(parent, ""))
         # parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
@@ -568,14 +579,16 @@ class LFRicStencils(LFRicCollection):
                 # parent.add(AssignGen(parent, pointer=True,
                 #                      lhs=dofmap_size_name,
                 #                      rhs=map_name + "%get_stencil_sizes()"))
+        return cursor
 
-    def _declare_maps_invoke(self, parent):
+    def _declare_maps_invoke(self, cursor):
         '''
         Declare all stencil maps in the PSy layer.
 
-        :param parent: the node in the f2pygen AST to which to add
-                       declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises GenerationError: if an unsupported stencil type is encountered.
 
@@ -583,7 +596,7 @@ class LFRicStencils(LFRicCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         if not self._kern_args:
-            return
+            return cursor
 
         symtab = self._symbol_table
         stencil_map_names = []
@@ -670,6 +683,7 @@ class LFRicStencils(LFRicCollection):
                 #                    pointer=True,
                 #                    entity_decls=[f"{dofmap_size_name}(:) "
                 #                                  f"=> null()"]))
+        return cursor
 
     def _declare_maps_stub(self, parent):
         '''

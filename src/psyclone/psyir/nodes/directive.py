@@ -263,21 +263,13 @@ class RegionDirective(Directive):
         commented = False
         for loop in self.walk(PSyLoop):
             if not isinstance(loop.parent, Loop):
-                if not commented and loop.unique_modified_args("gh_field"):
-                    commented = True
-                    parent.add(CommentGen(parent, ""))
-                    parent.add(CommentGen(parent,
-                                          " Set halos dirty/clean for fields "
-                                          "modified in the above loop(s)"))
-                    parent.add(CommentGen(parent, ""))
                 loop.gen_mark_halos_clean_dirty(parent)
-
-        if commented:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " End of set dirty/clean section for "
-                                  "above loop(s)"))
-            parent.add(CommentGen(parent, ""))
+                
+                if not commented and loop.unique_modified_args("gh_field"):
+                    loop.parent[loop.position + 1].preceeding_comment = (
+                        "Set halos dirty/clean for fields modified in the "
+                        "above loops(s)")
+                    commented = True
 
 
 class StandaloneDirective(Directive):

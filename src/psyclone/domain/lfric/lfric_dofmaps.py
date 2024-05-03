@@ -161,7 +161,14 @@ class LFRicDofmaps(LFRicCollection):
         ''' Generates the calls to the LFRic infrastructure that
         look-up the necessary dofmaps. Adds these calls as children
         of the supplied parent node. This must be an appropriate
-        f2pygen object. '''
+        f2pygen object.
+
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
+
+        '''
 
         # If we've got no dofmaps then we do nothing
         if self._unique_fs_maps:
@@ -208,14 +215,17 @@ class LFRicDofmaps(LFRicCollection):
                 parent.add(AssignGen(parent, pointer=True, lhs=dmap,
                                      rhs=cma["argument"].proxy_name_indexed +
                                      "%indirection_dofmap_"+cma["direction"]))
+        return cursor
 
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''
         Declare all unique function space dofmaps in the PSy layer as pointers
         to integer arrays of rank 2.
 
-        :param parent: the f2pygen node to which to add the declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -225,10 +235,11 @@ class LFRicDofmaps(LFRicCollection):
         #     [dmap+"(:,:) => null()" for dmap in sorted(self._unique_fs_maps)]
 
         for dmap in sorted(self._unique_fs_maps):
-            dmap_sym = DataSymbol(
-                dmap, UnsupportedFortranType(
-                    f"integer(kind=i_def), pointer :: {dmap}(:,:) => null()"))
-            self._symbol_table.add(dmap_sym)
+            if dmap not in self._symbol_table:
+                dmap_sym = DataSymbol(
+                    dmap, UnsupportedFortranType(
+                        f"integer(kind=i_def), pointer :: {dmap}(:,:) => null()"))
+                self._symbol_table.add(dmap_sym)
 
         # if decl_map_names:
         #     parent.add(DeclGen(parent, datatype="integer",
@@ -250,13 +261,16 @@ class LFRicDofmaps(LFRicCollection):
             parent.add(DeclGen(parent, datatype="integer",
                                kind=api_config.default_kind["integer"],
                                pointer=True, entity_decls=decl_ind_map_names))
+        return cursor
 
-    def _stub_declarations(self, parent):
+    def _stub_declarations(self, cursor):
         '''
         Add dofmap-related declarations to a Kernel stub.
 
-        :param parent: node in the f2pygen AST representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         api_config = Config.get().api_conf("dynamo0.3")
@@ -310,6 +324,7 @@ class LFRicDofmaps(LFRicCollection):
                                kind=api_config.default_kind["integer"],
                                intent="in", dimension=dim_name,
                                entity_decls=[dmap]))
+        return cursor
 
 
 # The list of module members that we wish AutoAPI to generate

@@ -58,7 +58,7 @@ class LFRicFields(LFRicCollection):
     or Kernel stub.
 
     '''
-    def _invoke_declarations(self, parent):
+    def _invoke_declarations(self, cursor):
         '''
         Add field-related declarations to the PSy-layer routine.
         Note: PSy layer in LFRic does not modify the field objects. Hence,
@@ -66,9 +66,10 @@ class LFRicFields(LFRicCollection):
         is only pointed to from the field object and is thus not a part of
         the object).
 
-        :param parent: the node in the f2pygen AST representing the PSy-layer
-                       routine to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: for unsupported intrinsic types of field
                                argument data.
@@ -127,14 +128,16 @@ class LFRicFields(LFRicCollection):
             #                        intent="in"))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
+        return cursor
 
-    def _stub_declarations(self, parent):
+    def _stub_declarations(self, cursor):
         '''
         Add field-related declarations to a Kernel stub.
 
-        :param parent: the node in the f2pygen AST representing the Kernel
-                       stub to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         :raises InternalError: for an unsupported data type of field
                                argument data.
@@ -174,6 +177,7 @@ class LFRicFields(LFRicCollection):
                             dimension=undf_name,
                             entity_decls=[fld.name + "_" +
                                           fld.function_space.mangled_name]))
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #

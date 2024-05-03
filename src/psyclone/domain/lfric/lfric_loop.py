@@ -51,7 +51,7 @@ from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, ACCRegionDirective,
-    OMPRegionDirective, Routine, StructureReference, Call,
+    OMPRegionDirective, Routine, StructureReference, Call, BinaryOperation,
     ArrayOfStructuresReference)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface
 
@@ -1059,10 +1059,10 @@ class LFRicLoop(PSyLoop):
         fields = self.unique_modified_args("gh_field")
 
         sym_table = self.ancestor(InvokeSchedule).symbol_table
+        cursor = self.position
 
-        # import pdb; pdb.set_trace()
-        # First set all of the halo dirty unless we are
-        # subsequently going to set all of the halo clean
+        # First set all of the halo dirty unless we are subsequently going to
+        # set all of the halo clean
         for field in fields:
             try:
                 field_symbol = sym_table.lookup(field.proxy_name)
@@ -1084,15 +1084,21 @@ class LFRicLoop(PSyLoop):
                     # vector size which is what we require in our Fortran code
                     for index in range(1, field.vector_size+1):
                         idx_literal = Literal(str(index), INTEGER_TYPE)
-                        self.parent.addchild(
-                            Call.create(ArrayOfStructuresReference.create(
-                                field_symbol, [idx_literal], ["set_dirty"])),
-                            self.position + 1)  # after the loop
+                        call = Call.create(ArrayOfStructuresReference.create(
+                            field_symbol, [idx_literal], ["set_dirty"]))
+                        cursor += 1
+                        self.parent.addchild(call, cursor)
                 else:
-                    self.parent.addchild(
-                        Call.create(StructureReference.create(
-                            field_symbol, ["set_dirty"])),
-                        self.position + 1)  # after the loop
+                    call = Call.create(StructureReference.create(
+                        field_symbol, ["set_dirty"]))
+                    cursor += 1
+                    self.parent.addchild(call, cursor)
+
+            if cursor >= self.position + 1:
+                # This is the first one
+                self.parent[self.position + 1].preceding_comment = (
+                    "Set halos dirty/clean for fields modified in the above "
+                    "loop")
 
             # Now set appropriate parts of the halo clean where
             # redundant computation has been performed.
@@ -1110,7 +1116,8 @@ class LFRicLoop(PSyLoop):
                                 ArrayOfStructuresReference.create(
                                     field_symbol, index, ["set_clean"]))
                             set_clean.addchild(Literal(str(halo_depth), INTEGER_TYPE))
-                            self.parent.addchild(set_clean, self.position)
+                            cursor += 1
+                            self.parent.addchild(set_clean, cursor)
                             # parent.add(CallGen(
                             #     parent, name=f"{field.proxy_name}({index})%"
                             #     f"set_clean({halo_depth})"))
@@ -1119,32 +1126,48 @@ class LFRicLoop(PSyLoop):
                             StructureReference.create(
                                 field_symbol, ["set_clean"]))
                         set_clean.addchild(Literal(str(halo_depth), INTEGER_TYPE))
-                        self.parent.addchild(set_clean, self.position)
+                        cursor += 1
+                        self.parent.addchild(set_clean, cursor)
                         # parent.add(CallGen(
                         #     parent, name=f"{field.proxy_name}%set_clean("
                         #     f"{halo_depth})"))
             elif hwa.max_depth:
                 # halo accesses(s) is/are to the full halo
                 # depth (-1 if continuous)
-                halo_depth = sym_table.lookup_with_tag(
-                    "max_halo_depth_mesh").name
+                hd_sybol = sym_table.lookup_with_tag("max_halo_depth_mesh")
+                halo_depth = Reference(hd_symbol)
 
                 if hwa.dirty_outer:
                     # a continuous field iterating over cells leaves the
                     # outermost halo dirty
-                    halo_depth += "-1"
+                    halo_depth = BinaryOperation
+                    halo_depth = BinaryOperation.create(
+                        BinaryOperation.Operator.MINUS,
+                        halo_depth, Literal("1", INTEGER_TYPE))
                 if field.vector_size > 1:
                     # the range function below returns values from 1 to the
                     # vector size which is what we require in our Fortran code
                     for index in range(1, field.vector_size+1):
-                        call = CallGen(parent,
-                                       name=f"{field.proxy_name}({index})%"
-                                       f"set_clean({halo_depth})")
-                        parent.add(call)
+                        set_clean = Call.create(
+                            ArrayOfStructuresReference.create(
+                                field_symbol, index, ["set_clean"]))
+                        set_clean.addchild(halo_depth)
+                        cursor += 1
+                        self.parent.addchild(set_clean, cursor)
+                        # call = CallGen(parent,
+                        #                name=f"{field.proxy_name}({index})%"
+                        #                f"set_clean({halo_depth})")
+                        # parent.add(call)
                 else:
-                    call = CallGen(parent, name=f"{field.proxy_name}%"
-                                   f"set_clean({halo_depth})")
-                    parent.add(call)
+                    set_clean = Call.create(
+                        StructureReference.create(
+                            field_symbol, ["set_clean"]))
+                    set_clean.addchild(halo_depth)
+                    cursor += 1
+                    self.parent.addchild(set_clean, cursor)
+                    # call = CallGen(parent, name=f"{field.proxy_name}%"
+                    #                f"set_clean({halo_depth})")
+                    # parent.add(call)
 
     def independent_iterations(self,
                                test_all_variables=False,

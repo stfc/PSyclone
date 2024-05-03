@@ -56,24 +56,29 @@ class LFRicLoopBounds(LFRicCollection):
         '''
         Only needed because method is virtual in parent class.
 
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
+        return cursor
 
     def initialise(self, cursor):
         '''
         Updates the f2pygen AST so that all of the variables holding the lower
         and upper bounds of all loops in an Invoke are initialised.
 
-        :param parent: the f2pygen node representing the PSy-layer routine.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int cursor: position where to add the next initialisation
+            statements.
+        :returns: Updated cursor value.
+        :rtype: int
 
         '''
         loops = self._invoke.schedule.loops()
 
         if not loops:
-            return
+            return cursor
 
         # parent.add(CommentGen(parent, ""))
         # parent.add(CommentGen(parent, " Set-up all of the loop bounds"))
@@ -121,6 +126,7 @@ class LFRicLoopBounds(LFRicCollection):
             # parent.add(DeclGen(parent, datatype="integer",
             #                    kind=api_config.default_kind["integer"],
             #                    entity_decls=entities))
+        return cursor
 
 
 # ---------- Documentation utils -------------------------------------------- #
