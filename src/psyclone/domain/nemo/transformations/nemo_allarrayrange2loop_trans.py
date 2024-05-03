@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from an Assignment node
 containing an Array Reference node in its left-hand-side which in turn
@@ -82,8 +83,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         the case then all Range nodes within array references within
         the assignment are replaced with references to the appropriate
         loop indices. The appropriate number of NemoLoop loops are
-        also placed around the modified assignment statement and the
-        assignment statement is placed within a NemoKern.
+        also placed around the modified assignment statement.
 
         The name of each loop index is taken from the PSyclone
         configuration file if a name exists for the particular array
@@ -107,14 +107,16 @@ class NemoAllArrayRange2LoopTrans(Transformation):
             transformations fails, and therefor the reason why the inner
             transformation failed is not propagated.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on a character type array range. Defaults to False.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         trans = NemoOuterArrayRange2LoopTrans()
         try:
             while True:
-                trans.apply(node)
+                trans.apply(node, options)
         except TransformationError as err:
             # TODO #11: Instead we could use proper logging
             if options and options.get("verbose", False):

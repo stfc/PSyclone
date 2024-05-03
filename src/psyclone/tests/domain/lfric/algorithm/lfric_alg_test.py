@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
+#              L. Turner, Met Office
 
 ''' pytest tests for the LFRic-specific algorithm-generation functionality. '''
 
@@ -40,14 +41,13 @@ import os
 import pytest
 
 from fparser import api as fpapi
-from psyclone.domain.lfric import KernCallInvokeArgList
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicKern
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
-from psyclone.dynamo0p3 import DynKern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Routine
-from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,
-                                    DataTypeSymbol, ImportInterface, ArrayType,
-                                    ScalarType, INTEGER_TYPE)
+from psyclone.psyir.symbols import (
+    ContainerSymbol, DataSymbol, UnresolvedType, DataTypeSymbol,
+    ImportInterface, ArrayType, ScalarType, INTEGER_TYPE)
 # Constants
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -66,18 +66,18 @@ def create_prog_fixture():
     mesh_mod = prog.symbol_table.new_symbol("mesh_mod",
                                             symbol_type=ContainerSymbol)
     prog.symbol_table.new_symbol("mesh", symbol_type=DataSymbol,
-                                 datatype=DeferredType(),
+                                 datatype=UnresolvedType(),
                                  interface=ImportInterface(mesh_mod))
     fs_mod = prog.symbol_table.new_symbol("function_space_mod",
                                           symbol_type=ContainerSymbol)
     prog.symbol_table.new_symbol("function_space_type", symbol_type=DataSymbol,
-                                 datatype=DeferredType(),
+                                 datatype=UnresolvedType(),
                                  interface=ImportInterface(fs_mod))
     fsc_mod = prog.symbol_table.new_symbol("function_space_collection_mod",
                                            symbol_type=ContainerSymbol)
     prog.symbol_table.new_symbol("function_space_collection",
                                  symbol_type=DataTypeSymbol,
-                                 datatype=DeferredType(),
+                                 datatype=UnresolvedType(),
                                  interface=ImportInterface(fsc_mod))
     return prog
 
@@ -167,7 +167,7 @@ def test_initialise_field(lfric_alg, prog, fortran_writer):
     table = prog.symbol_table
     fmod = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
     ftype = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
-                             datatype=DeferredType(),
+                             datatype=UnresolvedType(),
                              interface=ImportInterface(fmod))
     # Add symbols for the necessary function spaces but for simplicity
     # make them of integer type.
@@ -179,7 +179,7 @@ def test_initialise_field(lfric_alg, prog, fortran_writer):
     sym = table.new_symbol("field1", symbol_type=DataSymbol, datatype=ftype)
     lfric_alg.initialise_field(prog, sym, "w3")
     gen = fortran_writer(prog)
-    assert ("call field1 % initialise(vector_space=vector_space_w3_ptr, "
+    assert ("call field1%initialise(vector_space=vector_space_w3_ptr, "
             "name='field1')" in gen)
     # Second - a field vector.
     dtype = ArrayType(ftype, [3])
@@ -187,7 +187,7 @@ def test_initialise_field(lfric_alg, prog, fortran_writer):
     lfric_alg.initialise_field(prog, sym, "w2")
     gen = fortran_writer(prog)
     for idx in range(1, 4):
-        assert (f"call fieldv2({idx}_i_def) % initialise(vector_space="
+        assert (f"call fieldv2({idx}_i_def)%initialise(vector_space="
                 f"vector_space_w2_ptr, name='fieldv2')" in gen)
     # Third - invalid type.
     sym._datatype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
@@ -208,7 +208,7 @@ def test_initialise_quadrature(lfric_alg, prog, fortran_writer):
         "quadrature_xyoz_mod", symbol_type=ContainerSymbol)
     quad_type = table.new_symbol(
         "quadrature_xyoz_type", symbol_type=DataTypeSymbol,
-        datatype=DeferredType(), interface=ImportInterface(quad_container))
+        datatype=UnresolvedType(), interface=ImportInterface(quad_container))
     sym = table.new_symbol("qr", symbol_type=DataSymbol, datatype=quad_type)
 
     lfric_alg.initialise_quadrature(prog, sym, "gh_quadrature_xyoz")
@@ -234,7 +234,7 @@ def test_initialise_quadrature_unsupported_shape(lfric_alg, prog):
         "quadrature_xyz_mod", symbol_type=ContainerSymbol)
     quad_type = table.new_symbol(
         "quadrature_xyz_type", symbol_type=DataTypeSymbol,
-        datatype=DeferredType(), interface=ImportInterface(quad_container))
+        datatype=UnresolvedType(), interface=ImportInterface(quad_container))
     sym = table.new_symbol("qr", symbol_type=DataSymbol, datatype=quad_type)
 
     with pytest.raises(NotImplementedError) as err:
@@ -289,10 +289,10 @@ end module testkern_mod
             "Kernel type john does not exist'." in str(err.value))
     # Valid parse tree and correct name.
     kern = lfric_alg.kernel_from_metadata(ptree, "testkern_type")
-    assert isinstance(kern, DynKern)
+    assert isinstance(kern, LFRicKern)
 
 
-def test_construct_kernel_args(lfric_alg, prog, dynkern, fortran_writer):
+def test_construct_kernel_args(lfric_alg, prog, lfrickern, fortran_writer):
     ''' Tests for the construct_kernel_args() function. Since this function
     primarily calls _create_function_spaces(), initialise_field(),
     KernCallInvokeArgList.generate() and initialise_quadrature(), all of which
@@ -300,9 +300,9 @@ def test_construct_kernel_args(lfric_alg, prog, dynkern, fortran_writer):
     field_mod = prog.symbol_table.new_symbol("field_mod",
                                              symbol_type=ContainerSymbol)
     prog.symbol_table.new_symbol("field_type", symbol_type=DataTypeSymbol,
-                                 datatype=DeferredType(),
+                                 datatype=UnresolvedType(),
                                  interface=ImportInterface(field_mod))
-    kargs = lfric_alg.construct_kernel_args(prog, dynkern)
+    kargs = lfric_alg.construct_kernel_args(prog, lfrickern)
 
     assert isinstance(kargs, KernCallInvokeArgList)
     gen = fortran_writer(prog)
@@ -339,12 +339,12 @@ def test_create_from_kernel_invalid_field_type(lfric_alg, monkeypatch):
     # This requires that we monkeypatch the KernCallInvokeArgList class so
     # that it returns an invalid field symbol.
     monkeypatch.setattr(KernCallInvokeArgList, "fields",
-                        [(DataSymbol("fld", DeferredType()), None)])
+                        [(DataSymbol("fld", UnresolvedType()), None)])
     with pytest.raises(InternalError) as err:
         lfric_alg.create_from_kernel("test", os.path.join(BASE_PATH,
                                                           "testkern_mod.F90"))
     assert ("field symbol to either be of ArrayType or have a type specified "
-            "by a DataTypeSymbol but found DeferredType for field 'fld'" in
+            "by a DataTypeSymbol but found UnresolvedType for field 'fld'" in
             str(err.value))
 
 
@@ -382,15 +382,15 @@ def test_create_from_kernel_with_vector(lfric_alg, fortran_writer):
     type(field_type) :: field_3
 ''' in code
 
-    assert ("    call field_1 % initialise(vector_space=vector_space_w0_ptr, "
+    assert ("    call field_1%initialise(vector_space=vector_space_w0_ptr, "
             "name='field_1')\n"
-            "    call field_2(1_i_def) % initialise(vector_space="
+            "    call field_2(1_i_def)%initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "    call field_2(2_i_def) % initialise(vector_space="
+            "    call field_2(2_i_def)%initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "    call field_2(3_i_def) % initialise(vector_space="
+            "    call field_2(3_i_def)%initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "    call field_3 % initialise(vector_space=vector_space_w0_ptr, "
+            "    call field_3%initialise(vector_space=vector_space_w0_ptr, "
             "name='field_3')\n"
             "    call invoke(setval_c(field_1, 1.0_r_def), "
             "setval_c(field_2, 1.0_r_def), "

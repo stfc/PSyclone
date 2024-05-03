@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the NemoAllArrayRange2LoopTrans
 transformation.'''
@@ -75,8 +76,8 @@ def test_transform_apply_mixed_implicit_do():
     result = writer(schedule)
     expected = (
         "  do jk = 1, jpk, 1\n"
-        "    do idx = LBOUND(umask, 2), UBOUND(umask, 2), 1\n"
-        "      do idx_1 = LBOUND(umask, 1), UBOUND(umask, 1), 1\n"
+        "    do idx = LBOUND(umask, dim=2), UBOUND(umask, dim=2), 1\n"
+        "      do idx_1 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
         "        umask(idx_1,idx,jk) = vmask(idx_1,idx,jk) + 1.0\n"
         "      enddo\n"
         "    enddo\n"
@@ -97,9 +98,9 @@ def test_apply_multi_assignments():
     writer = FortranWriter()
     result = writer(schedule)
     expected = (
-        "  do idx = LBOUND(zftv, 3), UBOUND(zftv, 3), 1\n"
-        "    do idx_1 = LBOUND(zftv, 2), UBOUND(zftv, 2), 1\n"
-        "      do idx_2 = LBOUND(zftv, 1), UBOUND(zftv, 1), 1\n"
+        "  do idx = LBOUND(zftv, dim=3), UBOUND(zftv, dim=3), 1\n"
+        "    do idx_1 = LBOUND(zftv, dim=2), UBOUND(zftv, dim=2), 1\n"
+        "      do idx_2 = LBOUND(zftv, dim=1), UBOUND(zftv, dim=1), 1\n"
         "        zftv(idx_2,idx_1,idx) = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
@@ -108,13 +109,13 @@ def test_apply_multi_assignments():
         "    call dia_ptr_hst(jn, 'ldf', -zftv(:,:,:))\n"
         "  end if\n"
         "  call dia_ptr_hst(jn, 'ldf', -zftv(:,:,:))\n"
-        "  do idx_3 = LBOUND(zftu, 2), UBOUND(zftu, 2), 1\n"
-        "    do idx_4 = LBOUND(zftu, 1), UBOUND(zftu, 1), 1\n"
+        "  do idx_3 = LBOUND(zftu, dim=2), UBOUND(zftu, dim=2), 1\n"
+        "    do idx_4 = LBOUND(zftu, dim=1), UBOUND(zftu, dim=1), 1\n"
         "      zftu(idx_4,idx_3,1) = 1.0d0\n"
         "    enddo\n"
         "  enddo\n"
-        "  do idx_5 = LBOUND(tmask, 2), UBOUND(tmask, 2), 1\n"
-        "    do idx_6 = LBOUND(tmask, 1), UBOUND(tmask, 1), 1\n"
+        "  do idx_5 = LBOUND(tmask, dim=2), UBOUND(tmask, dim=2), 1\n"
+        "    do idx_6 = LBOUND(tmask, dim=1), UBOUND(tmask, dim=1), 1\n"
         "      tmask(idx_6,idx_5) = jpi\n"
         "    enddo\n"
         "  enddo\n")
@@ -235,3 +236,36 @@ def test_validate_assignment():
     assert ("Error in NemoAllArrayRange2LoopTrans transformation. The "
             "supplied node argument should be a PSyIR Assignment, but "
             "found 'NoneType'." in str(info.value))
+
+
+def test_character_validation_passes_through(fortran_reader, fortran_writer):
+    '''Check that the validate method of the called transformations
+    returns an exception if the lhs of the assignment contains a
+    character array and the allow_string option isn't defined,
+    and that it doesn't return an exception if the allow_string option is
+    True.'''
+    code = '''subroutine test()
+    character :: a(100)
+    character :: b(100)
+
+    a(1:94) = b(1:94)
+
+    end subroutine test'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+
+    trans = NemoAllArrayRange2LoopTrans()
+    trans.apply(assign, options={"allow_string": False})
+    correct = '''a(:94) = b(:94)'''
+    assert correct in fortran_writer(psyir)
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+
+    trans = NemoAllArrayRange2LoopTrans()
+    trans.apply(assign, options={"allow_string": True})
+    correct = '''  do idx = 1, 94, 1
+    a(idx) = b(idx)
+  enddo'''
+    assert correct in fortran_writer(psyir)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,12 +44,12 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
-from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
-                                              TYPE_MAP_FROM_FORTRAN)
+from psyclone.psyir.frontend.fparser2 import (
+    Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
-from psyclone.psyir.symbols import (DataSymbol, DeferredType, NoType,
-                                    RoutineSymbol, ScalarType,
-                                    UnknownFortranType)
+from psyclone.psyir.symbols import (
+    DataSymbol, UnresolvedType, NoType, RoutineSymbol, ScalarType,
+    UnsupportedFortranType)
 
 IN_OUTS = []
 # subroutine no declarations
@@ -279,9 +279,10 @@ def test_function_result_suffix(fortran_reader, fortran_writer,
 
 def test_function_missing_return_type(fortran_reader):
     '''
-    Test that we generate a CodeBlock for a Fortran function without an
-    explicit declaration of its return type (i.e. if it's relying on Fortran's
-    implicit typing).
+    Test that we reject a Fortran function without an explicit declaration of
+    its return type (i.e. if it's relying on Fortran's implicit typing). We
+    can't put such a function in a CodeBlock because we generate code with
+    `implicit none`, so we need to put the whole module in the CodeBlock.
 
     '''
     code = (
@@ -292,7 +293,26 @@ def test_function_missing_return_type(fortran_reader):
         "  end function my_func\n"
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir.children[0].children[0], CodeBlock)
+    # Check that the whole module is a CodeBlock
+    assert isinstance(psyir.children[0], CodeBlock)
+    assert ("No explicit return-type information found for function "
+            "'my_func'. PSyclone requires that all symbols be explicitly "
+            "typed.") in psyir.children[0].preceding_comment
+    # Test where the result is specified in a suffix but there is no actual
+    # declaration of the symbol.
+    code = (
+        "module a\n"
+        "contains\n"
+        "  function my_func() result(some_var)\n"
+        "    some_var = 1.0\n"
+        "  end function my_func\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # Check that the whole module is a CodeBlock
+    assert isinstance(psyir.children[0], CodeBlock)
+    assert ("No explicit return-type information found for function "
+            "'my_func'. PSyclone requires that all symbols be explicitly "
+            "typed.") in psyir.children[0].preceding_comment
 
 
 def test_function_unsupported_type(fortran_reader):
@@ -313,7 +333,8 @@ def test_function_unsupported_type(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     routines = psyir.walk(Routine)
     assert routines[0].return_symbol.name == "my_func"
-    assert isinstance(routines[0].return_symbol.datatype, UnknownFortranType)
+    assert isinstance(routines[0].return_symbol.datatype,
+                      UnsupportedFortranType)
     assert (routines[0].return_symbol.datatype.declaration.lower() ==
             "complex :: my_func")
     # The Agrif_CFixed function ends up as a CodeBlock because of the
@@ -323,7 +344,7 @@ def test_function_unsupported_type(fortran_reader):
     for name in ["my_func", "agrif_cfixed"]:
         sym = table.lookup(name)
         assert isinstance(sym, RoutineSymbol)
-        assert isinstance(sym.datatype, DeferredType)
+        assert isinstance(sym.datatype, UnresolvedType)
 
 
 def test_function_unsupported_derived_type(fortran_reader):
@@ -344,11 +365,11 @@ def test_function_unsupported_derived_type(fortran_reader):
     routine = psyir.children[0].children[0]
     assert isinstance(routine, Routine)
     assert routine.return_symbol.name == "my_func"
-    assert isinstance(routine.return_symbol.datatype, UnknownFortranType)
+    assert isinstance(routine.return_symbol.datatype, UnsupportedFortranType)
     assert (routine.return_symbol.datatype.declaration.lower() ==
             "type(my_type), pointer :: my_func")
     sym = routine.symbol_table.lookup("var1")
-    assert isinstance(sym.datatype, UnknownFortranType)
+    assert isinstance(sym.datatype, UnsupportedFortranType)
     assert sym.datatype.declaration.lower() == "type(my_type), pointer :: var1"
 
 
@@ -362,6 +383,7 @@ def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
         f"module a\n"
         f"contains\n"
         f"  {fn_prefix} {routine_type} my_func()\n"
+        f"    implicit none\n"
         f"    real :: my_func\n"
         f"    my_func = 1.0\n"
         f"  end {routine_type} my_func\n"
@@ -389,13 +411,13 @@ def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
         f"end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
-    # The Symbol for this routine should be of either NoType or DeferredType.
+    # The Symbol for this routine should be of either NoType or UnresolvedType.
     fsym = psyir.children[0].symbol_table.lookup("my_func")
     assert isinstance(fsym, RoutineSymbol)
     if routine_type == "subroutine":
         assert isinstance(fsym.datatype, NoType)
     else:
-        assert isinstance(fsym.datatype, DeferredType)
+        assert isinstance(fsym.datatype, UnresolvedType)
 
 
 def test_unsupported_char_len_function(fortran_reader):
@@ -404,6 +426,7 @@ def test_unsupported_char_len_function(fortran_reader):
     code = ("module a\n"
             "contains\n"
             "  character(len=2) function my_func()\n"
+            "    implicit none\n"
             "    my_func = 'aa'\n"
             "  end function my_func\n"
             "end module\n")
@@ -413,7 +436,7 @@ def test_unsupported_char_len_function(fortran_reader):
     assert "LEN = 2" in str(cblock.get_ast_nodes[0])
     fsym = psyir.children[0].symbol_table.lookup("my_func")
     assert isinstance(fsym, RoutineSymbol)
-    assert isinstance(fsym.datatype, DeferredType)
+    assert isinstance(fsym.datatype, UnresolvedType)
 
 
 def test_unsupported_contains_subroutine(fortran_reader):
@@ -486,3 +509,49 @@ def test_unsupported_contains_function(fortran_reader):
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
     assert "SUBROUTINE" in str(cblock.get_ast_nodes[0])
+
+
+def test_implicit_declns(fortran_reader):
+    '''Test that we catch an implicit statement inside either a function
+    or a subroutine.
+    '''
+    code = '''\
+    function a(b, c, d)
+      implicit  REAL(wp) (A-H,O-Z)
+      a = c + d
+    end function'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cblock = psyir.children[0]
+    assert isinstance(cblock, CodeBlock)
+    code = '''\
+    subroutine my_sub(b, c, d)
+      implicit  REAL(wp) (A-H,O-Z)
+      a = c + d
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cblock = psyir.children[0]
+    assert isinstance(cblock, CodeBlock)
+
+
+def test_entry_stmt(parser):
+    '''
+    Check that the expected error is raised if we encounter an ENTRY statement.
+    '''
+    code = '''\
+    subroutine sub(b, c, d)
+      real :: a, b, c, d
+      a = c + d
+      return
+    entry a_no_really(b, c, d)
+      a = c * d
+      return
+    end subroutine sub'''
+    fake_parent = FileContainer("dummy")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    fparser2spec = parser(reader)
+    with pytest.raises(NotImplementedError) as err:
+        processor._subroutine_handler(fparser2spec.children[0], fake_parent)
+    assert ("PSyclone does not support routines that contain one or more ENTRY"
+            " statements but found 'ENTRY a_no_really(b, c, d)'"
+            in str(err.value))

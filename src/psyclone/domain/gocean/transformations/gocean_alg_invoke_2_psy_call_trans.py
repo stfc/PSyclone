@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ class GOceanAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
 
         '''
         arguments = []
-        for kern in node.children:
+        for kern in node.arguments:
             for arg in kern.children:
                 self._add_arg(arg, arguments)
         return arguments

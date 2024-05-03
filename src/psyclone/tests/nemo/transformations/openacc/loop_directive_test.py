@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@
 
 '''
 
-from __future__ import print_function, absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
@@ -71,8 +70,10 @@ def test_missing_enclosing_region(parser):
     acc_trans.apply(schedule[0])
     with pytest.raises(GenerationError) as err:
         str(psy.gen)
-    assert ("ACCLoopDirective must have an ACCParallelDirective or "
-            "ACCKernelsDirective as an ancestor" in str(err.value))
+    assert ("ACCLoopDirective in routine 'do_loop' must either have an "
+            "ACCParallelDirective or ACCKernelsDirective as an ancestor in "
+            "the Schedule or the routine must contain an ACCRoutineDirective"
+            in str(err.value))
 
 
 def test_explicit_loop(parser):

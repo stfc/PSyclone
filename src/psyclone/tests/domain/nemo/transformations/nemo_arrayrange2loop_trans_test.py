@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,13 +41,13 @@ import pytest
 
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoKern
+from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, CodeBlock, BinaryOperation, \
     Call, Range, Literal
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ArrayType, \
-    UnknownType, RoutineSymbol
+    UnsupportedType, RoutineSymbol
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
 
@@ -69,8 +69,7 @@ def test_transform():
 
 def test_apply_bounds(tmpdir):
     '''Check that the apply method uses the range bounds if these are specified
-    or the LBOUND, UBOUND expressions if they are not. Also check that the body
-    of the loop is placed in a NemoKern.
+    or the LBOUND, UBOUND expressions if they are not.
 
     '''
     _, invoke_info = get_invoke("implicit_do_slice.f90", api=API, idx=0)
@@ -84,15 +83,16 @@ def test_apply_bounds(tmpdir):
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "  do idx = LBOUND(umask, 3), UBOUND(umask, 3), 1\n"
+        "  do idx = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
         "    do idx_1 = 2, 4, 1\n"
-        "      do idx_2 = LBOUND(umask, 1), UBOUND(umask, 1), 1\n"
+        "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
         "        umask(idx_2,idx_1,idx) = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in result)
-    # Check that a NemoKern has been added
-    assert schedule[0].walk(NemoKern)
+    assigns = schedule[0].walk(Assignment)
+    assert len(assigns) == 1
+    assert isinstance(assigns[0].parent.parent, NemoLoop)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -112,9 +112,9 @@ def test_apply_different_dims(tmpdir):
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "  do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
-        "    do idx_1 = LBOUND(umask, 3), UBOUND(umask, 3), 1\n"
-        "      do idx_2 = LBOUND(umask, 1), UBOUND(umask, 1), 1\n"
+        "  do idx = LBOUND(umask, dim=5), UBOUND(umask, dim=5), 1\n"
+        "    do idx_1 = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
+        "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
         "        umask(idx_2,jpj,idx_1,ndim,idx) = vmask(jpi,idx_2,idx_1,idx,"
         "ndim) + 1.0\n"
         "      enddo\n"
@@ -140,7 +140,7 @@ def test_apply_var_name(tmpdir):
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "  do idx_1 = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "  do idx_1 = LBOUND(umask, dim=5), UBOUND(umask, dim=5), 1\n"
         "    umask(:,:,:,:,idx_1) = vmask(:,:,:,:,idx_1) + 1.0\n"
         "  enddo" in result)
     assert Compile(tmpdir).string_compiles(result)
@@ -166,9 +166,9 @@ def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
     trans.apply(array_ref.children[0])
     result = fortran_writer(psyir)
     assert (
-        "  do idx = LBOUND(umask, 3), UBOUND(umask, 3), 1\n"
-        "    do idx_1 = LBOUND(umask, 2), UBOUND(umask, 2), 1\n"
-        "      do idx_2 = LBOUND(umask, 1), UBOUND(umask, 1), 1\n"
+        "  do idx = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
+        "    do idx_1 = LBOUND(umask, dim=2), UBOUND(umask, dim=2), 1\n"
+        "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
         "        umask(idx_2,idx_1,idx) = mystruct%field(idx_2,idx_1,idx) "
         "+ mystruct%field2%field(idx_2,idx_1,idx)\n"
         "      enddo\n"
@@ -188,12 +188,12 @@ def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
     trans.apply(array_ref.member.member.children[0])
     result = fortran_writer(psyir)
     assert (
-        "  do idx = LBOUND(mystruct%field2%field, 3), "
-        "UBOUND(mystruct%field2%field, 3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field2%field, 2), "
-        "UBOUND(mystruct%field2%field, 2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field2%field, 1), "
-        "UBOUND(mystruct%field2%field, 1), 1\n"
+        "  do idx = LBOUND(mystruct%field2%field, dim=3), "
+        "UBOUND(mystruct%field2%field, dim=3), 1\n"
+        "    do idx_1 = LBOUND(mystruct%field2%field, dim=2), "
+        "UBOUND(mystruct%field2%field, dim=2), 1\n"
+        "      do idx_2 = LBOUND(mystruct%field2%field, dim=1), "
+        "UBOUND(mystruct%field2%field, dim=1), 1\n"
         "        mystruct%field2%field(idx_2,idx_1,idx) = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
@@ -212,12 +212,12 @@ def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
     trans.apply(array_ref.member.children[1])
     result = fortran_writer(psyir)
     assert (
-        "  do idx = LBOUND(mystruct%field3, 3), "
-        "UBOUND(mystruct%field3, 3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field3, 2), "
-        "UBOUND(mystruct%field3, 2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field3, 1), "
-        "UBOUND(mystruct%field3, 1), 1\n"
+        "  do idx = LBOUND(mystruct%field3, dim=3), "
+        "UBOUND(mystruct%field3, dim=3), 1\n"
+        "    do idx_1 = LBOUND(mystruct%field3, dim=2), "
+        "UBOUND(mystruct%field3, dim=2), 1\n"
+        "      do idx_2 = LBOUND(mystruct%field3, dim=1), "
+        "UBOUND(mystruct%field3, dim=1), 1\n"
         "        mystruct%field3(idx_2,idx_1,idx)%field4 = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
@@ -236,12 +236,12 @@ def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
     trans.apply(array_ref.member.children[1])
     result = fortran_writer(psyir)
     assert (
-        "  do idx = LBOUND(mystruct%field3, 3), "
-        "UBOUND(mystruct%field3, 3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field3, 2), "
-        "UBOUND(mystruct%field3, 2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field3, 1), "
-        "UBOUND(mystruct%field3, 1), 1\n"
+        "  do idx = LBOUND(mystruct%field3, dim=3), "
+        "UBOUND(mystruct%field3, dim=3), 1\n"
+        "    do idx_1 = LBOUND(mystruct%field3, dim=2), "
+        "UBOUND(mystruct%field3, dim=2), 1\n"
+        "      do idx_2 = LBOUND(mystruct%field3, dim=1), "
+        "UBOUND(mystruct%field3, dim=1), 1\n"
         "        mystruct%field3(idx_2,idx_1,idx)%field4 = "
         "mystruct%field2%field(idx_2,idx_1,idx)\n"
         "      enddo\n"
@@ -270,17 +270,41 @@ def test_apply_structure_of_arrays_multiple_arrays(fortran_reader,
     trans.apply(array_ref.member.member.children[0])
     result = fortran_writer(psyir)
     assert (
-        "  do idx = LBOUND(mystruct%field2(4,3)%field, 3), "
-        "UBOUND(mystruct%field2(4,3)%field, 3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field2(4,3)%field, 2), "
-        "UBOUND(mystruct%field2(4,3)%field, 2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field2(4,3)%field, 1), "
-        "UBOUND(mystruct%field2(4,3)%field, 1), 1\n"
+        "  do idx = LBOUND(mystruct%field2(4,3)%field, dim=3), "
+        "UBOUND(mystruct%field2(4,3)%field, dim=3), 1\n"
+        "    do idx_1 = LBOUND(mystruct%field2(4,3)%field, dim=2), "
+        "UBOUND(mystruct%field2(4,3)%field, dim=2), 1\n"
+        "      do idx_2 = LBOUND(mystruct%field2(4,3)%field, dim=1), "
+        "UBOUND(mystruct%field2(4,3)%field, dim=1), 1\n"
         "        mystruct%field2(4,3)%field(idx_2,idx_1,idx) = "
         "mystruct%field2(5,8)%field(idx_2,idx_1,idx)\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in result)
+
+
+def test_transform_apply_fixed():
+    '''Check that the PSyIR is transformed as expected for a lat,lon loop
+    when the lhs of the loop has known fixed bounds with the same
+    values for each index. There used to be a bug where the first
+    index was picked up in error instead of the second in the
+    arrayrange2loop validate method but this should now be fixed.
+
+    '''
+    _, invoke_info = get_invoke("fixed_lhs.f90", api=API, idx=0)
+    schedule = invoke_info.schedule
+    assignment = schedule[0]
+    range_node = assignment.lhs.children[1]
+    trans = NemoArrayRange2LoopTrans()
+    trans.apply(range_node)
+    writer = FortranWriter()
+    result = writer(schedule)
+    print(result)
+    expected = (
+        "  do idx = 6, 8, 1\n"
+        "    sshn(2:4,idx) = sshn(2:4,idx) + ssh_ref * tmask(2:4,idx)\n"
+        "  enddo\n")
+    assert expected in result
 
 
 def test_validate_unsupported_structure_of_arrays(fortran_reader):
@@ -381,7 +405,7 @@ def test_validate_with_a_function_call():
 
 def test_validate_with_array_with_hidden_accessor():
     '''Check that the validation method of the transformation raises an
-    exception if there is a RHS array (or UnknownType) with the accessor
+    exception if there is a RHS array (or UnsupportedType) with the accessor
     expression missing.
     '''
     _, invoke_info = get_invoke("implicit_do_hidden_accessor.f90",
@@ -390,11 +414,11 @@ def test_validate_with_array_with_hidden_accessor():
     schedule = invoke_info.schedule
     assignment1 = schedule[0]
     assignment2 = schedule[1]
-    # This test expects arg1 is parsed as ArrayType and arg2 as UnknownType
+    # This test expects arg1 is parsed as ArrayType and arg2 as UnsupportedType
     assert isinstance(schedule.symbol_table.lookup("arg1").datatype,
                       ArrayType)
     assert isinstance(schedule.symbol_table.lookup("arg2").datatype,
-                      UnknownType)
+                      UnsupportedType)
 
     # The first one fails because we know the type of the RHS reference is
     # an array but we don't have explicit dimensions.
@@ -404,13 +428,13 @@ def test_validate_with_array_with_hidden_accessor():
             "'arg1' must be a DataSymbol of ScalarType, but it's a 'arg1: "
             "DataSymbol<Array<Scalar<REAL" in str(info.value))
 
-    # The second fails because it's an UnknownType and we don't know whether
-    # it's an scalar or an array.
+    # The second fails because it's an UnsupportedType and we don't know
+    # whether it's an scalar or an array.
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment2.lhs.children[2])
     assert ("Error in NemoArrayRange2LoopTrans transformation. Variable "
             "'arg2' must be a DataSymbol of ScalarType, but it's a 'arg2: "
-            "DataSymbol<UnknownFortranType" in str(info.value))
+            "DataSymbol<UnsupportedFortranType" in str(info.value))
 
 
 def test_apply_different_num_dims():
@@ -474,7 +498,7 @@ def test_str():
 
 
 def test_name():
-    '''Check that the name property of the ArrayRange2LoopTrans class
+    '''Check that the name property of the NemoArrayRange2LoopTrans class
     returns the expected value.
 
     '''
@@ -571,8 +595,8 @@ def test_validate_array_non_elemental_operator():
         trans.apply(array_ref.children[0])
     assert (
         "Error in NemoArrayRange2LoopTrans transformation. This "
-        "transformation does not support non-elemental Operations on the rhs "
-        "of the associated Assignment node, but found 'MATMUL' in:"
+        "transformation does not support non-elemental IntrinsicCalls on the "
+        "rhs of the associated Assignment node, but found 'MATMUL' in:"
         in str(info.value))
 
 
@@ -593,3 +617,96 @@ def test_validate_not_outermost_range():
     assert ("Error in NemoArrayRange2LoopTrans transformation. This "
             "transformation can only be applied to the outermost "
             "Range." in str(info.value))
+
+
+def test_character_validation(fortran_reader):
+    '''Check that the validate method returns an exception if the
+    lhs of the assignment contains a character array and the allow_string
+    option isn't defined, and that it doesn't return an exception if the
+    allow_string option is True.'''
+
+    code = '''subroutine test()
+    character :: a(100)
+    character :: b(100)
+
+    a(1:94) = b(1:94)
+
+    end subroutine test'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The NemoArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    trans.validate(assign, options={"allow_string": True})
+
+    # Check it also works for rhs
+    code = '''subroutine test()
+    use some_mod
+    character :: b(100)
+
+    a(1:94) = b(1)
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The NemoArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    # Check it also works for RHS literals
+    code = '''subroutine test()
+    use some_mod
+
+    a(1:94) = 'x'
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The NemoArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    # Check we accept when we don't know due to expression in array indexing
+    code = '''subroutine test()
+    use some_mod
+
+    a(1:94) = b(3-2)
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    trans.validate(assign)
+
+    # Check we accept when we find character(LEN=x) syntax as this is an
+    # UnsupportedFortranType
+    # TODO #2441
+    code = '''subroutine test()
+    character(LEN=100) :: a
+    character(LEN=100) :: b
+
+    a(1:94) = b(1:94)
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    trans.validate(assign)

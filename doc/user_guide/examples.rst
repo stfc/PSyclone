@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ what each example does and how to run each example please see the
 Alternatively, some of the examples have associated Jupyter notebooks
 that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
 This is most easily done by following the links from the top-level
-`README <https://github.com/stfc/PSyclone#user-content-try-it-on-binder>`_.
+`README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
 
 For the purposes of correctness checking, the whole suite of examples
 may be executed using Gnu ``make`` (this functionality is used by GitHub
@@ -265,7 +265,7 @@ Example 5.2: Profiling
 This example shows how to use the profiling support in PSyclone.
 It instruments two invoke statements and can link in with any
 of the following profiling wrapper libraries: template,
-simple_timer, dl_timer, and DrHook (see
+simple_timer, dl_timer, TAU, and DrHook (see
 :ref:`profiling_third_party_tools`). The ``README.md``
 file contains detailed instructions on how to build the
 different executables. By default (i.e. just using ``make``

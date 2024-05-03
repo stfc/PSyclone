@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ PSYDATA_LIB_DIR ?= ./../..
 
 # The extract library is implemented for int, real and
 # double scalars and 1- to 4-dimensional arrays
-PROCESS_ARGS = -prefix=extract_ -types=int,logical,real,double \
+PROCESS_ARGS = -prefix=extract_ -types=char,int,long,logical,real,double \
 		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 

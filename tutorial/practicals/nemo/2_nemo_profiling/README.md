@@ -2,7 +2,7 @@
 
 This tutorial follows on from Tutorial 1 (../1_nemo_psyir/README.md) and
 assumes that you are comfortable with the topics covered there. It uses
-the same tracer-advection mini-app although for this tutorial it has
+the same tracer-advection mini-app, although for this tutorial it has
 been refactored so that the mini-app itself is called from a separate
 driver program. The reason for this will become clear as you work
 through the tutorial.
@@ -16,7 +16,7 @@ PSyclone's support for profiling.
 
 This example includes a Makefile to simplify the compilation process. It
 assumes you are using Gnu Make. If you are using a different version of
-Make then you may need to edit the Makefile and replace the occurances of
+Make then you may need to edit the Makefile and replace the occurrences of
 `?=` with `=`.
 
 ## 1. Automatic Profiling ##
@@ -28,8 +28,9 @@ demonstration purposes we will be using the 'simple-timing' library
 distributed with PSyclone since that has no dependencies. (PSyclone
 currently provides wrapper libraries for profiling tools such as
 [dl_timer](https://bitbucket.org/apeg/dl_timer/src/master/), DrHook
-(from ECMWF) and NVIDIA's nvtx. You may wish to investigate these if
-you have time at the end of this session.)
+(from ECMWF), [tau](https://www.cs.uoregon.edu/research/tau) and NVIDIA's
+nvtx. You may wish to investigate these if you have time at the end of
+this session.)
 
 1. Use the supplied Makefile to generate a version of the mini-app with
    profiling calipers inserted at the beginning and end of each routine:
@@ -83,30 +84,14 @@ you have time at the end of this session.)
    of a single subroutine.
 
    If you examine the Makefile, you will see that PSyclone has been run with
-   the `--profile invokes` option and it is this that causes the subroutine
+   the `--profile routines` option and it is this that causes the subroutine
    to be instrumented for profiling:
 
    ```make
    psy.f90: tra_adv_mod.F90
-   	$(PSYCLONE) --profile invokes -api nemo \
+   	$(PSYCLONE) --profile routines -api nemo \
                      -opsy psy.f90 -l output tra_adv_mod.F90
    ```
-
-3. Edit the Makefile so that the line (56) invoking PSyclone to create
-   `psy.f90` uses the `--profile kernels` option instead. Rebuild (you'll
-   need to do a `make clean` to ensure that a new `psy.f90` is generated)
-   and run the mini-app. You should now see timing for thirteen regions that
-   have been identified as kernels by PSyclone:
-   
-       ===========================================
-       module::region   count	sum		min		average         max
-       tra_adv::r0        1    3.12500000E-02	3.12500000E-02 	3.12500000E-02 	3.12500000E-02
-       tra_adv::r1        1    0.00000000	0.00000000     	0.00000000     	0.00000000
-       tra_adv::r2        1    0.00000000	0.00000000     	0.00000000     	0.00000000
-       tra_adv::r3       10    3.69873047E-02	2.92968750E-03 	3.69873038E-03 	7.93457031E-03
-       tra_adv::r4       10    4.19921875E-02	2.92968750E-03  4.19921894E-03 	7.08007812E-03
-       ...
-       ===========================================
 
 ## 2. User-specified Profiling ##
 
@@ -214,7 +199,7 @@ transformation script to perform finer-grained profiling.
 ## 4. Conclusion
 
 Congratulations, you have now completed this part of the tutorial. We
-have now used a PSyclone transformation to add profiling
+have used a PSyclone transformation to add profiling
 instrumentation to the tracer-advection mini-app. In subsequent
 tutorials we will look at using PSyclone transformations to
 parallelise the code.

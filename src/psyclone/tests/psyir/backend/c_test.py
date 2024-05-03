@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,12 +41,14 @@ import pytest
 
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import ArrayReference, Assignment, BinaryOperation, \
-    CodeBlock, IfBlock, Literal, Node, Reference, Return, Schedule, \
-    UnaryOperation, Loop, OMPTaskloopDirective, OMPMasterDirective, \
-    OMPParallelDirective
-from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_TYPE, REAL_TYPE
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, BinaryOperation, CodeBlock, IfBlock, Literal,
+    Node, Reference, Return, Schedule, UnaryOperation, Loop,
+    OMPTaskloopDirective, OMPMasterDirective, OMPParallelDirective,
+    IntrinsicCall)
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol,
+    INTEGER_TYPE, REAL_TYPE, IntrinsicSymbol)
 
 
 def test_cw_gen_declaration():
@@ -287,16 +289,7 @@ def test_cw_unaryoperator():
     # Test all supported Operators
     test_list = ((UnaryOperation.Operator.PLUS, '(+a)'),
                  (UnaryOperation.Operator.MINUS, '(-a)'),
-                 (UnaryOperation.Operator.SQRT, 'sqrt(a)'),
-                 (UnaryOperation.Operator.NOT, '(!a)'),
-                 (UnaryOperation.Operator.COS, 'cos(a)'),
-                 (UnaryOperation.Operator.SIN, 'sin(a)'),
-                 (UnaryOperation.Operator.TAN, 'tan(a)'),
-                 (UnaryOperation.Operator.ACOS, 'acos(a)'),
-                 (UnaryOperation.Operator.ASIN, 'asin(a)'),
-                 (UnaryOperation.Operator.ATAN, 'atan(a)'),
-                 (UnaryOperation.Operator.ABS, 'abs(a)'),
-                 (UnaryOperation.Operator.REAL, '(float)a'))
+                 (UnaryOperation.Operator.NOT, '(!a)'))
 
     for operator, expected in test_list:
         unary_operation._operator = operator
@@ -339,7 +332,6 @@ def test_cw_binaryoperator():
                  (BinaryOperation.Operator.SUB, '(a - b)'),
                  (BinaryOperation.Operator.MUL, '(a * b)'),
                  (BinaryOperation.Operator.DIV, '(a / b)'),
-                 (BinaryOperation.Operator.REM, '(a % b)'),
                  (BinaryOperation.Operator.POW, 'pow(a, b)'),
                  (BinaryOperation.Operator.EQ, '(a == b)'),
                  (BinaryOperation.Operator.NE, '(a != b)'),
@@ -347,9 +339,8 @@ def test_cw_binaryoperator():
                  (BinaryOperation.Operator.GE, '(a >= b)'),
                  (BinaryOperation.Operator.LT, '(a < b)'),
                  (BinaryOperation.Operator.LE, '(a <= b)'),
-                 (BinaryOperation.Operator.AND, '(a && b)'),
                  (BinaryOperation.Operator.OR, '(a || b)'),
-                 (BinaryOperation.Operator.SIGN, 'copysign(a, b)'))
+                 (BinaryOperation.Operator.AND, '(a && b)'))
 
     for operator, expected in test_list:
         binary_operation._operator = operator
@@ -365,6 +356,63 @@ def test_cw_binaryoperator():
         _ = cwriter(binary_operation)
     assert "The C backend does not support the '" in str(err.value)
     assert "' operator." in str(err.value)
+
+
+def test_cw_intrinsiccall():
+    '''Check the CWriter class intrinsiccall method correctly prints out
+    the C representation of any given Intrinsic.
+
+    '''
+    cwriter = CWriter()
+
+    # Test all supported Intrinsics with 1 argument
+    test_list = ((IntrinsicCall.Intrinsic.SQRT, 'sqrt(a)'),
+                 (IntrinsicCall.Intrinsic.COS, 'cos(a)'),
+                 (IntrinsicCall.Intrinsic.SIN, 'sin(a)'),
+                 (IntrinsicCall.Intrinsic.TAN, 'tan(a)'),
+                 (IntrinsicCall.Intrinsic.ACOS, 'acos(a)'),
+                 (IntrinsicCall.Intrinsic.ASIN, 'asin(a)'),
+                 (IntrinsicCall.Intrinsic.ATAN, 'atan(a)'),
+                 (IntrinsicCall.Intrinsic.ABS, 'abs(a)'),
+                 (IntrinsicCall.Intrinsic.REAL, '(float)a'))
+    ref1 = Reference(DataSymbol("a", REAL_TYPE))
+    for intrinsic, expected in test_list:
+        icall = IntrinsicCall.create(intrinsic, [ref1.copy()])
+        assert cwriter(icall) == expected
+
+    # Check that operator-style formatting with a number of children different
+    # than 2 produces an error
+    with pytest.raises(VisitorError) as err:
+        icall.children[0].replace_with(
+            Reference(
+                IntrinsicSymbol(IntrinsicCall.Intrinsic.MOD.name,
+                                IntrinsicCall.Intrinsic.MOD)))
+        _ = cwriter(icall)
+    assert ("The C Writer binary_operator formatter for IntrinsicCall only "
+            "supports intrinsics with 2 children, but found '%' with '1' "
+            "children." in str(err.value))
+
+    # Test all supported Intrinsics with 2 arguments
+    test_list = (
+                 (IntrinsicCall.Intrinsic.MOD, '(a % b)'),
+                 (IntrinsicCall.Intrinsic.SIGN, 'copysign(a, b)'),
+    )
+    ref1 = Reference(DataSymbol("a", REAL_TYPE))
+    ref2 = Reference(DataSymbol("b", REAL_TYPE))
+    for intrinsic, expected in test_list:
+        icall = IntrinsicCall.create(intrinsic, [ref1.copy(), ref2.copy()])
+        assert cwriter(icall) == expected
+
+    # Check that casts with more than one children produce an error
+    with pytest.raises(VisitorError) as err:
+        icall.children[0].replace_with(
+            Reference(
+                IntrinsicSymbol(IntrinsicCall.Intrinsic.REAL.name,
+                                IntrinsicCall.Intrinsic.REAL)))
+        _ = cwriter(icall)
+    assert ("The C Writer IntrinsicCall cast-style formatter only supports "
+            "intrinsics with 1 child, but found 'float' with '2' children."
+            in str(err.value))
 
 
 def test_cw_loop(fortran_reader):
@@ -398,19 +446,20 @@ def test_cw_loop(fortran_reader):
     assert correct in result
 
 
-def test_cw_size():
-    ''' Check the CWriter class SIZE method raises the expected error since
+def test_cw_unsupported_intrinsiccall():
+    ''' Check the CWriter class SIZE intrinsic raises the expected error since
     there is no C equivalent. '''
     cwriter = CWriter()
     arr = ArrayReference(DataSymbol('a', INTEGER_TYPE))
     lit = Literal('1', INTEGER_TYPE)
-    size = BinaryOperation.create(BinaryOperation.Operator.SIZE, arr, lit)
+    size = IntrinsicCall.create(IntrinsicCall.Intrinsic.SIZE,
+                                [arr, ("dim", lit)])
     lhs = Reference(DataSymbol('length', INTEGER_TYPE))
     assignment = Assignment.create(lhs, size)
 
     with pytest.raises(VisitorError) as excinfo:
         cwriter(assignment)
-    assert ("C backend does not support the 'Operator.SIZE' operator"
+    assert ("The C backend does not support the 'SIZE' intrinsic."
             in str(excinfo.value))
 
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation script that converts the supplied
 PSyIR to the Stencil intermediate representation (SIR) and
@@ -48,16 +49,12 @@ objects. Therefore by translating all of the invoke objects, all of
 the original code is translated.
 
 '''
-from __future__ import print_function
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.nemo import NemoKern
-from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
-                                  NaryOperation, Operation, Assignment)
+from psyclone.psyir.nodes import IntrinsicCall, Assignment, Loop
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
-    Min2CodeTrans, Max2CodeTrans, HoistTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
-    NemoAllArrayAccess2LoopTrans
+    Min2CodeTrans, Max2CodeTrans, HoistTrans, AllArrayAccess2LoopTrans
+from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 
 
 def trans(psy):
@@ -77,7 +74,7 @@ def trans(psy):
     min_trans = Min2CodeTrans()
     max_trans = Max2CodeTrans()
     array_range_trans = NemoAllArrayRange2LoopTrans()
-    array_access_trans = NemoAllArrayAccess2LoopTrans()
+    array_access_trans = AllArrayAccess2LoopTrans()
     hoist_trans = HoistTrans()
 
     sir_writer = SIRWriter()
@@ -98,24 +95,19 @@ def trans(psy):
         for assignment in schedule.walk(Assignment):
             array_range_trans.apply(assignment)
 
-        for kernel in schedule.walk(NemoKern):
-
-            kernel_schedule = kernel.get_kernel_schedule()
-            for oper in kernel_schedule.walk(Operation):
-                if oper.operator == UnaryOperation.Operator.ABS:
-                    # Apply ABS transformation
-                    abs_trans.apply(oper)
-                elif oper.operator == BinaryOperation.Operator.SIGN:
-                    # Apply SIGN transformation
-                    sign_trans.apply(oper)
-                elif oper.operator in [BinaryOperation.Operator.MIN,
-                                       NaryOperation.Operator.MIN]:
-                    # Apply (2-n arg) MIN transformation
-                    min_trans.apply(oper)
-                elif oper.operator in [BinaryOperation.Operator.MAX,
-                                       NaryOperation.Operator.MAX]:
-                    # Apply (2-n arg) MAX transformation
-                    max_trans.apply(oper)
+        for icall in schedule.walk(IntrinsicCall):
+            if icall.intrinsic == IntrinsicCall.Intrinsic.ABS:
+                # Apply ABS transformation
+                abs_trans.apply(icall)
+            elif icall.intrinsic == IntrinsicCall.Intrinsic.SIGN:
+                # Apply SIGN transformation
+                sign_trans.apply(icall)
+            elif icall.intrinsic == IntrinsicCall.Intrinsic.MIN:
+                # Apply (2-n arg) MIN transformation
+                min_trans.apply(icall)
+            elif icall.intrinsic in IntrinsicCall.Intrinsic.MAX:
+                # Apply (2-n arg) MAX transformation
+                max_trans.apply(icall)
 
         # Remove any loop invariant assignments inside k-loops to make
         # them perfectly nested. At the moment this transformation
@@ -124,12 +116,10 @@ def trans(psy):
         # #1387. However, it is known that it is safe do apply this
         # transformation to this particular code
         # (tra_adv_compute.F90).
-        for loop in schedule.loops():
-            # outermost only
-            if loop.loop_type == "levels":
-                for child in loop.loop_body[:]:
-                    if isinstance(child, Assignment):
-                        hoist_trans.apply(child)
+        for loop in schedule.walk(Loop, stop_type=Loop):  # outermost only
+            for child in loop.loop_body[:]:
+                if isinstance(child, Assignment):
+                    hoist_trans.apply(child)
 
         kern = fortran_writer(schedule)
         print(kern)

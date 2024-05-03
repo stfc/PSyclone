@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,12 +38,12 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.containersymbols file '''
 
-from __future__ import absolute_import
 import os
 import pytest
+
 from psyclone.psyir.symbols import SymbolError, Symbol
-from psyclone.psyir.symbols.containersymbol import ContainerSymbol, \
-    ContainerSymbolInterface, FortranModuleInterface
+from psyclone.psyir.symbols.containersymbol import (
+    ContainerSymbol, ContainerSymbolInterface, FortranModuleInterface)
 from psyclone.psyir.nodes import Container
 from psyclone.configuration import Config
 

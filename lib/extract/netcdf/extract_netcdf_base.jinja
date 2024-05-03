@@ -35,6 +35,7 @@
 {% if ALL_TYPES is not defined -%}
    {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
                         ("Real",   "real(kind=real32)",   32),
+                        ("Character",   "character(*)",   32),
                         ("Long",   "real(kind=int64)",    64),
                         ("Int",    "integer(kind=int32)", 32) ] %}
 {% endif -%}
@@ -279,6 +280,7 @@ contains
 {% set NCDF_TYPE_MAPPING = { "Double": "NF90_DOUBLE",
                              "Real":   "NF90_REAL",
                              "Logical":"NF90_INT",
+                             "Char":   "NF90_CHAR",
                              "Long":   "NF90_INT64",
                              "Int":    "NF90_INT"} -%}
 

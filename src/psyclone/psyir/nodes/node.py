@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,10 +35,12 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 '''
-This module contains the abstract Node implementation.
+This module contains the abstract Node implementation as well as
+ChildrenList - a custom implementation of list.
 
 '''
 import copy
@@ -95,7 +97,10 @@ class ChildrenList(list):
     a callback function that allows the validation of the inserted children.
     Since this is a subclass of the standard list, all operations (e.g. append,
     insert, extend, comparisons, list arithmetic operations) are conserved and
-    making use of the validation.
+    make use of the validation. They also trigger an update of all ancestor
+    nodes so that action can be taken in order to keep the tree consistent when
+    necessary (e.g. to update the data-movement clauses on an OpenACC data
+    region).
 
     :param node: reference to the node where the list belongs.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -106,7 +111,7 @@ class ChildrenList(list):
 
     '''
     def __init__(self, node, validation_function, validation_text):
-        super(ChildrenList, self).__init__()
+        super().__init__()
         self._node_reference = node
         self._validation_function = validation_function
         self._validation_text = validation_text
@@ -204,8 +209,9 @@ class ChildrenList(list):
         '''
         self._validate_item(len(self), item)
         self._check_is_orphan(item)
-        super(ChildrenList, self).append(item)
+        super().append(item)
         self._set_parent_link(item)
+        self._node_reference.update_signal()
 
     def __setitem__(self, index, item):
         ''' Extends list __setitem__ method with children node validation.
@@ -218,8 +224,9 @@ class ChildrenList(list):
         self._validate_item(index, item)
         self._check_is_orphan(item)
         self._del_parent_link(self[index])
-        super(ChildrenList, self).__setitem__(index, item)
+        super().__setitem__(index, item)
         self._set_parent_link(item)
+        self._node_reference.update_signal()
 
     def insert(self, index, item):
         ''' Extends list insert method with children node validation.
@@ -235,8 +242,9 @@ class ChildrenList(list):
         # Check that all displaced items will still in valid positions
         for position in range(positiveindex, len(self)):
             self._validate_item(position + 1, self[position])
-        super(ChildrenList, self).insert(index, item)
+        super().insert(index, item)
         self._set_parent_link(item)
+        self._node_reference.update_signal()
 
     def extend(self, items):
         ''' Extends list extend method with children node validation.
@@ -248,9 +256,10 @@ class ChildrenList(list):
         for index, item in enumerate(items):
             self._validate_item(len(self) + index, item)
             self._check_is_orphan(item)
-        super(ChildrenList, self).extend(items)
+        super().extend(items)
         for item in items:
             self._set_parent_link(item)
+        self._node_reference.update_signal()
 
     # Methods below don't insert elements but have the potential to displace
     # or change the order of the items in-place.
@@ -264,7 +273,8 @@ class ChildrenList(list):
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
         self._del_parent_link(self[index])
-        super(ChildrenList, self).__delitem__(index)
+        super().__delitem__(index)
+        self._node_reference.update_signal()
 
     def remove(self, item):
         ''' Extends list remove method with children node validation.
@@ -276,7 +286,8 @@ class ChildrenList(list):
         for position in range(self.index(item) + 1, len(self)):
             self._validate_item(position - 1, self[position])
         self._del_parent_link(item)
-        super(ChildrenList, self).remove(item)
+        super().remove(item)
+        self._node_reference.update_signal()
 
     def pop(self, index=-1):
         ''' Extends list pop method with children node validation.
@@ -293,13 +304,36 @@ class ChildrenList(list):
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
         self._del_parent_link(self[index])
-        return super(ChildrenList, self).pop(index)
+        obj = super().pop(index)
+        self._node_reference.update_signal()
+        return obj
 
     def reverse(self):
         ''' Extends list reverse method with children node validation. '''
         for index, item in enumerate(self):
             self._validate_item(len(self) - index - 1, item)
-        super(ChildrenList, self).reverse()
+        super().reverse()
+        # Reversing the order of e.g. Statements may alter the read/write
+        # properties of any References.
+        self._node_reference.update_signal()
+
+    def clear(self):
+        ''' Wipes the list. '''
+        for item in self:
+            self._del_parent_link(item)
+        super().clear()
+        # Signal that the tree has changed.
+        self._node_reference.update_signal()
+
+    def sort(self, reverse=False, key=None):
+        '''Override the default sort() implementation as this is not supported
+        for a ChildrenList.
+
+        :raises NotImplementedError: it makes no sense to sort the Children of
+                                     a Node.
+        '''
+        raise NotImplementedError("Sorting the Children of a Node is not "
+                                  "supported.")
 
 
 class Node():
@@ -340,19 +374,20 @@ class Node():
     _colour = None
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
-        self._children = ChildrenList(self, self._validate_child,
-                                      self._children_valid_format)
-        if children:
-            self._children.extend(children)
         if parent and not isinstance(parent, Node):
             raise TypeError(f"The parent of a Node must also be a Node but "
                             f"got '{type(parent).__name__}'")
+        self._disable_tree_update = True
         # Keep a record of whether a parent node was supplied when constructing
         # this object. In this case it still won't appear in the parent's
         # children list. When both ends of the reference are connected this
         # will become False.
         self._has_constructor_parent = parent is not None
         self._parent = parent
+        self._children = ChildrenList(self, self._validate_child,
+                                      self._children_valid_format)
+        if children:
+            self._children.extend(children)
         # Reference into fparser2 AST (if any)
         self._ast = ast
         # Ref. to last fparser2 parse tree node associated with this Node.
@@ -369,6 +404,8 @@ class Node():
                         f"{self.__class__.__name__} with unrecognised "
                         f"annotation '{annotation}', valid "
                         f"annotations are: {self.valid_annotations}.")
+        self._disable_tree_update = False
+        self.update_signal()
 
     def __eq__(self, other):
         '''
@@ -921,6 +958,15 @@ class Node():
         return self._parent
 
     @property
+    def siblings(self):
+        '''
+        :returns: list of sibling nodes, including self.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        parent = self.parent
+        return [self] if parent is None else parent.children
+
+    @property
     def has_constructor_parent(self):
         '''
         :returns: whether the constructor has predefined a parent connection
@@ -1026,7 +1072,7 @@ class Node():
             return False
         return self.parent is node_2.parent
 
-    def walk(self, my_type, stop_type=None):
+    def walk(self, my_type, stop_type=None, depth=None):
         ''' Recurse through the PSyIR tree and return all objects that are
         an instance of 'my_type', which is either a single class or a tuple
         of classes. In the latter case all nodes are returned that are
@@ -1034,12 +1080,15 @@ class Node():
         is stopped if an instance of 'stop_type' (which is either a single
         class or a tuple of classes) is found. This can be used to avoid
         analysing e.g. inlined kernels, or as performance optimisation to
-        reduce the number of recursive calls.
+        reduce the number of recursive calls. The recursion into the tree is
+        also stopped if the (optional) 'depth' level is reached.
 
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: type | Tuple[type, ...]
         :param stop_type: class(es) at which recursion is halted (optional).
         :type stop_type: Optional[type | Tuple[type, ...]]
+        :param depth: the depth value the instances must have (optional).
+        :type depth: Optional[int]
 
         :returns: list with all nodes that are instances of my_type \
                   starting at and including this node.
@@ -1047,16 +1096,66 @@ class Node():
 
         '''
         local_list = []
-        if isinstance(self, my_type):
+        if isinstance(self, my_type) and depth in [None, self.depth]:
             local_list.append(self)
 
         # Stop recursion further into the tree if an instance of a class
         # listed in stop_type is found.
         if stop_type and isinstance(self, stop_type):
             return local_list
+
+        # Stop recursion further into the tree if a depth level has been
+        # specified and it is reached.
+        if depth is not None and self.depth >= depth:
+            return local_list
+
         for child in self.children:
-            local_list += child.walk(my_type, stop_type)
+            local_list += child.walk(my_type, stop_type, depth=depth)
         return local_list
+
+    def get_sibling_lists(self, my_type, stop_type=None):
+        '''
+        Recurse through the PSyIR tree and return lists of Nodes that are
+        instances of 'my_type' and are immediate siblings. Here 'my_type' is
+        either a single class or a tuple of classes. In the latter case all
+        nodes are returned that are instances of any classes in the tuple. The
+        recursion into the tree is stopped if an instance of 'stop_type' (which
+        is either a single class or a tuple of classes) is found.
+
+        :param my_type: the class(es) for which the instances are collected.
+        :type my_type: type | Tuple[type, ...]
+        :param stop_type: class(es) at which recursion is halted (optional).
+        :type stop_type: Optional[type | Tuple[type, ...]]
+
+        :returns: list of lists, each of which containing nodes that are
+                  instances of my_type and are immediate siblings, starting at
+                  and including this node.
+        :rtype: List[List[:py:class:`psyclone.psyir.nodes.Node`]]
+
+        '''
+        # Separate nodes by depth
+        by_depth = {}
+        for node in self.walk(my_type, stop_type=stop_type):
+            depth = node.depth
+            if depth not in by_depth:
+                by_depth[depth] = []
+            by_depth[depth].append(node)
+
+        # Determine lists of consecutive nodes
+        global_list = []
+        for depth, local_list in sorted(by_depth.items()):
+            block = []
+            for node in local_list:
+                if not block or node.immediately_follows(block[-1]):
+                    block.append(node)
+                else:
+                    # Current node does not immediately follow the previous one
+                    # so this marks the end of the current block.
+                    global_list.append(block)
+                    block = [node]
+            if block:
+                global_list.append(block)
+        return global_list
 
     def ancestor(self, my_type, excluding=None, include_self=False,
                  limit=None, shared_with=None):
@@ -1248,6 +1347,30 @@ class Node():
             nodes.reverse()
         return nodes
 
+    def immediately_precedes(self, node_2):
+        '''
+        :returns: True if this node immediately precedes `node_2`, False
+                  otherwise
+        :rtype: bool
+        '''
+        return (
+            self.sameParent(node_2)
+            and self in node_2.preceding()
+            and self.position + 1 == node_2.position
+        )
+
+    def immediately_follows(self, node_1):
+        '''
+        :returns: True if this node immediately follows `node_1`, False
+                  otherwise
+        :rtype: bool
+        '''
+        return (
+            self.sameParent(node_1)
+            and self in node_1.following()
+            and self.position == node_1.position + 1
+        )
+
     def coded_kernels(self):
         '''
         Returns a list of all of the user-supplied kernels (as opposed to
@@ -1405,11 +1528,13 @@ class Node():
                 f"Node class should be None but found "
                 f"'{type(node.parent).__name__}'.")
 
+        # The n'th argument is placed at the n'th+1 children position
+        # because the 1st child is the routine reference
         if keep_name_in_context and hasattr(self.parent, "argument_names") \
-                and self.parent.argument_names[self.position] is not None:
+                and self.parent.argument_names[self.position - 1] is not None:
             # If it is a named context it will have a specific method for
             # replacing the node while keeping the name
-            name = self.parent.argument_names[self.position]
+            name = self.parent.argument_names[self.position - 1]
             self.parent.replace_named_arg(name, node)
         else:
             self.parent.children[self.position] = node
@@ -1447,6 +1572,9 @@ class Node():
         :type other: :py:class:`psyclone.psyir.node.Node`
 
         '''
+        # Disable tree-updating during this operation (since it is a copy we
+        # know we don't need to change the tree structure).
+        self._disable_tree_update = True
         self._parent = None
         self._has_constructor_parent = False
         self._annotations = other.annotations[:]
@@ -1455,6 +1583,7 @@ class Node():
                                       self._children_valid_format)
         # And make a recursive copy of each child instead
         self.children.extend([child.copy() for child in other.children])
+        self._disable_tree_update = False
 
     def copy(self):
         ''' Return a copy of this node. This is a bespoke implementation for
@@ -1501,6 +1630,72 @@ class Node():
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.debug_writer import DebugWriter
         return DebugWriter()(self)
+
+    def origin_string(self):
+        ''' Generates a string with the available information about where
+        this node has been created. It currently only works with Fortran
+        Statements or subchildren of them.
+
+        :returns: a string specifing the origin of this node.
+        :rtype: str
+        '''
+        name = self.coloured_name(False)
+        line_span = "<unknown>"
+        original_src = "<unknown>"
+        filename = "<unknown>"
+        # Try to populate the line/src/filename using the ancestor Statement
+        from psyclone.psyir.nodes.statement import Statement
+        node = self.ancestor(Statement, include_self=True)
+        # TODO #2062: The part below is tighly coupled to fparser tree
+        # structure and ideally should be moved the appropriate frontend,
+        # but we don't necessarely want to do all this string manipulation
+        # ahead of time as it is rarely needed. One option is for the frontend
+        # to provide a callable that this method will invoke to generate the
+        # string. Other frontends or PSyIR not comming from code could provide
+        # a completely different implementation in the Callable oject.
+        if node and node._ast:
+            if hasattr(node._ast, 'item') and node._ast.item:
+                if hasattr(node._ast.item, 'reader'):
+                    if hasattr(node._ast.item.reader, 'file'):
+                        filename = node._ast.item.reader.file.name
+                line_span = node._ast.item.span
+                original_src = node._ast.item.line
+        return (f"{name} from line {line_span} of file "
+                f"'{filename}':\n> {original_src}")
+
+    def update_signal(self):
+        '''
+        Called whenever there is a change in the PSyIR tree below this node.
+        It is responsible for ensuring that this method does not get called
+        recursively and then calls the _update_node() method of the current
+        node (which is the only part that subclasses should specialise).
+        Finally, it propagates the update signal up to the parent node
+        (if any).
+
+        '''
+        # Ensure that update_signal does not get called recursively.
+        if self._disable_tree_update:
+            return
+
+        # Perform the update, disabling the recursive call of this routine on
+        # this node.
+        self._disable_tree_update = True
+        self._update_node()
+        self._disable_tree_update = False
+
+        # Propagate the signal up the tree.
+        if self._parent:
+            self._parent.update_signal()
+
+    def _update_node(self):
+        '''
+        Specify how this node must be updated when an update_signal is
+        received. The modifications in this method will not trigger a
+        recursive signal (i.e. they won't cause this node to attempt to
+        update itself again).
+
+        This base implementation does nothing.
+        '''
 
     def path_from(self, ancestor):
         ''' Find the path in the psyir tree between ancestor and node and

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,10 +97,6 @@ class Config:
     # file is loaded. If an instance of this class should be created before
     # the loading of the config file, an exception will be raised.
     _HAS_CONFIG_BEEN_INITIALISED = False
-
-    # Static specification of a valid name for use in checking for
-    # variable names etc.
-    valid_name = re.compile(r'[a-zA-Z_][\w]*')
 
     # List of supported API by PSyclone
     _supported_api_list = ["dynamo0.3", "gocean1.0", "nemo"]
@@ -227,6 +223,11 @@ class Config:
         # Number of OpenCL devices per node
         self._ocl_devices_per_node = 1
 
+        # By default, a PSyIR backend performs validation checks as it
+        # traverses the tree. Setting this option to False disables those
+        # checks which can be useful in the case of unimplemented features.
+        self._backend_checks_enabled = True
+
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
@@ -247,9 +248,12 @@ class Config:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
         # Add a getlist method to the ConfigParser instance using the
-        # converters argument
+        # converters argument. The lambda functions also handles the
+        # case of an empty specification ('xx = ''), returning an
+        # empty list instead of a list containing the empty string:
         self._config = ConfigParser(
-            converters={'list': lambda x: [i.strip() for i in x.split(',')]})
+            converters={'list': lambda x: [] if not x else
+                                          [i.strip() for i in x.split(',')]})
         try:
             self._config.read(self._config_file)
         # Check for missing section headers and general parsing errors
@@ -342,9 +346,7 @@ class Config:
         # Read the valid PSyData class prefixes. If the keyword does
         # not exist then return an empty list.
         self._valid_psy_data_prefixes = \
-            self._config["DEFAULT"].getlist("VALID_PSY_DATA_PREFIXES")
-        if self._valid_psy_data_prefixes is None:
-            self._valid_psy_data_prefixes = []
+            self._config["DEFAULT"].getlist("VALID_PSY_DATA_PREFIXES", [])
         try:
             self._ocl_devices_per_node = self._config['DEFAULT'].getint(
                 'OCL_DEVICES_PER_NODE')
@@ -361,6 +363,17 @@ class Config:
                     f"Invalid PsyData-prefix '{prefix}' in config file. The "
                     f"prefix must be valid for use as the start of a Fortran "
                     f"variable name.", config=self)
+
+        # Whether validation is performed in the PSyIR backends.
+        if 'BACKEND_CHECKS_ENABLED' in self._config['DEFAULT']:
+            try:
+                self._backend_checks_enabled = (
+                    self._config['DEFAULT'].getboolean(
+                        'BACKEND_CHECKS_ENABLED'))
+            except ValueError as err:
+                raise ConfigurationError(
+                    f"Error while parsing BACKEND_CHECKS_ENABLED: {err}",
+                    config=self) from err
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specific Config objects.
@@ -382,6 +395,14 @@ class Config:
         # By default we ensure that each transformed kernel is given a
         # unique name (within the specified kernel-output directory).
         self._kernel_naming = Config._default_kernel_naming
+
+        ignore_modules = self._config['DEFAULT'].getlist("IGNORE_MODULES", [])
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.parse import ModuleManager
+        mod_manager = ModuleManager.get()
+        for module_name in ignore_modules:
+            mod_manager.add_ignore_module(module_name)
 
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
@@ -550,6 +571,31 @@ class Config:
         :rtype: str
         '''
         return self._default_stub_api
+
+    @property
+    def backend_checks_enabled(self):
+        '''
+        :returns: whether the validity checks in the PSyIR backend should be
+                  disabled.
+        :rtype: bool
+        '''
+        return self._backend_checks_enabled
+
+    @backend_checks_enabled.setter
+    def backend_checks_enabled(self, value):
+        '''
+        Setter for whether or not the PSyIR backend is to perform validation
+        checks.
+
+        :param bool value: whether or not to perform validation.
+
+        :raises TypeError: if `value` is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(f"Config.backend_checks_enabled must be a boolean "
+                            f"but got '{type(value).__name__}'")
+        self._backend_checks_enabled = value
 
     @property
     def supported_stub_apis(self):
@@ -760,11 +806,10 @@ class APISpecificConfig:
         :param input_list: the input list.
         :type input_list: list of str
 
-        :returns: a dictionary with the key,value pairs from the input \
-            list.
-        :rtype: dict.
+        :returns: a dictionary with the key,value pairs from the input list.
+        :rtype: dict[str, Any]
 
-        :raises ConfigurationError: if any entry in the input list \
+        :raises ConfigurationError: if any entry in the input list
                 does not contain a ":".
 
         '''
@@ -778,6 +823,32 @@ class APISpecificConfig:
                     f"Invalid format for mapping: {entry.strip()}") from err
             # Remove spaces and convert unicode to normal strings in Python2
             return_dict[str(key.strip())] = str(value.strip())
+        return return_dict
+
+    @staticmethod
+    def get_precision_map_dict(section):
+        '''Extracts the precision map values from the psyclone.cfg file
+        and converts them to a dictionary with integer values.
+
+        :returns: The precision maps to be used by this API.
+        :rtype: dict[str, int]
+        '''
+        precisions_list = section.getlist("precision_map")
+        return_dict = {}
+        return_dict = APISpecificConfig.create_dict_from_list(precisions_list)
+
+        for key, value in return_dict.items():
+            # isdecimal returns True if all the characters are decimals (0-9).
+            # isdigit returns True if all characters are digits (this excludes
+            # special characters such as the decimal point).
+            if value.isdecimal() and value.isdigit():
+                return_dict[key] = int(value)
+            else:
+                # Raised when key contains special characters or letters:
+                raise ConfigurationError(
+                    f"Wrong type supplied to mapping: '{value}'"
+                    f" is not a positive integer or contains special"
+                    f" characters.")
         return return_dict
 
     def get_access_mapping(self):
@@ -857,6 +928,7 @@ class LFRicConfig(APISpecificConfig):
         # Initialise LFRic datatypes' default kinds (precisions) settings
         self._supported_fortran_datatypes = []
         self._default_kind = {}
+        self._precision_map = {}
         # Number of ANY_SPACE and ANY_DISCONTINUOUS_SPACE function spaces
         self._num_any_space = None
         self._num_any_discontinuous_space = None
@@ -866,6 +938,7 @@ class LFRicConfig(APISpecificConfig):
                                 "compute_annexed_dofs",
                                 "supported_fortran_datatypes",
                                 "default_kind",
+                                "precision_map",
                                 "run_time_checks",
                                 "num_any_space",
                                 "num_any_discontinuous_space"]
@@ -929,6 +1002,10 @@ class LFRicConfig(APISpecificConfig):
                 f"one or more supported datatypes "
                 f"{self._supported_fortran_datatypes}.")
         self._default_kind = all_kinds
+
+        # Parse setting for default precision map values.
+        all_precisions = self.get_precision_map_dict(section)
+        self._precision_map = all_precisions
 
         # Parse setting for the number of ANY_SPACE function spaces
         # (check for an invalid value and numbers <= 0)
@@ -1011,6 +1088,19 @@ class LFRicConfig(APISpecificConfig):
 
         '''
         return self._default_kind
+
+    @property
+    def precision_map(self):
+        '''
+        Getter for precision map values for supported fortran datatypes
+        in LFRic. (Precision in bytes indexed by the name of the LFRic
+        kind parameter).
+
+        :returns: the precision map values for main datatypes in LFRic.
+        :rtype: dict[str, int]
+
+        '''
+        return self._precision_map
 
     @property
     def num_any_space(self):
@@ -1288,18 +1378,6 @@ class NemoConfig(APISpecificConfig):
         '''
         return self._loop_type_mapping
 
-    def get_loop_type_data(self):
-        '''
-        :returns: the mapping of a loop type (lon, ...) to a dictionary \
-            containing the corresponding variable name and start/stop values.\
-            Example: = {"lon": {"var": "ji", "start": "1", "stop": "jpi"}, \
--                       "lat": {"var": "jj", "start": "1", "stop": "jpj"} }
-
-        :rtype: dictionary with str keys, with each value being a \
-            dictionary mapping 'var', 'start', and 'stop' to str.
-        '''
-        return self._loop_type_data
-
     def get_valid_loop_types(self):
         '''
         The list is sorted to have reproducible results for testing.
@@ -1310,14 +1388,6 @@ class NemoConfig(APISpecificConfig):
         valid_types_list = list(self._loop_type_data)
         valid_types_list.sort()
         return valid_types_list
-
-    def get_index_order(self):
-        '''
-        :returns: the order in which loops should be created in \
-            NemoExplicitLoopTrans.
-        :rtype: list of str.
-        '''
-        return self._index_order
 
     # ---------------------------------------------------------------------
     def get_constants(self):

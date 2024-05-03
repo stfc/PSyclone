@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -291,8 +291,7 @@ this:
 
 This class is then sub-classed in order to support the generation of
 argument lists when *calling* kernels (``KernCallArgList``) and when
-*creating* kernel stubs (``KernStubArgList``).  ``KernCallArgList`` is
-only used in ``DynKernelArguments.raw_arg_list()``.
-``KernStubArgList`` is only used in ``DynKern.gen_stub()``. These
+*creating* kernel stubs (``KernStubArgList``).
+``KernStubArgList`` is only used in ``LFRicKern.gen_stub()``. These
 classes make use of ``LFRicCollection`` sub-classes in order
 to ensure that argument naming is consistent.

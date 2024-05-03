@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council
+! Copyright (c) 2017-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -64,8 +64,13 @@ contains
     integer(kind=i_def), intent(in) :: ncell_3d
     integer(kind=i_def), intent(in) :: ndf_aspc1, ndf_aspc2
     real(kind=r_def), intent(inout), dimension(ndf_aspc1,ndf_aspc2,ncell_3d) :: local_stencil
+    ! local variables
+    integer(kind=i_def) :: k, ik
 
-    call random_number(local_stencil(:,:,cell))
+    do k = 0, nlayers-1
+      ik = (cell-1)*nlayers + k + 1
+      call random_number(local_stencil(:,:,ik))
+    end do
 
   end subroutine setop_random_kernel_code
 

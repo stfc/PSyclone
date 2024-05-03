@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Authors: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -65,11 +65,13 @@ def make_component_symbol():
 
     '''
     region_type = symbols.StructureType.create([
-        ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
+         None)])
     region_type_symbol = symbols.DataTypeSymbol("region_type", region_type)
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("region", region_type_symbol, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
+        ("region", region_type_symbol, symbols.Symbol.Visibility.PUBLIC,
+         None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
@@ -92,12 +94,12 @@ def test_asr_create(component_symbol):
     assert isinstance(asref.children[0], nodes.StructureMember)
     assert isinstance(asref.children[0].children[0], nodes.Member)
     # Reference to range of structures
-    lbound = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.LBOUND,
-        nodes.Reference(component_symbol), int_one.copy())
-    ubound = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.UBOUND,
-        nodes.Reference(component_symbol), int_one.copy())
+    lbound = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.LBOUND,
+        [nodes.Reference(component_symbol), ("dim", int_one.copy())])
+    ubound = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.UBOUND,
+        [nodes.Reference(component_symbol), ("dim", int_one.copy())])
     my_range = nodes.Range.create(lbound, ubound)
     asref = nodes.ArrayOfStructuresReference.create(component_symbol,
                                                     [my_range], ["nx"])
@@ -107,12 +109,12 @@ def test_asr_create(component_symbol):
     check_links(asref.children[1], asref.children[1].children)
 
     # Test to enforce a type:
-    lbound = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.LBOUND,
-        nodes.Reference(component_symbol), int_one.copy())
-    ubound = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.UBOUND,
-        nodes.Reference(component_symbol), int_one.copy())
+    lbound = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.LBOUND,
+        [nodes.Reference(component_symbol), ("dim", int_one.copy())])
+    ubound = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.UBOUND,
+        [nodes.Reference(component_symbol), ("dim", int_one.copy())])
     my_range = nodes.Range.create(lbound, ubound)
     datatype = symbols.INTEGER8_TYPE
     asref = nodes.ArrayOfStructuresReference.\
@@ -120,11 +122,11 @@ def test_asr_create(component_symbol):
                overwrite_datatype=datatype)
     assert asref.datatype is datatype
 
-    # Reference to a symbol of DeferredType
-    ssym = symbols.DataSymbol("grid", symbols.DeferredType())
+    # Reference to a symbol of UnresolvedType
+    ssym = symbols.DataSymbol("grid", symbols.UnresolvedType())
     asref = nodes.ArrayOfStructuresReference.create(
         ssym, [int_one.copy()], ["region", "startx"])
-    assert isinstance(asref.symbol.datatype, symbols.DeferredType)
+    assert isinstance(asref.symbol.datatype, symbols.UnresolvedType)
     assert isinstance(asref.children[0], nodes.StructureMember)
     assert isinstance(asref.children[0].children[0], nodes.Member)
 
@@ -140,8 +142,8 @@ def test_asr_create_errors(component_symbol):
     scalar_symbol = symbols.DataSymbol("scalar", symbols.INTEGER_TYPE)
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(scalar_symbol, [], [])
-    assert ("ArrayType, DeferredType or UnknownType but symbol 'scalar' has "
-            "type 'Scalar" in str(err.value))
+    assert ("ArrayType, UnresolvedType or UnsupportedType but symbol 'scalar' "
+            "has type 'Scalar" in str(err.value))
     # Missing children (for array-index expressions)
     with pytest.raises(TypeError) as err:
         _ = nodes.ArrayOfStructuresReference.create(component_symbol,
@@ -160,7 +162,8 @@ def test_ast_str():
     ''' Test that the __str__ method of the StructureReference class works OK
     when we have an ArrayOfStructuresReference. '''
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
+         None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
@@ -175,7 +178,8 @@ def test_ast_is_array():
     ''' Test that an ArrayOfStructuresReference is marked as being an array.
     '''
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
+         None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)
@@ -195,8 +199,8 @@ def test_asr_datatype():
     atype = symbols.ArrayType(symbols.REAL_TYPE,
                               [nodes.Reference(ndofs), nodes.Reference(ndofs)])
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("data", atype, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
+        ("data", atype, symbols.Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_array_type = symbols.ArrayType(grid_type_symbol, [5])
     ssym = symbols.DataSymbol("grid", grid_array_type)

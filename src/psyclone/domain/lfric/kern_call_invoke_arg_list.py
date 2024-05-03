@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 '''
@@ -43,9 +43,9 @@ of a Kernel as required by an `invoke` of that kernel.
 from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 # Avoid circular dependency:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
-from psyclone.psyir.symbols import (ArrayType, DataSymbol,
-                                    DataTypeSymbol, DeferredType, SymbolTable,
-                                    ContainerSymbol, ImportInterface)
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, SymbolTable,
+    ContainerSymbol, ImportInterface)
 
 
 class KernCallInvokeArgList(ArgOrdering):
@@ -53,7 +53,7 @@ class KernCallInvokeArgList(ArgOrdering):
     kernel, according to that kernel's metadata.
 
     :param kern: the kernel object for which to determine arguments.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
     :param symbol_table: the symbol table associated with the routine that \
         contains the `invoke` of this kernel.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -67,7 +67,8 @@ class KernCallInvokeArgList(ArgOrdering):
             raise TypeError(
                 f"Argument 'symbol_table' must be a SymbolTable "
                 f"instance but got '{type(symbol_table).__name__}'")
-        self._symtab = symbol_table
+        # TODO #2503: This reference will not survive some tree modifications
+        self._forced_symtab = symbol_table
         # Once generate() is called, this list will contain 2-tuples, each
         # containing a Symbol and a function space (string).
         self._fields = []
@@ -315,7 +316,7 @@ class KernCallInvokeArgList(ArgOrdering):
                                            symbol_type=ContainerSymbol)
             otype = self._symtab.new_symbol(tmap["operator"]["type"],
                                             symbol_type=DataTypeSymbol,
-                                            datatype=DeferredType(),
+                                            datatype=UnresolvedType(),
                                             interface=ImportInterface(csym))
         sym = self._symtab.new_symbol(arg.name,
                                       symbol_type=DataSymbol, datatype=otype)
@@ -346,7 +347,8 @@ class KernCallInvokeArgList(ArgOrdering):
             quad_container = self._symtab.find_or_create(
                 mod_name, symbol_type=ContainerSymbol)
             quad_type = self._symtab.find_or_create(
-                type_name, symbol_type=DataTypeSymbol, datatype=DeferredType(),
+                type_name, symbol_type=DataTypeSymbol,
+                datatype=UnresolvedType(),
                 interface=ImportInterface(quad_container))
             sym = self._symtab.new_symbol(rule.psy_name,
                                           symbol_type=DataSymbol,

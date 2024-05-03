@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@ This script calls a successful exit from inside because it is a work in
 progress of the development tracked by issue #1010.
 '''
 
-from __future__ import print_function
 import sys
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -53,9 +52,6 @@ def trans(psy):
 
     print("DSL level view:")
     print(schedule.view())
-
-    print("f2pygen code:")
-    print(str(psy.gen))
 
     # In-place lowering to Language-level PSyIR
     schedule.lower_to_language_level()

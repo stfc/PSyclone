@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,15 +34,15 @@
 # Authors I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified by L. Turner, Met Office
 
 '''This module contains the LFRic-specific implementation of the ExtractTrans
 transformation.
 '''
 
-from psyclone.domain.lfric import LFRicExtractDriverCreator
-from psyclone.dynamo0p3 import DynLoop
+from psyclone.domain.lfric import LFRicExtractDriverCreator, LFRicLoop
 from psyclone.psyir.nodes import ExtractNode
-from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.tools import CallTreeUtils
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
@@ -96,7 +96,7 @@ class LFRicExtractTrans(ExtractTrans):
             # Check that ExtractNode is not inserted between a Loop
             # over colours and a Loop over cells in a colour when
             # colouring is applied.
-            ancestor = node.ancestor(DynLoop)
+            ancestor = node.ancestor(LFRicLoop)
             if ancestor and ancestor.loop_type == 'colours':
                 raise TransformationError(
                     f"Error in {self.name} for Dynamo0.3 API: Extraction of a "
@@ -108,7 +108,7 @@ class LFRicExtractTrans(ExtractTrans):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the schedule within
-        a single PSyData region. It first uses the DependencyTool to determine
+        a single PSyData region. It first uses the CallTreeUtils to determine
         input- and output-parameters. If requested, it will then call
         the LFRicExtractDriverCreator to write the stand-alone driver
         program. Then it will call apply of the base class.
@@ -142,13 +142,13 @@ class LFRicExtractTrans(ExtractTrans):
             # changing the user's options:
             my_options = options.copy()
 
-        dep = DependencyTools()
+        ctu = CallTreeUtils()
         nodes = self.get_node_list(nodes)
         region_name = self.get_unique_region_name(nodes, my_options)
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
         # Get the input- and output-parameters of the node list
-        read_write_info = dep.get_in_out_parameters(nodes)
+        read_write_info = ctu.get_in_out_parameters(nodes)
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,

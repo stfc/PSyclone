@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory.
 # Modified by: R. W. Ford, STFC Daresbury Laboratory.
+#              L. Turner, Met Office
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
@@ -43,7 +44,7 @@ from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
                                    LFRicSymbolTable, LFRicTypes)
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
-from psyclone.dynamo0p3 import DynKern
+from psyclone.domain.lfric import LFRicKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.parse.utils import ParseError
@@ -51,8 +52,9 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Container, Literal,
                                   Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (
-    DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
-    ImportInterface, ContainerSymbol, RoutineSymbol, ArgumentInterface)
+    UnresolvedType, UnsupportedFortranType, DataTypeSymbol, DataSymbol,
+    ArrayType, ImportInterface, ContainerSymbol, RoutineSymbol,
+    ArgumentInterface)
 
 
 class LFRicAlg:
@@ -112,7 +114,7 @@ class LFRicAlg:
         kernel_routine = table.new_symbol(
             kernel_name,
             symbol_type=DataTypeSymbol,
-            datatype=DeferredType(),
+            datatype=UnresolvedType(),
             interface=ImportInterface(kernel_mod))
 
         kern = self.kernel_from_metadata(parse_tree, kernel_name)
@@ -197,31 +199,31 @@ class LFRicAlg:
             csym = table.new_symbol(root + "_mod", symbol_type=ContainerSymbol)
 
             table.new_symbol(root + "_type", symbol_type=DataTypeSymbol,
-                             datatype=DeferredType(),
+                             datatype=UnresolvedType(),
                              interface=ImportInterface(csym))
 
         fsc_mod = table.new_symbol("function_space_collection_mod",
                                    symbol_type=ContainerSymbol)
         table.new_symbol("function_space_collection",
                          symbol_type=DataSymbol,
-                         datatype=DeferredType(),
+                         datatype=UnresolvedType(),
                          interface=ImportInterface(fsc_mod))
 
         # Declare the three arguments to the subroutine. All of them have to be
-        # of UnknownFortranType - the mesh because it is a pointer and chi and
-        # panel_id because they are optional.
-        mesh_ptr_type = UnknownFortranType(
+        # of UnsupportedFortranType - the mesh because it is a pointer and chi
+        # and panel_id because they are optional.
+        mesh_ptr_type = UnsupportedFortranType(
             "type(mesh_type), pointer, intent(in) :: mesh")
         mesh_ptr = DataSymbol("mesh", mesh_ptr_type,
                               interface=ArgumentInterface())
         table.add(mesh_ptr)
 
-        chi_type = UnknownFortranType(
+        chi_type = UnsupportedFortranType(
             "type(field_type), dimension(3), intent(in), optional :: chi")
         chi = DataSymbol("chi", chi_type, interface=ArgumentInterface())
         table.add(chi, tag="coord_field")
 
-        pid_type = UnknownFortranType(
+        pid_type = UnsupportedFortranType(
             "type(field_type), intent(in), optional :: panel_id")
         pid = DataSymbol("panel_id", pid_type, interface=ArgumentInterface())
         table.add(pid, tag="panel_id_field")
@@ -259,7 +261,7 @@ class LFRicAlg:
             "finite_element_config_mod", symbol_type=ContainerSymbol)
         order = table.new_symbol(
             "element_order", tag="element_order",
-            symbol_type=DataSymbol, datatype=DeferredType(),
+            symbol_type=DataSymbol, datatype=UnresolvedType(),
             interface=ImportInterface(fe_config_mod))
 
         fs_cont_mod = table.new_symbol("fs_continuity_mod",
@@ -277,13 +279,13 @@ class LFRicAlg:
 
             table.new_symbol(f"{space}", tag=f"{space}",
                              symbol_type=DataSymbol,
-                             datatype=DeferredType(),
+                             datatype=UnresolvedType(),
                              interface=ImportInterface(fs_cont_mod))
 
             vsym_ptr = table.new_symbol(
                 f"vector_space_{space}_ptr", symbol_type=DataSymbol,
                 tag=f"{space}_ptr",
-                datatype=UnknownFortranType(
+                datatype=UnsupportedFortranType(
                     f"TYPE(function_space_type), POINTER :: "
                     f"vector_space_{space}_ptr"))
 
@@ -385,7 +387,7 @@ class LFRicAlg:
                 "quadrature_rule_gaussian_mod", symbol_type=ContainerSymbol)
             qr_gaussian_type = table.new_symbol(
                 "quadrature_rule_gaussian_type", symbol_type=DataTypeSymbol,
-                datatype=DeferredType(),
+                datatype=UnresolvedType(),
                 interface=ImportInterface(qr_gaussian_mod))
             qr_rule_sym = table.new_symbol("quadrature_rule",
                                            symbol_type=DataSymbol,
@@ -406,15 +408,15 @@ class LFRicAlg:
     def kernel_from_metadata(parse_tree, kernel_name):
         '''
         Given an fparser1 parse tree for an LFRic kernel, creates and returns
-        a DynKern object.
+        a LFRicKern object.
 
         :param parse_tree: the fparser1 parse tree for the LFRic kernel.
         :type parse_tree: :py:class:`fparser.one.block_statements.BeginSource`
         :param str kernel_name: the name of the kernel contained in the \
-            supplied parse tree for which a DynKern is to be created.
+            supplied parse tree for which a LFRicKern is to be created.
 
-        :returns: a DynKern object describing the LFRic kernel.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKern`
+        :returns: a LFRicKern object describing the LFRic kernel.
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
 
         :raises ValueError: if an LFRic kernel with the specified name cannot \
                             be found in the supplied parse tree.
@@ -427,8 +429,8 @@ class LFRicAlg:
                 f"Failed to find kernel '{kernel_name}' in supplied "
                 f"code: '{parse_tree}'. Is it a valid LFRic kernel? Original "
                 f"error was '{err}'.") from err
-        # Construct a DynKern using the metadata.
-        kern = DynKern()
+        # Construct a LFRicKern using the metadata.
+        kern = LFRicKern()
         kern.load_meta(ktype)
         return kern
 
@@ -440,7 +442,7 @@ class LFRicAlg:
         :param prog: the routine to which to add the declarations etc.
         :type prog: :py:class:`psyclone.psyir.nodes.Routine`
         :param kern: the kernel for which we are to create arguments.
-        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+        :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
         :returns: object capturing all of the kernel arguments.
         :rtype: :py:class:`psyclone.domain.lfric.KernCallInvokeArgList`

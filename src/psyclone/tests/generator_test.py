@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,7 @@ from psyclone import generator
 from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.generator import (
     generate, main, check_psyir, add_builtins_use)
@@ -66,7 +67,6 @@ from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.version import __VERSION__
 
 
@@ -401,12 +401,13 @@ def test_profile_gocean():
     information if this has been specified.
 
     '''
-    Profiler.set_options(['invokes'])
+    Profiler.set_options(['invokes'], "gocean1.0")
     _, psy = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
         api="gocean1.0")
     assert "CALL profile_psy_data" in str(psy)
-    Profiler.set_options([])
+    # Reset the stored options.
+    Profiler._options = []
 
 
 def test_script_attr_error():
@@ -493,7 +494,7 @@ def test_script_trans_dynamo0p3():
     schedule = invoke.schedule
     loop1 = schedule.children[4]
     loop2 = schedule.children[5]
-    trans = LoopFuseTrans()
+    trans = LFRicLoopFuseTrans()
     trans.apply(loop1, loop2)
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
@@ -614,9 +615,9 @@ def test_main_profile(capsys):
     assert Profiler.profile_kernels()
     assert not Profiler.profile_invokes()
 
-    # Check for invokes + kernels
+    # Check for routines (aka invokes) + kernels
     main(options+["--profile", "kernels",
-                  '--profile', 'invokes', filename])
+                  '--profile', 'routines', filename])
     assert Profiler.profile_kernels()
     assert Profiler.profile_invokes()
 
@@ -626,7 +627,7 @@ def test_main_profile(capsys):
         main(options+["--profile", filename])
     _, outerr = capsys.readouterr()
 
-    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    correct_re = "invalid choice.*choose from 'invokes', 'routines', 'kernels'"
     assert re.search(correct_re, outerr) is not None
 
     # Check for invalid parameter
@@ -636,8 +637,16 @@ def test_main_profile(capsys):
 
     assert re.search(correct_re, outerr) is not None
 
+    # Check that 'kernels' is rejected for the 'nemo' API.
+    Profiler._options = []
+    with pytest.raises(SystemExit):
+        main(["-api", "nemo", "--profile", "kernels", filename])
+    _, outerr = capsys.readouterr()
+    assert ("The 'kernels' automatic profiling option is not compatible with "
+            "the 'nemo' API." in outerr)
+
     # Reset profile flags to avoid further failures in other tests
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 def test_main_invalid_api(capsys):
@@ -705,8 +714,9 @@ def test_main_api():
     # HAS_CONFIG_BEEN_INITIALISED flag!
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     # This config file specifies the gocean1.0 api, but
-    # command line should take precedence
-    main([filename, "--config", config_name, "-api", "dynamo0.3"])
+    # command line should take precedence. It also tests that
+    # -c is accepted as shortcut for --config
+    main([filename, "-c", config_name, "-api", "dynamo0.3"])
     assert Config.get().api == "dynamo0.3"
     assert Config.has_config_been_initialised() is True
 
@@ -725,6 +735,26 @@ def test_main_directory_arg(capsys):
     # Multiple -d paths supplied
     main([filename, "-api", "dynamo0.3", "-d", DYN03_BASE_PATH,
           "-d", NEMO_BASE_PATH])
+
+
+def test_main_disable_backend_validation_arg(capsys):
+    '''Test the --backend option in main().'''
+    filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
+    with pytest.raises(SystemExit):
+        main([filename, "--backend", "invalid"])
+    _, output = capsys.readouterr()
+    assert "--backend: invalid choice: 'invalid'" in output
+
+    # Make sure we get a default config instance
+    Config._instance = None
+    # Default is to have checks enabled.
+    assert Config.get().backend_checks_enabled is True
+    main([filename, "--backend", "disable-validation"])
+    assert Config.get().backend_checks_enabled is False
+    Config._instance = None
+    main([filename, "--backend", "enable-validation"])
+    assert Config.get().backend_checks_enabled is True
+    Config._instance = None
 
 
 def test_main_expected_fatal_error(capsys):
@@ -1279,14 +1309,17 @@ def test_no_invokes_lfric_new(monkeypatch):
             "empty PSy code" in str(info.value))
 
 
-def test_generate_unknown_container_lfric(tmpdir, monkeypatch):
+@pytest.mark.parametrize("invoke", ["call invoke", "if (.true.) call invoke"])
+def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):
     '''Test that a GenerationError exception in the generate function is
     raised for the LFRic DSL if one of the functors is not explicitly
     declared. This can happen in LFRic algorithm code as it is never
     compiled. The exception is only raised with the new PSyIR approach
     to modify the algorithm layer which is currently in development so
     is protected by a switch. This switch is turned on in this test by
-    monkeypatching.
+    monkeypatching. Test when the functor is at different levels of
+    PSyIR hierarchy to ensure that the name of the parent routine is
+    always found.
 
     At the moment this exception is only raised if the functor is
     declared in a different subroutine or function, as the original
@@ -1296,21 +1329,20 @@ def test_generate_unknown_container_lfric(tmpdir, monkeypatch):
     '''
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     code = (
-        "module some_kernel_mod\n"
-        "use module_mod, only : module_type\n"
-        "contains\n"
-        "subroutine dummy_kernel()\n"
-        " use testkern_mod, only: testkern_type\n"
-        "end subroutine dummy_kernel\n"
-        "subroutine some_kernel()\n"
-        "  use constants_mod, only: r_def\n"
-        "  use field_mod, only : field_type\n"
-        "  type(field_type) :: field1, field2, field3, field4\n"
-        "  real(kind=r_def) :: scalar\n"
-        "  call invoke(testkern_type(scalar, field1, field2, field3, "
-        "field4))\n"
-        "end subroutine some_kernel\n"
-        "end module some_kernel_mod\n")
+        f"module some_kernel_mod\n"
+        f"use module_mod, only : module_type\n"
+        f"contains\n"
+        f"subroutine dummy_kernel()\n"
+        f" use testkern_mod, only: testkern_type\n"
+        f"end subroutine dummy_kernel\n"
+        f"subroutine some_kernel()\n"
+        f"  use constants_mod, only: r_def\n"
+        f"  use field_mod, only : field_type\n"
+        f"  type(field_type) :: field1, field2, field3, field4\n"
+        f"  real(kind=r_def) :: scalar\n"
+        f"  {invoke}(testkern_type(scalar, field1, field2, field3, field4))\n"
+        f"end subroutine some_kernel\n"
+        f"end module some_kernel_mod\n")
     alg_filename = str(tmpdir.join("alg.f90"))
     with open(alg_filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
@@ -1326,7 +1358,7 @@ def test_generate_unknown_container_lfric(tmpdir, monkeypatch):
             "['x_plus_y', 'inc_x_plus_y'," in str(info.value))
 
 
-def test_generate_unknown_container_gocean(tmpdir):
+def test_generate_unresolved_container_gocean(tmpdir):
     '''Test that a GenerationError exception in the generate function is
     raised for the GOcean DSL if one of the functors is not explicitly
     declared. This can happen in GOcean algorithm code as it is never

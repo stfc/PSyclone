@@ -6,6 +6,12 @@
 
 !> @brief Tangent linear for computing the sampling of the pressure field
 !!        into the same space as density.
+
+! This tweaked version of the code 1) removes the use of
+! tl_calc_exner_pointwise and 2) replaces kappa, Rd and P_zero with
+! typed declarations so PSyAD knows what type they are, rather than
+! being included from a use statement.
+
 module tl_sample_eos_pressure_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,       &

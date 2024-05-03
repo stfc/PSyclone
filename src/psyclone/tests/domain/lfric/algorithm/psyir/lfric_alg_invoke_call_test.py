@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -75,12 +75,12 @@ def test_lfricalgorithminvokecall():
     created.
 
     '''
-    routine = RoutineSymbol("hello")
+    rsym = RoutineSymbol("hello")
     index = 2
-    call = LFRicAlgorithmInvokeCall(routine, index)
-    assert call.routine is routine
+    call = LFRicAlgorithmInvokeCall(rsym, index)
+    assert call.routine.symbol is rsym
     assert call._index == index
-    assert call._children_valid_format == "[LFRicFunctor]*"
+    assert call._children_valid_format == "Reference, [LFRicFunctor]*"
     assert call._text_name == "LFRicAlgorithmInvokeCall"
 
 
@@ -111,13 +111,13 @@ def test_lfricalgorithminvokecall_create(cls):
     '''
     routine = RoutineSymbol("hello")
     klc = LFRicKernelFunctor.create(DataTypeSymbol("arg", StructureType()), [])
-    call = cls.create(routine, [klc], 0, name="describing an invoke")
-    assert call._name == "describing an invoke"
-    assert call.routine is routine
+    call = cls.create(routine, [klc], 0, name="describing_an_invoke")
+    assert call._name == "describing_an_invoke"
+    assert call.routine.symbol is routine
     # pylint: disable=unidiomatic-typecheck
     assert type(call) is cls
-    assert len(call.children) == 1
-    assert call.children[0] == klc
+    assert len(call.arguments) == 1
+    assert call.arguments[0] == klc
 
 
 def test_lfricalgorithminvokecall_create_noname():

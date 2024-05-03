@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -109,6 +109,11 @@ def test_transformation_name():
 def test_validate_unsupported_api():
     ''' Check that attempting to apply an OpenCL transformation to a Dynamo
     InvokeSchedule raises the expected error. '''
+    # Undo the effect of the 'auto-use' fixture (at the top of this file)
+    # that sets-up the Config object for the GOcean API. By setting the
+    # instance to None we force it to be re-initialised with the API specified
+    # in the call to get_invoke().
+    Config._instance = None
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
@@ -336,6 +341,8 @@ c_sizeof(field%grid%'''
       integer(kind=c_intptr_t) cl_mem
       integer ierr
 
+      ! psyclone codeblock (unsupported code) reason:
+      !  - unsupported statement: pointer_assignment_stmt
       cmd_queues => get_cmd_queues()
       size_in_bytes = int(field%grid%nx * field%grid%ny, 8) * \
 c_sizeof(field%grid%tmask(1,1))
@@ -439,6 +446,8 @@ def test_opencl_routines_initialisation(kernel_outputdir):
       integer i
 
       cl_mem = transfer(from, cl_mem)
+      ! psyclone codeblock (unsupported code) reason:
+      !  - unsupported statement: pointer_assignment_stmt
       cmd_queues => get_cmd_queues()
       if (nx < size(to, 1) / 2) then
         do i = starty, starty + ny, 1
@@ -487,6 +496,8 @@ offset_in_bytes,size_in_bytes,c_loc(to(1,starty)),0,c_null_ptr,c_null_ptr)
       integer i
 
       cl_mem = transfer(to, cl_mem)
+      ! psyclone codeblock (unsupported code) reason:
+      !  - unsupported statement: pointer_assignment_stmt
       cmd_queues => get_cmd_queues()
       if (nx < size(from, 1) / 2) then
         do i = starty, starty + ny, 1
@@ -527,6 +538,9 @@ c_sizeof(field%data(1,1))
         field%device_ptr = transfer(create_rw_buffer(size_in_bytes), \
 field%device_ptr)
         field%data_on_device = .true.
+        ! psyclone codeblock (unsupported code) reason:
+        !  - unsupported statement: pointer_assignment_stmt
+        !  - unsupported statement: pointer_assignment_stmt
         field%read_from_device_f => read_from_device
         field%write_to_device_f => write_to_device
       end if

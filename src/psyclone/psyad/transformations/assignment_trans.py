@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ from __future__ import absolute_import
 
 from psyclone.core import SymbolicMaths
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Literal, UnaryOperation
+    Literal, UnaryOperation, IntrinsicCall
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import REAL_TYPE
 from psyclone.psyir.transformations import TransformationError
@@ -69,7 +69,7 @@ class AssignmentTrans(AdjointTransformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         # Split the RHS of the assignment into [-]<term> +- <term> +- ...
         rhs_terms = self._split_nodes(
@@ -286,12 +286,12 @@ class AssignmentTrans(AdjointTransformation):
             # arguments to the L/UBOUND intrinsics (as they will be when
             # array notation is used).
             active_vars = []
-            lu_bound_ops = [BinaryOperation.Operator.LBOUND,
-                            BinaryOperation.Operator.UBOUND]
+            lu_bound_ops = [IntrinsicCall.Intrinsic.LBOUND,
+                            IntrinsicCall.Intrinsic.UBOUND]
             for ref in rhs_term.walk(Reference):
                 if (ref.symbol in self._active_variables and
-                        not (isinstance(ref.parent, BinaryOperation) and
-                             ref.parent.operator in lu_bound_ops)):
+                        not (isinstance(ref.parent, IntrinsicCall) and
+                             ref.parent.intrinsic in lu_bound_ops)):
                     active_vars.append(ref)
 
             if not active_vars:

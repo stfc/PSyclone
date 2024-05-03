@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,12 +52,13 @@ from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _init_operators_random,
     _init_scalar_value,
     _validate_geom_arg,
+    _lfric_create_real_comparison,
     generate_lfric_adjoint_harness)
 from psyclone.psyir import nodes
 from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, BOOLEAN_TYPE,
-                                    ArrayType, DataTypeSymbol, DeferredType,
+                                    ArrayType, DataTypeSymbol, UnresolvedType,
                                     INTEGER_TYPE, ContainerSymbol,
-                                    ImportInterface, ScalarType)
+                                    ImportInterface, ScalarType, SymbolTable)
 
 
 @pytest.fixture(name="type_map", scope="module")
@@ -128,7 +129,7 @@ def test_compute_field_inner_products(fortran_writer, type_map):
                             symbol_type=ContainerSymbol)
     fld_type = table.new_symbol(type_map["field"]["type"],
                                 symbol_type=DataTypeSymbol,
-                                datatype=DeferredType(),
+                                datatype=UnresolvedType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
                             datatype=fld_type)
@@ -161,7 +162,7 @@ def test_compute_field_vector_inner_products(fortran_writer, type_map):
                             symbol_type=ContainerSymbol)
     fld_type = table.new_symbol(type_map["field"]["type"],
                                 symbol_type=DataTypeSymbol,
-                                datatype=DeferredType(),
+                                datatype=UnresolvedType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
                             datatype=ArrayType(fld_type, [3]))
@@ -195,7 +196,7 @@ def test_compute_field_inner_products_errors(type_map):
                             symbol_type=ContainerSymbol)
     fld_type = table.new_symbol(type_map["field"]["type"],
                                 symbol_type=DataTypeSymbol,
-                                datatype=DeferredType(),
+                                datatype=UnresolvedType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
                             datatype=ArrayType(fld_type, [3]))
@@ -227,7 +228,7 @@ def test_init_fields_random(type_map):
     '''Check that the _init_fields_random() routine works as expected.'''
     table = LFRicSymbolTable()
     fld_type = DataTypeSymbol(type_map["field"]["type"],
-                              datatype=DeferredType())
+                              datatype=UnresolvedType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=fld_type)
     fields = [fld1]
@@ -256,7 +257,7 @@ def test_init_fields_random_vector(type_map):
     idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
 
     fld_type = DataTypeSymbol(type_map["field"]["type"],
-                              datatype=DeferredType())
+                              datatype=UnresolvedType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=ArrayType(fld_type, [3]))
     fields = [fld1]
@@ -303,7 +304,7 @@ def test_init_operators_random(type_map):
     '''Check that the _init_operators_random() routine works as expected.'''
     table = LFRicSymbolTable()
     op_type = DataTypeSymbol(type_map["operator"]["type"],
-                             datatype=DeferredType())
+                             datatype=UnresolvedType())
     table.add(op_type)
     op1 = DataSymbol("op1", datatype=op_type)
     op2 = DataSymbol("op2", datatype=op_type)
@@ -436,6 +437,90 @@ end module testkern_mod
     # Everything validates OK.
     _validate_geom_arg(kern, 3, "var", ["w1"], 2)
 
+# _lfric_create_real_comparison
+
+
+def test_lfric_create_real_comparison(fortran_writer):
+    '''Test for the _lfric_create_real_comparison method.'''
+    symbol_table = SymbolTable()
+    var1_symbol = symbol_table.new_symbol(
+        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+    var2_symbol = symbol_table.new_symbol(
+        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+    routine = nodes.Routine.create("test", symbol_table, [])
+    stmt_list = _lfric_create_real_comparison(
+        symbol_table, routine, var1_symbol, var2_symbol)
+    routine.children = stmt_list
+    result = fortran_writer(routine)
+    expected = (
+        "  use log_mod, only : log_event, log_level_error, log_level_info, "
+        "log_scratch_space\n"
+        "  real, parameter :: overall_tolerance = 1500.0\n"
+        "  real :: var1\n"
+        "  real :: var2\n"
+        "  real :: MachineTol\n"
+        "  real :: relative_diff\n\n"
+        "  ! Test the inner-product values for equality, allowing for the "
+        "precision of the active variables\n"
+        "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
+        "  relative_diff = ABS(var1 - var2) / MachineTol\n"
+        "  if (relative_diff < overall_tolerance) then\n"
+        "    ! PSyclone CodeBlock (unsupported code) reason:\n"
+        "    !  - Unsupported statement: Write_Stmt\n"
+        "    WRITE(log_scratch_space, *) \"PASSED test:\", var1, var2, "
+        "relative_diff\n"
+        "    call log_event(log_scratch_space, log_level_info)\n"
+        "  else\n"
+        "    ! PSyclone CodeBlock (unsupported code) reason:\n"
+        "    !  - Unsupported statement: Write_Stmt\n"
+        "    WRITE(log_scratch_space, *) \"FAILED test:\", var1, var2, "
+        "relative_diff\n"
+        "    call log_event(log_scratch_space, log_level_error)\n"
+        "  end if\n")
+    assert expected in result
+
+# _lfric_log_write
+
+
+def test_lfric_log_write(fortran_writer):
+    '''Test for the _lfric_log_write method.'''
+    symbol_table = SymbolTable()
+    var1_symbol = symbol_table.new_symbol(
+        "var1", symbol_type=DataSymbol, datatype=REAL_TYPE)
+    var2_symbol = symbol_table.new_symbol(
+        "var2", symbol_type=DataSymbol, datatype=REAL_TYPE)
+    routine = nodes.Routine.create("test", symbol_table, [])
+    stmt_list = _lfric_create_real_comparison(
+        symbol_table, routine, var1_symbol, var2_symbol)
+    routine.children = stmt_list
+    result = fortran_writer(routine)
+    expected = (
+        "  use log_mod, only : log_event, log_level_error, log_level_info, "
+        "log_scratch_space\n"
+        "  real, parameter :: overall_tolerance = 1500.0\n"
+        "  real :: var1\n"
+        "  real :: var2\n"
+        "  real :: MachineTol\n"
+        "  real :: relative_diff\n\n"
+        "  ! Test the inner-product values for equality, allowing for the "
+        "precision of the active variables\n"
+        "  MachineTol = SPACING(MAX(ABS(var1), ABS(var2)))\n"
+        "  relative_diff = ABS(var1 - var2) / MachineTol\n"
+        "  if (relative_diff < overall_tolerance) then\n"
+        "    ! PSyclone CodeBlock (unsupported code) reason:\n"
+        "    !  - Unsupported statement: Write_Stmt\n"
+        "    WRITE(log_scratch_space, *) \"PASSED test:\", var1, var2, "
+        "relative_diff\n"
+        "    call log_event(log_scratch_space, log_level_info)\n"
+        "  else\n"
+        "    ! PSyclone CodeBlock (unsupported code) reason:\n"
+        "    !  - Unsupported statement: Write_Stmt\n"
+        "    WRITE(log_scratch_space, *) \"FAILED test:\", var1, var2, "
+        "relative_diff\n"
+        "    call log_event(log_scratch_space, log_level_error)\n"
+        "  end if\n")
+    assert expected in result
+
 # generate_lfric_adjoint_harness
 
 
@@ -507,9 +592,9 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
             "    type(field_type) :: field_input\n"
             "    real(kind=r_def) :: field_inner_prod\n" in gen)
     # The field and its copy must be initialised.
-    assert ("call field % initialise(vector_space=vector_space_w3_ptr, "
+    assert ("call field%initialise(vector_space=vector_space_w3_ptr, "
             "name='field')" in gen)
-    assert ("call field_input % initialise(vector_space=vector_space_w3_ptr,"
+    assert ("call field_input%initialise(vector_space=vector_space_w3_ptr,"
             " name='field_input')" in gen)
     # So too must the scalar argument.
     assert ("    call random_number(ascalar)\n"
@@ -607,7 +692,7 @@ def test_generate_lfric_adjoint_harness_operator(fortran_reader,
     assert ("vector_space_w3_ptr => function_space_collection % get_fs(mesh, "
             "element_order, w3)\n" in gen)
     # Initialise takes the *to* and *from* spaces as arguments in that order.
-    assert ("call op % initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
+    assert ("call op%initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
             in gen)
     # Operator is given random values and passed to the TL kernel.
     assert ("setop_random_kernel_type(op), "

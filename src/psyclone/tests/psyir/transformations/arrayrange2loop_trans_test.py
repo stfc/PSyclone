@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing tests for the ArrayRange2LoopTrans
 transformation.'''
@@ -40,7 +41,8 @@ transformation.'''
 import pytest
 
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Range, ArrayReference, Assignment, Node, DataNode, KernelSchedule
+    Range, ArrayReference, Assignment, Node, DataNode, KernelSchedule, \
+    IntrinsicCall
 from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import (ArgumentInterface, ArrayType, DataSymbol,
                                     INTEGER_TYPE, REAL_TYPE, SymbolTable)
@@ -66,12 +68,12 @@ def create_range(array_symbol, dim):
 
     '''
     int_dim = Literal(str(dim), INTEGER_TYPE)
-    lbound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(array_symbol), int_dim)
-    ubound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(array_symbol), int_dim.copy())
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(array_symbol), ("dim", int_dim)])
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(array_symbol), ("dim", int_dim.copy())])
     return Range.create(lbound, ubound)
 
 
@@ -267,119 +269,22 @@ def test_transform():
     assert isinstance(ArrayRange2LoopTrans(), Transformation)
 
 
-def test_same_range():
-    '''Test that the same_range utility function behaves in the expected
-    way.
-
-    '''
-    with pytest.raises(TypeError) as info:
-        ArrayRange2LoopTrans.same_range(None, None, None, None)
-    assert ("The first argument to the same_range() method should be an "
-            "ArrayReference but found 'NoneType'." in str(info.value))
-
-    array_type = ArrayType(REAL_TYPE, [10])
-    array_value = ArrayReference.create(
-        DataSymbol("dummy", array_type), [DataNode("x")])
-    array_range = ArrayReference.create(
-        DataSymbol("dummy", array_type), [Range()])
-
-    with pytest.raises(TypeError) as info:
-        ArrayRange2LoopTrans.same_range(array_value, None, None, None)
-    assert ("The second argument to the same_range() method should be an "
-            "int but found 'NoneType'." in str(info.value))
-
-    with pytest.raises(TypeError) as info:
-        ArrayRange2LoopTrans.same_range(array_value, 1, None, None)
-    assert ("The third argument to the same_range() method should be an "
-            "ArrayReference but found 'NoneType'." in str(info.value))
-
-    with pytest.raises(TypeError) as info:
-        ArrayRange2LoopTrans.same_range(array_value, 1, array_value, None)
-    assert ("The fourth argument to the same_range() method should be an "
-            "int but found 'NoneType'." in str(info.value))
-
-    with pytest.raises(IndexError) as info:
-        ArrayRange2LoopTrans.same_range(array_value, 1, array_value, 2)
-    assert ("The value of the second argument to the same_range() method "
-            "'1' should be less than the number of dimensions '1' in the "
-            "associated array 'array1'." in str(info.value))
-
-    with pytest.raises(IndexError) as info:
-        ArrayRange2LoopTrans.same_range(array_value, 0, array_value, 2)
-    assert ("The value of the fourth argument to the same_range() method "
-            "'2' should be less than the number of dimensions '1' in the "
-            "associated array 'array2'." in str(info.value))
-
-    with pytest.raises(TypeError) as info:
-        ArrayRange2LoopTrans.same_range(array_value, 0, array_value, 0)
-    assert ("The child of the first array argument at the specified index (0) "
-            "should be a Range node, but found 'DataNode'" in str(info.value))
-
-    with pytest.raises(TypeError) as info:
-        ArrayRange2LoopTrans.same_range(array_range, 0, array_value, 0)
-    assert ("The child of the second array argument at the specified index "
-            "(0) should be a Range node, but found 'DataNode'"
-            in str(info.value))
-
-    # lower bounds both use lbound, upper bounds both use ubound and
-    # step is the same so everything matches.
-    array_x = create_array_x(SymbolTable())
-    array_x_2 = create_array_x(SymbolTable())
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
-
-    # steps are different
-    tmp = array_x_2.children[0].step
-    array_x_2.children[0].step = Literal("2", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
-
-    # Put step value back to what it was in case it affects the ubound
-    # and lbound tests
-    array_x_2.children[0].step = tmp
-
-    # one of upper bounds uses ubound, other does not
-    tmp1 = array_x_2.children[0].stop
-    array_x_2.children[0].stop = Literal("2", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
-
-    # neither use upper bound and are different
-    tmp2 = array_x.children[0].stop
-    array_x.children[0].stop = Literal("1", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
-
-    # Put upper bounds back to what they were in case they affect the
-    # lbound tests
-    array_x_2.children[0].stop = tmp1
-    array_x.children[0].stop = tmp2
-
-    # One of lower bounds uses lbound, other does not but has the same value.
-    array_x_2.children[0].start = Literal("1", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
-
-    # One of lower bounds uses lbound, other does not and has a
-    # different start value.
-    array_x_2.children[0].start = Literal("2", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
-
-    # Neither use lower bound and are different.
-    array_x.children[0].start = Literal("3", INTEGER_TYPE)
-    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
-
-
 # The parameterised tests are 1: x(:)=0.0, 2: x(:)=y(n,:), 3:
 # y(n,:)=x(:), 4: y2(:,:)=z(:,n,:) and 5:
 # y3(n,2:n:2)=x(2:n:2)*z(1,2:n:2)+a(1)
 @pytest.mark.parametrize("lhs_create,rhs_create,expected",
                          [(create_array_x, create_literal,
-                           "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
+                           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
                            "    x(idx) = 0.0\n"),
                           (create_array_x, create_array_y,
-                           "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
+                           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
                            "    x(idx) = y(n,idx)\n"),
                           (create_array_y, create_array_x,
-                           "  do idx = LBOUND(y, 2), UBOUND(y, 2), 1\n"
+                           "  do idx = LBOUND(y, dim=2), UBOUND(y, dim=2), 1\n"
                            "    y(n,idx) = x(idx)\n"),
                           (create_array_y_2d_slice, create_array_z,
-                           "  do idx = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
+                           "  do idx = LBOUND(y2, dim=2), UBOUND(y2, dim=2),"
+                           " 1\n"
                            "    y2(:,idx) = z(:,n,idx)\n"),
                           (create_array_y_slice_subset, create_expr,
                            "  do idx = 2, n, 2\n"
@@ -425,8 +330,8 @@ def test_transform_multi_apply(tmpdir):
     trans.apply(assignment)
     trans.apply(assignment)
     expected = (
-        "  do idx = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
-        "    do idx_1 = LBOUND(y2, 1), UBOUND(y2, 1), 1\n"
+        "  do idx = LBOUND(y2, dim=2), UBOUND(y2, dim=2), 1\n"
+        "    do idx_1 = LBOUND(y2, dim=1), UBOUND(y2, dim=1), 1\n"
         "      y2(idx_1,idx) = z(idx_1,n,idx)\n"
         "    enddo\n"
         "  enddo\n")
@@ -461,10 +366,10 @@ def test_transform_apply_insert(tmpdir):
     trans.apply(assignment2)
     writer = FortranWriter()
     expected = (
-        "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
+        "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
         "    x(idx) = y(n,idx)\n"
         "  enddo\n"
-        "  do idx_1 = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
+        "  do idx_1 = LBOUND(y2, dim=2), UBOUND(y2, dim=2), 1\n"
         "    y2(:,idx_1) = z(:,n,idx_1)\n"
         "  enddo\n")
     result = writer(routine)
@@ -561,8 +466,8 @@ def test_validate_intrinsic():
     symbol_table = SymbolTable()
     array_x = create_array_x(symbol_table)
     array_y_2 = create_array_y_2d_slice(symbol_table)
-    matmul = BinaryOperation.create(BinaryOperation.Operator.MATMUL,
-                                    array_y_2, array_x)
+    matmul = IntrinsicCall.create(IntrinsicCall.Intrinsic.MATMUL,
+                                  [array_y_2, array_x])
     reference = ArrayReference.create(
         symbol_table.lookup("x"), [create_range(symbol_table.lookup("x"), 1)])
     assignment = Assignment.create(reference, matmul)
@@ -571,9 +476,87 @@ def test_validate_intrinsic():
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
     assert (
-        "Error in ArrayRange2LoopTrans transformation. The rhs of the "
-        "supplied Assignment node 'BinaryOperation[operator:'MATMUL']\n"
-        "ArrayReference[name:'y2']\nRange[]\nRange[]\n\n"
-        "ArrayReference[name:'x']\nRange[]\n' contains the "
-        "MATMUL operator which can't be performed elementwise." in
-        str(info.value))
+        "Error in ArrayRange2LoopTrans transformation. The rhs of the supplied"
+        " Assignment contains a call 'MATMUL(y2(:,:), x(:))'."
+        in str(info.value))
+
+
+def test_character_validation(fortran_reader):
+    '''Check that the validate method returns an exception if the
+    lhs of the assignment contains a character array and the allow_string
+    option isn't defined, and that it doesn't return an exception if the
+    allow_string option is True.'''
+
+    code = '''subroutine test()
+    character :: a(100)
+    character :: b(100)
+
+    a(1:94) = b(1:94)
+
+    end subroutine test'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+
+    trans = ArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The ArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    trans.validate(assign, options={"allow_string": True})
+
+    # Check it also works for rhs
+    code = '''subroutine test()
+    use some_mod
+    character :: b(100)
+
+    a(1:94) = b(1)
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+
+    trans = ArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The ArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    # Check it also works for RHS literals
+    code = '''subroutine test()
+    use some_mod
+
+    a(1:94) = 'x'
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+
+    trans = ArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The ArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    # Check we accept when we find character(LEN=x) syntax as this is an
+    # UnsupportedFortranType
+    # TODO #2441
+    code = '''subroutine test()
+    character(LEN=100) :: a
+    character(LEN=100) :: b
+
+    a(1:94) = b(1:94)
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+
+    trans = ArrayRange2LoopTrans()
+    trans.validate(assign)

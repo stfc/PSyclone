@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -80,10 +80,10 @@ kernels:
 # TODO #852 - simplify that script and merge it with the functionality of
 # the scripts in this directory.
 managed_mem:
-	${PSYCLONE} -l all -api "nemo" -s ../scripts/kernels_trans.py \
+	${PSYCLONE} -l all -api "nemo" -s ../scripts/acc_kernels_trans.py \
    ../code/tra_adv.F90
 	PSYCLONE="${PSYCLONE}" ../scripts/process_nemo.py \
-   -s ../scripts/kernels_trans.py ../code/traldf_iso.F90
+   -s ../scripts/acc_kernels_trans.py ../code/traldf_iso.F90
 
 # Compilation uses the 'kernels' transformed code
 psy.f90: kernels

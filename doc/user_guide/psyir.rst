@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
 .. Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
+.. Modified by J. G. Wallwork, Met Office
 
 .. The following section imports those Python modules that are needed in
    subsequent doctest snippets.
@@ -66,13 +67,12 @@ collectively as 'PSyIR nodes'.
 
 At the present time PSyIR classes can be essentially split into two
 types. PSy-layer classes and Kernel-layer classes. PSy-layer classes
-make use of a ``gen_code()`` or an ``update()`` method to create
-Fortran code whereas Kernel-layer classes make use of PSyIR backends
-to create code.
+make use of a ``gen_code()`` method to create Fortran code whereas
+Kernel-layer classes make use of PSyIR backends to create code.
 
 .. note:: This separation will be removed in the future and eventually
 	  all PSyIR classes will make use of backends with the
-	  expectation that ``gen_code()`` and ``update()`` methods
+	  expectation that ``gen_code()`` methods
 	  will be removed. Further this separation will be superseded
 	  by a separation between ``language-level PSyIR`` and
 	  ``domain-specific PSyIR``.
@@ -109,7 +109,7 @@ PSyIR nodes are: ``Loop``, ``WhileLoop``, ``IfBlock``, ``CodeBlock``,
 subclassed into ``ArrayReference``, ``StructureReference`` and
 ``ArrayOfStructuresReference``, the ``Operation`` class is further
 subclassed into ``UnaryOperation``, ``BinaryOperation`` and
-``NaryOperation`` and the ``Container`` class is further subclassed
+the ``Container`` class is further subclassed
 into ``FileContainer`` (representing a file that may contain more than
 one ``Container`` and/or ``Routine``. Those nodes representing
 references to structures (derived types in Fortran) have a ``Member``
@@ -219,14 +219,36 @@ tree from an ancestor node to the node:
 
 .. automethod:: psyclone.psyir.nodes.Node.path_from
 
+Tree Interrogation
+==================
+
+Each PSyIR node provides several ways to interrogate the AST:
+
+Following the `parent` and `children` terminology, we define a node's `siblings`
+as the children of its parent. Note that this definition implies that all nodes
+are their own siblings.
+
+.. autoproperty:: psyclone.psyir.nodes.Node.siblings
+
+We can check whether two nodes are siblings which immediately precede or follow
+one another using the following methods:
+
+.. automethod:: psyclone.psyir.nodes.Node.immediately_precedes
+.. automethod:: psyclone.psyir.nodes.Node.immediately_follows
+
+Finally, the `get_sibling_lists` method provides functionality to `walk` over
+the tree associated with a node and gather those which are immediate siblings.
+
+.. automethod:: psyclone.psyir.nodes.Node.get_sibling_lists
+
 DataTypes
 =========
 
 The PSyIR supports the following datatypes: ``ScalarType``,
-``ArrayType``, ``StructureType``, ``DeferredType``, ``UnknownType``
+``ArrayType``, ``StructureType``, ``UnresolvedType``, ``UnsupportedType``
 and ``NoType``.  These datatypes are used when creating instances of
 DataSymbol, RoutineSymbol and Literal (although note that ``NoType`` may
-only be used with a RoutineSymbol). ``DeferredType`` and ``UnknownType``
+only be used with a RoutineSymbol). ``UnresolvedType`` and ``UnsupportedType``
 are both used when processing existing code. The former is used
 when a symbol is being imported from some other scope (e.g. via a USE
 statement in Fortran) that hasn't yet been resolved and the latter is
@@ -360,7 +382,7 @@ Unknown DataType
 ----------------
 
 If a PSyIR frontend encounters an unsupported declaration then the
-corresponding Symbol is given :ref_guide:`UnknownType psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnknownType`.
+corresponding Symbol is given :ref_guide:`UnsupportedType psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnsupportedType`.
 The text of the original declaration is stored in the type object and is
 available via the ``declaration`` property.
 
@@ -411,6 +433,8 @@ are:
 
 - .. autoclass:: psyclone.psyir.symbols.RoutineSymbol
 
+- .. autoclass:: psyclone.psyir.symbols.GenericInterfaceSymbol
+
 See the reference guide for the full API documentation of the
 :ref_guide:`SymbolTable psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable`
 and the :ref_guide:`Symbol types psyclone.psyir.symbols.html#module-psyclone.psyir.symbols`.
@@ -438,6 +462,8 @@ Interfaces are:
 - .. autoclass:: psyclone.psyir.symbols.UnresolvedInterface
 
 - .. autoclass:: psyclone.psyir.symbols.UnknownInterface
+
+- .. autoclass:: psyclone.psyir.symbols.PreprocessorInterface
 
 
 Creating PSyIR
@@ -780,9 +806,7 @@ parent reference are not.
 Named arguments
 ---------------
 
-The `Call` and three sub-classes of `Operation` node
-(`UnaryOperation`, `BinaryOperation` and `NaryOperation`) all support
-named arguments.
+The `Call` node (and its sub-classes) support named arguments.
 
 Named arguments can be set or modified via the `create()`,
 `append_named_arg()`, `insert_named_arg()` or `replace_named_arg()`

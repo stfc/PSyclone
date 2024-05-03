@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the translation of PSyIR to PSyclone
 Algorithm PSyIR.
@@ -66,13 +66,13 @@ def check_invoke(call, kern_info, description=None):
     '''
     assert isinstance(call, LFRicAlgorithmInvokeCall)
     if call._name:
-        assert call._name == f"'{description}'"
+        assert call._name == f"{description}"
     else:
         assert call._name is None
-    assert len(call.children) == len(kern_info)
+    assert len(call.arguments) == len(kern_info)
     for index, (kern_type, kern_name) in enumerate(kern_info):
-        assert isinstance(call.children[index], kern_type)
-        assert call.children[index].symbol.name == kern_name
+        assert isinstance(call.arguments[index], kern_type)
+        assert call.arguments[index].symbol.name == kern_name
 
 
 def check_args(args, arg_info):
@@ -125,7 +125,7 @@ def test_structure_contructor(fortran_reader):
 
     lfric_invoke_trans.validate(subroutine.children[0])
     lfric_invoke_trans._validate_fp2_node(
-        subroutine[0].children[0]._fp2_nodes[0])
+        subroutine[0].arguments[0]._fp2_nodes[0])
 
 
 @pytest.mark.parametrize("string", ["error='hello'", "name=0"])
@@ -196,7 +196,7 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(code)
     subroutine = psyir.children[0]
-    code_block = subroutine[0].children[0]
+    code_block = subroutine[0].arguments[0]
     assert isinstance(code_block, CodeBlock)
     monkeypatch.setattr(code_block, "_fp2_nodes", [None])
 
@@ -256,7 +256,7 @@ def test_apply_codedkern_arrayref(fortran_reader):
     check_invoke(subroutine[0], [(LFRicKernelFunctor, "kern")],
                  description="hello")
     assert subroutine[0]._index == 1
-    args = subroutine[0].children[0].children
+    args = subroutine[0].arguments[0].children
     check_args(args, [(Reference, "field1")])
 
 
@@ -281,7 +281,7 @@ def test_apply_codedkern_structconstruct(fortran_reader):
     lfric_invoke_trans.apply(subroutine[0], 2)
 
     check_invoke(subroutine[0], [(LFRicKernelFunctor, "kern")])
-    args = subroutine[0].children[0].children
+    args = subroutine[0].arguments[0].children
     check_args(args, [(Literal, "1.0")])
 
 
@@ -307,7 +307,7 @@ def test_apply_builtin_structconstruct(fortran_reader):
     lfric_invoke_trans.apply(subroutine[0], 3)
 
     check_invoke(subroutine[0], [(LFRicBuiltinFunctor, "setval_c")])
-    args = subroutine[0].children[0].children
+    args = subroutine[0].arguments[0].children
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
 
 
@@ -335,7 +335,7 @@ def test_apply_builtin_arrayref(fortran_reader):
 
     check_invoke(subroutine[0], [(LFRicBuiltinFunctor, "setval_c")],
                  description="test")
-    args = subroutine[0].children[0].children
+    args = subroutine[0].arguments[0].children
     check_args(args, [(Reference, "field1"), (Reference, "value")])
 
 
@@ -367,11 +367,11 @@ def test_apply_mixed(fortran_reader):
         [(LFRicKernelFunctor, "kern"), (LFRicBuiltinFunctor, "setval_c"),
          (LFRicBuiltinFunctor, "setval_c"), (LFRicBuiltinFunctor, "setval_c")],
         description="test")
-    args = subroutine[0].children[0].children
+    args = subroutine[0].arguments[0].children
     check_args(args, [(Reference, "field1")])
-    args = subroutine[0].children[1].children
+    args = subroutine[0].arguments[1].children
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
-    args = subroutine[0].children[2].children
+    args = subroutine[0].arguments[2].children
     check_args(args, [(Reference, "field1"), (Literal, "1.0")])
-    args = subroutine[0].children[3].children
+    args = subroutine[0].arguments[3].children
     check_args(args, [(Reference, "field1"), (Reference, "value")])

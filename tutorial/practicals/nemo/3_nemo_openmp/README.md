@@ -14,7 +14,7 @@ PSyclone in the User Guide
 
 This example includes a Makefile to simplify the compilation process. It
 assumes you are using Gnu Make. If you are using a different version of
-Make then you may need to edit the Makefile and replace the occurances of
+Make then you may need to edit the Makefile and replace the occurrences of
 `?=` with `=`.
 
 The flags to enable OpenMP will depend upon which Fortran compiler you
@@ -190,7 +190,7 @@ in tutorial 2, we will use the 'simple_timing' library for this but
 other options are available.)
 
 1. The quickest way to add profiling instrumentation is to edit the Makefile
-   and add `--profile invokes` to the PSyclone command line. You will also
+   and add `--profile routines` to the PSyclone command line. You will also
    need to edit `runner.f90` and uncomment the call to
    `profile_psydatashutdown`. Having done this, `make clean` followed by
    `make tra_adv.exe` will rebuild the mini-app, now instrumented using the

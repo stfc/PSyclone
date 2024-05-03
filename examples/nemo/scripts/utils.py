@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,16 +35,17 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
-from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
-    Reference, CodeBlock, Call, Return, IfBlock, Routine, BinaryOperation, \
-    IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType, ScalarType, RoutineSymbol, ImportInterface
-from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
-    HoistTrans, ProfileTrans, HoistLocalArraysTrans, Reference2ArrayRangeTrans
+from psyclone.psyir.nodes import (
+    Loop, Assignment, Directive, Container, Reference, CodeBlock, Call,
+    Return, IfBlock, Routine, IntrinsicCall)
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
+    RoutineSymbol, ImportInterface)
+from psyclone.psyir.transformations import (
+    HoistLoopBoundExprTrans, HoistTrans, ProfileTrans, HoistLocalArraysTrans,
+    Maxval2LoopTrans, Reference2ArrayRangeTrans)
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 from psyclone.transformations import TransformationError
-from psyclone.psyir.tools import DependencyTools
 
 
 # If routine names contain these substrings then we do not profile them
@@ -55,12 +56,6 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     # to create OpenACC regions with calls to them)
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
                     "sum", "sign_", "ddpdd"]
-
-# From: https://docs.nvidia.com/hpc-sdk/compilers/hpc-compilers-user-guide/
-# index.html#acc-fort-intrin-sum
-NVIDIA_GPU_SUPPORTED_INTRINSICS = [
-    IntrinsicCall.Intrinsic.SUM,
-]
 
 VERBOSE = False
 
@@ -125,8 +120,10 @@ def enhance_tree_information(schedule):
                         ArrayType.Extent.ATTRIBUTE]))
         elif reference.symbol.name == "sbc_dcy":
             # The parser gets this wrong, it is a Call not an Array access
-            reference.symbol.specialise(RoutineSymbol)
-            call = Call(reference.symbol)
+            if not isinstance(reference.symbol, RoutineSymbol):
+                # We haven't already specialised this Symbol.
+                reference.symbol.specialise(RoutineSymbol)
+            call = Call.create(reference.symbol)
             for child in reference.children:
                 call.addchild(child.detach())
             reference.replace_with(call)
@@ -136,6 +133,7 @@ def normalise_loops(
         schedule,
         hoist_local_arrays: bool = True,
         convert_array_notation: bool = True,
+        loopify_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
         hoist_expressions: bool = True,
         ):
@@ -146,11 +144,13 @@ def normalise_loops(
     :param schedule: the PSyIR Schedule to transform.
     :type schedule: :py:class:`psyclone.psyir.nodes.node`
     :param bool hoist_local_arrays: whether to hoist local arrays.
-    :param bool convert_array_notation: wether to convert array notation \
+    :param bool convert_array_notation: whether to convert array notation
         to explicit loops.
-    :param bool convert_range_loops: whether to convert ranges to explicit \
+    :param bool loopify_array_intrinsics: whether to convert intrinsics that
+        operate on arrays to explicit loops (currently only maxval).
+    :param bool convert_range_loops: whether to convert ranges to explicit
         loops.
-    :param bool hoist_expressions: whether to hoist bounds and loop invariant \
+    :param bool hoist_expressions: whether to hoist bounds and loop invariant
         statements out of the loop nest.
     '''
 
@@ -158,17 +158,29 @@ def normalise_loops(
         # Apply the HoistLocalArraysTrans when possible
         try:
             HoistLocalArraysTrans().apply(schedule)
-        except TransformationError as _:
+        except TransformationError:
             pass
 
     if convert_array_notation:
         # Make sure all array dimensions are explicit
         for reference in schedule.walk(Reference, stop_type=Reference):
+            part_of_the_call = reference.ancestor(Call)
+            if part_of_the_call:
+                if not part_of_the_call.is_elemental:
+                    continue
             if isinstance(reference.symbol, DataSymbol):
                 try:
                     Reference2ArrayRangeTrans().apply(reference)
-                except TransformationError as _:
+                except TransformationError:
                     pass
+
+    if loopify_array_intrinsics:
+        for intr in schedule.walk(IntrinsicCall):
+            if intr.intrinsic.name == "MAXVAL":
+                try:
+                    Maxval2LoopTrans().apply(intr)
+                except TransformationError as err:
+                    print(err.value)
 
     if convert_range_loops:
         # Convert all array implicit loops to explicit loops
@@ -218,9 +230,8 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param collapse: whether to insert directive on loops with Calls or \
         CodeBlocks in their loop body.
-    '''
-    dep_tools = DependencyTools()
 
+    '''
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
         if loop.ancestor(Directive):
@@ -240,49 +251,49 @@ def insert_explicit_loop_parallelism(
         # In addition, they often nest ice linearised loops (npti)
         # which we'd rather parallelise
         if ('ice' in routine_name
-            and isinstance(loop.stop_expr, BinaryOperation)
-            and (loop.stop_expr.operator == BinaryOperation.Operator.UBOUND or
-                 loop.stop_expr.operator == BinaryOperation.Operator.SIZE)
+            and isinstance(loop.stop_expr, IntrinsicCall)
+            and (loop.stop_expr.intrinsic in (IntrinsicCall.Intrinsic.UBOUND,
+                                              IntrinsicCall.Intrinsic.SIZE))
             and (len(loop.walk(Loop)) > 2
-                 or any([ref.symbol.name in ('npti',)
-                         for lp in loop.loop_body.walk(Loop)
-                         for ref in lp.stop_expr.walk(Reference)])
+                 or any(ref.symbol.name in ('npti',)
+                        for lp in loop.loop_body.walk(Loop)
+                        for ref in lp.stop_expr.walk(Reference))
                  or (str(len(loop.walk(Loop))) !=
-                     loop.stop_expr.children[1].value))):
+                     loop.stop_expr.arguments[1].value))):
             print("ICE Loop not parallelised for performance reasons")
             continue
         # Skip if looping over ice categories, ice or snow layers
         # as these have only 5, 4, and 1 iterations, respectively
-        if (any([ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
-                 for ref in loop.stop_expr.walk(Reference)])):
+        if (any(ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
+                for ref in loop.stop_expr.walk(Reference))):
             print("Loop not parallelised because stops at 'jpl', 'nlay_i' "
                   "or 'nlay_s'.")
             continue
 
-        def skip_for_correctness():
+        def skip_for_correctness(loop):
             for call in loop.walk(Call):
                 if not isinstance(call, IntrinsicCall):
                     print(f"Loop not parallelised because it has a call to "
                           f"{call.routine.name}")
                     return True
-                if call.intrinsic not in NVIDIA_GPU_SUPPORTED_INTRINSICS:
+                if not call.is_available_on_device():
                     print(f"Loop not parallelised because it has a "
-                          f"{call.intrinsic.name}")
+                          f"{call.intrinsic.name} not available on GPUs.")
                     return True
             if loop.walk(CodeBlock):
-                print(f"Loop not parallelised because it has a CodeBlock")
+                print("Loop not parallelised because it has a CodeBlock")
                 return True
             return False
 
         # If we see one such ice linearised loop, we assume
         # calls/codeblocks are not a problem (they are not)
-        if not any([ref.symbol.name in ('npti',)
-                    for ref in loop.stop_expr.walk(Reference)]):
-            if skip_for_correctness():
+        if not any(ref.symbol.name in ('npti',)
+                   for ref in loop.stop_expr.walk(Reference)):
+            if skip_for_correctness(loop):
                 continue
 
         # pnd_lev requires manual privatisation of ztmp
-        if any([name in routine_name for name in ('tab_', 'pnd_')]):
+        if any(name in routine_name for name in ('tab_', 'pnd_')):
             opts = {"force": True}
 
         try:
@@ -307,8 +318,10 @@ def insert_explicit_loop_parallelism(
                 num_nested_loops += 1
 
                 # If it has more than one children, the next loop will not be
-                # perfectly nested, so stop searching
-                if len(next_loop.loop_body.children) > 1:
+                # perfectly nested, so stop searching. If there is no child,
+                # we have an empty loop (which would cause a crash when
+                # accessing the child next)
+                if len(next_loop.loop_body.children) != 1:
                     break
 
                 next_loop = next_loop.loop_body.children[0]
@@ -328,7 +341,7 @@ def insert_explicit_loop_parallelism(
                     break
 
                 # Check that the next loop has no loop-carried dependencies
-                if not dep_tools.can_loop_be_parallelised(next_loop):
+                if not next_loop.independent_iterations():
                     break
 
             # Add collapse clause to the parent directive
