@@ -64,6 +64,9 @@ def test_routine_properties():
     node1 = Routine("hello")
     assert node1.dag_name == "routine_hello_0"
     assert node1.return_symbol is None
+    assert node1.routine_symbol is node1.symbol_table.lookup_with_tag(
+        "own_routine_symbol")
+    assert node1.routine_symbol.name == "hello"
     assert node1.is_program is False
     assert node1.name == "hello"
     # Give the Routine a child to get full coverage of __str__ method
@@ -99,6 +102,7 @@ def test_routine_name_setter():
     # Check that the 'own_routine_symbol' tag has been updated
     assert node.symbol_table.lookup_with_tag('own_routine_symbol').name == \
         "goodbye"
+    assert node.routine_symbol.name == "goodbye"
 
 
 def test_routine_name_setter_preexisting_tag():
@@ -125,6 +129,7 @@ def test_routine_name_setter_preexisting_tag():
     node2.name = "bye"
     assert (node2.symbol_table.lookup_with_tag("own_routine_symbol").name ==
             "bye")
+    assert node2.routine_symbol.name == "bye"
 
 
 def test_routine_return_symbol_setter():
@@ -201,6 +206,9 @@ def test_routine_create():
     assert symbol_table.node is kschedule
     assert kschedule.is_program
     assert kschedule.return_symbol is symbol
+    assert kschedule.routine_symbol.name == "mod_name"
+    assert kschedule.routine_symbol is symbol_table.lookup_with_tag(
+        "own_routine_symbol")
 
 
 def test_routine_equality(monkeypatch):

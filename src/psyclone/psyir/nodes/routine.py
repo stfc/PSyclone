@@ -202,8 +202,7 @@ class Routine(Schedule, CommentableMixin):
             # If the 'own_routine_symbol' tag already exist check that is
             # consistent with the given routine name.
             if 'own_routine_symbol' in self.symbol_table.tags_dict:
-                existing_symbol = self.symbol_table.lookup_with_tag(
-                        'own_routine_symbol', scope_limit=self)
+                existing_symbol = self.routine_symbol
                 if existing_symbol.name.lower() == new_name.lower():
                     self._name = new_name
                     return  # The preexisting symbol already matches
@@ -273,6 +272,15 @@ class Routine(Schedule, CommentableMixin):
         # function datatype is provided by the type of the return symbol which
         # may be given after the Routine is created.
         self.symbol_table.lookup(self._name).datatype = value.datatype
+
+    @property
+    def routine_symbol(self):
+        '''
+        :returns: the symbol representing this Routine.
+        :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
+        '''
+        return self.symbol_table.lookup_with_tag("own_routine_symbol",
+                                                 scope_limit=self)
 
     def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most
