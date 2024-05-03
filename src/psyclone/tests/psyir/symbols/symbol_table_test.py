@@ -1399,7 +1399,8 @@ def test_wildcard_imports():
 
 def test_view():
     '''Test the view method of the SymbolTable class, it should return a
-    representation of the full SymbolTable.'''
+    representation of the full SymbolTable, sorted by symbol type and 
+    alphabetically ordered.'''
     sym_table = symbols.SymbolTable()
     sym_table.add(symbols.DataSymbol("var1", symbols.REAL_TYPE))
     sym_table.add(symbols.DataSymbol("var2", symbols.INTEGER_TYPE))
@@ -1409,7 +1410,9 @@ def test_view():
     assert "var1" in output
     assert "var2" in output
 
-    sym_table.add(RoutineSymbol("func", REAL_TYPE))
+    sym_table_2 = sym_table.deep_copy()
+
+    sym_table.add(symbols.RoutineSymbol("func", symbols.REAL_TYPE))
     output = sym_table.view()
     assert "Symbol Table:\n" in output
     assert "DataSymbol:\n" in output
@@ -1417,6 +1420,37 @@ def test_view():
     assert "var2" in output
     assert "RoutineSymbol:\n" in output
     assert "func" in output
+    assert output.index("DataSymbol:\n") < output.index("RoutineSymbol:\n")
+    assert output.index("var1") < output.index("var2")
+    assert output == ("Symbol Table:\n"
+                      "-------------\n"
+                      "DataSymbol:\n"
+                      "  var1: DataSymbol<Scalar<REAL, UNDEFINED>, Automatic>\n"
+                      "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
+                      "Automatic>\n"
+                      "RoutineSymbol:\n"
+                      "  func: RoutineSymbol<Scalar<REAL, UNDEFINED>, "
+                      "pure=unknown, elemental=unknown>\n")
+
+    routine = Routine("func", symbol_table=sym_table_2)
+    output = sym_table_2.view()
+    assert "Symbol Table of Routine 'func':\n" in output
+    assert "DataSymbol:\n" in output
+    assert "var1" in output
+    assert "var2" in output
+    assert "RoutineSymbol:\n" in output
+    assert "func" in output
+    assert output.index("DataSymbol:\n") < output.index("RoutineSymbol:\n")
+    assert output.index("var1") < output.index("var2")
+    assert output == ("Symbol Table of Routine 'func':\n"
+                      "-------------------------------\n"
+                      "DataSymbol:\n"
+                      "  var1: DataSymbol<Scalar<REAL, UNDEFINED>, Automatic>\n"
+                      "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
+                      "Automatic>\n"
+                      "RoutineSymbol:\n"
+                      "  func: RoutineSymbol<NoType, pure=unknown, "
+                      "elemental=unknown>\n")
 
 def test_can_be_printed():
     '''Test that a SymbolTable instance can always be printed. (i.e. is
