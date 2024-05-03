@@ -157,7 +157,7 @@ class RoutineSymbol(TypedSymbol):
         original will not be affected so the copy will not be referred
         to by any other object.
 
-        :returns: A symbol object with the same properties as this \
+        :returns: A symbol object with the same properties as this
                   symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.RoutineSymbol`
 

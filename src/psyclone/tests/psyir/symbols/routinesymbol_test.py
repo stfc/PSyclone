@@ -156,3 +156,14 @@ def test_routinesymbol_copy():
     assert new_sym.visibility == asym.visibility
     assert new_sym.is_elemental
     assert new_sym.is_pure
+
+    # Default is elemental and pure is None
+    sym2 = RoutineSymbol("a")
+    new_sym = sym2.copy()
+    assert new_sym is not sym2
+    assert new_sym.name == sym2.name
+    assert new_sym.visibility == sym2.visibility
+    assert new_sym.is_elemental == sym2.is_elemental
+    assert new_sym.is_elemental is None
+    assert new_sym.is_pure == sym2.is_pure
+    assert new_sym.is_pure is None
