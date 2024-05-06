@@ -154,6 +154,7 @@ class LFRicLoop(PSyLoop):
 
             # Finally create the new lowered Loop and replace the domain one
             loop = Loop.create(self._variable, start, stop, step, [])
+            loop.preceding_comment = self.preceding_comment
             loop.loop_body._symbol_table = \
                 self.loop_body.symbol_table.shallow_copy()
             loop.children[3] = self.loop_body.copy()

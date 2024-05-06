@@ -88,6 +88,7 @@ class LFRicLoopBounds(LFRicCollection):
         config = Config.get()
         api_config = config.api_conf("dynamo0.3")
 
+        first = True
         for idx, loop in enumerate(loops):
 
             if type(loop) is Loop or loop.loop_type == "null":
@@ -97,12 +98,14 @@ class LFRicLoopBounds(LFRicCollection):
             root_name = f"loop{idx}_start"
             lbound = sym_table.find_or_create_integer_symbol(root_name,
                                                              tag=root_name)
-            self._invoke.schedule.addchild(
-                Assignment.create(
+            assignment = Assignment.create(
                     lhs=Reference(lbound),
-                    rhs=Literal("1", INTEGER_TYPE),  # FIXME
-                ), cursor)
+                    rhs=Literal("1", INTEGER_TYPE))  # FIXME
+            self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
+            if first:
+                assignment.preceding_comment = (
+                    "Set-up all of the loop bounds")
             # parent.add(AssignGen(parent, lhs=lbound.name,
             #                      rhs=loop._lower_bound_fortran()))
             # entities = [lbound.name]

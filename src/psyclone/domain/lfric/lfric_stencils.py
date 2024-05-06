@@ -484,6 +484,7 @@ class LFRicStencils(LFRicCollection):
         api_config = Config.get().api_conf("dynamo0.3")
         stencil_map_names = []
         const = LFRicConstants()
+        init_cursor = cursor
         for arg in self._kern_args:
             map_name = self.map_name(arg)
             if map_name not in stencil_map_names:
@@ -538,8 +539,9 @@ class LFRicStencils(LFRicCollection):
                          Reference(symtab.lookup(self.extent_value(arg))))
                     self._invoke.schedule.addchild(
                         Assignment.create(
-                            lhs=Reference(symtab.lookup(arg.proxy_name)),
-                            rhs=rhs),
+                            lhs=Reference(symtab.lookup(map_name)),
+                            rhs=rhs,
+                            is_pointer=True),
                         cursor)
                     cursor += 1
                     # parent.add(
@@ -556,7 +558,7 @@ class LFRicStencils(LFRicCollection):
                         rhs=Call.create(
                             StructureReference.create(
                                 symtab.lookup(map_name),
-                                ["get_whole_dofmap()"])),
+                                ["get_whole_dofmap"])),
                         is_pointer=True),
                     cursor)
                 cursor += 1
@@ -571,7 +573,7 @@ class LFRicStencils(LFRicCollection):
                         rhs=Call.create(
                             StructureReference.create(
                                 symtab.lookup(map_name),
-                                ["get_stencil_sizes()"])),
+                                ["get_stencil_sizes"])),
                         is_pointer=True),
                     cursor)
                 cursor += 1
@@ -579,6 +581,9 @@ class LFRicStencils(LFRicCollection):
                 # parent.add(AssignGen(parent, pointer=True,
                 #                      lhs=dofmap_size_name,
                 #                      rhs=map_name + "%get_stencil_sizes()"))
+        if cursor > init_cursor:
+            self._invoke.schedule[init_cursor].preceding_comment = (
+                "Initialise stencil dofmaps")
         return cursor
 
     def _declare_maps_invoke(self, cursor):

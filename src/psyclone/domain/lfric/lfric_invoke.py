@@ -292,9 +292,19 @@ class LFRicInvoke(Invoke):
             if cursor is None:
                 import pdb; pdb.set_trace()
                 cursor = entities.initialise(cursor)
-        # Deallocate any basis arrays
         if cursor is None:
             import pdb; pdb.set_trace()
+
+        # Now that all initialisation is done, add the comment before
+        # the start of the kernels
+        if Config.get().distributed_memory:
+            self.schedule[cursor].preceding_comment = (
+                "Call kernels and communication routines")
+        else:
+            self.schedule[cursor].preceding_comment = (
+                "Call our kernels")
+
+        # Deallocate any basis arrays
         cursor = self.evaluators.deallocate(cursor)
 
     def gen_code(self, parent):

@@ -1665,6 +1665,7 @@ class DynProxies(LFRicCollection):
         # parent.add(CommentGen(parent,
         #                       " Initialise field and/or operator proxies"))
         # parent.add(CommentGen(parent, ""))
+        init_cursor = cursor
         for arg in self._invoke.psy_unique_vars:
             # We don't have proxies for scalars
             if arg.is_scalar:
@@ -1769,6 +1770,10 @@ class DynProxies(LFRicCollection):
                         f"Kernel argument '{arg.name}' of type "
                         f"'{arg.argument_type}' not "
                         f"handled in DynProxies.initialise()")
+            if cursor > init_cursor:
+                self._invoke.schedule[init_cursor].preceding_comment = (
+                    "Initialise field and/or operator proxies")
+
             return cursor
 
 
@@ -3355,11 +3360,11 @@ class DynBasisFunctions(LFRicCollection):
             # Get the extent of the first dimension of the basis array.
             if basis_fn['type'] == "basis":
                 first_dim = self.basis_first_dim_name(basis_fn["fspace"])
-                dim_space = "get_dim_space()"
+                dim_space = "get_dim_space"
             elif basis_fn['type'] == "diff-basis":
                 first_dim = self.diff_basis_first_dim_name(
                     basis_fn["fspace"])
-                dim_space = "get_dim_space_diff()"
+                dim_space = "get_dim_space_diff"
             else:
                 raise InternalError(
                     f"Unrecognised type of basis function: "
@@ -3775,6 +3780,7 @@ class DynBasisFunctions(LFRicCollection):
         #     parent.add(CommentGen(parent, " Compute basis/diff-basis arrays"))
         #     parent.add(CommentGen(parent, ""))
 
+        first = True
         for basis_fn in self._basis_fns:
 
             # Currently there are only two possible types of basis function
@@ -3815,7 +3821,11 @@ class DynBasisFunctions(LFRicCollection):
                         symtab.lookup(basis_fn["qr_var"]),
                         ["compute_function"]),
                     args)
-                self._invoke.schedule.addchild(call)
+                if first:
+                    call.preceding_comment = "Compute basis/diff-basis arrays"
+                    first = False
+                self._invoke.schedule.addchild(call, cursor)
+                cursor += 1
                 # parent.add(
                 #     CallGen(parent,
                 #             name=basis_fn["qr_var"]+"%compute_function",
@@ -3843,7 +3853,12 @@ class DynBasisFunctions(LFRicCollection):
                             symbol, Literal('1', INTEGER_TYPE),
                             Reference(symtab.lookup(space.ndf_name)),
                             Literal('1', INTEGER_TYPE), [])
-                    self._invoke.schedule.addchild(loop)
+                    if first:
+                        loop.preceding_comment = (
+                            "Compute basis/diff-basis arrays")
+                        first = False
+                    self._invoke.schedule.addchild(loop, cursor)
+                    cursor += 1
 
                     # nodal_dof_loop = DoGen(
                     #     parent, nodal_loop_var, "1", space.ndf_name)
