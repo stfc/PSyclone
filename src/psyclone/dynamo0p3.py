@@ -73,7 +73,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall,
-    Assignment, ArrayReference, Loop)
+    Assignment, ArrayReference, Loop, Range)
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, DataSymbol, ScalarType, UnresolvedType, DataTypeSymbol,
     UnresolvedInterface, ContainerSymbol, ImportInterface, StructureType,
@@ -1334,11 +1334,9 @@ class DynFunctionSpaces(LFRicCollection):
                         lhs=Reference(symtab.lookup(ndf_name)),
                         rhs=arg.generate_method_call(
                               "get_ndf", function_space=function_space))
-                if first:
-                    assignment.preceding_comment = (
-                        f"Initialise number of DoFs for "
-                        f"{function_space.mangled_name}")
-                    first = False
+                assignment.preceding_comment = (
+                    f"Initialise number of DoFs for "
+                    f"{function_space.mangled_name}")
                 self._invoke.schedule.addchild(assignment, cursor)
                 cursor += 1
                 # parent.add(AssignGen(parent, lhs=ndf_name,
@@ -1597,7 +1595,7 @@ class DynProxies(LFRicCollection):
                                             symbol_type=DataTypeSymbol,
                                             datatype=UnresolvedType())
             for op in operators_list:
-                table.new_symbol(op.declaration_name,
+                table.new_symbol(op.proxy_declaration_name,
                                  symbol_type=DataSymbol,
                                  datatype=op_datatype_symbol)
 
@@ -1703,10 +1701,10 @@ class DynProxies(LFRicCollection):
                     self._invoke.schedule.addchild(
                         Assignment.create(
                             lhs=Reference(symbol),
-                            rhs=Call.create(ArrayOfStructuresReference.create(
-                                symtab.lookup(arg.proxy_name),
-                                [Literal(str(idx), INTEGER_TYPE)],
-                                ["data"])),
+                            rhs=ArrayOfStructuresReference.create(
+                                    symtab.lookup(arg.proxy_name),
+                                    [Literal(str(idx), INTEGER_TYPE)],
+                                    ["data"]),
                             is_pointer=True),
                         cursor)
                     cursor += 1
@@ -1729,8 +1727,8 @@ class DynProxies(LFRicCollection):
                     self._invoke.schedule.addchild(
                         Assignment.create(
                             lhs=Reference(symbol),
-                            rhs=Call.create(StructureReference.create(
-                                symtab.lookup(arg.proxy_name), ["data"])),
+                            rhs=StructureReference.create(
+                                symtab.lookup(arg.proxy_name), ["data"]),
                             is_pointer=True),
                         cursor)
                     cursor += 1
@@ -1950,13 +1948,18 @@ class DynLMAOperators(LFRicCollection):
         for op_datatype, op_list in operators_datatype_map.items():
             op_datatype_symbol = table.lookup(op_datatype)
             for arg in op_list:
-                table.new_symbol(arg.declaration_name,
-                                 symbol_type=DataSymbol,
-                                 datatype=op_datatype_symbol)
+                symbol = table.lookup(arg.declaration_name)
+                symbol.interface = ArgumentInterface(
+                    ArgumentInterface.Access.READ)
+                                 # symbol_type=DataSymbol,
+                                 # datatype=op_datatype_symbol,
+                                 # interface=ArgumentInterface(
+                                 #     ArgumentInterface.Access.READ))
             # operators_names = [arg.declaration_name for arg in op_list]
             # parent.add(TypeDeclGen(
             #     parent, datatype=op_datatype,
             #     entity_decls=operators_names, intent="in"))
+            
             op_mod = op_list[0].module_name
             # Record that we will need to import this operator
             # datatype from the appropriate infrastructure module
@@ -3214,13 +3217,16 @@ class DynBasisFunctions(LFRicCollection):
                 # quadrature_* type
                 dt_symbol = self._symbol_table.lookup(
                     const.QUADRATURE_TYPE_MAP[shape]["type"])
+                dtp_symbol = self._symbol_table.lookup(
+                    const.QUADRATURE_TYPE_MAP[shape]["proxy_type"])
                 arglist = self._symbol_table.argument_list[:]
                 for name in  self._qr_vars[shape]:
-                    new_arg = self._symbol_table.new_symbol(
+                    new_arg = self._symbol_table.find_or_create(
                         name, symbol_type=DataSymbol, datatype=dt_symbol,
-                        interface=ArgumentInterface(
-                            ArgumentInterface.Access.READ)
                     )
+                    new_arg.interface = ArgumentInterface(
+                        ArgumentInterface.Access.READ)
+
                     arglist.append(new_arg)
                 self._symbol_table.specify_argument_list(arglist)
 
@@ -3234,10 +3240,10 @@ class DynBasisFunctions(LFRicCollection):
                 # the symbol_table to avoid clashes...
                 var_names = []
                 for var in self._qr_vars[shape]:
-                    self._symbol_table.new_symbol(
+                    self._symbol_table.find_or_create(
                         var, symbol_type=DataSymbol, datatype=dt_symbol)
-                    self._symbol_table.new_symbol(
-                        var+"_proxy", symbol_type=DataSymbol, datatype=dt_symbol)
+                    self._symbol_table.find_or_create(
+                        var+"_proxy", symbol_type=DataSymbol, datatype=dtp_symbol)
                     # self._symbol_table.find_or_create_tag(var+"_proxy")
                 # parent.add(
                 #     TypeDeclGen(
@@ -3281,6 +3287,7 @@ class DynBasisFunctions(LFRicCollection):
                 datatype=UnresolvedType(), interface=ImportInterface(module))
 
         if self._qr_vars:
+            init_cursor = cursor
             # parent.add(CommentGen(parent, ""))
             # parent.add(CommentGen(parent, " Look-up quadrature variables"))
             # parent.add(CommentGen(parent, ""))
@@ -3291,20 +3298,28 @@ class DynBasisFunctions(LFRicCollection):
                 module = symtab.find_or_create(
                     quad_map["module"],
                     symbol_type=ContainerSymbol)
-                symtab.new_symbol(
-                    quad_map["type"], symbol_type=DataSymbol,
-                    datatype=UnresolvedType(),
-                    interface=ImportInterface(module))
-                symtab.new_symbol(
-                    quad_map["proxy_type"], symbol_type=DataSymbol,
-                    datatype=UnresolvedType(),
-                    interface=ImportInterface(module))
+                # symtab.find_or_create(
+                #     quad_map["type"], symbol_type=DataTypeSymbol,
+                #     datatype=UnresolvedType(),
+                #     interface=ImportInterface(module))
+                symbol = symtab.lookup(quad_map["type"])
+                symbol.interface=ImportInterface(module)
+                # symtab.find_or_create(
+                #     quad_map["proxy_type"], symbol_type=DataTypeSymbol,
+                #     datatype=UnresolvedType(),
+                #     interface=ImportInterface(module))
+                symbol = symtab.lookup(quad_map["proxy_type"])
+                symbol.interface=ImportInterface(module)
 
             cursor = self._initialise_xyz_qr(cursor)
             cursor = self._initialise_xyoz_qr(cursor)
             cursor = self._initialise_xoyoz_qr(cursor)
             cursor = self._initialise_face_or_edge_qr(cursor, "face")
             cursor = self._initialise_face_or_edge_qr(cursor, "edge")
+
+            if init_cursor < cursor:
+                self._invoke.schedule[init_cursor].preceding_comment = (
+                    "Look-up quadrature variables")
 
         if self._eval_targets:
             pass
@@ -3314,6 +3329,7 @@ class DynBasisFunctions(LFRicCollection):
             #                       "for the target function spaces"))
             # parent.add(CommentGen(parent, ""))
 
+        first = True
         for (fspace, arg) in self._eval_targets.values():
             # We need the list of nodes for each unique FS upon which we need
             # to evaluate basis/diff-basis functions
@@ -3324,13 +3340,16 @@ class DynBasisFunctions(LFRicCollection):
                 datatype=UnsupportedFortranType(
                     f"real(kind={kind}), pointer :: {nodes_name}"
                     f"(:,:) => null()"))
-            self._invoke.schedule.addchild(
-                Assignment.create(
+            assignment = Assignment.create(
                     lhs=Reference(symbol),
                     rhs=arg.generate_method_call(
                         "get_nodes", function_space=fspace),
-                    is_pointer=True),
-                cursor)
+                    is_pointer=True)
+            if first:
+                assignment.preceding_comment = (
+                    "Initialise evaluator-related quantities for the target "
+                    "function spaces")
+            self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
             # parent.add(AssignGen(
             #     parent, lhs=nodes_name,
@@ -3355,6 +3374,7 @@ class DynBasisFunctions(LFRicCollection):
             # parent.add(CommentGen(parent, " Allocate basis/diff-basis arrays"))
             # parent.add(CommentGen(parent, ""))
 
+        init_cursor = cursor
         var_dim_list = []
         for basis_fn in self._basis_fns:
             # Get the extent of the first dimension of the basis array.
@@ -3381,12 +3401,11 @@ class DynBasisFunctions(LFRicCollection):
                     first_dim, symbol_type=DataSymbol,
                     datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
-                self._invoke.schedule.addchild(
-                    Assignment.create(
+                assignment = Assignment.create(
                         lhs=Reference(symbol),
                         rhs=basis_fn["arg"].generate_method_call(
-                                dim_space, function_space=basis_fn["fspace"])),
-                    cursor)
+                                dim_space, function_space=basis_fn["fspace"]))
+                self._invoke.schedule.addchild(assignment, cursor)
                 cursor += 1
                 # parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
 
@@ -3411,7 +3430,7 @@ class DynBasisFunctions(LFRicCollection):
             alloc = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.ALLOCATE,
                 [ArrayReference.create(symbol,
-                    [Reference(symtab.lookup(bn)) for bn in basis_arrays[basis]])]
+                    [Reference(symtab.find_or_create(bn, symbol_type=DataSymbol, datatype=UnresolvedType())) for bn in basis_arrays[basis]])]
             )
             self._invoke.schedule.addchild(alloc, cursor)
             cursor += 1
@@ -3433,6 +3452,9 @@ class DynBasisFunctions(LFRicCollection):
 
         # Compute the values for any basis arrays
         cursor = self._compute_basis_fns(cursor)
+        if init_cursor < cursor:
+            self._invoke.schedule[init_cursor].preceding_comment = (
+                "Allocate basis/diff-basis arrays")
         return cursor
 
     def _basis_fn_declns(self):
@@ -3464,6 +3486,7 @@ class DynBasisFunctions(LFRicCollection):
         # Loop over the list of dicts describing each basis function
         # required by this Invoke.
         for basis_fn in self._basis_fns:
+            # import pdb; pdb.set_trace()
             # Get the extent of the first dimension of the basis array and
             # store whether we have a basis or a differential basis function.
             # Currently there are only those two possible types of basis
@@ -3621,13 +3644,13 @@ class DynBasisFunctions(LFRicCollection):
             proxy_symbol = symtab.lookup(qr_arg_name + "_proxy")
             symbol = symtab.lookup(qr_arg_name)
 
-            # self._invoke.schedule.addchild(
-            #     Assignment.create(
-            #         lhs=Reference(proxy_symbol),
-            #         rhs=Call.create(
-            #             StructureReference.create(
-            #                 symbol, ['get_quadrature_proxy'])))
-            # )
+            assignment = Assignment.create(
+                    lhs=Reference(proxy_symbol),
+                    rhs=Call.create(
+                        StructureReference.create(
+                            symbol, ['get_quadrature_proxy'])))
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
             # proxy_name = qr_arg_name + "_proxy"
             # parent.add(
             #     AssignGen(parent, lhs=proxy_name,
@@ -3637,9 +3660,8 @@ class DynBasisFunctions(LFRicCollection):
                 self._invoke.schedule.addchild(
                     Assignment.create(
                         lhs=Reference(symtab.lookup(qr_var+"_"+qr_arg_name)),
-                        rhs=Call.create(
-                            StructureReference.create(
-                                proxy_symbol, [qr_var]))),
+                        rhs=StructureReference.create(
+                                proxy_symbol, [qr_var])),
                     cursor)
                 cursor += 1
                 # parent.add(
@@ -3650,11 +3672,11 @@ class DynBasisFunctions(LFRicCollection):
                 self._invoke.schedule.addchild(
                     Assignment.create(
                         lhs=Reference(symtab.lookup(qr_var+"_"+qr_arg_name)),
-                        rhs=Call.create(
-                            StructureReference.create(
-                                proxy_symbol, [qr_var])),
-                        is_pointer=True)
-                )
+                        rhs=StructureReference.create(
+                                proxy_symbol, [qr_var]),
+                        is_pointer=True),
+                    cursor)
+                cursor += 1
                 # parent.add(
                 #     AssignGen(parent, pointer=True,
                 #               lhs=qr_var+"_"+qr_arg_name,
@@ -3886,10 +3908,24 @@ class DynBasisFunctions(LFRicCollection):
                     #        f"call_function({basis_type},{dof_loop_var},nodes_"
                     #        f"{space.mangled_name}(:,{nodal_loop_var}))")
                     # dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
+
+                    symbol = symtab.lookup(op_name)
+                    rhs = basis_fn['arg'].generate_method_call("call_function")
+                    rhs.addchild(Reference(symtab.lookup(basis_type)))
+                    rhs.addchild(Reference(symtab.lookup(dof_loop_var)))
+                    rhs.addchild(ArrayReference.create(
+                            symtab.lookup(f"nodes_{space.mangled_name}"),
+                            [":",
+                                Reference(symtab.lookup(nodal_loop_var))]))
                     inner_loop.loop_body.addchild(
                         Assignment.create(
-                            lhs=Literal('1', INTEGER_TYPE),
-                            rhs=Literal('1', INTEGER_TYPE)))
+                            lhs=ArrayReference.create(symbol, [
+                                ":",
+                                Reference(
+                                    symtab.lookup(f"df_{basis_fn['fspace'].mangled_name}")),
+                                Reference(symtab.lookup("df_nodal"))
+                            ]),
+                            rhs=rhs))
             else:
                 raise InternalError(
                     f"Unrecognised shape '{basis_fn['''shape''']}' specified "
@@ -3950,7 +3986,7 @@ class DynBasisFunctions(LFRicCollection):
             )
             if first:
                 dealloc.preceding_comment = "Deallocate basis arrays"
-            self._invoke.schedule.addchild(dealloc, cursor)
+            self._invoke.schedule.children.append(dealloc)
             cursor += 1
             # parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
         return cursor

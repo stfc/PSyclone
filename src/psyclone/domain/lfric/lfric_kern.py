@@ -55,7 +55,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule)
 from psyclone.psyir.symbols import (
-    DataSymbol, ScalarType, ArrayType, UnsupportedFortranType)
+    DataSymbol, ScalarType, ArrayType, UnsupportedFortranType, DataTypeSymbol,
+    UnresolvedType)
 
 
 class LFRicKern(CodedKern):
@@ -308,9 +309,10 @@ class LFRicKern(CodedKern):
 
         # The quadrature-related arguments to a kernel always come last so
         # construct an enumerator with start value -<no. of qr rules>
+        symtab = self.ancestor(InvokeSchedule).symbol_table
         for idx, shape in enumerate(qr_shapes, -len(qr_shapes)):
-
             qr_arg = args[idx]
+            quad_map = const.QUADRATURE_TYPE_MAP[shape]
 
             # Use the InvokeSchedule symbol_table to create a unique symbol
             # name for the whole Invoke.
@@ -318,9 +320,11 @@ class LFRicKern(CodedKern):
                 tag = "AlgArgs_" + qr_arg.text
                 # qr_name = self.ancestor(InvokeSchedule).symbol_table.\
                 #     find_or_create_integer_symbol(qr_arg.varname, tag=tag).name
-                qr_name = self.ancestor(InvokeSchedule).symbol_table.find_or_create(
+                qr_name = symtab.find_or_create(
                     qr_arg.varname, tag=tag, symbol_type=DataSymbol,
-                    datatype=UnsupportedFortranType(f"missing decl {qr_arg.varname}")).name
+                    datatype=symtab.find_or_create(
+                        quad_map["type"], symbol_type=DataTypeSymbol,
+                        datatype=UnresolvedType())).name
             else:
                 # If we don't have a name then we must be doing kernel-stub
                 # generation so create a suitable name.
@@ -349,7 +353,12 @@ class LFRicKern(CodedKern):
             # Append the name of the qr argument to the names of the qr-related
             # variables.
             qr_args = [arg + "_" + qr_name for arg in qr_args]
+            # for name in qr_args:
+            #     symtab.find_or_create(
+            #         name, symbol_type=DataSymbol, 
+            #         datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
+            # import pdb; pdb.set_trace()
             self._qr_rules[shape] = self.QRRule(qr_arg.text, qr_name, qr_args)
 
         if "gh_evaluator" in self._eval_shapes:

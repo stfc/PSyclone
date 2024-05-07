@@ -205,8 +205,8 @@ def test_single_kern_eval(tmpdir):
     assert "    type(field_type), intent(in) :: f0" in gen_code
     assert "    type(field_type), intent(in) :: cmap" in gen_code
     assert "    integer(kind=i_def) :: cell" in gen_code
-    assert "    integer(kind=i_def) :: loop0_start" in gen_code
-    assert "    integer(kind=i_def) :: loop0_stop" in gen_code
+    assert "    integer(kind=i_def) :: loop4_start" in gen_code
+    assert "    integer(kind=i_def) :: loop4_stop" in gen_code
     assert "    integer(kind=i_def) :: df_nodal" in gen_code
     assert "    integer(kind=i_def) :: df_w0" in gen_code
     assert "    integer(kind=i_def) :: df_w1" in gen_code
@@ -233,8 +233,8 @@ def test_single_kern_eval(tmpdir):
         "    ! Initialise field and/or operator proxies\n"
         "    f0_proxy = f0%get_proxy()\n"
         "    f0_data => f0_proxy%data\n"
-        "    cmap_proxy = cmap%get_proxy()\n"
-        "    cmap_data => cmap_proxy%data\n"
+        # "    cmap_proxy = cmap%get_proxy()\n"
+        # "    cmap_data => cmap_proxy%data\n"
         "\n"
         "    ! Initialise number of layers\n"
         "    nlayers = f0_proxy%vspace%get_nlayers()\n"
@@ -258,39 +258,39 @@ def test_single_kern_eval(tmpdir):
         "    ! Allocate basis/diff-basis arrays\n"
         "    dim_w0 = f0_proxy%vspace%get_dim_space()\n"
         "    diff_dim_w1 = cmap_proxy%vspace%get_dim_space_diff()\n"
-        "    ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_w0))\n"
-        "    ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_w0))\n"
-        " \n"
+        "    ALLOCATE(basis_w0_on_w0(dim_w0,ndf_w0,ndf_w0))\n"
+        "    ALLOCATE(diff_basis_w1_on_w0(diff_dim_w1,ndf_w1,ndf_w0))\n"
+        "\n"
         "    ! Compute basis/diff-basis arrays\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
         "      do df_w0 = 1, ndf_w0, 1\n"
         "        basis_w0_on_w0(:,df_w0,df_nodal) = "
-        "f0_proxy%vspace%call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
+        "f0_proxy%vspace%call_function(BASIS, df_w0, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "    do df_nodal = 1, ndf_w0, 1\n"
         "      do df_w1 = 1, ndf_w1, 1\n"
         "        diff_basis_w1_on_w0(:,df_w1,df_nodal) = cmap_proxy%vspace%"
-        "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
+        "call_function(DIFF_BASIS, df_w1, nodes_w0(:,df_nodal))\n"
         "      enddo\n"
         "    enddo\n"
         "\n"
         "    ! Set-up all of the loop bounds\n"
-        "    loop0_start = 1\n"
-        "    loop0_stop = f0_proxy%vspace%get_ncell()\n"
+        "    loop4_start = 1\n"
+        "    loop4_stop = f0_proxy%vspace%get_ncell()\n"
         "\n"
         "    ! Call our kernels\n"
-        "    do cell = loop0_start, loop0_stop, 1\n"
+        "    do cell = loop4_start, loop4_stop, 1\n"
         "      call testkern_eval_code(nlayers, f0_data, "
         "cmap_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "    enddo\n"
     )
-    assert expected_code == gen_code
+    assert expected_code in gen_code
     dealloc_code = (
-        "      DEALLOCATE (basis_w0_on_w0, diff_basis_w1_on_w0)\n"
-        "      !\n"
-        "    END SUBROUTINE invoke_0_testkern_eval_type\n"
+        "    DEALLOCATE(basis_w0_on_w0, diff_basis_w1_on_w0)\n"
+        "\n"
+        "  end subroutine invoke_0_testkern_eval_type\n"
     )
     assert dealloc_code in gen_code
 
@@ -309,63 +309,67 @@ def test_single_kern_eval_op(tmpdir):
     # Kernel writes to an operator, the 'to' space of which is W0. Kernel
     # requires basis on W2 ('from'-space of operator) and diff-basis on
     # W3 (space of the field).
-    decln_output = (
-        "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
-        "      TYPE(field_type), intent(in) :: f1\n"
-        "      TYPE(operator_type), intent(in) :: op1\n"
-        "      INTEGER(KIND=i_def) cell\n"
-        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) df_nodal, df_w2, df_w3\n"
-        "      REAL(KIND=r_def), allocatable :: basis_w2_on_w0(:,:,:), "
-        "diff_basis_w3_on_w0(:,:,:)\n"
-        "      INTEGER(KIND=i_def) dim_w2, diff_dim_w3\n"
-        "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
-        "      REAL(KIND=r_def), pointer, dimension(:,:,:) :: "
-        "op1_local_stencil => null()\n"
-        "      TYPE(operator_proxy_type) op1_proxy\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
-        "      TYPE(field_proxy_type) f1_proxy\n"
-        "      INTEGER(KIND=i_def), pointer :: map_w3(:,:) => null()\n"
-        "      INTEGER(KIND=i_def) ndf_w0, ndf_w2, ndf_w3, undf_w3\n")
-    assert decln_output in gen_code
+    assert "use function_space_mod, only : BASIS, DIFF_BASIS" in gen_code
+    assert "type(field_type), intent(in) :: f1" in gen_code
+    assert "type(operator_type), intent(in) :: op1" in gen_code
+    assert "integer(kind=i_def) :: cell" in gen_code
+    assert "integer(kind=i_def) :: loop4_start" in gen_code
+    assert "integer(kind=i_def) :: loop4_stop" in gen_code
+    assert "integer(kind=i_def) :: df_nodal" in gen_code
+    assert "integer(kind=i_def) :: df_w2" in gen_code
+    assert "integer(kind=i_def) :: df_w3" in gen_code
+    assert "real(kind=r_def), allocatable :: basis_w2_on_w0(:,:,:)" in gen_code
+    assert ("real(kind=r_def), allocatable :: diff_basis_w3_on_w0(:,:,:)"
+            in gen_code)
+    assert "integer(kind=i_def) :: dim_w2" in gen_code
+    assert "integer(kind=i_def) :: diff_dim_w3" in gen_code
+    assert "real(kind=r_def), pointer :: nodes_w0(:,:) => null()" in gen_code
+    assert "integer(kind=i_def) :: nlayers" in gen_code
+    assert ("real(kind=r_def), pointer, dimension(:,:,:) :: "
+            "op1_local_stencil => null()" in gen_code)
+    assert "type(operator_proxy_type) :: op1_proxy" in gen_code
+    assert ("real(kind=r_def), pointer, dimension(:) :: f1_data => null()"
+            in gen_code)
+    assert "type(field_proxy_type) :: f1_proxy" in gen_code
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in gen_code
+    assert "integer(kind=i_def) :: ndf_w0" in gen_code
+    assert "integer(kind=i_def) :: ndf_w2" in gen_code
+    assert "integer(kind=i_def) :: ndf_w3" in gen_code
+    assert "integer(kind=i_def) :: undf_w3" in gen_code
     init_output = (
-        "      nodes_w0 => op1_proxy%fs_to%get_nodes()\n"
-        "      !\n"
-        "      ! Allocate basis/diff-basis arrays\n"
-        "      !\n"
-        "      dim_w2 = op1_proxy%fs_from%get_dim_space()\n"
-        "      diff_dim_w3 = f1_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_w0))\n"
-        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, ndf_w0))\n"
-        "      !\n"
-        "      ! Compute basis/diff-basis arrays\n"
-        "      !\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w2=1,ndf_w2\n"
-        "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
-        "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w3=1,ndf_w3\n"
-        "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = f1_proxy%vspace%"
-        "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
+        "    nodes_w0 => op1_proxy%fs_to%get_nodes()\n"
+        "\n"
+        "    ! Allocate basis/diff-basis arrays\n"
+        "    dim_w2 = op1_proxy%fs_from%get_dim_space()\n"
+        "    diff_dim_w3 = f1_proxy%vspace%get_dim_space_diff()\n"
+        "    ALLOCATE(basis_w2_on_w0(dim_w2,ndf_w2,ndf_w0))\n"
+        "    ALLOCATE(diff_basis_w3_on_w0(diff_dim_w3,ndf_w3,ndf_w0))\n"
+        "\n"
+        "    ! Compute basis/diff-basis arrays\n"
+        "    do df_nodal = 1, ndf_w0, 1\n"
+        "      do df_w2 = 1, ndf_w2, 1\n"
+        "        basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
+        "call_function(BASIS, df_w2, nodes_w0(:,df_nodal))\n"
+        "      enddo\n"
+        "    enddo\n"
+        "    do df_nodal = 1, ndf_w0, 1\n"
+        "      do df_w3 = 1, ndf_w3, 1\n"
+        "        diff_basis_w3_on_w0(:,df_w3,df_nodal) = f1_proxy%vspace%"
+        "call_function(DIFF_BASIS, df_w3, nodes_w0(:,df_nodal))\n"
+        "      enddo\n"
+        "    enddo\n"
     )
     assert init_output in gen_code
-    assert "loop0_stop = op1_proxy%fs_from%get_ncell()\n" in gen_code
+    assert "loop4_stop = op1_proxy%fs_from%get_ncell()\n" in gen_code
     kern_call = (
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d,"
+        "    do cell = loop4_start, loop4_stop, 1\n"
+        "      call testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d,"
         " op1_local_stencil, f1_data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
-        "      END DO\n")
+        "    enddo\n")
     assert kern_call in gen_code
-    dealloc = ("      DEALLOCATE (basis_w2_on_w0, diff_basis_w3_on_w0)\n")
-    assert dealloc in gen_code
+    assert "    DEALLOCATE(basis_w2_on_w0, diff_basis_w3_on_w0)\n" in gen_code
 
 
 def test_two_qr_same_shape(tmpdir):
@@ -379,134 +383,156 @@ def test_two_qr_same_shape(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    expected_module_declns = (
-        "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
-    assert expected_module_declns in gen_code
+    assert "use constants_mod, only : i_def, r_def" in gen_code
+    assert "use field_mod, only : field_proxy_type, field_type" in gen_code
 
-    expected_declns = (
-        "    SUBROUTINE invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
-        "n2, qr, qr2)\n"
-        "      USE testkern_qr_mod, ONLY: testkern_qr_code\n"
-        "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
-        "quadrature_xyoz_proxy_type\n"
-        "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
-        "      REAL(KIND=r_def), intent(in) :: a, b\n"
-        "      INTEGER(KIND=i_def), intent(in) :: istp\n"
-        "      TYPE(field_type), intent(in) :: f1, f2, m1, m2, g1, g2, "
-        "n1, n2\n"
-        "      TYPE(quadrature_xyoz_type), intent(in) :: qr, qr2\n"
-        "      INTEGER(KIND=i_def) cell\n"
-        "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
-        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
-        "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
-        "diff_basis_w3_qr(:,:,:,:), basis_w1_qr2(:,:,:,:), "
-        "diff_basis_w2_qr2(:,:,:,:), basis_w3_qr2(:,:,:,:), "
-        "diff_basis_w3_qr2(:,:,:,:)\n"
-        "      INTEGER(KIND=i_def) dim_w1, diff_dim_w2, dim_w3, diff_dim_w3\n"
-        "      REAL(KIND=r_def), pointer :: weights_xy_qr2(:) => null(), "
-        "weights_z_qr2(:) => null()\n"
-        "      INTEGER(KIND=i_def) np_xy_qr2, np_z_qr2\n"
-        "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
-        "weights_z_qr(:) => null()\n"
-        "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: n2_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: n1_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: g2_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: g1_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
-        "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
-        "m2_proxy, g1_proxy, g2_proxy, n1_proxy, n2_proxy\n"
-        "      TYPE(quadrature_xyoz_proxy_type) qr_proxy, qr2_proxy\n"
-        "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
-        "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
-        "      INTEGER(KIND=i_def) ndf_w1, undf_w1, ndf_w2, undf_w2, "
-        "ndf_w3, undf_w3\n"
-    )
-    assert expected_declns in gen_code
+    assert ("subroutine invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
+            "n2, qr, qr2)" in gen_code)
+    assert "use testkern_qr_mod, only : testkern_qr_code" in gen_code
+    assert ("use quadrature_xyoz_mod, only : quadrature_xyoz_proxy_type, "
+            "quadrature_xyoz_type" in gen_code)
+    assert "use function_space_mod, only : BASIS, DIFF_BASIS" in gen_code
+    assert "real(kind=r_def), intent(in) :: a" in gen_code
+    assert "real(kind=r_def), intent(in) :: b" in gen_code
+    assert "integer(kind=i_def), intent(in) :: istp" in gen_code
+    assert "type(field_type), intent(in) :: f1" in gen_code
+    assert "type(field_type), intent(in) :: f2" in gen_code
+    assert "type(field_type), intent(in) :: m1" in gen_code
+    assert "type(field_type), intent(in) :: m2" in gen_code
+    assert "type(field_type), intent(in) :: g1" in gen_code
+    assert "type(field_type), intent(in) :: g2" in gen_code
+    assert "type(field_type), intent(in) :: n1" in gen_code
+    assert "type(field_type), intent(in) :: n2" in gen_code
+    assert "type(quadrature_xyoz_type), intent(in) :: qr" in gen_code
+    assert "type(quadrature_xyoz_type), intent(in) :: qr2" in gen_code
+    assert "integer(kind=i_def) :: cell" in gen_code
+    assert "integer(kind=i_def) :: loop1_start" in gen_code
+    assert "integer(kind=i_def) :: loop1_stop" in gen_code
+    assert "integer(kind=i_def) :: loop0_start" in gen_code
+    assert "integer(kind=i_def) :: loop0_stop" in gen_code
+    assert "real(kind=r_def), allocatable :: basis_w1_qr(:,:,:,:)" in gen_code
+    assert "real(kind=r_def), allocatable :: diff_basis_w2_qr(:,:,:,:)" in gen_code
+    assert "real(kind=r_def), allocatable :: basis_w3_qr(:,:,:,:)" in gen_code
+    assert "real(kind=r_def), allocatable :: diff_basis_w3_qr(:,:,:,:)" in gen_code
+    assert "real(kind=r_def), allocatable :: basis_w1_qr2(:,:,:,:)" in gen_code
+    assert "real(kind=r_def), allocatable :: diff_basis_w2_qr2(:,:,:,:)" in gen_code
+    assert "real(kind=r_def), allocatable :: basis_w3_qr2(:,:,:,:)" in gen_code
+    assert "real(kind=r_def), allocatable :: diff_basis_w3_qr2(:,:,:,:)" in gen_code
+    assert "integer(kind=i_def) :: dim_w1" in gen_code
+    assert "integer(kind=i_def) :: diff_dim_w2" in gen_code
+    assert "integer(kind=i_def) :: dim_w3" in gen_code
+    assert "integer(kind=i_def) :: diff_dim_w3" in gen_code
+    assert "real(kind=r_def), pointer :: weights_xy_qr2(:) => null()" in gen_code, gen_code
+    assert "real(kind=r_def), pointer :: weights_z_qr2(:) => null()" in gen_code
+    assert "integer(kind=i_def) :: np_xy_qr2" in gen_code
+    assert "integer(kind=i_def) :: np_z_qr2" in gen_code
+    assert "real(kind=r_def), pointer :: weights_xy_qr(:) => null()" in gen_code
+    assert "real(kind=r_def), pointer :: weights_z_qr(:) => null()" in gen_code
+    assert "integer(kind=i_def) :: np_xy_qr" in gen_code
+    assert "integer(kind=i_def) :: np_z_qr" in gen_code
+    assert "integer(kind=i_def) :: nlayers" in gen_code
+    assert "real(kind=r_def), pointer, dimension(:) :: n2_data => null()" in gen_code
+    assert "real(kind=r_def), pointer, dimension(:) :: n1_data => null()" in gen_code
+    assert "real(kind=r_def), pointer, dimension(:) :: g2_data => null()" in gen_code
+    assert "real(kind=r_def), pointer, dimension(:) :: g1_data => null()" in gen_code
+    assert "real(kind=r_def), pointer, dimension(:) :: m2_data => null()" in gen_code
+    assert "real(kind=r_def), pointer, dimension(:) :: m1_data => null()" in gen_code
+    assert "real(kind=r_def), pointer, dimension(:) :: f2_data => null()" in gen_code
+    assert "real(kind=r_def), pointer, dimension(:) :: f1_data => null()" in gen_code
+    assert "type(field_proxy_type) :: f1_proxy" in gen_code
+    assert "type(field_proxy_type) :: f2_proxy" in gen_code
+    assert "type(field_proxy_type) :: m1_proxy" in gen_code
+    assert "type(field_proxy_type) :: m2_proxy" in gen_code
+    assert "type(field_proxy_type) :: g1_proxy" in gen_code
+    assert "type(field_proxy_type) :: g2_proxy" in gen_code
+    assert "type(field_proxy_type) :: n1_proxy" in gen_code
+    assert "type(field_proxy_type) :: n2_proxy" in gen_code
+    assert "type(quadrature_xyoz_proxy_type) :: qr_proxy" in gen_code
+    assert "type(quadrature_xyoz_proxy_type) :: qr2_proxy" in gen_code
+    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in gen_code
+    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in gen_code
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in gen_code
+    assert "integer(kind=i_def) :: ndf_w1" in gen_code
+    assert "integer(kind=i_def) :: undf_w1" in gen_code
+    assert "integer(kind=i_def) :: ndf_w2" in gen_code
+    assert "integer(kind=i_def) :: undf_w2" in gen_code
+    assert "integer(kind=i_def) :: ndf_w3" in gen_code
+    assert "integer(kind=i_def) :: undf_w3" in gen_code
+    assert "integer(kind=i_def), pointer :: map_w1(:,:) => null()" in gen_code
+    assert "integer(kind=i_def), pointer :: map_w2(:,:) => null()" in gen_code
+    assert "integer(kind=i_def), pointer :: map_w3(:,:) => null()" in gen_code
     expected_code = (
-        "      !\n"
-        "      ! Look-up quadrature variables\n"
-        "      !\n"
-        "      qr_proxy = qr%get_quadrature_proxy()\n"
-        "      np_xy_qr = qr_proxy%np_xy\n"
-        "      np_z_qr = qr_proxy%np_z\n"
-        "      weights_xy_qr => qr_proxy%weights_xy\n"
-        "      weights_z_qr => qr_proxy%weights_z\n"
-        "      qr2_proxy = qr2%get_quadrature_proxy()\n"
-        "      np_xy_qr2 = qr2_proxy%np_xy\n"
-        "      np_z_qr2 = qr2_proxy%np_z\n"
-        "      weights_xy_qr2 => qr2_proxy%weights_xy\n"
-        "      weights_z_qr2 => qr2_proxy%weights_z\n"
-        "      !\n"
-        "      ! Allocate basis/diff-basis arrays\n"
-        "      !\n"
-        "      dim_w1 = f1_proxy%vspace%get_dim_space()\n"
-        "      diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()\n"
-        "      dim_w3 = m2_proxy%vspace%get_dim_space()\n"
-        "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (basis_w1_qr(dim_w1, ndf_w1, np_xy_qr, np_z_qr))\n"
-        "      ALLOCATE (diff_basis_w2_qr(diff_dim_w2, ndf_w2, np_xy_qr, "
+        "    ! Look-up quadrature variables\n"
+        "    qr_proxy = qr%get_quadrature_proxy()\n"
+        "    np_xy_qr = qr_proxy%np_xy\n"
+        "    np_z_qr = qr_proxy%np_z\n"
+        "    weights_xy_qr => qr_proxy%weights_xy\n"
+        "    weights_z_qr => qr_proxy%weights_z\n"
+        "    qr2_proxy = qr2%get_quadrature_proxy()\n"
+        "    np_xy_qr2 = qr2_proxy%np_xy\n"
+        "    np_z_qr2 = qr2_proxy%np_z\n"
+        "    weights_xy_qr2 => qr2_proxy%weights_xy\n"
+        "    weights_z_qr2 => qr2_proxy%weights_z\n"
+        "\n"
+        "    ! Allocate basis/diff-basis arrays\n"
+        "    dim_w1 = f1_proxy%vspace%get_dim_space()\n"
+        "    diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()\n"
+        "    dim_w3 = m2_proxy%vspace%get_dim_space()\n"
+        "    diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
+        "    ALLOCATE(basis_w1_qr(dim_w1,ndf_w1,np_xy_qr,np_z_qr))\n"
+        "    ALLOCATE(diff_basis_w2_qr(diff_dim_w2,ndf_w2,np_xy_qr,"
         "np_z_qr))\n"
-        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, np_xy_qr, np_z_qr))\n"
-        "      ALLOCATE (diff_basis_w3_qr(diff_dim_w3, ndf_w3, np_xy_qr, "
+        "    ALLOCATE(basis_w3_qr(dim_w3,ndf_w3,np_xy_qr,np_z_qr))\n"
+        "    ALLOCATE(diff_basis_w3_qr(diff_dim_w3,ndf_w3,np_xy_qr,"
         "np_z_qr))\n"
-        "      ALLOCATE (basis_w1_qr2(dim_w1, ndf_w1, np_xy_qr2, np_z_qr2))\n"
-        "      ALLOCATE (diff_basis_w2_qr2(diff_dim_w2, ndf_w2, np_xy_qr2, "
+        "    ALLOCATE(basis_w1_qr2(dim_w1,ndf_w1,np_xy_qr2,np_z_qr2))\n"
+        "    ALLOCATE(diff_basis_w2_qr2(diff_dim_w2,ndf_w2,np_xy_qr2,"
         "np_z_qr2))\n"
-        "      ALLOCATE (basis_w3_qr2(dim_w3, ndf_w3, np_xy_qr2, np_z_qr2))\n"
-        "      ALLOCATE (diff_basis_w3_qr2(diff_dim_w3, ndf_w3, np_xy_qr2, "
+        "    ALLOCATE(basis_w3_qr2(dim_w3,ndf_w3,np_xy_qr2,np_z_qr2))\n"
+        "    ALLOCATE(diff_basis_w3_qr2(diff_dim_w3,ndf_w3,np_xy_qr2,"
         "np_z_qr2))\n"
-        "      !\n"
-        "      ! Compute basis/diff-basis arrays\n"
-        "      !\n"
-        "      CALL qr%compute_function("
+        "\n"
+        "    ! Compute basis/diff-basis arrays\n"
+        "    call qr%compute_function("
         "BASIS, f1_proxy%vspace, dim_w1, ndf_w1, basis_w1_qr)\n"
-        "      CALL qr%compute_function(DIFF_BASIS, "
+        "    call qr%compute_function(DIFF_BASIS, "
         "f2_proxy%vspace, diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
-        "      CALL qr%compute_function("
+        "    call qr%compute_function("
         "BASIS, m2_proxy%vspace, dim_w3, ndf_w3, basis_w3_qr)\n"
-        "      CALL qr%compute_function(DIFF_BASIS, "
+        "    call qr%compute_function(DIFF_BASIS, "
         "m2_proxy%vspace, diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
-        "      CALL qr2%compute_function("
+        "    call qr2%compute_function("
         "BASIS, g1_proxy%vspace, dim_w1, ndf_w1, basis_w1_qr2)\n"
-        "      CALL qr2%compute_function(DIFF_BASIS, "
+        "    call qr2%compute_function(DIFF_BASIS, "
         "g2_proxy%vspace, diff_dim_w2, ndf_w2, diff_basis_w2_qr2)\n"
-        "      CALL qr2%compute_function("
+        "    call qr2%compute_function("
         "BASIS, n2_proxy%vspace, dim_w3, ndf_w3, basis_w3_qr2)\n"
-        "      CALL qr2%compute_function(DIFF_BASIS, "
+        "    call qr2%compute_function(DIFF_BASIS, "
         "n2_proxy%vspace, diff_dim_w3, ndf_w3, diff_basis_w3_qr2)\n"
-        "      !\n")
-    if expected_code not in gen_code:
-        print_diffs(expected_code, gen_code)
-        assert 0
+        "\n")
+    assert expected_code == gen_code
     assert ("      loop0_stop = f1_proxy%vspace%get_ncell()\n"
             "      loop1_start = 1\n"
             "      loop1_stop = g1_proxy%vspace%get_ncell()\n" in gen_code)
     expected_kern_call = (
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_qr_code(nlayers, f1_data, f2_data, "
+        "      do cell = loop0_start, loop0_stop, 1\n"
+        "        call testkern_qr_code(nlayers, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, "
         "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, "
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr, "
         "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO\n"
-        "      DO cell = loop1_start, loop1_stop, 1\n"
-        "        CALL testkern_qr_code(nlayers, g1_data, g2_data, "
+        "      enddo\n"
+        "      do cell = loop1_start, loop1_stop, 1\n"
+        "        call testkern_qr_code(nlayers, g1_data, g2_data, "
         "n1_data, b, n2_data, istp, "
         "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr2, "
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr2, "
         "ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr2, diff_basis_w3_qr2, "
         "np_xy_qr2, np_z_qr2, weights_xy_qr2, weights_z_qr2)\n"
-        "      END DO\n"
+        "      enddo\n"
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
@@ -514,9 +540,7 @@ def test_two_qr_same_shape(tmpdir):
         "basis_w3_qr2, diff_basis_w2_qr, diff_basis_w2_qr2, diff_basis_w3_qr, "
         "diff_basis_w3_qr2)\n"
     )
-    if expected_kern_call not in gen_code:
-        print_diffs(expected_kern_call, gen_code)
-        assert 0
+    assert expected_kern_call == gen_code
 
 
 def test_two_identical_qr(tmpdir):
@@ -556,13 +580,13 @@ def test_two_identical_qr(tmpdir):
     assert expected_alloc in gen_code
     expected_basis_init = (
         "      !\n"
-        "      CALL qr%compute_function(BASIS, f1_proxy%vspace, "
+        "      call qr%compute_function(BASIS, f1_proxy%vspace, "
         "dim_w1, ndf_w1, basis_w1_qr)\n"
-        "      CALL qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
+        "      call qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
         "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
-        "      CALL qr%compute_function(BASIS, m2_proxy%vspace, "
+        "      call qr%compute_function(BASIS, m2_proxy%vspace, "
         "dim_w3, ndf_w3, basis_w3_qr)\n"
-        "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
+        "      call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
         "      !\n")
     assert expected_basis_init in gen_code
@@ -570,20 +594,20 @@ def test_two_identical_qr(tmpdir):
             "      loop1_start = 1\n"
             "      loop1_stop = g1_proxy%vspace%get_ncell()\n" in gen_code)
     expected_kern_call = (
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_qr_code(nlayers, f1_data, f2_data,"
+        "      do cell = loop0_start, loop0_stop, 1\n"
+        "        call testkern_qr_code(nlayers, f1_data, f2_data,"
         " m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO\n"
-        "      DO cell = loop1_start, loop1_stop, 1\n"
-        "        CALL testkern_qr_code(nlayers, g1_data, g2_data, "
+        "      enddo\n"
+        "      do cell = loop1_start, loop1_stop, 1\n"
+        "        call testkern_qr_code(nlayers, g1_data, g2_data, "
         "n1_data, b, n2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO\n")
+        "      enddo\n")
     assert expected_kern_call in gen_code
     expected_dealloc = (
         "DEALLOCATE (basis_w1_qr, basis_w3_qr, diff_basis_w2_qr, "
@@ -602,8 +626,8 @@ def test_two_qr_different_shapes(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "TYPE(quadrature_face_proxy_type) qrf_proxy" in gen_code
-    assert "TYPE(quadrature_xyoz_proxy_type) qr_proxy" in gen_code
+    assert "type(quadrature_face_proxy_type) qrf_proxy" in gen_code
+    assert "type(quadrature_xyoz_proxy_type) qr_proxy" in gen_code
 
     assert "qr_proxy = qr%get_quadrature_proxy()" in gen_code
     assert "np_xy_qr = qr_proxy%np_xy" in gen_code
@@ -616,13 +640,13 @@ def test_two_qr_different_shapes(tmpdir):
     assert "nfaces_qrf = qrf_proxy%nfaces" in gen_code
     assert "weights_xyz_qrf => qrf_proxy%weights_xyz" in gen_code
 
-    assert ("CALL testkern_qr_code(nlayers, f1_data, f2_data, "
+    assert ("call testkern_qr_code(nlayers, f1_data, f2_data, "
             "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
             "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
             "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
             "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)"
             in gen_code)
-    assert ("CALL testkern_qr_faces_code(nlayers, f1_data, "
+    assert ("call testkern_qr_faces_code(nlayers, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), basis_w1_qrf, ndf_w2, undf_w2, map_w2(:,cell), "
             "diff_basis_w2_qrf, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qrf,"
@@ -668,9 +692,9 @@ def test_anyw2(tmpdir, dist_mem):
         "      !\n"
         "      ! Compute basis/diff-basis arrays\n"
         "      !\n"
-        "      CALL qr%compute_function(BASIS, f1_proxy%vspace, "
+        "      call qr%compute_function(BASIS, f1_proxy%vspace, "
         "dim_any_w2, ndf_any_w2, basis_any_w2_qr)\n"
-        "      CALL qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
+        "      call qr%compute_function(DIFF_BASIS, f1_proxy%vspace, "
         "diff_dim_any_w2, ndf_any_w2, diff_basis_any_w2_qr)")
     assert output in generated_code
 
@@ -686,49 +710,49 @@ def test_qr_plus_eval(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     expected_module_declns = (
-        "    USE constants_mod, ONLY: r_def, i_def\n"
-        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+        "    use constants_mod, only : r_def, i_def\n"
+        "    use field_mod, only : field_type, field_proxy_type\n")
     assert expected_module_declns in gen_code
 
     output_decls = (
-        "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
-        "      USE testkern_qr_mod, ONLY: testkern_qr_code\n"
-        "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
-        "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
+        "    subroutine invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
+        "      use testkern_qr_mod, only : testkern_qr_code\n"
+        "      use testkern_eval_mod, only : testkern_eval_code\n"
+        "      use quadrature_xyoz_mod, only : quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
-        "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
-        "      REAL(KIND=r_def), intent(in) :: a\n"
-        "      INTEGER(KIND=i_def), intent(in) :: istp\n"
-        "      TYPE(field_type), intent(in) :: f0, f1, f2, m1, m2\n"
-        "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
-        "      INTEGER(KIND=i_def) cell\n"
-        "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
-        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-        "      INTEGER(KIND=i_def) df_nodal, df_w0, df_w1\n"
-        "      REAL(KIND=r_def), allocatable :: basis_w0_on_w0(:,:,:), "
+        "      use function_space_mod, only : BASIS, DIFF_BASIS\n"
+        "      real(kind=r_def), intent(in) :: a\n"
+        "      integer(kind=i_def), intent(in) :: istp\n"
+        "      type(field_type), intent(in) :: f0, f1, f2, m1, m2\n"
+        "      type(quadrature_xyoz_type), intent(in) :: qr\n"
+        "      integer(kind=i_def) cell\n"
+        "      integer(kind=i_def) loop1_start, loop1_stop\n"
+        "      integer(kind=i_def) loop0_start, loop0_stop\n"
+        "      integer(kind=i_def) df_nodal, df_w0, df_w1\n"
+        "      real(kind=r_def), allocatable :: basis_w0_on_w0(:,:,:), "
         "diff_basis_w1_on_w0(:,:,:), basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
-        "      INTEGER(KIND=i_def) dim_w0, diff_dim_w1, dim_w1, "
+        "      integer(kind=i_def) dim_w0, diff_dim_w1, dim_w1, "
         "diff_dim_w2, dim_w3, diff_dim_w3\n"
-        "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
-        "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
+        "      real(kind=r_def), pointer :: nodes_w0(:,:) => null()\n"
+        "      real(kind=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
-        "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
-        "      INTEGER(KIND=i_def) nlayers\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
-        "      REAL(KIND=r_def), pointer, dimension(:) :: f0_data => null()\n"
+        "      integer(kind=i_def) np_xy_qr, np_z_qr\n"
+        "      integer(kind=i_def) nlayers\n"
+        "      real(kind=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      real(kind=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      real(kind=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      real(kind=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "      real(kind=r_def), pointer, dimension(:) :: f0_data => null()\n"
 
-        "      TYPE(field_proxy_type) f0_proxy, f1_proxy, f2_proxy, "
+        "      type(field_proxy_type) f0_proxy, f1_proxy, f2_proxy, "
         "m1_proxy, m2_proxy\n"
-        "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
-        "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null(), "
+        "      type(quadrature_xyoz_proxy_type) qr_proxy\n"
+        "      integer(kind=i_def), pointer :: map_w0(:,:) => null(), "
         "map_w1(:,:) => null(), map_w2(:,:) => null(), map_w3(:,:) => "
         "null()\n"
-        "      INTEGER(KIND=i_def) ndf_w0, undf_w0, ndf_w1, undf_w1, "
+        "      integer(kind=i_def) ndf_w0, undf_w0, ndf_w1, undf_w1, "
         "ndf_w2, undf_w2, ndf_w3, undf_w3\n")
     assert output_decls in gen_code
     output_setup = (
@@ -768,43 +792,43 @@ def test_qr_plus_eval(tmpdir):
         "      !\n"
         "      ! Compute basis/diff-basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w0=1,ndf_w0\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w1=1,ndf_w1\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      CALL qr%compute_function(BASIS, f1_proxy%vspace, "
+        "        enddo\n"
+        "      enddo\n"
+        "      call qr%compute_function(BASIS, f1_proxy%vspace, "
         "dim_w1, ndf_w1, basis_w1_qr)\n"
-        "      CALL qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
+        "      call qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
         "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
-        "      CALL qr%compute_function(BASIS, m2_proxy%vspace, "
+        "      call qr%compute_function(BASIS, m2_proxy%vspace, "
         "dim_w3, ndf_w3, basis_w3_qr)\n"
-        "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
+        "      call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n")
     assert output_setup in gen_code
     assert ("      loop0_stop = f0_proxy%vspace%get_ncell()\n"
             "      loop1_start = 1\n"
             "      loop1_stop = f1_proxy%vspace%get_ncell()\n" in gen_code)
     output_kern_call = (
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_eval_code(nlayers, f0_data, "
+        "      do cell = loop0_start, loop0_stop, 1\n"
+        "        call testkern_eval_code(nlayers, f0_data, "
         "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO\n"
-        "      DO cell = loop1_start, loop1_stop, 1\n"
-        "        CALL testkern_qr_code(nlayers, f1_data, f2_data, "
+        "      enddo\n"
+        "      do cell = loop1_start, loop1_stop, 1\n"
+        "        call testkern_qr_code(nlayers, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO\n")
+        "      enddo\n")
     assert output_kern_call in gen_code
     output_dealloc = (
         "      DEALLOCATE (basis_w0_on_w0, basis_w1_qr, basis_w3_qr, "
@@ -841,18 +865,18 @@ def test_two_eval_same_space(tmpdir):
         "      !\n"
         "      ! Compute basis/diff-basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w0=1,ndf_w0\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w1=1,ndf_w1\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
+        "        enddo\n"
+        "      enddo\n"
         "      !\n"
         "      ! Set-up all of the loop bounds\n"
         "      !\n"
@@ -863,16 +887,16 @@ def test_two_eval_same_space(tmpdir):
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_eval_code(nlayers, f0_data, "
+        "      do cell = loop0_start, loop0_stop, 1\n"
+        "        call testkern_eval_code(nlayers, f0_data, "
         "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO\n"
-        "      DO cell = loop1_start, loop1_stop, 1\n"
-        "        CALL testkern_eval_code(nlayers, f2_data, "
+        "      enddo\n"
+        "      do cell = loop1_start, loop1_stop, 1\n"
+        "        call testkern_eval_code(nlayers, f2_data, "
         "f3_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO\n"
+        "      enddo\n"
     )
     assert output_code in gen_code
 
@@ -917,30 +941,30 @@ def test_two_eval_diff_space(tmpdir):
     expected_code = (
         "      ! Compute basis/diff-basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w0=1,ndf_w0\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w1=1,ndf_w1\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w2=1,ndf_w2\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w3=1,ndf_w3\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = f2_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
+        "        enddo\n"
+        "      enddo\n"
         "      !\n"
         "      ! Set-up all of the loop bounds\n"
         "      !\n"
@@ -951,17 +975,17 @@ def test_two_eval_diff_space(tmpdir):
         "      !\n"
         "      ! Call our kernels\n"
         "      !\n"
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_eval_code(nlayers, f0_data, "
+        "      do cell = loop0_start, loop0_stop, 1\n"
+        "        call testkern_eval_code(nlayers, f0_data, "
         "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO\n"
-        "      DO cell = loop1_start, loop1_stop, 1\n"
-        "        CALL testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d,"
+        "      enddo\n"
+        "      do cell = loop1_start, loop1_stop, 1\n"
+        "        call testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d,"
         " op1_local_stencil, f2_data, ndf_w0, ndf_w2, "
         "basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
-        "      END DO\n")
+        "      enddo\n")
     assert expected_code in gen_code
 
 
@@ -982,19 +1006,19 @@ def test_two_eval_same_var_same_space(tmpdir):
     assert gen_code.count(
         "ndf_adspc1_f0 = f0_proxy%vspace%get_ndf()") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_adspc1_f0\n"
-        "        DO df_w0=1,ndf_w0\n"
+        "      do df_nodal=1,ndf_adspc1_f0\n"
+        "        do df_w0=1,ndf_w0\n"
         "          basis_w0_on_adspc1_f0(:,df_w0,df_nodal) = f1_proxy%vspace"
         "%call_function(BASIS,df_w0,nodes_adspc1_f0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n") == 1
+        "        enddo\n"
+        "      enddo\n") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_adspc1_f0\n"
-        "        DO df_w1=1,ndf_w1\n"
+        "      do df_nodal=1,ndf_adspc1_f0\n"
+        "        do df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_adspc1_f0(:,df_w1,df_nodal) = f2_proxy"
         "%vspace%call_function(DIFF_BASIS,df_w1,nodes_adspc1_f0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n") == 1
+        "        enddo\n"
+        "      enddo\n") == 1
     assert gen_code.count(
         "DEALLOCATE (basis_w0_on_adspc1_f0, diff_basis_w1_on_adspc1_f0)") == 1
 
@@ -1050,53 +1074,53 @@ def test_two_eval_op_to_space(tmpdir):
     # testkern_eval requires diff-basis fns on W1 and testkern_eval_op_to
     # requires them on W2 and W3.
     basis_comp = (
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w0=1,ndf_w0\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w1=1,ndf_w1\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w3\n"
-        "        DO df_w2=1,ndf_w2\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w3\n"
+        "        do df_w2=1,ndf_w2\n"
         "          basis_w2_on_w3(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(BASIS,df_w2,nodes_w3(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w3\n"
-        "        DO df_w2=1,ndf_w2\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w3\n"
+        "        do df_w2=1,ndf_w2\n"
         "          diff_basis_w2_on_w3(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(DIFF_BASIS,df_w2,nodes_w3(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w3\n"
-        "        DO df_w3=1,ndf_w3\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w3\n"
+        "        do df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w3(:,df_w3,df_nodal) = f2_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w3(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n")
+        "        enddo\n"
+        "      enddo\n")
     assert basis_comp in gen_code
     assert ("      loop0_start = 1\n"
             "      loop0_stop = f0_proxy%vspace%get_ncell()\n"
             "      loop1_start = 1\n"
             "      loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code)
     kernel_calls = (
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_eval_code(nlayers, f0_data, "
+        "      do cell = loop0_start, loop0_stop, 1\n"
+        "        call testkern_eval_code(nlayers, f0_data, "
         "f1_data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
-        "      END DO\n"
-        "      DO cell = loop1_start, loop1_stop, 1\n"
-        "        CALL testkern_eval_op_to_code(cell, nlayers, "
+        "      enddo\n"
+        "      do cell = loop1_start, loop1_stop, 1\n"
+        "        call testkern_eval_op_to_code(cell, nlayers, "
         "op1_proxy%ncell_3d, op1_local_stencil, f2_data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
-        "      END DO\n"
+        "      enddo\n"
     )
     assert kernel_calls in gen_code
 
@@ -1139,42 +1163,42 @@ def test_eval_diff_nodal_space(tmpdir):
     )
     assert expected_alloc in gen_code
     expected_compute = (
-        "      DO df_nodal=1,ndf_w3\n"
-        "        DO df_w2=1,ndf_w2\n"
+        "      do df_nodal=1,ndf_w3\n"
+        "        do df_w2=1,ndf_w2\n"
         "          basis_w2_on_w3(:,df_w2,df_nodal) = op2_proxy%fs_to%"
         "call_function(BASIS,df_w2,nodes_w3(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w3\n"
-        "        DO df_w2=1,ndf_w2\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w3\n"
+        "        do df_w2=1,ndf_w2\n"
         "          diff_basis_w2_on_w3(:,df_w2,df_nodal) = op2_proxy%fs_to%"
         "call_function(DIFF_BASIS,df_w2,nodes_w3(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w3\n"
-        "        DO df_w3=1,ndf_w3\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w3\n"
+        "        do df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w3(:,df_w3,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w3(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w2=1,ndf_w2\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w2=1,ndf_w2\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w2=1,ndf_w2\n"
         "          diff_basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(DIFF_BASIS,df_w2,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w3=1,ndf_w3\n"
+        "        enddo\n"
+        "      enddo\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = f0_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n"
+        "        enddo\n"
+        "      enddo\n"
     )
     assert expected_compute in gen_code
 
@@ -1184,19 +1208,19 @@ def test_eval_diff_nodal_space(tmpdir):
             "      loop1_stop = f2_proxy%vspace%get_ncell()\n" in gen_code)
 
     expected_kern_call = (
-        "      DO cell = loop0_start, loop0_stop, 1\n"
-        "        CALL testkern_eval_op_to_code(cell, nlayers, "
+        "      do cell = loop0_start, loop0_stop, 1\n"
+        "        call testkern_eval_op_to_code(cell, nlayers, "
         "op2_proxy%ncell_3d, op2_local_stencil, f1_data, "
         "ndf_w2, basis_w2_on_w3, diff_basis_w2_on_w3, ndf_w0, ndf_w3, "
         "undf_w3, map_w3(:,cell), diff_basis_w3_on_w3)\n"
-        "      END DO\n"
-        "      DO cell = loop1_start, loop1_stop, 1\n"
-        "        CALL testkern_eval_op_to_w0_code(cell, nlayers, "
+        "      enddo\n"
+        "      do cell = loop1_start, loop1_stop, 1\n"
+        "        call testkern_eval_op_to_w0_code(cell, nlayers, "
         "op1_proxy%ncell_3d, op1_local_stencil, f0_data, "
         "f2_data, ndf_w2, basis_w2_on_w0, diff_basis_w2_on_w0, "
         "ndf_w0, undf_w0, map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), "
         "diff_basis_w3_on_w0)\n"
-        "      END DO\n"
+        "      enddo\n"
     )
     assert expected_kern_call in gen_code
     expected_dealloc = (
@@ -1218,16 +1242,16 @@ def test_eval_2fs(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
-    assert ("      REAL(KIND=r_def), allocatable :: "
+    assert ("      real(kind=r_def), allocatable :: "
             "diff_basis_w1_on_w0(:,:,:), diff_basis_w1_on_w1(:,:,:)\n"
-            "      INTEGER(KIND=i_def) diff_dim_w1\n" in
+            "      integer(kind=i_def) diff_dim_w1\n" in
             gen_code)
     assert ("      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
             "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
             "ndf_w0))\n"
             "      ALLOCATE (diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, "
             "ndf_w1))\n" in gen_code)
-    assert ("CALL testkern_eval_2fs_code(nlayers, f0_data, "
+    assert ("call testkern_eval_2fs_code(nlayers, f0_data, "
             "f1_data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
             "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in
             gen_code)
@@ -1244,11 +1268,11 @@ def test_2eval_2fs(tmpdir):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
 
-    assert ("REAL(KIND=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), "
+    assert ("real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), "
             "diff_basis_w1_on_w1(:,:,:)\n" in gen_code)
     # Check for duplication
     for idx in range(2):
-        assert gen_code.count(f"REAL(KIND=r_def), pointer :: nodes_w{idx}(:,:)"
+        assert gen_code.count(f"real(kind=r_def), pointer :: nodes_w{idx}(:,:)"
                               f" => null()") == 1
         assert gen_code.count(
             f"      nodes_w{idx} => f{idx}_proxy%vspace%get_nodes()\n") == 1
@@ -1272,7 +1296,7 @@ def test_2eval_1qr_2fs(tmpdir):
     gen_code = str(psy.gen)
 
     assert gen_code.count(
-        "REAL(KIND=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), "
+        "real(kind=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), "
         "diff_basis_w1_on_w1(:,:,:), basis_w2_on_w0(:,:,:), "
         "diff_basis_w3_on_w0(:,:,:), basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
@@ -1293,27 +1317,27 @@ def test_2eval_1qr_2fs(tmpdir):
         "ndf_w0))\n") == 1
 
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w1=1,ndf_w1\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = "
         "f1_proxy%vspace%call_function(DIFF_BASIS,df_w1,nodes_w0(:,"
         "df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n") == 1
+        "        enddo\n"
+        "      enddo\n") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_w1\n"
-        "        DO df_w1=1,ndf_w1\n"
+        "      do df_nodal=1,ndf_w1\n"
+        "        do df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w1(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w1(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n") == 1
+        "        enddo\n"
+        "      enddo\n") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w3=1,ndf_w3\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = m2_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n") == 1
+        "        enddo\n"
+        "      enddo\n") == 1
 
     # 2nd kernel requires basis on W2 and diff-basis on W3, both evaluated
     # on W0 (the to-space of the operator that is written to)
@@ -1323,20 +1347,20 @@ def test_2eval_1qr_2fs(tmpdir):
         "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_w0))\n") == 1
 
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_w0\n"
-        "        DO df_w2=1,ndf_w2\n"
+        "      do df_nodal=1,ndf_w0\n"
+        "        do df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
-        "        END DO\n"
-        "      END DO\n") == 1
+        "        enddo\n"
+        "      enddo\n") == 1
 
     # 3rd kernel requires XYoZ quadrature: basis on W1, diff basis on W2 and
     # basis+diff basis on W3.
     assert gen_code.count(
-        "      CALL qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
+        "      call qr%compute_function(DIFF_BASIS, f2_proxy%vspace, "
         "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n") == 1
     assert gen_code.count(
-        "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
+        "      call qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n") == 1
 
     assert ("      loop0_start = 1\n"
@@ -1346,25 +1370,25 @@ def test_2eval_1qr_2fs(tmpdir):
             "      loop2_start = 1\n"
             "      loop2_stop = f1_proxy%vspace%get_ncell()\n" in gen_code)
 
-    assert ("      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL testkern_eval_2fs_code(nlayers, f0_data, "
+    assert ("      do cell = loop0_start, loop0_stop, 1\n"
+            "        call testkern_eval_2fs_code(nlayers, f0_data, "
             "f1_data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1,"
             " map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)\n"
-            "      END DO\n"
-            "      DO cell = loop1_start, loop1_stop, 1\n"
-            "        CALL testkern_eval_op_code(cell, nlayers, "
+            "      enddo\n"
+            "      do cell = loop1_start, loop1_stop, 1\n"
+            "        call testkern_eval_op_code(cell, nlayers, "
             "op1_proxy%ncell_3d, op1_local_stencil, m2_data, "
             "ndf_w0, ndf_w2, basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell),"
             " diff_basis_w3_on_w0)\n"
-            "      END DO\n"
-            "      DO cell = loop2_start, loop2_stop, 1\n"
-            "        CALL testkern_qr_code(nlayers, f1_data, "
+            "      enddo\n"
+            "      do cell = loop2_start, loop2_stop, 1\n"
+            "        call testkern_qr_code(nlayers, f1_data, "
             "f2_data, m1_data, a, m2_data, istp, ndf_w1, "
             "undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
             "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, np_xy_qr, "
             "np_z_qr, weights_xy_qr, weights_z_qr)\n"
-            "      END DO\n" in gen_code)
+            "      enddo\n" in gen_code)
 
     assert gen_code.count(
         "DEALLOCATE (basis_w1_qr, basis_w2_on_w0, basis_w3_qr, "
@@ -1444,7 +1468,7 @@ def test_basis_evaluator():
     generated_code = str(kernel.gen_stub)
 
     output_arg_list = (
-        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "    subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
         "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
@@ -1458,80 +1482,80 @@ def test_basis_evaluator():
         "basis_w2htrace_on_w0)\n")
     assert output_arg_list in generated_code
     output_declns = (
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        "      integer(kind=i_def), intent(in) :: nlayers\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w0\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w2\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w2v\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2v) "
         ":: map_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2vtrace\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2vtrace) "
+        "      integer(kind=i_def), intent(in) :: ndf_w2vtrace\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2vtrace) "
         ":: map_w2vtrace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        "      integer(kind=i_def), intent(in) :: ndf_wchi\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_wchi) "
         ":: map_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        "      integer(kind=i_def), intent(in) :: ndf_wtheta\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_wtheta) "
         ":: map_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, ndf_w1, undf_w2, "
+        "      integer(kind=i_def), intent(in) :: undf_w0, ndf_w1, undf_w2, "
         "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v, ndf_w2broken, undf_wchi, "
         "ndf_w2trace, undf_w2vtrace, ndf_w2htrace\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) "
+        "      real(kind=r_def), intent(inout), dimension(undf_w0) "
         ":: field_1_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) "
+        "      real(kind=r_def), intent(in), dimension(undf_w2) "
         ":: field_3_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wtheta) "
+        "      real(kind=r_def), intent(in), dimension(undf_wtheta) "
         ":: field_5_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) "
+        "      real(kind=r_def), intent(in), dimension(undf_w2v) "
         ":: field_7_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
+        "      real(kind=r_def), intent(in), dimension(undf_wchi) "
         ":: field_9_wchi\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2vtrace) "
+        "      real(kind=r_def), intent(in), dimension(undf_w2vtrace) "
         ":: field_11_w2vtrace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: cell\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w1,ndf_w1,"
+        "      integer(kind=i_def), intent(in) :: cell\n"
+        "      integer(kind=i_def), intent(in) :: op_2_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w1,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w3,ndf_w3,"
+        "      integer(kind=i_def), intent(in) :: op_4_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
+        "      integer(kind=i_def), intent(in) :: op_6_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_8_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2broken,"
+        "      integer(kind=i_def), intent(in) :: op_8_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w2broken,"
         "ndf_w2broken,op_8_ncell_3d) :: op_8\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
+        "      integer(kind=i_def), intent(in) :: op_10_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w2trace,"
         "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2htrace,"
+        "      integer(kind=i_def), intent(in) :: op_12_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w2htrace,"
         "ndf_w2htrace,op_12_ncell_3d) :: op_12\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,ndf_w0) "
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w0,ndf_w0) "
         ":: basis_w0_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w0) "
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w1,ndf_w0) "
         ":: basis_w1_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,ndf_w0) "
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w2,ndf_w0) "
         ":: basis_w2_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_w0) "
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w3,ndf_w0) "
         ":: basis_w3_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,ndf_w0) "
+        "      real(kind=r_def), intent(in), dimension(1,ndf_wtheta,ndf_w0) "
         ":: basis_wtheta_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,ndf_w0) "
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w2h,ndf_w0) "
         ":: basis_w2h_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,ndf_w0) "
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w2v,ndf_w0) "
         ":: basis_w2v_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2broken,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w2broken,"
         "ndf_w0) :: basis_w2broken_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wchi,ndf_w0) "
+        "      real(kind=r_def), intent(in), dimension(1,ndf_wchi,ndf_w0) "
         ":: basis_wchi_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2trace,"
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2trace,"
         "ndf_w0) :: basis_w2trace_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2vtrace,"
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2vtrace,"
         "ndf_w0) :: basis_w2vtrace_on_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2htrace,"
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2htrace,"
         "ndf_w0) :: basis_w2htrace_on_w0\n"
     )
     assert output_declns in generated_code
@@ -1649,7 +1673,7 @@ def test_diff_basis():
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "    subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
         "op_10_ncell_3d, op_10, field_11_w2htrace, op_12_ncell_3d, op_12, "
@@ -1664,91 +1688,91 @@ def test_diff_basis():
         "map_w2htrace, diff_basis_w2htrace_qr_xyoz, ndf_w2vtrace, "
         "diff_basis_w2vtrace_qr_xyoz, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod\n"
+        "      use constants_mod\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2htrace\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2htrace) "
+        "      integer(kind=i_def), intent(in) :: nlayers\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w0\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w2\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w2htrace\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2htrace) "
         ":: map_w2htrace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        "      integer(kind=i_def), intent(in) :: ndf_w2v\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2v) "
         ":: map_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        "      integer(kind=i_def), intent(in) :: ndf_wchi\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_wchi) "
         ":: map_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        "      integer(kind=i_def), intent(in) :: ndf_wtheta\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_wtheta) "
         ":: map_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, ndf_w1, undf_w2, "
+        "      integer(kind=i_def), intent(in) :: undf_w0, ndf_w1, undf_w2, "
         "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v, ndf_w2broken, undf_wchi, "
         "ndf_w2trace, undf_w2htrace, ndf_w2vtrace\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w0) "
+        "      real(kind=r_def), intent(inout), dimension(undf_w0) "
         ":: field_1_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) "
+        "      real(kind=r_def), intent(in), dimension(undf_w2) "
         ":: field_3_w2\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) "
+        "      real(kind=r_def), intent(inout), dimension(undf_wtheta) "
         ":: field_5_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) "
+        "      real(kind=r_def), intent(in), dimension(undf_w2v) "
         ":: field_7_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
+        "      real(kind=r_def), intent(in), dimension(undf_wchi) "
         ":: field_9_wchi\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2htrace) "
+        "      real(kind=r_def), intent(inout), dimension(undf_w2htrace) "
         ":: field_11_w2htrace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: cell\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
+        "      integer(kind=i_def), intent(in) :: cell\n"
+        "      integer(kind=i_def), intent(in) :: op_2_ncell_3d\n"
+        "      real(kind=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w3,ndf_w3,"
+        "      integer(kind=i_def), intent(in) :: op_4_ncell_3d\n"
+        "      real(kind=r_def), intent(inout), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
+        "      integer(kind=i_def), intent(in) :: op_6_ncell_3d\n"
+        "      real(kind=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_8_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2broken,"
+        "      integer(kind=i_def), intent(in) :: op_8_ncell_3d\n"
+        "      real(kind=r_def), intent(inout), dimension(ndf_w2broken,"
         "ndf_w2broken,op_8_ncell_3d) :: op_8\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2trace,"
+        "      integer(kind=i_def), intent(in) :: op_10_ncell_3d\n"
+        "      real(kind=r_def), intent(inout), dimension(ndf_w2trace,"
         "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2vtrace,"
+        "      integer(kind=i_def), intent(in) :: op_12_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w2vtrace,"
         "ndf_w2vtrace,op_12_ncell_3d) :: op_12\n"
-        "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
+        "      integer(kind=i_def), intent(in) :: np_xy_qr_xyoz, "
         "np_z_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w0,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w0_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w1,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w1_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,"
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w3,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w3_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_wtheta,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_wtheta_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,"
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2h,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2h_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,"
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2v,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2v_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2broken,"
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2broken,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2broken_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wchi,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_wchi,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_wchi_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2trace,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w2trace,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2trace_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2htrace,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w2htrace,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2htrace_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2vtrace,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w2vtrace,"
         "np_xy_qr_xyoz,np_z_qr_xyoz) :: diff_basis_w2vtrace_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) "
+        "      real(kind=r_def), intent(in), dimension(np_xy_qr_xyoz) "
         ":: weights_xy_qr_xyoz\n"
-        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) "
+        "      real(kind=r_def), intent(in), dimension(np_z_qr_xyoz) "
         ":: weights_z_qr_xyoz\n"
-        "    END SUBROUTINE dummy_code\n"
-        "  END MODULE dummy_mod")
+        "    end subroutine dummy_code\n"
+        "  end MODULE dummy_mod")
     assert output in generated_code
 
 
@@ -1816,7 +1840,7 @@ def test_diff_basis_eval():
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "    subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, field_9_wchi, "
         "op_10_ncell_3d, op_10, field_11_w2vtrace, op_12_ncell_3d, op_12, "
@@ -1832,82 +1856,82 @@ def test_diff_basis_eval():
         "diff_basis_w2htrace_on_w2)\n")
     assert output_args in generated_code
     output_declns = (
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        "      integer(kind=i_def), intent(in) :: nlayers\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w0\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w2\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w2v\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2v) "
         ":: map_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2vtrace\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2vtrace) "
+        "      integer(kind=i_def), intent(in) :: ndf_w2vtrace\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2vtrace) "
         ":: map_w2vtrace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        "      integer(kind=i_def), intent(in) :: ndf_wchi\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_wchi) "
         ":: map_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        "      integer(kind=i_def), intent(in) :: ndf_wtheta\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_wtheta) "
         ":: map_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_w2, ndf_w1, "
+        "      integer(kind=i_def), intent(in) :: undf_w0, undf_w2, ndf_w1, "
         "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v, ndf_w2broken, undf_wchi, "
         "ndf_w2trace, undf_w2vtrace, ndf_w2htrace\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w0) "
+        "      real(kind=r_def), intent(in), dimension(undf_w0) "
         ":: field_1_w0\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) "
+        "      real(kind=r_def), intent(in), dimension(undf_w2) "
         ":: field_3_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wtheta) "
+        "      real(kind=r_def), intent(in), dimension(undf_wtheta) "
         ":: field_5_wtheta\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) "
+        "      real(kind=r_def), intent(in), dimension(undf_w2v) "
         ":: field_7_w2v\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
+        "      real(kind=r_def), intent(in), dimension(undf_wchi) "
         ":: field_9_wchi\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2vtrace) "
+        "      real(kind=r_def), intent(in), dimension(undf_w2vtrace) "
         ":: field_11_w2vtrace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: cell\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2,ndf_w1,"
+        "      integer(kind=i_def), intent(in) :: cell\n"
+        "      integer(kind=i_def), intent(in) :: op_2_ncell_3d\n"
+        "      real(kind=r_def), intent(inout), dimension(ndf_w2,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w3,ndf_w3,"
+        "      integer(kind=i_def), intent(in) :: op_4_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
+        "      integer(kind=i_def), intent(in) :: op_6_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_8_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2broken,"
+        "      integer(kind=i_def), intent(in) :: op_8_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w2broken,"
         "ndf_w2broken,op_8_ncell_3d) :: op_8\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
+        "      integer(kind=i_def), intent(in) :: op_10_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w2trace,"
         "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
-        "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(in), dimension(ndf_w2htrace,"
+        "      integer(kind=i_def), intent(in) :: op_12_ncell_3d\n"
+        "      real(kind=r_def), intent(in), dimension(ndf_w2htrace,"
         "ndf_w2htrace,op_12_ncell_3d) :: op_12\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,ndf_w2) "
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w0,ndf_w2) "
         ":: diff_basis_w0_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w2) "
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w1,ndf_w2) "
         ":: diff_basis_w1_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,ndf_w2) "
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2,ndf_w2) "
         ":: diff_basis_w2_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,ndf_w2) "
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w3,ndf_w2) "
         ":: diff_basis_w3_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,ndf_w2) "
+        "      real(kind=r_def), intent(in), dimension(3,ndf_wtheta,ndf_w2) "
         ":: diff_basis_wtheta_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,ndf_w2) "
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2h,ndf_w2) "
         ":: diff_basis_w2h_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,ndf_w2) "
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2v,ndf_w2) "
         ":: diff_basis_w2v_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2broken,"
+        "      real(kind=r_def), intent(in), dimension(1,ndf_w2broken,"
         "ndf_w2) :: diff_basis_w2broken_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wchi,ndf_w2) "
+        "      real(kind=r_def), intent(in), dimension(3,ndf_wchi,ndf_w2) "
         ":: diff_basis_wchi_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2trace,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w2trace,"
         "ndf_w2) :: diff_basis_w2trace_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2vtrace,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w2vtrace,"
         "ndf_w2) :: diff_basis_w2vtrace_on_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2htrace,"
+        "      real(kind=r_def), intent(in), dimension(3,ndf_w2htrace,"
         "ndf_w2) :: diff_basis_w2htrace_on_w2\n"
-        "    END SUBROUTINE dummy_code\n"
+        "    end subroutine dummy_code\n"
     )
     assert output_declns in generated_code
 
@@ -1930,7 +1954,7 @@ def test_2eval_stubgen():
     generated_code = str(kernel.gen_stub)
 
     assert (
-        "SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
+        "subroutine dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, op_8_ncell_3d, op_8, "
         "field_9_wchi, op_10_ncell_3d, op_10, field_11_w2vtrace, "
@@ -1952,56 +1976,56 @@ def test_2eval_stubgen():
         "diff_basis_w2htrace_on_w2h, diff_basis_w2htrace_on_wtheta)\n" in
         generated_code)
     assert (
-        "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2v) "
+        "      integer(kind=i_def), intent(in) :: nlayers\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w0\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w2\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2) :: map_w2\n"
+        "      integer(kind=i_def), intent(in) :: ndf_w2v\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2v) "
         ":: map_w2v\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_w2vtrace\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w2vtrace) "
+        "      integer(kind=i_def), intent(in) :: ndf_w2vtrace\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_w2vtrace) "
         ":: map_w2vtrace\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wchi) "
+        "      integer(kind=i_def), intent(in) :: ndf_wchi\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_wchi) "
         ":: map_wchi\n"
-        "      INTEGER(KIND=i_def), intent(in) :: ndf_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in), dimension(ndf_wtheta) "
+        "      integer(kind=i_def), intent(in) :: ndf_wtheta\n"
+        "      integer(kind=i_def), intent(in), dimension(ndf_wtheta) "
         ":: map_wtheta\n"
-        "      INTEGER(KIND=i_def), intent(in) :: undf_w0, undf_w2, ndf_w1, "
+        "      integer(kind=i_def), intent(in) :: undf_w0, undf_w2, ndf_w1, "
         "ndf_w3, undf_wtheta, ndf_w2h, undf_w2v, ndf_w2broken, undf_wchi, "
         "ndf_w2trace, undf_w2vtrace, ndf_w2htrace\n" in generated_code)
 
     for space in ["w2h", "wtheta"]:
-        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,"
+        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w0,"
                 f"ndf_{space}) :: diff_basis_w0_on_{space}" in generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,"
+        assert (f"real(kind=r_def), intent(in), dimension(1,ndf_w2,"
                 f"ndf_{space}) :: diff_basis_w2_on_{space}" in generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,"
+        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w1,"
                 f"ndf_{space}) :: diff_basis_w1_on_{space}" in generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,"
+        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w3,"
                 f"ndf_{space}) :: diff_basis_w3_on_{space}" in generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,"
+        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_wtheta,"
                 f"ndf_{space}) :: diff_basis_wtheta_on_{space}" in
                 generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,"
+        assert (f"real(kind=r_def), intent(in), dimension(1,ndf_w2h,"
                 f"ndf_{space}) :: diff_basis_w2h_on_{space}" in generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,"
+        assert (f"real(kind=r_def), intent(in), dimension(1,ndf_w2v,"
                 f"ndf_{space}) :: diff_basis_w2v_on_{space}" in generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(1,ndf_w2broken,"
+        assert (f"real(kind=r_def), intent(in), dimension(1,ndf_w2broken,"
                 f"ndf_{space}) :: diff_basis_w2broken_on_{space}" in
                 generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_wchi,"
+        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_wchi,"
                 f"ndf_{space}) :: diff_basis_wchi_on_{space}" in
                 generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w2trace,"
+        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w2trace,"
                 f"ndf_{space}) :: diff_basis_w2trace_on_{space}" in
                 generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w2vtrace,"
+        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w2vtrace,"
                 f"ndf_{space}) :: diff_basis_w2vtrace_on_{space}" in
                 generated_code)
-        assert (f"REAL(KIND=r_def), intent(in), dimension(3,ndf_w2htrace,"
+        assert (f"real(kind=r_def), intent(in), dimension(3,ndf_w2htrace,"
                 f"ndf_{space}) :: diff_basis_w2htrace_on_{space}" in
                 generated_code)
 

@@ -676,6 +676,8 @@ class LFRicStencils(LFRicCollection):
                 #                        entity_decls=[map_name+" => null()"]))
 
                 # FIXME: Do we need these?
+                # val = self.dofmap_symbol(symtab,arg).name
+                # import pdb; pdb.set_trace()
                 # parent.add(DeclGen(parent, datatype="integer",
                 #                    kind=api_config.default_kind["integer"],
                 #                    pointer=True,
