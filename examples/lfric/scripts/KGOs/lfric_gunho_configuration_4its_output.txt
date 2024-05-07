@@ -1,806 +1,806 @@
-20230922120433.305+0100:WARN : Missing key for activation_scheme enumeration in aerosol namelist.
-20230922120433.305+0100:WARN : Missing key for emissions enumeration in aerosol namelist.
-20230922120433.305+0100:WARN : Missing key for blend_frequency enumeration in boundaries namelist.
-20230922120433.305+0100:WARN : Missing key for lbc_method enumeration in boundaries namelist.
-20230922120433.305+0100:WARN : Missing key for ls_option enumeration in initialization namelist.
-20230922120433.305+0100:WARN : Missing key for sst_source enumeration in initialization namelist.
-20230922120433.305+0100:WARN : Missing key for electric_placement enumeration in physics namelist.
-20230922120433.305+0100:WARN : Missing key for evap_condense_placement enumeration in physics namelist.
-20230922120433.305+0100:WARN : Missing key for lowest_level enumeration in physics namelist.
-20230922120433.305+0100:WARN : Missing key for smagorinsky_placement enumeration in physics namelist.
-20230922120433.305+0100:WARN : Missing key for method enumeration in mixing namelist.
-20230922120433.305+0100:WARN : Missing key for dl_type enumeration in damping_layer namelist.
-20230922120433.305+0100:WARN : Missing key for chemistry enumeration in section_choice namelist.
-20230922120433.305+0100:WARN : Missing key for dynamics enumeration in section_choice namelist.
-20230922120433.305+0100:WARN : Missing key for electric enumeration in section_choice namelist.
-20230922120433.305+0100:WARN : Missing key for surface enumeration in section_choice namelist.
-20230922120433.305+0100:WARN : Missing key for activation_scheme enumeration in aerosol namelist.
-20230922120433.305+0100:WARN : Missing key for emissions enumeration in aerosol namelist.
-20230922120433.305+0100:WARN : Missing key for blend_frequency enumeration in boundaries namelist.
-20230922120433.305+0100:WARN : Missing key for lbc_method enumeration in boundaries namelist.
-20230922120433.306+0100:WARN : "initial_temperature:profile_data" not allocated, deferred size "profile_size" has not been specified.
-20230922120433.306+0100:WARN : "initial_temperature:profile_heights" not allocated, deferred size "profile_size" has not been specified.
-20230922120433.306+0100:WARN : Missing key for ls_option enumeration in initialization namelist.
-20230922120433.306+0100:WARN : Missing key for sst_source enumeration in initialization namelist.
-20230922120433.306+0100:WARN : Missing key for electric_placement enumeration in physics namelist.
-20230922120433.306+0100:WARN : Missing key for evap_condense_placement enumeration in physics namelist.
-20230922120433.306+0100:WARN : Missing key for lowest_level enumeration in physics namelist.
-20230922120433.306+0100:WARN : Missing key for smagorinsky_placement enumeration in physics namelist.
-20230922120433.306+0100:WARN : Missing key for method enumeration in mixing namelist.
-20230922120433.306+0100:WARN : Missing key for dl_type enumeration in damping_layer namelist.
-20230922120433.306+0100:WARN : Missing key for chemistry enumeration in section_choice namelist.
-20230922120433.306+0100:WARN : Missing key for dynamics enumeration in section_choice namelist.
-20230922120433.306+0100:WARN : Missing key for electric enumeration in section_choice namelist.
-20230922120433.306+0100:WARN : Missing key for surface enumeration in section_choice namelist.
-20230922120433.307+0100:INFO : Runtime message logging severity set to log level: INFO
-20230922120433.307+0100:INFO : Application built with 64-bit real numbers
-20230922120433.307+0100:INFO : Setting up partition mesh(es)
-20230922120433.307+0100:INFO : Using serial cubed sphere partitioner
-20230922120433.344+0100:INFO : Creating prime mesh    1
-20230922120433.353+0100:INFO :    ... "C16"(id:1) based on mesh "C16"
-20230922120433.354+0100:INFO :    ... "C16_2d"(id:2) based on mesh "C16"
-20230922120433.354+0100:INFO : Creating prime mesh    2
-20230922120433.355+0100:INFO :    ... "C8"(id:3) based on mesh "C8"
-20230922120433.356+0100:INFO :    ... "C8_2d"(id:4) based on mesh "C8"
-20230922120433.356+0100:INFO : Creating prime mesh    3
-20230922120433.356+0100:INFO :    ... "C4"(id:5) based on mesh "C4"
-20230922120433.356+0100:INFO :    ... "C4_2d"(id:6) based on mesh "C4"
-20230922120433.356+0100:INFO : Creating prime mesh    4
-20230922120433.356+0100:INFO :    ... "C2"(id:7) based on mesh "C2"
-20230922120433.356+0100:INFO :    ... "C2_2d"(id:8) based on mesh "C2"
-20230922120433.356+0100:INFO : Adding intergrid map "C16"<-->"C8"
-20230922120433.356+0100:INFO : Adding intergrid map "C16_2d"<-->"C8_2d"
-20230922120433.356+0100:INFO : Adding intergrid map "C8"<-->"C16"
-20230922120433.356+0100:INFO : Adding intergrid map "C8_2d"<-->"C16_2d"
-20230922120433.356+0100:INFO : Adding intergrid map "C8"<-->"C4"
-20230922120433.356+0100:INFO : Adding intergrid map "C8_2d"<-->"C4_2d"
-20230922120433.356+0100:INFO : Adding intergrid map "C4"<-->"C8"
-20230922120433.356+0100:INFO : Adding intergrid map "C4_2d"<-->"C8_2d"
-20230922120433.356+0100:INFO : Adding intergrid map "C4"<-->"C2"
-20230922120433.356+0100:INFO : Adding intergrid map "C4_2d"<-->"C2_2d"
-20230922120433.356+0100:INFO : Adding intergrid map "C2"<-->"C4"
-20230922120433.356+0100:INFO : Adding intergrid map "C2_2d"<-->"C4_2d"
-20230922120433.356+0100:INFO : FEM specifics: creating function spaces...
-20230922120433.357+0100:INFO : FEM specifics: Computing Wchi coordinate fields
-20230922120433.591+0100:INFO : FEM specifics: Computing Wchi coordinate fields
-20230922120433.647+0100:INFO : FEM specifics: Computing Wchi coordinate fields
-20230922120433.659+0100:INFO : FEM specifics: Computing Wchi coordinate fields
-20230922120433.662+0100:INFO : FEM specifics created
-20230922120433.662+0100:INFO : FEM specifics: creating function space chains...
-20230922120433.662+0100:INFO : Initialising MultiGrid 4-level function space chain.
-20230922120433.669+0100:INFO : Function space chains created
-20230922120433.669+0100:INFO : Initialising I/O context
-20230922120433.864+0100:INFO : GungHo: Enable prognostics...
-20230922120433.969+0100:INFO : Initialise surface altitude: Create surface altitude.
-20230922120433.969+0100:INFO : Initialise surface altitude: No initialisation option set for orography.
-20230922120433.969+0100:INFO : assign_orography_field: Flat surface requested.
-20230922120433.969+0100:INFO : assign_orography_field: Flat surface requested.
-20230922120433.969+0100:INFO : assign_orography_field: Flat surface requested.
-20230922120433.969+0100:INFO : assign_orography_field: Flat surface requested.
-20230922120433.969+0100:INFO : Gungho: creating runtime_constants
-20230922120433.981+0100:INFO : Gungho: creating geometric_constants
-20230922120434.105+0100:INFO : Gungho: created geometric_constants
-20230922120434.105+0100:INFO : Gungho: creating fem_constants
-20230922120434.105+0100:INFO : Creating FEM operators on    8 meshes
-20230922120434.109+0100:INFO : Creating DeRham operators on mesh    1
-20230922120457.351+0100:INFO : Gungho: created fem_constants
-20230922120457.351+0100:INFO : Gungho: creating physical_op_constants
-20230922120502.400+0100:INFO : Gungho: created physical_op_constants
-20230922120502.400+0100:INFO : Gungho: creating intermesh_constants
-20230922120502.402+0100:INFO : Gungho: created intermesh_constants
-20230922120502.402+0100:INFO : Gungho: created runtime_constants
-20230922120502.402+0100:INFO : GungHo: Creating prognostics...
-20230922120502.406+0100:INFO : Gungho: Initialising prognostic fields
-20230922120502.406+0100:INFO : Initialise u with projection
-20230922120503.650+0100:INFO : Mass matrix solve for W2 space
-20230922120503.650+0100:INFO : Constructing mass matrix operator...
-20230922120503.650+0100:INFO : done
-20230922120503.650+0100:INFO : Constructing diagonal preconditioner...
-20230922120503.651+0100:INFO : done
-20230922120503.651+0100:INFO : Gungho: mass matrix solve:
-20230922120503.723+0100:INFO : chebyshev[  13], redidual =   0.13720448E-05
-20230922120505.289+0100:INFO : Gungho: Initialised prognostic fields
-20230922120505.289+0100:INFO : Gungho: writing diagnostic output
-20230922120505.607+0100:INFO : Mass matrix solve for W1 space
-20230922120505.607+0100:INFO : Constructing mass matrix operator...
-20230922120505.607+0100:INFO : done
-20230922120505.607+0100:INFO : Constructing diagonal preconditioner...
-20230922120505.608+0100:INFO : done
-20230922120505.608+0100:INFO : Gungho: mass matrix solve:
-20230922120505.791+0100:INFO : chebyshev[  13], redidual =   0.60413254E-03
-20230922120505.804+0100:INFO : Computing Galerkin projection...
-20230922120505.804+0100:INFO :     vector field ...
-20230922120506.357+0100:INFO : Mass matrix solve for W1 space
-20230922120506.357+0100:INFO : Constructing mass matrix operator...
-20230922120506.357+0100:INFO : done
-20230922120506.357+0100:INFO : Constructing diagonal preconditioner...
-20230922120506.358+0100:INFO : done
-20230922120506.358+0100:INFO : Gungho: mass matrix solve:
-20230922120506.542+0100:INFO : chebyshev[  13], redidual =   0.64813382E-03
-20230922120507.320+0100:INFO : L2 of divergence =  0.27818194E+03
-20230922120507.352+0100:INFO : L2 of hydrostatic imbalance =  0.43008303E-01
-20230922120507.355+0100:INFO : Gungho: creating si_operators
-20230922120507.355+0100:INFO : si_ops[1]:creating ops
-20230922120507.355+0100:INFO : si_ops[2]:creating ops
-20230922120507.355+0100:INFO : si_ops[3]:creating ops
-20230922120507.355+0100:INFO : si_ops[4]:creating ops
-20230922120507.356+0100:INFO : Transport scheme built with 64-bit real numbers
-20230922120507.356+0100:INFO : Setting up density transport metadata
-20230922120507.356+0100:INFO : Setting up potential_temperature transport metadata
-20230922120507.356+0100:INFO : Setting up wind transport metadata
-20230922120507.356+0100:INFO : Gungho: computing horizontal flux coeffs
-20230922120507.404+0100:INFO : Gungho: computing vertical flux coeffs
-20230922120507.461+0100:INFO : Gungho: computing horizontal advective coeffs
-20230922120507.540+0100:INFO : Gungho: computing vertical advective coeffs
-20230922120507.626+0100:INFO : SI solver built with 32-bit real numbers
-20230922120507.626+0100:INFO : Constructing pressure operator...
-20230922120507.626+0100:INFO : done
-20230922120507.626+0100:INFO : semi_implicit_solver_alg_init: allocate and construct pressure/Helmholtz preconditioner
-20230922120507.626+0100:INFO : Constructing pressure preconditioner...
-20230922120507.626+0100:INFO : done
-20230922120507.626+0100:INFO : Multigrid_preconditioner_constructor[4]: setting smoothing parameters:0.8:2:2:4
-20230922120507.626+0100:INFO : construct_multigrid_preconditioner:make fields and operator on 4 levels
-20230922120507.626+0100:INFO : Constructing pressure operator...
-20230922120507.626+0100:INFO : done
-20230922120507.626+0100:INFO : Constructing pressure preconditioner...
-20230922120507.626+0100:INFO : done
-20230922120507.626+0100:INFO : Constructing pressure operator...
-20230922120507.626+0100:INFO : done
-20230922120507.626+0100:INFO : Constructing pressure preconditioner...
-20230922120507.626+0100:INFO : done
-20230922120507.626+0100:INFO : Constructing pressure operator...
-20230922120507.626+0100:INFO : done
-20230922120507.626+0100:INFO : Constructing pressure preconditioner...
-20230922120507.626+0100:INFO : done
-20230922120507.626+0100:INFO : semi_implicit_solver_alg_init: Setting up pressure solver
-20230922120507.626+0100:INFO : Precondition only: No diagnostic norm output
-20230922120507.626+0100:INFO : semi_implicit_solver_alg_init: ... Helmholtz done
-20230922120507.626+0100:INFO : semi_implicit_solver_alg_init: allocate and construct mixed preconditioner
-20230922120507.626+0100:INFO : Constructing approximate Schur mixed preconditioner...
-20230922120507.626+0100:INFO : done
-20230922120507.626+0100:INFO : semi_implicit_solver_alg_init: allocate and construct mixed solver
-20230922120507.626+0100:INFO : semi_implicit_solver_alg_init: Initialised semi-implicit solver
-20230922120507.626+0100:INFO : semi_implicit_timestep: initialised timestepping algorithm
-20230922120509.230+0100:INFO : Conservation: dry mass   0.518558484586876416000000E+19
-20230922120509.230+0100:INFO : Conservation: total energy   0.128819341208001432046797E+25
-20230922120509.230+0100:INFO : Conservation: horizontal kinetic energy   0.395635108516052926464000E+21
-20230922120509.230+0100:INFO : Conservation: vertical kinetic energy   0.245453784380646917987294E-07
-20230922120509.230+0100:INFO : Conservation: potential energy   0.361311043441033222291456E+24
-20230922120509.230+0100:INFO : Conservation: dry internal energy   0.926486733530465187135488E+24
-20230922120509.230+0100:INFO : Conservation: moist internal energy   0.000000000000000000000000E+00
-20230922120509.230+0100:INFO : Conservation: dry aam   0.104846332118830529902711E+29
-20230922120509.230+0100:INFO : Conservation: dry physical entropy   0.197190441214010286080000E+20
-20230922120509.230+0100:INFO : Conservation: dry dynamic entropy   0.164108988309941302329344E+24
-20230922120509.230+0100:INFO : Configuration is not coupled to ocean
-20230922120509.230+0100:S1:INFO : Start of timestep 1
-20230922120509.293+0100:S1:INFO : Mass matrix solve for W2 space
-20230922120509.293+0100:S1:INFO : Constructing mass matrix operator...
-20230922120509.293+0100:S1:INFO : done
-20230922120509.294+0100:S1:INFO : Constructing diagonal preconditioner...
-20230922120509.294+0100:S1:INFO : done
-20230922120509.294+0100:S1:INFO : Gungho: mass matrix solve:
-20230922120509.368+0100:S1:INFO : chebyshev[  13], redidual =   0.13720263E-05
-20230922120509.371+0100:S1:INFO : Setting up transport_runtime on mesh:    1
-20230922120509.378+0100:S1:INFO : Min/max dep_pts_z =  -0.20629498E-10  0.21331936E-10
-20230922120509.382+0100:S1:INFO : Transport: maximum horizontal CFL   0.25799002E+00
-20230922120509.382+0100:S1:INFO : Transport: maximum vertical CFL   0.21331936E-10
-20230922120509.382+0100:S1:INFO : Transport: maximum total CFL   0.25799002E+00
-20230922120509.382+0100:S1:INFO : Transporting density...
-20230922120509.425+0100:S1:INFO : Transport: number of MoL substeps in 3D direction =    1
-20230922120509.425+0100:S1:INFO : Transporting wind...
-20230922120509.529+0100:S1:INFO : Transporting potential temperature...
-20230922120510.041+0100:S1:INFO : loop indices (o, i):   1  1
-20230922120510.041+0100:S1:INFO : Gungho: computing si_operators
-20230922120510.041+0100:S1:INFO : si_ops: mg level=1
-20230922120511.203+0100:S1:INFO : si_ops:MG restrict L1 to L2
-20230922120511.204+0100:S1:INFO : si_ops: mg level=2
-20230922120511.341+0100:S1:INFO : si_ops:MG restrict L2 to L3
-20230922120511.341+0100:S1:INFO : si_ops: mg level=3
-20230922120511.378+0100:S1:INFO : si_ops:MG restrict L3 to L4
-20230922120511.378+0100:S1:INFO : si_ops: mg level=4
-20230922120511.395+0100:S1:INFO : Residual in momentum equation:    0.28512252E+04
-20230922120511.395+0100:S1:INFO : Residual in energy equation:      0.16762071E+00
-20230922120511.395+0100:S1:INFO : Residual in continuity equation:  0.22944795E-01
-20230922120511.395+0100:S1:INFO : Residual in equation of state:    0.51686130E-13
-20230922120511.398+0100:S1:INFO : Gungho: mixed solve:
-20230922120511.431+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120511.431+0100:S1:INFO : Precondition only starting
-20230922120511.439+0100:S1:INFO : Precondition only: ... finished
-20230922120511.457+0100:S1:INFO : BLOCK_GCR starting ... ||b|| =  0.28499729E+04: 0.28612875E+04
-20230922120511.460+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120511.460+0100:S1:INFO : Precondition only starting
-20230922120511.469+0100:S1:INFO : Precondition only: ... finished
-20230922120511.491+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120511.491+0100:S1:INFO : Precondition only starting
-20230922120511.501+0100:S1:INFO : Precondition only: ... finished
-20230922120511.521+0100:S1:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.2861E+04 final= 0.78063430E-01 abs= 0.11610023E+01
-20230922120511.521+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.11285603E+02  0.82191449E+00  0.72828583E-01
-20230922120511.521+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.51332286E-01  0.26261387E-03  0.51159590E-02
-20230922120511.521+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.28499505E+04  0.33882524E+00  0.11888811E-03
-20230922120511.522+0100:S1:INFO : Min/max exner_inc =  -0.15946911E-03  0.43724489E-03
-20230922120511.523+0100:S1:INFO : Min/max uv_inc =  -0.25103322E+09  0.27022970E+09
-20230922120511.523+0100:S1:INFO : Min/max w_inc =  -0.14369440E+10  0.55799590E+09
-20230922120511.937+0100:S1:INFO : loop indices (o, i):   1  2
-20230922120512.404+0100:S1:INFO : Residual in momentum equation:    0.26072897E+03
-20230922120512.404+0100:S1:INFO : Residual in energy equation:      0.00000000E+00
-20230922120512.404+0100:S1:INFO : Residual in continuity equation:  0.00000000E+00
-20230922120512.404+0100:S1:INFO : Residual in equation of state:    0.17558532E-01
-20230922120512.408+0100:S1:INFO : Gungho: mixed solve:
-20230922120512.413+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120512.413+0100:S1:INFO : Precondition only starting
-20230922120512.421+0100:S1:INFO : Precondition only: ... finished
-20230922120512.449+0100:S1:INFO : BLOCK_GCR starting ... ||b|| =  0.26072897E+03: 0.26457356E+03
-20230922120512.453+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120512.453+0100:S1:INFO : Precondition only starting
-20230922120512.462+0100:S1:INFO : Precondition only: ... finished
-20230922120512.485+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120512.485+0100:S1:INFO : Precondition only starting
-20230922120512.494+0100:S1:INFO : Precondition only: ... finished
-20230922120512.515+0100:S1:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.2646E+03 final= 0.67319271E-01 abs= 0.32097551E+00
-20230922120512.515+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.38555394E+01  0.24652595E+00  0.63940715E-01
-20230922120512.515+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17558532E-01  0.54311856E-04  0.30931888E-02
-20230922120512.515+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.26070046E+03  0.74395251E-01  0.28536678E-03
-20230922120512.515+0100:S1:INFO : Min/max exner_inc =  -0.39851839E-04  0.13186913E-04
-20230922120512.516+0100:S1:INFO : Min/max uv_inc =  -0.42035192E+08  0.42366024E+08
-20230922120512.516+0100:S1:INFO : Min/max w_inc =  -0.92907288E+08  0.11221034E+09
-20230922120512.931+0100:S1:INFO : Setting up transport_runtime on mesh:    1
-20230922120512.937+0100:S1:INFO : Min/max dep_pts_z =  -0.13627655E-01  0.79520200E-02
-20230922120512.941+0100:S1:INFO : Transport: maximum horizontal CFL   0.25964169E+00
-20230922120512.941+0100:S1:INFO : Transport: maximum vertical CFL   0.13627655E-01
-20230922120512.941+0100:S1:INFO : Transport: maximum total CFL   0.26576866E+00
-20230922120512.941+0100:S1:INFO : Transporting density...
-20230922120512.969+0100:S1:INFO : Transport: number of MoL substeps in 3D direction =    1
-20230922120512.969+0100:S1:INFO : Transporting wind...
-20230922120513.071+0100:S1:INFO : Transporting potential temperature...
-20230922120513.573+0100:S1:INFO : loop indices (o, i):   2  1
-20230922120513.573+0100:S1:INFO : Gungho: computing si_operators
-20230922120513.573+0100:S1:INFO : si_ops: mg level=1
-20230922120514.727+0100:S1:INFO : si_ops:MG restrict L1 to L2
-20230922120514.728+0100:S1:INFO : si_ops: mg level=2
-20230922120514.864+0100:S1:INFO : si_ops:MG restrict L2 to L3
-20230922120514.864+0100:S1:INFO : si_ops: mg level=3
-20230922120514.900+0100:S1:INFO : si_ops:MG restrict L3 to L4
-20230922120514.900+0100:S1:INFO : si_ops: mg level=4
-20230922120514.916+0100:S1:INFO : Residual in momentum equation:    0.15349092E+03
-20230922120514.916+0100:S1:INFO : Residual in energy equation:      0.64619354E+01
-20230922120514.916+0100:S1:INFO : Residual in continuity equation:  0.34354666E-03
-20230922120514.916+0100:S1:INFO : Residual in equation of state:    0.17558610E-01
-20230922120514.920+0100:S1:INFO : Gungho: mixed solve:
-20230922120514.925+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120514.925+0100:S1:INFO : Precondition only starting
-20230922120514.933+0100:S1:INFO : Precondition only: ... finished
-20230922120514.951+0100:S1:INFO : BLOCK_GCR starting ... ||b|| =  0.36712118E+03: 0.36866409E+03
-20230922120514.954+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120514.954+0100:S1:INFO : Precondition only starting
-20230922120514.963+0100:S1:INFO : Precondition only: ... finished
-20230922120514.986+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120514.986+0100:S1:INFO : Precondition only starting
-20230922120514.995+0100:S1:INFO : Precondition only: ... finished
-20230922120515.015+0100:S1:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.3687E+03 final= 0.89726445E-01 abs= 0.17517861E+00
-20230922120515.015+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.15157359E+01  0.13478085E+00  0.88921062E-01
-20230922120515.015+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.30297831E-01  0.21069102E-04  0.69539966E-03
-20230922120515.015+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.36711805E+03  0.40376689E-01  0.10998285E-03
-20230922120515.016+0100:S1:INFO : Min/max exner_inc =  -0.61847677E-04  0.74706377E-05
-20230922120515.017+0100:S1:INFO : Min/max uv_inc =  -0.46031552E+08  0.50505688E+08
-20230922120515.017+0100:S1:INFO : Min/max w_inc =  -0.39150522E+09  0.92594776E+08
-20230922120515.435+0100:S1:INFO : loop indices (o, i):   2  2
-20230922120515.902+0100:S1:INFO : Residual in momentum equation:    0.14787796E+03
-20230922120515.902+0100:S1:INFO : Residual in energy equation:      0.00000000E+00
-20230922120515.902+0100:S1:INFO : Residual in continuity equation:  0.00000000E+00
-20230922120515.902+0100:S1:INFO : Residual in equation of state:    0.17563066E-01
-20230922120515.906+0100:S1:INFO : Gungho: mixed solve:
-20230922120515.911+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120515.911+0100:S1:INFO : Precondition only starting
-20230922120515.919+0100:S1:INFO : Precondition only: ... finished
-20230922120515.937+0100:S1:INFO : BLOCK_GCR starting ... ||b|| =  0.14787796E+03: 0.14846450E+03
-20230922120515.940+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120515.940+0100:S1:INFO : Precondition only starting
-20230922120515.949+0100:S1:INFO : Precondition only: ... finished
-20230922120515.972+0100:S1:INFO : Schur preconditioner pressure solve:
-20230922120515.972+0100:S1:INFO : Precondition only starting
-20230922120515.981+0100:S1:INFO : Precondition only: ... finished
-20230922120516.001+0100:S1:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1485E+03 final= 0.72391312E-01 abs= 0.52666082E-01
-20230922120516.001+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.57007779E+00  0.40499524E-01  0.71042101E-01
-20230922120516.001+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17563066E-01  0.22253915E-04  0.12670860E-02
-20230922120516.001+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.14787686E+03  0.12144303E-01  0.82124435E-04
-20230922120516.002+0100:S1:INFO : Min/max exner_inc =  -0.28751896E-04  0.16451996E-05
-20230922120516.002+0100:S1:INFO : Min/max uv_inc =  -0.79843385E+07  0.82575630E+07
-20230922120516.003+0100:S1:INFO : Min/max w_inc =  -0.24987894E+08  0.23860192E+08
-20230922120518.008+0100:S1:INFO : Conservation: dry mass   0.518558484586883276800000E+19
-20230922120518.008+0100:S1:INFO : Conservation: total energy   0.128820891640881437317530E+25
-20230922120518.008+0100:S1:INFO : Conservation: horizontal kinetic energy   0.397778444684767789056000E+21
-20230922120518.008+0100:S1:INFO : Conservation: vertical kinetic energy   0.450323376753074218750000E+13
-20230922120518.008+0100:S1:INFO : Conservation: potential energy   0.361216081024159613714432E+24
-20230922120518.008+0100:S1:INFO : Conservation: dry internal energy   0.926595056935466700898304E+24
-20230922120518.008+0100:S1:INFO : Conservation: moist internal energy   0.000000000000000000000000E+00
-20230922120518.009+0100:S1:INFO : Conservation: dry aam   0.104851787599729019826691E+29
-20230922120518.009+0100:S1:INFO : Conservation: dry physical entropy   0.197253253244900966400000E+20
-20230922120518.009+0100:S1:INFO : Conservation: dry dynamic entropy   0.164157673730147818143744E+24
-20230922120518.009+0100:S1:INFO : Min/max  u =  -0.19464412E+11  0.19485458E+11
-20230922120518.009+0100:S1:INFO : Min/max theta =   0.24004498E+03  0.66386877E+03
-20230922120518.009+0100:S1:INFO : End of timestep 1
-20230922120518.009+0100:S1:INFO : \****************************************************************************/
-20230922120518.009+0100:S2:INFO : Start of timestep 2
-20230922120518.072+0100:S2:INFO : Mass matrix solve for W2 space
-20230922120518.072+0100:S2:INFO : Constructing mass matrix operator...
-20230922120518.072+0100:S2:INFO : done
-20230922120518.072+0100:S2:INFO : Constructing diagonal preconditioner...
-20230922120518.072+0100:S2:INFO : done
-20230922120518.072+0100:S2:INFO : Gungho: mass matrix solve:
-20230922120518.144+0100:S2:INFO : chebyshev[  13], redidual =   0.13719815E-05
-20230922120518.146+0100:S2:INFO : Setting up transport_runtime on mesh:    1
-20230922120518.153+0100:S2:INFO : Min/max dep_pts_z =  -0.16866285E-01  0.89449558E-02
-20230922120518.156+0100:S2:INFO : Transport: maximum horizontal CFL   0.26121834E+00
-20230922120518.156+0100:S2:INFO : Transport: maximum vertical CFL   0.16866285E-01
-20230922120518.156+0100:S2:INFO : Transport: maximum total CFL   0.26788008E+00
-20230922120518.156+0100:S2:INFO : Transporting density...
-20230922120518.184+0100:S2:INFO : Transport: number of MoL substeps in 3D direction =    1
-20230922120518.184+0100:S2:INFO : Transporting wind...
-20230922120518.285+0100:S2:INFO : Transporting potential temperature...
-20230922120518.820+0100:S2:INFO : loop indices (o, i):   1  1
-20230922120518.820+0100:S2:INFO : Gungho: computing si_operators
-20230922120518.820+0100:S2:INFO : si_ops: mg level=1
-20230922120519.969+0100:S2:INFO : si_ops:MG restrict L1 to L2
-20230922120519.970+0100:S2:INFO : si_ops: mg level=2
-20230922120520.104+0100:S2:INFO : si_ops:MG restrict L2 to L3
-20230922120520.104+0100:S2:INFO : si_ops: mg level=3
-20230922120520.140+0100:S2:INFO : si_ops:MG restrict L3 to L4
-20230922120520.140+0100:S2:INFO : si_ops: mg level=4
-20230922120520.157+0100:S2:INFO : Residual in momentum equation:    0.25881223E+04
-20230922120520.157+0100:S2:INFO : Residual in energy equation:      0.15776210E+02
-20230922120520.157+0100:S2:INFO : Residual in continuity equation:  0.10520613E+00
-20230922120520.157+0100:S2:INFO : Residual in equation of state:    0.17563064E-01
-20230922120520.160+0100:S2:INFO : Gungho: mixed solve:
-20230922120520.165+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120520.165+0100:S2:INFO : Precondition only starting
-20230922120520.173+0100:S2:INFO : Precondition only: ... finished
-20230922120520.191+0100:S2:INFO : BLOCK_GCR starting ... ||b|| =  0.28634345E+04: 0.28761623E+04
-20230922120520.195+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120520.195+0100:S2:INFO : Precondition only starting
-20230922120520.204+0100:S2:INFO : Precondition only: ... finished
-20230922120520.226+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120520.226+0100:S2:INFO : Precondition only starting
-20230922120520.235+0100:S2:INFO : Precondition only: ... finished
-20230922120520.256+0100:S2:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.2876E+04 final= 0.55387211E-01 abs= 0.89440021E+00
-20230922120520.256+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.12522503E+02  0.68074862E+00  0.54362025E-01
-20230922120520.256+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.23267591E+00  0.22119298E-03  0.95064839E-03
-20230922120520.256+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.28634072E+04  0.21343040E+00  0.74537218E-04
-20230922120520.256+0100:S2:INFO : Min/max exner_inc =  -0.44462777E-03  0.11116501E-03
-20230922120520.257+0100:S2:INFO : Min/max uv_inc =  -0.15458357E+09  0.14860594E+09
-20230922120520.257+0100:S2:INFO : Min/max w_inc =  -0.91100250E+09  0.30625610E+10
-20230922120520.671+0100:S2:INFO : loop indices (o, i):   1  2
-20230922120521.137+0100:S2:INFO : Residual in momentum equation:    0.19794472E+03
-20230922120521.137+0100:S2:INFO : Residual in energy equation:      0.00000000E+00
-20230922120521.137+0100:S2:INFO : Residual in continuity equation:  0.00000000E+00
-20230922120521.137+0100:S2:INFO : Residual in equation of state:    0.17588780E-01
-20230922120521.156+0100:S2:INFO : Gungho: mixed solve:
-20230922120521.162+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120521.162+0100:S2:INFO : Precondition only starting
-20230922120521.169+0100:S2:INFO : Precondition only: ... finished
-20230922120521.187+0100:S2:INFO : BLOCK_GCR starting ... ||b|| =  0.19794472E+03: 0.20113869E+03
-20230922120521.191+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120521.191+0100:S2:INFO : Precondition only starting
-20230922120521.200+0100:S2:INFO : Precondition only: ... finished
-20230922120521.222+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120521.222+0100:S2:INFO : Precondition only starting
-20230922120521.232+0100:S2:INFO : Precondition only: ... finished
-20230922120521.274+0100:S2:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.2011E+03 final= 0.64743449E-01 abs= 0.25760157E+00
-20230922120521.274+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.32022840E+01  0.20197252E+00  0.63071396E-01
-20230922120521.274+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17588780E-01  0.24467864E-04  0.13911064E-02
-20230922120521.274+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.19791882E+03  0.55604573E-01  0.28094637E-03
-20230922120521.275+0100:S2:INFO : Min/max exner_inc =  -0.26618851E-04  0.16142561E-04
-20230922120521.275+0100:S2:INFO : Min/max uv_inc =  -0.43911636E+08  0.43878160E+08
-20230922120521.276+0100:S2:INFO : Min/max w_inc =  -0.63645908E+08  0.65241560E+08
-20230922120521.690+0100:S2:INFO : Setting up transport_runtime on mesh:    1
-20230922120521.697+0100:S2:INFO : Min/max dep_pts_z =  -0.69153641E-02  0.14780472E-01
-20230922120521.700+0100:S2:INFO : Transport: maximum horizontal CFL   0.26104169E+00
-20230922120521.700+0100:S2:INFO : Transport: maximum vertical CFL   0.14780472E-01
-20230922120521.700+0100:S2:INFO : Transport: maximum total CFL   0.27304540E+00
-20230922120521.701+0100:S2:INFO : Transporting density...
-20230922120521.729+0100:S2:INFO : Transport: number of MoL substeps in 3D direction =    1
-20230922120521.729+0100:S2:INFO : Transporting wind...
-20230922120521.830+0100:S2:INFO : Transporting potential temperature...
-20230922120522.329+0100:S2:INFO : loop indices (o, i):   2  1
-20230922120522.329+0100:S2:INFO : Gungho: computing si_operators
-20230922120522.330+0100:S2:INFO : si_ops: mg level=1
-20230922120523.477+0100:S2:INFO : si_ops:MG restrict L1 to L2
-20230922120523.478+0100:S2:INFO : si_ops: mg level=2
-20230922120523.613+0100:S2:INFO : si_ops:MG restrict L2 to L3
-20230922120523.613+0100:S2:INFO : si_ops: mg level=3
-20230922120523.649+0100:S2:INFO : si_ops:MG restrict L3 to L4
-20230922120523.649+0100:S2:INFO : si_ops: mg level=4
-20230922120523.676+0100:S2:INFO : Residual in momentum equation:    0.15351899E+03
-20230922120523.676+0100:S2:INFO : Residual in energy equation:      0.17678161E+02
-20230922120523.676+0100:S2:INFO : Residual in continuity equation:  0.72158130E-03
-20230922120523.676+0100:S2:INFO : Residual in equation of state:    0.17588636E-01
-20230922120523.679+0100:S2:INFO : Gungho: mixed solve:
-20230922120523.684+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120523.684+0100:S2:INFO : Precondition only starting
-20230922120523.692+0100:S2:INFO : Precondition only: ... finished
-20230922120523.710+0100:S2:INFO : BLOCK_GCR starting ... ||b|| =  0.65992078E+03: 0.66175523E+03
-20230922120523.714+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120523.714+0100:S2:INFO : Precondition only starting
-20230922120523.723+0100:S2:INFO : Precondition only: ... finished
-20230922120523.745+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120523.745+0100:S2:INFO : Precondition only starting
-20230922120523.754+0100:S2:INFO : Precondition only: ... finished
-20230922120523.778+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120523.778+0100:S2:INFO : Precondition only starting
-20230922120523.787+0100:S2:INFO : Precondition only: ... finished
-20230922120523.808+0100:S2:INFO : BLOCK_GCR solver_algorithm: [ 1, 3], iters, init=  0.6618E+03 final= 0.58931013E-01 abs= 0.14032028E+00
-20230922120523.808+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.18060712E+01  0.10585183E+00  0.58608889E-01
-20230922120523.808+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.30845117E-01  0.83252613E-05  0.26990533E-03
-20230922120523.808+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.65991831E+03  0.34460131E-01  0.52218783E-04
-20230922120523.809+0100:S2:INFO : Min/max exner_inc =  -0.83923878E-05  0.89739158E-04
-20230922120523.810+0100:S2:INFO : Min/max uv_inc =  -0.94509600E+08  0.93941088E+08
-20230922120523.810+0100:S2:INFO : Min/max w_inc =  -0.25287021E+09  0.93179347E+09
-20230922120524.225+0100:S2:INFO : loop indices (o, i):   2  2
-20230922120524.693+0100:S2:INFO : Residual in momentum equation:    0.14617655E+03
-20230922120524.693+0100:S2:INFO : Residual in energy equation:      0.00000000E+00
-20230922120524.693+0100:S2:INFO : Residual in continuity equation:  0.00000000E+00
-20230922120524.693+0100:S2:INFO : Residual in equation of state:    0.17576454E-01
-20230922120524.696+0100:S2:INFO : Gungho: mixed solve:
-20230922120524.702+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120524.702+0100:S2:INFO : Precondition only starting
-20230922120524.710+0100:S2:INFO : Precondition only: ... finished
-20230922120524.728+0100:S2:INFO : BLOCK_GCR starting ... ||b|| =  0.14617655E+03: 0.14714573E+03
-20230922120524.732+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120524.732+0100:S2:INFO : Precondition only starting
-20230922120524.741+0100:S2:INFO : Precondition only: ... finished
-20230922120524.763+0100:S2:INFO : Schur preconditioner pressure solve:
-20230922120524.763+0100:S2:INFO : Precondition only starting
-20230922120524.772+0100:S2:INFO : Precondition only: ... finished
-20230922120524.793+0100:S2:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1471E+03 final= 0.52421710E-01 abs= 0.64412702E-01
-20230922120524.793+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.95471680E+00  0.49598980E-01  0.51951510E-01
-20230922120524.793+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17576454E-01  0.64839588E-05  0.36890028E-03
-20230922120524.793+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.14617343E+03  0.14807238E-01  0.10129911E-03
-20230922120524.793+0100:S2:INFO : Min/max exner_inc =  -0.31357013E-04  0.84647138E-06
-20230922120524.794+0100:S2:INFO : Min/max uv_inc =  -0.15749037E+08  0.15766715E+08
-20230922120524.794+0100:S2:INFO : Min/max w_inc =  -0.16963952E+08  0.18011290E+08
-20230922120526.800+0100:S2:INFO : Conservation: dry mass   0.518558484586847232000000E+19
-20230922120526.800+0100:S2:INFO : Conservation: total energy   0.128819330333759438952858E+25
-20230922120526.800+0100:S2:INFO : Conservation: horizontal kinetic energy   0.396762972610789507072000E+21
-20230922120526.800+0100:S2:INFO : Conservation: vertical kinetic energy   0.156304612689308085937500E+14
-20230922120526.800+0100:S2:INFO : Conservation: potential energy   0.361303870831118491058176E+24
-20230922120526.800+0100:S2:INFO : Conservation: dry internal energy   0.926492669518234551058432E+24
-20230922120526.800+0100:S2:INFO : Conservation: moist internal energy   0.000000000000000000000000E+00
-20230922120526.800+0100:S2:INFO : Conservation: dry aam   0.104846745082771218995861E+29
-20230922120526.800+0100:S2:INFO : Conservation: dry physical entropy   0.197194456334870200320000E+20
-20230922120526.800+0100:S2:INFO : Conservation: dry dynamic entropy   0.164110401390415339061248E+24
-20230922120526.800+0100:S2:INFO : Min/max  u =  -0.19475632E+11  0.19492437E+11
-20230922120526.800+0100:S2:INFO : Min/max theta =   0.24004499E+03  0.66386848E+03
-20230922120526.800+0100:S2:INFO : End of timestep 2
-20230922120526.800+0100:S2:INFO : \****************************************************************************/
-20230922120526.800+0100:S3:INFO : Start of timestep 3
-20230922120526.861+0100:S3:INFO : Mass matrix solve for W2 space
-20230922120526.861+0100:S3:INFO : Constructing mass matrix operator...
-20230922120526.861+0100:S3:INFO : done
-20230922120526.862+0100:S3:INFO : Constructing diagonal preconditioner...
-20230922120526.862+0100:S3:INFO : done
-20230922120526.862+0100:S3:INFO : Gungho: mass matrix solve:
-20230922120526.934+0100:S3:INFO : chebyshev[  13], redidual =   0.13717897E-05
-20230922120526.936+0100:S3:INFO : Setting up transport_runtime on mesh:    1
-20230922120526.942+0100:S3:INFO : Min/max dep_pts_z =  -0.71480463E-02  0.21206652E-01
-20230922120526.946+0100:S3:INFO : Transport: maximum horizontal CFL   0.26099408E+00
-20230922120526.946+0100:S3:INFO : Transport: maximum vertical CFL   0.21206652E-01
-20230922120526.946+0100:S3:INFO : Transport: maximum total CFL   0.27479310E+00
-20230922120526.946+0100:S3:INFO : Transporting density...
-20230922120526.974+0100:S3:INFO : Transport: number of MoL substeps in 3D direction =    1
-20230922120526.974+0100:S3:INFO : Transporting wind...
-20230922120527.092+0100:S3:INFO : Transporting potential temperature...
-20230922120527.594+0100:S3:INFO : loop indices (o, i):   1  1
-20230922120527.594+0100:S3:INFO : Gungho: computing si_operators
-20230922120527.594+0100:S3:INFO : si_ops: mg level=1
-20230922120528.750+0100:S3:INFO : si_ops:MG restrict L1 to L2
-20230922120528.751+0100:S3:INFO : si_ops: mg level=2
-20230922120528.886+0100:S3:INFO : si_ops:MG restrict L2 to L3
-20230922120528.886+0100:S3:INFO : si_ops: mg level=3
-20230922120528.922+0100:S3:INFO : si_ops:MG restrict L3 to L4
-20230922120528.922+0100:S3:INFO : si_ops: mg level=4
-20230922120528.938+0100:S3:INFO : Residual in momentum equation:    0.28510832E+04
-20230922120528.938+0100:S3:INFO : Residual in energy equation:      0.28122798E+02
-20230922120528.938+0100:S3:INFO : Residual in continuity equation:  0.19871368E+00
-20230922120528.938+0100:S3:INFO : Residual in equation of state:    0.17576465E-01
-20230922120528.942+0100:S3:INFO : Gungho: mixed solve:
-20230922120528.947+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120528.947+0100:S3:INFO : Precondition only starting
-20230922120528.955+0100:S3:INFO : Precondition only: ... finished
-20230922120528.973+0100:S3:INFO : BLOCK_GCR starting ... ||b|| =  0.34315381E+04: 0.34462626E+04
-20230922120528.976+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120528.976+0100:S3:INFO : Precondition only starting
-20230922120528.985+0100:S3:INFO : Precondition only: ... finished
-20230922120529.008+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120529.008+0100:S3:INFO : Precondition only starting
-20230922120529.017+0100:S3:INFO : Precondition only: ... finished
-20230922120529.037+0100:S3:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.3446E+04 final= 0.55468510E-01 abs= 0.10285455E+01
-20230922120529.037+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.14366183E+02  0.78804423E+00  0.54854113E-01
-20230922120529.037+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.38844546E+00  0.21145889E-03  0.54437215E-03
-20230922120529.037+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.34315080E+04  0.24028983E+00  0.70024559E-04
-20230922120529.038+0100:S3:INFO : Min/max exner_inc =  -0.99535842E-04  0.42048507E-03
-20230922120529.039+0100:S3:INFO : Min/max uv_inc =  -0.21428370E+09  0.19285579E+09
-20230922120529.039+0100:S3:INFO : Min/max w_inc =  -0.44016169E+10  0.16366866E+10
-20230922120529.451+0100:S3:INFO : loop indices (o, i):   1  2
-20230922120529.917+0100:S3:INFO : Residual in momentum equation:    0.34655554E+03
-20230922120529.917+0100:S3:INFO : Residual in energy equation:      0.00000000E+00
-20230922120529.917+0100:S3:INFO : Residual in continuity equation:  0.00000000E+00
-20230922120529.917+0100:S3:INFO : Residual in equation of state:    0.17540521E-01
-20230922120529.921+0100:S3:INFO : Gungho: mixed solve:
-20230922120529.926+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120529.926+0100:S3:INFO : Precondition only starting
-20230922120529.934+0100:S3:INFO : Precondition only: ... finished
-20230922120529.952+0100:S3:INFO : BLOCK_GCR starting ... ||b|| =  0.34655554E+03: 0.35063569E+03
-20230922120529.955+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120529.955+0100:S3:INFO : Precondition only starting
-20230922120529.965+0100:S3:INFO : Precondition only: ... finished
-20230922120529.987+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120529.987+0100:S3:INFO : Precondition only starting
-20230922120529.996+0100:S3:INFO : Precondition only: ... finished
-20230922120530.016+0100:S3:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.3506E+03 final= 0.55170600E-01 abs= 0.28019136E+00
-20230922120530.017+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.40867112E+01  0.21317615E+00  0.52163252E-01
-20230922120530.017+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17540521E-01  0.49360805E-04  0.28141014E-02
-20230922120530.017+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.34653144E+03  0.66965858E-01  0.19324613E-03
-20230922120530.017+0100:S3:INFO : Min/max exner_inc =  -0.32237564E-04  0.18238070E-04
-20230922120530.018+0100:S3:INFO : Min/max uv_inc =  -0.37251212E+08  0.38165632E+08
-20230922120530.018+0100:S3:INFO : Min/max w_inc =  -0.84602832E+08  0.12688981E+09
-20230922120530.434+0100:S3:INFO : Setting up transport_runtime on mesh:    1
-20230922120530.441+0100:S3:INFO : Min/max dep_pts_z =  -0.22302549E-01  0.93834981E-02
-20230922120530.444+0100:S3:INFO : Transport: maximum horizontal CFL   0.26162458E+00
-20230922120530.444+0100:S3:INFO : Transport: maximum vertical CFL   0.22302549E-01
-20230922120530.444+0100:S3:INFO : Transport: maximum total CFL   0.27542623E+00
-20230922120530.445+0100:S3:INFO : Transporting density...
-20230922120530.473+0100:S3:INFO : Transport: number of MoL substeps in 3D direction =    1
-20230922120530.473+0100:S3:INFO : Transporting wind...
-20230922120530.574+0100:S3:INFO : Transporting potential temperature...
-20230922120531.075+0100:S3:INFO : loop indices (o, i):   2  1
-20230922120531.075+0100:S3:INFO : Gungho: computing si_operators
-20230922120531.075+0100:S3:INFO : si_ops: mg level=1
-20230922120532.230+0100:S3:INFO : si_ops:MG restrict L1 to L2
-20230922120532.231+0100:S3:INFO : si_ops: mg level=2
-20230922120532.366+0100:S3:INFO : si_ops:MG restrict L2 to L3
-20230922120532.366+0100:S3:INFO : si_ops: mg level=3
-20230922120532.402+0100:S3:INFO : si_ops:MG restrict L3 to L4
-20230922120532.403+0100:S3:INFO : si_ops: mg level=4
-20230922120532.419+0100:S3:INFO : Residual in momentum equation:    0.14944910E+03
-20230922120532.419+0100:S3:INFO : Residual in energy equation:      0.28326297E+02
-20230922120532.419+0100:S3:INFO : Residual in continuity equation:  0.70409059E-03
-20230922120532.419+0100:S3:INFO : Residual in equation of state:    0.17540661E-01
-20230922120532.422+0100:S3:INFO : Gungho: mixed solve:
-20230922120532.427+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120532.427+0100:S3:INFO : Precondition only starting
-20230922120532.435+0100:S3:INFO : Precondition only: ... finished
-20230922120532.453+0100:S3:INFO : BLOCK_GCR starting ... ||b|| =  0.12615179E+04: 0.12644599E+04
-20230922120532.456+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120532.456+0100:S3:INFO : Precondition only starting
-20230922120532.466+0100:S3:INFO : Precondition only: ... finished
-20230922120532.488+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120532.488+0100:S3:INFO : Precondition only starting
-20230922120532.497+0100:S3:INFO : Precondition only: ... finished
-20230922120532.518+0100:S3:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1264E+04 final= 0.92057241E-01 abs= 0.33844863E+00
-20230922120532.518+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.28641274E+01  0.26251382E+00  0.91655775E-01
-20230922120532.518+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.81124051E-01  0.27687223E-04  0.34129488E-03
-20230922120532.518+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.12615146E+04  0.75907125E-01  0.60171419E-04
-20230922120532.519+0100:S3:INFO : Min/max exner_inc =  -0.18417054E-03  0.25584818E-05
-20230922120532.519+0100:S3:INFO : Min/max uv_inc =  -0.70613232E+08  0.77741408E+08
-20230922120532.520+0100:S3:INFO : Min/max w_inc =  -0.11191761E+10  0.21133963E+09
-20230922120532.934+0100:S3:INFO : loop indices (o, i):   2  2
-20230922120533.403+0100:S3:INFO : Residual in momentum equation:    0.14830935E+03
-20230922120533.403+0100:S3:INFO : Residual in energy equation:      0.00000000E+00
-20230922120533.403+0100:S3:INFO : Residual in continuity equation:  0.00000000E+00
-20230922120533.403+0100:S3:INFO : Residual in equation of state:    0.17559926E-01
-20230922120533.407+0100:S3:INFO : Gungho: mixed solve:
-20230922120533.412+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120533.412+0100:S3:INFO : Precondition only starting
-20230922120533.420+0100:S3:INFO : Precondition only: ... finished
-20230922120533.437+0100:S3:INFO : BLOCK_GCR starting ... ||b|| =  0.14830935E+03: 0.14967768E+03
-20230922120533.441+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120533.441+0100:S3:INFO : Precondition only starting
-20230922120533.450+0100:S3:INFO : Precondition only: ... finished
-20230922120533.472+0100:S3:INFO : Schur preconditioner pressure solve:
-20230922120533.472+0100:S3:INFO : Precondition only starting
-20230922120533.481+0100:S3:INFO : Precondition only: ... finished
-20230922120533.502+0100:S3:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1497E+03 final= 0.54465222E-01 abs= 0.94202188E-01
-20230922120533.502+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.13569812E+01  0.73143680E-01  0.53901765E-01
-20230922120533.502+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17559926E-01  0.74016954E-05  0.42151063E-03
-20230922120533.502+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.14830314E+03  0.21051106E-01  0.14194646E-03
-20230922120533.503+0100:S3:INFO : Min/max exner_inc =  -0.34414988E-04  0.78259967E-06
-20230922120533.503+0100:S3:INFO : Min/max uv_inc =  -0.21661142E+08  0.21681140E+08
-20230922120533.504+0100:S3:INFO : Min/max w_inc =  -0.32642326E+08  0.35887152E+08
-20230922120535.507+0100:S3:INFO : Conservation: dry mass   0.518558484586916556800000E+19
-20230922120535.507+0100:S3:INFO : Conservation: total energy   0.128821839020594222963098E+25
-20230922120535.507+0100:S3:INFO : Conservation: horizontal kinetic energy   0.399564851924328906752000E+21
-20230922120535.507+0100:S3:INFO : Conservation: vertical kinetic energy   0.346429816351406093750000E+14
-20230922120535.507+0100:S3:INFO : Conservation: potential energy   0.361217105183874381512704E+24
-20230922120535.507+0100:S3:INFO : Conservation: dry internal energy   0.926601720135500601229312E+24
-20230922120535.507+0100:S3:INFO : Conservation: moist internal energy   0.000000000000000000000000E+00
-20230922120535.507+0100:S3:INFO : Conservation: dry aam   0.104852317943229558905184E+29
-20230922120535.507+0100:S3:INFO : Conservation: dry physical entropy   0.197253472434131886080000E+20
-20230922120535.507+0100:S3:INFO : Conservation: dry dynamic entropy   0.164158099471787544805376E+24
-20230922120535.507+0100:S3:INFO : Min/max  u =  -0.19561411E+11  0.19564367E+11
-20230922120535.507+0100:S3:INFO : Min/max theta =   0.24004504E+03  0.66386881E+03
-20230922120535.507+0100:S3:INFO : End of timestep 3
-20230922120535.507+0100:S3:INFO : \****************************************************************************/
-20230922120535.507+0100:S4:INFO : Start of timestep 4
-20230922120535.568+0100:S4:INFO : Mass matrix solve for W2 space
-20230922120535.568+0100:S4:INFO : Constructing mass matrix operator...
-20230922120535.568+0100:S4:INFO : done
-20230922120535.569+0100:S4:INFO : Constructing diagonal preconditioner...
-20230922120535.569+0100:S4:INFO : done
-20230922120535.569+0100:S4:INFO : Gungho: mass matrix solve:
-20230922120535.641+0100:S4:INFO : chebyshev[  13], redidual =   0.13717968E-05
-20230922120535.643+0100:S4:INFO : Setting up transport_runtime on mesh:    1
-20230922120535.649+0100:S4:INFO : Min/max dep_pts_z =  -0.28996156E-01  0.73354690E-02
-20230922120535.653+0100:S4:INFO : Transport: maximum horizontal CFL   0.26215079E+00
-20230922120535.653+0100:S4:INFO : Transport: maximum vertical CFL   0.28996156E-01
-20230922120535.653+0100:S4:INFO : Transport: maximum total CFL   0.27763695E+00
-20230922120535.653+0100:S4:INFO : Transporting density...
-20230922120535.681+0100:S4:INFO : Transport: number of MoL substeps in 3D direction =    1
-20230922120535.681+0100:S4:INFO : Transporting wind...
-20230922120535.782+0100:S4:INFO : Transporting potential temperature...
-20230922120536.285+0100:S4:INFO : loop indices (o, i):   1  1
-20230922120536.285+0100:S4:INFO : Gungho: computing si_operators
-20230922120536.305+0100:S4:INFO : si_ops: mg level=1
-20230922120537.459+0100:S4:INFO : si_ops:MG restrict L1 to L2
-20230922120537.460+0100:S4:INFO : si_ops: mg level=2
-20230922120537.594+0100:S4:INFO : si_ops:MG restrict L2 to L3
-20230922120537.594+0100:S4:INFO : si_ops: mg level=3
-20230922120537.630+0100:S4:INFO : si_ops:MG restrict L3 to L4
-20230922120537.630+0100:S4:INFO : si_ops: mg level=4
-20230922120537.646+0100:S4:INFO : Residual in momentum equation:    0.25913349E+04
-20230922120537.646+0100:S4:INFO : Residual in energy equation:      0.41734319E+02
-20230922120537.646+0100:S4:INFO : Residual in continuity equation:  0.29999229E+00
-20230922120537.646+0100:S4:INFO : Residual in equation of state:    0.17559930E-01
-20230922120537.649+0100:S4:INFO : Gungho: mixed solve:
-20230922120537.655+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120537.655+0100:S4:INFO : Precondition only starting
-20230922120537.663+0100:S4:INFO : Precondition only: ... finished
-20230922120537.680+0100:S4:INFO : BLOCK_GCR starting ... ||b|| =  0.35620519E+04: 0.35773377E+04
-20230922120537.684+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120537.684+0100:S4:INFO : Precondition only starting
-20230922120537.693+0100:S4:INFO : Precondition only: ... finished
-20230922120537.715+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120537.715+0100:S4:INFO : Precondition only starting
-20230922120537.724+0100:S4:INFO : Precondition only: ... finished
-20230922120537.745+0100:S4:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.3577E+04 final= 0.58704737E-01 abs= 0.11424754E+01
-20230922120537.745+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.14711048E+02  0.85893309E+00  0.58386940E-01
-20230922120537.745+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.60520753E+00  0.14418247E-03  0.23823641E-03
-20230922120537.745+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.35620215E+04  0.28339816E+00  0.79561047E-04
-20230922120537.746+0100:S4:INFO : Min/max exner_inc =  -0.39849381E-03  0.62956038E-04
-20230922120537.746+0100:S4:INFO : Min/max uv_inc =  -0.24568302E+09  0.25768282E+09
-20230922120537.746+0100:S4:INFO : Min/max w_inc =  -0.24508447E+10  0.60098488E+10
-20230922120538.161+0100:S4:INFO : loop indices (o, i):   1  2
-20230922120538.625+0100:S4:INFO : Residual in momentum equation:    0.33698664E+03
-20230922120538.625+0100:S4:INFO : Residual in energy equation:      0.00000000E+00
-20230922120538.625+0100:S4:INFO : Residual in continuity equation:  0.00000000E+00
-20230922120538.625+0100:S4:INFO : Residual in equation of state:    0.17603714E-01
-20230922120538.640+0100:S4:INFO : Gungho: mixed solve:
-20230922120538.645+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120538.645+0100:S4:INFO : Precondition only starting
-20230922120538.653+0100:S4:INFO : Precondition only: ... finished
-20230922120538.671+0100:S4:INFO : BLOCK_GCR starting ... ||b|| =  0.33698664E+03: 0.34108799E+03
-20230922120538.674+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120538.674+0100:S4:INFO : Precondition only starting
-20230922120538.683+0100:S4:INFO : Precondition only: ... finished
-20230922120538.706+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120538.706+0100:S4:INFO : Precondition only starting
-20230922120538.715+0100:S4:INFO : Precondition only: ... finished
-20230922120538.735+0100:S4:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.3411E+03 final= 0.56975781E-01 abs= 0.29298534E+00
-20230922120538.735+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.41087972E+01  0.22339599E+00  0.54370166E-01
-20230922120538.735+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17603714E-01  0.42235173E-04  0.23992195E-02
-20230922120538.735+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.33696159E+03  0.69547111E-01  0.20639477E-03
-20230922120538.736+0100:S4:INFO : Min/max exner_inc =  -0.29024823E-04  0.98329492E-05
-20230922120538.737+0100:S4:INFO : Min/max uv_inc =  -0.59842244E+08  0.56831672E+08
-20230922120538.737+0100:S4:INFO : Min/max w_inc =  -0.75431448E+08  0.10200487E+09
-20230922120539.153+0100:S4:INFO : Setting up transport_runtime on mesh:    1
-20230922120539.159+0100:S4:INFO : Min/max dep_pts_z =  -0.12214583E-01  0.25902211E-01
-20230922120539.162+0100:S4:INFO : Transport: maximum horizontal CFL   0.26217586E+00
-20230922120539.163+0100:S4:INFO : Transport: maximum vertical CFL   0.25902211E-01
-20230922120539.163+0100:S4:INFO : Transport: maximum total CFL   0.28076613E+00
-20230922120539.163+0100:S4:INFO : Transporting density...
-20230922120539.191+0100:S4:INFO : Transport: number of MoL substeps in 3D direction =    1
-20230922120539.191+0100:S4:INFO : Transporting wind...
-20230922120539.292+0100:S4:INFO : Transporting potential temperature...
-20230922120539.820+0100:S4:INFO : loop indices (o, i):   2  1
-20230922120539.820+0100:S4:INFO : Gungho: computing si_operators
-20230922120539.821+0100:S4:INFO : si_ops: mg level=1
-20230922120540.976+0100:S4:INFO : si_ops:MG restrict L1 to L2
-20230922120540.977+0100:S4:INFO : si_ops: mg level=2
-20230922120541.111+0100:S4:INFO : si_ops:MG restrict L2 to L3
-20230922120541.111+0100:S4:INFO : si_ops: mg level=3
-20230922120541.148+0100:S4:INFO : si_ops:MG restrict L3 to L4
-20230922120541.148+0100:S4:INFO : si_ops: mg level=4
-20230922120541.164+0100:S4:INFO : Residual in momentum equation:    0.14984475E+03
-20230922120541.164+0100:S4:INFO : Residual in energy equation:      0.38111129E+02
-20230922120541.164+0100:S4:INFO : Residual in continuity equation:  0.19463937E-02
-20230922120541.164+0100:S4:INFO : Residual in equation of state:    0.17603606E-01
-20230922120541.168+0100:S4:INFO : Gungho: mixed solve:
-20230922120541.173+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120541.173+0100:S4:INFO : Precondition only starting
-20230922120541.181+0100:S4:INFO : Precondition only: ... finished
-20230922120541.198+0100:S4:INFO : BLOCK_GCR starting ... ||b|| =  0.15096313E+04: 0.15133470E+04
-20230922120541.202+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120541.202+0100:S4:INFO : Precondition only starting
-20230922120541.211+0100:S4:INFO : Precondition only: ... finished
-20230922120541.233+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120541.233+0100:S4:INFO : Precondition only starting
-20230922120541.242+0100:S4:INFO : Precondition only: ... finished
-20230922120541.263+0100:S4:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1513E+04 final= 0.93474833E-01 abs= 0.43441766E+00
-20230922120541.263+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.36412133E+01  0.33832628E+00  0.92915808E-01
-20230922120541.263+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.78899816E-01  0.39086776E-04  0.49539756E-03
-20230922120541.263+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.15096269E+04  0.96052300E-01  0.63626518E-04
-20230922120541.264+0100:S4:INFO : Min/max exner_inc =  -0.20626308E-04  0.20730380E-03
-20230922120541.264+0100:S4:INFO : Min/max uv_inc =  -0.97061200E+08  0.89907608E+08
-20230922120541.264+0100:S4:INFO : Min/max w_inc =  -0.90521056E+08  0.13715514E+10
-20230922120541.677+0100:S4:INFO : loop indices (o, i):   2  2
-20230922120542.143+0100:S4:INFO : Residual in momentum equation:    0.14519771E+03
-20230922120542.143+0100:S4:INFO : Residual in energy equation:      0.00000000E+00
-20230922120542.143+0100:S4:INFO : Residual in continuity equation:  0.00000000E+00
-20230922120542.143+0100:S4:INFO : Residual in equation of state:    0.17578572E-01
-20230922120542.147+0100:S4:INFO : Gungho: mixed solve:
-20230922120542.152+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120542.152+0100:S4:INFO : Precondition only starting
-20230922120542.160+0100:S4:INFO : Precondition only: ... finished
-20230922120542.208+0100:S4:INFO : BLOCK_GCR starting ... ||b|| =  0.14519771E+03: 0.14713619E+03
-20230922120542.211+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120542.211+0100:S4:INFO : Precondition only starting
-20230922120542.220+0100:S4:INFO : Precondition only: ... finished
-20230922120542.243+0100:S4:INFO : Schur preconditioner pressure solve:
-20230922120542.243+0100:S4:INFO : Precondition only starting
-20230922120542.252+0100:S4:INFO : Precondition only: ... finished
-20230922120542.273+0100:S4:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1471E+03 final= 0.55943956E-01 abs= 0.13608153E+00
-20230922120542.273+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.19337832E+01  0.10640780E+00  0.55025712E-01
-20230922120542.273+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17578572E-01  0.12550118E-04  0.71394412E-03
-20230922120542.273+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.14518483E+03  0.29661185E-01  0.20429948E-03
-20230922120542.273+0100:S4:INFO : Min/max exner_inc =  -0.30254563E-04  0.28584200E-05
-20230922120542.274+0100:S4:INFO : Min/max uv_inc =  -0.37091320E+08  0.37062596E+08
-20230922120542.274+0100:S4:INFO : Min/max w_inc =  -0.34321620E+08  0.37075972E+08
-20230922120544.278+0100:S4:INFO : Conservation: dry mass   0.518558484586766950400000E+19
-20230922120544.278+0100:S4:INFO : Conservation: total energy   0.128818482139334724026368E+25
-20230922120544.278+0100:S4:INFO : Conservation: horizontal kinetic energy   0.398650362879949012992000E+21
-20230922120544.278+0100:S4:INFO : Conservation: vertical kinetic energy   0.584765378052134609375000E+14
-20230922120544.278+0100:S4:INFO : Conservation: potential energy   0.361301974871127623729152E+24
-20230922120544.278+0100:S4:INFO : Conservation: dry internal energy   0.926484196100863283953664E+24
-20230922120544.278+0100:S4:INFO : Conservation: moist internal energy   0.000000000000000000000000E+00
-20230922120544.278+0100:S4:INFO : Conservation: dry aam   0.104847140131201341356643E+29
-20230922120544.278+0100:S4:INFO : Conservation: dry physical entropy   0.197195418962174033920000E+20
-20230922120544.278+0100:S4:INFO : Conservation: dry dynamic entropy   0.164108906326683883143168E+24
-20230922120544.279+0100:S4:INFO : Min/max  u =  -0.19558914E+11  0.19566959E+11
-20230922120544.279+0100:S4:INFO : Min/max theta =   0.24004507E+03  0.66386832E+03
-20230922120544.279+0100:S4:INFO : End of timestep 4
-20230922120544.279+0100:S4:INFO : \****************************************************************************/
-20230922120544.280+0100:INFO : finalise_model_data: all fields have been cleared
-20230922120547.278+0100:INFO : ||=           Routine            =||    =   time(s)     =||=     No. calls     =||= time per call(s)  =||
-20230922120547.278+0100:INFO : ||                    gungho_model||                73.97||                    1||              73.9710||
-20230922120547.278+0100:INFO : ||           runtime_constants_alg||                28.43||                    1||              28.4329||
-20230922120547.278+0100:INFO : ||         geometric_constants_alg||                 0.12||                    1||               0.1242||
-20230922120547.278+0100:INFO : ||               fem_constants_alg||                23.25||                    1||              23.2459||
-20230922120547.278+0100:INFO : ||       physical_op_constants_alg||                 5.05||                    1||               5.0487||
-20230922120547.278+0100:INFO : ||         intermesh_constants_alg||                 0.00||                    1||               0.0026||
-20230922120547.278+0100:INFO : ||          mass_matrix_solver_alg||                 0.77||                   42||               0.0183||
-20230922120547.278+0100:INFO : ||            xios_update_calendar||                 0.00||                    5||               0.0001||
-20230922120547.278+0100:INFO : ||       gungho_diagnostics_driver||                 2.06||                    1||               2.0633||
-20230922120547.278+0100:INFO : ||         si_operators_alg:create||                 0.00||                    1||               0.0003||
-20230922120547.278+0100:INFO : ||                conservation_alg||                 7.97||                    5||               1.5937||
-20230922120547.278+0100:INFO : ||      semi_implicit_timestep_alg||                28.68||                    4||               7.1705||
-20230922120547.278+0100:INFO : ||                         rhs_alg||                 7.69||                   20||               0.3843||
-20230922120547.278+0100:INFO : ||        gungho_transport_control||                 1.48||                    8||               0.1853||
-20230922120547.278+0100:INFO : ||               calc_vert_dep_pts||                 0.03||                    8||               0.0036||
-20230922120547.278+0100:INFO : ||            mol_conservative_alg||                 0.24||                    8||               0.0295||
-20230922120547.278+0100:INFO : ||             w3 horizontal recon||                 0.33||                  160||               0.0021||
-20230922120547.278+0100:INFO : ||               w3 vertical recon||                 0.15||                  160||               0.0010||
-20230922120547.278+0100:INFO : ||                  wind transport||                 0.83||                    8||               0.1035||
-20230922120547.278+0100:INFO : ||               mol_advective_alg||                 0.94||                   32||               0.0292||
-20230922120547.278+0100:INFO : ||             wt horizontal recon||                 0.16||                   40||               0.0039||
-20230922120547.278+0100:INFO : ||               wt vertical recon||                 0.06||                   40||               0.0016||
-20230922120547.278+0100:INFO : ||        si_operators_alg:compute||                10.73||                    8||               1.3419||
-20230922120547.278+0100:INFO : ||        semi_implicit_solver_alg||                 1.89||                   16||               0.1183||
-20230922120547.278+0100:INFO : ||                    mixed_solver||                 1.66||                   16||               0.1040||
-20230922120547.278+0100:INFO : ||  mixed_schur_preconditioner_alg||                 0.67||                   49||               0.0137||
-20230922120547.278+0100:INFO : ||                 mixed_schur rhs||                 0.13||                   49||               0.0027||
-20230922120547.278+0100:INFO : ||         mixed_schur rhs:helm_ru||                 0.03||                   49||               0.0005||
-20230922120547.278+0100:INFO : ||         mixed_schur rhs:helm_rx||                 0.08||                   49||               0.0015||
-20230922120547.278+0100:INFO : ||               mixed_schur solve||                 0.44||                   49||               0.0089||
-20230922120547.278+0100:INFO : ||                   helmholtz lhs||                 0.18||                  735||               0.0002||
-20230922120547.278+0100:INFO : ||           schur back substitute||                 0.09||                   49||               0.0019||
-20230922120547.278+0100:INFO : ||                  mixed_operator||                 0.73||                   49||               0.0149||
-20230922120547.278+0100:INFO : ||                  exner_from_eos||                 6.53||                   16||               0.4080||
-20230922120547.278+0100:INFO : gungho_model completed.
+20240507122437.480+0100:WARN : Missing key for activation_scheme enumeration in aerosol namelist.
+20240507122437.480+0100:WARN : Missing key for emissions enumeration in aerosol namelist.
+20240507122437.480+0100:WARN : Missing key for blend_frequency enumeration in boundaries namelist.
+20240507122437.480+0100:WARN : Missing key for lbc_method enumeration in boundaries namelist.
+20240507122437.480+0100:WARN : Missing key for ls_option enumeration in initialization namelist.
+20240507122437.480+0100:WARN : Missing key for sst_source enumeration in initialization namelist.
+20240507122437.481+0100:WARN : Missing key for electric_placement enumeration in physics namelist.
+20240507122437.481+0100:WARN : Missing key for evap_condense_placement enumeration in physics namelist.
+20240507122437.481+0100:WARN : Missing key for lowest_level enumeration in physics namelist.
+20240507122437.481+0100:WARN : Missing key for smagorinsky_placement enumeration in physics namelist.
+20240507122437.481+0100:WARN : Missing key for method enumeration in mixing namelist.
+20240507122437.481+0100:WARN : Missing key for dl_type enumeration in damping_layer namelist.
+20240507122437.481+0100:WARN : Missing key for chemistry enumeration in section_choice namelist.
+20240507122437.481+0100:WARN : Missing key for dynamics enumeration in section_choice namelist.
+20240507122437.481+0100:WARN : Missing key for electric enumeration in section_choice namelist.
+20240507122437.481+0100:WARN : Missing key for surface enumeration in section_choice namelist.
+20240507122437.481+0100:WARN : Missing key for activation_scheme enumeration in aerosol namelist.
+20240507122437.481+0100:WARN : Missing key for emissions enumeration in aerosol namelist.
+20240507122437.481+0100:WARN : Missing key for blend_frequency enumeration in boundaries namelist.
+20240507122437.481+0100:WARN : Missing key for lbc_method enumeration in boundaries namelist.
+20240507122437.481+0100:WARN : "initial_temperature:profile_data" not allocated, deferred size "profile_size" has not been specified.
+20240507122437.481+0100:WARN : "initial_temperature:profile_heights" not allocated, deferred size "profile_size" has not been specified.
+20240507122437.481+0100:WARN : Missing key for ls_option enumeration in initialization namelist.
+20240507122437.481+0100:WARN : Missing key for sst_source enumeration in initialization namelist.
+20240507122437.482+0100:WARN : Missing key for electric_placement enumeration in physics namelist.
+20240507122437.482+0100:WARN : Missing key for evap_condense_placement enumeration in physics namelist.
+20240507122437.482+0100:WARN : Missing key for lowest_level enumeration in physics namelist.
+20240507122437.482+0100:WARN : Missing key for smagorinsky_placement enumeration in physics namelist.
+20240507122437.482+0100:WARN : Missing key for method enumeration in mixing namelist.
+20240507122437.482+0100:WARN : Missing key for dl_type enumeration in damping_layer namelist.
+20240507122437.483+0100:WARN : Missing key for chemistry enumeration in section_choice namelist.
+20240507122437.483+0100:WARN : Missing key for dynamics enumeration in section_choice namelist.
+20240507122437.483+0100:WARN : Missing key for electric enumeration in section_choice namelist.
+20240507122437.483+0100:WARN : Missing key for surface enumeration in section_choice namelist.
+20240507122437.483+0100:INFO : Runtime message logging severity set to log level: INFO
+20240507122437.483+0100:INFO : Application built with 64-bit real numbers
+20240507122437.483+0100:INFO : Setting up partition mesh(es)
+20240507122437.483+0100:INFO : Using serial cubed sphere partitioner
+20240507122437.513+0100:INFO : Creating prime mesh    1
+20240507122437.522+0100:INFO :    ... "C16"(id:1) based on mesh "C16"
+20240507122437.523+0100:INFO :    ... "C16_2d"(id:2) based on mesh "C16"
+20240507122437.523+0100:INFO : Creating prime mesh    2
+20240507122437.524+0100:INFO :    ... "C8"(id:3) based on mesh "C8"
+20240507122437.525+0100:INFO :    ... "C8_2d"(id:4) based on mesh "C8"
+20240507122437.525+0100:INFO : Creating prime mesh    3
+20240507122437.525+0100:INFO :    ... "C4"(id:5) based on mesh "C4"
+20240507122437.525+0100:INFO :    ... "C4_2d"(id:6) based on mesh "C4"
+20240507122437.525+0100:INFO : Creating prime mesh    4
+20240507122437.525+0100:INFO :    ... "C2"(id:7) based on mesh "C2"
+20240507122437.525+0100:INFO :    ... "C2_2d"(id:8) based on mesh "C2"
+20240507122437.525+0100:INFO : Adding intergrid map "C16"<-->"C8"
+20240507122437.525+0100:INFO : Adding intergrid map "C16_2d"<-->"C8_2d"
+20240507122437.525+0100:INFO : Adding intergrid map "C8"<-->"C16"
+20240507122437.525+0100:INFO : Adding intergrid map "C8_2d"<-->"C16_2d"
+20240507122437.525+0100:INFO : Adding intergrid map "C8"<-->"C4"
+20240507122437.525+0100:INFO : Adding intergrid map "C8_2d"<-->"C4_2d"
+20240507122437.525+0100:INFO : Adding intergrid map "C4"<-->"C8"
+20240507122437.525+0100:INFO : Adding intergrid map "C4_2d"<-->"C8_2d"
+20240507122437.525+0100:INFO : Adding intergrid map "C4"<-->"C2"
+20240507122437.525+0100:INFO : Adding intergrid map "C4_2d"<-->"C2_2d"
+20240507122437.525+0100:INFO : Adding intergrid map "C2"<-->"C4"
+20240507122437.526+0100:INFO : Adding intergrid map "C2_2d"<-->"C4_2d"
+20240507122437.526+0100:INFO : FEM specifics: creating function spaces...
+20240507122437.526+0100:INFO : FEM specifics: Computing Wchi coordinate fields
+20240507122437.777+0100:INFO : FEM specifics: Computing Wchi coordinate fields
+20240507122437.838+0100:INFO : FEM specifics: Computing Wchi coordinate fields
+20240507122437.853+0100:INFO : FEM specifics: Computing Wchi coordinate fields
+20240507122437.856+0100:INFO : FEM specifics created
+20240507122437.856+0100:INFO : FEM specifics: creating function space chains...
+20240507122437.856+0100:INFO : Initialising MultiGrid 4-level function space chain.
+20240507122437.863+0100:INFO : Function space chains created
+20240507122437.863+0100:INFO : Initialising I/O context
+20240507122438.056+0100:INFO : GungHo: Enable prognostics...
+20240507122438.160+0100:INFO : Initialise surface altitude: Create surface altitude.
+20240507122438.160+0100:INFO : Initialise surface altitude: No initialisation option set for orography.
+20240507122438.161+0100:INFO : assign_orography_field: Flat surface requested.
+20240507122438.161+0100:INFO : assign_orography_field: Flat surface requested.
+20240507122438.161+0100:INFO : assign_orography_field: Flat surface requested.
+20240507122438.161+0100:INFO : assign_orography_field: Flat surface requested.
+20240507122438.161+0100:INFO : Gungho: creating runtime_constants
+20240507122438.174+0100:INFO : Gungho: creating geometric_constants
+20240507122438.346+0100:INFO : Gungho: created geometric_constants
+20240507122438.346+0100:INFO : Gungho: creating fem_constants
+20240507122438.346+0100:INFO : Creating FEM operators on    8 meshes
+20240507122438.350+0100:INFO : Creating DeRham operators on mesh    1
+20240507122513.067+0100:INFO : Gungho: created fem_constants
+20240507122513.067+0100:INFO : Gungho: creating physical_op_constants
+20240507122520.696+0100:INFO : Gungho: created physical_op_constants
+20240507122520.696+0100:INFO : Gungho: creating intermesh_constants
+20240507122520.698+0100:INFO : Gungho: created intermesh_constants
+20240507122520.698+0100:INFO : Gungho: created runtime_constants
+20240507122520.698+0100:INFO : GungHo: Creating prognostics...
+20240507122520.701+0100:INFO : Gungho: Initialising prognostic fields
+20240507122520.701+0100:INFO : Initialise u with projection
+20240507122522.283+0100:INFO : Mass matrix solve for W2 space
+20240507122522.283+0100:INFO : Constructing mass matrix operator...
+20240507122522.283+0100:INFO : done
+20240507122522.283+0100:INFO : Constructing diagonal preconditioner...
+20240507122522.283+0100:INFO : done
+20240507122522.284+0100:INFO : Gungho: mass matrix solve:
+20240507122522.352+0100:INFO : chebyshev[  13], redidual =   0.13720448E-05
+20240507122524.321+0100:INFO : Gungho: Initialised prognostic fields
+20240507122524.322+0100:INFO : Gungho: writing diagnostic output
+20240507122524.616+0100:INFO : Mass matrix solve for W1 space
+20240507122524.616+0100:INFO : Constructing mass matrix operator...
+20240507122524.616+0100:INFO : done
+20240507122524.617+0100:INFO : Constructing diagonal preconditioner...
+20240507122524.617+0100:INFO : done
+20240507122524.617+0100:INFO : Gungho: mass matrix solve:
+20240507122524.754+0100:INFO : chebyshev[  13], redidual =   0.60413254E-03
+20240507122524.764+0100:INFO : Computing Galerkin projection...
+20240507122524.764+0100:INFO :     vector field ...
+20240507122525.576+0100:INFO : Mass matrix solve for W1 space
+20240507122525.576+0100:INFO : Constructing mass matrix operator...
+20240507122525.576+0100:INFO : done
+20240507122525.576+0100:INFO : Constructing diagonal preconditioner...
+20240507122525.576+0100:INFO : done
+20240507122525.577+0100:INFO : Gungho: mass matrix solve:
+20240507122525.714+0100:INFO : chebyshev[  13], redidual =   0.64813382E-03
+20240507122526.770+0100:INFO : L2 of divergence =  0.27818194E+03
+20240507122526.802+0100:INFO : L2 of hydrostatic imbalance =  0.43008303E-01
+20240507122526.805+0100:INFO : Gungho: creating si_operators
+20240507122526.805+0100:INFO : si_ops[1]:creating ops
+20240507122526.805+0100:INFO : si_ops[2]:creating ops
+20240507122526.805+0100:INFO : si_ops[3]:creating ops
+20240507122526.805+0100:INFO : si_ops[4]:creating ops
+20240507122526.806+0100:INFO : Transport scheme built with 64-bit real numbers
+20240507122526.806+0100:INFO : Setting up density transport metadata
+20240507122526.806+0100:INFO : Setting up potential_temperature transport metadata
+20240507122526.806+0100:INFO : Setting up wind transport metadata
+20240507122526.806+0100:INFO : Gungho: computing horizontal flux coeffs
+20240507122526.852+0100:INFO : Gungho: computing vertical flux coeffs
+20240507122526.916+0100:INFO : Gungho: computing horizontal advective coeffs
+20240507122527.002+0100:INFO : Gungho: computing vertical advective coeffs
+20240507122527.071+0100:INFO : SI solver built with 32-bit real numbers
+20240507122527.071+0100:INFO : Constructing pressure operator...
+20240507122527.071+0100:INFO : done
+20240507122527.071+0100:INFO : semi_implicit_solver_alg_init: allocate and construct pressure/Helmholtz preconditioner
+20240507122527.071+0100:INFO : Constructing pressure preconditioner...
+20240507122527.071+0100:INFO : done
+20240507122527.071+0100:INFO : Multigrid_preconditioner_constructor[4]: setting smoothing parameters:0.8:2:2:4
+20240507122527.071+0100:INFO : construct_multigrid_preconditioner:make fields and operator on 4 levels
+20240507122527.071+0100:INFO : Constructing pressure operator...
+20240507122527.071+0100:INFO : done
+20240507122527.071+0100:INFO : Constructing pressure preconditioner...
+20240507122527.071+0100:INFO : done
+20240507122527.071+0100:INFO : Constructing pressure operator...
+20240507122527.071+0100:INFO : done
+20240507122527.071+0100:INFO : Constructing pressure preconditioner...
+20240507122527.071+0100:INFO : done
+20240507122527.071+0100:INFO : Constructing pressure operator...
+20240507122527.071+0100:INFO : done
+20240507122527.071+0100:INFO : Constructing pressure preconditioner...
+20240507122527.071+0100:INFO : done
+20240507122527.072+0100:INFO : semi_implicit_solver_alg_init: Setting up pressure solver
+20240507122527.072+0100:INFO : Precondition only: No diagnostic norm output
+20240507122527.072+0100:INFO : semi_implicit_solver_alg_init: ... Helmholtz done
+20240507122527.072+0100:INFO : semi_implicit_solver_alg_init: allocate and construct mixed preconditioner
+20240507122527.072+0100:INFO : Constructing approximate Schur mixed preconditioner...
+20240507122527.072+0100:INFO : done
+20240507122527.072+0100:INFO : semi_implicit_solver_alg_init: allocate and construct mixed solver
+20240507122527.072+0100:INFO : semi_implicit_solver_alg_init: Initialised semi-implicit solver
+20240507122527.072+0100:INFO : semi_implicit_timestep: initialised timestepping algorithm
+20240507122529.469+0100:INFO : Conservation: dry mass   0.518558484586876416000000E+19
+20240507122529.470+0100:INFO : Conservation: total energy   0.128819341208001432046797E+25
+20240507122529.470+0100:INFO : Conservation: horizontal kinetic energy   0.395635108516052795392000E+21
+20240507122529.470+0100:INFO : Conservation: vertical kinetic energy   0.244949921513040488629102E-07
+20240507122529.470+0100:INFO : Conservation: potential energy   0.361311043441033289400320E+24
+20240507122529.470+0100:INFO : Conservation: dry internal energy   0.926486733530465052917760E+24
+20240507122529.470+0100:INFO : Conservation: moist internal energy   0.000000000000000000000000E+00
+20240507122529.470+0100:INFO : Conservation: dry aam   0.104846332118830507912478E+29
+20240507122529.470+0100:INFO : Conservation: dry physical entropy   0.197190441214010245120000E+20
+20240507122529.470+0100:INFO : Conservation: dry dynamic entropy   0.164108988309941302329344E+24
+20240507122529.470+0100:INFO : Configuration is not coupled to ocean
+20240507122529.470+0100:S1:INFO : Start of timestep 1
+20240507122529.530+0100:S1:INFO : Mass matrix solve for W2 space
+20240507122529.530+0100:S1:INFO : Constructing mass matrix operator...
+20240507122529.530+0100:S1:INFO : done
+20240507122529.530+0100:S1:INFO : Constructing diagonal preconditioner...
+20240507122529.531+0100:S1:INFO : done
+20240507122529.531+0100:S1:INFO : Gungho: mass matrix solve:
+20240507122529.601+0100:S1:INFO : chebyshev[  13], redidual =   0.13720263E-05
+20240507122529.603+0100:S1:INFO : Setting up transport_runtime on mesh:    1
+20240507122529.611+0100:S1:INFO : Min/max dep_pts_z =  -0.20628610E-10  0.21332602E-10
+20240507122529.614+0100:S1:INFO : Transport: maximum horizontal CFL   0.25799002E+00
+20240507122529.614+0100:S1:INFO : Transport: maximum vertical CFL   0.21332602E-10
+20240507122529.614+0100:S1:INFO : Transport: maximum total CFL   0.25799002E+00
+20240507122529.615+0100:S1:INFO : Transporting density...
+20240507122529.655+0100:S1:INFO : Transport: number of MoL substeps in 3D direction =    1
+20240507122529.656+0100:S1:INFO : Transporting wind...
+20240507122529.765+0100:S1:INFO : Transporting potential temperature...
+20240507122530.462+0100:S1:INFO : loop indices (o, i):   1  1
+20240507122530.462+0100:S1:INFO : Gungho: computing si_operators
+20240507122530.463+0100:S1:INFO : si_ops: mg level=1
+20240507122532.106+0100:S1:INFO : si_ops:MG restrict L1 to L2
+20240507122532.107+0100:S1:INFO : si_ops: mg level=2
+20240507122532.279+0100:S1:INFO : si_ops:MG restrict L2 to L3
+20240507122532.279+0100:S1:INFO : si_ops: mg level=3
+20240507122532.327+0100:S1:INFO : si_ops:MG restrict L3 to L4
+20240507122532.327+0100:S1:INFO : si_ops: mg level=4
+20240507122532.345+0100:S1:INFO : Residual in momentum equation:    0.28512252E+04
+20240507122532.345+0100:S1:INFO : Residual in energy equation:      0.16762071E+00
+20240507122532.345+0100:S1:INFO : Residual in continuity equation:  0.22944795E-01
+20240507122532.345+0100:S1:INFO : Residual in equation of state:    0.51997752E-13
+20240507122532.351+0100:S1:INFO : Gungho: mixed solve:
+20240507122532.384+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122532.384+0100:S1:INFO : Precondition only starting
+20240507122532.392+0100:S1:INFO : Precondition only: ... finished
+20240507122532.411+0100:S1:INFO : BLOCK_GCR starting ... ||b|| =  0.28499729E+04: 0.28612875E+04
+20240507122532.415+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122532.415+0100:S1:INFO : Precondition only starting
+20240507122532.424+0100:S1:INFO : Precondition only: ... finished
+20240507122532.448+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122532.449+0100:S1:INFO : Precondition only starting
+20240507122532.457+0100:S1:INFO : Precondition only: ... finished
+20240507122532.479+0100:S1:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.2861E+04 final= 0.78064025E-01 abs= 0.11610027E+01
+20240507122532.479+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.11285603E+02  0.82191502E+00  0.72828630E-01
+20240507122532.479+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.51332286E-01  0.26264201E-03  0.51165072E-02
+20240507122532.479+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.28499505E+04  0.33882501E+00  0.11888803E-03
+20240507122532.480+0100:S1:INFO : Min/max exner_inc =  -0.15946919E-03  0.43724506E-03
+20240507122532.481+0100:S1:INFO : Min/max uv_inc =  -0.25103320E+09  0.27022960E+09
+20240507122532.481+0100:S1:INFO : Min/max w_inc =  -0.14369427E+10  0.55799565E+09
+20240507122533.086+0100:S1:INFO : loop indices (o, i):   1  2
+20240507122533.741+0100:S1:INFO : Residual in momentum equation:    0.26070020E+03
+20240507122533.741+0100:S1:INFO : Residual in energy equation:      0.00000000E+00
+20240507122533.741+0100:S1:INFO : Residual in continuity equation:  0.00000000E+00
+20240507122533.741+0100:S1:INFO : Residual in equation of state:    0.17558532E-01
+20240507122533.759+0100:S1:INFO : Gungho: mixed solve:
+20240507122533.764+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122533.764+0100:S1:INFO : Precondition only starting
+20240507122533.771+0100:S1:INFO : Precondition only: ... finished
+20240507122533.791+0100:S1:INFO : BLOCK_GCR starting ... ||b|| =  0.26070020E+03: 0.26454479E+03
+20240507122533.795+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122533.795+0100:S1:INFO : Precondition only starting
+20240507122533.803+0100:S1:INFO : Precondition only: ... finished
+20240507122533.828+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122533.828+0100:S1:INFO : Precondition only starting
+20240507122533.836+0100:S1:INFO : Precondition only: ... finished
+20240507122533.859+0100:S1:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.2645E+03 final= 0.67319578E-01 abs= 0.32098647E+00
+20240507122533.859+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.38555418E+01  0.24652612E+00  0.63940721E-01
+20240507122533.859+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17558532E-01  0.54315865E-04  0.30934172E-02
+20240507122533.859+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.26067169E+03  0.74406031E-01  0.28543963E-03
+20240507122533.860+0100:S1:INFO : Min/max exner_inc =  -0.39852126E-04  0.13206492E-04
+20240507122533.861+0100:S1:INFO : Min/max uv_inc =  -0.42035224E+08  0.42365868E+08
+20240507122533.861+0100:S1:INFO : Min/max w_inc =  -0.92906976E+08  0.11221258E+09
+20240507122534.466+0100:S1:INFO : Setting up transport_runtime on mesh:    1
+20240507122534.472+0100:S1:INFO : Min/max dep_pts_z =  -0.13627663E-01  0.79520178E-02
+20240507122534.475+0100:S1:INFO : Transport: maximum horizontal CFL   0.25964169E+00
+20240507122534.475+0100:S1:INFO : Transport: maximum vertical CFL   0.13627663E-01
+20240507122534.475+0100:S1:INFO : Transport: maximum total CFL   0.26568837E+00
+20240507122534.475+0100:S1:INFO : Transporting density...
+20240507122534.501+0100:S1:INFO : Transport: number of MoL substeps in 3D direction =    1
+20240507122534.502+0100:S1:INFO : Transporting wind...
+20240507122534.609+0100:S1:INFO : Transporting potential temperature...
+20240507122535.300+0100:S1:INFO : loop indices (o, i):   2  1
+20240507122535.300+0100:S1:INFO : Gungho: computing si_operators
+20240507122535.301+0100:S1:INFO : si_ops: mg level=1
+20240507122536.943+0100:S1:INFO : si_ops:MG restrict L1 to L2
+20240507122536.944+0100:S1:INFO : si_ops: mg level=2
+20240507122537.113+0100:S1:INFO : si_ops:MG restrict L2 to L3
+20240507122537.114+0100:S1:INFO : si_ops: mg level=3
+20240507122537.158+0100:S1:INFO : si_ops:MG restrict L3 to L4
+20240507122537.158+0100:S1:INFO : si_ops: mg level=4
+20240507122537.177+0100:S1:INFO : Residual in momentum equation:    0.15349362E+03
+20240507122537.177+0100:S1:INFO : Residual in energy equation:      0.64619351E+01
+20240507122537.177+0100:S1:INFO : Residual in continuity equation:  0.34354653E-03
+20240507122537.177+0100:S1:INFO : Residual in equation of state:    0.17558610E-01
+20240507122537.183+0100:S1:INFO : Gungho: mixed solve:
+20240507122537.188+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122537.188+0100:S1:INFO : Precondition only starting
+20240507122537.195+0100:S1:INFO : Precondition only: ... finished
+20240507122537.215+0100:S1:INFO : BLOCK_GCR starting ... ||b|| =  0.36712224E+03: 0.36866514E+03
+20240507122537.219+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122537.219+0100:S1:INFO : Precondition only starting
+20240507122537.228+0100:S1:INFO : Precondition only: ... finished
+20240507122537.252+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122537.252+0100:S1:INFO : Precondition only starting
+20240507122537.261+0100:S1:INFO : Precondition only: ... finished
+20240507122537.283+0100:S1:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.3687E+03 final= 0.89726534E-01 abs= 0.17517875E+00
+20240507122537.283+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.15157351E+01  0.13478085E+00  0.88921113E-01
+20240507122537.283+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.30297831E-01  0.21070251E-04  0.69543759E-03
+20240507122537.283+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.36711911E+03  0.40376829E-01  0.10998291E-03
+20240507122537.284+0100:S1:INFO : Min/max exner_inc =  -0.61847677E-04  0.74695618E-05
+20240507122537.284+0100:S1:INFO : Min/max uv_inc =  -0.46031584E+08  0.50505696E+08
+20240507122537.285+0100:S1:INFO : Min/max w_inc =  -0.39150490E+09  0.92594600E+08
+20240507122537.889+0100:S1:INFO : loop indices (o, i):   2  2
+20240507122538.544+0100:S1:INFO : Residual in momentum equation:    0.14787769E+03
+20240507122538.544+0100:S1:INFO : Residual in energy equation:      0.00000000E+00
+20240507122538.544+0100:S1:INFO : Residual in continuity equation:  0.00000000E+00
+20240507122538.544+0100:S1:INFO : Residual in equation of state:    0.17563066E-01
+20240507122538.573+0100:S1:INFO : Gungho: mixed solve:
+20240507122538.579+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122538.579+0100:S1:INFO : Precondition only starting
+20240507122538.586+0100:S1:INFO : Precondition only: ... finished
+20240507122538.605+0100:S1:INFO : BLOCK_GCR starting ... ||b|| =  0.14787769E+03: 0.14846423E+03
+20240507122538.609+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122538.609+0100:S1:INFO : Precondition only starting
+20240507122538.618+0100:S1:INFO : Precondition only: ... finished
+20240507122538.642+0100:S1:INFO : Schur preconditioner pressure solve:
+20240507122538.642+0100:S1:INFO : Precondition only starting
+20240507122538.651+0100:S1:INFO : Precondition only: ... finished
+20240507122538.673+0100:S1:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1485E+03 final= 0.72391164E-01 abs= 0.52665662E-01
+20240507122538.673+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.57007799E+00  0.40499543E-01  0.71042109E-01
+20240507122538.673+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17563066E-01  0.22251227E-04  0.12669330E-02
+20240507122538.673+0100:S1:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.14787659E+03  0.12143867E-01  0.82121637E-04
+20240507122538.674+0100:S1:INFO : Min/max exner_inc =  -0.28751876E-04  0.16437533E-05
+20240507122538.675+0100:S1:INFO : Min/max uv_inc =  -0.79843410E+07  0.82575540E+07
+20240507122538.675+0100:S1:INFO : Min/max w_inc =  -0.24987966E+08  0.23860332E+08
+20240507122541.671+0100:S1:INFO : Conservation: dry mass   0.518558484586913689600000E+19
+20240507122541.671+0100:S1:INFO : Conservation: total energy   0.128820891640893382695322E+25
+20240507122541.671+0100:S1:INFO : Conservation: horizontal kinetic energy   0.397778444650031087616000E+21
+20240507122541.671+0100:S1:INFO : Conservation: vertical kinetic energy   0.450323376486856152343750E+13
+20240507122541.671+0100:S1:INFO : Conservation: potential energy   0.361216081024032375308288E+24
+20240507122541.671+0100:S1:INFO : Conservation: dry internal energy   0.926595056935748021256192E+24
+20240507122541.672+0100:S1:INFO : Conservation: moist internal energy   0.000000000000000000000000E+00
+20240507122541.672+0100:S1:INFO : Conservation: dry aam   0.104851787599668876540652E+29
+20240507122541.672+0100:S1:INFO : Conservation: dry physical entropy   0.197253253245009715200000E+20
+20240507122541.672+0100:S1:INFO : Conservation: dry dynamic entropy   0.164157673730247005044736E+24
+20240507122541.672+0100:S1:INFO : Min/max  u =  -0.19464412E+11  0.19485458E+11
+20240507122541.672+0100:S1:INFO : Min/max theta =   0.24004498E+03  0.66386877E+03
+20240507122541.672+0100:S1:INFO : End of timestep 1
+20240507122541.672+0100:S1:INFO : \****************************************************************************/
+20240507122541.672+0100:S2:INFO : Start of timestep 2
+20240507122541.731+0100:S2:INFO : Mass matrix solve for W2 space
+20240507122541.731+0100:S2:INFO : Constructing mass matrix operator...
+20240507122541.731+0100:S2:INFO : done
+20240507122541.732+0100:S2:INFO : Constructing diagonal preconditioner...
+20240507122541.732+0100:S2:INFO : done
+20240507122541.732+0100:S2:INFO : Gungho: mass matrix solve:
+20240507122541.799+0100:S2:INFO : chebyshev[  13], redidual =   0.13719815E-05
+20240507122541.802+0100:S2:INFO : Setting up transport_runtime on mesh:    1
+20240507122541.808+0100:S2:INFO : Min/max dep_pts_z =  -0.16866290E-01  0.89449553E-02
+20240507122541.810+0100:S2:INFO : Transport: maximum horizontal CFL   0.26121834E+00
+20240507122541.811+0100:S2:INFO : Transport: maximum vertical CFL   0.16866290E-01
+20240507122541.811+0100:S2:INFO : Transport: maximum total CFL   0.26788008E+00
+20240507122541.811+0100:S2:INFO : Transporting density...
+20240507122541.837+0100:S2:INFO : Transport: number of MoL substeps in 3D direction =    1
+20240507122541.838+0100:S2:INFO : Transporting wind...
+20240507122541.946+0100:S2:INFO : Transporting potential temperature...
+20240507122542.634+0100:S2:INFO : loop indices (o, i):   1  1
+20240507122542.634+0100:S2:INFO : Gungho: computing si_operators
+20240507122542.635+0100:S2:INFO : si_ops: mg level=1
+20240507122544.275+0100:S2:INFO : si_ops:MG restrict L1 to L2
+20240507122544.276+0100:S2:INFO : si_ops: mg level=2
+20240507122544.444+0100:S2:INFO : si_ops:MG restrict L2 to L3
+20240507122544.444+0100:S2:INFO : si_ops: mg level=3
+20240507122544.489+0100:S2:INFO : si_ops:MG restrict L3 to L4
+20240507122544.489+0100:S2:INFO : si_ops: mg level=4
+20240507122544.507+0100:S2:INFO : Residual in momentum equation:    0.25881210E+04
+20240507122544.507+0100:S2:INFO : Residual in energy equation:      0.15776210E+02
+20240507122544.507+0100:S2:INFO : Residual in continuity equation:  0.10520613E+00
+20240507122544.508+0100:S2:INFO : Residual in equation of state:    0.17563064E-01
+20240507122544.514+0100:S2:INFO : Gungho: mixed solve:
+20240507122544.519+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122544.519+0100:S2:INFO : Precondition only starting
+20240507122544.526+0100:S2:INFO : Precondition only: ... finished
+20240507122544.546+0100:S2:INFO : BLOCK_GCR starting ... ||b|| =  0.28634334E+04: 0.28761612E+04
+20240507122544.549+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122544.550+0100:S2:INFO : Precondition only starting
+20240507122544.558+0100:S2:INFO : Precondition only: ... finished
+20240507122544.583+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122544.583+0100:S2:INFO : Precondition only starting
+20240507122544.592+0100:S2:INFO : Precondition only: ... finished
+20240507122544.614+0100:S2:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.2876E+04 final= 0.55387201E-01 abs= 0.89440124E+00
+20240507122544.614+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.12522504E+02  0.68074913E+00  0.54362061E-01
+20240507122544.614+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.23267591E+00  0.22118224E-03  0.95060220E-03
+20240507122544.614+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.28634060E+04  0.21343094E+00  0.74537434E-04
+20240507122544.614+0100:S2:INFO : Min/max exner_inc =  -0.44462844E-03  0.11116501E-03
+20240507122544.615+0100:S2:INFO : Min/max uv_inc =  -0.15458362E+09  0.14860587E+09
+20240507122544.615+0100:S2:INFO : Min/max w_inc =  -0.91100205E+09  0.30625608E+10
+20240507122545.223+0100:S2:INFO : loop indices (o, i):   1  2
+20240507122545.883+0100:S2:INFO : Residual in momentum equation:    0.19795748E+03
+20240507122545.883+0100:S2:INFO : Residual in energy equation:      0.00000000E+00
+20240507122545.883+0100:S2:INFO : Residual in continuity equation:  0.00000000E+00
+20240507122545.883+0100:S2:INFO : Residual in equation of state:    0.17588780E-01
+20240507122545.889+0100:S2:INFO : Gungho: mixed solve:
+20240507122545.895+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122545.895+0100:S2:INFO : Precondition only starting
+20240507122545.902+0100:S2:INFO : Precondition only: ... finished
+20240507122545.921+0100:S2:INFO : BLOCK_GCR starting ... ||b|| =  0.19795748E+03: 0.20115145E+03
+20240507122545.925+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122545.925+0100:S2:INFO : Precondition only starting
+20240507122545.934+0100:S2:INFO : Precondition only: ... finished
+20240507122545.958+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122545.958+0100:S2:INFO : Precondition only starting
+20240507122545.967+0100:S2:INFO : Precondition only: ... finished
+20240507122545.990+0100:S2:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.2012E+03 final= 0.64743052E-01 abs= 0.25759929E+00
+20240507122545.990+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.32022861E+01  0.20197262E+00  0.63071383E-01
+20240507122545.990+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17588780E-01  0.24461640E-04  0.13907525E-02
+20240507122545.990+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.19793158E+03  0.55602207E-01  0.28091630E-03
+20240507122545.990+0100:S2:INFO : Min/max exner_inc =  -0.26618962E-04  0.16156264E-04
+20240507122545.991+0100:S2:INFO : Min/max uv_inc =  -0.43911684E+08  0.43878128E+08
+20240507122545.991+0100:S2:INFO : Min/max w_inc =  -0.63646600E+08  0.65242240E+08
+20240507122546.601+0100:S2:INFO : Setting up transport_runtime on mesh:    1
+20240507122546.607+0100:S2:INFO : Min/max dep_pts_z =  -0.69153708E-02  0.14780465E-01
+20240507122546.610+0100:S2:INFO : Transport: maximum horizontal CFL   0.26104169E+00
+20240507122546.610+0100:S2:INFO : Transport: maximum vertical CFL   0.14780465E-01
+20240507122546.610+0100:S2:INFO : Transport: maximum total CFL   0.27304540E+00
+20240507122546.611+0100:S2:INFO : Transporting density...
+20240507122546.637+0100:S2:INFO : Transport: number of MoL substeps in 3D direction =    1
+20240507122546.638+0100:S2:INFO : Transporting wind...
+20240507122546.746+0100:S2:INFO : Transporting potential temperature...
+20240507122547.435+0100:S2:INFO : loop indices (o, i):   2  1
+20240507122547.435+0100:S2:INFO : Gungho: computing si_operators
+20240507122547.435+0100:S2:INFO : si_ops: mg level=1
+20240507122549.080+0100:S2:INFO : si_ops:MG restrict L1 to L2
+20240507122549.081+0100:S2:INFO : si_ops: mg level=2
+20240507122549.249+0100:S2:INFO : si_ops:MG restrict L2 to L3
+20240507122549.249+0100:S2:INFO : si_ops: mg level=3
+20240507122549.294+0100:S2:INFO : si_ops:MG restrict L3 to L4
+20240507122549.294+0100:S2:INFO : si_ops: mg level=4
+20240507122549.312+0100:S2:INFO : Residual in momentum equation:    0.15351653E+03
+20240507122549.313+0100:S2:INFO : Residual in energy equation:      0.17678162E+02
+20240507122549.313+0100:S2:INFO : Residual in continuity equation:  0.72158085E-03
+20240507122549.313+0100:S2:INFO : Residual in equation of state:    0.17588636E-01
+20240507122549.319+0100:S2:INFO : Gungho: mixed solve:
+20240507122549.325+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122549.325+0100:S2:INFO : Precondition only starting
+20240507122549.332+0100:S2:INFO : Precondition only: ... finished
+20240507122549.351+0100:S2:INFO : BLOCK_GCR starting ... ||b|| =  0.65992026E+03: 0.66175471E+03
+20240507122549.355+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122549.355+0100:S2:INFO : Precondition only starting
+20240507122549.364+0100:S2:INFO : Precondition only: ... finished
+20240507122549.388+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122549.388+0100:S2:INFO : Precondition only starting
+20240507122549.397+0100:S2:INFO : Precondition only: ... finished
+20240507122549.423+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122549.423+0100:S2:INFO : Precondition only starting
+20240507122549.432+0100:S2:INFO : Precondition only: ... finished
+20240507122549.455+0100:S2:INFO : BLOCK_GCR solver_algorithm: [ 1, 3], iters, init=  0.6618E+03 final= 0.58931031E-01 abs= 0.14032033E+00
+20240507122549.455+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.18060713E+01  0.10585189E+00  0.58608918E-01
+20240507122549.455+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.30845120E-01  0.83249053E-05  0.26989376E-03
+20240507122549.455+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.65991779E+03  0.34460123E-01  0.52218812E-04
+20240507122549.456+0100:S2:INFO : Min/max exner_inc =  -0.83923733E-05  0.89739100E-04
+20240507122549.457+0100:S2:INFO : Min/max uv_inc =  -0.94509584E+08  0.93941056E+08
+20240507122549.457+0100:S2:INFO : Min/max w_inc =  -0.25287021E+09  0.93179475E+09
+20240507122550.064+0100:S2:INFO : loop indices (o, i):   2  2
+20240507122550.720+0100:S2:INFO : Residual in momentum equation:    0.14617628E+03
+20240507122550.720+0100:S2:INFO : Residual in energy equation:      0.00000000E+00
+20240507122550.720+0100:S2:INFO : Residual in continuity equation:  0.00000000E+00
+20240507122550.720+0100:S2:INFO : Residual in equation of state:    0.17576454E-01
+20240507122550.749+0100:S2:INFO : Gungho: mixed solve:
+20240507122550.755+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122550.755+0100:S2:INFO : Precondition only starting
+20240507122550.762+0100:S2:INFO : Precondition only: ... finished
+20240507122550.781+0100:S2:INFO : BLOCK_GCR starting ... ||b|| =  0.14617629E+03: 0.14714546E+03
+20240507122550.785+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122550.785+0100:S2:INFO : Precondition only starting
+20240507122550.794+0100:S2:INFO : Precondition only: ... finished
+20240507122550.818+0100:S2:INFO : Schur preconditioner pressure solve:
+20240507122550.819+0100:S2:INFO : Precondition only starting
+20240507122550.827+0100:S2:INFO : Precondition only: ... finished
+20240507122550.849+0100:S2:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1471E+03 final= 0.52421695E-01 abs= 0.64412651E-01
+20240507122550.850+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.95471685E+00  0.49598978E-01  0.51951506E-01
+20240507122550.850+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17576454E-01  0.64837798E-05  0.36889009E-03
+20240507122550.850+0100:S2:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.14617317E+03  0.14807189E-01  0.10129895E-03
+20240507122550.850+0100:S2:INFO : Min/max exner_inc =  -0.31356984E-04  0.84685831E-06
+20240507122550.851+0100:S2:INFO : Min/max uv_inc =  -0.15749039E+08  0.15766709E+08
+20240507122550.851+0100:S2:INFO : Min/max w_inc =  -0.16963902E+08  0.18011300E+08
+20240507122553.857+0100:S2:INFO : Conservation: dry mass   0.518558484586855424000000E+19
+20240507122553.857+0100:S2:INFO : Conservation: total energy   0.128819330333726850888499E+25
+20240507122553.857+0100:S2:INFO : Conservation: horizontal kinetic energy   0.396762972587406721024000E+21
+20240507122553.857+0100:S2:INFO : Conservation: vertical kinetic energy   0.156304612872201269531250E+14
+20240507122553.857+0100:S2:INFO : Conservation: potential energy   0.361303870831203853533184E+24
+20240507122553.857+0100:S2:INFO : Conservation: dry internal energy   0.926492669517846661824512E+24
+20240507122553.857+0100:S2:INFO : Conservation: moist internal energy   0.000000000000000000000000E+00
+20240507122553.857+0100:S2:INFO : Conservation: dry aam   0.104846745082706127907497E+29
+20240507122553.857+0100:S2:INFO : Conservation: dry physical entropy   0.197194456334780702720000E+20
+20240507122553.857+0100:S2:INFO : Conservation: dry dynamic entropy   0.164110401390317930545152E+24
+20240507122553.858+0100:S2:INFO : Min/max  u =  -0.19475632E+11  0.19492437E+11
+20240507122553.858+0100:S2:INFO : Min/max theta =   0.24004499E+03  0.66386848E+03
+20240507122553.858+0100:S2:INFO : End of timestep 2
+20240507122553.858+0100:S2:INFO : \****************************************************************************/
+20240507122553.858+0100:S3:INFO : Start of timestep 3
+20240507122553.917+0100:S3:INFO : Mass matrix solve for W2 space
+20240507122553.917+0100:S3:INFO : Constructing mass matrix operator...
+20240507122553.917+0100:S3:INFO : done
+20240507122553.918+0100:S3:INFO : Constructing diagonal preconditioner...
+20240507122553.918+0100:S3:INFO : done
+20240507122553.918+0100:S3:INFO : Gungho: mass matrix solve:
+20240507122553.985+0100:S3:INFO : chebyshev[  13], redidual =   0.13717897E-05
+20240507122553.988+0100:S3:INFO : Setting up transport_runtime on mesh:    1
+20240507122553.994+0100:S3:INFO : Min/max dep_pts_z =  -0.71480544E-02  0.21206647E-01
+20240507122553.997+0100:S3:INFO : Transport: maximum horizontal CFL   0.26099408E+00
+20240507122553.998+0100:S3:INFO : Transport: maximum vertical CFL   0.21206647E-01
+20240507122553.998+0100:S3:INFO : Transport: maximum total CFL   0.27479310E+00
+20240507122553.999+0100:S3:INFO : Transporting density...
+20240507122554.026+0100:S3:INFO : Transport: number of MoL substeps in 3D direction =    1
+20240507122554.026+0100:S3:INFO : Transporting wind...
+20240507122554.134+0100:S3:INFO : Transporting potential temperature...
+20240507122554.830+0100:S3:INFO : loop indices (o, i):   1  1
+20240507122554.830+0100:S3:INFO : Gungho: computing si_operators
+20240507122554.831+0100:S3:INFO : si_ops: mg level=1
+20240507122556.482+0100:S3:INFO : si_ops:MG restrict L1 to L2
+20240507122556.483+0100:S3:INFO : si_ops: mg level=2
+20240507122556.652+0100:S3:INFO : si_ops:MG restrict L2 to L3
+20240507122556.652+0100:S3:INFO : si_ops: mg level=3
+20240507122556.696+0100:S3:INFO : si_ops:MG restrict L3 to L4
+20240507122556.697+0100:S3:INFO : si_ops: mg level=4
+20240507122556.715+0100:S3:INFO : Residual in momentum equation:    0.28510816E+04
+20240507122556.715+0100:S3:INFO : Residual in energy equation:      0.28122798E+02
+20240507122556.715+0100:S3:INFO : Residual in continuity equation:  0.19871368E+00
+20240507122556.715+0100:S3:INFO : Residual in equation of state:    0.17576465E-01
+20240507122556.722+0100:S3:INFO : Gungho: mixed solve:
+20240507122556.727+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122556.727+0100:S3:INFO : Precondition only starting
+20240507122556.734+0100:S3:INFO : Precondition only: ... finished
+20240507122556.754+0100:S3:INFO : BLOCK_GCR starting ... ||b|| =  0.34315368E+04: 0.34462614E+04
+20240507122556.758+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122556.758+0100:S3:INFO : Precondition only starting
+20240507122556.767+0100:S3:INFO : Precondition only: ... finished
+20240507122556.791+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122556.791+0100:S3:INFO : Precondition only starting
+20240507122556.800+0100:S3:INFO : Precondition only: ... finished
+20240507122556.822+0100:S3:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.3446E+04 final= 0.55468448E-01 abs= 0.10285442E+01
+20240507122556.822+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.14366184E+02  0.78804339E+00  0.54854051E-01
+20240507122556.822+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.38844546E+00  0.21145897E-03  0.54437235E-03
+20240507122556.822+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.34315067E+04  0.24028934E+00  0.70024441E-04
+20240507122556.823+0100:S3:INFO : Min/max exner_inc =  -0.99535886E-04  0.42048286E-03
+20240507122556.823+0100:S3:INFO : Min/max uv_inc =  -0.21428379E+09  0.19285573E+09
+20240507122556.823+0100:S3:INFO : Min/max w_inc =  -0.44016174E+10  0.16366867E+10
+20240507122557.432+0100:S3:INFO : loop indices (o, i):   1  2
+20240507122558.087+0100:S3:INFO : Residual in momentum equation:    0.34656842E+03
+20240507122558.087+0100:S3:INFO : Residual in energy equation:      0.00000000E+00
+20240507122558.087+0100:S3:INFO : Residual in continuity equation:  0.00000000E+00
+20240507122558.087+0100:S3:INFO : Residual in equation of state:    0.17540521E-01
+20240507122558.105+0100:S3:INFO : Gungho: mixed solve:
+20240507122558.110+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122558.111+0100:S3:INFO : Precondition only starting
+20240507122558.118+0100:S3:INFO : Precondition only: ... finished
+20240507122558.137+0100:S3:INFO : BLOCK_GCR starting ... ||b|| =  0.34656842E+03: 0.35064857E+03
+20240507122558.141+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122558.141+0100:S3:INFO : Precondition only starting
+20240507122558.150+0100:S3:INFO : Precondition only: ... finished
+20240507122558.174+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122558.174+0100:S3:INFO : Precondition only starting
+20240507122558.183+0100:S3:INFO : Precondition only: ... finished
+20240507122558.205+0100:S3:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.3506E+03 final= 0.55170791E-01 abs= 0.28019329E+00
+20240507122558.205+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.40867119E+01  0.21317620E+00  0.52163255E-01
+20240507122558.205+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17540521E-01  0.49364141E-04  0.28142915E-02
+20240507122558.205+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.34654432E+03  0.66967725E-01  0.19324433E-03
+20240507122558.206+0100:S3:INFO : Min/max exner_inc =  -0.32237622E-04  0.18229333E-04
+20240507122558.206+0100:S3:INFO : Min/max uv_inc =  -0.37251300E+08  0.38165496E+08
+20240507122558.207+0100:S3:INFO : Min/max w_inc =  -0.84602720E+08  0.12688939E+09
+20240507122558.815+0100:S3:INFO : Setting up transport_runtime on mesh:    1
+20240507122558.821+0100:S3:INFO : Min/max dep_pts_z =  -0.22302532E-01  0.93835011E-02
+20240507122558.824+0100:S3:INFO : Transport: maximum horizontal CFL   0.26162458E+00
+20240507122558.824+0100:S3:INFO : Transport: maximum vertical CFL   0.22302532E-01
+20240507122558.824+0100:S3:INFO : Transport: maximum total CFL   0.27542622E+00
+20240507122558.824+0100:S3:INFO : Transporting density...
+20240507122558.851+0100:S3:INFO : Transport: number of MoL substeps in 3D direction =    1
+20240507122558.851+0100:S3:INFO : Transporting wind...
+20240507122558.959+0100:S3:INFO : Transporting potential temperature...
+20240507122559.648+0100:S3:INFO : loop indices (o, i):   2  1
+20240507122559.648+0100:S3:INFO : Gungho: computing si_operators
+20240507122559.649+0100:S3:INFO : si_ops: mg level=1
+20240507122601.292+0100:S3:INFO : si_ops:MG restrict L1 to L2
+20240507122601.293+0100:S3:INFO : si_ops: mg level=2
+20240507122601.459+0100:S3:INFO : si_ops:MG restrict L2 to L3
+20240507122601.459+0100:S3:INFO : si_ops: mg level=3
+20240507122601.504+0100:S3:INFO : si_ops:MG restrict L3 to L4
+20240507122601.504+0100:S3:INFO : si_ops: mg level=4
+20240507122601.523+0100:S3:INFO : Residual in momentum equation:    0.14945061E+03
+20240507122601.523+0100:S3:INFO : Residual in energy equation:      0.28326296E+02
+20240507122601.523+0100:S3:INFO : Residual in continuity equation:  0.70408999E-03
+20240507122601.523+0100:S3:INFO : Residual in equation of state:    0.17540661E-01
+20240507122601.529+0100:S3:INFO : Gungho: mixed solve:
+20240507122601.535+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122601.535+0100:S3:INFO : Precondition only starting
+20240507122601.542+0100:S3:INFO : Precondition only: ... finished
+20240507122601.561+0100:S3:INFO : BLOCK_GCR starting ... ||b|| =  0.12615180E+04: 0.12644600E+04
+20240507122601.565+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122601.565+0100:S3:INFO : Precondition only starting
+20240507122601.574+0100:S3:INFO : Precondition only: ... finished
+20240507122601.598+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122601.598+0100:S3:INFO : Precondition only starting
+20240507122601.607+0100:S3:INFO : Precondition only: ... finished
+20240507122601.629+0100:S3:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1264E+04 final= 0.92057256E-01 abs= 0.33844899E+00
+20240507122601.629+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.28641272E+01  0.26251385E+00  0.91655792E-01
+20240507122601.629+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.81124046E-01  0.27687021E-04  0.34129241E-03
+20240507122601.629+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.12615147E+04  0.75907452E-01  0.60171672E-04
+20240507122601.630+0100:S3:INFO : Min/max exner_inc =  -0.18417064E-03  0.25532424E-05
+20240507122601.631+0100:S3:INFO : Min/max uv_inc =  -0.70613208E+08  0.77741416E+08
+20240507122601.631+0100:S3:INFO : Min/max w_inc =  -0.11191777E+10  0.21134019E+09
+20240507122602.238+0100:S3:INFO : loop indices (o, i):   2  2
+20240507122602.897+0100:S3:INFO : Residual in momentum equation:    0.14830954E+03
+20240507122602.897+0100:S3:INFO : Residual in energy equation:      0.00000000E+00
+20240507122602.897+0100:S3:INFO : Residual in continuity equation:  0.00000000E+00
+20240507122602.897+0100:S3:INFO : Residual in equation of state:    0.17559926E-01
+20240507122602.915+0100:S3:INFO : Gungho: mixed solve:
+20240507122602.920+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122602.921+0100:S3:INFO : Precondition only starting
+20240507122602.928+0100:S3:INFO : Precondition only: ... finished
+20240507122602.947+0100:S3:INFO : BLOCK_GCR starting ... ||b|| =  0.14830954E+03: 0.14967787E+03
+20240507122602.951+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122602.951+0100:S3:INFO : Precondition only starting
+20240507122602.960+0100:S3:INFO : Precondition only: ... finished
+20240507122602.984+0100:S3:INFO : Schur preconditioner pressure solve:
+20240507122602.984+0100:S3:INFO : Precondition only starting
+20240507122602.993+0100:S3:INFO : Precondition only: ... finished
+20240507122603.015+0100:S3:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1497E+03 final= 0.54465198E-01 abs= 0.94202087E-01
+20240507122603.015+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.13569812E+01  0.73143642E-01  0.53901737E-01
+20240507122603.015+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17559926E-01  0.74017684E-05  0.42151478E-03
+20240507122603.015+0100:S3:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.14830333E+03  0.21051044E-01  0.14194586E-03
+20240507122603.016+0100:S3:INFO : Min/max exner_inc =  -0.34415054E-04  0.77628613E-06
+20240507122603.016+0100:S3:INFO : Min/max uv_inc =  -0.21661098E+08  0.21681064E+08
+20240507122603.016+0100:S3:INFO : Min/max w_inc =  -0.32642508E+08  0.35886980E+08
+20240507122606.014+0100:S3:INFO : Conservation: dry mass   0.518558484586945843200000E+19
+20240507122606.014+0100:S3:INFO : Conservation: total energy   0.128821839020601953904230E+25
+20240507122606.014+0100:S3:INFO : Conservation: horizontal kinetic energy   0.399564851923646021632000E+21
+20240507122606.014+0100:S3:INFO : Conservation: vertical kinetic energy   0.346429816874280234375000E+14
+20240507122606.014+0100:S3:INFO : Conservation: potential energy   0.361217105183904312066048E+24
+20240507122606.014+0100:S3:INFO : Conservation: dry internal energy   0.926601720135548516958208E+24
+20240507122606.014+0100:S3:INFO : Conservation: moist internal energy   0.000000000000000000000000E+00
+20240507122606.014+0100:S3:INFO : Conservation: dry aam   0.104852317943188151297282E+29
+20240507122606.014+0100:S3:INFO : Conservation: dry physical entropy   0.197253472434180014080000E+20
+20240507122606.014+0100:S3:INFO : Conservation: dry dynamic entropy   0.164158099471896462491648E+24
+20240507122606.014+0100:S3:INFO : Min/max  u =  -0.19561411E+11  0.19564367E+11
+20240507122606.014+0100:S3:INFO : Min/max theta =   0.24004504E+03  0.66386881E+03
+20240507122606.014+0100:S3:INFO : End of timestep 3
+20240507122606.014+0100:S3:INFO : \****************************************************************************/
+20240507122606.015+0100:S4:INFO : Start of timestep 4
+20240507122606.074+0100:S4:INFO : Mass matrix solve for W2 space
+20240507122606.074+0100:S4:INFO : Constructing mass matrix operator...
+20240507122606.074+0100:S4:INFO : done
+20240507122606.074+0100:S4:INFO : Constructing diagonal preconditioner...
+20240507122606.074+0100:S4:INFO : done
+20240507122606.075+0100:S4:INFO : Gungho: mass matrix solve:
+20240507122606.142+0100:S4:INFO : chebyshev[  13], redidual =   0.13717968E-05
+20240507122606.144+0100:S4:INFO : Setting up transport_runtime on mesh:    1
+20240507122606.151+0100:S4:INFO : Min/max dep_pts_z =  -0.28996136E-01  0.73354693E-02
+20240507122606.153+0100:S4:INFO : Transport: maximum horizontal CFL   0.26215079E+00
+20240507122606.154+0100:S4:INFO : Transport: maximum vertical CFL   0.28996136E-01
+20240507122606.154+0100:S4:INFO : Transport: maximum total CFL   0.27763697E+00
+20240507122606.154+0100:S4:INFO : Transporting density...
+20240507122606.180+0100:S4:INFO : Transport: number of MoL substeps in 3D direction =    1
+20240507122606.181+0100:S4:INFO : Transporting wind...
+20240507122606.289+0100:S4:INFO : Transporting potential temperature...
+20240507122606.977+0100:S4:INFO : loop indices (o, i):   1  1
+20240507122606.977+0100:S4:INFO : Gungho: computing si_operators
+20240507122606.977+0100:S4:INFO : si_ops: mg level=1
+20240507122608.618+0100:S4:INFO : si_ops:MG restrict L1 to L2
+20240507122608.619+0100:S4:INFO : si_ops: mg level=2
+20240507122608.786+0100:S4:INFO : si_ops:MG restrict L2 to L3
+20240507122608.787+0100:S4:INFO : si_ops: mg level=3
+20240507122608.831+0100:S4:INFO : si_ops:MG restrict L3 to L4
+20240507122608.831+0100:S4:INFO : si_ops: mg level=4
+20240507122608.850+0100:S4:INFO : Residual in momentum equation:    0.25913335E+04
+20240507122608.850+0100:S4:INFO : Residual in energy equation:      0.41734319E+02
+20240507122608.850+0100:S4:INFO : Residual in continuity equation:  0.29999229E+00
+20240507122608.850+0100:S4:INFO : Residual in equation of state:    0.17559930E-01
+20240507122608.856+0100:S4:INFO : Gungho: mixed solve:
+20240507122608.862+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122608.862+0100:S4:INFO : Precondition only starting
+20240507122608.869+0100:S4:INFO : Precondition only: ... finished
+20240507122608.888+0100:S4:INFO : BLOCK_GCR starting ... ||b|| =  0.35620509E+04: 0.35773367E+04
+20240507122608.892+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122608.892+0100:S4:INFO : Precondition only starting
+20240507122608.901+0100:S4:INFO : Precondition only: ... finished
+20240507122608.927+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122608.927+0100:S4:INFO : Precondition only starting
+20240507122608.936+0100:S4:INFO : Precondition only: ... finished
+20240507122608.958+0100:S4:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.3577E+04 final= 0.58704738E-01 abs= 0.11424756E+01
+20240507122608.958+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.14711048E+02  0.85893314E+00  0.58386943E-01
+20240507122608.958+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.60520753E+00  0.14418060E-03  0.23823332E-03
+20240507122608.958+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.35620204E+04  0.28339833E+00  0.79561119E-04
+20240507122608.959+0100:S4:INFO : Min/max exner_inc =  -0.39849259E-03  0.62956002E-04
+20240507122608.959+0100:S4:INFO : Min/max uv_inc =  -0.24568307E+09  0.25768283E+09
+20240507122608.959+0100:S4:INFO : Min/max w_inc =  -0.24508444E+10  0.60098488E+10
+20240507122609.568+0100:S4:INFO : loop indices (o, i):   1  2
+20240507122610.225+0100:S4:INFO : Residual in momentum equation:    0.33698357E+03
+20240507122610.225+0100:S4:INFO : Residual in energy equation:      0.00000000E+00
+20240507122610.225+0100:S4:INFO : Residual in continuity equation:  0.00000000E+00
+20240507122610.225+0100:S4:INFO : Residual in equation of state:    0.17603714E-01
+20240507122610.254+0100:S4:INFO : Gungho: mixed solve:
+20240507122610.260+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122610.260+0100:S4:INFO : Precondition only starting
+20240507122610.267+0100:S4:INFO : Precondition only: ... finished
+20240507122610.286+0100:S4:INFO : BLOCK_GCR starting ... ||b|| =  0.33698357E+03: 0.34108492E+03
+20240507122610.290+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122610.290+0100:S4:INFO : Precondition only starting
+20240507122610.299+0100:S4:INFO : Precondition only: ... finished
+20240507122610.323+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122610.323+0100:S4:INFO : Precondition only starting
+20240507122610.332+0100:S4:INFO : Precondition only: ... finished
+20240507122610.354+0100:S4:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.3411E+03 final= 0.56976216E-01 abs= 0.29298588E+00
+20240507122610.354+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.41087973E+01  0.22339609E+00  0.54370190E-01
+20240507122610.354+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17603714E-01  0.42242369E-04  0.23996282E-02
+20240507122610.354+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.33695852E+03  0.69547549E-01  0.20639796E-03
+20240507122610.355+0100:S4:INFO : Min/max exner_inc =  -0.29025741E-04  0.98415157E-05
+20240507122610.356+0100:S4:INFO : Min/max uv_inc =  -0.59842160E+08  0.56831704E+08
+20240507122610.356+0100:S4:INFO : Min/max w_inc =  -0.75431424E+08  0.10200382E+09
+20240507122610.962+0100:S4:INFO : Setting up transport_runtime on mesh:    1
+20240507122610.968+0100:S4:INFO : Min/max dep_pts_z =  -0.12214585E-01  0.25902206E-01
+20240507122610.971+0100:S4:INFO : Transport: maximum horizontal CFL   0.26217586E+00
+20240507122610.971+0100:S4:INFO : Transport: maximum vertical CFL   0.25902206E-01
+20240507122610.971+0100:S4:INFO : Transport: maximum total CFL   0.28076611E+00
+20240507122610.971+0100:S4:INFO : Transporting density...
+20240507122610.998+0100:S4:INFO : Transport: number of MoL substeps in 3D direction =    1
+20240507122610.999+0100:S4:INFO : Transporting wind...
+20240507122611.107+0100:S4:INFO : Transporting potential temperature...
+20240507122611.800+0100:S4:INFO : loop indices (o, i):   2  1
+20240507122611.801+0100:S4:INFO : Gungho: computing si_operators
+20240507122611.801+0100:S4:INFO : si_ops: mg level=1
+20240507122613.442+0100:S4:INFO : si_ops:MG restrict L1 to L2
+20240507122613.442+0100:S4:INFO : si_ops: mg level=2
+20240507122613.610+0100:S4:INFO : si_ops:MG restrict L2 to L3
+20240507122613.610+0100:S4:INFO : si_ops: mg level=3
+20240507122613.655+0100:S4:INFO : si_ops:MG restrict L3 to L4
+20240507122613.655+0100:S4:INFO : si_ops: mg level=4
+20240507122613.673+0100:S4:INFO : Residual in momentum equation:    0.14985230E+03
+20240507122613.673+0100:S4:INFO : Residual in energy equation:      0.38111130E+02
+20240507122613.673+0100:S4:INFO : Residual in continuity equation:  0.19463937E-02
+20240507122613.673+0100:S4:INFO : Residual in equation of state:    0.17603606E-01
+20240507122613.679+0100:S4:INFO : Gungho: mixed solve:
+20240507122613.685+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122613.685+0100:S4:INFO : Precondition only starting
+20240507122613.692+0100:S4:INFO : Precondition only: ... finished
+20240507122613.712+0100:S4:INFO : BLOCK_GCR starting ... ||b|| =  0.15096320E+04: 0.15133478E+04
+20240507122613.715+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122613.716+0100:S4:INFO : Precondition only starting
+20240507122613.724+0100:S4:INFO : Precondition only: ... finished
+20240507122613.748+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122613.749+0100:S4:INFO : Precondition only starting
+20240507122613.757+0100:S4:INFO : Precondition only: ... finished
+20240507122613.779+0100:S4:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1513E+04 final= 0.93474847E-01 abs= 0.43441900E+00
+20240507122613.780+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.36412135E+01  0.33832636E+00  0.92915825E-01
+20240507122613.780+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.78899817E-01  0.39086544E-04  0.49539461E-03
+20240507122613.780+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.15096276E+04  0.96053554E-01  0.63627315E-04
+20240507122613.780+0100:S4:INFO : Min/max exner_inc =  -0.20626332E-04  0.20730378E-03
+20240507122613.781+0100:S4:INFO : Min/max uv_inc =  -0.97061152E+08  0.89907640E+08
+20240507122613.781+0100:S4:INFO : Min/max w_inc =  -0.90521584E+08  0.13715526E+10
+20240507122614.390+0100:S4:INFO : loop indices (o, i):   2  2
+20240507122615.045+0100:S4:INFO : Residual in momentum equation:    0.14519494E+03
+20240507122615.045+0100:S4:INFO : Residual in energy equation:      0.00000000E+00
+20240507122615.045+0100:S4:INFO : Residual in continuity equation:  0.00000000E+00
+20240507122615.045+0100:S4:INFO : Residual in equation of state:    0.17578572E-01
+20240507122615.063+0100:S4:INFO : Gungho: mixed solve:
+20240507122615.068+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122615.069+0100:S4:INFO : Precondition only starting
+20240507122615.076+0100:S4:INFO : Precondition only: ... finished
+20240507122615.095+0100:S4:INFO : BLOCK_GCR starting ... ||b|| =  0.14519494E+03: 0.14713343E+03
+20240507122615.099+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122615.099+0100:S4:INFO : Precondition only starting
+20240507122615.108+0100:S4:INFO : Precondition only: ... finished
+20240507122615.132+0100:S4:INFO : Schur preconditioner pressure solve:
+20240507122615.132+0100:S4:INFO : Precondition only starting
+20240507122615.141+0100:S4:INFO : Precondition only: ... finished
+20240507122615.163+0100:S4:INFO : BLOCK_GCR solver_algorithm: [ 1, 2], iters, init=  0.1471E+03 final= 0.55943979E-01 abs= 0.13608179E+00
+20240507122615.163+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  1  0.19337833E+01  0.10640781E+00  0.55025718E-01
+20240507122615.163+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  2  0.17578572E-01  0.12550312E-04  0.71395519E-03
+20240507122615.163+0100:S4:INFO : BLOCK_GCR field errors (Init/Final/Rel):  3  0.14518206E+03  0.29661425E-01  0.20430502E-03
+20240507122615.164+0100:S4:INFO : Min/max exner_inc =  -0.30254434E-04  0.28567379E-05
+20240507122615.165+0100:S4:INFO : Min/max uv_inc =  -0.37091416E+08  0.37062600E+08
+20240507122615.165+0100:S4:INFO : Min/max w_inc =  -0.34321224E+08  0.37076312E+08
+20240507122618.171+0100:S4:INFO : Conservation: dry mass   0.518558484586916864000000E+19
+20240507122618.171+0100:S4:INFO : Conservation: total energy   0.128818482139224128618496E+25
+20240507122618.171+0100:S4:INFO : Conservation: horizontal kinetic energy   0.398650362884788060160000E+21
+20240507122618.171+0100:S4:INFO : Conservation: vertical kinetic energy   0.584765380019606953125000E+14
+20240507122618.171+0100:S4:INFO : Conservation: potential energy   0.361301974871325729095680E+24
+20240507122618.171+0100:S4:INFO : Conservation: dry internal energy   0.926484196099554258452480E+24
+20240507122618.171+0100:S4:INFO : Conservation: moist internal energy   0.000000000000000000000000E+00
+20240507122618.171+0100:S4:INFO : Conservation: dry aam   0.104847140131227267840826E+29
+20240507122618.171+0100:S4:INFO : Conservation: dry physical entropy   0.197195418962106941440000E+20
+20240507122618.171+0100:S4:INFO : Conservation: dry dynamic entropy   0.164108906326462927208448E+24
+20240507122618.171+0100:S4:INFO : Min/max  u =  -0.19558914E+11  0.19566959E+11
+20240507122618.171+0100:S4:INFO : Min/max theta =   0.24004507E+03  0.66386832E+03
+20240507122618.171+0100:S4:INFO : End of timestep 4
+20240507122618.171+0100:S4:INFO : \****************************************************************************/
+20240507122618.172+0100:INFO : finalise_model_data: all fields have been cleared
+20240507122621.178+0100:INFO : ||=           Routine            =||    =   time(s)     =||=     No. calls     =||= time per call(s)  =||
+20240507122621.178+0100:INFO : ||                    gungho_model||               103.70||                    1||             103.6953||
+20240507122621.178+0100:INFO : ||           runtime_constants_alg||                42.54||                    1||              42.5373||
+20240507122621.178+0100:INFO : ||         geometric_constants_alg||                 0.17||                    1||               0.1728||
+20240507122621.178+0100:INFO : ||               fem_constants_alg||                34.72||                    1||              34.7203||
+20240507122621.178+0100:INFO : ||       physical_op_constants_alg||                 7.63||                    1||               7.6289||
+20240507122621.178+0100:INFO : ||         intermesh_constants_alg||                 0.00||                    1||               0.0024||
+20240507122621.178+0100:INFO : ||          mass_matrix_solver_alg||                 0.65||                   42||               0.0156||
+20240507122621.178+0100:INFO : ||            xios_update_calendar||                 0.00||                    5||               0.0001||
+20240507122621.178+0100:INFO : ||       gungho_diagnostics_driver||                 2.48||                    1||               2.4803||
+20240507122621.178+0100:INFO : ||         si_operators_alg:create||                 0.00||                    1||               0.0003||
+20240507122621.178+0100:INFO : ||                conservation_alg||                11.97||                    5||               2.3942||
+20240507122621.178+0100:INFO : ||      semi_implicit_timestep_alg||                39.13||                    4||               9.7817||
+20240507122621.178+0100:INFO : ||                         rhs_alg||                10.71||                   20||               0.5355||
+20240507122621.178+0100:INFO : ||        gungho_transport_control||                 1.44||                    8||               0.1795||
+20240507122621.178+0100:INFO : ||               calc_vert_dep_pts||                 0.03||                    8||               0.0037||
+20240507122621.178+0100:INFO : ||            mol_conservative_alg||                 0.22||                    8||               0.0281||
+20240507122621.178+0100:INFO : ||             w3 horizontal recon||                 0.29||                  160||               0.0018||
+20240507122621.178+0100:INFO : ||               w3 vertical recon||                 0.15||                  160||               0.0009||
+20240507122621.178+0100:INFO : ||                  wind transport||                 0.86||                    8||               0.1079||
+20240507122621.178+0100:INFO : ||               mol_advective_alg||                 0.83||                   32||               0.0261||
+20240507122621.178+0100:INFO : ||             wt horizontal recon||                 0.14||                   40||               0.0036||
+20240507122621.178+0100:INFO : ||               wt vertical recon||                 0.07||                   40||               0.0016||
+20240507122621.178+0100:INFO : ||        si_operators_alg:compute||                14.98||                    8||               1.8720||
+20240507122621.178+0100:INFO : ||        semi_implicit_solver_alg||                 2.08||                   16||               0.1297||
+20240507122621.178+0100:INFO : ||                    mixed_solver||                 1.68||                   16||               0.1049||
+20240507122621.178+0100:INFO : ||  mixed_schur_preconditioner_alg||                 0.70||                   49||               0.0143||
+20240507122621.178+0100:INFO : ||                 mixed_schur rhs||                 0.15||                   49||               0.0031||
+20240507122621.178+0100:INFO : ||         mixed_schur rhs:helm_ru||                 0.03||                   49||               0.0005||
+20240507122621.178+0100:INFO : ||         mixed_schur rhs:helm_rx||                 0.10||                   49||               0.0020||
+20240507122621.178+0100:INFO : ||               mixed_schur solve||                 0.42||                   49||               0.0085||
+20240507122621.178+0100:INFO : ||                   helmholtz lhs||                 0.16||                  735||               0.0002||
+20240507122621.178+0100:INFO : ||           schur back substitute||                 0.12||                   49||               0.0025||
+20240507122621.178+0100:INFO : ||                  mixed_operator||                 0.78||                   49||               0.0159||
+20240507122621.178+0100:INFO : ||                  exner_from_eos||                 9.58||                   16||               0.5989||
+20240507122621.179+0100:INFO : gungho_model completed.
