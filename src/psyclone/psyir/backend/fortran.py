@@ -1508,11 +1508,12 @@ class FortranWriter(LanguageWriter):
             if isinstance(parent, BinaryOperation):
                 parent_fort_oper = self.get_operator(parent.operator)
                 if (node is parent.children[1] or
-                    (parent_fort_oper == "**" and fort_oper == "-")):
+                        (parent_fort_oper == "**" and fort_oper == "-")):
                     return f"({fort_oper}{content})"
                 grandparent = parent.parent
-                # Case: 'a op1 (-b) op2 c' and precedence(op2) > precedence(op1)
-                # implying that '(-b) op2 c' is not parenthesized
+                # Case: 'a op1 (-b) op2 c'
+                # and precedence(op2) > precedence(op1)
+                # implying that '(-b) op2 c' is not parenthesized.
                 if isinstance(grandparent, BinaryOperation):
                     grandparent_fort_oper = self.get_operator(
                         grandparent.operator
@@ -1521,7 +1522,7 @@ class FortranWriter(LanguageWriter):
                         and node is parent.children[0]
                         and (precedence(parent_fort_oper)
                              > precedence(grandparent_fort_oper))
-                        and fort_oper == "-"):
+                            and fort_oper == "-"):
                         return f"({fort_oper}{content})"
             return f"{fort_oper}{content}"
 
