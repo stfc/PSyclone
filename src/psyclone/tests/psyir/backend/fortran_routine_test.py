@@ -389,6 +389,42 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     output = fortran_writer(container)
     assert "impure elemental" in output
 
+    # Test this also works for functions
+    code = '''module test
+    contains
+    elemental function sub(val1, val2)
+        real :: sub
+        real :: val1
+        real :: val2
+        sub = val1 - val2
+    end function
+    end module
+    '''
+    container = fortran_reader.psyir_from_source(code)
+    routine = container.children[0].children[0]
+    rsym = routine.parent.scope.symbol_table.lookup(routine.name)
+    assert rsym.is_elemental
+    output = fortran_writer(container)
+    assert "elemental function" in output
+
+    code = '''module test
+    contains
+    impure elemental function sub(val1, val2)
+        real :: sub
+        real :: val1
+        real :: val2
+        sub = val1 - val2
+    end function
+    end module
+    '''
+    container = fortran_reader.psyir_from_source(code)
+    routine = container.children[0].children[0]
+    rsym = routine.parent.scope.symbol_table.lookup(routine.name)
+    assert rsym.is_elemental
+    assert not rsym.is_pure
+    output = fortran_writer(container)
+    assert "impure elemental function" in output
+
 
 def test_fw_routine_prefixes_nomod(fortran_reader, fortran_writer):
     '''
@@ -400,6 +436,6 @@ def test_fw_routine_prefixes_nomod(fortran_reader, fortran_writer):
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
     if "impure elemental" not in output:
-        pytest.xfail(reason="Issue #2156: Routine prefixes aren't handled by "
-                            " the fparser frontend when the Routine isn't "
-                            "contained inside a module.")
+        pytest.xfail(reason="Issues #2156 & #2201: Routine prefixes aren't "
+                            "handled by the fparser frontend when the Routine "
+                            "isn't contained inside a module.")
