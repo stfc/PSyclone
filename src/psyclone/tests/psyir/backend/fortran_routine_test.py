@@ -435,7 +435,7 @@ def test_fw_routine_prefixes_nomod(fortran_reader, fortran_writer):
     end subroutine sub'''
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
-    if "impure elemental" not in output:
-        pytest.xfail(reason="Issues #2156 & #2201: Routine prefixes aren't "
-                            "handled by the fparser frontend when the Routine "
-                            "isn't contained inside a module.")
+    assert "impure elemental" not in output
+    pytest.xfail(reason="Issues #2156 & #2201: Routine prefixes aren't "
+                        "handled by the fparser frontend when the Routine "
+                        "isn't contained inside a module.")
