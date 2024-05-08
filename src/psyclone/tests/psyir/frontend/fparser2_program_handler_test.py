@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury La
 
 '''Module containing pytest tests for the _program_handler method in
 the class Fparser2Reader. This handler deals with the translation of
@@ -40,9 +41,10 @@ the fparser2 Program construct to PSyIR.'''
 from __future__ import absolute_import
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import FileContainer
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import FileContainer
+from psyclone.psyir.symbols import RoutineSymbol
 
 
 def test_program_handler(parser):
@@ -77,3 +79,27 @@ def test_program_handler(parser):
     writer = FortranWriter()
     result = writer(psyir)
     assert result == expected
+
+
+def test_program_handler_no_module(parser):
+    ''' Test that the FileContainer contains the relevant RoutineSymbol
+    nodes when we have no containing module.'''
+    code = '''
+    subroutine a()
+    end subroutine
+    real function b(val)
+       real :: val
+       b = val
+    end function
+    '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    psyir = processor._program_handler(parse_tree, None)
+    assert isinstance(psyir, FileContainer)
+    assert psyir.parent is None
+    assert len(psyir.symbol_table.symbols) == 2
+    assert isinstance(psyir.symbol_table.symbols[0], RoutineSymbol)
+    assert psyir.symbol_table.symbols[0].name == 'a'
+    assert isinstance(psyir.symbol_table.symbols[1], RoutineSymbol)
+    assert psyir.symbol_table.symbols[1].name == 'b'
