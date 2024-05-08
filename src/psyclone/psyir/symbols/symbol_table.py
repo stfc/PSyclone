@@ -1799,8 +1799,9 @@ class SymbolTable():
         header += "\n" + "-" * len(header) + "\n"
 
         # Unique types of symbols, alpha-sorted.
-        symbol_types = list({type(symbol) for symbol in self._symbols.values()})
-        symbol_types.sort(key = lambda t : t.__name__)
+        symbol_types = list({type(symbol)
+                             for symbol in self._symbols.values()})
+        symbol_types.sort(key=lambda t: t.__name__)
         for symbol_type in symbol_types:
             header += symbol_type.__name__ + ":\n"
             # _symbols is an OrderDict so these are alpha-sorted.

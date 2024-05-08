@@ -1399,7 +1399,7 @@ def test_wildcard_imports():
 
 def test_view():
     '''Test the view method of the SymbolTable class, it should return a
-    representation of the full SymbolTable, sorted by symbol type and 
+    representation of the full SymbolTable, sorted by symbol type and
     alphabetically ordered.'''
     sym_table = symbols.SymbolTable()
     sym_table.add(symbols.DataSymbol("var1", symbols.REAL_TYPE))
@@ -1425,14 +1425,15 @@ def test_view():
     assert output == ("Symbol Table:\n"
                       "-------------\n"
                       "DataSymbol:\n"
-                      "  var1: DataSymbol<Scalar<REAL, UNDEFINED>, Automatic>\n"
+                      "  var1: DataSymbol<Scalar<REAL, UNDEFINED>, "
+                      "Automatic>\n"
                       "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
                       "Automatic>\n"
                       "RoutineSymbol:\n"
                       "  func: RoutineSymbol<Scalar<REAL, UNDEFINED>, "
                       "pure=unknown, elemental=unknown>\n")
 
-    routine = Routine("func", symbol_table=sym_table_2)
+    Routine("func", symbol_table=sym_table_2)
     output = sym_table_2.view()
     assert "Symbol Table of Routine 'func':\n" in output
     assert "DataSymbol:\n" in output
@@ -1445,12 +1446,14 @@ def test_view():
     assert output == ("Symbol Table of Routine 'func':\n"
                       "-------------------------------\n"
                       "DataSymbol:\n"
-                      "  var1: DataSymbol<Scalar<REAL, UNDEFINED>, Automatic>\n"
+                      "  var1: DataSymbol<Scalar<REAL, UNDEFINED>, "
+                      "Automatic>\n"
                       "  var2: DataSymbol<Scalar<INTEGER, UNDEFINED>, "
                       "Automatic>\n"
                       "RoutineSymbol:\n"
                       "  func: RoutineSymbol<NoType, pure=unknown, "
                       "elemental=unknown>\n")
+
 
 def test_can_be_printed():
     '''Test that a SymbolTable instance can always be printed. (i.e. is
