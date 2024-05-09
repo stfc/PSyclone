@@ -687,10 +687,10 @@ def test_generate_lfric_adjoint_harness_operator(fortran_reader,
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     gen = fortran_writer(psyir)
     assert "type(operator_type) :: op\n" in gen
-    assert ("vector_space_w0_ptr => function_space_collection % get_fs(mesh, "
-            "element_order, w0)\n" in gen)
-    assert ("vector_space_w3_ptr => function_space_collection % get_fs(mesh, "
-            "element_order, w3)\n" in gen)
+    assert ("vector_space_w0_ptr => function_space_collection%get_fs(mesh,"
+            "element_order,w0)\n" in gen)
+    assert ("vector_space_w3_ptr => function_space_collection%get_fs(mesh,"
+            "element_order,w3)\n" in gen)
     # Initialise takes the *to* and *from* spaces as arguments in that order.
     assert ("call op%initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
             in gen)
