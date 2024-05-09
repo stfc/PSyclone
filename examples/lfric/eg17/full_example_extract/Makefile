@@ -132,6 +132,9 @@ driver-main-init:	driver-main-init.o
 # Keep the generated psy and alg files
 .precious: main.x90 main_psy.f90 main_alg.f90
 
+# This dependency will make sure that read_kernel_data_mod was created
+# (which will be inlined in the driver).
+main_psy.f90: $(EXTRACT_LIB)
 main_alg.f90: main_psy.f90
 
 %.x90:	%.X90
