@@ -65,9 +65,9 @@ by the command:
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
                   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                  [--profile {invokes,routines,kernels}] [--config CONFIG]
-        		  [--backend {enable-validation,disable-validation}]
-        		  [--config CONFIG] [--version]
+                  [--profile {invokes,routines,kernels}]
+                  [--backend {enable-validation,disable-validation}]
+                  [--config CONFIG] [--version]
                   filename
 
   Run the PSyclone code generator on a particular file
@@ -103,13 +103,14 @@ by the command:
                           kernels
     --profile {invokes,routines,kernels}, -p {invokes,routines,kernels}
                           Add profiling hooks for either 'kernels' or
-            			  'invokes/routines'. The 'kernels' option is not
-            			  permitted for the 'nemo' API.
+                          'invokes/routines'. The 'kernels' option is not
+                          permitted for the 'nemo' API.
     --backend {dis,en}able-validation
                           Options to control the PSyIR backend used for code
                           generation. Use 'disable-validation' to disable the
                           validation checks that are performed by default.
-    --config CONFIG       Config file with PSyclone specific options.
+    --config CONFIG, -c CONFIG
+                          Config file with PSyclone specific options.
     --version, -v         Display version information (\ |release|\ )
 
 Basic Use
@@ -237,7 +238,7 @@ must be only one instance of the specified file within (or below) the
 specified directory:
 
 .. code-block:: bash
-		  
+
     > cd <PSYCLONEHOME>/src/psyclone
     > psyclone -d . use.f90 
     More than one match for kernel file 'testkern.[fF]90' found!
