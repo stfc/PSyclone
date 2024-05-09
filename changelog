@@ -64,8 +64,11 @@
 	accelerator devices.
 
 	25) PR #2581 for #2576. Updates a tutorial README to remove a now-
-        dead link to the VMWare KnowledgeBase from a quoted VMWare error
+    dead link to the VMWare KnowledgeBase from a quoted VMWare error
 	message.
+
+	26) PR #2571 for #2569. Update integration tests for new system
+	(lfric still has issues that will be resolved separately).
 
 release 2.5.0 14th of February 2024
 
