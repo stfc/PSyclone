@@ -93,6 +93,7 @@ class GOPSy(PSy):
 
     '''
     def __init__(self, invoke_info):
+        Config.get().api = "gocean1.0"
         PSy.__init__(self, invoke_info)
 
         # Add GOcean infrastructure-specific libraries

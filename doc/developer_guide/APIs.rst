@@ -58,8 +58,7 @@ TBD
 .. 
 .. The names of the supported APIs and the default API are specified in
 .. ``configuration.py``. When adding a new API you must add the name you would like
-.. to use to the ``_supported_api_list`` (and change the ``_default_api`` if
-.. required).
+.. to use to the ``_supported_api_list``.
 .. 
 .. parse.py
 .. --------

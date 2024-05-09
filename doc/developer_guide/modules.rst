@@ -125,9 +125,7 @@ guarantee that all tests use the config file provided in the PSyclone
 repository, and not a (potentially modified) user installed version.
 
 The ``Config`` class also stores the list of supported
-APIs (``Config._supported_api_list``) and the default API to use if none
-is specified in either a config file or the command line
-(``Config._default_api``). Additionally, it performs some basic
+APIs (``Config._supported_api_list``). Additionally, it performs some basic
 consistency checks on the values it obtains from the configuration file.
 
 Since the PSyclone API to use can be read from the configuration

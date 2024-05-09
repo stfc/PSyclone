@@ -39,6 +39,7 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 '''
 import logging
 
+from psyclone.configuration import LFRIC_API_NAMES
 from psyclone.errors import InternalError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import (find_container, create_adjoint_name,
@@ -124,7 +125,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
         if create_test:
             test_psyir = generate_adjoint_test(tl_psyir, ad_psyir,
                                                active_variables)
-    elif api == "dynamo0.3":
+    elif api in LFRIC_API_NAMES:
         ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
         if create_test:
             test_psyir = generate_lfric_adjoint_harness(tl_psyir,

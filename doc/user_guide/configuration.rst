@@ -89,8 +89,6 @@ section e.g.:
 ::
 
     [DEFAULT]
-    DEFAULTAPI = dynamo0.3
-    DEFAULTSTUBAPI = dynamo0.3
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
@@ -154,19 +152,6 @@ supported by PSyclone.
 ======================= ======================================================= ===========
 Entry                   Description                                             Type
 ======================= ======================================================= ===========
-DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel       str
-                        conforms to if no API is specified. Must be one of the
-                        APIs supported by PSyclone ("dynamo0.3", "gocean1.0"
-                        and "nemo"). If there is no
-                        API specified and there is only one API-specific
-                        section in the config file loaded, this API will be
-                        used. This value can be overwritten by the command
-                        line option '-api'. If there is no API entry in the
-                        config file, and '-api' is not specified on the 
-                        command line, "dynamo0.3" is used as default.
-DEFAULTSTUBAPI          The API that the kernel-stub generator assumes by       str
-                        default. Must be one of the stub-APIs supported by
-                        PSyclone ("dynamo0.3" only at this stage).
 DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory  bool
                         parallelism by default.  Note that this is currently
                         only supported for the LFRic (Dynamo 0.3) API.

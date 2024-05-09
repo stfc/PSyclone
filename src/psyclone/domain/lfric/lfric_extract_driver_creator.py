@@ -647,7 +647,7 @@ class LFRicExtractDriverCreator:
         # r_quad is defined in constants_mod, but not exported. And r_phys
         # does not exist at all in LFRic. So we have to remove them from the
         # lists of precisions to import.  TODO #2018
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         all_precisions = [name for name in api_config.precision_map
                           if name not in ["r_quad", "r_phys"]]
         for prec_name in all_precisions:

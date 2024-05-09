@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Data_Component_Def_Stmt, Component_Decl
 # pylint: enable=no-name-in-module
 
-from psyclone.configuration import Config
+from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import BuiltInKernelTypeFactory, get_kernel_ast, \
     KernelTypeFactory
@@ -148,11 +148,9 @@ class Parser():
         self._line_length = line_length
 
         _config = Config.get()
-        if not api:
-            api = _config.default_api
-        else:
-            check_api(api)
+        check_api(api)
         self._api = api
+        Config.get().api = api
 
         self._arg_name_to_module_name = {}
         # Dict holding a 2-tuple consisting of type and precision
@@ -539,7 +537,7 @@ def get_builtin_defs(api):
     check_api(api)
 
     # pylint: disable=import-outside-toplevel
-    if api == "dynamo0.3":
+    if api in LFRIC_API_NAMES:
         from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP \
             as builtins
         from psyclone.domain.lfric.lfric_builtins import \

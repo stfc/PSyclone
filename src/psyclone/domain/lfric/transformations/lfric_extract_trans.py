@@ -47,13 +47,13 @@ from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
 class LFRicExtractTrans(ExtractTrans):
-    ''' Dynamo0.3 API application of ExtractTrans transformation \
+    ''' LFRic API application of ExtractTrans transformation
     to extract code into a stand-alone program. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>>
-    >>> API = "dynamo0.3"
+    >>> API = "lfric"
     >>> FILENAME = "solver_alg.x90"
     >>> ast, invokeInfo = parse(FILENAME, api=API)
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)

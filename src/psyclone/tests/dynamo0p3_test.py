@@ -3761,8 +3761,10 @@ def test_dynkernelarguments_acc_args_1():
     returns the expected arguments.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3779,9 +3781,10 @@ def test_dynkernelarguments_acc_args_2():
     returns the expected arguments when there is a field vector.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "1_single_invoke_w3_only_vector.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke_w3_only_vector.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_w3_only_vector_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3798,9 +3801,10 @@ def test_dynkernelarguments_acc_args_3():
     returns the expected arguments when there is a stencil.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "19.1_single_stencil.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3818,9 +3822,10 @@ def test_dynkernelarguments_acc_args_4():
     returns the expected arguments when there is a stencil.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "19.26_single_stencil_cross2d.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "19.26_single_stencil_cross2d.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_stencil_cross2d_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3839,9 +3844,10 @@ def test_dynkernelarguments_acc_args_5():
     returns the expected arguments when there is an operator.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH,
-                                 "10_operator.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "10_operator.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_operator_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments
@@ -3862,8 +3868,10 @@ def test_dynkernelarguments_scalars():
     where this method is used).
 
     '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     kern = sched.kernels()[0]
     kern_args = kern.arguments

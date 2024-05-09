@@ -45,7 +45,8 @@ import os
 from collections import OrderedDict
 import abc
 
-from psyclone.configuration import Config
+from psyclone.configuration import (
+    Config, LFRIC_API_NAMES, GOCEAN_API_NAMES, NO_API_NAMES)
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CommentGen,
@@ -103,15 +104,10 @@ def get_api(api):
     :raises GenerationError: if the specified API is not supported.
 
     '''
-    if api == "":
-        api = Config.get().default_api
-    elif api == "nemo":
-        pass  # Does nothing special
-    else:
-        if api not in Config.get().supported_apis:
-            raise GenerationError(f"get_api: Unsupported API '{api}' "
-                                  f"specified. Supported types are "
-                                  f"{Config.get().supported_apis}.")
+    if api not in Config.get().supported_apis:
+        raise GenerationError(f"get_api: Unsupported API '{api}' "
+                              f"specified. Supported types are "
+                              f"{Config.get().supported_apis}.")
     return api
 
 
@@ -217,11 +213,11 @@ class PSyFactory():
         # Conditional run-time importing is a part of this factory
         # implementation.
         # pylint: disable=import-outside-toplevel
-        if self._type == "dynamo0.3":
+        if self._type in LFRIC_API_NAMES:
             from psyclone.dynamo0p3 import DynamoPSy as PSyClass
-        elif self._type == "gocean1.0":
+        elif self._type in GOCEAN_API_NAMES:
             from psyclone.gocean1p0 import GOPSy as PSyClass
-        elif self._type == "nemo":
+        elif self._type in NO_API_NAMES:
             from psyclone.nemo import NemoPSy as PSyClass
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed

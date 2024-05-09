@@ -109,8 +109,6 @@ def test_invalid_config_files(tmpdir):
     # pylint: disable=too-many-statements
     _CONFIG_CONTENT = '''\
     [DEFAULT]
-    DEFAULTAPI = dynamo0.3
-    DEFAULTSTUBAPI = dynamo0.3
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
@@ -184,8 +182,7 @@ def test_invalid_config_files(tmpdir):
         assert (f"Invalid key 'invalid-key' found in '{config_file}'."
                 in str(err.value))
 
-        for i in ["DEFAULTAPI", "DEFAULTSTUBAPI", "DISTRIBUTED_MEMORY",
-                  "REPRODUCIBLE_REDUCTIONS"]:
+        for i in ["DISTRIBUTED_MEMORY", "REPRODUCIBLE_REDUCTIONS"]:
             # They keys are returned in lower case
             assert i.lower() in config.get_default_keys()
 
@@ -250,8 +247,6 @@ def test_debug_mode(tmpdir):
     '''
     _CONFIG_CONTENT = '''\
     [DEFAULT]
-    DEFAULTAPI = dynamo0.3
-    DEFAULTSTUBAPI = dynamo0.3
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8

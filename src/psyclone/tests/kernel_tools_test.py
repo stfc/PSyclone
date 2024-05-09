@@ -193,7 +193,7 @@ def test_run_line_length(fortran_reader, monkeypatch, capsys, limit, mode):
     monkeypatch.setattr(algorithm.lfric_alg.LFRicAlg,
                         "create_from_kernel", long_psyir_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", long_gen)
-    args = ["-gen", mode, str("/does_not_exist")]
+    args = ["-gen", mode, str("/does_not_exist"), "-api", "lfric"]
     if limit:
         args.extend(["--limit", "output"])
     kernel_tools.run(args)

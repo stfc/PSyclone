@@ -50,15 +50,6 @@ TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                          "test_files", "dynamo0p3")
 
 
-def test_default_api():
-    ''' Check that parse() picks up the default API if none is specified
-    by the caller. We do this simply by checking that it returns OK
-    having parsed some dynamo0.3 code. '''
-    _, invoke_info = parse(
-        os.path.join(TEST_PATH, "1_single_invoke.f90"))
-    assert len(invoke_info.calls) == 1
-
-
 def test_continuators_kernel():
     '''Tests that an input kernel file with long lines that already has
        continuators to make the code conform to the line length limit
@@ -90,15 +81,6 @@ def test_kerneltypefactory_wrong_api():
     with pytest.raises(ParseError) as excinfo:
         _ = KernelTypeFactory(api="invalid_api")
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
-
-
-def test_kerneltypefactory_default_api():
-    ''' Check that the KernelTypeFactory correctly defaults to using
-    the default API '''
-    from psyclone.configuration import Config
-    _config = Config.get()
-    factory = KernelTypeFactory(api="")
-    assert factory._type == _config.default_api
 
 
 def test_kerntypefactory_create_broken_type():

@@ -663,7 +663,8 @@ def test_main_invalid_api(capsys):
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
     expected_output = ("Unsupported API 'madeup' specified. Supported APIs "
-                       "are ['dynamo0.3', 'gocean1.0', 'nemo'].\n")
+                       "are ['lfric', 'dynamo0.3', 'gocean', 'gocean1.0', "
+                       "'nemo', ''].\n")
     assert output == expected_output
 
 
@@ -673,14 +674,8 @@ def test_main_api():
 
     '''
 
-    # 1) Make sure if no parameters are given,
-    #   config will give us the default API
-
-    # Make sure we get a default config instance
-    Config._instance = None
-    Config.get()
-
-    assert Config.get().api == Config.get().default_api
+    # 1) Make sure if no parameters are given, we don't use an API
+    assert Config.get().api == ''
 
     # 2) Check that a command line option will overwrite the default
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -691,33 +686,33 @@ def test_main_api():
     main([filename, "-api", "gocean1.0"])
     assert Config.get().api == "gocean1.0"
 
-    # 3) Check that a config option will overwrite the default
-    Config._instance = None
-    Config.get()
-    # This config file specifies the gocean1.0 as the default API
-    config_name = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "test_files", "gocean1p0",
-                                "gocean_default.cfg"))
-    assert Config.get().api != "gocean1.0"
-    main([filename, "--config", config_name])
-    assert Config.get().api == "gocean1.0"
 
-    # 4) Check that a command line option overwrites what is specified in
-    #    in the config file (and the default)
-    Config._instance = None
-    Config.get()
+def test_config_flag():
+    ''' Test that -c/--config take precedence over the configuration
+        file references in the environment variable.
+    '''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "dynamo0p3",
+                            "1_single_invoke.f90")
+    config_name = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "test_files", "dummy_config.cfg")
 
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p3", "1_single_invoke.f90"))
-
-    # Check that specifying a config file also sets the
-    # HAS_CONFIG_BEEN_INITIALISED flag!
+    # Test with no option
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    # This config file specifies the gocean1.0 api, but
-    # command line should take precedence. It also tests that
-    # -c is accepted as shortcut for --config
-    main([filename, "-c", config_name, "-api", "dynamo0.3"])
-    assert Config.get().api == "dynamo0.3"
+    main([filename, "-api", "lfric"])
+    assert Config.get().api == "lfric"
+    assert Config.has_config_been_initialised() is True
+
+    # Test with with --config
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
+    main([filename, "--config", config_name, "-api", "lfirc"])
+    assert Config.get().api == "lfric"
+    assert Config.has_config_been_initialised() is True
+
+    # Test with with -c
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
+    main([filename, "-c", config_name, "-api", "lfric"])
+    assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
 
 
@@ -1308,7 +1303,6 @@ def test_no_invokes_lfric_new(monkeypatch):
     assert ("Algorithm file contains no invoke() calls: refusing to generate "
             "empty PSy code" in str(info.value))
 
-
 @pytest.mark.parametrize("invoke", ["call invoke", "if (.true.) call invoke"])
 def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):
     '''Test that a GenerationError exception in the generate function is
@@ -1349,7 +1343,7 @@ def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):
     kern_filename = os.path.join(DYN03_BASE_PATH, "testkern_mod.F90")
     shutil.copyfile(kern_filename, str(tmpdir.join("testkern_mod.F90")))
     with pytest.raises(GenerationError) as info:
-        _, _ = generate(alg_filename)
+        _, _ = generate(alg_filename, api="lfric")
     assert ("Kernel functor 'testkern_type' in routine 'some_kernel' from "
             "algorithm file '" in str(info.value))
     assert ("alg.f90' must be named in a use statement (found ["

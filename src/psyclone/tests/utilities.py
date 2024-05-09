@@ -46,6 +46,7 @@ import sys
 import pytest
 
 from fparser import api as fpapi
+from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -550,6 +551,8 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
+
+    Config.get().api = api
     _, info = parse(os.path.join(get_base_path(api), algfile), api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
     if name:
@@ -572,6 +575,7 @@ def get_ast(api, filename):
     :rtype: :py:class:`fparser.api.BeginSource`
 
     '''
+    Config.get().api = api
     ast = fpapi.parse(os.path.join(get_base_path(api), filename),
                       ignore_comments=False)
     return ast

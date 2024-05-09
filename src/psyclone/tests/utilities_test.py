@@ -327,10 +327,11 @@ def test_get_invoke():
     assert "Cannot find an invoke named 'invalid_name'" in str(excinfo.value)
 
     # Test that an invalid API raises the right exception:
-    with pytest.raises(RuntimeError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         get_invoke("test11_different_iterates_over_one_invoke.f90",
                    "invalid-api", name="invalid_name")
-    assert "The API 'invalid-api' is not supported" in str(excinfo.value)
+    assert "'invalid-api' is not a valid API," in str(excinfo.value)
+    # assert "The API 'invalid-api' is not supported" in str(excinfo.value)
 
     # Test that invalid parameter combinations raise an exception:
     with pytest.raises(RuntimeError) as excinfo:

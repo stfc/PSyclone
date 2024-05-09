@@ -615,6 +615,7 @@ def test_transform_errors():
 
 
 # -----------------------------------------------------------------------------
+# @pytest.mark.usefixtures("lfric_config")
 def test_region():
     ''' Tests that the profiling transform works correctly when a region of
     code is specified that does not cover the full invoke and also

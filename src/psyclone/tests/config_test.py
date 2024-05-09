@@ -50,7 +50,7 @@ import pytest
 
 import psyclone
 
-from psyclone.configuration import (APISpecificConfig, ConfigurationError,
+from psyclone.configuration import (BaseConfig, ConfigurationError,
                                     Config, VALID_KERNEL_NAMING_SCHEMES)
 from psyclone.core.access_type import AccessType
 from psyclone.domain.gocean import GOceanConstants
@@ -67,8 +67,6 @@ TEST_CONFIG = os.path.join(BASE_PATH, "dummy_config.cfg")
 # different tests
 _CONFIG_CONTENT = '''\
 [DEFAULT]
-DEFAULTAPI = dynamo0.3
-DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
@@ -316,17 +314,9 @@ def test_read_values():
     dist_mem = _config.distributed_memory
     assert isinstance(dist_mem, bool)
     assert dist_mem
-    # The default API
-    api = _config.default_api
-    assert isinstance(api, str)
-    assert api == "dynamo0.3"
     # The list of supported APIs
     api_list = _config.supported_apis
-    assert api_list == ['dynamo0.3', 'gocean1.0', 'nemo']
-    # The default API for kernel stub generation
-    api = _config.default_stub_api
-    assert isinstance(api, str)
-    assert api == "dynamo0.3"
+    assert api_list == ['lfric', 'dynamo0.3', 'gocean', 'gocean1.0', 'nemo', '']
     # The list of supported APIs for kernel stub generation
     api_list = _config.supported_stub_apis
     assert api_list == ['dynamo0.3']
@@ -353,59 +343,6 @@ def test_dm():
     with pytest.raises(ConfigurationError) as err:
         config.distributed_memory = "not-a-bool"
     assert "distributed_memory must be a boolean but got " in str(err.value)
-
-
-def test_api_not_in_list(tmpdir):
-    ''' Check that we raise an error if the default API is not in
-    the list of supported APIs.
-
-    '''
-    config_file = tmpdir.join("config")
-    content = re.sub(r"^DEFAULTAPI = .*$",
-                     "DEFAULTAPI = invalid",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
-    config_file = tmpdir.join("config")
-
-    with pytest.raises(ConfigurationError) as err:
-        get_config(config_file, content)
-
-    assert ("The API (invalid) is not in the list of "
-            "supported APIs" in str(err.value))
-
-
-def test_default_stubapi_invalid(tmpdir):
-    ''' Check that we raise an error if the default stub API is not in
-    the list of supported stub APIs.
-
-    '''
-    config_file = tmpdir.join("config")
-    content = re.sub(r"^DEFAULTSTUBAPI = .*$",
-                     "DEFAULTSTUBAPI = invalid",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
-
-    with pytest.raises(ConfigurationError) as err:
-        get_config(config_file, content)
-
-    assert ("The default stub API (invalid) is not in the list of "
-            "supported stub APIs" in str(err.value))
-
-
-def test_default_stubapi_missing(tmpdir):
-    ''' Check that we raise an error if the default stub API is missing,
-    in which case it defaults to the default_api.
-
-    '''
-    config_file = tmpdir.join("config")
-    content = re.sub(r"^DEFAULTSTUBAPI = .*$",
-                     "",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
-
-    test_config = get_config(config_file, content)
-
-    assert test_config.default_stub_api == test_config.default_api
 
 
 def test_not_bool(bool_entry, tmpdir):
@@ -490,8 +427,8 @@ def test_broken_fmt(tmpdir):
             "headers" in str(err.value))
 
     # Test for general parsing error (here broken key-value mapping)
-    content = re.sub(r"^DEFAULTSTUBAPI = .*$",
-                     "DEFAULT",
+    content = re.sub(r"^DISTRIBUTED_MEMORY = .*$",
+                     "DISTRIBUTED_MEMORY",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
 
@@ -518,20 +455,20 @@ COMPUTE_ANNEXED_DOFS = false
     assert "Configuration file has no [DEFAULT] section" in str(err.value)
 
 
-def test_wrong_api():
+def test_wrong_api(tmpdir):
     ''' Check that we raise the correct errors when a user queries
     API-specific configuration options '''
-    _config = Config()
-    _config.load(config_file=TEST_CONFIG)
+    config_file = tmpdir.join("config")
+    cfg = get_config(config_file, _CONFIG_CONTENT)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api_conf("blah")
+        _ = cfg.api_conf("blah")
     assert "API 'blah' is not in the list" in str(err.value)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api_conf("nemo")
+        _ = cfg.api_conf("gocean1.0")
     assert ("Configuration file did not contain a section for the "
-            "'nemo' API" in str(err.value))
+            "'gocean1.0' API" in str(err.value))
     with pytest.raises(ValueError) as err:
-        _config.api = "invalid"
+        cfg.api = "invalid"
     assert "'invalid' is not a valid API" in str(err.value)
 
 
@@ -556,22 +493,6 @@ def test_api_unimplemented(tmpdir, monkeypatch):
         get_config(config_file, content)
     assert ("file contains a UNIMPLEMENTED section but no Config "
             "sub-class has been implemented for this API" in str(err.value))
-
-
-def test_default_api(tmpdir):
-    '''If a config file has no default-api specified, but contains only
-    a single (non-default) section, this section should be used as the
-    default api.
-
-    '''
-    config_file = tmpdir.join("config")
-    content = re.sub(r"^API.*$",
-                     "",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
-
-    default_config = get_config(config_file, content)
-    assert default_config.api == "dynamo0.3"
 
 
 def test_root_name_init():
@@ -646,21 +567,21 @@ def test_incl_path_errors(tmpdir):
 
 def test_mappings():
     '''Test the definition of a mapping in the config file.'''
-    mapping = APISpecificConfig.create_dict_from_list(["k1:v1", "k2:v2"])
+    mapping = BaseConfig.create_dict_from_list(["k1:v1", "k2:v2"])
     assert mapping == {"k1": "v1", "k2": "v2"}
 
-    mapping = APISpecificConfig.create_dict_from_list([])
+    mapping = BaseConfig.create_dict_from_list([])
     assert mapping == {}
 
     # The function only uses the first ":" :
     mapping = \
-        APISpecificConfig.create_dict_from_list(
+        BaseConfig.create_dict_from_list(
             ["k1 : v1", "k2 : v2 :something"])
     assert mapping == {"k1": "v1", "k2": "v2 :something"}
 
     # Tests errors: check that '=' instead of ":" is detected as invalid:
     with pytest.raises(ConfigurationError) as err:
-        mapping = APISpecificConfig.create_dict_from_list(["k1:v1", "k2=v2"])
+        mapping = BaseConfig.create_dict_from_list(["k1:v1", "k2=v2"])
     assert "Invalid format for mapping: k2=v2" in str(err.value)
 
 
