@@ -212,12 +212,20 @@ class Routine(Schedule, CommentableMixin):
                     f"Can't assign '{new_name}' as the routine name because "
                     f"its symbol table contains a symbol ({existing_symbol}) "
                     f"already tagged as 'own_routine_symbol'.")
+            rsymbol = None
+            if self._parent:
+                try:
+                    rsymbol = self.parent.symbol_table.lookup(new_name).copy()
+                except KeyError:
+                    pass
+            if not rsymbol:
+                rsymbol = RoutineSymbol(new_name, NoType())
 
             self._name = new_name
             # Since the constructor can not mark methods as functions directly
             # the symbol will always start being NoType and must be updated
             # if a return_value type is provided.
-            self.symbol_table.add(RoutineSymbol(new_name, NoType()),
+            self.symbol_table.add(rsymbol,
                                   tag='own_routine_symbol')
         elif self._name != new_name:
             symbol = self.symbol_table.lookup(self._name)

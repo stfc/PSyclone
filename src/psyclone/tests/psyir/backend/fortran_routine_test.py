@@ -367,6 +367,11 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     end module test'''
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
+    routine = container.children[0].children[0]
+    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
+                                                scope_limit=routine)
+    assert rsym.is_elemental
+    assert rsym.is_pure is None
     assert "elemental" in output
     # elemental => pure unless impure specified.
     assert "impure" not in output
@@ -378,6 +383,11 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     end module test'''
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
+    routine = container.children[0].children[0]
+    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
+                                                scope_limit=routine)
+    assert not rsym.is_elemental
+    assert rsym.is_pure
     assert "pure" in output
 
     code = '''module test
@@ -387,6 +397,11 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     end module test'''
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
+    routine = container.children[0].children[0]
+    rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
+                                                scope_limit=routine)
+    assert rsym.is_elemental
+    assert not rsym.is_pure
     assert "impure elemental" in output
 
     # Test this also works for functions
