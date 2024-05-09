@@ -1972,7 +1972,7 @@ def test_omp_serial_compute_accesses_bad_binop():
 
     binop_fail12 = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
-        Call(RoutineSymbol("mycall")),
+        Call.create(RoutineSymbol("mycall")),
         Reference(tmp),
     )
     with pytest.raises(UnresolvedDependencyError) as excinfo:
@@ -2018,7 +2018,7 @@ def test_omp_serial_compute_accesses_other_fails():
         Literal("1", INTEGER_SINGLE_TYPE),
     )
 
-    call_fail = Call(RoutineSymbol("mycall"))
+    call_fail = Call.create(RoutineSymbol("mycall"))
     with pytest.raises(UnresolvedDependencyError) as excinfo:
         sing._compute_accesses(correct_binop, [call_fail], None)
     assert (

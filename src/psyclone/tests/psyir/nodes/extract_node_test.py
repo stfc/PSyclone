@@ -98,7 +98,6 @@ def test_extract_node_gen_code():
         'CALL psydata%PreDeclareVariable("undf_w3", undf_w3)',
         'CALL psydata%PreDeclareVariable("cell_post", cell)',
         'CALL psydata%PreDeclareVariable("f1_data_post", f1_data)']
-    print('code', code)
     for line in expected:
         assert line in code
 
