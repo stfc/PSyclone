@@ -60,10 +60,6 @@ class Assignment(Statement):
     _text_name = "Assignment"
     _colour = "blue"
 
-    def __init__(self, is_pointer=False, **kwargs):
-        super().__init__(**kwargs)
-        self._is_pointer = is_pointer
-
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -109,12 +105,8 @@ class Assignment(Statement):
 
         return self._children[1]
 
-    @property
-    def is_pointer(self):
-        return self._is_pointer
-
     @staticmethod
-    def create(lhs, rhs, is_pointer=False):
+    def create(lhs, rhs):
         '''Create an Assignment instance given lhs and rhs child instances.
 
         :param lhs: the PSyIR node containing the left hand side of \
@@ -128,7 +120,7 @@ class Assignment(Statement):
         :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
         '''
-        new_assignment = Assignment(is_pointer)
+        new_assignment = Assignment()
         new_assignment.children = [lhs, rhs]
         return new_assignment
 

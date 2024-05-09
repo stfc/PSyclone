@@ -55,6 +55,7 @@ BASE_PATH = os.path.join(
     "test_files", "dynamo0p3")
 
 
+@pytest.mark.usefixtures("parser")
 @pytest.fixture(name="prog", scope="function")
 def create_prog_fixture():
     '''
@@ -69,14 +70,13 @@ def create_prog_fixture():
                                  interface=ImportInterface(mesh_mod))
     fs_mod = prog.symbol_table.new_symbol("function_space_mod",
                                           symbol_type=ContainerSymbol)
-    prog.symbol_table.new_symbol("function_space_type",
-                                 symbol_type=DataTypeSymbol,
+    prog.symbol_table.new_symbol("function_space_type", symbol_type=DataSymbol,
                                  datatype=UnresolvedType(),
                                  interface=ImportInterface(fs_mod))
     fsc_mod = prog.symbol_table.new_symbol("function_space_collection_mod",
                                            symbol_type=ContainerSymbol)
     prog.symbol_table.new_symbol("function_space_collection",
-                                 symbol_type=DataSymbol,
+                                 symbol_type=DataTypeSymbol,
                                  datatype=UnresolvedType(),
                                  interface=ImportInterface(fsc_mod))
     return prog
@@ -157,8 +157,8 @@ def test_create_function_spaces(lfric_alg, prog, fortran_writer):
         assert sym.interface.container_symbol is fs_mod_sym
         assert (f"TYPE(function_space_type), POINTER :: "
                 f"vector_space_{space}_ptr" in gen)
-        assert (f"vector_space_{space}_ptr => function_space_collection%"
-                f"get_fs(mesh,element_order,{space})" in gen)
+        assert (f"vector_space_{space}_ptr => function_space_collection % "
+                f"get_fs(mesh, element_order, {space})" in gen)
 
 
 def test_initialise_field(lfric_alg, prog, fortran_writer):
@@ -310,8 +310,8 @@ def test_construct_kernel_args(lfric_alg, prog, lfrickern, fortran_writer):
     assert f"use fs_continuity_mod, only : {', '.join(spaces)}" in gen
 
     for space in spaces:
-        assert (f"vector_space_{space}_ptr => function_space_collection%"
-                f"get_fs(mesh,element_order,{space})" in gen)
+        assert (f"vector_space_{space}_ptr => function_space_collection % "
+                f"get_fs(mesh, element_order, {space})" in gen)
     for idx in range(2, 7):
         assert f"call field_{idx}" in gen
     assert ("qr_xyoz = quadrature_xyoz_type(element_order + 3,"
