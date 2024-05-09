@@ -264,7 +264,7 @@ Integrating PSyData Libraries into the LFRic Build Environment
 The easiest way of integrating any PSyData-based library into the LFRic
 build environment is:
 
-- In the LFRic source tree create a new directory under ``infrastructure/source``, 
+- In the LFRic source tree create a new directory under ``infrastructure/source``,
   e.g. ``infrastructure/source/psydata``.
 - Build the PSyData wrapper stand-alone in ``lib/extract/netcdf/lfric`` (which
   will use NetCDF as output format) or ``lib/extract/standalone/lfric`` (which
