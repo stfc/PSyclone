@@ -39,16 +39,15 @@
 ''' Performs py.test tests on the support for use statements in the fparser2
     PSyIR front-end '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import KernelSchedule, Container
-from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol, \
-    DataSymbol, AutomaticInterface, INTEGER_SINGLE_TYPE, ScalarType, \
-    RoutineSymbol
+from psyclone.psyir.nodes import CodeBlock, Container, KernelSchedule
+from psyclone.psyir.symbols import (
+    ContainerSymbol, SymbolError, Symbol, DataSymbol, AutomaticInterface,
+    INTEGER_SINGLE_TYPE, ScalarType, RoutineSymbol)
 
 
 def test_use_return(fortran_reader):
@@ -224,6 +223,26 @@ def test_use_no_only_list():
     some_mod = fake_parent.symbol_table.lookup("some_mod")
     assert not some_mod.wildcard_import
     assert fake_parent.symbol_table.symbols_imported_from(some_mod) == []
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_use_no_only_with_rename(fortran_reader):
+    '''
+    We don't currently support USE statements with a rename but no 'ONLY'.
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+    reader = FortranStringReader("use my_mod, local_name=>some_var\n")
+    fparser2spec = Fortran2003.Specification_Part(reader)
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert "Found unsupported USE statement" in str(err)
+    code = '''\
+module my_mod
+  use other_mod, local_name=>some_var
+end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0], CodeBlock)
 
 
 @pytest.mark.usefixtures("f2008_parser")

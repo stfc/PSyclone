@@ -84,8 +84,8 @@ class PSyDataNode(Statement):
     :type children: list[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param options: a dict[ionary with options for transformations.
-    :type options: Optional[dict[[str, Any]]
+    :param options: a dictionary with options for transformations.
+    :type options: Optional[dict[str, Any]]
     :param str options["prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType \
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
@@ -217,8 +217,8 @@ class PSyDataNode(Statement):
 
     @property
     def options(self):
-        ''':returns: the option dict[ionary of this class.
-        :rtype: dict[[str,Any]
+        ''':returns: the option dictionary of this class.
+        :rtype: dict[str,Any]
 
         '''
         return self._options
@@ -280,8 +280,8 @@ class PSyDataNode(Statement):
         :parent ast: reference to fparser2 parse tree for the routine being \
             instrumented with PSyData calls.
         :type ast: :py:class:`fparser.two.Fortran2003.Base`
-        :param options: a dict[ionary with options for transformations.
-        :type options: Optional[dict[[str, Any]]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[dict[str, Any]]
         :param str options[prefix"]: a prefix to use for the PSyData module \
             name (``prefix_psy_data_mod``) and the PSyDataType \
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
@@ -520,8 +520,8 @@ class PSyDataNode(Statement):
 
         :param parent: the parent of this node in the f2pygen AST.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :param options: a dict[ionary with options for transformations.
-        :type options: Optional[dict[[str, Any]]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[dict[str, Any]]
         :param options["pre_var_list"]: container name and variable name to \
             be supplied before the first child. The container name is \
             supported to be able to handle variables that are imported from \
@@ -690,8 +690,8 @@ class PSyDataNode(Statement):
         the Fortran backend is capable of producing code representing the
         PSyDataNode.
 
-        :param options: dict[ionary of the PSyData generation options.
-        :type options: Optional[dict[[str, Any]]
+        :param options: dictionary of the PSyData generation options.
+        :type options: Optional[dict[str, Any]]
         :param options["pre_var_list"]: container- and variable-names to be \
             supplied before the first child. The container names are \
             supported to be able to handle variables that are imported from \
