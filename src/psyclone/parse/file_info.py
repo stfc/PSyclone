@@ -40,18 +40,8 @@
 import os
 import codecs
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import (Function_Subprogram, Interface_Block,
-                                     Interface_Stmt, Procedure_Stmt,
-                                     Subroutine_Subprogram, Use_Stmt)
-from fparser.two.parser import ParserFactory
-from fparser.two.utils import FortranSyntaxError, walk
-
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, PSycloneError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container, FileContainer
-from psyclone.psyir.symbols import SymbolError
 
 
 # ============================================================================
@@ -85,6 +75,7 @@ class FileInfo:
 
     def __init__(self, filename):
         self._filename = filename
+        self._base_name = os.path.basename(self._filename)
         # A cache for the source code:
         self._source_code = None
 
@@ -95,10 +86,19 @@ class FileInfo:
         :rtype: str
 
         '''
+        return self._base_name
+
+    # ------------------------------------------------------------------------
+    @property
+    def qualified_filename(self):
+        '''
+        TODO!
+        '''
         return self._filename
 
     # ------------------------------------------------------------------------
-    def get_source(self):
+    @property
+    def source(self):
         '''Returns the source code for the module. The first time, it
         will be read from the file, but the data is then cached.
 

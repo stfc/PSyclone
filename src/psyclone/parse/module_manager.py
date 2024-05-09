@@ -62,6 +62,8 @@ class ModuleManager:
     # Class variable to store the singleton instance
     _instance = None
 
+    _threshold_similarity = 0.7
+
     # ------------------------------------------------------------------------
     @staticmethod
     def get():
@@ -81,7 +83,8 @@ class ModuleManager:
                                 "to get the singleton instance.")
         # Cached mapping from module name to filename.
         self._mod_2_filename = {}
-        self._visited_files = set()
+        self._modules = {}
+        self._visited_files = {}
 
         # The list of all search paths which have not yet all their files
         # checked. It is stored as an ordered dict to make it easier to avoid
@@ -128,10 +131,11 @@ class ModuleManager:
         module names are based on the filename using `get_modules_in_file()`.
         By default it is assumed that `a_mod.f90` contains the module `a_mod`.
 
-        :param str directory: the directory containing Fortran files \
+        :param str directory: the directory containing Fortran files
             to analyse.
 
         '''
+        new_files = []
         with os.scandir(directory) as all_entries:
             for entry in all_entries:
                 _, ext = os.path.splitext(entry.name)
@@ -141,21 +145,23 @@ class ModuleManager:
                 full_path = os.path.join(directory, entry.name)
                 if full_path in self._visited_files:
                     continue
-                self._visited_files.add(full_path)
-                src = ModuleInfo.read_source(full_path)
+                self._visited_files[full_path] = FileInfo(full_path)
+                new_files.append(self._visited_files[full_path])
+        return new_files
+                #src = ModuleInfo.read_source(full_path)
                 # Obtain the names of all modules defined in this source file.
-                all_modules = self.get_modules_in_file(src)
-                for module in all_modules:
-                    # Pre-processed file should always take precedence
-                    # over non-pre-processed files. So if a module already
-                    # exists in the mapping, only overwrite it if the new
-                    # file is pre-processed (i.e. .f90). This still means that
-                    # if files are not preprocessed (.F90), they will still be
-                    # added (but might cause problems parsing later).
-                    if (module not in self._mod_2_filename or
-                            ext in [".f90", ".x90"]):
-                        mod_info = ModuleInfo(module, full_path, src)
-                        self._mod_2_filename[module] = mod_info
+                #all_modules = self.get_modules_in_file(src)
+                #for module in all_modules:
+                #    # Pre-processed file should always take precedence
+                #    # over non-pre-processed files. So if a module already
+                #    # exists in the mapping, only overwrite it if the new
+                #    # file is pre-processed (i.e. .f90). This still means that
+                #    # if files are not preprocessed (.F90), they will still be
+                #    # added (but might cause problems parsing later).
+                #    if (module not in self._mod_2_filename or
+                #            ext in [".f90", ".x90"]):
+                #        mod_info = ModuleInfo(module, full_path, src)
+                #        self._mod_2_filename[module] = mod_info
 
     # ------------------------------------------------------------------------
     def add_ignore_module(self, module_name):
@@ -193,9 +199,11 @@ class ModuleManager:
         if mod_lower in self._ignore_modules:
             return None
 
-        # First check if we have already cached this file:
-        mod_info = self._mod_2_filename.get(mod_lower, None)
+        # First check if we have already seen this module
+        mod_info = self._modules.get(mod_lower, None)
         if mod_info:
+            # TODO permit check below to continue if the source file
+            # associated with this module ends in .F90 or .x90.
             return mod_info
 
         # If not, check the search paths. To avoid frequent accesses to
@@ -205,8 +213,15 @@ class ModuleManager:
         while self._remaining_search_paths:
             # Get the first element from the search path list:
             directory, _ = self._remaining_search_paths.popitem(last=False)
-            self._add_all_files_from_dir(directory)
-            mod_info = self._mod_2_filename.get(mod_lower, None)
+            new_files = self._add_all_files_from_dir(directory)
+            for finfo in new_files:
+                score = SequenceMatcher(None,
+                                        finfo.filename, mod_lower).ratio()
+                if score > self._threshold_similarity:
+                    mod_names = self.get_modules_in_file(finfo)
+                    if mod_lower in mod_names:
+                        mod_info = ModuleInfo(mod_lower, finfo)
+                        self._modules[mod_lower] = mod_info
             if mod_info:
                 return mod_info
 
@@ -217,7 +232,7 @@ class ModuleManager:
                                 f"command line option.")
 
     # ------------------------------------------------------------------------
-    def get_modules_in_file(self, source_code):
+    def get_modules_in_file(self, finfo):
         '''
         Uses a regex search to find all modules defined in the file with the
         supplied name.
@@ -229,7 +244,10 @@ class ModuleManager:
         :rtype: list[str]
 
         '''
-        mod_names = _MODULE_PATTERN.findall(source_code)
+        # TODO: this regex could be defeated by e.g.
+        #   module &
+        #    my_mod
+        mod_names = _MODULE_PATTERN.findall(finfo.source)
 
         return [name.lower() for name in mod_names]
 
