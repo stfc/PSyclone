@@ -62,6 +62,8 @@ class ModuleManager:
     # Class variable to store the singleton instance
     _instance = None
 
+    # How similar a file name must be to a module name to trigger reading
+    # of the file.
     _threshold_similarity = 0.7
 
     # ------------------------------------------------------------------------
@@ -103,7 +105,7 @@ class ModuleManager:
         :param directories: the directory/directories to add.
         :type directories: str | list[str]
 
-        :param bool recursive: whether recursively all subdirectories should \
+        :param bool recursive: whether recursively all subdirectories should
             be added to the search path.
 
         '''
@@ -163,6 +165,28 @@ class ModuleManager:
                 #        mod_info = ModuleInfo(module, full_path, src)
                 #        self._mod_2_filename[module] = mod_info
 
+    def _find_module_in_files(self, name, file_list):
+        '''
+        '''
+        mod_info = None
+        for finfo in file_list:
+            # We only proceed to read a file to check for a module if its
+            # name is sufficiently similar to that of the module.
+            score = SequenceMatcher(None,
+                                    finfo.filename, name).ratio()
+            if score > self._threshold_similarity:
+                mod_names = self.get_modules_in_file(finfo)
+                if name in mod_names:
+                    # We've found the module we want. Create a ModuleInfo
+                    # object for it and cache it.
+                    mod_info = ModuleInfo(name, finfo)
+                    self._modules[name] = mod_info
+                    # A file that has been (or does not require)
+                    # preprocessing always takes precendence.
+                    if finfo.filename.endswith(".f90"):
+                        return mod_info
+        return mod_info
+
     # ------------------------------------------------------------------------
     def add_ignore_module(self, module_name):
         '''Adds the specified module name to the modules to be ignored.
@@ -190,7 +214,7 @@ class ModuleManager:
         :returns: the filename that contains the module
         :rtype: str
 
-        :raises FileNotFoundError: if the module_name is not found in \
+        :raises FileNotFoundError: if the module_name is not found in
             either the cached data nor in the search path.
 
         '''
@@ -201,29 +225,35 @@ class ModuleManager:
 
         # First check if we have already seen this module
         mod_info = self._modules.get(mod_lower, None)
-        if mod_info:
+        if mod_info and mod_info.filename.endswith(".f90"):
             # TODO permit check below to continue if the source file
             # associated with this module ends in .F90 or .x90.
             return mod_info
+        old_mod_info = mod_info
+
+        # Are any of the files that we've already seen a good match?
+        mod_info = self._find_module_in_files(mod_lower,
+                                              self._visited_files.values())
+        if mod_info and mod_info.filename.endswith(".f90"):
+            # TODO permit check below to continue if the source file
+            # associated with this module ends in .F90 or .x90.
+            return mod_info
+        old_mod_info = mod_info
 
         # If not, check the search paths. To avoid frequent accesses to
         # the directories, we search directories one at a time, and
         # add the list of all files in that directory to our cache
-        # _mod_2_filename
+        # `_visited_files`.
         while self._remaining_search_paths:
             # Get the first element from the search path list:
             directory, _ = self._remaining_search_paths.popitem(last=False)
             new_files = self._add_all_files_from_dir(directory)
-            for finfo in new_files:
-                score = SequenceMatcher(None,
-                                        finfo.filename, mod_lower).ratio()
-                if score > self._threshold_similarity:
-                    mod_names = self.get_modules_in_file(finfo)
-                    if mod_lower in mod_names:
-                        mod_info = ModuleInfo(mod_lower, finfo)
-                        self._modules[mod_lower] = mod_info
+            mod_info = self._find_module_in_files(mod_lower, new_files)
             if mod_info:
                 return mod_info
+
+        if old_mod_info:
+            return old_mod_info
 
         raise FileNotFoundError(f"Could not find source file for module "
                                 f"'{module_name}' in any of the directories "
@@ -272,7 +302,7 @@ class ModuleManager:
         :param set[str] all_mods: the set of all modules for which to collect
             module dependencies.
 
-        :returns: a dictionary with all modules that are required (directly \
+        :returns: a dictionary with all modules that are required (directly
             or indirectly) for the modules in ``all_mods``.
         :rtype: dict[str, set[str]]
 

@@ -134,20 +134,24 @@ def test_mod_manager_add_files_from_dir():
     tmp/d2/d_mod.X90
     tmp/d2/d4/e_mod.F90
     tmp/d2/d4/f_mod.ignore
-    '''
 
+    '''
     mod_man = ModuleManager.get()
 
     # Now check adding files:
-    assert mod_man._mod_2_filename == {}
+    assert mod_man._modules == {}
 
     mod_man._add_all_files_from_dir("d1")
-    assert set(mod_man._mod_2_filename.keys()) == {"a_mod"}
+    assert set(mod_man._visited_files.keys()) == {"d1/a_mod.f90"}
     mod_man._add_all_files_from_dir("d1/d3")
-    assert set(mod_man._mod_2_filename.keys()) == {"a_mod", "b_mod", "c_mod"}
+    assert set(mod_man._visited_files.keys()) == {"d1/a_mod.f90",
+                                                  "d1/d3/b_mod.F90",
+                                                  "d1/d3/c_mod.x90"}
     mod_man._add_all_files_from_dir("d2/d4")
-    assert set(mod_man._mod_2_filename.keys()) == {"a_mod", "b_mod",
-                                                   "c_mod", "e_mod"}
+    assert set(mod_man._visited_files.keys()) == {"d1/a_mod.f90",
+                                                  "d1/d3/b_mod.F90",
+                                                  "d1/d3/c_mod.x90",
+                                                  "d2/d4/e_mod.F90"}
 
 
 # ----------------------------------------------------------------------------
@@ -171,36 +175,40 @@ def test_mod_manager_get_module_info():
                                                      "d2/d4"]
 
     # Nothing should be cached yet.
-    assert len(mod_man._mod_2_filename) == 0
+    assert len(mod_man._visited_files) == 0
 
     # First find a_mod, which will parse the first directory
     mod_info = mod_man.get_module_info("a_mod")
     assert mod_info.filename == "d1/a_mod.f90"
     assert list(mod_man._remaining_search_paths) == ["d1/d3", "d2", "d2/d4"]
-    assert set(mod_man._mod_2_filename.keys()) == set(["a_mod"])
+    assert set(mod_man._visited_files.keys()) == set(["d1/a_mod.f90"])
 
     # This should be cached now, so no more change:
     mod_info_cached = mod_man.get_module_info("a_mod")
     assert mod_info == mod_info_cached
     assert list(mod_man._remaining_search_paths) == ["d1/d3", "d2", "d2/d4"]
-    assert set(mod_man._mod_2_filename.keys()) == set(["a_mod"])
+    assert set(mod_man._visited_files.keys()) == set(["d1/a_mod.f90"])
 
-    # Then parse the second file, it should cache two modules (b and c):
+    # Then look for a second module
     mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filename == "d1/d3/b_mod.F90"
     assert list(mod_man._remaining_search_paths) == ["d2", "d2/d4"]
-    assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
-                                                      "c_mod"])
+    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod"])
 
-    # Then parse the e_mod, which should remove two paths from
+    # Then locate the e_mod, which should remove two paths from
     # the search path:
     mod_info = mod_man.get_module_info("e_mod")
     assert mod_info.filename == "d2/d4/e_mod.F90"
     assert list(mod_man._remaining_search_paths) == []
-    assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
-                                                       "c_mod", "d_mod",
-                                                       "e_mod", "g_mod",
-                                                       "error_mod"])
+    assert set(mod_man._visited_files.keys()) == set(["d1/a_mod.f90",
+                                                      "d1/d3/b_mod.F90",
+                                                      "d1/d3/c_mod.x90",
+                                                      "d2/d_mod.X90",
+                                                      "d2/d4/e_mod.F90",
+                                                      "d2/g_mod.F90",
+                                                      "d2/error_mod.F90"])
+    assert set(mod_man._modules.keys()) == set(["a_mod", "b_mod",
+                                                "e_mod"])
 
     with pytest.raises(FileNotFoundError) as err:
         mod_man.get_module_info("does_not_exist")
