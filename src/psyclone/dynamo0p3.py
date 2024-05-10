@@ -52,14 +52,11 @@ from typing import Any
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
-                                                  LFRicBuiltIn)
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   KernCallArgList,
-                                   LFRicCollection, LFRicConstants,
-                                   LFRicSymbolTable, LFRicKernCallFactory,
-                                   LFRicKern, LFRicInvokes, LFRicTypes,
-                                   LFRicLoop)
+                                   KernCallArgList, LFRicCollection,
+                                   LFRicConstants, LFRicSymbolTable, LFRicKern,
+                                   LFRicInvokes, LFRicTypes, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,

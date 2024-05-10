@@ -49,7 +49,7 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
-                                LFRicInvokeSchedule, LFRicKern, LFRicLoop)
+                                   LFRicInvokeSchedule, LFRicKern, LFRicLoop)
 from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
@@ -1760,7 +1760,8 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             raise TransformationError(
                 f"In the Dynamo0p3RedundantComputation transformation "
                 f"apply method the parent of the supplied loop must be the "
-                f"LFRicInvokeSchedule, or a Loop, but found {type(node.parent)}")
+                f"LFRicInvokeSchedule, or a Loop, but found "
+                f"{type(node.parent)}")
         if isinstance(node.parent.parent, Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
@@ -2675,7 +2676,8 @@ class ACCKernelsTrans(RegionTrans):
         node_list = self.get_node_list(nodes)
 
         # Check that the front-end is valid
-        sched = node_list[0].ancestor((NemoInvokeSchedule, LFRicInvokeSchedule))
+        sched = node_list[0].ancestor((NemoInvokeSchedule,
+                                       LFRicInvokeSchedule))
         if not sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "

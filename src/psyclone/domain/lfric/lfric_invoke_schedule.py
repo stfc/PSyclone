@@ -84,6 +84,7 @@ class LFRicInvokeSchedule(InvokeSchedule):
         return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
                 "', dm=" + str(Config.get().distributed_memory)+"]")
 
+
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)

@@ -502,7 +502,8 @@ def test_omp_not_a_loop(dist_mem):
         otrans.apply(schedule)
 
     assert ("Target of Dynamo0p3OMPLoopTrans transformation must be a sub-"
-            "class of Loop but got 'LFRicInvokeSchedule'" in str(excinfo.value))
+            "class of Loop but got 'LFRicInvokeSchedule'" in
+            str(excinfo.value))
 
 
 def test_omp_parallel_not_a_loop(dist_mem):
