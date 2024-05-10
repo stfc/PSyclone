@@ -62,7 +62,7 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o dummy_mod.o
 
 ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
-	LDFLAGS += $$(nf-config --flibs)
+	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	F90FLAGS += $$(nf-config --fflags)
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/lfric
