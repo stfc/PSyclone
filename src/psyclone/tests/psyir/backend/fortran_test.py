@@ -52,10 +52,10 @@ from psyclone.psyir.nodes import (
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
     OMPDependClause, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, SymbolTable, ContainerSymbol, RoutineSymbol, Symbol,
-    ImportInterface, ArgumentInterface, UnresolvedInterface, StaticInterface,
-    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE,
-    BOOLEAN_TYPE, REAL_DOUBLE_TYPE, UnresolvedType,
+    ArgumentInterface, ContainerSymbol, DataSymbol, GenericInterfaceSymbol,
+    ImportInterface, RoutineSymbol, StaticInterface, Symbol, SymbolTable,
+    UnresolvedInterface, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
+    CHARACTER_TYPE, BOOLEAN_TYPE, REAL_DOUBLE_TYPE, UnresolvedType,
     UnsupportedType, UnsupportedFortranType, DataTypeSymbol, StructureType)
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
@@ -823,6 +823,10 @@ def test_gen_access_stmts(fortran_writer):
                      tag='own_routine_symbol')
     code = fortran_writer.gen_access_stmts(symbol_table)
     assert "my_routine" not in code
+    # Accessibility should also be generated for a GenericInterfaceSymbol.
+    symbol_table.add(GenericInterfaceSymbol("overloaded", [(sub2, True)]))
+    code = fortran_writer.gen_access_stmts(symbol_table)
+    assert code.strip() == "public :: my_sub1, some_var, overloaded"
 
 
 def test_fw_exception(fortran_writer):
@@ -1539,6 +1543,9 @@ def test_fw_codeblock_1(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir)
     assert (
         "    a = 1\n"
+        "    ! PSyclone CodeBlock (unsupported code) reason:\n"
+        "    !  - Unsupported statement: Print_Stmt\n"
+        "    !  - Unsupported statement: Print_Stmt\n"
         "    PRINT *, \"I am a code block\"\n"
         "    PRINT *, \"with more than one line\"\n" in result)
     assert Compile(tmpdir).string_compiles(result)
@@ -1789,7 +1796,7 @@ def test_fw_call_node_namedargs(fortran_writer):
     result = fortran_writer(call)
     assert result == "call mysub(1.0, arg2=2.0, arg3=3.0)\n"
 
-    call.children[2] = Literal("4.0", REAL_TYPE)
+    call.children[3] = Literal("4.0", REAL_TYPE)
 
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer(call)
@@ -1879,7 +1886,7 @@ def test_fw_comments(fortran_writer):
     routine.preceding_comment = "My routine preceding comment"
     routine.inline_comment = "My routine inline comment"
     statement1.preceding_comment = "My statement with a preceding comment"
-    statement2.preceding_comment = "My statement with a preceding comment ..."
+    statement2.preceding_comment = "My statement with a\nmulti-line comment."
     statement2.inline_comment = "... and an inline comment"
     statement3.inline_comment = "Statement with only an inline comment"
 
@@ -1894,7 +1901,8 @@ def test_fw_comments(fortran_writer):
         "  subroutine my_routine()\n\n"
         "    ! My statement with a preceding comment\n"
         "    return\n"
-        "    ! My statement with a preceding comment ...\n"
+        "    ! My statement with a\n"
+        "    ! multi-line comment.\n"
         "    return  ! ... and an inline comment\n"
         "    return  ! Statement with only an inline comment\n\n"
         "  end subroutine my_routine  ! My routine inline comment\n\n"

@@ -92,7 +92,7 @@ def test_validate_with_imported_subroutine_call():
             "myfunc",
             symbol_type=RoutineSymbol,
             interface=ImportInterface(mymod))
-    kern_schedule.addchild(Call(myfunc))
+    kern_schedule.addchild(Call.create(myfunc))
 
     # The validate should succeed
     inline_trans = KernelModuleInlineTrans()

@@ -31,17 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and S. Siso, STFC Daresbury Lab
 
-'''Module containing tests for the NemoArrayAccess2LoopTrans
-transformation.'''
+'''Module containing tests for the ArrayAccess2LoopTrans transformation.'''
 
 import os
 import pytest
 
-from psyclone.domain.nemo.transformations import NemoArrayAccess2LoopTrans, \
-    CreateNemoPSyTrans
-from psyclone.psyGen import Transformation, InlinedKern
+from psyclone.psyir.transformations import ArrayAccess2LoopTrans
+from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Assignment, ArrayReference, Literal, Node
@@ -51,30 +49,28 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import Compile
 
 # Constants
-API = "nemo"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          os.pardir, "test_files")
-TEST_CONFIG = os.path.join(BASE_PATH, "nemo_test.cfg")
 
 
 def check_transformation(tmpdir, code, expected_result, index=0, statement=0):
     '''Utility function to check that the result of applying the
-    NemoArrayAccess2LoopTrans transformation to the code supplied in
+    ArrayAccess2LoopTrans transformation to the code supplied in
     the "code" argument (which is assumed to be the content of a valid
     program) for the statement number specified in the "statement"
     argument and the array access index specified in the "index"
     argument produces the result specified in the "expected_result"
     argument. Also check that the resultant code compiles.
 
-    :param tmpdir: path to a test-specific temporary directory in \
+    :param tmpdir: path to a test-specific temporary directory in
         which to test compilation.
     :type tmpdir: :py:class:`py._path.local.LocalPath`
     :param str code: the input code to be transformed.
     :param str expected_result: the code expected after transformation.
-    :param int index: the array index on which to apply the \
+    :param int index: the array index on which to apply the
         transformation.
-    :param int statement: the index of the required assignment in the top \
-        level of the PSyIR tree associated with the input code. \
+    :param int statement: the index of the required assignment in the top
+        level of the PSyIR tree associated with the input code.
         Defaults to 0.
 
     '''
@@ -91,7 +87,7 @@ def check_transformation(tmpdir, code, expected_result, index=0, statement=0):
 def trans_write_check(psyir, index_node, expected_result, tmpdir,
                       compiles=True):
     '''Utility function to check that the result of applying the
-    NemoArrayAccess2LoopTrans transformation to the node supplied in
+    ArrayAccess2LoopTrans transformation to the node supplied in
     the "index_node" argument within the psyir tree supplied in the
     "psyir" argument produces the expected Fortran code provided in
     the "expected_result" argument when output via a Fortran
@@ -100,38 +96,36 @@ def trans_write_check(psyir, index_node, expected_result, tmpdir,
 
     :param psyir: the full PSyIR tree.
     :type psyir: :py:class:`psyclone.psyir.nodes.Node`
-    :param index_node: the PSyIR node that the transformation will be \
+    :param index_node: the PSyIR node that the transformation will be
         applied to.
     :type index_node: :py:class:`psyclone.psyir.nodes.Node`
-    :param str expected_result: the code that is expected to be \
-        produced after the PSyIR is transformed and converted into \
+    :param str expected_result: the code that is expected to be
+        produced after the PSyIR is transformed and converted into
         Fortran.
-    :param tmpdir: path to a test-specific temporary directory in \
+    :param tmpdir: path to a test-specific temporary directory in
         which to test compilation.
     :type tmpdir: :py:class:`py._path.local.LocalPath`
-    :param bool compiles: whether to compile the resultant code. \
+    :param bool compiles: whether to compile the resultant code.
         Defaults to True.
 
     '''
-    trans = NemoArrayAccess2LoopTrans()
+    trans = ArrayAccess2LoopTrans()
     trans.apply(index_node)
     writer = FortranWriter()
     result = writer(psyir)
-    assert expected_result in result
+    assert expected_result in result, result
     if compiles:
         assert Compile(tmpdir).string_compiles(result)
 
 
 def test_transform():
     '''Check that it is possible to create an instance of
-    NemoArrayAccess2LoopTrans and that it is a subclass of
+    ArrayAccess2LoopTrans and that it is a subclass of
     Transformation.
 
     '''
-    assert NemoArrayAccess2LoopTrans()
-    assert isinstance(NemoArrayAccess2LoopTrans(), Transformation)
-
-# apply() method
+    assert ArrayAccess2LoopTrans()
+    assert isinstance(ArrayAccess2LoopTrans(), Transformation)
 
 
 def test_apply_single_dim_value(tmpdir):
@@ -145,9 +139,9 @@ def test_apply_single_dim_value(tmpdir):
         "  a(1) = b(1)\n")
     expected_result = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: ji\n\n"
-        "  do ji = 1, 1, 1\n"
-        "    a(ji) = b(ji)\n"
+        "  integer :: idx\n\n"
+        "  do idx = 1, 1, 1\n"
+        "    a(idx) = b(idx)\n"
         "  enddo\n\n")
     check_transformation(tmpdir, code, expected_result)
 
@@ -167,10 +161,10 @@ def test_apply_second_dim_var(tmpdir):
         "  a(1,n) = b(1,n)\n")
     expected_result = (
         "  real, dimension(10,10) :: a\n  real, dimension(10,10) :: b\n"
-        "  integer :: n\n  integer :: jj\n\n"
+        "  integer :: n\n  integer :: idx\n\n"
         "  b(:,:) = 0.0\n"
-        "  do jj = n, n, 1\n"
-        "    a(1,jj) = b(1,jj)\n"
+        "  do idx = n, n, 1\n"
+        "    a(1,idx) = b(1,idx)\n"
         "  enddo\n\n")
     check_transformation(tmpdir, code, expected_result, index=1, statement=1)
 
@@ -188,29 +182,11 @@ def test_apply_third_dim_expr(tmpdir):
         "  a(1,n,2*n+1) = b(1,n,2*n+1)\n")
     expected_result = (
         "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
-        "  integer :: n\n  integer :: jk\n\n"
-        "  do jk = 2 * n + 1, 2 * n + 1, 1\n"
-        "    a(1,n,jk) = b(1,n,jk)\n"
+        "  integer :: n\n  integer :: idx\n\n"
+        "  do idx = 2 * n + 1, 2 * n + 1, 1\n"
+        "    a(1,n,idx) = b(1,n,idx)\n"
         "  enddo\n\n")
     check_transformation(tmpdir, code, expected_result, index=2)
-
-
-def test_apply_fifth_dim_expr(tmpdir):
-    '''Check that the expected code is produced for a 5D array where there
-    is no loop index information in the nemo api for the outermost
-    dimension so a new loop variable name is required.
-
-    '''
-    code = (
-        "  real :: a(10,10,10,10,10)\n"
-        "  a(1,1,1,1,1) = 0.0\n")
-    expected_result = (
-        "  real, dimension(10,10,10,10,10) :: a\n"
-        "  integer :: idx\n\n"
-        "  do idx = 1, 1, 1\n"
-        "    a(1,1,1,1,idx) = 0.0\n"
-        "  enddo\n\n")
-    check_transformation(tmpdir, code, expected_result, index=4)
 
 
 def test_apply_indirection(tmpdir):
@@ -230,9 +206,9 @@ def test_apply_indirection(tmpdir):
         "  real, dimension(10) :: b\n"
         "  integer, dimension(10) :: lookup\n"
         "  integer :: n\n"
-        "  integer :: ji\n\n"
-        "  do ji = lookup(n), lookup(n), 1\n"
-        "    a(ji) = b(ji)\n"
+        "  integer :: idx\n\n"
+        "  do idx = lookup(n), lookup(n), 1\n"
+        "    a(idx) = b(idx)\n"
         "  enddo\n\n")
     check_transformation(tmpdir, code, expected_result)
 
@@ -256,11 +232,12 @@ def test_apply_loop_order(tmpdir):
         "  enddo\n")
     expected_result = (
         "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
-        "  integer :: ji\n  integer :: n\n  integer :: jk\n  integer :: jj\n\n"
+        "  integer :: ji\n  integer :: n\n  integer :: jk\n"
+        "  integer :: idx\n\n"
         "  do jk = 1, 10, 1\n"
         "    do ji = 1, 10, 1\n"
-        "      do jj = n, n, 1\n"
-        "        a(ji,jj,jk) = b(ji,jj,jk)\n"
+        "      do idx = n, n, 1\n"
+        "        a(ji,idx,jk) = b(ji,idx,jk)\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n\n")
@@ -281,19 +258,19 @@ def test_apply_ranges(tmpdir):
 
     expected_result = (
         "  real, dimension(10,10,10) :: a\n  real, dimension(10,10,10) :: b\n"
-        "  integer :: jpk\n  integer :: jk\n\n"
-        "  do jk = jpk, jpk, 1\n"
-        "    a(:,:,jk) = 0.0e0\n"
+        "  integer :: jpk\n  integer :: idx\n\n"
+        "  do idx = jpk, jpk, 1\n"
+        "    a(:,:,idx) = 0.0e0\n"
         "  enddo\n\n")
     check_transformation(tmpdir, code, expected_result, index=2)
 
 
 def test_apply_calls_validate():
     '''Check that the apply() method calls the validate method.'''
-    trans = NemoArrayAccess2LoopTrans()
+    trans = ArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert ("Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+    assert ("Error in ArrayAccess2LoopTrans transformation. The supplied "
             "node argument should be a PSyIR Node, but found 'NoneType'."
             in str(info.value))
 
@@ -318,11 +295,11 @@ def test_apply_multi_iterator(tmpdir):
     expected_code = (
         "program test\n"
         "  real, dimension(10,10) :: a\n"
-        "  integer :: i\n  integer :: j\n  integer :: jj\n\n"
+        "  integer :: i\n  integer :: j\n  integer :: idx\n\n"
         "  do j = 1, 10, 1\n"
         "    do i = 1, 10, 1\n"
-        "      do jj = 10, 10, 1\n"
-        "        a(i + j,jj) = 0.0e0\n"
+        "      do idx = 10, 10, 1\n"
+        "        a(i + j,idx) = 0.0e0\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n\n"
@@ -353,10 +330,10 @@ def test_apply_same_iterator(tmpdir):
     expected_code = (
         "program test\n"
         "  real, dimension(10,10,10) :: a\n"
-        "  integer :: i\n  integer :: jk\n\n"
+        "  integer :: i\n  integer :: idx\n\n"
         "  do i = 1, 5, 1\n"
-        "    do jk = 10, 10, 1\n"
-        "      a(2 * i,i + 1,jk) = 0.0e0\n"
+        "    do idx = 10, 10, 1\n"
+        "      a(2 * i,i + 1,idx) = 0.0e0\n"
         "    enddo\n"
         "  enddo\n\n"
         "end program test\n")
@@ -386,11 +363,11 @@ def test_apply_index_order(tmpdir):
     expected_code = (
         "program test\n"
         "  real, dimension(10,10,10) :: a\n"
-        "  integer :: i\n  integer :: j\n  integer :: jk\n\n"
+        "  integer :: i\n  integer :: j\n  integer :: idx\n\n"
         "  do j = 1, 10, 1\n"
         "    do i = 1, 10, 1\n"
-        "      do jk = 10, 10, 1\n"
-        "        a(j,i,jk) = 0.0e0\n"
+        "      do idx = 10, 10, 1\n"
+        "        a(j,i,idx) = 0.0e0\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n\n"
@@ -402,18 +379,16 @@ def test_apply_index_order(tmpdir):
     index_node = assignment.lhs.children[2]
     trans_write_check(psyir, index_node, expected_code, tmpdir)
 
-# validate() method
-
 
 def test_validate_arg():
     '''Check that the validate() method raises the expected exception if
    the supplied node is not a PSyIR Node.
 
     '''
-    trans = NemoArrayAccess2LoopTrans()
+    trans = ArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert ("Error in NemoArrayAccess2LoopTrans transformation. The "
+    assert ("Error in ArrayAccess2LoopTrans transformation. The "
             "supplied node argument should be a PSyIR Node, but "
             "found 'NoneType'." in str(info.value))
 
@@ -423,7 +398,7 @@ def test_validate_array_ref():
    the supplied node is not a child of an array reference.
 
     '''
-    trans = NemoArrayAccess2LoopTrans()
+    trans = ArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(Node())
     assert ("The supplied node argument should be within an ArrayReference "
@@ -448,10 +423,10 @@ def test_validate_structure_error():
     assignment = psyir.walk(Assignment)[0]
     array_reference = assignment.lhs
     index_node = array_reference.children[0].indices[0]
-    trans = NemoArrayAccess2LoopTrans()
+    trans = ArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(index_node)
-    assert ("Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+    assert ("Error in ArrayAccess2LoopTrans transformation. The supplied "
             "node argument should be within an ArrayReference node, but "
             "found 'ArrayMember'" in str(info.value))
 
@@ -465,11 +440,11 @@ def test_validate_assignment():
     dim_access = Literal("1", INTEGER_TYPE)
     array_symbol = DataSymbol("x", ArrayType(REAL_TYPE, [10]))
     ArrayReference.create(array_symbol, [dim_access])
-    trans = NemoArrayAccess2LoopTrans()
+    trans = ArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(dim_access)
     assert (
-        "Error in NemoArrayAccess2LoopTrans transformation. The supplied node "
+        "Error in ArrayAccess2LoopTrans transformation. The supplied node "
         "argument should be within an ArrayReference node that is within an "
         "Assignment node, but found 'NoneType' instead of an Assignment."
         in str(info.value))
@@ -487,11 +462,11 @@ def test_validate_lhs_assignment():
     lhs = ArrayReference.create(lhs_array_symbol, [dim_access.copy()])
     rhs = ArrayReference.create(rhs_array_symbol, [dim_access])
     Assignment.create(lhs, rhs)
-    trans = NemoArrayAccess2LoopTrans()
+    trans = ArrayAccess2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(dim_access)
     assert (
-        "Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+        "Error in ArrayAccess2LoopTrans transformation. The supplied "
         "node argument should be within an ArrayReference node that is "
         "within the left-hand-side of an Assignment node, but 'y(1)' is on "
         "the right-hand-side of 'x(1) = y(1)\n'." in str(info.value))
@@ -509,29 +484,9 @@ def test_validate_range():
     with pytest.raises(TransformationError) as info:
         check_transformation(None, code, None)
     assert (
-        "Error in NemoArrayAccess2LoopTrans transformation. The supplied "
+        "Error in ArrayAccess2LoopTrans transformation. The supplied "
         "node should not be or contain a Range node (array notation) as it "
         "should be single valued, but found ':'." in str(info.value))
-
-
-def test_validate_iterator_name():
-    '''Check that the validate() method raises the expected exception if
-    the iterator name that should be used for this index is already
-    being used as a loop iterator.
-
-    '''
-    input_code = (
-        "  real :: a(10,10)\n"
-        "  integer :: jj\n"
-        "  do jj=1,10\n"
-        "    a(jj,10) = 0.0e0\n"
-        "  end do\n")
-    with pytest.raises(TransformationError) as info:
-        check_transformation(None, input_code, None, index=1)
-    assert (
-        "The NEMO API expects index 1 to use the 'jj' iterator variable, "
-        "but it is already being used in another index 'a(jj,10)'."
-        in str(info.value))
 
 
 def test_validate_iterator():
@@ -564,9 +519,9 @@ def test_validate_same_index_error(tmpdir):
         "  a(n+1) = b(1+n)\n")
     expected_result = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
-        "  integer :: n\n  integer :: ji\n\n"
-        "  do ji = n + 1, n + 1, 1\n"
-        "    a(ji) = b(ji)\n"
+        "  integer :: n\n  integer :: idx\n\n"
+        "  do idx = n + 1, n + 1, 1\n"
+        "    a(idx) = b(idx)\n"
         "  enddo\n\n")
     check_transformation(tmpdir, input_code, expected_result)
 
@@ -596,9 +551,9 @@ def test_validate_indirection(tmpdir):
     expected_result = (
         "  real, dimension(10) :: a\n  real, dimension(10) :: b\n"
         "  integer, dimension(10) :: lookup\n  integer :: n\n"
-        "  integer :: ji\n\n"
-        "  do ji = lookup(n), lookup(n), 1\n"
-        "    a(ji) = b(ji)\n"
+        "  integer :: idx\n\n"
+        "  do idx = lookup(n), lookup(n), 1\n"
+        "    a(idx) = b(idx)\n"
         "  enddo\n\n")
     check_transformation(tmpdir, code, expected_result)
 
@@ -619,12 +574,12 @@ def test_validate_indirection(tmpdir):
 
 
 def test_str():
-    '''Test that the str of an instance of the NemoArrayAccess2LoopTrans class
+    '''Test that the str of an instance of the ArrayAccess2LoopTrans class
     returns the expected value.
 
     '''
-    assert (str(NemoArrayAccess2LoopTrans()) == "Convert the PSyIR assignment "
-            "for a specified ArrayReference access into a PSyIR NemoLoop.")
+    assert (str(ArrayAccess2LoopTrans()) == "Convert the PSyIR assignment "
+            "for a specified ArrayReference access into a PSyIR Loop.")
 
 
 def test_name():
@@ -632,4 +587,4 @@ def test_name():
     returns the expected value.
 
     '''
-    assert NemoArrayAccess2LoopTrans().name == "NemoArrayAccess2LoopTrans"
+    assert ArrayAccess2LoopTrans().name == "ArrayAccess2LoopTrans"

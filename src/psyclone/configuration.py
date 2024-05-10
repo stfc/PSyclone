@@ -248,9 +248,12 @@ class Config:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
         # Add a getlist method to the ConfigParser instance using the
-        # converters argument
+        # converters argument. The lambda functions also handles the
+        # case of an empty specification ('xx = ''), returning an
+        # empty list instead of a list containing the empty string:
         self._config = ConfigParser(
-            converters={'list': lambda x: [i.strip() for i in x.split(',')]})
+            converters={'list': lambda x: [] if not x else
+                                          [i.strip() for i in x.split(',')]})
         try:
             self._config.read(self._config_file)
         # Check for missing section headers and general parsing errors
@@ -343,9 +346,7 @@ class Config:
         # Read the valid PSyData class prefixes. If the keyword does
         # not exist then return an empty list.
         self._valid_psy_data_prefixes = \
-            self._config["DEFAULT"].getlist("VALID_PSY_DATA_PREFIXES")
-        if self._valid_psy_data_prefixes is None:
-            self._valid_psy_data_prefixes = []
+            self._config["DEFAULT"].getlist("VALID_PSY_DATA_PREFIXES", [])
         try:
             self._ocl_devices_per_node = self._config['DEFAULT'].getint(
                 'OCL_DEVICES_PER_NODE')
@@ -394,6 +395,14 @@ class Config:
         # By default we ensure that each transformed kernel is given a
         # unique name (within the specified kernel-output directory).
         self._kernel_naming = Config._default_kernel_naming
+
+        ignore_modules = self._config['DEFAULT'].getlist("IGNORE_MODULES", [])
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.parse import ModuleManager
+        mod_manager = ModuleManager.get()
+        for module_name in ignore_modules:
+            mod_manager.add_ignore_module(module_name)
 
         # Set the flag that the config file has been loaded now.
         Config._HAS_CONFIG_BEEN_INITIALISED = True
@@ -1369,18 +1378,6 @@ class NemoConfig(APISpecificConfig):
         '''
         return self._loop_type_mapping
 
-    def get_loop_type_data(self):
-        '''
-        :returns: the mapping of a loop type (lon, ...) to a dictionary \
-            containing the corresponding variable name and start/stop values.\
-            Example: = {"lon": {"var": "ji", "start": "1", "stop": "jpi"}, \
--                       "lat": {"var": "jj", "start": "1", "stop": "jpj"} }
-
-        :rtype: dictionary with str keys, with each value being a \
-            dictionary mapping 'var', 'start', and 'stop' to str.
-        '''
-        return self._loop_type_data
-
     def get_valid_loop_types(self):
         '''
         The list is sorted to have reproducible results for testing.
@@ -1391,14 +1388,6 @@ class NemoConfig(APISpecificConfig):
         valid_types_list = list(self._loop_type_data)
         valid_types_list.sort()
         return valid_types_list
-
-    def get_index_order(self):
-        '''
-        :returns: the order in which loops should be created in \
-            NemoExplicitLoopTrans.
-        :rtype: list of str.
-        '''
-        return self._index_order
 
     # ---------------------------------------------------------------------
     def get_constants(self):
