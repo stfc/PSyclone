@@ -137,22 +137,12 @@ def test_driver_creation1():
       '''in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo
-  if (i == i_post) then
-    PRINT *, "i correct"
-  else
-    PRINT *, "i incorrect. Values are:"
-    PRINT *, i
-    PRINT *, "i values should be:"
-    PRINT *, i_post
-  end if
-  if (ALL(in_out_fld - in_out_fld_post == 0.0)) then
-    PRINT *, "in_out_fld correct"
-  else
-    PRINT *, "in_out_fld incorrect. Values are:"
-    PRINT *, in_out_fld
-    PRINT *, "in_out_fld values should be:"
-    PRINT *, in_out_fld_post
-  end if'''
+  call compare_init(4)
+  call compare('i', i, i_post)
+  call compare('in_out_fld', in_out_fld, in_out_fld_post)
+  call compare('j', j, j_post)
+  call compare('out_fld', out_fld, out_fld_post)
+  call compare_summary()'''
     expected_lines = expected.split("\n")
     for line in expected_lines:
         assert line in driver_code
@@ -219,22 +209,12 @@ def test_driver_creation2():
       '''in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo
-  if (i == i_post) then
-    PRINT *, "i correct"
-  else
-    PRINT *, "i incorrect. Values are:"
-    PRINT *, i
-    PRINT *, "i values should be:"
-    PRINT *, i_post
-  end if
-  if (ALL(in_out_fld - in_out_fld_post == 0.0)) then
-    PRINT *, "in_out_fld correct"
-  else
-    PRINT *, "in_out_fld incorrect. Values are:"
-    PRINT *, in_out_fld
-    PRINT *, "in_out_fld values should be:"
-    PRINT *, in_out_fld_post
-  end if'''
+  call compare_init(4)
+  call compare('i', i, i_post)
+  call compare('in_out_fld', in_out_fld, in_out_fld_post)
+  call compare('j', j, j_post)
+  call compare('out_fld', out_fld, out_fld_post)
+  call compare_summary()'''
     expected_lines = expected.split("\n")
     for line in expected_lines:
         assert line in driver_code
