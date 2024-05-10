@@ -63,7 +63,7 @@ ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/dl_esm_inf
 	READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
 	F90FLAGS += $$(nf-config --fflags)
-	LDFLAGS += $$(nf-config --flibs)
+	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	GENERATED_FILES += main-init.nc main-update.nc
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/dl_esm_inf
