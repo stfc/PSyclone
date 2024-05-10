@@ -40,9 +40,6 @@
 import os
 import codecs
 
-from psyclone.configuration import Config
-from psyclone.errors import InternalError, PSycloneError
-
 
 # ============================================================================
 def log_decode_error_handler(err):
@@ -75,18 +72,22 @@ class FileInfo:
 
     def __init__(self, filename):
         self._filename = filename
-        self._base_name = os.path.basename(self._filename)
         # A cache for the source code:
         self._source_code = None
 
     # ------------------------------------------------------------------------
     @property
     def filename(self):
-        ''':returns: the filename that this FileInfo object represents.
+        ''':returns: the full filename that this FileInfo object represents.
         :rtype: str
 
         '''
-        return self._base_name
+        return os.path.basename(self._filename)
+
+    # ------------------------------------------------------------------------
+    @property
+    def base_name(self):
+        return os.path.splitext(self.filename)
 
     # ------------------------------------------------------------------------
     @property

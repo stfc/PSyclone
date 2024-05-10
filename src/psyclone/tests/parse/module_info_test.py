@@ -40,7 +40,7 @@ import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
+from psyclone.parse import FileInfo, ModuleInfo, ModuleInfoError, ModuleManager
 from psyclone.psyir.nodes import Container, FileContainer
 from psyclone.tests.utilities import get_base_path
 
@@ -50,9 +50,8 @@ from psyclone.tests.utilities import get_base_path
                          "mod_man_test_setup_directories")
 def test_module_info():
     '''Tests the module info object.'''
-    mod_info = ModuleInfo("a_mod", "file_for_a")
+    mod_info = ModuleInfo("a_mod", FileInfo("file_for_a"))
     assert mod_info.filename == "file_for_a"
-    assert mod_info._source_code is None
 
     with pytest.raises(ModuleInfoError) as err:
         mod_info.get_source_code()
@@ -65,12 +64,9 @@ def test_module_info():
 
     mod_info = mod_man.get_module_info("a_mod")
     assert isinstance(mod_info, ModuleInfo)
-    assert mod_info._source_code is None
     source_code = mod_info.get_source_code()
     assert source_code.startswith("module a_mod")
-    # Make sure the source code is cached:
-    assert mod_info._source_code.startswith("module a_mod")
-    assert "end module a_mod" in mod_info._source_code
+    assert "end module a_mod" in source_code
 
     # Now access the parse tree:
     assert mod_info._parse_tree is None
@@ -179,7 +175,7 @@ def test_mod_info_get_used_symbols_from_modules():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_info_get_psyir(capsys):
+def test_mod_info_get_psyir(capsys, tmpdir):
     '''This tests the handling of PSyIR representation of the module.
     '''
 
@@ -200,21 +196,22 @@ def test_mod_info_get_psyir(capsys):
 
     # Test that a file that can't be converted to PSyIR returns an
     # empty FileContainer.
-    mod_man.add_search_path(dyn_path, recursive=False)
-    # The file 'broken_builtins_mod.f90' contains invalid Fortran and
-    # cannot be parsed:
-    broken_builtins = mod_man.get_module_info("broken_builtins_mod")
+    with open("broken_mod.f90", "w", encoding="utf-8") as mod_file:
+        mod_file.write('''module broken_mod
+  ERROR
+end module broken_mod''')
+    mod_man.add_search_path(str(tmpdir), recursive=False)
+    broken_builtins = mod_man.get_module_info("broken_mod")
     broken_builtins_psyir = broken_builtins.get_psyir()
 
     # We should still get an empty Container with a dummy Container:
     assert isinstance(broken_builtins_psyir, Container)
     assert broken_builtins_psyir.name == "invalid-module"
     assert isinstance(broken_builtins_psyir.parent, FileContainer)
-    assert broken_builtins_psyir.parent.name == "broken_builtins_mod.f90"
+    assert broken_builtins_psyir.parent.name == "broken_mod.f90"
 
     out, _ = capsys.readouterr()
     assert "Error trying to parse" in out
-    assert "Expecting name 'aX_plus_bY', got 'blah'" in out
 
 
 # -----------------------------------------------------------------------------

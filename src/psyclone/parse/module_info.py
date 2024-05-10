@@ -42,9 +42,7 @@ includes, and external symbol usage.
 import os
 
 from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import (Function_Subprogram, Interface_Block,
-                                     Interface_Stmt, Procedure_Stmt,
-                                     Subroutine_Subprogram, Use_Stmt)
+from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import FortranSyntaxError, walk
 
@@ -154,8 +152,8 @@ class ModuleInfo:
             return self._file_info.source
         except FileNotFoundError as err:
             raise ModuleInfoError(
-                f"Could not find file '{self._filename}' when trying to "
-                f"read source code for module '{self._name}'") from err
+                f"Could not find file '{self._file_info.filename}' when trying"
+                f" to read source code for module '{self._name}'") from err
 
     # ------------------------------------------------------------------------
     def get_parse_tree(self):
@@ -201,7 +199,7 @@ class ModuleInfo:
                   f"parsing '{self._filename} - ignored")
             # Hide syntax errors
             return
-        for use in walk(parse_tree, Use_Stmt):
+        for use in walk(parse_tree, Fortran2003.Use_Stmt):
             # Ignore intrinsic modules:
             if str(use.items[0]) == "INTRINSIC":
                 continue
@@ -287,7 +285,7 @@ class ModuleInfo:
                 # Create a dummy FileContainer with a dummy module. This avoids
                 # additional error handling in other subroutines, since they
                 # will all return 'no information', whatever you ask for
-                self._psyir = FileContainer(os.path.basename(self._filename))
+                self._psyir = FileContainer(os.path.basename(self.filename))
                 module = Container("invalid-module")
                 self._psyir.children.append(module)
 
