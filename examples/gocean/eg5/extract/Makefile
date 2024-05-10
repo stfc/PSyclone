@@ -74,7 +74,7 @@ INF_LIB = $(INF_DIR)/src/lib_fd.a
 ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/dl_esm_inf
 	F90FLAGS += $$(nf-config --fflags)
-	LDFLAGS += $$(nf-config --flibs)
+	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	GENERATED_FILES += main-init.nc main-update.nc
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/dl_esm_inf
