@@ -991,18 +991,16 @@ The list of rules for DoF Kernels is as follows:
    This rule reflects that a Kernel operates on some subset of the
    whole domain and is therefore designed to be called from within
    a loop that iterates over those subsets of the domain. Only fields
-   are accepted for a Kernel operating on DoFs because fields are the
-   only argument type that contain DoFs (i.e. field vectors are not allowed).
+   (as opposed to e.g. field vectors or operators) are accepted for DoF
+   Kernels because only they have a single value at each DoF.
 
-2) All Kernel arguments must be either fields or scalars (`real-`` and/or
+2) All Kernel arguments must be either fields or scalars (`real-` and/or
    `integer`-valued). DoF Kernels cannot accept operators.
 
 3) All field arguments to a given DoF Kernel must be on the same function
-   space. This is because all fields should have the same number.
-   It also means that PSyclone can determine the number of DoFs uniquely when
-   writing to a scalar.
+   space so they have the same number of DoFs.
 
-4) They must have at least one modified (i.e. writen to) argument. Unlike
+4) They must have at least one modified (i.e. writen to) field argument. Unlike
    built-ins, this is not limited and more than one modified argument is
    allowed.
 
@@ -1010,21 +1008,9 @@ The list of rules for DoF Kernels is as follows:
    to do this.) Any scalar arguments must therefore be declared in the metadata
    as `GH_READ` - see :ref:`below<dynamo0-3-kernel-valid-access>`
 
-The field arguments in DoF Kernels are the derived types that represent the
-LFRic fields, however mathematical operations are actually performed on the
-data of the field proxies (e.g. field1_proxy%data(:)). For example, this loop
-adds the values of two fields accessed via their proxies in a loop over DoFs:
-
-.. code-block:: fortran
-
-  DO df=loop0_start,loop0_stop
-     field3_proxy%data(df) = field1_proxy%data(df) + field2_proxy%data(df)
-
-where the precise values of the loop limits depend on the use of
-:ref:`distributed memory <distributed_memory>`,
-:ref:`annexed DoFs <lfric-annexed_dofs>` or both. DoF Kernels will not accept
-dofmaps as accessors to a field. DoF access follows a standard loop over the
-field passed to the Kernel.
+6) Kernels must be written to operate on a single DoF, such that single DoFs
+   can be provided to the Kernel within a loop for assignment to an indexed
+   location in a field.
 
 .. _dynamo0.3-api-kernel-metadata:
 
@@ -2478,6 +2464,38 @@ on the whole domain, the number of columns in the mesh excluding those
 in the halo (``ncell_2d_no_halos``), must be passed in. This is provided
 as the second argument to the kernel (after ``nlayers``).
 ``ncell_2d_no_halos`` is an ``integer`` of kind ``i_def`` with intent ``in``.
+
+Rules for DoF Kernels
+#####################
+
+A DoF Kernel requires the shared index of the DoF(s) in the field(s) to operate
+on, and the field(s) to extract the DoF(s) from. The full set of rules, along
+with PSyclone's naming conventions, are:
+
+   1) Include `df`, the index of the single dof to be operated on. This is an
+      ``integer`` of of kind ``i_def`` with intent ``in``.
+
+   2) For each scalar/field in the order specified by the meta_args metadata:
+
+      1) If the current entry is a scalar quantity then include the Fortran
+         variable in the argument list. The intent is determined from the
+         metadata (see meta_args for an explanation).
+
+      2) If the current entry is a field then include the field array. The
+         field array name is currently specified as being ``"field_"
+         <argument_position>``. A field array is a rank-1, real array with
+         extent equal to the number of unique degrees of freedom for the space
+         that the field is on. Its precision (kind) depends on how it is
+         defined in the algorithm layer, see the :ref:`Mixed Precision
+         <lfric-mixed-precision>` section for more details. This value is
+         passed in separately. Again, the intent is determined from the
+         metadata (see :ref:`meta_args <dynamo0.3-api-meta-args>`).
+
+   3) Include the unique number of degrees of freedom for the function space.
+      This is an ``integer`` of kind ``i_def`` with intent ``in``. The name of
+      this argument is simply ``undf`` without a function space suffix (as for
+      general purpose kernels) since all fields will be on the same function
+      space.
 
 .. _dynamo0.3-kernel-arg-intents:
 
