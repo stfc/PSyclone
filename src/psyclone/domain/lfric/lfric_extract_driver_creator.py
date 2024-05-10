@@ -46,6 +46,7 @@ the output data contained in the input file.
 
 from psyclone.configuration import Config
 from psyclone.core import Signature
+from psyclone.domain.common import BaseDriverCreator
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
@@ -63,7 +64,7 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
 from psyclone.psyir.transformations import ExtractTrans
 
 
-class LFRicExtractDriverCreator:
+class LFRicExtractDriverCreator(BaseDriverCreator):
     '''This class provides the functionality to create a driver that
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.
@@ -173,6 +174,7 @@ class LFRicExtractDriverCreator:
 
     '''
     def __init__(self):
+        super().__init__()
         # TODO #2069: check if this list can be taken from LFRicConstants
         # TODO #2018: once r_field is defined in the LFRic infrastructure,
         #             it should be added to this list.
@@ -317,7 +319,7 @@ class LFRicExtractDriverCreator:
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
-        # pylint: disable=too-many-locals
+        # pylint: disable=too-many-locals, too-many-branches
         all_references = sched.walk(Reference)
 
         # First we add all non-structure names to the symbol table. This way
@@ -420,36 +422,6 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _add_call(program, name, args):
-        '''This function creates a call to the subroutine of the given name,
-        providing the arguments. The call will be added to the program and
-        to the symbol table.
-
-        :param program: the PSyIR Routine to which any code must \
-            be added. It also contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param str name: name of the subroutine to call.
-        :param args: all arguments for the call.
-        :type args: List[:py:class:`psyclone.psyir.nodes.Node`]
-
-        :raises TypeError: if there is a symbol with the \
-            specified name defined that is not a RoutineSymbol.
-        '''
-        if name in program.symbol_table:
-            routine_symbol = program.symbol_table.lookup(name)
-            if not isinstance(routine_symbol, RoutineSymbol):
-                raise TypeError(
-                    f"Error when adding call: Routine '{name}' is "
-                    f"a symbol of type '{type(routine_symbol).__name__}', "
-                    f"not a 'RoutineSymbol'.")
-        else:
-            routine_symbol = RoutineSymbol(name)
-            program.symbol_table.add(routine_symbol)
-        call = Call.create(routine_symbol, args)
-        program.addchild(call)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
     def _create_output_var_code(name, program, is_input, read_var,
                                 postfix, index=None, module_name=None):
         # pylint: disable=too-many-arguments
@@ -522,9 +494,8 @@ class LFRicExtractDriverCreator:
                 # If it is not indexed then `name` will already end in "_data"
                 post_tag = f"{name}{postfix}"
         name_lit = Literal(post_tag, CHARACTER_TYPE)
-        LFRicExtractDriverCreator._add_call(program, read_var,
-                                            [name_lit,
-                                             Reference(post_sym)])
+        BaseDriverCreator.add_call(program, read_var,
+                                   [name_lit, Reference(post_sym)])
 
         # Now if a variable is written to, but not read, the variable
         # is not allocated. So we need to allocate it and set it to 0.
@@ -632,8 +603,8 @@ class LFRicExtractDriverCreator:
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}_data")
                     name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
-                    self._add_call(program, read_var, [name_lit,
-                                                       Reference(sym)])
+                    BaseDriverCreator.add_call(program, read_var,
+                                               [name_lit, Reference(sym)])
                 continue
 
             if module_name:
@@ -652,7 +623,8 @@ class LFRicExtractDriverCreator:
             else:
                 sym = symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
-            self._add_call(program, read_var, [name_lit, Reference(sym)])
+            BaseDriverCreator.add_call(program, read_var,
+                                       [name_lit, Reference(sym)])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -760,48 +732,6 @@ class LFRicExtractDriverCreator:
                                     symbol_type=DataSymbol,
                                     datatype=INTEGER_TYPE,
                                     interface=ImportInterface(constant_mod))
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _add_result_tests(program, output_symbols):
-        '''Adds tests to check that all output variables have the expected
-        value.
-
-        :param program: the program to which the tests should be added.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param output_symbols: a list containing all output variables of \
-            the executed code. Each entry in the list is a 2-tuple, \
-            containing first the symbol that was computed when executing \
-            the kernels, and then the symbol containing the expected \
-            values that have been read in from a file.
-        :type output_symbols: \
-            List[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`
-                       :py:class:`psyclone.psyir.symbols.Symbol`]]
-
-        '''
-
-        module = ContainerSymbol("compare_variables_mod")
-        program.symbol_table.add(module)
-        for compare_func in ["compare", "compare_init", "compare_summary"]:
-            compare_sym = RoutineSymbol(compare_func, UnresolvedType(),
-                                        interface=ImportInterface(module))
-            program.symbol_table.add(compare_sym)
-
-        LFRicExtractDriverCreator.\
-            _add_call(program, "compare_init",
-                      [Literal(f"{len(output_symbols)}", INTEGER_TYPE)])
-
-        # TODO #2083: check if this can be combined with psyad result
-        # comparison.
-        for (sym_computed, sym_read) in output_symbols:
-            lit_name = Literal(sym_computed.name, CHARACTER_TYPE)
-            LFRicExtractDriverCreator._add_call(program, "compare",
-                                                [lit_name,
-                                                 Reference(sym_computed),
-                                                 Reference(sym_read)])
-
-        LFRicExtractDriverCreator.\
-            _add_call(program, "compare_summary", [])
 
     # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
@@ -925,8 +855,8 @@ class LFRicExtractDriverCreator:
         # will reconstruct the name of the data file to read.
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
-        self._add_call(program, f"{psy_data.name}%OpenRead",
-                       [module_str, region_str])
+        BaseDriverCreator.add_call(program, f"{psy_data.name}%OpenRead",
+                                   [module_str, region_str])
 
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
@@ -937,7 +867,7 @@ class LFRicExtractDriverCreator:
         for child in all_children:
             program.addchild(child)
 
-        self._add_result_tests(program, output_symbols)
+        BaseDriverCreator.add_result_tests(program, output_symbols)
 
         return file_container
 

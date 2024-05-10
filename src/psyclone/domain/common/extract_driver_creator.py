@@ -42,9 +42,9 @@ the output data contained in the input file.
 
 
 from psyclone.configuration import Config
+from psyclone.domain.common import BaseDriverCreator
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference, Routine,
                                   StructureReference)
@@ -59,7 +59,7 @@ from psyclone.psyir.transformations import ExtractTrans
 # and put the domain-specific implementations into the domain/* directories.
 
 
-class ExtractDriverCreator:
+class ExtractDriverCreator(BaseDriverCreator):
     '''This class provides the functionality to create a driver that
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.
@@ -73,6 +73,7 @@ class ExtractDriverCreator:
 
     '''
     def __init__(self, integer_type=INTEGER_TYPE, real_type=REAL8_TYPE):
+        super().__init__()
         # Set the integer and real types to use.
         # For convenience, also add the names used in the gocean config file:
         self._default_types = {ScalarType.Intrinsic.INTEGER: integer_type,
@@ -300,36 +301,6 @@ class ExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def add_call(program, name, args):
-        '''This function creates a call to the subroutine of the given name,
-        providing the arguments. The call will be added to the program and
-        to the symbol table.
-
-        :param program: the PSyIR Routine to which any code must \
-            be added. It also contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param str name: name of the subroutine to call.
-        :param args: list of all arguments for the call.
-        :type args: list of :py:class:`psyclone.psyir.nodes.Node`
-
-        :raises TypeError: if there is a symbol with the \
-            specified name defined that is not a RoutineSymbol.
-        '''
-        if name in program.symbol_table:
-            routine_symbol = program.symbol_table.lookup(name)
-            if not isinstance(routine_symbol, RoutineSymbol):
-                raise TypeError(
-                    f"Error when adding call: Routine '{name}' is "
-                    f"a symbol of type '{type(routine_symbol).__name__}', "
-                    f"not a 'RoutineSymbol'.")
-        else:
-            routine_symbol = RoutineSymbol(name)
-            program.symbol_table.add(routine_symbol)
-        call = Call.create(routine_symbol, args)
-        program.addchild(call)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
     def create_read_in_code(program, psy_data, read_write_info, postfix):
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
@@ -391,8 +362,8 @@ class ExtractDriverCreator:
             sig_str = str(signature)
             sym = symbol_table.lookup_with_tag(sig_str)
             name_lit = Literal(sig_str, CHARACTER_TYPE)
-            ExtractDriverCreator.add_call(program, read_var,
-                                          [name_lit, Reference(sym)])
+            BaseDriverCreator.add_call(program, read_var,
+                                       [name_lit, Reference(sym)])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -413,9 +384,9 @@ class ExtractDriverCreator:
             post_sym = symbol_table.new_symbol(post_name,
                                                symbol_type=DataSymbol,
                                                datatype=sym.datatype)
-            ExtractDriverCreator.add_call(program, read_var,
-                                          [Literal(post_name, CHARACTER_TYPE),
-                                           Reference(post_sym)])
+            BaseDriverCreator.add_call(program, read_var,
+                                       [Literal(post_name, CHARACTER_TYPE),
+                                        Reference(post_sym)])
 
             # Now if a variable is written to, but not read, the variable
             # is not allocated. So we need to allocate it and set it to 0.
@@ -464,49 +435,6 @@ class ExtractDriverCreator:
             new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
                                             interface=ImportInterface(module))
             symbol_table.add(new_routine_sym)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def add_result_tests(program, output_symbols):
-        '''Adds tests to check that all output variables have the expected
-        value.
-
-        :param program: the program to which the tests should be added.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param output_symbols: a list containing all output variables of \
-            the executed code. Each entry in the list is a 2-tuple, \
-            containing first the symbol that was computed when executing \
-            the kernels, and then the symbol containing the expected \
-            values that have been read in from a file.
-        :type output_symbols: list of 2-tuples of \
-            :py:class:`psyclone.psyir.symbols.Symbol`
-        '''
-
-        for (sym_computed, sym_read) in output_symbols:
-            if isinstance(sym_computed.datatype, ArrayType):
-                cond = f"all({sym_computed.name} - {sym_read.name} == 0.0)"
-            else:
-                cond = f"{sym_computed.name} == {sym_read.name}"
-            # The PSyIR has no support for output functions, so we parse
-            # Fortran code to create a code block which stores the output
-            # statements.
-            code = f'''
-                subroutine tmp()
-                  integer :: {sym_computed.name}, {sym_read.name}
-                  if ({cond}) then
-                     print *,"{sym_computed.name} correct"
-                  else
-                     print *,"{sym_computed.name} incorrect. Values are:"
-                     print *,{sym_computed.name}
-                     print *,"{sym_computed.name} values should be:"
-                     print *,{sym_read.name}
-                  endif
-                end subroutine tmp'''
-
-            fortran_reader = FortranReader()
-            container = fortran_reader.psyir_from_source(code)
-            if_block = container.children[0].children[0]
-            program.addchild(if_block.detach())
 
     # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
@@ -594,7 +522,7 @@ class ExtractDriverCreator:
         for child in all_children:
             program.addchild(child)
 
-        self.add_result_tests(program, output_symbols)
+        BaseDriverCreator.add_result_tests(program, output_symbols)
 
         return file_container
 
