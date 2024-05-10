@@ -195,6 +195,8 @@ class PSyFactory():
             raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
+        if api:
+            Config.get().api = api
         Config.get().distributed_memory = _distributed_memory
         self._type = get_api(api)
 

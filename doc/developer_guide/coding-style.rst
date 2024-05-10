@@ -166,7 +166,7 @@ documented using Sphinx mark-up. An example of how to do this is shown below:
 
     .. literalinclude:: interface_example.py
 
-Example layout of the interface description above: 
+Example layout of the interface description above:
 
 .. autofunction:: interface_example.some_function
 
