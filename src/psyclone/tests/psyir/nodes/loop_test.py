@@ -510,11 +510,17 @@ def test_set_loop_type_inference_rules():
             "but found" in str(err.value))
     with pytest.raises(TypeError) as err:
         Loop.set_loop_type_inference_rules({"a": {"invalid": "name"}})
+    assert ("Currently only the 'variable' rule key is accepted, but found:"
+            " 'invalid'." in str(err.value))
+    with pytest.raises(TypeError) as err:
+        Loop.set_loop_type_inference_rules({"a": {}})
     assert ("A rule must at least have a 'variable' field to specify the loop "
             "variable name that defines this loop_type, but the rule for "
             "'a' does not have it." in str(err.value))
 
     Loop.set_loop_type_inference_rules({"a": {"variable": "name"}})
+    assert "name" in Loop._loop_type_inference_rules
+    assert Loop._loop_type_inference_rules["name"] == "a"
 
 
 def test_loop_type(fortran_reader):

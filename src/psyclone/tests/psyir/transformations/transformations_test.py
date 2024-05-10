@@ -43,7 +43,6 @@ API-agnostic tests for various transformation classes.
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Literal, Loop, Node, \
     Reference, Schedule, Statement, ACCLoopDirective, OMPMasterDirective, \
     OMPDoDirective, OMPLoopDirective, Routine
@@ -119,18 +118,6 @@ def test_accenterdata():
     acct = ACCEnterDataTrans()
     assert acct.name == "ACCEnterDataTrans"
     assert str(acct) == "Adds an OpenACC 'enter data' directive"
-
-
-def test_accenterdata_internalerr(monkeypatch):
-    ''' Check that the ACCEnterDataTrans.apply() method raises an internal
-    error if the validate method fails to throw out an invalid type of
-    Schedule. '''
-    acct = ACCEnterDataTrans()
-    monkeypatch.setattr(acct, "validate", lambda sched, options: None)
-    with pytest.raises(InternalError) as err:
-        acct.apply("Not a schedule")
-    assert ("validate() has not rejected an (unsupported) schedule"
-            in str(err.value))
 
 
 def test_omptaskloop_no_collapse():

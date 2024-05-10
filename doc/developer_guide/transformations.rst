@@ -83,7 +83,7 @@ The top-level raising transformation creates NEMO PSy layer PSyIR:
 
 .. autoclass:: psyclone.domain.nemo.transformations.CreateNemoPSyTrans
 
-This transformation is itself implemented using two separate transformations:
+This transformation is itself implemented using:
 
 .. autoclass:: psyclone.domain.nemo.transformations.CreateNemoInvokeScheduleTrans
 

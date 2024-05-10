@@ -169,7 +169,7 @@ these constants. The constant objects make sure that this initialisation
 only happens the very first time - creating an instance is therefore
 very cheap.
 
-There three constant objects can be imported as follows:
+There two constant objects can be imported as follows:
 
 - ``from psyclone.domain.gocean import GOceanConstants``
 - ``from psyclone.domain.lfric import LFRicConstants``

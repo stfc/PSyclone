@@ -283,7 +283,6 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     appropriate begin_string and clauses for the backend to generate
     the right code'''
 
-    Config._instance = None
     Config.get().api = "nemo"
     code = '''
     subroutine my_subroutine()

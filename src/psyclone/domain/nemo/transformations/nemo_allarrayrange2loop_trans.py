@@ -82,8 +82,8 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         Range node specifying an access to an array index. If this is
         the case then all Range nodes within array references within
         the assignment are replaced with references to the appropriate
-        loop indices. The appropriate number of Loop loops are
-        also placed around the modified assignment statement.
+        loop indices. The appropriate number of Loops are also placed around
+        the modified assignment statement.
 
         The name of each loop index is taken from the PSyclone
         configuration file if a name exists for the particular array

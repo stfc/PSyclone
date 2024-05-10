@@ -65,8 +65,8 @@ tutorial:
    particular routine may be required.
 
  * it blindly applies a transformation to each loop over vertical levels
-   that is an immediate child of the Schedule. As we did with then inserting
-   profiling. We can identify loops over `levels` by the fact that they use
+   that is an immediate child of the Schedule. As we did when inserting
+   profiling, we can identify loops over `levels` by the fact that they use
    the 'jk' loop variable as required in the NEMO Code Conventions. To do this
    we can set the following loop_type inference rule:
    ```python
