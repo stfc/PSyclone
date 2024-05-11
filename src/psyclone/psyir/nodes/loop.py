@@ -136,10 +136,12 @@ class Loop(Statement):
         Specify the rules that define a loop type by inspecting its variable,
         name. This affects all instances of the Loop class. For example:
 
-        rules = {
-            "lon": {"variable": "ji"},
-            "lat": {"variable": "jj"}
-        }
+        .. code-block::
+
+            rules = {
+                "lon": {"variable": "ji"},
+                "lat": {"variable": "jj"}
+            }
 
         :param rules: new set of rules for inferring loop_types.
         :type rules: dict[str, dict[str, str]]
