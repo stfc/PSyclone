@@ -1283,8 +1283,8 @@ Many of the loops in NEMO are written using Fortran array notation. Such
 use of array notation is encouraged in the NEMO Coding Conventions
 :cite:`nemo_code_conv` and identifying these loops can be important
 when introducing, e.g. OpenMP. These implicit loops are not
-automatically represented a PSyIR Loop instances but can be done
-convert to explicit loops using the ``NemoAllArrayRange2LoopTrans``
+automatically represented as PSyIR Loop instances but can be converted
+to explicit loops using the ``NemoAllArrayRange2LoopTrans``
 transformation.
 
 
@@ -1310,9 +1310,9 @@ Since PSyclone does not currently attempt to fully resolve all symbols
 when parsing NEMO code, this information is not available and therefore
 such statements are not identified as loops.
 
-In order to imporve the PSyclone capabilities to convert implicit loops,
-the symbol information of externally declared symbols can be resolved by
-requesting the following operation to the symbol table:
+In order to improve the PSyclone capabilities to convert implicit loops,
+the details of externally declared symbols can be resolved by using the
+`resolve_imports` method of the symbol table:
 
 .. code-block:: python
 

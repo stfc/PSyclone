@@ -95,22 +95,6 @@ def object_index(alist, item):
     raise ValueError(f"Item '{item}' not found in list: {alist}")
 
 
-def get_api(api):
-    ''' If no API is specified then return the default. Otherwise, check that
-    the supplied API is valid.
-    :param str api: The PSyclone API to check or an empty string.
-    :returns: The API that is in use.
-    :rtype: str
-    :raises GenerationError: if the specified API is not supported.
-
-    '''
-    if api not in Config.get().supported_apis:
-        raise GenerationError(f"get_api: Unsupported API '{api}' "
-                              f"specified. Supported types are "
-                              f"{Config.get().supported_apis}.")
-    return api
-
-
 def zero_reduction_variables(red_call_list, parent):
     '''zero all reduction variables associated with the calls in the call
     list'''
@@ -191,8 +175,11 @@ class PSyFactory():
             raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
+        if api == "":
+            api = Config.get().default_api
+        Config.get().api = api
         Config.get().distributed_memory = _distributed_memory
-        self._type = get_api(api)
+        self._type = api
 
     def create(self, invoke_info):
         '''

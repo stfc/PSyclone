@@ -118,7 +118,7 @@ def test_object_index():
 def test_invalid_api():
     '''test that psyfactory raises appropriate error when an invalid api
     is supplied'''
-    with pytest.raises(GenerationError):
+    with pytest.raises(ValueError):
         _ = PSyFactory(api="invalid")
 
 

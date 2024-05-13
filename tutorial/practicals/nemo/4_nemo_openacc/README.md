@@ -92,7 +92,7 @@ various ways in which PSyclone can be used.)
    within the outer, iteration loop of the mini-app. As we did in the
    profiling and OpenMP tutorials, we can facilitate the identification
    of certain NEMO domain loops by setting loop_type inference rules by
-   relying on the variable names requires by the NEMO Code Conventions:
+   relying on the variable names required by the NEMO Code Conventions:
 
    ```python
    Loop.set_loop_type_inference_rules({

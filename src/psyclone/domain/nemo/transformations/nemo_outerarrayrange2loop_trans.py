@@ -97,10 +97,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         loop are taken from the Range node if they are provided. If
         not, the loop bounds are taken from the PSyclone configuration
         file if bounds values are supplied. If not, the LBOUND or
-        UBOUND intrinsics are used as appropriate. The type of the
-        Loop is also taken from the configuration file if it is
-        supplied for that index, otherwise it is specified as being
-        "unknown".
+        UBOUND intrinsics are used as appropriate.
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
