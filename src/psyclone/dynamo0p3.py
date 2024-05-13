@@ -3349,6 +3349,7 @@ class DynBasisFunctions(LFRicCollection):
                 assignment.preceding_comment = (
                     "Initialise evaluator-related quantities for the target "
                     "function spaces")
+                first = False
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
             # parent.add(AssignGen(
@@ -3681,7 +3682,7 @@ class DynBasisFunctions(LFRicCollection):
                 #     AssignGen(parent, pointer=True,
                 #               lhs=qr_var+"_"+qr_arg_name,
                 #               rhs=proxy_name+"%"+qr_var))
-            return cursor
+        return cursor
 
     def _initialise_xoyoz_qr(self, cursor):
         '''
@@ -3734,9 +3735,9 @@ class DynBasisFunctions(LFRicCollection):
                 symbol_table.find_or_create_integer_symbol(
                     name+"_"+qr_arg_name, tag=name+"_"+qr_arg_name).name
                 for name in self.qr_dim_vars[qr_type]]
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=decl_list))
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    entity_decls=decl_list))
 
             names = [f"{name}_{qr_arg_name}"
                      for name in self.qr_weight_vars[qr_type]]
@@ -3748,9 +3749,9 @@ class DynBasisFunctions(LFRicCollection):
             const = LFRicConstants()
             datatype = const.QUADRATURE_TYPE_MAP[quadrature_name]["intrinsic"]
             kind = const.QUADRATURE_TYPE_MAP[quadrature_name]["kind"]
-            parent.add(
-                DeclGen(parent, datatype=datatype, pointer=True, kind=kind,
-                        entity_decls=decl_list))
+            # parent.add(
+            #     DeclGen(parent, datatype=datatype, pointer=True, kind=kind,
+            #             entity_decls=decl_list))
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
             const_mod_uses = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
@@ -3759,23 +3760,50 @@ class DynBasisFunctions(LFRicCollection):
             # appropriate infrastructure module
             const_mod_uses.add(kind)
             # Get the quadrature proxy
-            proxy_name = symbol_table.find_or_create_tag(
-                qr_arg_name+"_proxy").name
-            parent.add(
-                AssignGen(parent, lhs=proxy_name,
-                          rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
+
+            ptype = symbol_table.lookup(
+                const.QUADRATURE_TYPE_MAP[quadrature_name]["proxy_type"])
+
+            proxy_sym = symbol_table.find_or_create_tag(
+                qr_arg_name+"_proxy", symbol_type=DataSymbol, datatype=ptype)
+            call = Call.create(
+                StructureReference.create(
+                    symbol_table.lookup(qr_arg_name),
+                    ["get_quadrature_proxy"]))
+            assignment = Assignment.create(
+                    lhs=Reference(proxy_sym),
+                    rhs=call)
+            self._invoke.schedule.addchild(assignment, cursor)
+            cursor += 1
+            # parent.add(
+            #     AssignGen(parent, lhs=proxy_name,
+            #               rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
             # The dimensioning variables required for this quadrature
             # (e.g. nedges/nfaces, np_xyz)
             for qr_var in self.qr_dim_vars[qr_type]:
-                parent.add(
-                    AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
-                              rhs=proxy_name+"%"+qr_var))
+                qr_sym = symbol_table.lookup(qr_var+'_'+qr_arg_name)
+                assignment = Assignment.create(
+                        lhs=Reference(qr_sym),
+                        rhs=StructureReference.create(proxy_sym, [qr_var]))
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(
+                #     AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
+                #               rhs=proxy_name+"%"+qr_var))
             # Pointers to the weights arrays
             for qr_var in self.qr_weight_vars[qr_type]:
-                parent.add(
-                    AssignGen(parent, pointer=True,
-                              lhs=qr_var+"_"+qr_arg_name,
-                              rhs=proxy_name+"%"+qr_var))
+                qr_sym = symbol_table.lookup(qr_var+'_'+qr_arg_name)
+                assignment = Assignment.create(
+                        lhs=Reference(qr_sym),
+                        rhs=StructureReference.create(
+                            proxy_sym, [qr_var]),
+                        is_pointer=True)
+                self._invoke.schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(
+                #     AssignGen(parent, pointer=True,
+                #               lhs=qr_var+"_"+qr_arg_name,
+                #               rhs=proxy_name+"%"+qr_var))
         return cursor
 
     def _compute_basis_fns(self, cursor):
@@ -3910,7 +3938,8 @@ class DynBasisFunctions(LFRicCollection):
                     # dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
 
                     symbol = symtab.lookup(op_name)
-                    rhs = basis_fn['arg'].generate_method_call("call_function")
+                    rhs = basis_fn['arg'].generate_method_call(
+                        "call_function", function_space=basis_fn['fspace'])
                     rhs.addchild(Reference(symtab.lookup(basis_type)))
                     rhs.addchild(Reference(symtab.lookup(dof_loop_var)))
                     rhs.addchild(ArrayReference.create(
@@ -5991,7 +6020,7 @@ class DynKernelArgument(KernelArgument):
         else:
             return StructureReference.create(
                 symbol, [self.ref_name(function_space)])
-        
+
     def ref_name(self, function_space=None):
         '''
         Returns the name used to dereference this type of argument (depends

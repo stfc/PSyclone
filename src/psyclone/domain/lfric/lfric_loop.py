@@ -382,7 +382,7 @@ class LFRicLoop(PSyLoop):
                 f"The lower bound must be 'start' if we are sequential but "
                 f"found '{self._upper_bound_name}'")
         if self._lower_bound_name == "start":
-            return "1"
+            return Literal("1", INTEGER_TYPE)
 
         # the start of our space is the end of the previous space +1
         if self._lower_bound_name == "inner":

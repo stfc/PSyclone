@@ -56,7 +56,7 @@ from psyclone.psyir.nodes import (
     Loop, Literal, Reference, KernelSchedule)
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, ArrayType, UnsupportedFortranType, DataTypeSymbol,
-    UnresolvedType)
+    UnresolvedType, SymbolTable)
 
 
 class LFRicKern(CodedKern):
@@ -309,7 +309,10 @@ class LFRicKern(CodedKern):
 
         # The quadrature-related arguments to a kernel always come last so
         # construct an enumerator with start value -<no. of qr rules>
-        symtab = self.ancestor(InvokeSchedule).symbol_table
+        if self.ancestor(InvokeSchedule):
+            symtab = self.ancestor(InvokeSchedule).symbol_table
+        else:
+            symtab = SymbolTable()  # FIXME
         for idx, shape in enumerate(qr_shapes, -len(qr_shapes)):
             qr_arg = args[idx]
             quad_map = const.QUADRATURE_TYPE_MAP[shape]

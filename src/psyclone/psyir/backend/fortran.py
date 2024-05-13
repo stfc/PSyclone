@@ -523,7 +523,7 @@ class FortranWriter(LanguageWriter):
         '''
         # pylint: disable=too-many-branches
         if isinstance(symbol.datatype, UnresolvedType):
-            return "fixme"
+            return "fixme: " + symbol.name + "\n"
             # raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
             #                    f"and we can not generate a declaration for "
             #                    f"UnresolvedTypes.")

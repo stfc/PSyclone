@@ -100,12 +100,13 @@ class LFRicLoopBounds(LFRicCollection):
                                                              tag=root_name)
             assignment = Assignment.create(
                     lhs=Reference(lbound),
-                    rhs=Literal("1", INTEGER_TYPE))  # FIXME
+                    rhs=loop._lower_bound_fortran())  # FIXME
             self._invoke.schedule.addchild(assignment, cursor)
             cursor += 1
             if first:
                 assignment.preceding_comment = (
                     "Set-up all of the loop bounds")
+                first = False
             # parent.add(AssignGen(parent, lhs=lbound.name,
             #                      rhs=loop._lower_bound_fortran()))
             # entities = [lbound.name]
@@ -114,8 +115,6 @@ class LFRicLoopBounds(LFRicCollection):
                 root_name = f"loop{idx}_stop"
                 ubound = sym_table.find_or_create_integer_symbol(root_name,
                                                                  tag=root_name)
-                string = loop._upper_bound_fortran()
-                psyir = loop._upper_bound_psyir()
                 self._invoke.schedule.addchild(
                     Assignment.create(
                         lhs=Reference(ubound),
