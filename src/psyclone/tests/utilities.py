@@ -551,7 +551,6 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
-
     Config.get().api = api
     _, info = parse(os.path.join(get_base_path(api), algfile), api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)

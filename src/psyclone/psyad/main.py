@@ -117,7 +117,7 @@ def main(args):
     generate_test = args.gen_test or args.test_filename
 
     # Check the command-line arguments for consistency.
-    if args.api in LFRIC_API_NAMES:
+    if args.api not in LFRIC_API_NAMES:
         if args.coord_arg is not None:
             logger.error(
                 "The '-coord-arg' argument is only applicable to the LFRic "

@@ -1312,9 +1312,9 @@ def test_cma_asm_stub_gen():
     ''' Test the kernel-stub generator for CMA operator assembly.
 
     '''
-    result = generate(os.path.join(BASE_PATH,
-                                   "columnwise_op_asm_kernel_mod.F90"),
-                      api=TEST_API)
+
+    path = os.path.join(BASE_PATH, "columnwise_op_asm_kernel_mod.F90")
+    result = generate(path, api=TEST_API)
 
     expected = (
         "  MODULE columnwise_op_asm_kernel_mod\n"

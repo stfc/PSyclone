@@ -55,7 +55,7 @@ def test_config_loaded_before_constants_created():
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "testkern_w0_mod.f90")
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    kernel_tools.run([str(kern_file)])
+    kernel_tools.run([str(kern_file), "-api", "lfric"])
     assert Config.has_config_been_initialised() is True
 
 
@@ -63,7 +63,7 @@ def test_run_default_mode(capsys):
     ''' Test that the default behaviour is to create a kernel stub. '''
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "testkern_w0_mod.f90")
-    kernel_tools.run([str(kern_file)])
+    kernel_tools.run([str(kern_file), "-api", "lfric"])
     out, err = capsys.readouterr()
     assert "Kernel-stub code:\n   MODULE testkern_w0_mod\n" in out
     assert not err
@@ -75,7 +75,8 @@ def test_run(capsys, tmpdir):
     # (dynamo 0.3) is picked up correctly
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "testkern_w0_mod.f90")
-    kernel_tools.run([str(kern_file), "--limit", "output", "-gen", "stub"])
+    kernel_tools.run([str(kern_file), "-api", "lfric", "--limit", "output",
+                      "-gen", "stub"])
     result, _ = capsys.readouterr()
     assert "Kernel-stub code:" in result
     assert "MODULE testkern_w0_mod" in result
@@ -124,7 +125,7 @@ def test_run_include_flag(capsys):
 def test_run_missing_file(capsys):
     ''' Test that an IOError is handled correctly. '''
     with pytest.raises(SystemExit):
-        kernel_tools.run([str("/does_not_exist")])
+        kernel_tools.run([str("/does_not_exist"), "-api", "lfric"])
     _, result = capsys.readouterr()
     assert ("Error: Kernel stub generator: File '/does_not_exist' "
             "not found" in str(result))
@@ -135,7 +136,7 @@ def test_run_alg_gen(capsys):
     algorithm layer if requested. '''
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "testkern_w0_mod.f90")
-    kernel_tools.run(["-gen", "alg", str(kern_file)])
+    kernel_tools.run(["-api", "lfric", "-gen", "alg", str(kern_file)])
     out, err = capsys.readouterr()
     assert not err
     assert "Algorithm code:\n module test_alg_mod\n" in out
@@ -235,8 +236,8 @@ def test_file_output(fortran_reader, monkeypatch, mode):
                         fake_psyir_gen)
     monkeypatch.setattr(gen_kernel_stub, "generate", fake_gen)
 
-    kernel_tools.run(["-gen", mode, "-o", f"output_file_{mode}",
-                      str("/does_not_exist")])
+    kernel_tools.run(["-api", "lfric", "-gen", mode, "-o",
+                      f"output_file_{mode}", str("/does_not_exist")])
     with open(f"output_file_{mode}", "r", encoding="utf-8") as infile:
         content = infile.read()
         assert "the_answer = 42" in content

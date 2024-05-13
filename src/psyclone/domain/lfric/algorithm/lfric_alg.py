@@ -423,7 +423,7 @@ class LFRicAlg:
         '''
         try:
             ktype = KernelTypeFactory(api="lfric").create(parse_tree,
-                                                              name=kernel_name)
+                                                          name=kernel_name)
         except ParseError as err:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "

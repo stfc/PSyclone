@@ -152,9 +152,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
 
 class PSyFactory():
     '''
-    Creates a specific version of the PSy. If a particular api is not
-    provided then the default api, as specified in the psyclone.cfg
-    file, is chosen.
+    Creates a specific version of the PSy.
 
     :param str api: name of the PSyclone API (domain) for which to create \
         a factory.
@@ -175,8 +173,6 @@ class PSyFactory():
             raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
-        if api == "":
-            api = Config.get().default_api
         Config.get().api = api
         Config.get().distributed_memory = _distributed_memory
         self._type = api

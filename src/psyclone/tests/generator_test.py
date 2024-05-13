@@ -164,7 +164,7 @@ def test_script_invalid_content():
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
             api="lfric", script_name=os.path.join(BASE_PATH, "dynamo0p3",
-                                                      "error_syntax.py"))
+                                                  "error_syntax.py"))
     assert ("attempted to import specified PSyclone transformation module "
             "'error_syntax' but a problem was found: "
             in str(error_syntax.value))
@@ -173,7 +173,7 @@ def test_script_invalid_content():
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
             api="lfric", script_name=os.path.join(BASE_PATH, "dynamo0p3",
-                                                      "error_import.py"))
+                                                  "error_import.py"))
     assert ("attempted to import specified PSyclone transformation module "
             "'error_import' but a problem was found: "
             in str(error_import.value))
@@ -736,7 +736,7 @@ def test_main_disable_backend_validation_arg(capsys):
     '''Test the --backend option in main().'''
     filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
     with pytest.raises(SystemExit):
-        main([filename, "--backend", "invalid"])
+        main([filename, "-api", "lfric", "--backend", "invalid"])
     _, output = capsys.readouterr()
     assert "--backend: invalid choice: 'invalid'" in output
 
@@ -744,10 +744,10 @@ def test_main_disable_backend_validation_arg(capsys):
     Config._instance = None
     # Default is to have checks enabled.
     assert Config.get().backend_checks_enabled is True
-    main([filename, "--backend", "disable-validation"])
+    main([filename, "-api", "lfric", "--backend", "disable-validation"])
     assert Config.get().backend_checks_enabled is False
     Config._instance = None
-    main([filename, "--backend", "enable-validation"])
+    main([filename, "-api", "lfric", "--backend", "enable-validation"])
     assert Config.get().backend_checks_enabled is True
     Config._instance = None
 
@@ -762,7 +762,7 @@ def test_main_expected_fatal_error(capsys):
                              "test_files", "dynamo0p3",
                              "2_incorrect_number_of_args.f90"))
     with pytest.raises(SystemExit) as excinfo:
-        main([filename])
+        main([filename, "-api", "lfric"])
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
@@ -799,7 +799,7 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     with pytest.raises(SystemExit) as excinfo:
-        main([filename])
+        main([filename, "-api", "lfric"])
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
@@ -854,7 +854,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
                              "test_files", "dynamo0p3",
                              "1_single_invoke.f90"))
     with pytest.raises(SystemExit) as excinfo:
-        main([filename])
+        main([filename, "-api", "lfric"])
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
@@ -925,7 +925,7 @@ def test_main_no_invoke_alg_stdout(capsys):
     kern_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "test_files", "dynamo0p3",
                                   "testkern_mod.F90"))
-    main([kern_filename])
+    main([kern_filename, "-api", "lfric"])
     out, _ = capsys.readouterr()
 
     with open(kern_filename, encoding="utf8") as kern_file:
@@ -948,7 +948,7 @@ def test_main_write_psy_file(capsys, tmpdir):
 
     psy_filename = str(tmpdir.join("psy.f90"))
 
-    main([alg_filename, '-opsy', psy_filename])
+    main([alg_filename, '-api', 'lfric', '-opsy', psy_filename])
 
     # check psy file is created
     assert os.path.isfile(psy_filename)
@@ -957,7 +957,7 @@ def test_main_write_psy_file(capsys, tmpdir):
     with open(psy_filename, encoding="utf8") as psy_file:
         psy_str = psy_file.read()
         # check content of generated psy file by comparing it with stdout
-        main([alg_filename])
+        main([alg_filename, '-api', 'lfric'])
         stdout, _ = capsys.readouterr()
         assert psy_str in stdout
 
@@ -977,7 +977,8 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
     psy_filename = str(tmpdir.join("psy.f90"))
     # no need to delete the files as they have not been created
 
-    main([kern_filename, '-oalg', alg_filename, '-opsy', psy_filename])
+    main([kern_filename, '-api', 'lfric',
+          '-oalg', alg_filename, '-opsy', psy_filename])
     stdout, _ = capsys.readouterr()
 
     # check stdout contains warning
@@ -1007,7 +1008,7 @@ def test_main_kern_output_no_dir(capsys):
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
     with pytest.raises(SystemExit) as err:
-        main([alg_filename, '-okern', "/does/not/exist"])
+        main([alg_filename, '-api', 'lfric', '-okern', "/does/not/exist"])
     assert str(err.value) == "1"
     _, output = capsys.readouterr()
     assert ("Specified kernel output directory (/does/not/exist) does not "
@@ -1027,7 +1028,7 @@ def test_main_kern_output_no_write(tmpdir, capsys):
     os.mkdir(new_dir)
     os.chmod(new_dir, stat.S_IREAD)
     with pytest.raises(SystemExit) as err:
-        main([alg_filename, '-okern', str(new_dir)])
+        main([alg_filename, '-api', 'lfric', '-okern', str(new_dir)])
     assert str(err.value) == "1"
     _, output = capsys.readouterr()
     assert (f"Cannot write to specified kernel output directory "
@@ -1040,7 +1041,7 @@ def test_main_kern_output_dir(tmpdir):
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
-    main([alg_filename, '-okern', str(tmpdir)])
+    main([alg_filename, '-api', 'lfric', '-okern', str(tmpdir)])
     # The specified kernel output directory should have been stored in
     # the configuration object
     assert Config.get().kernel_output_dir == str(tmpdir)
@@ -1302,6 +1303,7 @@ def test_no_invokes_lfric_new(monkeypatch):
             api="lfric")
     assert ("Algorithm file contains no invoke() calls: refusing to generate "
             "empty PSy code" in str(info.value))
+
 
 @pytest.mark.parametrize("invoke", ["call invoke", "if (.true.) call invoke"])
 def test_generate_unresolved_container_lfric(invoke, tmpdir, monkeypatch):

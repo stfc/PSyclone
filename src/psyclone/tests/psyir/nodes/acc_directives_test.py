@@ -131,9 +131,10 @@ def test_accenterdatadirective_gencode_1():
     least one is required. This test uses the lfric API.
 
     '''
+    API = "lfric"
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     acc_enter_trans.apply(sched)
     with pytest.raises(GenerationError) as excinfo:
@@ -160,9 +161,10 @@ def test_accenterdatadirective_gencode_2():
     least one is required. This test uses the lfric API.
 
     '''
+    API = "lfric"
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
     acc_enter_trans.apply(sched)
     with pytest.raises(GenerationError) as excinfo:
@@ -181,10 +183,11 @@ def test_accenterdatadirective_gencode_3(trans):
     directive). This test uses the lfric API.
 
     '''
+    API = "lfric"
     acc_trans = trans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     acc_trans.apply(sched.children)
     acc_enter_trans.apply(sched)
@@ -209,11 +212,12 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     uses the lfric API.
 
     '''
+    API = "lfric"
     acc_trans1 = trans1()
     acc_trans2 = trans2()
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
     acc_trans1.apply([sched.children[1]])
     acc_trans2.apply([sched.children[0]])
@@ -379,8 +383,9 @@ def test_acckernelsdirective_gencode(default_present):
     generates the expected code. Use the lfric API.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    API = "lfric"
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
 
     trans = ACCKernelsTrans()

@@ -147,7 +147,6 @@ class Parser():
             self._kernel_paths = kernel_paths
         self._line_length = line_length
 
-        _config = Config.get()
         check_api(api)
         self._api = api
         Config.get().api = api

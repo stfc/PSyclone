@@ -58,7 +58,7 @@ from fparser.one import parsefortran
 
 import psyclone.expression as expr
 from psyclone.errors import InternalError
-from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
+from psyclone.configuration import LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.parse.utils import check_api, check_line_length, ParseError
 
 
