@@ -772,15 +772,15 @@ Kernel
 
 The general requirements for the structure of a Kernel are explained
 in the :ref:`kernel-layer` section. In the LFRic API there are five
-different Kernel types; general purpose, CMA, inter-grid, domain and
+different Kernel types; general purpose, CMA, inter-grid, domain, dof and
 :ref:`lfric-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
-other four, user-supplied kernel types and then goes on to describe
+other five user-supplied kernel types and then goes on to describe
 their metadata and subroutine arguments.
 
-Domain kernels are distinct from the other three, user-supplied kernel
-types in that they must be passed data for the whole domain rather
-than a single cell-column. This permits the use of kernels that have
+Domain kernels are distinct from the other four user-supplied kernel
+types because they must be passed data for the whole domain rather
+than a single cell-column or field. This permits the use of kernels that have
 not been written to conform to the single-column approach which
 simplifies the integration with existing code. Obviously, any
 parallelisation in the 'domain' kernel must be consistent with that
@@ -795,6 +795,9 @@ support for i-first kernels
 (https://code.metoffice.gov.uk/trac/lfric/ticket/2154). At that
 point the looping (and associated parallelisation) will be put
 back into the PSy layer.
+
+.. note:: Support for DoF kernels have not yet been implmented in PSyclone (see
+          PSyclone issue #1351 for progress).
 
 .. _dynamo0.3-user-kernel-rules:
 
@@ -978,8 +981,12 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-DoF Kernels and :ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly
-in their scope, and the conventions that DoF Kernels must follow are influenced
+.. note:: Support for DoF kernels have not yet been implmented in PSyclone (see
+          PSyclone issue #1351 for progress).
+
+Kernels that have ``operates_on = DOF`` and
+:ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
+scope, and the conventions that DoF Kernels must follow are influenced
 by those for built-ins as a result. This includes :ref:`metadata arguments
 <dynamo0.3-api-built-ins-metadata>` and :ref:`valid data types
 and access modes<lfric-built-ins-dtype-access>`. Naming conventions for DoF
@@ -1000,17 +1007,16 @@ The list of rules for DoF Kernels is as follows:
 3) All field arguments to a given DoF Kernel must be on the same function
    space so they have the same number of DoFs.
 
-4) They must have at least one modified (i.e. writen to) field argument. Unlike
+4) They must have at least one modified (i.e. written to) field argument. Unlike
    built-ins, this is not limited and more than one modified argument is
    allowed.
 
 5) A Kernel may not write to a scalar argument. (Only built-ins are permitted
    to do this.) Any scalar arguments must therefore be declared in the metadata
-   as `GH_READ` - see :ref:`below<dynamo0-3-kernel-valid-access>`
+   as `GH_READ` - see :ref:`below<dynamo0.3-kernel-valid-access>`
 
 6) Kernels must be written to operate on a single DoF, such that single DoFs
-   can be provided to the Kernel within a loop for assignment to an indexed
-   location in a field.
+   can be provided to the Kernel within a loop over the DoFs of a field.
 
 .. _dynamo0.3-api-kernel-metadata:
 
@@ -1891,7 +1897,8 @@ and their interpretation are summarised in the following table:
 operates_on  Data passed for each field/operator argument
 ===========  =========================================================
 cell_column  Single column of cells
-dof          Single DoF (currently :ref:`built-ins` only)
+dof          Single DoF (currently :ref:`built-ins` only, but see PSyclone
+             issue #1351)
 domain       All columns of cells
 ===========  =========================================================
 
@@ -2468,9 +2475,13 @@ as the second argument to the kernel (after ``nlayers``).
 Rules for DoF Kernels
 #####################
 
-A DoF Kernel requires the shared index of the DoF(s) in the field(s) to operate
-on, and the field(s) to extract the DoF(s) from. The full set of rules, along
-with PSyclone's naming conventions, are:
+.. note:: Support for DoF kernels have not yet been implmented in PSyclone (see
+          PSyclone issue #1351 for progress).
+
+The rules for kernels that have ``operates_on = DOF`` are similar to those for
+general-purpose kernels but, due to the restrictions on what can be passed to
+them, are much fewer. The full set of rules, along with PSyclone's naming
+conventions, are:
 
    1) Include `df`, the index of the single dof to be operated on. This is an
       ``integer`` of of kind ``i_def`` with intent ``in``.
