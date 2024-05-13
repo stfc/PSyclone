@@ -203,8 +203,8 @@ Profiling Command-Line Options
 PSyclone offers two command-line options to automatically instrument
 code with profiling regions. It can create profile regions around
 a full invoke routine (including all kernel calls in this invoke), and/or
-around each individual kernel (for the PSyKAl APIs 'dynamo0.3' and
-'gocean1.0'). 
+around each individual kernel (for the PSyKAl APIs 'lfric' and
+'gocean'). 
 
 The option ``--profile invokes`` will automatically add calls to 
 start and end a profile region at the beginning and end of every
@@ -221,7 +221,7 @@ created by PSyclone with start and end profiling calls. Note that this
 option is not available for the 'nemo' API as it does not have the
 concept of explicit Kernels.
 
-.. note:: In some APIs (for example :ref:`LFRic <dynamo0.3-api>`
+.. note:: In some APIs (for example :ref:`LFRic <lfric-api>`
           when using distributed memory) additional minor code might
           get included in a profiled kernel section, for example
           ``setDirty()`` calls (expensive calls like ``HaloExchange``
@@ -442,8 +442,8 @@ For the :ref:`NEMO API <nemo-api>`,
   function/subroutine/program (based on the profile node's position in
   the PSyIR representation relative to any other profile nodes).
 
-For the :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
-:ref:`GOcean1.0 <gocean1.0-api>` APIs,
+For the :ref:`LFRic (Dynamo0.3) <lfric-api>` and
+:ref:`GOcean1.0 <gocean-api>` APIs,
 
 * the `module_name` string is set to the module name of the generated
   PSy-layer. This name should be unique by design (otherwise module

@@ -139,7 +139,7 @@ def test_generate_adjoint_str_lfric_api():
         tl_code = kfile.read()
     result, _ = generate_adjoint_str(tl_code,
                                      ["xi", "u", "res_dot_product", "curl_u"],
-                                     api="dynamo0.3")
+                                     api="lfric")
     assert "subroutine adj_testkern_code" in result.lower()
 
 
@@ -165,9 +165,9 @@ def test_generate_adjoint_str_wrong_api():
         "a = b\n"
         "end program test\n")
     with pytest.raises(NotImplementedError) as err:
-        generate_adjoint_str(tl_code, ["a", "b"], api="gocean1.0")
+        generate_adjoint_str(tl_code, ["a", "b"], api="gocean")
     assert ("PSyAD only supports generic routines/programs or LFRic "
-            "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
+            "(lfric) kernels but got API 'gocean'" in str(err.value))
 
 
 def test_generate_adjoint_str_trans(tmpdir):
@@ -218,10 +218,10 @@ def test_generate_adjoint_str_generate_harness_invalid_api():
     '''Test that passing an unsupported API to generate_adjoint_str()
     raises the expected error.'''
     with pytest.raises(NotImplementedError) as err:
-        _ = generate_adjoint_str(TL_CODE, ["field"], api="gocean1.0",
+        _ = generate_adjoint_str(TL_CODE, ["field"], api="gocean",
                                  create_test=True)
     assert ("PSyAD only supports generic routines/programs or LFRic "
-            "(dynamo0.3) kernels but got API 'gocean1.0'" in str(err.value))
+            "(lfric) kernels but got API 'gocean'" in str(err.value))
 
 
 def test_generate_adjoint_str_generate_harness_lfric():
@@ -253,7 +253,7 @@ def test_generate_adjoint_str_generate_harness_lfric():
     )
     result, harness = generate_adjoint_str(tl_code, ["field"],
                                            create_test=True,
-                                           api="dynamo0.3")
+                                           api="lfric")
     assert ("subroutine adj_testkern_code(nlayers, field, ndf_w3, "
             "undf_w3, map_w3)\n" in result)
     assert "module adjoint_test_mod\n" in harness

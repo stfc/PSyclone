@@ -132,7 +132,7 @@ class Parser():
     For example:
 
     >>> from psyclone.parse.algorithm import Parser
-    >>> parser = Parser(api="gocean1.0")
+    >>> parser = Parser(api="gocean")
     >>> ast, info = parser.parse(SOURCE_FILE)
 
     '''
@@ -958,7 +958,7 @@ class ParsedCall():
         if len(self._args) < self._ktype.nargs:
             # we cannot test for equality here as API's may have extra
             # arguments passed in from the algorithm layer (e.g. 'QR'
-            # in dynamo0.3), but we do expect there to be at least the
+            # in lfric), but we do expect there to be at least the
             # same number of real arguments as arguments specified in
             # the metadata.
             raise ParseError(

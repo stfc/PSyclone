@@ -61,7 +61,7 @@ FORTCL_INC = ${FORTCL_DIR}/src
 FORTCL_LIB = ${FORTCL_DIR}/src/libFortCL.a
 
 transform:
-	${PSYCLONE} -api "gocean1.0" -s ./ocl_trans.py alg.f90
+	${PSYCLONE} -api "gocean" -s ./ocl_trans.py alg.f90
 
 # The dl_esm_inf library
 fd_lib:
@@ -77,11 +77,11 @@ ${FORTCL_LIB}:
 
 # PSyclone command that stores the output code into files
 psy_gen.f90 alg_gen.f90: alg.f90
-	${PSYCLONE} -nodm -api "gocean1.0" -s ./ocl_trans.py -opsy psy_gen.f90 \
+	${PSYCLONE} -nodm -api "gocean" -s ./ocl_trans.py -opsy psy_gen.f90 \
 		 -oalg alg_gen.f90 alg.f90
 
 psy_gen_dm.f90 alg_gen_dm.f90: alg.f90
-	${PSYCLONE} -dm -api "gocean1.0" -s ./ocl_trans.py -opsy psy_gen_dm.f90 \
+	${PSYCLONE} -dm -api "gocean" -s ./ocl_trans.py -opsy psy_gen_dm.f90 \
 		 -oalg alg_gen_dm.f90 alg.f90
 
 compile-ocl: fd_lib ${FORTCL_LIB} ${KERNELS} psy_gen.o alg_gen.f90

@@ -96,10 +96,10 @@ section e.g.:
     VALID_PSY_DATA_PREFIXES = profile, extract
 
 and an optional API specific section, for example for the
-``dynamo0.3`` section:
+``lfric`` section:
 ::
 
-   [dynamo0.3]
+   [lfric]
    access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                     gh_inc: inc, gh_readinc: readinc, gh_sum: sum
    COMPUTE_ANNEXED_DOFS = false
@@ -122,10 +122,10 @@ and an optional API specific section, for example for the
    NUM_ANY_SPACE = 10
    NUM_ANY_DISCONTINUOUS_SPACE = 10
 
-or for ``gocean1.0``:
+or for ``gocean``:
 ::
 
-   [gocean1.0]
+   [gocean]
    access_mapping = go_read:read, go_write:write, go_readwrite:readwrite
    grid-properties = go_grid_xstop: {0}%%grid%%subdomain%%internal%%xstop: scalar,
                   go_grid_ystop: {0}%%grid%%subdomain%%internal%%ystop: scalar,
@@ -203,7 +203,7 @@ access_mapping          This field defines the strings that are used by a
 ======================= =======================================================
 
 
-``dynamo0.3`` Section
+``lfric`` Section
 ^^^^^^^^^^^^^^^^^^^^^
 
 This section contains configuration options that are only applicable when
@@ -239,7 +239,7 @@ NUM_ANY_DISCONTINUOUS_SPACE Sets the number of ``ANY_DISCONTINUOUS_SPACE``
                             :ref:`lfric-num-any-spaces`.
 =========================== ===================================================
 
-``gocean1.0`` Section
+``gocean`` Section
 ^^^^^^^^^^^^^^^^^^^^^
 This section contains configuration options that are only applicable when
 using the Gocean 1.0 API.
@@ -251,11 +251,11 @@ Entry                   Description
 ======================= =======================================================
 iteration-spaces        This contains definitions of additional iteration spaces
                         used by PSyclone. A detailed description can be found
-                        in the :ref:`gocean1.0-configuration-iteration-spaces`
+                        in the :ref:`gocean-configuration-iteration-spaces`
                         section of the GOcean1.0 chapter.
 
 grid-properties         This key contains definitions to access various grid
                         properties. A detailed description can be found
-                        in the :ref:`gocean1.0-configuration-grid-properties`
+                        in the :ref:`gocean-configuration-grid-properties`
                         section of the GOcean1.0 chapter.
 ======================= =======================================================

@@ -77,10 +77,10 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
         the adjoint kernel.
     :param Optional[int] coord_arg_index: the (1-based) index of the kernel \
         argument holding the mesh coordinates (if any). Only applies to the \
-        LFRic (dynamo0.3) API.
+        LFRic (lfric) API.
     :param Optional[int] panel_id_arg_index: the (1-based) index of the kernel\
         argument holding the panel IDs (if any). Only applies to the LFRic \
-        (dynamo0.3) API.
+        (lfric) API.
 
     :returns: a 2-tuple consisting of a string containing the Fortran \
         implementation of the supplied tangent-linear kernel and (if \
@@ -134,7 +134,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "
-            f"(dynamo0.3) kernels but got API '{api}'")
+            f"(lfric) kernels but got API '{api}'")
 
     writer = FortranWriter()
 

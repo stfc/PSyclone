@@ -72,7 +72,7 @@ BASE_PATH = os.path.join(
     "test_files", "dynamo0p3")
 
 # The PSyclone API under test
-API = "dynamo0.3"
+API = "lfric"
 
 
 def dummy_func(self, _1, _2=True):

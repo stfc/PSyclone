@@ -36,7 +36,7 @@
 
 .. highlight:: fortran
 
-.. _dynamo0.3-api:
+.. _lfric-api:
 
 LFRic (Dynamo0.3) API
 =====================
@@ -64,7 +64,7 @@ requires login access to MOSRS. For more technical details on the
 implementation of LFRic, please see the `LFRic documentation
 <https://code.metoffice.gov.uk/trac/lfric/attachment/wiki/LFRicDocumentationPapers/lfric_documentation.pdf>`_.
 
-.. _dynamo0.3-api-algorithm:
+.. _lfric-api-algorithm:
 
 Algorithm
 ---------
@@ -73,7 +73,7 @@ The general requirements for the structure of an Algorithm are explained
 in the :ref:`algorithm-layer` section. This section explains the
 LFRic-API-specific specialisations and extensions.
 
-.. _dynamo0.3-example:
+.. _lfric-example:
 
 Example
 +++++++
@@ -118,7 +118,7 @@ five LFRic (Dynamo 0.3) API argument types: :ref:`scalar <lfric-scalar>`,
 <lfric-cma-operator>`. All of them except the field vector are
 represented in the above example. ``qr`` represents a quadrature object
 which provides information required by a kernel to operate on fields
-(see section :ref:`dynamo0.3-quadrature` for more details).
+(see section :ref:`lfric-quadrature` for more details).
 
 .. _lfric-scalar:
 
@@ -144,7 +144,7 @@ inherit a polynomial expansion via the basis functions of that space.
 Field values at points within a cell are evaluated as the sum of a set
 of basis functions multiplied by coefficients which are the data points.
 Points of evaluation are determined by a quadrature object
-(:ref:`dynamo0.3-quadrature`) and are independent of the function space
+(:ref:`lfric-quadrature`) and are independent of the function space
 the field is on. Placement of field data points, also called degrees of
 freedom (hereafter "DoFs"), is determined by the function space the field
 is on.
@@ -199,7 +199,7 @@ As the name suggests, these are operators constructed for a whole
 column of the mesh. These are themselves constructed from the
 Local Matrix Assembly (LMA) operators of each cell in the column.
 The rules governing Kernels that have CMA operators as arguments
-are given in the :ref:`dynamo0.3-kernel` section below.
+are given in the :ref:`lfric-kernel` section below.
 
 There are three recognised Kernel types involving CMA operations;
 construction, application (including inverse application) and
@@ -233,21 +233,21 @@ then applied to ``field1`` and the result stored in ``field3``.
 
 Note that PSyclone identifies the type of kernels performing
 column-wise operations based on their arguments as described in
-metadata (see :ref:`dynamo0.3-cma-mdata-rules` below). The names of the
+metadata (see :ref:`lfric-cma-mdata-rules` below). The names of the
 kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
 
 A full example of CMA operator construction is available in
 ``examples/lfric/eg7``.
 
-.. _dynamo0.3-quadrature:
+.. _lfric-quadrature:
 
 Quadrature
 ++++++++++
 
 Kernels conforming to the LFRic API may require quadrature
 information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
-the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This
+the kernel metadata - see Section :ref:`lfric-gh-shape`). This
 information must be passed to the kernel from the Algorithm layer in
 the form of one or more ``quadrature_type`` objects. These must be the
 last arguments passed to the kernel and must be provided in the same
@@ -268,7 +268,7 @@ invoke would look something like::
 These quadrature objects specify the set(s) of points at which the
 basis/differential-basis functions required by the kernel are to be evaluated.
 
-.. _dynamo0.3-alg-stencil:
+.. _lfric-alg-stencil:
 
 Stencils
 ++++++++
@@ -276,7 +276,7 @@ Stencils
 The metadata for a Kernel which operates on a cell-column may specify
 that a Kernel performs a stencil operation on a field. Any such
 metadata must provide a stencil type. See the
-:ref:`dynamo0.3-api-meta-args` section for more details. The supported
+:ref:`lfric-api-meta-args` section for more details. The supported
 stencil types are ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``, ``CROSS2D`` or
 ``REGION``.
 
@@ -722,7 +722,7 @@ then PSyclone also checks that this datatype is consistent with the
 associated kernel metadata. If it is not consistent then PSyclone will
 abort with a message that indicates the problem.
 
-.. _dynamo0.3-psy:
+.. _lfric-psy:
 
 PSy-layer
 ---------
@@ -743,7 +743,7 @@ within a module, or the program name if it is a program.
 So, for example, if the algorithm code is contained within a module
 called "fred" then the PSy-layer module name will be "fred_psy".
 
-.. _dynamo0.3-psy-arg-intents:
+.. _lfric-psy-arg-intents:
 
 Argument Intents
 ################
@@ -752,20 +752,20 @@ LFRic :ref:`fields <lfric-field>`, :ref:`field vectors
 <lfric-field-vector>`, :ref:`operators <lfric-operator>` and
 :ref:`column-wise operators <lfric-cma-operator>` are objects that
 contain pointers to data rather than data. The data are accessed by proxies
-of these objects and modified in :ref:`kernels <dynamo0.3-kernel>`.
+of these objects and modified in :ref:`kernels <lfric-kernel>`.
 As the objects themselves are not modified in the PSy layer, their Fortran
 intents there are always ``intent(in)``.
 
 The Fortran intent of :ref:`scalars <lfric-scalar>` is still defined
-by their :ref:`access metadata <dynamo0.3-kernel-valid-access>` as they are
+by their :ref:`access metadata <lfric-kernel-valid-access>` as they are
 actual data. This means ``intent(in)`` for ``GH_READ`` and ``intent(out)``
-for ``GH_SUM`` (more details in :ref:`meta_args <dynamo0.3-api-meta-args>`
+for ``GH_SUM`` (more details in :ref:`meta_args <lfric-api-meta-args>`
 section below).
 
 The intent of other data structures is mandated by the relevant
 LFRic API rules described in sections below.
 
-.. _dynamo0.3-kernel:
+.. _lfric-kernel:
 
 Kernel
 -------
@@ -796,7 +796,7 @@ support for i-first kernels
 point the looping (and associated parallelisation) will be put
 back into the PSy layer.
 
-.. _dynamo0.3-user-kernel-rules:
+.. _lfric-user-kernel-rules:
 
 Rules for all User-Supplied Kernels that Operate on Cell-Columns
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -863,9 +863,9 @@ Rules specific to General-Purpose Kernels without CMA Operators
 3) A Kernel may not write to a scalar argument. (Only
    :ref:`built-ins <lfric-built-ins>` are permitted to do this.) Any
    scalar arguments must therefore be declared in the metadata as
-   ``GH_READ`` - see :ref:`below <dynamo0.3-kernel-valid-access>`.
+   ``GH_READ`` - see :ref:`below <lfric-kernel-valid-access>`.
 
-.. _dynamo0.3-cma-mdata-rules:
+.. _lfric-cma-mdata-rules:
 
 Rules for Kernels that work with CMA Operators
 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -935,7 +935,7 @@ Rules for Inter-Grid Kernels
 
 1) An inter-grid kernel is identified by the presence of a field or
    field-vector argument with the optional ``mesh_arg`` metadata element (see
-   :ref:`dynamo0.3-intergrid-mdata`).
+   :ref:`lfric-intergrid-mdata`).
 
 2) An invoke that contains one or more inter-grid kernels must not contain
    any other kernel types. (This restriction is an implementation decision
@@ -973,7 +973,7 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 
 3) Stencil accesses are not permitted.
 
-.. _dynamo0.3-api-kernel-metadata:
+.. _lfric-api-kernel-metadata:
 
 Metadata
 ++++++++
@@ -997,7 +997,7 @@ metadata, 1) 'meta_args_', 2) 'meta_funcs_', 3) 'meta_reference_element_',
 These various metadata elements are discussed in order in the following
 sections.
 
-.. _dynamo0.3-api-meta-args:
+.. _lfric-api-meta-args:
 
 meta_args
 #########
@@ -1066,7 +1066,7 @@ possible values of this metadata ``GH_READ``, ``GH_WRITE``,
 not all combinations of metadata entries are valid and PSyclone will
 raise an exception if an invalid combination is specified. Valid
 combinations are specified later in this section (see
-:ref:`dynamo0.3-kernel-valid-access`).
+:ref:`lfric-kernel-valid-access`).
 
 * ``GH_READ`` indicates that the data is read and is unmodified.
 
@@ -1131,7 +1131,7 @@ For example::
              outermost halo data written to, i.e. if the uninitialised
              data is read. To avoid this potential problem in user
              code it is recommended that a redundant computation
-             :ref:`transformation <dynamo0.3-api-transformations>`
+             :ref:`transformation <lfric-api-transformations>`
              is added to compute all ``setval_c``, ``setval_x`` and
 	     ``setval_random`` Built-in calls (see :ref:`lfric-built-ins`)
              to the same halo depth as the associated ``GH_INC``
@@ -1192,7 +1192,7 @@ If the generic function spaces are known to be discontinuous the metadata
 may be specified as being one of ``ANY_DISCONTINUOUS_SPACE_1``, ...,
 ``ANY_DISCONTINUOUS_SPACE_<nmax>`` in order to avoid unnecessary computation
 into the halos (see rules for
-:ref:`user-supplied kernels <dynamo0.3-user-kernel-rules>` above).
+:ref:`user-supplied kernels <lfric-user-kernel-rules>` above).
 The reason for having different names is that a Kernel might be written
 to allow 2 or more arguments to be able to support any function space
 but for a particular call the function spaces may have to be the same as
@@ -1249,7 +1249,7 @@ the :ref:`LFRic fields <lfric-field>`):
 | GH_COLUMNWISE_OPERATOR | GH_REAL                         |
 +------------------------+---------------------------------+
 
-.. _dynamo0.3-kernel-valid-access:
+.. _lfric-kernel-valid-access:
 
 Valid Access Modes
 ^^^^^^^^^^^^^^^^^^
@@ -1316,7 +1316,7 @@ determine the space of the field being passed in). At the moment this type
 of a user-supplied Kernel is always treated as if it is updating a field
 that is on a function space that is continuous in the horizontal, even if
 it is not (see rules for :ref:`user-supplied kernels
-<dynamo0.3-user-kernel-rules>` above).
+<lfric-user-kernel-rules>` above).
 
 There is no restriction on the number and function spaces of other
 quantities that a general-purpose kernel can modify other than that it
@@ -1353,7 +1353,7 @@ sections, the function space of an argument specifies how it maps
 onto the underlying topology and, additionally, whether the data at a
 point is a vector. In LFRic API the dimension of the basis function
 set for the scalar function spaces is 1 and for the vector function spaces
-is 3 (see the table in :ref:`dynamo0.3-stub-generation-rules` for the
+is 3 (see the table in :ref:`lfric-stub-generation-rules` for the
 dimensions of the basis and differential basis functions).
 
 Function spaces can share DoFs between cells in the horizontal, vertical
@@ -1430,7 +1430,7 @@ sections above:
   space of the argument(s) cannot be determined and/or for when
   a Kernel has been written so that it works with fields on any
   of the available spaces (as mentioned in the
-  :ref:`meta_args section <dynamo0.3-api-meta-args>`, the number of
+  :ref:`meta_args section <lfric-api-meta-args>`, the number of
   spaces, ``<nmax>``, is :ref:`configurable <lfric-num-any-spaces>`);
 
 * ``ANY_DISCONTINUOUS_SPACE_<n>``, *n = 1, 2, ... nmax*, for when
@@ -1443,7 +1443,7 @@ sections above:
 * ``ANY_W2`` for any type of a vector ``W2*`` function space, i.e. ``W2``,
   ``W2H``, ``W2V`` and ``W2broken`` but not ``W2*trace`` spaces.
 
-As mentioned :ref:`previously <dynamo0.3-user-kernel-rules>` ,
+As mentioned :ref:`previously <lfric-user-kernel-rules>` ,
 ``ANY_SPACE_<n>`` and ``ANY_W2`` function space types are treated as
 continuous while ``ANY_DISCONTINUOUS_SPACE_<n>`` spaces are treated
 as discontinuous.
@@ -1456,7 +1456,7 @@ Since the LFRic API operates on columns of data, function spaces
 are categorised as continuous or discontinuous with regard to their
 **continuity in the horizontal**. For example, a ``GH_FIELD`` that
 specifies ``GH_INC`` as its access pattern (see
-:ref:dynamo0.3-kernel-valid-access: above) may be continuous in the vertical
+:ref:lfric-kernel-valid-access: above) may be continuous in the vertical
 (and discontinuous in the horizontal), continuous in the horizontal
 (and discontinuous in the vertical), or continuous in both. In each
 case the code is the same. This principle of horizontal continuity also
@@ -1479,7 +1479,7 @@ function spaces are summarised in the table below.
 Horizontally discontinuous function spaces and fields over them will not
 need colouring so PSyclone does not perform it. If such attempt is made,
 PSyclone will raise a ``Generation Error`` in the **Dynamo0p3ColourTrans**
-transformation (see :ref:`dynamo0.3-api-transformations` for more details
+transformation (see :ref:`lfric-api-transformations` for more details
 on transformations). An example of fields iterating over a discontinuous
 function space ``Wtheta`` is given in ``examples/lfric/eg9``, with the
 ``GH_READWRITE`` access descriptor denoting an update to the relevant
@@ -1536,7 +1536,7 @@ where ``type`` may be one of ``X1D``, ``Y1D``, ``XORY1D``, ``CROSS``,
 ``CROSS2D`` or ``REGION``.  As the stencil ``extent`` (the maximum distance from
 the central cell that the stencil extends) is not provided in the metadata,
 it is expected to be provided by the algorithm writer as part of the
-``invoke`` call (see Section :ref:`dynamo0.3-alg-stencil`). As there
+``invoke`` call (see Section :ref:`lfric-alg-stencil`). As there
 is currently no way to specify a fixed extent value for stencils in the
 Kernel metadata, Kernels must therefore be written to support
 different values of extent (i.e. stencils with a variable number of
@@ -1546,7 +1546,7 @@ The ``XORY1D`` stencil type indicates that the Kernel can accept
 either ``X1D`` or ``Y1D`` stencils. In this case it is up to the
 algorithm developer to specify which of these it is from the algorithm
 layer as part of the ``invoke`` call (see Section
-:ref:`dynamo0.3-alg-stencil`).
+:ref:`lfric-alg-stencil`).
 
 For example, the following stencil (with ``extent=2``):
 
@@ -1596,7 +1596,7 @@ Below is an example of stencil information within the full kernel metadata::
 There is a full example of this distributed with PSyclone. It may
 be found in ``examples/lfric/eg5``.
 
-.. _dynamo0.3-intergrid-mdata:
+.. _lfric-intergrid-mdata:
 
 Inter-Grid Metadata
 ___________________
@@ -1670,7 +1670,7 @@ the rest are read-only. They may also have read-only scalar arguments, e.g.::
           kernels does not affect the process of identifying the type of
           kernel (whether it is assembly, matrix-matrix etc.)
 
-.. _dynamo0.3-meta-funcs:
+.. _lfric-meta-funcs:
 
 meta_funcs
 ##########
@@ -1710,7 +1710,7 @@ functions for W1.
 .. note:: Basis and differential basis functions for both ``real``- and
           ``integer``-valued field arguments have ``real`` values on the
           points on which these functions are :ref:`required
-          <dynamo0.3-gh-shape>`.
+          <lfric-gh-shape>`.
 
 meta_reference_element
 ######################
@@ -1790,7 +1790,7 @@ adjacent_face           Local ID of a neighbouring face in each
                         horizontally-adjacent cell indexed as (face).
 ======================= ==================================================
 
-.. _dynamo0.3-gh-shape:
+.. _lfric-gh-shape:
 
 gh_shape and gh_evaluator_targets
 #################################
@@ -1829,7 +1829,7 @@ extracted in the PSy layer and passed to the kernel(s) as required -
 nothing is required from the Algorithm layer. If a kernel requires
 quadrature on the other hand, the Algorithm writer must supply a
 ``quadrature_type`` object for each specified quadrature as the last
-argument(s) to the kernel (see Section :ref:`dynamo0.3-quadrature`).
+argument(s) to the kernel (see Section :ref:`lfric-quadrature`).
 
 Note that it is an error for kernel metadata to specify a value for
 ``gh_shape`` if no basis or differential-basis functions are required.
@@ -1867,12 +1867,12 @@ For example::
 
   procedure, nopass :: my_kernel_subroutine
 
-.. _dynamo0.3-kern-subroutine:
+.. _lfric-kern-subroutine:
 
 Subroutine
 ++++++++++
 
-.. _dynamo0.3-stub-generation-rules:
+.. _lfric-stub-generation-rules:
 
 Rules for General-Purpose Kernels
 #################################
@@ -1894,7 +1894,7 @@ conventions, are:
 
    1) If the current entry is a scalar quantity then include the Fortran
       variable in the argument list. The intent is determined from the
-      metadata (see :ref:`dynamo0.3-api-meta-args` for an explanation).
+      metadata (see :ref:`lfric-api-meta-args` for an explanation).
    2) If the current entry is a field then include the field
       array. The field array name is currently specified as being
       ``"field_"<argument_position>"_"<field_function_space>``. A
@@ -1904,7 +1904,7 @@ conventions, are:
       algorithm layer, see the :ref:`lfric-mixed-precision` section
       for more details. This value is passed in separately. Again, the
       intent is determined from the metadata (see
-      :ref:`dynamo0.3-api-meta-args`).
+      :ref:`lfric-api-meta-args`).
 
       1) If the field entry has a stencil access then add an ``integer`` (or
          if the stencil is of type ``CROSS2D``, an ``integer`` rank-1 array of
@@ -1944,7 +1944,7 @@ conventions, are:
       respectively, and that of the third is
       ``<operator_name>"_ncell_3d"``. The name of the operator is
       ``"op_"<argument_position>``. Again the intent is determined
-      from the metadata (see :ref:`dynamo0.3-api-meta-args`).
+      from the metadata (see :ref:`lfric-api-meta-args`).
 
 4) For each function space in the order they appear in the metadata arguments
    (the ``to`` function space of an operator is considered to be before the
@@ -2304,7 +2304,7 @@ The full set of rules is then:
       extent of the array is the number of unique degrees of freedom
       for the function space that the field is on.  This value is
       passed in separately. The intent of the argument is determined
-      from the metadata (see :ref:`dynamo0.3-api-meta-args`);
+      from the metadata (see :ref:`lfric-api-meta-args`);
 
    2) If it is a CMA operator, include it and its associated
       parameters (see Rule 5 of CMA Assembly kernels).
@@ -2418,7 +2418,7 @@ Rules for Domain Kernels
 
 The rules for kernels that have ``operates_on = DOMAIN`` are almost
 identical to those for general-purpose kernels (described :ref:`above
-<dynamo0.3-stub-generation-rules>`), allowing for the fact that they
+<lfric-stub-generation-rules>`), allowing for the fact that they
 are not permitted any type of operator argument or any argument with a
 stencil access. The only difference is that, since the kernel operates
 on the whole domain, the number of columns in the mesh excluding those
@@ -2426,17 +2426,17 @@ in the halo (``ncell_2d_no_halos``), must be passed in. This is provided
 as the second argument to the kernel (after ``nlayers``).
 ``ncell_2d_no_halos`` is an ``integer`` of kind ``i_def`` with intent ``in``.
 
-.. _dynamo0.3-kernel-arg-intents:
+.. _lfric-kernel-arg-intents:
 
 Argument Intents
 ################
 
-As described :ref:`above <dynamo0.3-psy-arg-intents>`, LFRic kernels read
+As described :ref:`above <lfric-psy-arg-intents>`, LFRic kernels read
 and/or update the data pointed to by objects such as
 :ref:`fields <lfric-field>` or :ref:`operators <lfric-operator>`.
 This data is passed to the kernels as :ref:`subroutine arguments
-<dynamo0.3-kern-subroutine>` and their Fortran intents usually follow the
-logic determined by their :ref:`access modes <dynamo0.3-kernel-valid-access>`.
+<lfric-kern-subroutine>` and their Fortran intents usually follow the
+logic determined by their :ref:`access modes <lfric-kernel-valid-access>`.
 
 * ``GH_READ`` indicates ``intent(in)`` as the argument is only ever read from.
 
@@ -2448,7 +2448,7 @@ logic determined by their :ref:`access modes <dynamo0.3-kernel-valid-access>`.
 * ``GH_INC``, ``GH_READINC`` and ``GH_READWRITE`` indicate
   ``intent(inout)`` as the arguments are updated (albeit in a
   different way due to different access to DoFs, see
-  :ref:`dynamo0.3-api-meta-args` for more details).
+  :ref:`lfric-api-meta-args` for more details).
 
 
 Kernel Naming Conventions
@@ -2469,7 +2469,7 @@ Subroutine name:
 The latest version of the LFRic coding style guidelines are availabe in this
 `LFRic wiki page
 <https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicTechnical/FortranCodingStandards>`_
-(requires login access to MOSRS, see the above :ref:`introduction <dynamo0.3-api>`
+(requires login access to MOSRS, see the above :ref:`introduction <lfric-api>`
 to the LFRic API).
 
 .. _lfric-built-ins:
@@ -2534,7 +2534,7 @@ where the precise values of the loop limits depend on the use of
 :ref:`annexed DoFs <lfric-annexed_dofs>` or both.
 
 As described in the PSy-layer :ref:`Argument Intents
-<dynamo0.3-psy-arg-intents>` section, the Fortran intent of LFRic
+<lfric-psy-arg-intents>` section, the Fortran intent of LFRic
 :ref:`field <lfric-field>` objects is always ``in`` (because it is only
 the data pointed to from within the object that is modified). The field
 or scalar that has its data modified by a Built-in is marked in **bold**.
@@ -2544,7 +2544,7 @@ Fortran array syntax without the details about field proxies. The actual
 implementation of the Built-in may change in future (*e.g.* it could be
 implemented by PSyclone generating a call to an optimised Maths library).
 
-.. _dynamo0.3-api-built-ins-metadata:
+.. _lfric-api-built-ins-metadata:
 
 Metadata
 ++++++++
@@ -2568,7 +2568,7 @@ metadata for the Built-ins that update a ``real``-valued field,
   end type aX_plus_bY
 
 As can be seen, the metadata for a Built-in kernel is a subset of that
-for a :ref:`user-defined Kernel <dynamo0.3-api-kernel-metadata>` with the
+for a :ref:`user-defined Kernel <lfric-api-kernel-metadata>` with the
 exception that ``operates_on`` must be ``DOF`` instead of ``CELL_COLUMN``.
 
 The metadata for the LFRic Built-ins that update an ``integer``-valued
@@ -2594,7 +2594,7 @@ Valid Data Types and Access Modes
 
 The allowed data types and accesses for arguments in LFRic Built-in
 kernels are a bit different than for the
-:ref:`user-defined Kernels <dynamo0.3-kernel-valid-access>` and
+:ref:`user-defined Kernels <lfric-kernel-valid-access>` and
 are listed in the table below.
 
 .. tabularcolumns:: |l|l|l|l|
@@ -3650,9 +3650,9 @@ An example of applying boundary conditions to an operator is the kernel
 ``enforce_operator_bc_kernel_mod.F90`` in the
 ``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3`` directory.
 Since operators are discontinuous quantities, updating their values can
-be safely performed in parallel (see Section :ref:`dynamo0.3-kernel`).
+be safely performed in parallel (see Section :ref:`lfric-kernel`).
 The ``GH_READWRITE`` access is used for updating discontinuous operators
-(see subsection :ref:`dynamo0.3-kernel-valid-access` for more details).
+(see subsection :ref:`lfric-kernel-valid-access` for more details).
 
 Conventions
 -----------
@@ -3699,12 +3699,12 @@ continuous field then the annexed DoFs must be up-to-date on all
 processors. If they are not then a halo exchange must be
 added. Currently PSyclone defaults, for kernels which iterate over
 DoFs, to iterating over only owned DoFs. This behaviour can be changed
-by setting `COMPUTE_ANNEXED_DOFS` to ``true`` in the `dynamo0.3`
+by setting `COMPUTE_ANNEXED_DOFS` to ``true`` in the `lfric`
 section of the configuration file (see the :ref:`configuration`
 section). PSyclone will then generate code to iterate over both owned
 and annexed DoFs, thereby reducing the number of halo exchanges
 required (at the expense of redundantly computing annexed DoFs). For
-more details please refer to the :ref:`dynamo0.3-developers`
+more details please refer to the :ref:`lfric-developers`
 developers section.
 
 .. _lfric-run-time-checks:
@@ -3792,7 +3792,7 @@ LFRic.
 Number of Generalised ``ANY_*_SPACE`` Function Spaces
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-As outlined in the :ref:`meta_args <dynamo0.3-api-meta-args>` and the
+As outlined in the :ref:`meta_args <lfric-api-meta-args>` and the
 :ref:`Supported Function Spaces <lfric-function-space>` sections
 above, the number of generalised ``ANY_SPACE_<n>`` and
 ``ANY_DISCONTINUOUS_SPACE_<n>`` function spaces can be set in the
@@ -3804,7 +3804,7 @@ the configuration file are 10 and their allowed values are positive
 non-zero integers. PSyclone will raise a ``ConfigurationError`` if a
 supplied value is invalid.
 
-.. _dynamo0.3-api-transformations:
+.. _lfric-api-transformations:
 
 Transformations
 ---------------
@@ -3850,14 +3850,14 @@ The **Dynamo0p3KernelConstTrans** transformation is only valid for the
 Dynamo0.3 API. This is because the properties that it makes constant
 are API specific.
 
-The LFRic (dynamo0.3) API-specific transformations currently available
+The LFRic (lfric) API-specific transformations currently available
 are given below. Early transformations include "Dynamo0p3" or "Dynamo"
 in their name to indicate that these transformations are only valid
 for this particular API. More recent transformations typically include
 "LFRic" in their name to indicate the same restriction. However, more
 importantly, transformations that are specific to LFRic reside in the
 LFRic-specific "psyclone.domain/lfric/transformations"
-directory. Note, the early LFRic (dynamo0.3) API-specific
+directory. Note, the early LFRic (lfric) API-specific
 transformations have not yet been migrated to this directory.
 
 .. note:: Only the loop-colouring and OpenMP transformations are currently

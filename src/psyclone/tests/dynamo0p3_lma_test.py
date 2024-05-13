@@ -62,7 +62,7 @@ from psyclone.psyir.backend.visitor import VisitorError
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 CODE = '''
 module testkern_qr
@@ -95,7 +95,7 @@ end module testkern_qr
 @pytest.fixture(scope="module", autouse=True)
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
+    Config.get().api = "lfric"
     yield
     Config._instance = None
 

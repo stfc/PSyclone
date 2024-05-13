@@ -77,13 +77,13 @@ ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
 # Construct the path to the default configuration file
 DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
     yield
     Config._instance = None
 
@@ -169,7 +169,7 @@ def test_ad_invalid_access_type():
                         "(gh_scalar,   gh_integer, gh_ead)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
-    api_config = Config.get().api_conf("dynamo0.3")
+    api_config = Config.get().api_conf("lfric")
     valid_access_names = api_config.get_valid_accesses_api()
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
@@ -807,7 +807,7 @@ def test_multi_kernel_specific(tmpdir):
 def test_field_bc_kernel(tmpdir):
     ''' Tests that a kernel with a particular name is recognised as a
     boundary condition kernel and that appropriate code is added to
-    support this. This code is required as the dynamo0.3 api does not
+    support this. This code is required as the lfric api does not
     know about boundary conditions but this kernel requires them. This
     "hack" is only supported to get PSyclone to generate correct code
     for the current implementation of LFRic. Future APIs will not
@@ -837,7 +837,7 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
@@ -2484,7 +2484,7 @@ def test_halo_exchange_inc(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
@@ -2578,7 +2578,7 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed, tmpdir):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2611,7 +2611,7 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
@@ -2673,7 +2673,7 @@ def test_halo_exchange_depths_gh_inc(tmpdir, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.6_halo_depth_2.f90"),
@@ -3455,7 +3455,7 @@ def test_new_halo_exch_vect_field(monkeypatch):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
@@ -3492,7 +3492,7 @@ def test_new_halo_exch_vect_deps(monkeypatch):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
@@ -3530,7 +3530,7 @@ def test_new_halo_exch_vect_deps2(monkeypatch):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
@@ -3898,7 +3898,7 @@ def test_lfricinvoke_runtime(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
@@ -3961,7 +3961,7 @@ def test_dynruntimechecks_anyspace(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
                            api=TEST_API)
@@ -4005,7 +4005,7 @@ def test_dynruntimechecks_vector(tmpdir, monkeypatch):
     ''' Test that run-time checks work for vector fields. '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
@@ -4069,7 +4069,7 @@ def test_dynruntimechecks_multikern(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
                            api=TEST_API)
@@ -4147,7 +4147,7 @@ def test_dynruntimechecks_builtins(tmpdir, monkeypatch):
     '''Test that run-time checks work when there are builtins.'''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.1_X_plus_Y_builtin.f90"),
@@ -4187,7 +4187,7 @@ def test_dynruntimechecks_anydiscontinuous(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "11.4_any_discontinuous_space.f90"),
@@ -4252,7 +4252,7 @@ def test_dynruntimechecks_anyw2(tmpdir, monkeypatch):
     '''
     # run-time checks are off by default so switch them on
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_run_time_checks", True)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "21.1_single_invoke_multi_anyw2.f90"),

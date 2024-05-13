@@ -509,9 +509,9 @@ def get_base_path(api):
     # Define the mapping of supported APIs to Fortran directories
     # Note that the nemo files are outside of the default tests/test_files
     # directory, they are in tests/nemo/test_files
-    api_2_path = {"dynamo0.3": "dynamo0p3",
+    api_2_path = {"lfric": "dynamo0p3",
                   "nemo": "../nemo/test_files",
-                  "gocean1.0": "gocean1p0"}
+                  "gocean": "gocean1p0"}
     try:
         dir_name = api_2_path[api]
     except KeyError as err:

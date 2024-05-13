@@ -51,7 +51,7 @@ from psyclone.psyir.tools import CallTreeUtils
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
-API = "dynamo0.3"
+API = "lfric"
 
 
 @pytest.fixture(scope='function')

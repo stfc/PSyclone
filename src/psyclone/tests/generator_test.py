@@ -115,7 +115,7 @@ def test_script_file_not_found():
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3", script_name="non_existent.py")
+            api="lfric", script_name="non_existent.py")
     assert "script file 'non_existent.py' not found" in str(error.value)
 
 
@@ -129,7 +129,7 @@ def test_script_file_no_extension():
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3",
+            api="lfric",
             script_name=os.path.join(BASE_PATH, "dynamo0p3",
                                      "invalid_script_name"))
     assert ("expected the script file 'invalid_script_name' to have the "
@@ -146,7 +146,7 @@ def test_script_file_wrong_extension():
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3",
+            api="lfric",
             script_name=os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"))
     assert ("expected the script file '1_single_invoke.f90' to have the '.py' "
@@ -163,7 +163,7 @@ def test_script_invalid_content():
     with pytest.raises(GenerationError) as error_syntax:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3", script_name=os.path.join(BASE_PATH, "dynamo0p3",
+            api="lfric", script_name=os.path.join(BASE_PATH, "dynamo0p3",
                                                       "error_syntax.py"))
     assert ("attempted to import specified PSyclone transformation module "
             "'error_syntax' but a problem was found: "
@@ -172,7 +172,7 @@ def test_script_invalid_content():
     with pytest.raises(GenerationError) as error_import:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3", script_name=os.path.join(BASE_PATH, "dynamo0p3",
+            api="lfric", script_name=os.path.join(BASE_PATH, "dynamo0p3",
                                                       "error_import.py"))
     assert ("attempted to import specified PSyclone transformation module "
             "'error_import' but a problem was found: "
@@ -190,7 +190,7 @@ def test_script_invalid_content_runtime():
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3",
+            api="lfric",
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "runtime_error.py"))
     assert ("raised the following exception during execution..."
@@ -213,7 +213,7 @@ def test_script_no_trans():
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3",
+            api="lfric",
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "no_trans.py"))
     assert ("attempted to use specified PSyclone transformation module "
@@ -225,14 +225,14 @@ def test_script_no_trans_alg():
     '''Checks that handle_script() function in generator.py does not raise
     an exception when a script file does not contain a trans_alg()
     function as these are optional. At the moment this function is
-    only supported in the gocean1.0 API. This test uses the generate()
+    only supported in the gocean API. This test uses the generate()
     function to call handle_script as this is a simple way to create
     its required arguments.
 
     '''
     _, _ = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean1.0",
+        api="gocean",
         script_name=os.path.join(BASE_PATH, "gocean1p0", "script.py"))
 
 
@@ -265,7 +265,7 @@ def test_invalid_kernel_paths():
     '''
     with pytest.raises(IOError) as info:
         generate(os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-                 api="dynamo0.3",
+                 api="lfric",
                  kernel_paths=[
                      os.path.join(BASE_PATH, "dynamo0p3"), "does_not_exist"])
     assert "Kernel search path 'does_not_exist' not found" in str(info.value)
@@ -279,7 +279,7 @@ def test_wrong_kernel_paths():
     with pytest.raises(ParseError):
         generate(os.path.join(BASE_PATH, "dynamo0p3",
                               "1.1.0_single_invoke_xyoz_qr.f90"),
-                 api="dynamo0.3",
+                 api="lfric",
                  kernel_paths=[os.path.join(BASE_PATH, "gocean1p0")])
 
 
@@ -291,7 +291,7 @@ def test_correct_kernel_paths():
     '''
     _, _ = generate(
         os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke_kern.f90"),
-        api="dynamo0.3",
+        api="lfric",
         kernel_paths=[
             os.path.join(BASE_PATH, "dynamo0p3", "kernels", "dead_end"),
             os.path.join(BASE_PATH, "dynamo0p3", "kernels", "in_here")])
@@ -304,7 +304,7 @@ def test_same_kernel_paths():
     '''
     path = os.path.join(BASE_PATH, "dynamo0p3")
     _, _ = generate(os.path.join(path, "1_single_invoke.f90"),
-                    api="dynamo0.3", kernel_paths=[path])
+                    api="lfric", kernel_paths=[path])
 
 
 def test_similar_kernel_name():
@@ -313,7 +313,7 @@ def test_similar_kernel_name():
     with pytest.raises(ParseError) as info:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3",
+            api="lfric",
             kernel_paths=[os.path.join(BASE_PATH, "dynamo0p3", "kernels",
                                        "dead_end", "no_really")])
     assert ("Kernel file 'testkern_mod.[fF]90' not found in"
@@ -329,7 +329,7 @@ def test_recurse_correct_kernel_paths():
     '''
     _, _ = generate(
         os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke_kern.f90"),
-        api="dynamo0.3",
+        api="lfric",
         kernel_paths=[os.path.join(BASE_PATH, "dynamo0p3", "kernels")])
 
 
@@ -341,7 +341,7 @@ def test_kernel_parsing_internalerror(capsys):
     kern_filename = (os.path.join(
         GOCEAN_BASE_PATH, "test30_invalid_kernel_declaration.f90"))
     with pytest.raises(SystemExit):
-        main([kern_filename, "-api", "gocean1.0"])
+        main([kern_filename, "-api", "gocean"])
     out, err = capsys.readouterr()
     assert out == ""
     assert "In kernel file " in str(err)
@@ -366,7 +366,7 @@ def test_script_file_too_short():
     with pytest.raises(GenerationError):
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
-                        api="dynamo0.3",
+                        api="lfric",
                         script_name=os.path.join(
                             BASE_PATH,
                             "dynamo0p3", "testkern_xyz_mod.f90"))
@@ -374,12 +374,12 @@ def test_script_file_too_short():
 
 def test_no_script_gocean():
     '''Test that the generate function in generator.py returns
-    successfully if no script is specified for the gocean1.0 api.
+    successfully if no script is specified for the gocean api.
 
     '''
     alg, psy = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean1.0")
+        api="gocean")
     assert "program single_invoke_test" in alg
     assert "MODULE psy_single_invoke_test" in str(psy)
 
@@ -392,7 +392,7 @@ def test_script_gocean():
     '''
     _, _ = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean1.0",
+        api="gocean",
         script_name=os.path.join(BASE_PATH, "gocean1p0", "alg_script.py"))
 
 
@@ -401,10 +401,10 @@ def test_profile_gocean():
     information if this has been specified.
 
     '''
-    Profiler.set_options(['invokes'], "gocean1.0")
+    Profiler.set_options(['invokes'], "gocean")
     _, psy = generate(
         os.path.join(BASE_PATH, "gocean1p0", "single_invoke.f90"),
-        api="gocean1.0")
+        api="gocean")
     assert "CALL profile_psy_data" in str(psy)
     # Reset the stored options.
     Profiler._options = []
@@ -420,7 +420,7 @@ def test_script_attr_error():
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
-                        api="dynamo0.3",
+                        api="lfric",
                         script_name=os.path.join(BASE_PATH,
                                                  "dynamo0p3",
                                                  "error_trans.py"))
@@ -436,10 +436,10 @@ def test_script_null_trans():
     '''
     alg1, psy1 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
-                          api="dynamo0.3")
+                          api="lfric")
     alg2, psy2 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
-                          api="dynamo0.3",
+                          api="lfric",
                           script_name=os.path.join(BASE_PATH,
                                                    "dynamo0p3",
                                                    "null_trans.py"))
@@ -462,12 +462,12 @@ def test_script_null_trans_relative():
     '''
     alg1, psy1 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
-                          api="dynamo0.3")
+                          api="lfric")
     # set up the python path so that null_trans.py can be found
     os.sys.path.append(os.path.join(BASE_PATH, "dynamo0p3"))
     alg2, psy2 = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                        "1_single_invoke.f90"),
-                          api="dynamo0.3", script_name="null_trans.py")
+                          api="lfric", script_name="null_trans.py")
     # remove imported module so we do not affect any following tests
     delete_module("null_trans")
     os.sys.path.pop()
@@ -488,8 +488,8 @@ def test_script_trans_dynamo0p3():
     base_path = os.path.join(root_path, "test_files", "dynamo0p3")
     # First loop fuse explicitly (without using generator.py)
     parse_file = os.path.join(base_path, "4_multikernel_invokes.f90")
-    _, invoke_info = parse(parse_file, api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    _, invoke_info = parse(parse_file, api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     loop1 = schedule.children[4]
@@ -498,7 +498,7 @@ def test_script_trans_dynamo0p3():
     trans.apply(loop1, loop2)
     generated_code_1 = psy.gen
     # Second loop fuse using generator.py and a script
-    _, generated_code_2 = generate(parse_file, api="dynamo0.3",
+    _, generated_code_2 = generate(parse_file, api="lfric",
                                    script_name=os.path.join(
                                        base_path, "loop_fuse_trans.py"))
     # remove module so we do not affect any following tests
@@ -520,13 +520,13 @@ def test_api_no_alg():
 def test_alg_lines_too_long_tested():
     '''Test that the generate function causes an exception if the
     line_length argument is set to True and the algorithm file has
-    lines longer than 132 characters. We use the dynamo0.3 API in this
+    lines longer than 132 characters. We use the lfric API in this
     case but could have chosen any.
 
     '''
     alg_filename = os.path.join(DYN03_BASE_PATH, "13_alg_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
-        _, _ = generate(alg_filename, api="dynamo0.3", line_length=True)
+        _, _ = generate(alg_filename, api="lfric", line_length=True)
     assert 'file does not conform' in str(excinfo.value)
 
 
@@ -534,23 +534,23 @@ def test_alg_lines_too_long_not_tested():
     '''Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when the algorithm file has lines longer than 132 characters. We
-    use the dynamo0.3 API in this case but could have chosen any.
+    use the lfric API in this case but could have chosen any.
 
     '''
     alg_filename = os.path.join(DYN03_BASE_PATH, "13_alg_long_line.f90")
-    _, _ = generate(alg_filename, api="dynamo0.3")
+    _, _ = generate(alg_filename, api="lfric")
 
 
 def test_kern_lines_too_long_tested():
     '''Test that the generate function raises an exception if the
     line_length argument is set to True and a Kernel file has lines
-    longer than 132 characters. We use the dynamo0.3 API in this case
+    longer than 132 characters. We use the lfric API in this case
     but could have chosen any.
 
     '''
     alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
     with pytest.raises(ParseError) as excinfo:
-        _, _ = generate(alg_filename, api="dynamo0.3", line_length=True)
+        _, _ = generate(alg_filename, api="lfric", line_length=True)
     assert 'file does not conform' in str(excinfo.value)
 
 
@@ -558,11 +558,11 @@ def test_kern_lines_too_long_not_tested():
     '''Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when a kernel file has lines longer than 132 characters. We use
-    the dynamo0.3 API in this case but could have chosen any.
+    the lfric API in this case but could have chosen any.
 
     '''
     alg_filename = os.path.join(DYN03_BASE_PATH, "13.1_kern_long_line.f90")
-    _, _ = generate(alg_filename, api="dynamo0.3")
+    _, _ = generate(alg_filename, api="lfric")
 
 
 def test_continuators():
@@ -574,7 +574,7 @@ def test_continuators():
     _, _ = generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1.1.0_single_invoke_xyoz_qr.f90"),
-                    api="dynamo0.3", line_length=True)
+                    api="lfric", line_length=True)
 
 
 def test_main_version(capsys):
@@ -603,7 +603,7 @@ def test_main_profile(capsys):
                             "test_files", "gocean1p0",
                             "test27_loop_swap.f90")
 
-    options = ["-api", "gocean1.0"]
+    options = ["-api", "gocean"]
 
     # Check for invokes only parameter:
     main(options+["--profile", "invokes", filename])
@@ -682,9 +682,9 @@ def test_main_api():
                              "test_files", "gocean1p0",
                              "single_invoke.f90"))
 
-    assert Config.get().api != "gocean1.0"
-    main([filename, "-api", "gocean1.0"])
-    assert Config.get().api == "gocean1.0"
+    assert Config.get().api != "gocean"
+    main([filename, "-api", "gocean"])
+    assert Config.get().api == "gocean"
 
 
 def test_config_flag():
@@ -705,7 +705,7 @@ def test_config_flag():
 
     # Test with with --config
     Config._HAS_CONFIG_BEEN_INITIALISED = False
-    main([filename, "--config", config_name, "-api", "lfirc"])
+    main([filename, "--config", config_name, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
 
@@ -721,14 +721,14 @@ def test_main_directory_arg(capsys):
 
     # No -d option supplied
     filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
-    main([filename, "-api", "dynamo0.3"])
+    main([filename, "-api", "lfric"])
     # Invalid -d path supplied
     with pytest.raises(SystemExit):
-        main([filename, "-api", "dynamo0.3", "-d", "invalid"])
+        main([filename, "-api", "lfric", "-d", "invalid"])
     _, output = capsys.readouterr()
     assert "Kernel search path 'invalid' not found" in output
     # Multiple -d paths supplied
-    main([filename, "-api", "dynamo0.3", "-d", DYN03_BASE_PATH,
+    main([filename, "-api", "lfric", "-d", DYN03_BASE_PATH,
           "-d", NEMO_BASE_PATH])
 
 
@@ -834,7 +834,7 @@ def test_generate_no_builtin_container(tmpdir, monkeypatch):
     filename = str(tmpdir.join("alg.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
-    alg, _ = generate(filename, api="dynamo0.3")
+    alg, _ = generate(filename, api="lfric")
     assert "use _psyclone_builtins" not in alg
 
 
@@ -876,7 +876,7 @@ def test_main_fort_line_length(capsys, limit):
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "10.3_operator_different_spaces.f90"))
-    main([filename, '-api', 'dynamo0.3', '-l', limit])
+    main([filename, '-api', 'lfric', '-l', limit])
     output, _ = capsys.readouterr()
     assert all(len(line) <= 132 for line in output.split('\n'))
 
@@ -891,7 +891,7 @@ def test_main_fort_line_length_off(capsys, limit):
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "10.3_operator_different_spaces.f90"))
-    main([filename, '-api', 'dynamo0.3'] + limit)
+    main([filename, '-api', 'lfric'] + limit)
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
 
@@ -1063,7 +1063,7 @@ def test_invalid_kern_naming():
     # by the argparse module so we call generate() directly with an
     # incorrect value
     with pytest.raises(GenerationError) as err:
-        _, _ = generate(alg_filename, api="dynamo0.3",
+        _, _ = generate(alg_filename, api="lfric",
                         kern_naming="not-a-scheme")
     assert "Invalid kernel-renaming scheme supplied" in str(err.value)
     assert "but got 'not-a-scheme'" in str(err.value)
@@ -1122,7 +1122,7 @@ def test_utf_char(tmpdir):
     '''
     algfile = os.path.join(str(tmpdir), "alg.f90")
     main([os.path.join(BASE_PATH, "gocean1p0", "test29_utf_chars.f90"),
-          "-api", "gocean1.0", "-oalg", algfile])
+          "-api", "gocean", "-oalg", algfile])
     # We only check the algorithm layer since we generate the PSy
     # layer from scratch in this API (and thus it contains no
     # non-ASCII characters).
@@ -1211,7 +1211,7 @@ def test_add_builtins_use():
 
 def test_no_script_lfric_new(monkeypatch):
     '''Test that the generate function in generator.py returns
-    successfully if no script is specified for the dynamo0.3 (LFRic)
+    successfully if no script is specified for the lfric (LFRic)
     api. This test uses the new PSyIR approach to modify the algorithm
     layer which is currently in development so is protected by a
     switch. This switch is turned on in this test by monkeypatching.
@@ -1220,7 +1220,7 @@ def test_no_script_lfric_new(monkeypatch):
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     alg, _ = generate(
         os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-        api="dynamo0.3")
+        api="lfric")
     # new call replaces invoke
     assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
     assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg
@@ -1244,7 +1244,7 @@ def test_script_lfric_new(monkeypatch):
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     alg, _ = generate(
         os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-        api="dynamo0.3",
+        api="lfric",
         script_name=os.path.join(BASE_PATH, "dynamo0p3", "alg_script.py"))
     # new call replaces invoke
     assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
@@ -1270,7 +1270,7 @@ def test_builtins_lfric_new(monkeypatch):
     alg, _ = generate(
         os.path.join(BASE_PATH, "dynamo0p3",
                      "15.1.2_builtin_and_normal_kernel_invoke.f90"),
-        api="dynamo0.3")
+        api="lfric")
     # new call replaces invoke
     assert "use single_invoke_builtin_then_kernel_psy, only : invoke_0" in alg
     assert "call invoke_0(f5, f2, f3, f4, scalar, f1)" in alg
@@ -1299,7 +1299,7 @@ def test_no_invokes_lfric_new(monkeypatch):
     with pytest.raises(NoInvokesError) as info:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "testkern_mod.F90"),
-            api="dynamo0.3")
+            api="lfric")
     assert ("Algorithm file contains no invoke() calls: refusing to generate "
             "empty PSy code" in str(info.value))
 
@@ -1386,7 +1386,7 @@ def test_generate_unresolved_container_gocean(tmpdir):
     kern_filename = os.path.join(GOCEAN_BASE_PATH, "compute_cu_mod.f90")
     shutil.copyfile(kern_filename, str(tmpdir.join("compute_cu_mod.f90")))
     with pytest.raises(GenerationError) as info:
-        _, _ = generate(alg_filename, api="gocean1.0")
+        _, _ = generate(alg_filename, api="gocean")
     assert ("Kernel functor 'compute_cu' in routine 'some_kernel' from "
             "algorithm file '" in str(info.value))
     assert ("alg.f90' must be named in a use statement (found "

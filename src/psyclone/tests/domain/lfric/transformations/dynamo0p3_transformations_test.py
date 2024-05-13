@@ -73,13 +73,13 @@ from psyclone.transformations import OMPParallelTrans, \
 
 # The version of the API that the tests in this file
 # exercise.
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
     yield
     Config._instance = None
 
@@ -578,7 +578,7 @@ def test_omp_parallel_colouring_needed(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("11_any_space.f90", TEST_API,
                            name="invoke_0_testkern_any_space_1_type",
@@ -609,7 +609,7 @@ def test_omp_colouring_needed(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("11_any_space.f90", TEST_API,
                            name="invoke_0_testkern_any_space_1_type",
@@ -641,7 +641,7 @@ def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("1.1.0_single_invoke_xyoz_qr.f90", TEST_API,
                              name="invoke_0_testkern_qr_type",
@@ -724,7 +724,7 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
                              name="invoke_0",
@@ -947,7 +947,7 @@ def test_multi_different_kernel_omp(
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.7_multikernel_invokes.f90", TEST_API,
                              name="invoke_0",
@@ -1249,7 +1249,7 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     psy, invoke = get_invoke("4.6_multikernel_invokes.f90", TEST_API,
                              name="invoke_0", dist_mem=dist_mem)
@@ -5217,7 +5217,7 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("4.6_multikernel_invokes.f90",
                            TEST_API, idx=0, dist_mem=True)
@@ -5307,7 +5307,7 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke = get_invoke("14.10_halo_continuous_cell_w_to_r.f90",
                            TEST_API, idx=0, dist_mem=True)
@@ -5914,7 +5914,7 @@ def test_haloex_colouring(tmpdir, monkeypatch, annexed):
         assert not depth_info.var_depth
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     if annexed:
         w_loop_idx = 1
@@ -5996,7 +5996,7 @@ def test_haloex_rc1_colouring(tmpdir, monkeypatch, annexed):
         assert not depth_info.var_depth
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     if annexed:
@@ -6089,7 +6089,7 @@ def test_haloex_rc2_colouring(tmpdir, monkeypatch, annexed):
         assert not depth_info.var_depth
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
     if annexed:
@@ -6180,7 +6180,7 @@ def test_haloex_rc3_colouring(tmpdir, monkeypatch, annexed):
         assert not depth_info.var_depth
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
     r_loop_idx = 5
@@ -6237,7 +6237,7 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     # At the start we have two halo exchange calls for field f1, one
     # before the first loop and one between the two loops when annexed
@@ -6534,7 +6534,7 @@ def test_intergrid_err(dist_mem):
 # Class ACCEnterDataTrans start
 def test_accenterdatatrans():
     '''Test that an ACCEnterDataTrans transformation can add an OpenACC
-    Enter Data directive to the PSy-layer in the dynamo0.3 API.
+    Enter Data directive to the PSy-layer in the lfric API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -6592,7 +6592,7 @@ def test_accenterdata_builtin(tmpdir):
 def test_acckernelstrans():
     '''
     Test that an ACCKernelsTrans transformation can add an OpenACC
-    Kernels directive to the PSy layer in the dynamo0.3 API.
+    Kernels directive to the PSy layer in the lfric API.
 
     '''
     kernels_trans = ACCKernelsTrans()
@@ -6613,7 +6613,7 @@ def test_acckernelstrans():
 def test_acckernelstrans_dm():
     '''
     Test that an ACCKernelsTrans transformation can add an OpenACC
-    Kernels directive to the PSy layer in the LFRic (dynamo0.3) API when
+    Kernels directive to the PSy layer in the LFRic (lfric) API when
     distributed memory is enabled.
 
     '''
@@ -6647,7 +6647,7 @@ def test_acckernelstrans_dm():
 def test_accparalleltrans(tmpdir):
     '''
     Test that an ACCParallelTrans transformation can add an OpenACC
-    Parallel directive to the PSy layer in the dynamo0.3 API. An
+    Parallel directive to the PSy layer in the lfric API. An
     EnterData directive is also required otherwise the transformation
     raises an exception at code-generation time.
 
@@ -6720,7 +6720,7 @@ def test_accparalleltrans_dm(tmpdir):
 
 def test_acclooptrans():
     '''Test that an ACCLoopTrans transformation can add an OpenACC Loop
-    directive to the PSy layer in the dynamo0.3 API.
+    directive to the PSy layer in the lfric API.
 
     '''
     acc_par_trans = ACCParallelTrans()
@@ -6913,7 +6913,7 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", TEST_API,
                              idx=0, dist_mem=True)

@@ -52,13 +52,13 @@ from psyclone.gen_kernel_stub import generate
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
     yield
     Config._instance = None
 
@@ -127,7 +127,7 @@ def test_stub_generate_working():
 
 def test_stub_generate_working_noapi():
     ''' check that the stub generate produces the expected output when
-    we use the default api (which should be dynamo0.3)'''
+    we use the default api (which should be lfric)'''
     result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"))
     assert SIMPLE in str(result)
 

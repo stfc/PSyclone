@@ -279,7 +279,7 @@ def test_psy_data_node_incorrect_container():
     the symbol table already contains an entry for the PSyDataType that is
     not associated with the PSyData container. '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     csym = schedule.symbol_table.new_symbol("some_mod",
                                             symbol_type=ContainerSymbol)
@@ -297,7 +297,7 @@ def test_psy_data_node_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -338,7 +338,7 @@ def test_psy_data_node_options():
     '''Check that the options for PSyData work as expected.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -467,7 +467,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
     # 1) Test that the listed variables will appear in the list
     # ---------------------------------------------------------
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -493,7 +493,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
     # 2) Test that variables suffixes are added as expected
     # -----------------------------------------------------
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 

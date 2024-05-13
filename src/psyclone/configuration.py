@@ -856,7 +856,7 @@ class LFRicConfig(BaseConfig):
 
     :param config: the 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
-    :param section: the entry for the '[dynamo0.3]' section of \
+    :param section: the entry for the '[lfric]' section of \
                     the configuration file, as produced by ConfigParser.
     :type section: :py:class:`configparser.SectionProxy`
 
@@ -1100,7 +1100,7 @@ class GOceanConfig(BaseConfig):
 
     :param config: The 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
-    :param section: The entry for the gocean1.0 section of \
+    :param section: The entry for the gocean section of \
                     the configuration file, as produced by ConfigParser.
     :type section:  :py:class:`configparser.SectionProxy`
 

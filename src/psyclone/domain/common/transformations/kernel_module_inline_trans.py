@@ -177,7 +177,7 @@ class KernelModuleInlineTrans(Transformation):
 
         TODO #2271 will improve this method and could potentially
         avoid the need for debug_string() within get_kernel_schedule()
-        in dynamo0.3.py. Sergi suggests that we may be missing the
+        in lfric.py. Sergi suggests that we may be missing the
         traversal of the declaration init expressions here and that
         might solve the problem. I'm not so sure and explain why in
         get_kernel_schedule() but still referencing this issue.

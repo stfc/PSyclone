@@ -57,7 +57,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.utilities import get_invoke
 
-API = "gocean1.0"
+API = "gocean"
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))))),
@@ -66,7 +66,7 @@ BASE_PATH = os.path.join(
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use gocean1.0 as API.'''
+    '''Make sure that all tests here use gocean as API.'''
     Config.get().api = API
     yield
     Config._instance = None
@@ -133,7 +133,7 @@ def test_gok_reference_accesses(fortran_writer):
 
     '''
     # Large stencil has 100, 110, 123 as stencil
-    _, invoke = get_invoke("large_stencil.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("large_stencil.f90", "gocean", idx=0)
     schedule = invoke.schedule
 
     # Get the first kernel
@@ -180,7 +180,7 @@ def test_gok_access_info_scalar_and_property():
 
     '''
     _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
-                           "gocean1.0", idx=0)
+                           "gocean", idx=0)
     schedule = invoke.schedule
 
     # Get the first kernel
@@ -212,7 +212,7 @@ def test_gok_local_vars():
 
     '''
     _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
-                           "gocean1.0", idx=0)
+                           "gocean", idx=0)
     schedule = invoke.schedule
 
     # Get the first kernel

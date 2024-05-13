@@ -128,7 +128,7 @@ def test_accenterdatadirective_gencode_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, raises the expected exception as there is no
     following OpenACC Parallel or OpenACC Kernels directive as at
-    least one is required. This test uses the dynamo0.3 API.
+    least one is required. This test uses the lfric API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -157,7 +157,7 @@ def test_accenterdatadirective_gencode_2():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with multiple loops, raises the expected exception, as there is no
     following OpenACC Parallel or OpenACCKernels directive and at
-    least one is required. This test uses the dynamo0.3 API.
+    least one is required. This test uses the lfric API.
 
     '''
     acc_enter_trans = ACCEnterDataTrans()
@@ -178,7 +178,7 @@ def test_accenterdatadirective_gencode_3(trans):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, produces the expected code (there should be
     "copy in" data as there is a following OpenACC parallel or kernels
-    directive). This test uses the dynamo0.3 API.
+    directive). This test uses the lfric API.
 
     '''
     acc_trans = trans()
@@ -206,7 +206,7 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     with multiple loops and multiple OpenACC parallel and/or Kernel
     directives, produces the expected code (when the same argument is
     used in multiple loops there should only be one entry). This test
-    uses the dynamo0.3 API.
+    uses the lfric API.
 
     '''
     acc_trans1 = trans1()
@@ -376,7 +376,7 @@ def test_acckernelsdirective_init():
 @pytest.mark.parametrize("default_present", [False, True])
 def test_acckernelsdirective_gencode(default_present):
     '''Check that the gen_code method in the ACCKernelsDirective class
-    generates the expected code. Use the dynamo0.3 API.
+    generates the expected code. Use the lfric API.
 
     '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))

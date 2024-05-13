@@ -54,7 +54,7 @@ from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
 
 
 # constants
-API = "dynamo0.3"
+API = "lfric"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          os.pardir, os.pardir, os.pardir,
                          "test_files", "dynamo0p3")
@@ -62,8 +62,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
     yield
     Config._instance = None
 
@@ -92,7 +92,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
         loop). In paricular there should be no halo exchange for the
         write-to-gh_inc dependence.
 
-        :param schedule: a dynamo0.3 API schedule object
+        :param schedule: a lfric API schedule object
         :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
 
         '''
@@ -249,7 +249,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
         particular, check that the depth of the halo exchange for
         field 'f1' is what we are expecting
 
-        :param schedule: a dynamo0.3 API schedule object
+        :param schedule: a lfric API schedule object
         :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
         :param int f1depth: The expected depth of the halo exchange \
         associated with field f1
@@ -315,7 +315,7 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
         particular, check that the depth of the halo exchange for
         field 'f1' is what we are expecting
 
-        :param schedule: a dynamo0.3 API schedule object
+        :param schedule: a lfric API schedule object
         :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
         :param int f1depth: The expected depth of the halo exchange \
         associated with field f1
@@ -386,7 +386,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     def check(haloex, depth):
         '''check the halo exchange has the expected properties
 
-        :param haloex: a dynamo0.3 API halo-exchange object
+        :param haloex: a lfric API halo-exchange object
         :type haloex: :py:class:`psyclone.dynamo0p3.LFRicHaloExchange`.
         :param int depth: The expected depth of the halo exchange \
         passed in as the first argument

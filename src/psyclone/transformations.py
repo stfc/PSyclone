@@ -125,7 +125,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
     >>> from pysclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -576,7 +576,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1289,7 +1289,7 @@ class OMPSingleTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1421,7 +1421,7 @@ class OMPMasterTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1474,7 +1474,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -2393,7 +2393,7 @@ class ACCEnterDataTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -2512,7 +2512,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>

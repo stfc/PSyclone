@@ -82,7 +82,7 @@ def test_run(capsys, tmpdir):
 
     # Test without --limit, but with -o:
     psy_file = tmpdir.join("psy.f90")
-    kernel_tools.run([str(kern_file), "-api", "dynamo0.3", "-o",
+    kernel_tools.run([str(kern_file), "-api", "lfric", "-o",
                       str(psy_file)])
     result, _ = capsys.readouterr()
 
@@ -145,11 +145,11 @@ def test_run_alg_gen_unsupported_api(capsys):
     ''' Test that the expected message is output if an API is specified for
     which algorithm-generation is not supported. '''
     with pytest.raises(SystemExit):
-        kernel_tools.run(["-api", "gocean1.0", "-gen", "alg",
+        kernel_tools.run(["-api", "gocean", "-gen", "alg",
                           str("/does_not_exist")])
     _, err = capsys.readouterr()
     assert ("Algorithm generation from kernel metadata is not yet implemented "
-            "for API 'gocean1.0'" in err)
+            "for API 'gocean'" in err)
 
 
 def test_invalid_gen_arg(capsys, monkeypatch):

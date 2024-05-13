@@ -58,7 +58,7 @@ from psyclone.psyGen import PSyFactory
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 # Define LMA/CMA operator write accesses for testing purposes
 OP_WRITE_ACCESSES = ["gh_write", "gh_readwrite"]
@@ -88,7 +88,7 @@ end module testkern_cma
 @pytest.fixture(scope="module", autouse=True)
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
+    Config.get().api = "lfric"
     yield
     Config._instance = None
 

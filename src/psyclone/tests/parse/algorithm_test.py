@@ -72,18 +72,18 @@ def test_parse_kernel_paths():
     '''
     alg_name = os.path.join(LFRIC_BASE_PATH, "1_single_invoke.f90")
     # No argument
-    parse(alg_name, api="dynamo0.3")
+    parse(alg_name, api="lfric")
     # None argument
-    parse(alg_name, api="dynamo0.3", kernel_paths=None)
+    parse(alg_name, api="lfric", kernel_paths=None)
     # Empty list
-    parse(alg_name, api="dynamo0.3", kernel_paths=[])
+    parse(alg_name, api="lfric", kernel_paths=[])
     # Invalid path
     with pytest.raises(ParseError) as info:
-        parse(alg_name, api="dynamo0.3", kernel_paths=["invalid"])
+        parse(alg_name, api="lfric", kernel_paths=["invalid"])
     assert ("Supplied kernel search path does not exist or cannot be read"
             in str(info.value))
     # Multiple kernel paths
-    parse(alg_name, api="dynamo0.3", kernel_paths=[
+    parse(alg_name, api="lfric", kernel_paths=[
         LFRIC_BASE_PATH, GOCEAN_BASE_PATH])
 
 # class Parser() tests
@@ -151,7 +151,7 @@ def test_parser_parse():
     stored in _alg_filename.
 
     '''
-    parser = Parser(api="dynamo0.3")
+    parser = Parser(api="lfric")
     assert parser._alg_filename is None
     res1, res2 = parser.parse(os.path.join(
         LFRIC_BASE_PATH, "1_single_invoke.f90"))
@@ -739,7 +739,7 @@ def test_getkernel_proc_component_collection():
     returns it in the expected way.
 
     '''
-    parser = Parser(api="dynamo0.3")
+    parser = Parser(api="lfric")
     _, info = parser.parse(os.path.join(
         LFRIC_BASE_PATH, "1.6.2_single_invoke_1_int_from_derived_type.f90"))
     collection_arg = info.calls[0].kcalls[0].args[1]

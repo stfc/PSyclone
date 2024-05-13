@@ -93,8 +93,8 @@ The ``psyclone-kern`` command has the following arguments:
                             (alg=algorithm layer, stub=kernel-stub subroutine).
                             Defaults to stub.
       -o OUT_FILE           filename for created code.
-      -api API              choose a particular API from ['dynamo0.3',
-                            'gocean1.0', 'nemo'], default 'dynamo0.3'.
+      -api API              choose a particular API from ['lfric',
+                            'gocean', 'nemo'], default 'lfric'.
       -I INCLUDE, --include INCLUDE
                             path to Fortran INCLUDE or module files
       -l {off,all,output}, --limit {off,all,output}
@@ -113,7 +113,7 @@ written to a particular file. If this is not specified then the Python
 results in the output being printed to the terminal.
 
 As is indicated when using the ``-h`` option, the ``-api`` option only
-accepts ``dynamo0.3`` (LFRic) at the moment and is redundant as this option
+accepts ``lfric`` (LFRic) at the moment and is redundant as this option
 is also the default. However the number of supported APIs is expected to
 expand in the future.
 
@@ -175,7 +175,7 @@ The LFRic API requires Kernels to conform to a set of rules which
 determine the required arguments and types for a particular
 Kernel. These rules are required as the generated PSy layer needs to
 know exactly how to call a Kernel. These rules are outlined in Section
-:ref:`Rules <dynamo0.3-stub-generation-rules>`.
+:ref:`Rules <lfric-stub-generation-rules>`.
 
 Therefore PSyclone has been coded with the LFRic API rules which
 are then applied when reading the Kernel metadata to produce the
@@ -416,7 +416,7 @@ we obtain the following output:
 
 The above example demonstrates that the argument list can get quite
 complex. Rather than going through an explanation of each argument you
-are referred to Section :ref:`Rules <dynamo0.3-stub-generation-rules>` for
+are referred to Section :ref:`Rules <lfric-stub-generation-rules>` for
 more details on the rules for argument types and argument ordering.
 Regarding naming conventions for arguments you can see that the arrays
 associated with the fields are labelled as 1-6 depending on their
@@ -474,8 +474,8 @@ Generic function space metadata ``any_space`` and ``any_discontinuous_space``
 for function-space identifiers) are currently only supported for
 :ref:`LFRic (Dynamo 0.3) fields <lfric-field>` in the stub generator. Basis
 and differential basis functions on these generic function spaces, required
-for :ref:`quadrature <dynamo0.3-quadrature>` and
-:ref:`evaluators <dynamo0.3-gh-shape>`, are not supported. Hence,
+for :ref:`quadrature <lfric-quadrature>` and
+:ref:`evaluators <lfric-gh-shape>`, are not supported. Hence,
 ``testkern_any_space_1_mod.f90``, ``testkern_any_space_4_mod.f90`` and
 ``testkern_any_discontinuous_space_op_2_mod.f90`` should fail with
 appropriate warnings because of that. For example::

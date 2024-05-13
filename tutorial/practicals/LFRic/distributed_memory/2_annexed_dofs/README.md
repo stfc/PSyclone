@@ -50,10 +50,10 @@ Open this file in your favourite editor. You will see that it has a
 general (`default`) section for settings that are common to all APIs and
 subsequent, separate sections for each of the APIs.
 
-We are using the API called `dynamo0.3`. Note, this is a historical
+We are using the API called `lfric`. Note, this is a historical
 name which will be changed to `lfric` in the future.
 
-Find the `dynamo0.3` section and the `COMPUTE_ANNEXED_DOFS` option
+Find the `lfric` section and the `COMPUTE_ANNEXED_DOFS` option
 within that section.
 
 This option is set to `false` by default so change this value to

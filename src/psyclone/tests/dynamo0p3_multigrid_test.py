@@ -63,7 +63,7 @@ from psyclone.transformations import (ACCEnterDataTrans, ACCKernelsTrans,
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-API = "dynamo0.3"
+API = "lfric"
 
 RESTRICT_MDATA = '''
 module restrict_mod
@@ -86,8 +86,8 @@ end module restrict_mod
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
     yield
     Config._instance = None
 
@@ -378,7 +378,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -514,7 +514,7 @@ def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -759,7 +759,7 @@ def test_no_stub_gen():
     a kernel stub if the metadata contains mesh information. '''
     with pytest.raises(NotImplementedError) as excinfo:
         generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.f90"),
-                 api="dynamo0.3")
+                 api="lfric")
     assert ("Intergrid kernels can only be setup inside an InvokeSchedule, "
             "but attempted 'prolong_test_kernel_code' without it."
             in str(excinfo.value))

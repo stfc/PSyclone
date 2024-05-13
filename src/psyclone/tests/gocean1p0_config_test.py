@@ -34,7 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: S. Siso and A. R. Porter, STFC Daresbury Lab
 
-''' Module containing tests for gocean1.0 specific config files.'''
+''' Module containing tests for gocean specific config files.'''
 
 import os
 import pytest
@@ -74,13 +74,13 @@ def test_command_line(capsys):
                             "test_files", "gocean1p0",
                             "test27_loop_swap.f90")
 
-    # Get the full path to the gocean1.0 config file that adds
+    # Get the full path to the gocean config file that adds
     # new iteration spaces for tests.
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gocean1p0",
                                "new_iteration_space.psyclone")
 
-    options = ["-api", "gocean1.0"]
+    options = ["-api", "gocean"]
 
     # Make sure we always trigger the GOLoop.setup_bounds()
     # in the constructor so that part is always tested!
@@ -112,9 +112,9 @@ def test_invalid_config_files(tmpdir):
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
-    [gocean1.0]
+    [gocean]
     '''
-    # Create a config files with gocean1.0 section, but an
+    # Create a config files with gocean section, but an
     # invalid iteration space:
     content = _CONFIG_CONTENT + "iteration-spaces=a:b"
     config_file = tmpdir.join("config1")
@@ -250,7 +250,7 @@ def test_debug_mode(tmpdir):
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
-    [gocean1.0]
+    [gocean]
     '''
 
     # Test with invalid debug mode
@@ -275,7 +275,7 @@ def test_debug_mode(tmpdir):
 
         config = Config()
         config.load(str(config_file))
-        api_config = config.api_conf("gocean1.0")
+        api_config = config.api_conf("gocean")
         assert api_config.debug_mode is True
 
     # Test with debug mode False
@@ -287,7 +287,7 @@ def test_debug_mode(tmpdir):
 
         config = Config()
         config.load(str(config_file))
-        api_config = config.api_conf("gocean1.0")
+        api_config = config.api_conf("gocean")
         assert api_config.debug_mode is False
 
     # Test that if DEBUG_MODE key doesn't exist it defaults to False
@@ -299,7 +299,7 @@ def test_debug_mode(tmpdir):
 
         config = Config()
         config.load(str(config_file))
-        api_config = config.api_conf("gocean1.0")
+        api_config = config.api_conf("gocean")
         assert api_config.debug_mode is False
 
 
@@ -309,7 +309,7 @@ def test_properties():
     '''
 
     config = Config.get()
-    api_config = config.api_conf("gocean1.0")
+    api_config = config.api_conf("gocean")
 
     all_props = api_config.grid_properties
 
@@ -350,7 +350,7 @@ def test_valid_config_files():
 
     Config.get().load(config_file)
 
-    psy, invoke = get_invoke("new_iteration_space.f90", "gocean1.0", idx=0)
+    psy, invoke = get_invoke("new_iteration_space.f90", "gocean", idx=0)
     # This test expects constant loop bounds
     ctrans = GOConstLoopBoundsTrans()
     ctrans.apply(invoke.schedule)

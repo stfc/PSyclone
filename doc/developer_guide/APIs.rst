@@ -50,7 +50,7 @@ TBD
 .. ============================
 .. 
 .. This section explains how to create a new API in PSyclone. PSyclone
-.. currently supports the following APIs: nemo, lfric (dynamo0.3)
+.. currently supports the following APIs: nemo, lfric (lfric)
 .. and gocean.
 .. 
 .. config.py
@@ -188,7 +188,7 @@ TBD
 Existing APIs
 #############
 
-.. _dynamo0.3-developers:
+.. _lfric-developers:
 
 LFRic (Dynamo0.3)
 =================
@@ -489,7 +489,7 @@ Cell iterators: Discontinuous
 When a kernel is written to iterate over cells and modify a
 discontinuous field, PSyclone only needs to compute dofs on owned
 cells. Users can apply a redundant computation transformation (see the
-:ref:`dynamo0.3-api-transformations` section) to redundantly compute
+:ref:`lfric-api-transformations` section) to redundantly compute
 into the halo but this is not done by default.
 
 .. _annexed_dofs:
@@ -521,7 +521,7 @@ annexed dof. This iteration space will necessarily also include all
 owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called ``COMPUTE_ANNEXED_DOFS`` and is
-found in the ``dynamo0.3`` section of the ``psyclone.cfg``
+found in the ``lfric`` section of the ``psyclone.cfg``
 configuration file (see :ref:`configuration`). If it is ``true`` then
 annexed dofs are always computed in loops that iterate over dofs and
 if it is ``false`` then annexed dofs are not computed. The default in

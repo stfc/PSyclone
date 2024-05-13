@@ -63,7 +63,7 @@ def test_failures():
     # Trapping Fortran errors:
     with pytest.raises(ParseError) as err:
         # Use this python file to trigger invalid Fortran
-        generate(__file__, api="dynamo0.3")
+        generate(__file__, api="lfric")
     assert ("Kernel stub generator: Code appears to be invalid "
             "Fortran" in str(err.value))
 
@@ -73,5 +73,5 @@ def test_gen_success():
     base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3")
     ptree = generate(os.path.join(base_path, "testkern_mod.F90"),
-                     api="dynamo0.3")
+                     api="lfric")
     assert isinstance(ptree, fparser.one.block_statements.Module)

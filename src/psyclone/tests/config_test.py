@@ -74,7 +74,7 @@ VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
 IGNORE_MODULES = netcdf, mpi
 BACKEND_CHECKS_ENABLED = false
-[dynamo0.3]
+[lfric]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
@@ -316,10 +316,10 @@ def test_read_values():
     assert dist_mem
     # The list of supported APIs
     api_list = _config.supported_apis
-    assert api_list == ['lfric', 'dynamo0.3', 'gocean', 'gocean1.0', 'nemo', '']
+    assert api_list == ['lfric', 'lfric', 'gocean', 'gocean', 'nemo', '']
     # The list of supported APIs for kernel stub generation
     api_list = _config.supported_stub_apis
-    assert api_list == ['dynamo0.3']
+    assert api_list == ['lfric']
     # Whether reproducible reductions are enabled
     reprod = _config.reproducible_reductions
     assert isinstance(reprod, bool)
@@ -444,7 +444,7 @@ def test_default_missing(tmpdir):
     '''
     config_file = tmpdir.join("config")
     content = '''\
-[dynamo0.3]
+[lfric]
 COMPUTE_ANNEXED_DOFS = false
 '''
 
@@ -464,9 +464,9 @@ def test_wrong_api(tmpdir):
         _ = cfg.api_conf("blah")
     assert "API 'blah' is not in the list" in str(err.value)
     with pytest.raises(ConfigurationError) as err:
-        _ = cfg.api_conf("gocean1.0")
+        _ = cfg.api_conf("gocean")
     assert ("Configuration file did not contain a section for the "
-            "'gocean1.0' API" in str(err.value))
+            "'gocean' API" in str(err.value))
     with pytest.raises(ValueError) as err:
         cfg.api = "invalid"
     assert "'invalid' is not a valid API" in str(err.value)
@@ -484,7 +484,7 @@ def test_api_unimplemented(tmpdir, monkeypatch):
     config_file = tmpdir.join("config")
     monkeypatch.setattr(Config, "_supported_api_list",
                         Config._supported_api_list + ["UNIMPLEMENTED"])
-    content = re.sub(r"^\[dynamo0.3\]$",
+    content = re.sub(r"^\[lfric\]$",
                      "[UNIMPLEMENTED]",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
@@ -508,7 +508,7 @@ def test_root_name_init():
 @pytest.mark.parametrize("content,result",
                          # An empty `default` raises an exception so I've
                          # arbitrarily added API.
-                         [("[DEFAULT]\nAPI=dynamo0.3\n", "psyir_tmp"),
+                         [("[DEFAULT]\nAPI=lfric\n", "psyir_tmp"),
                           ("[DEFAULT]\nPSYIR_ROOT_NAME = random\n", "random")])
 def test_root_name_load(tmpdir, content, result):
     '''Check that the config class returns appropriate values from a
@@ -600,7 +600,7 @@ def test_invalid_access_mapping(tmpdir):
         in str(cerr.value)
 
     # Test that all values of the mapping are access types:
-    api_config = Config.get().api_conf("dynamo0.3")
+    api_config = Config.get().api_conf("lfric")
     for access_mode in api_config.get_access_mapping().values():
         assert isinstance(access_mode, AccessType)
 
@@ -614,7 +614,7 @@ def test_default_access_mapping(tmpdir):
 
     test_config = get_config(config_file, _CONFIG_CONTENT)
 
-    api_config = test_config.api_conf("dynamo0.3")
+    api_config = test_config.api_conf("lfric")
     for access_mode in api_config.get_access_mapping().values():
         assert isinstance(access_mode, AccessType)
 
@@ -631,7 +631,7 @@ def test_access_mapping_order(tmpdir):
     content = re.sub(r"gh_inc: inc, gh_sum: sum",
                      "gh_sum: sum, gh_inc: inc", content)
 
-    api_config = get_config(config_file, content).get().api_conf("dynamo0.3")
+    api_config = get_config(config_file, content).get().api_conf("lfric")
 
     for access_mode in api_config.get_access_mapping().values():
         assert isinstance(access_mode, AccessType)
@@ -688,9 +688,9 @@ def test_get_constants():
 
     '''
     config = Config().get()
-    config.api = "dynamo0.3"
+    config.api = "lfric"
     assert isinstance(config.get_constants(), LFRicConstants)
-    config.api = "gocean1.0"
+    config.api = "gocean"
     assert isinstance(config.get_constants(), GOceanConstants)
 
 

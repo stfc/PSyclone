@@ -238,14 +238,14 @@ def fixture_fortran_writer():
 
 @pytest.fixture(scope="function", name="lfric_config")
 def fixture_lfric_config():
-    '''Test should use the dynamo0.3 API config and then clean it up.'''
-    Config.get().api = "dynamo0.3"
+    '''Test should use the lfric API config and then clean it up.'''
+    Config.get().api = "lfric"
 
 
 @pytest.fixture(scope="function", name="gocean_config")
 def fixture_gocean_config():
-    '''Test should use the gocean1.0 API config and then clean it up.'''
-    Config.get().api = "gocean1.0"
+    '''Test should use the gocean API config and then clean it up.'''
+    Config.get().api = "gocean"
 
 
 @pytest.fixture(scope="function", autouse=True)

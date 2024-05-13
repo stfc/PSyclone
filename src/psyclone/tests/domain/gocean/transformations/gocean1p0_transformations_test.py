@@ -59,13 +59,13 @@ from psyclone.tests.utilities import count_lines, get_invoke
 
 # The version of the PSyclone API that the tests in this file
 # exercise
-API = "gocean1.0"
+API = "gocean"
 
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use gocean1.0 as API.'''
-    Config.get().api = "gocean1.0"
+    '''Make sure that all tests here use gocean as API.'''
+    Config.get().api = "gocean"
     yield
     Config._instance = None
 
@@ -1472,13 +1472,13 @@ def test_acc_kernels_error():
     with pytest.raises(NotImplementedError) as err:
         accktrans.apply(schedule.children)
     assert ("kernels regions are currently only supported for the nemo"
-            " and dynamo0.3 front-ends" in str(err.value))
+            " and lfric front-ends" in str(err.value))
 
 
 def test_accroutinetrans_module_use():
     ''' Check that ACCRoutineTrans rejects a kernel if it contains a module
     use statement. '''
-    _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean1.0",
+    _, invoke = get_invoke("single_invoke_kern_with_use.f90", api="gocean",
                            idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
@@ -1493,7 +1493,7 @@ def test_accroutinetrans_module_use():
 def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     ''' Test that we can transform a kernel by adding a "!$acc routine"
     directive to it. '''
-    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
     assert isinstance(kern, GOKern)
@@ -1518,7 +1518,7 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
 def test_accroutinetrans_with_routine(fortran_writer):
     ''' Test that we can transform a routine by adding a "!$acc routine"
     directive to it. '''
-    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
     assert isinstance(kern, GOKern)
@@ -1539,7 +1539,7 @@ def test_accroutinetrans_with_routine(fortran_writer):
 def test_accroutinetrans_with_invalid_node():
     ''' Test that ACCRoutineTrans raises the appropriate error when a node
     that is not a Routine or a Kern is provided.'''
-    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean", idx=0)
     sched = invoke.schedule
     kern = sched[0]
     rtrans = ACCRoutineTrans()
@@ -1553,7 +1553,7 @@ def test_all_go_loop_trans_base_validate(monkeypatch):
     ''' Check that all GOcean transformations that sub-class LoopTrans call the
     base validate() method. '''
     # First get a valid Loop object that we can pass in.
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     loop = invoke.schedule.walk(Loop)[0]
 

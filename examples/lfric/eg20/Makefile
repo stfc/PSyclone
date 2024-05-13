@@ -62,7 +62,7 @@ $(LFRIC_LIB):
 # Use the psyclone-kern tool to create an algorithm layer that will
 # 'invoke' our kernel
 test_alg_mod.x90: testkern_mod.F90
-	${KERNEL_ALG_GEN} -api dynamo0.3 -o test_alg_mod.x90 ../code/testkern_mod.F90
+	${KERNEL_ALG_GEN} -api lfric -o test_alg_mod.x90 ../code/testkern_mod.F90
 
 transform: test_alg_mod_psy.f90
 

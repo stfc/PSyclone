@@ -65,7 +65,7 @@ def test_module_inline_constructor_and_str():
 def test_validate_inline_error_if_not_kernel():
     ''' Test that the inline transformation fails if the object being
     passed is not a kernel'''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0]
@@ -79,7 +79,7 @@ def test_validate_inline_error_if_not_kernel():
 def test_validate_with_imported_subroutine_call():
     ''' Test that the module inline transformation supports kernels with
     call nodes that reference and imported symbol. '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.walk(CodedKern)[0]
@@ -106,7 +106,7 @@ def test_validate_invalid_get_kernel_schedule(monkeypatch):
     '''
     kernel_trans = KernelModuleInlineTrans()
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
-                           api="gocean1.0", idx=0)
+                           api="gocean", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kernel = kernels[0]
@@ -127,7 +127,7 @@ def test_validate_no_inline_global_var(parser):
     variable. '''
     inline_trans = KernelModuleInlineTrans()
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
-                           api="gocean1.0", idx=0)
+                           api="gocean", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
@@ -165,7 +165,7 @@ def test_validate_name_clashes():
     ''' Test that if the module-inline transformation finds the kernel name
     already used in the Container scope, it raises the appropriate error'''
     # Use LFRic example with a repeated CodedKern
-    psy, _ = get_invoke("4.6_multikernel_invokes.f90", "dynamo0.3", idx=0,
+    psy, _ = get_invoke("4.6_multikernel_invokes.f90", "lfric", idx=0,
                         dist_mem=False)
     schedule = psy.invokes.invoke_list[0].schedule
     coded_kern = schedule.children[0].loop_body[0]
@@ -203,7 +203,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
     contains local variables that shadow a module name that would need to
     be brought into the subroutine scope.'''
 
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                            idx=0, dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.children[1].loop_body[0].loop_body[0]
@@ -275,7 +275,7 @@ def test_validate_unsupported_symbol_shadowing(fortran_reader, monkeypatch):
 def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     ''' Test that we can succesfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                              idx=0, dist_mem=False)
     schedule = invoke.schedule
 
@@ -320,7 +320,7 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     is provided in different invokes'''
     # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
     # the first invoke and 3 times in the second invoke.
-    psy, _ = get_invoke("3.1_multi_functions_multi_invokes.f90", "dynamo0.3",
+    psy, _ = get_invoke("3.1_multi_functions_multi_invokes.f90", "lfric",
                         idx=0, dist_mem=False)
 
     # By default the kernel is imported once per invoke
@@ -359,7 +359,7 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
 def test_module_inline_apply_with_sub_use(tmpdir):
     ''' Test that we can module inline a kernel subroutine which
     contains a use statement'''
-    psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", "gocean1.0",
+    psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", "gocean",
                              idx=0, dist_mem=False)
     schedule = invoke.schedule
     kern_call = schedule.children[0].loop_body[0].loop_body[0]
@@ -380,7 +380,7 @@ def test_module_inline_apply_same_kernel(tmpdir):
     the same kernel subroutine more than once has that kernel
     inlined'''
     psy, invoke = get_invoke("test14_module_inline_same_kernel.f90",
-                             "gocean1.0", idx=0)
+                             "gocean", idx=0)
     schedule = invoke.schedule
     kern_call = schedule.coded_kernels()[0]
     inline_trans = KernelModuleInlineTrans()
@@ -607,7 +607,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
 
 def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     '''Tests that correct results are obtained when a kernel is inlined
-    into the psy-layer in the LFRic (dynamo0.3) API. All previous tests
+    into the psy-layer in the LFRic (lfric) API. All previous tests
     use GOcean for testing.
 
     We also test when annexed is False and True as it affects how many halo
@@ -615,9 +615,9 @@ def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "dynamo0.3",
+    psy, invoke = get_invoke("4.6_multikernel_invokes.f90", "lfric",
                              name="invoke_0", dist_mem=dist_mem)
     kern_call = invoke.schedule.walk(CodedKern)[0]
     inline_trans = KernelModuleInlineTrans()
@@ -637,7 +637,7 @@ def test_module_inline_with_interfaces(tmpdir):
     use an LFRic mixed-precision kernel as an example of this.
 
     '''
-    psy, invoke = get_invoke("26.8_mixed_precision_args.f90", "dynamo0.3",
+    psy, invoke = get_invoke("26.8_mixed_precision_args.f90", "lfric",
                              name="invoke_0", dist_mem=False)
     kern_call = invoke.schedule.walk(CodedKern)[0]
     inline_trans = KernelModuleInlineTrans()

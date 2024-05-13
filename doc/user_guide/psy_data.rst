@@ -116,8 +116,8 @@ be printed at runtime, e.g.::
     --------------------------------------
 
 The transformation that adds read-only-verification to an application
-can be applied for both the :ref:`LFRic <dynamo0.3-api>` and
-:ref:`GOcean API <gocean1.0-api>` - no API-specific
+can be applied for both the :ref:`LFRic <lfric-api>` and
+:ref:`GOcean API <gocean-api>` - no API-specific
 transformations are required. Below is an example that searches for each
 loop in an invoke (which will always surround kernel calls) and applies the
 transformation to each one. This code has been successfully used as a
