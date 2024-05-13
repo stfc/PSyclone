@@ -43,6 +43,7 @@ import pytest
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir import nodes, symbols
+from psyclone.psyir.nodes import Routine
 from psyclone.tests.utilities import Compile
 
 
@@ -367,7 +368,7 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     end module test'''
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
-    routine = container.children[0].children[0]
+    routine = container.walk(Routine)[0]
     rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
                                                 scope_limit=routine)
     assert rsym.is_elemental
@@ -383,7 +384,7 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     end module test'''
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
-    routine = container.children[0].children[0]
+    routine = container.walk(Routine)[0]
     rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
                                                 scope_limit=routine)
     assert not rsym.is_elemental
@@ -397,7 +398,7 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     end module test'''
     container = fortran_reader.psyir_from_source(code)
     output = fortran_writer(container)
-    routine = container.children[0].children[0]
+    routine = container.walk(Routine)[0]
     rsym = routine.symbol_table.lookup_with_tag("own_routine_symbol",
                                                 scope_limit=routine)
     assert rsym.is_elemental
@@ -416,7 +417,7 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     end module
     '''
     container = fortran_reader.psyir_from_source(code)
-    routine = container.children[0].children[0]
+    routine = container.walk(Routine)[0]
     rsym = routine.parent.scope.symbol_table.lookup(routine.name)
     assert rsym.is_elemental
     output = fortran_writer(container)
@@ -433,7 +434,7 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     end module
     '''
     container = fortran_reader.psyir_from_source(code)
-    routine = container.children[0].children[0]
+    routine = container.walk(Routine)[0]
     rsym = routine.parent.scope.symbol_table.lookup(routine.name)
     assert rsym.is_elemental
     assert not rsym.is_pure
@@ -449,7 +450,7 @@ def test_fw_routine_prefixes(fortran_reader, fortran_writer):
     end module
     '''
     container = fortran_reader.psyir_from_source(code)
-    routine = container.children[0].children[0]
+    routine = container.walk(Routine)[0]
     assert rsym.is_elemental
     assert not rsym.is_pure
     output = fortran_writer(container)
