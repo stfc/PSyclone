@@ -796,8 +796,8 @@ support for i-first kernels
 point the looping (and associated parallelisation) will be put
 back into the PSy layer.
 
-.. note:: Support for DoF kernels have not yet been implmented in PSyclone (see
-          PSyclone issue #1351 for progress).
+.. note:: Support for DoF kernels have not yet been implemented in PSyclone
+          (see PSyclone issue #1351 for progress).
 
 .. _dynamo0.3-user-kernel-rules:
 
@@ -981,8 +981,8 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-.. note:: Support for DoF kernels have not yet been implmented in PSyclone (see
-          PSyclone issue #1351 for progress).
+.. note:: Support for DoF kernels have not yet been implemented in PSyclone
+          (see PSyclone issue #1351 for progress).
 
 Kernels that have ``operates_on = DOF`` and
 :ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
@@ -2475,13 +2475,13 @@ as the second argument to the kernel (after ``nlayers``).
 Rules for DoF Kernels
 #####################
 
-.. note:: Support for DoF kernels have not yet been implmented in PSyclone (see
-          PSyclone issue #1351 for progress).
+.. note:: Support for DoF kernels have not yet been implemented in PSyclone
+          (see PSyclone issue #1351 for progress).
 
 The rules for kernels that have ``operates_on = DOF`` are similar to those for
-general-purpose kernels but, due to the restrictions on what can be passed to
-them, are much fewer. The full set of rules, along with PSyclone's naming
-conventions, are:
+general-purpose kernels but, due to the restriction that only fields and
+scalars can be passed to them, are much fewer. The full set of rules, along
+with PSyclone's naming conventions, are:
 
    1) Include `df`, the index of the single dof to be operated on. This is an
       ``integer`` of of kind ``i_def`` with intent ``in``.
