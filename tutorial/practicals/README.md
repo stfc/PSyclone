@@ -72,11 +72,10 @@ Ubuntu 20.04 LTS.
    * Confirm you are using it for non-commercial use and skip the update
      to pro;
    * Click on create a new VM, find the ubuntu ISO and install;
-   * If you get "Your host does not meet minimum requirements to run VMware
-     Player with Hyper-V or Device/Credential Guard enabled. Refer to VMware
-     KB article 76918 at https://kb.vmware.com/kb/76918 for more details."
-     then it is probably best to install Virtual Box instead. If not, google
-     how to fix the problem.
+   * If you get an error message beginning with "Your host does not meet 
+     minimum requirements to run VMware Player with Hyper-V or Device/Credential 
+     Guard enabled...." then it is probably best to install Virtual Box instead. 
+     If not, google how to fix the problem.
 
 
 In the instructions below we assume that you are using Ubuntu. If you
