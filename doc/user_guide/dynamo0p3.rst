@@ -771,7 +771,7 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. In the LFRic API there are five
+in the :ref:`kernel-layer` section. In the LFRic API there are six
 different Kernel types; general purpose, CMA, inter-grid, domain, dof and
 :ref:`lfric-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
@@ -780,8 +780,8 @@ their metadata and subroutine arguments.
 
 Domain kernels are distinct from the other four user-supplied kernel
 types because they must be passed data for the whole domain rather
-than a single cell-column or field. This permits the use of kernels that have
-not been written to conform to the single-column approach which
+than a single cell-column or dof. This permits the use of kernels that have
+not been written to conform to the single-column/dof approach which
 simplifies the integration with existing code. Obviously, any
 parallelisation in the 'domain' kernel must be consistent with that
 in the rest of the application. The motivation for such kernels in
