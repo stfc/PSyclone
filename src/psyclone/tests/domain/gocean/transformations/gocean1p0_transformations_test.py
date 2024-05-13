@@ -1472,7 +1472,7 @@ def test_acc_kernels_error():
     with pytest.raises(NotImplementedError) as err:
         accktrans.apply(schedule.children)
     assert ("kernels regions are currently only supported for the nemo"
-            " and lfric front-ends" in str(err.value))
+            " and LFRic front-ends" in str(err.value))
 
 
 def test_accroutinetrans_module_use():

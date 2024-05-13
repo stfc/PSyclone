@@ -55,7 +55,6 @@ BASE_PATH = os.path.join(
     "test_files", "dynamo0p3")
 
 
-@pytest.mark.usefixtures("parser")
 @pytest.fixture(name="prog", scope="function")
 def create_prog_fixture():
     '''
@@ -292,6 +291,7 @@ end module testkern_mod
     assert isinstance(kern, LFRicKern)
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_construct_kernel_args(lfric_alg, prog, lfrickern, fortran_writer):
     ''' Tests for the construct_kernel_args() function. Since this function
     primarily calls _create_function_spaces(), initialise_field(),

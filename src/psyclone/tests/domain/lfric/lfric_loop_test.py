@@ -960,6 +960,7 @@ def test_lfricloop_halo_read_access_error2(monkeypatch):
             "found 'unsupported'." in str(info.value))
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_null_loop():
     ''' Check that we can create a 'null'-type loop and that the validation
     check in the 'load()' method behaves as expected.

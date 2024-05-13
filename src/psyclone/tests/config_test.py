@@ -316,10 +316,11 @@ def test_read_values():
     assert dist_mem
     # The list of supported APIs
     api_list = _config.supported_apis
-    assert api_list == ['lfric', 'lfric', 'gocean', 'gocean', 'nemo', '']
+    assert api_list == ['lfric', 'dynamo0.3', 'gocean', 'gocean1.0',
+                        'nemo', '']
     # The list of supported APIs for kernel stub generation
     api_list = _config.supported_stub_apis
-    assert api_list == ['lfric']
+    assert api_list == ['lfric', 'dynamo0.3']
     # Whether reproducible reductions are enabled
     reprod = _config.reproducible_reductions
     assert isinstance(reprod, bool)

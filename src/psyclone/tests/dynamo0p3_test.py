@@ -2130,6 +2130,7 @@ def test_arg_descriptor_func_method_error():
             in str(excinfo.value))
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_arg_descriptor_str_error():
     ''' Tests that an internal error is raised in LFRicArgDescriptor
     when __str__() is called and the internal type is an unexpected

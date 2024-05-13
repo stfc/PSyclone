@@ -1438,6 +1438,7 @@ end module dummy_mod
 '''
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_basis_evaluator():
     ''' Check that basis functions for an evaluator are handled correctly for
     kernel stubs.
@@ -1564,6 +1565,7 @@ end module dummy_mod
 '''
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_basis_unsupported_space():
     ''' Test that an error is raised when a basis function is on an
     unsupported space (currently any_space_* and any_discontinuous_space_*)
@@ -1641,6 +1643,7 @@ end module dummy_mod
 '''
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_diff_basis():
     ''' Test that differential basis functions are handled correctly
     for kernel stubs with quadrature.
@@ -1807,6 +1810,7 @@ end module dummy_mod
 '''
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_diff_basis_eval():
     ''' Test that differential basis functions are handled correctly
     for kernel stubs with an evaluator.
@@ -1918,6 +1922,7 @@ def test_diff_basis_eval():
     assert output_declns in generated_code
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_2eval_stubgen():
     ''' Check that we generate the correct kernel stub when an evaluator is
     required on more than one space.
@@ -2033,6 +2038,7 @@ end module dummy_mod
 '''
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_diff_basis_unsupp_space():
     ''' Test that an error is raised when a differential basis
     function is on an unsupported space (currently any_space_*
@@ -2065,6 +2071,7 @@ def test_diff_basis_unsupp_space():
     assert "but found 'any_discontinuous_space_5'" in str(excinfo.value)
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_dynbasisfns_unsupp_qr(monkeypatch):
     ''' Check that the expected error is raised in
     DynBasisFunctions._stub_declarations() if an un-supported quadrature
@@ -2083,6 +2090,7 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
             "supported - got: 'unsupported-shape'" in str(err.value))
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_dynbasisfns_declns(monkeypatch):
     ''' Check the various internal errors that
     DynBasisFunctions._basis_fn_declns can raise. '''

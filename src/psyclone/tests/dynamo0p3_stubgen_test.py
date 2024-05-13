@@ -125,13 +125,6 @@ def test_stub_generate_working():
     assert SIMPLE in str(result)
 
 
-def test_stub_generate_working_noapi():
-    ''' check that the stub generate produces the expected output when
-    we use the default api (which should be lfric)'''
-    result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"))
-    assert SIMPLE in str(result)
-
-
 # Fields : intent
 INTENT = '''
 module dummy_mod

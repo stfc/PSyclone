@@ -216,7 +216,7 @@ class KernelTypeFactory():
     specified in the PSyclone config file, is used.
 
     '''
-    def __init__(self, api=None):
+    def __init__(self, api=''):
         check_api(api)
         self._type = api
 

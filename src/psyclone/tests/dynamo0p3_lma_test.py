@@ -884,6 +884,7 @@ end module dummy_mod
 '''
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_operators():
     ''' Test that operators are handled correctly for kernel stubs (except
     for Wchi space as the fields on this space are read-only).
@@ -974,6 +975,7 @@ end module dummy_mod
 '''
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_stub_operator_different_spaces():
     ''' Test that the correct function spaces are provided in the
     correct order when generating a kernel stub with an operator on

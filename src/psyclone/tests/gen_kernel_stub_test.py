@@ -49,9 +49,9 @@ from psyclone.parse.algorithm import ParseError
 def test_failures():
     '''Tests various failures of the generate() call.
     '''
-    # Test empty API (and file not found)
+    # Test file not found
     with pytest.raises(IOError) as err:
-        generate("/does_not_exist", api="")
+        generate("/does_not_exist", api="lfric")
     assert "File '/does_not_exist' not found" in str(err.value)
 
     # Check invalid API
