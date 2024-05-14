@@ -139,9 +139,7 @@ class CreateNemoPSyTrans(Transformation):
 
         invoke_trans = CreateNemoInvokeScheduleTrans()
 
-        # Second, transform any Routines into NemoInvokeSchedules. Have to
-        # allow for the supplied top-level node being a Routine and therefore
-        # being replaced.
+        # Transform any Routines into NemoInvokeSchedules.
         for routine in psyir.walk(Routine):
             invoke_trans.apply(routine)
 

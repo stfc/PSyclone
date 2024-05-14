@@ -69,44 +69,44 @@ At the present time PSyIR classes can be essentially split into two
 types: language-level nodes, which are nodes that the PSyIR backends
 support, and therefore they can be directly translated to code; and
 higher-level nodes, which are additional nodes that each domain can
-insert and they need to implement a `lower_to_language_level` method
-in order to be converted to its equivalent representation using only
-language-level to be converted to code.
+insert. These nodes must implement a `lower_to_language_level` method
+in order to be converted to their equivalent representation using only
+language-level nodes. This then permits code to be generated for them.
 
-The rest of this document describe the language-level nodes, but they
-all inherit from the same base-class, so the methods described here are
-applicable to all nodes.
+The rest of this document describes only the language-level nodes, but as
+all nodes inherit from the same base classes, the methods described here
+are applicable to all PSyIR nodes.
 
 
 Available language-level nodes
 ==============================
 
-- :ref_guide:`ArrayMember psyclone.psyir.nodes.array_member.html`
-- :ref_guide:`ArrayReference psyclone.psyir.nodes.array_reference.html`
-- :ref_guide:`ArrayOfStructuresMember psyclone.psyir.nodes.array_of_structures_member.html`
-- :ref_guide:`ArrayOfStructuresReference psyclone.psyir.nodes.array_of_structures_reference.html`
-- :ref_guide:`Assignment psyclone.psyir.nodes.assignment.html`
-- :ref_guide:`BinaryOperation psyclone.psyir.nodes.binary_operation.html`
-- :ref_guide:`Call psyclone.psyir.nodes.call.html`
-- :ref_guide:`CodeBlock psyclone.psyir.nodes.code_block.html`
-- :ref_guide:`Container psyclone.psyir.nodes.container.html`
-- :ref_guide:`FileContainer psyclone.psyir.nodes.file_container.html`
-- :ref_guide:`IfBlock psyclone.psyir.nodes.if_block.html`
-- :ref_guide:`IntrinsicCall psyclone.psyir.nodes.intrinsic_call.html`
-- :ref_guide:`Literal psyclone.psyir.nodes.literal.html`
-- :ref_guide:`Loop psyclone.psyir.nodes.loop.html`
-- :ref_guide:`Member psyclone.psyir.nodes.member.html`
-- :ref_guide:`Node psyclone.psyir.nodes.node.html`
-- :ref_guide:`Range psyclone.psyir.nodes.range.html`
-- :ref_guide:`Reference psyclone.psyir.nodes.reference.html`
-- :ref_guide:`Return psyclone.psyir.nodes.return.html`
-- :ref_guide:`Routine psyclone.psyir.nodes.routine.html`
-- :ref_guide:`Schedule psyclone.psyir.nodes.schedule.html`
-- :ref_guide:`Statement psyclone.psyir.nodes.statement.html`
-- :ref_guide:`StructureMember psyclone.psyir.nodes.structure_member.html`
-- :ref_guide:`StructureReference psyclone.psyir.nodes.structure_reference.html`
-- :ref_guide:`UnaryOperation psyclone.psyir.nodes.unary_pperation.html`
-- :ref_guide:`WhileLoop psyclone.psyir.nodes.while_loop.html`
+- :ref_guide:`ArrayMember psyclone.psyir.nodes.html#psyclone.psyir.nodes.ArrayMember`
+- :ref_guide:`ArrayReference psyclone.psyir.nodes.html#psyclone.psyir.nodes.ArrayReference`
+- :ref_guide:`ArrayOfStructuresMember psyclone.psyir.nodes.html#psyclone.psyir.nodes.ArrayOfStructuresMember`
+- :ref_guide:`ArrayOfStructuresReference psyclone.psyir.nodes.html#psyclone.psyir.nodes.ArrayOfStructuresReference`
+- :ref_guide:`Assignment psyclone.psyir.nodes.html#psyclone.psyir.nodes.Assignment`
+- :ref_guide:`BinaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.BinaryOperation`
+- :ref_guide:`Call psyclone.psyir.nodes.html#psyclone.psyir.nodes.Call`
+- :ref_guide:`CodeBlock psyclone.psyir.nodes.html#psyclone.psyir.nodes.CodeBlock`
+- :ref_guide:`Container psyclone.psyir.nodes.html#psyclone.psyir.nodes.Container`
+- :ref_guide:`FileContainer psyclone.psyir.nodes.html#psyclone.psyir.nodes.FileContainer`
+- :ref_guide:`IfBlock psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`
+- :ref_guide:`IntrinsicCall psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`
+- :ref_guide:`Literal psyclone.psyir.nodes.html#psyclone.psyir.nodes.Literal`
+- :ref_guide:`Loop psyclone.psyir.nodes.html#psyclone.psyir.nodes.Loop`
+- :ref_guide:`Member psyclone.psyir.nodes.html#psyclone.psyir.nodes.Member`
+- :ref_guide:`Node psyclone.psyir.nodes.html#psyclone.psyir.nodes.Node`
+- :ref_guide:`Range psyclone.psyir.nodes.html#psyclone.psyir.nodes.Range`
+- :ref_guide:`Reference psyclone.psyir.nodes.html#psyclone.psyir.nodes.Reference`
+- :ref_guide:`Return psyclone.psyir.nodes.html#psyclone.psyir.nodes.Return`
+- :ref_guide:`Routine psyclone.psyir.nodes.html#psyclone.psyir.nodes.Routine`
+- :ref_guide:`Schedule psyclone.psyir.nodes.html#psyclone.psyir.nodes.Schedule`
+- :ref_guide:`Statement psyclone.psyir.nodes.html#psyclone.psyir.nodes.Statement`
+- :ref_guide:`StructureMember psyclone.psyir.nodes.html#psyclone.psyir.nodes.StructureMember`
+- :ref_guide:`StructureReference psyclone.psyir.nodes.html#psyclone.psyir.nodes.StructureReference`
+- :ref_guide:`UnaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.UnaryOperation`
+- :ref_guide:`WhileLoop psyclone.psyir.nodes.html#psyclone.psyir.nodes.WhileLoop`
 
 
 Text Representation
@@ -114,10 +114,10 @@ Text Representation
 
 When developing a transformation script it is often necessary to examine
 the structure of the PSyIR. All nodes in the PSyIR have the ``view`` method
-that writes a text-representation of that node and all of its
-descendants to stdout. If the ``termcolor`` package is installed
-(see :ref:`getting-going`) then colour highlighting is used for this
-output. For instance, part of the Schedule constructed for the second NEMO
+that provides a text-representation of that node and all of its descendants.
+If the ``termcolor`` package is installed (see :ref:`getting-going`) then
+colour highlighting is used as part of the output string.
+For instance, part of the Schedule constructed for the second NEMO
 `example <https://github.com/stfc/PSyclone/blob/master/examples/nemo/eg2/
 omp_levels_trans.py>`_ is rendered as:
 
@@ -145,10 +145,10 @@ Tree Navigation
 Each PSyIR node provides several ways to navigate the AST. These can be
 categorised as homogeneous naviation methods (available in all nodes), and
 heterogenous or semantic navigation methods (different methods available
-depending on the node type). The homogenous methods must be used for generic
+depending on the node type). The homogeneous methods must be used for generic
 code navigation that should work regardless of its context. However, when
 the context is known, we recommend using the semantic methods to increase
-the psyclone transformations readability.
+the code readability.
 
 The homogeneous navigation methods are:
 
@@ -163,7 +163,7 @@ The homogeneous navigation methods are:
    .. automethod:: psyclone.psyir.nodes.Node.path_from()
 
 In addition to the navigation methods, nodes also have homogeneous methods to
-interrogate it location and surrounding nodes.
+interrogate their location and surrounding nodes.
 
    .. automethod:: psyclone.psyir.nodes.Node.immediately_precedes()
    .. automethod:: psyclone.psyir.nodes.Node.immediately_follows()

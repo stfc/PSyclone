@@ -139,8 +139,8 @@ transformation script to perform finer-grained profiling.
    ```python
    loops = sched.walk(Loop)
    ```
-   Next, identify those loops that are over NEMO `levels` loop. These are
-   loop that use the 'jk' loop variable as required in the NEMO Code
+   Next, identify those loops that are over vertical `levels`. These are
+   loops that use the 'jk' loop variable as required in the NEMO Code
    Conventions. One way to easily select this loop, is to set the following
    loop_type inference rule:
    ```python
