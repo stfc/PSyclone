@@ -44,7 +44,8 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (colored, Container, FileContainer,
                                   KernelSchedule, Return, Routine)
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
+from psyclone.psyir.symbols import (
+    DataSymbol, NoType, REAL_SINGLE_TYPE, RoutineSymbol, SymbolTable)
 from psyclone.tests.utilities import check_links
 
 
@@ -182,18 +183,57 @@ def test_container_children_validation():
 
 
 def test_container_get_routine_psyir():
-    '''Test that get_routine_psyir works
+    '''Test that get_routine_psyir works.
 
     '''
     symbol_table = SymbolTable()
     symbol_table.add(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    symbol_table.add(RoutineSymbol("mod_1", NoType()))
+    symbol_table.add(RoutineSymbol("mod_2", NoType()))
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
                                  [kernel1, kernel2])
     for name in ["mod_1", "mod_2"]:
         psyir = container.get_routine_psyir(name)
-        assert isinstance(psyir, Routine)
-        assert psyir.name == name
+        assert isinstance(psyir[0], Routine)
+        assert psyir[0].name == name
 
-    assert container.get_routine_psyir("doesnotexist") is None
+    assert container.get_routine_psyir("doesnotexist") == []
+
+
+def test_container_get_routine_psyir_interface(fortran_reader):
+    '''Test get_routine_psyir() when the requested routine is actually
+    a generic interface.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+module a_mod
+    interface a_facade
+      module procedure :: brick_frontage, porticoed
+      procedure :: wattle_and_daub
+    end interface
+contains
+    subroutine brick_frontage(brick)
+      integer :: brick
+    end subroutine brick_frontage
+
+    subroutine porticoed(pillar)
+      real(kind=8) :: pillar
+    end subroutine porticoed
+
+    subroutine wattle_and_daub(gunk)
+      real(kind=4) :: gunk
+    end subroutine wattle_and_daub
+end module a_mod
+    ''')
+    cntr = psyir.children[0]
+    assert isinstance(cntr, Container)
+    assert isinstance(cntr.get_routine_psyir("wattle_and_daub")[0], Routine)
+
+    routines = cntr.get_routine_psyir("a_facade")
+    assert len(routines) == 3
+    assert all(isinstance(rt, Routine) for rt in routines)
+    assert set(rt.name for rt in routines) == set(["brick_frontage",
+                                                   "porticoed",
+                                                   "wattle_and_daub"])

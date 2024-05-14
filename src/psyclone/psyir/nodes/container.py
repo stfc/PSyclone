@@ -41,7 +41,8 @@
 from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import (GenericInterfaceSymbol, RoutineSymbol,
+                                    SymbolTable)
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
@@ -171,21 +172,38 @@ class Container(ScopingNode, CommentableMixin):
         return f"Container[{self.name}]\n"
 
     def get_routine_psyir(self, name):
-        '''Returns the PSyIR for the routine with the given name, or None
-        if a routine with this name does not exist.
+        '''Returns the PSyIR for the routine with the given name, or, if
+        this name corresponds to an interface, a list of the routines
+        within that interface.
 
         :param str name: name of the routine to find.
 
-        :returns: the PSyIR Routine instance of the subroutine, or None if
-            there is no routine with that name in this container.
-        :rtype: Union[None, psyclone.psyir.nodes.Routine]
+        :returns: the PSyIR Routine instance(s) corresponding to the
+            supplied name or an empty list if there is no routine with that
+            name in this container.
+        :rtype: list[None | psyclone.psyir.nodes.Routine]
+
+        :raises TypeError: if the Symbol with the supplied name is not a
+            RoutineSymbol or GenericInterfaceSymbol.
 
         '''
-        name = name.lower()
+        table = self.symbol_table
+        rsym = table.lookup(name, default=None)
+        if not rsym:
+            return []
+        if isinstance(rsym, GenericInterfaceSymbol):
+            names = [rt[0].name.lower() for rt in rsym.routines]
+        elif isinstance(rsym, RoutineSymbol):
+            names = [name.lower()]
+        else:
+            raise TypeError(
+                f"Expected '{name}' to correspond to either a RoutineSymbol or"
+                f" a GenericInterfaceSymbol but found '{type(rsym).__name__}'")
+        routines = []
         for routine in self.walk(Routine):
-            if routine.name.lower() == name:
-                return routine
-        return None
+            if routine.name.lower() in names:
+                routines.append(routine)
+        return routines
 
 
 # For AutoAPI documentation generation
