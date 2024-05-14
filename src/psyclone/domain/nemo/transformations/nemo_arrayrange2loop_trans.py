@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation that given an Assignment node to an
 ArrayReference in its left-hand-side which has at least one PSyIR Range
@@ -46,9 +47,10 @@ from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
     Assignment, CodeBlock, ArrayMember, Routine, IntrinsicCall, \
-    StructureReference, StructureMember, Node
+    StructureReference, StructureMember, Node, Literal
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
+        UnresolvedType, UnsupportedType, ArrayType, NoType
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
@@ -87,6 +89,12 @@ class NemoArrayRange2LoopTrans(Transformation):
     node. This is required for correctness and if not satisfied the
     transformation will raise an exception.
 
+    By default the transformation will reject character arrays,
+    though this can be overriden by setting the
+    allow_string option to True. Note that PSyclone expresses syntax such
+    as `character(LEN=100)` as UnsupportedFortranType, and this
+    transformation will convert unknown or unsupported types to loops.
+
     '''
     def apply(self, node, options=None):
         ''' Apply the transformation such that, given an assignment with an
@@ -108,9 +116,11 @@ class NemoArrayRange2LoopTrans(Transformation):
             transformation. This is an optional argument that defaults \
             to None.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on a character type array range. Defaults to False.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         assignment = node.ancestor(Assignment)
         parent = assignment.parent
@@ -171,6 +181,12 @@ class NemoArrayRange2LoopTrans(Transformation):
         '''Perform various checks to ensure that it is valid to apply the
         NemoArrayRange2LoopTrans transformation to the supplied PSyIR Node.
 
+        By default the validation will reject character arrays that PSyclone
+        understand as such, though this can be overriden by setting the
+        allow_string option to True. Note that PSyclone expresses syntax such
+        as `character(LEN=100)` as UnsupportedFortranType, and this
+        transformation will convert unknown or unsupported types to loops.
+
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
         :param options: a dictionary with options for \
@@ -178,6 +194,8 @@ class NemoArrayRange2LoopTrans(Transformation):
             transformation. This is an optional argument that defaults \
             to None.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on a character type array range. Defaults to False.
 
         :raises TransformationError: if the node argument is not a \
             Range, if the Range node is not part of an ArrayReference, \
@@ -189,6 +207,9 @@ class NemoArrayRange2LoopTrans(Transformation):
             multiple locations of a structure of arrays.
         :raises TransformationError: if the node argument contains a \
             non-elemental Operation or Call.
+        :raises TransformationError: if node contains a character type
+                                     child and the allow_strings option is
+                                     not set.
 
         '''
         # Am I Range node?
@@ -229,16 +250,15 @@ class NemoArrayRange2LoopTrans(Transformation):
                     f" that contain nested Range structures, but found:"
                     f"\n{assignment.debug_string()}"))
 
+        # Do a single walk to avoid doing a separate one for each type we need
+        nodes_to_check = assignment.walk((CodeBlock, Reference))
+
         # Does the rhs of the assignment have any operations/calls that are not
         # elemental?
         for cnode in assignment.rhs.walk(Call):
-            # Allow non elemental UBOUND and LBOUND.
-            # TODO #2156 - add support for marking routines as being 'inquiry'
-            # to improve this special-casing.
+            nodes_to_check.remove(cnode.routine)
             if isinstance(cnode, IntrinsicCall):
-                if cnode.intrinsic is IntrinsicCall.Intrinsic.LBOUND:
-                    continue
-                if cnode.intrinsic is IntrinsicCall.Intrinsic.UBOUND:
+                if cnode.intrinsic.is_inquiry:
                     continue
                 name = cnode.intrinsic.name
                 type_txt = "IntrinsicCall"
@@ -253,9 +273,6 @@ class NemoArrayRange2LoopTrans(Transformation):
                     f"-elemental {type_txt}s on the rhs of the associated "
                     f"Assignment node, but found '{name}' in:\n"
                     f"{assignment.debug_string()}'."))
-
-        # Do a single walk to avoid doing a separate one for each type we need
-        nodes_to_check = assignment.walk((CodeBlock, Reference))
 
         # Do not allow to transform expressions with CodeBlocks
         if any(isinstance(n, CodeBlock) for n in nodes_to_check):
@@ -305,6 +322,34 @@ class NemoArrayRange2LoopTrans(Transformation):
                     "Error in NemoArrayRange2LoopTrans transformation. This "
                     "transformation can only be applied to the outermost "
                     "Range.")
+
+        if not options:
+            options = {}
+        allow_string_array = options.get("allow_string", False)
+        # If we allow string arrays then we can skip the check.
+        if not allow_string_array:
+            # ArrayMixin datatype lookup can fail if the indices contain a
+            # Call or Intrinsic Call. We catch this exception and continue
+            # for now - TODO #1799
+            for child in assignment.walk((Literal, Reference)):
+                try:
+                    # Skip unresolved types
+                    if (isinstance(child.datatype,
+                                   (UnresolvedType, UnsupportedType, NoType))
+                        or (isinstance(child.datatype, ArrayType) and
+                            isinstance(child.datatype.datatype,
+                                       (UnresolvedType, UnsupportedType)))):
+                        continue
+                    if (child.datatype.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER):
+                        raise TransformationError(
+                            "The NemoArrayRange2LoopTrans transformation "
+                            "doesn't allow character arrays by default. This "
+                            "can be enabled by passing the allow_string "
+                            "option to the transformation."
+                        )
+                except NotImplementedError:
+                    pass
 
 
 # For automatic document generation

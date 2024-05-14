@@ -42,11 +42,11 @@
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.nodes import Schedule, Literal
+from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import DoGen, DeclGen
+from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
 
 
 class Loop(Statement):
@@ -437,40 +437,52 @@ class Loop(Statement):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
 
-        def is_unit_literal(expr):
-            ''' Check if the given expression is equal to the literal '1'.
-
-            :param expr: a PSyIR expression.
-            :type expr: :py:class:`psyclone.psyir.nodes.Node`
-
-            :returns: True if it is equal to the literal '1', false otherwise.
-            '''
-            return isinstance(expr, Literal) and expr.value == '1'
-
         if not self.is_openmp_parallel():
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
-        # start/stop/step_expr are generated with the FortranWriter
-        # backend, the rest of the loop with f2pygen.
-        fwriter = FortranWriter()
-        if is_unit_literal(self.step_expr):
-            step_str = None
-        else:
-            step_str = fwriter(self.step_expr)
+        # TODO #1010: The Fortran backend operates on a copy of the node so
+        # that the lowering changes are not reflected in the provided node.
+        # This is the correct behaviour but it means that the lowering changes
+        # to ancestors will be lost here because the ancestors use gen_code
+        # instead of lowering+backend.
+        # So we need to do the "rename_and_write" here for the invoke symbol
+        # table to be updated.
+        from psyclone.psyGen import CodedKern
+        for kernel in self.walk(CodedKern):
+            if not kernel.module_inline:
+                if kernel.modified:
+                    kernel.rename_and_write()
 
-        do_stmt = DoGen(parent, self.variable.name,
-                        fwriter(self.start_expr),
-                        fwriter(self.stop_expr),
-                        step_str)
-        # need to add do loop before children as children may want to add
-        # info outside of do loop
-        parent.add(do_stmt)
-        for child in self.loop_body:
-            child.gen_code(do_stmt)
-        my_decl = DeclGen(parent, datatype="integer",
-                          entity_decls=[self.variable.name])
-        parent.add(my_decl)
+        # Use the Fortran Backend from this point
+        parent.add(PSyIRGen(parent, self))
+
+        # TODO #1010: The Fortran backend operates on a copy of the node so
+        # that the lowering changes are not reflected in the provided node.
+        # This is the correct behaviour but it means that the lowering changes
+        # to ancestors will be lost here because the ancestors use gen_code
+        # instead of lowering+backend.
+        # Therefore we need to replicate the lowering ancestor changes
+        # manually here (all this can be removed when the invoke schedule also
+        # uses the lowering+backend), these are:
+        # - Declaring the loop variable symbols
+        for loop in self.walk(Loop):
+            # pylint: disable=protected-access
+            if loop._variable is None:
+                # This is the dummy iteration variable
+                name = "dummy"
+                kind_gen = None
+            else:
+                name = loop.variable.name
+                kind = loop.variable.datatype.precision.name
+                kind_gen = None if kind == "UNDEFINED" else kind
+            my_decl = DeclGen(parent, datatype="integer",
+                              kind=kind_gen,
+                              entity_decls=[name])
+            parent.add(my_decl)
+
+        # - Add the kernel module import statements
+        for kernel in self.walk(CodedKern):
+            if not kernel.module_inline:
+                parent.add(UseGen(parent, name=kernel._module_name, only=True,
+                                  funcnames=[kernel._name]))

@@ -78,7 +78,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         # Determine the arguments to the intrinsic
         args = [None, None, None]
         arg_names_map = {"array": 0, "dim": 1, "mask": 2}
-        for idx, child in enumerate(node.children):
+        for idx, child in enumerate(node.arguments):
             if not node.argument_names[idx]:
                 # positional arg
                 args[idx] = child
@@ -195,7 +195,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         orig_lhs = node.ancestor(Assignment).lhs.copy()
         orig_rhs = node.ancestor(Assignment).rhs.copy()

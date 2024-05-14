@@ -40,9 +40,6 @@ PSyclone.
 '''
 
 from __future__ import print_function
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import OMPParallelTrans, OMPSingleTrans
 from psyclone.transformations import OMPTaskloopTrans
