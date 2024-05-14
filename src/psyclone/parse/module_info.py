@@ -293,29 +293,3 @@ class ModuleInfo:
         # in one file
         # Return the actual module Container (not the FileContainer)
         return self._psyir.children[0]
-
-    # ------------------------------------------------------------------------
-    def resolve_routine(self, routine_name):
-        '''This function returns a list of function names that might be
-        actually called when the routine `name` is called. In most cases
-        this is exactly name, but in case of a generic subroutine the
-        name might change. For now (since we cannot resolve generic
-        interfaces yet), we return the list of all possible functions that
-        might be called.
-
-        :param str routine_name: the name of the routine to resolve
-
-        :returns: list of routine name(s) that could be called.
-        :rtype: list[str]
-
-        '''
-        # TODO #2422: once #2422 is done, this can be moved into the PSyIR
-        if self._psyir is None:
-            self.get_psyir()
-        routine_name = routine_name.lower()
-        if routine_name not in self._generic_interfaces:
-            return [routine_name]
-
-        # If a generic interface name is queried, return a copy
-        # of all possible routine names that might be called:
-        return self._generic_interfaces[routine_name][:]
