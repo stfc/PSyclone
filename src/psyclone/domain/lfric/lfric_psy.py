@@ -44,7 +44,8 @@
 from collections import OrderedDict
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants, LFRicSymbolTable, LFRicInvokes
+from psyclone.domain.lfric import (LFRicConstants, LFRicSymbolTable,
+                                   LFRicInvokes)
 from psyclone.f2pygen import ModuleGen, UseGen, PSyIRGen
 from psyclone.psyGen import PSy, InvokeSchedule
 from psyclone.psyir.nodes import ScopingNode
@@ -174,6 +175,7 @@ class LFRicPSy(PSy):
 
         # Return the root node of the generated code
         return psy_module.root
+
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
