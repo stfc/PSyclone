@@ -73,58 +73,58 @@ def test_call_tree_compute_all_non_locals_non_kernel():
     ctu = CallTreeUtils()
 
     # Check that using a local variable is not reported:
-    psyir = mod_info.get_psyir().get_routine_psyir("local_var_sub")
+    psyir = mod_info.get_psyir().get_routine_psyir("local_var_sub")[0]
     info = ctu._compute_all_non_locals(psyir)
     assert info == []
 
     # Check using a variable that is used from the current module
-    psyir = mod_info.get_psyir().get_routine_psyir("module_var_sub")
+    psyir = mod_info.get_psyir().get_routine_psyir("module_var_sub")[0]
     info = ctu._compute_all_non_locals(psyir)
     assert info == [('reference', 'module_call_tree_mod',
                      Signature("module_var"))]
 
     # Test that a call of a function in the same module is reported as
     # module routine:
-    psyir = mod_info.get_psyir().get_routine_psyir("call_local_function")
+    psyir = mod_info.get_psyir().get_routine_psyir("call_local_function")[0]
     info = ctu._compute_all_non_locals(psyir)
     assert info == [('routine', 'module_call_tree_mod',
                      Signature("module_function"))]
 
     # Check using a local constant
-    psyir = mod_info.get_psyir().get_routine_psyir("local_const_sub")
+    psyir = mod_info.get_psyir().get_routine_psyir("local_const_sub")[0]
     info = ctu._compute_all_non_locals(psyir)
     assert info == []
 
     # Check using an argument
-    psyir = mod_info.get_psyir().get_routine_psyir("argument_sub")
+    psyir = mod_info.get_psyir().get_routine_psyir("argument_sub")[0]
     info = ctu._compute_all_non_locals(psyir)
     assert info == []
 
     # Check assigning the result to a function
-    psyir = mod_info.get_psyir().get_routine_psyir("module_function")
+    psyir = mod_info.get_psyir().get_routine_psyir("module_function")[0]
     info = ctu._compute_all_non_locals(psyir)
     assert info == []
 
     # Check calling an undeclared function
     psyir = \
-        mod_info.get_psyir().get_routine_psyir("calling_unknown_subroutine")
+        mod_info.get_psyir().get_routine_psyir("calling_unknown_subroutine")[0]
     info = ctu._compute_all_non_locals(psyir)
     assert info == [("routine", None, Signature("unknown_subroutine"))]
 
     # Check calling an imported subroutine
-    psyir = \
-        mod_info.get_psyir().get_routine_psyir("calling_imported_subroutine")
+    psyir = mod_info.get_psyir().get_routine_psyir(
+        "calling_imported_subroutine")[0]
     info = ctu._compute_all_non_locals(psyir)
     assert info == [("routine", "some_module", Signature("module_subroutine"))]
 
     # Check using an imported symbol
-    psyir = mod_info.get_psyir().get_routine_psyir("use_imported_symbol")
+    psyir = mod_info.get_psyir().get_routine_psyir("use_imported_symbol")[0]
     info = ctu._compute_all_non_locals(psyir)
     assert info == [("unknown", "some_module1", Signature("module_var1")),
                     ("unknown", "some_module2", Signature("module_var2"))]
 
     # Check calling an undeclared function
-    psyir = mod_info.get_psyir().get_routine_psyir("intrinsic_call")
+    psyir = mod_info.get_psyir().get_routine_psyir("intrinsic_call")[0]
     info = ctu._compute_all_non_locals(psyir)
     assert info == []
 
@@ -170,8 +170,8 @@ def test_call_tree_get_used_symbols_from_modules():
     mod_man.add_search_path(test_dir)
 
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
-    psyir = \
-        mod_info.get_psyir().get_routine_psyir("testkern_import_symbols_code")
+    psyir = mod_info.get_psyir().get_routine_psyir(
+        "testkern_import_symbols_code")[0]
     ctu = CallTreeUtils()
     non_locals = ctu.get_non_local_symbols(psyir)
 
@@ -214,7 +214,7 @@ def test_call_tree_get_used_symbols_from_modules_renamed():
     mod_man.add_search_path(test_dir)
 
     mod_info = mod_man.get_module_info("module_renaming_external_var_mod")
-    psyir = mod_info.get_psyir().get_routine_psyir("renaming_subroutine")
+    psyir = mod_info.get_psyir().get_routine_psyir("renaming_subroutine")[0]
     ctu = CallTreeUtils()
     non_locals = ctu.get_non_local_symbols(psyir)
 
@@ -375,7 +375,7 @@ def test_module_info_generic_interfaces():
     for routine_name in all_routines:
         all_non_locals.extend(
             ctu.get_non_local_symbols(mod_info.get_psyir().
-                                      get_routine_psyir(routine_name)))
+                                      get_routine_psyir(routine_name)[0]))
     # Both functions of the generic interface use 'module_var',
     # and in addition my_func1 uses module_var_1, myfunc2 uses module_var_2
     # So three variables should be reported, i.e. module_var should only

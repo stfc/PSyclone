@@ -309,13 +309,16 @@ class CallTreeUtils():
                     print(str(err))
                     continue
 
-                # TODO #2435: once we have interface support, this will be
-                # handled by the container node.
+                # TODO #2462 :this will need to be refactored when we
+                # generalise the ModuleManager.
                 all_possible_routines = mod_info.resolve_routine(kernel.name)
                 for routine_name in all_possible_routines:
-                    psyir = \
+                    psyir_list = \
                         mod_info.get_psyir().get_routine_psyir(routine_name)
-                    todo.extend(self.get_non_local_symbols(psyir))
+                    # A generic interface may have more than one routine
+                    # associated with it.
+                    for psyir in psyir_list:
+                        todo.extend(self.get_non_local_symbols(psyir))
         return self._resolve_calls_and_unknowns(todo, read_write_info)
 
     # -------------------------------------------------------------------------
@@ -381,15 +384,16 @@ class CallTreeUtils():
                     # We need a try statement here in case that a whole
                     # module becomes a CodeBlock
                     try:
-                        routine = mod_info.get_psyir().\
+                        routines = mod_info.get_psyir().\
                             get_routine_psyir(routine_name)
                     except AttributeError:
                         # TODO #2120: Handle error
-                        routine = None
-                    if routine:
+                        routines = None
+                    if routines:
                         # Add the list of non-locals to our todo list:
-                        outstanding_nonlocals.extend(
-                            self.get_non_local_symbols(routine))
+                        for routine in routines:
+                            outstanding_nonlocals.extend(
+                                self.get_non_local_symbols(routine))
                     else:
                         # TODO #11: Add proper logging
                         # TODO #2120: Handle error
