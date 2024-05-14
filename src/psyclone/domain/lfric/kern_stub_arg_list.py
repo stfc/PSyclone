@@ -58,11 +58,6 @@ class KernStubArgList(ArgOrdering):
                                  reference element.
     '''
     def __init__(self, kern):
-        # We don't yet support inter-grid kernels (Issue #162)
-        if kern.is_intergrid:
-            raise NotImplementedError(
-                f"Kernel '{kern.name}' is an inter-grid kernel and stub "
-                f"generation is not yet supported for inter-grid kernels")
         ArgOrdering.__init__(self, kern)
         # TODO 719 The stub_symtab is not connected to other parts of the
         # Stub generation. Also the symboltable already has an

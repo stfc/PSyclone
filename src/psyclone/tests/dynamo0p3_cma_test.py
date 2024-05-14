@@ -842,7 +842,7 @@ def test_cma_asm(tmpdir, dist_mem):
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
             "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
-            "cma_op1_cma_matrix, cma_op1_nrow, cma_op1_ncol, "
+            "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
             "cma_op1_gamma_p, ndf_adspc1_lma_op1, cbanded_map_adspc1_lma_op1, "
             "ndf_adspc2_lma_op1, cbanded_map_adspc2_lma_op1)") in code
@@ -881,7 +881,7 @@ def test_cma_asm_field(tmpdir, dist_mem):
     expected = (
         "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, "
         "afield_data, lma_op1_proxy%ncell_3d, "
-        "lma_op1_local_stencil, cma_op1_cma_matrix, cma_op1_nrow, "
+        "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
         "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
         "undf_aspc1_afield, map_aspc1_afield(:,cell), "
@@ -923,11 +923,12 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = ("CALL columnwise_op_asm_kernel_scalar_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
-                "lma_op1_local_stencil, cma_op1_cma_matrix, cma_op1_nrow, "
-                "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha_1, "
-                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-                "cma_op1_alpha, ndf_aspc1_lma_op1, cbanded_map_aspc1_lma_op1, "
-                "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)")
+                "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), "
+                "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+                "cma_op1_alpha_1, cma_op1_beta, cma_op1_gamma_m, "
+                "cma_op1_gamma_p, cma_op1_alpha, ndf_aspc1_lma_op1, "
+                "cbanded_map_aspc1_lma_op1, ndf_aspc2_lma_op1, "
+                "cbanded_map_aspc2_lma_op1)")
 
     assert expected in code
 
@@ -970,11 +971,11 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
         assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in code
     else:
         assert "loop0_stop = cma_op1_proxy%fs_from%get_ncell()\n" in code
-    assert "DO cell=loop0_start,loop0_stop\n" in code
+    assert "DO cell = loop0_start, loop0_stop, 1\n" in code
     expected = ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
                 "lma_op1_local_stencil, afield_data, "
-                "cma_op1_cma_matrix, cma_op1_nrow, cma_op1_bandwidth, "
+                "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_bandwidth, "
                 "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
                 "cma_op1_gamma_p, ndf_aspc1_lma_op1, undf_aspc1_lma_op1, "
                 "map_aspc1_lma_op1(:,cell), ndf_aspc2_lma_op1, "
@@ -1013,7 +1014,7 @@ def test_cma_apply(tmpdir, dist_mem):
     assert ("cma_indirection_map_aspc2_field_b => "
             "cma_op1_proxy%indirection_dofmap_from") in code
     assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
-            "field_a_data, field_b_data, cma_op1_cma_matrix, "
+            "field_a_data, field_b_data, cma_op1_cma_matrix(:,:,:), "
             "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_aspc1_field_a, undf_aspc1_field_a, "
@@ -1074,7 +1075,7 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
     # Check any_discontinuous_space_1
     assert ("CALL columnwise_op_app_anydspace_kernel_code(cell, "
             "ncell_2d, field_a_data, field_b_data, "
-            "cma_op1_cma_matrix, cma_op1_nrow, cma_op1_ncol, "
+            "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
             "cma_op1_gamma_m, cma_op1_gamma_p, ndf_adspc1_field_a, "
             "undf_adspc1_field_a, map_adspc1_field_a(:,cell), "
@@ -1083,7 +1084,7 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
             "cma_indirection_map_aspc1_field_b") in code
     # Check w2v
     assert ("CALL columnwise_op_app_w2v_kernel_code(cell, ncell_2d, "
-            "field_c_data, field_d_data, cma_op2_cma_matrix, "
+            "field_c_data, field_d_data, cma_op2_cma_matrix(:,:,:), "
             "cma_op2_nrow, cma_op2_ncol, cma_op2_bandwidth, cma_op2_alpha, "
             "cma_op2_beta, cma_op2_gamma_m, cma_op2_gamma_p, ndf_w2v, "
             "undf_w2v, map_w2v(:,cell), cma_indirection_map_w2v, "
@@ -1128,7 +1129,7 @@ def test_cma_apply_same_space(dist_mem, tmpdir):
             "cma_op1_proxy%indirection_dofmap_to") in code
     assert ("CALL columnwise_op_app_same_fs_kernel_code(cell, ncell_2d, "
             "field_a_data, field_b_data, "
-            "cma_op1_cma_matrix, cma_op1_nrow, "
+            "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
             "cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_aspc2_field_a, undf_aspc2_field_a, "
@@ -1165,13 +1166,13 @@ def test_cma_matrix_matrix(tmpdir, dist_mem):
 
     assert ("CALL columnwise_op_mul_kernel_code(cell, "
             "ncell_2d, "
-            "cma_opa_cma_matrix, cma_opa_nrow, cma_opa_ncol, "
+            "cma_opa_cma_matrix(:,:,:), cma_opa_nrow, cma_opa_ncol, "
             "cma_opa_bandwidth, cma_opa_alpha, "
             "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
-            "cma_opb_cma_matrix, cma_opb_nrow, cma_opb_ncol, "
+            "cma_opb_cma_matrix(:,:,:), cma_opb_nrow, cma_opb_ncol, "
             "cma_opb_bandwidth, cma_opb_alpha, "
             "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
-            "cma_opc_cma_matrix, cma_opc_nrow, cma_opc_ncol, "
+            "cma_opc_cma_matrix(:,:,:), cma_opc_nrow, cma_opc_ncol, "
             "cma_opc_bandwidth, cma_opc_alpha, "
             "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
     if dist_mem:
@@ -1204,15 +1205,15 @@ def test_cma_matrix_matrix_2scalars(tmpdir, dist_mem):
 
     assert ("CALL columnwise_op_mul_2scalars_kernel_code(cell, "
             "ncell_2d, "
-            "cma_opa_cma_matrix, cma_opa_nrow, cma_opa_ncol, "
+            "cma_opa_cma_matrix(:,:,:), cma_opa_nrow, cma_opa_ncol, "
             "cma_opa_bandwidth, cma_opa_alpha, "
             "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
             "alpha, "
-            "cma_opb_cma_matrix, cma_opb_nrow, cma_opb_ncol, "
+            "cma_opb_cma_matrix(:,:,:), cma_opb_nrow, cma_opb_ncol, "
             "cma_opb_bandwidth, cma_opb_alpha, "
             "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
             "beta, "
-            "cma_opc_cma_matrix, cma_opc_nrow, cma_opc_ncol, "
+            "cma_opc_cma_matrix(:,:,:), cma_opc_nrow, cma_opc_ncol, "
             "cma_opc_bandwidth, cma_opc_alpha, "
             "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
     if dist_mem:
@@ -1277,14 +1278,14 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
 
     assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
             "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
-            "lma_op1_local_stencil, cma_op1_cma_matrix, cma_op1_nrow, "
+            "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
             "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
             "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
             "undf_aspc1_afield, map_aspc1_afield(:,cell), "
             "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
             "cbanded_map_aspc2_lma_op1)") in code
     assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
-            "field_a_data, field_b_data, cma_op1_cma_matrix, "
+            "field_a_data, field_b_data, cma_op1_cma_matrix(:,:,:), "
             "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_aspc1_field_a, undf_aspc1_field_a, "
@@ -1293,13 +1294,13 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
             "map_aspc2_field_b(:,cell), "
             "cma_indirection_map_aspc2_field_b)\n") in code
     assert ("CALL columnwise_op_mul_kernel_code(cell, ncell_2d, "
-            "cma_op1_cma_matrix, cma_op1_nrow, cma_op1_ncol, "
+            "cma_op1_cma_matrix(:,:,:), cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
             "cma_op1_gamma_p, "
-            "cma_opb_cma_matrix, cma_opb_nrow, cma_opb_ncol, "
+            "cma_opb_cma_matrix(:,:,:), cma_opb_nrow, cma_opb_ncol, "
             "cma_opb_bandwidth, cma_opb_alpha, cma_opb_beta, cma_opb_gamma_m, "
             "cma_opb_gamma_p, "
-            "cma_opc_cma_matrix, cma_opc_nrow, cma_opc_ncol, "
+            "cma_opc_cma_matrix(:,:,:), cma_opc_nrow, cma_opc_ncol, "
             "cma_opc_bandwidth, cma_opc_alpha, cma_opc_beta, cma_opc_gamma_m, "
             "cma_opc_gamma_p)") in code
 

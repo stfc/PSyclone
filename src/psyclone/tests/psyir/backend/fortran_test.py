@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab,
+# Modified by J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
@@ -1131,6 +1132,8 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b**(-b + c)\n"
         "    a = (-b)**c\n"
         "    a = -(-b)\n"
+        "    a = b * (-c) + d\n"
+        "    a = b + (-c) * d\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1147,8 +1150,10 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = LOG(b * c)\n"
         "    a = b ** (-c)\n"
         "    a = b ** (-b + c)\n"
-        "    a = -b ** c\n"
-        "    a = -(-b)\n")
+        "    a = (-b) ** c\n"
+        "    a = -(-b)\n"
+        "    a = b * (-c) + d\n"
+        "    a = b + (-c) * d\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
@@ -1543,6 +1548,9 @@ def test_fw_codeblock_1(fortran_reader, fortran_writer, tmpdir):
     result = fortran_writer(psyir)
     assert (
         "    a = 1\n"
+        "    ! PSyclone CodeBlock (unsupported code) reason:\n"
+        "    !  - Unsupported statement: Print_Stmt\n"
+        "    !  - Unsupported statement: Print_Stmt\n"
         "    PRINT *, \"I am a code block\"\n"
         "    PRINT *, \"with more than one line\"\n" in result)
     assert Compile(tmpdir).string_compiles(result)
@@ -1793,7 +1801,7 @@ def test_fw_call_node_namedargs(fortran_writer):
     result = fortran_writer(call)
     assert result == "call mysub(1.0, arg2=2.0, arg3=3.0)\n"
 
-    call.children[2] = Literal("4.0", REAL_TYPE)
+    call.children[3] = Literal("4.0", REAL_TYPE)
 
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer(call)
@@ -1883,7 +1891,7 @@ def test_fw_comments(fortran_writer):
     routine.preceding_comment = "My routine preceding comment"
     routine.inline_comment = "My routine inline comment"
     statement1.preceding_comment = "My statement with a preceding comment"
-    statement2.preceding_comment = "My statement with a preceding comment ..."
+    statement2.preceding_comment = "My statement with a\nmulti-line comment."
     statement2.inline_comment = "... and an inline comment"
     statement3.inline_comment = "Statement with only an inline comment"
 
@@ -1898,7 +1906,8 @@ def test_fw_comments(fortran_writer):
         "  subroutine my_routine()\n\n"
         "    ! My statement with a preceding comment\n"
         "    return\n"
-        "    ! My statement with a preceding comment ...\n"
+        "    ! My statement with a\n"
+        "    ! multi-line comment.\n"
         "    return  ! ... and an inline comment\n"
         "    return  ! Statement with only an inline comment\n\n"
         "  end subroutine my_routine  ! My routine inline comment\n\n"

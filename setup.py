@@ -90,7 +90,7 @@ BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
           encoding="utf-8") as vfile:
     exec(vfile.read())  # pylint:disable=exec-used
-VERSION = __VERSION__  # pylint:disable=undefined-variable
+VERSION = __VERSION__  # pylint:disable=undefined-variable # noqa: F821
 
 if __name__ == '__main__':
 
@@ -168,10 +168,7 @@ if __name__ == '__main__':
             'doc': ["sphinx", "sphinxcontrib.bibtex",
                     "sphinx_rtd_theme", "autoapi"],
             'psydata': ["Jinja2"],
-            # TODO #2348: pytest currently fails with pylint >=3
-            'test': ["pep8", "flake8", "pylint<3.0", "pytest-cov",
-                     "pytest-pep8", "pytest-pylint", "pytest-flakes",
-                     "pytest-xdist"],
+            'test': ["flake8", "pylint", "pytest-cov", "pytest-xdist"],
         },
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/psyclone-kern', 'bin/psyad'],

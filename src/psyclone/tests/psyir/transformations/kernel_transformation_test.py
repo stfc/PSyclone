@@ -47,7 +47,7 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Routine, FileContainer
+from psyclone.psyir.nodes import Routine, FileContainer, IntrinsicCall, Call
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import (ACCRoutineTrans,
@@ -267,6 +267,9 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
     assert out_files == [new_kernels[1].module_name+".f90"]
 
 
+# The following tests test the MarkRoutineForGPUMixin validation, for this
+# it uses the ACCRoutineTrans as instance of this Mixin.
+
 def test_accroutine_validate_wrong_node_type():
     '''
     Test that the validate() method of ACCRoutineTrans rejects a node of the
@@ -357,8 +360,9 @@ end module my_mod'''
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine)
-    assert ("Transformation Error: Cannot safely add 'ACC routine' to routine "
-            "'my_sub' because its PSyIR contains one or more CodeBlocks:\n"
+    assert ("Transformation Error: Cannot safely apply ACCRoutineTrans to "
+            "routine 'my_sub' because its PSyIR contains one or more "
+            "CodeBlocks:\n"
             "  WRITE(*, *)" in str(err.value))
     assert ("You may use 'options={'force': True}' to override this check."
             in str(err.value))
@@ -367,7 +371,7 @@ end module my_mod'''
         rtrans.validate(routine, options={'force': True})
     assert ("Transformation Error: routine 'my_sub' accesses the symbol "
             "'some_data' within a CodeBlock and this symbol is imported. "
-            "'ACC routine' cannot be added to such a routine."
+            "ACCRoutineTrans cannot be applied to such a routine."
             in str(err.value))
 
 
@@ -386,7 +390,20 @@ def test_accroutinetrans_validate_no_call():
         rtrans.validate(kernel)
     assert ("Kernel 'testkern_with_call_code' calls another routine "
             "'call xyz2llr(coord(1), coord(2), coord(3), lon, lat, radius)' "
-            "and therefore cannot have 'ACC routine' added to it"
+            "which is not available on the accelerator device and therefore "
+            "cannot have ACCRoutineTrans applied to it"
+            in str(err.value))
+
+    # The same error happens for unsupported GPU intrinsics
+    call = kernel.get_kernel_schedule().walk(Call)[0]
+    call.replace_with(
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.GET_COMMAND))
+    with pytest.raises(TransformationError) as err:
+        rtrans.validate(kernel)
+    assert ("Kernel 'testkern_with_call_code' calls another routine "
+            "'GET_COMMAND()' which is not available on the accelerator device "
+            "and therefore cannot have ACCRoutineTrans applied to it "
+            "(TODO #342)."
             in str(err.value))
 
 

@@ -62,7 +62,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen, IfThenGen,
+                              DeallocateGen, DeclGen, DoGen,
                               ModuleGen, TypeDeclGen, UseGen, PSyIRGen)
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -70,7 +70,9 @@ from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Reference, ACCEnterDataDirective, ScopingNode
+from psyclone.psyir.nodes import (
+    Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
+    StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -1923,10 +1925,6 @@ class DynMeshes():
     '''
 
     def __init__(self, invoke, unique_psy_vars):
-        # Dict of DynInterGrid objects holding information on the mesh-related
-        # variables required by each inter-grid kernel. Keys are the kernel
-        # names.
-        self._ig_kernels = OrderedDict()
         # List of names of unique mesh variables referenced in the Invoke
         self._mesh_tag_names = []
         # Whether or not the associated Invoke requires colourmap information
@@ -1952,6 +1950,7 @@ class DynMeshes():
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
+        has_intergrid = False
         for call in self._schedule.coded_kernels():
 
             if (call.reference_element.properties or call.mesh.properties or
@@ -1960,27 +1959,15 @@ class DynMeshes():
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
-                # Skip over any non-inter-grid kernels
-                continue
-
-            fine_args = psyGen.args_filter(call.arguments.args,
-                                           arg_meshes=["gh_fine"])
-            coarse_args = psyGen.args_filter(call.arguments.args,
-                                             arg_meshes=["gh_coarse"])
-            fine_arg = fine_args[0]
-            coarse_arg = coarse_args[0]
-
-            # Create an object to capture info. on this inter-grid kernel
-            # and store in our dictionary
-            self._ig_kernels[id(call)] = DynInterGrid(fine_arg, coarse_arg)
-
-            # Create and store the names of the associated mesh objects
-            _name_set.add(f"mesh_{fine_arg.name}")
-            _name_set.add(f"mesh_{coarse_arg.name}")
+            else:
+                has_intergrid = True
+                # Create and store the names of the associated mesh objects
+                _name_set.add(f"mesh_{call._intergrid_ref.fine.name}")
+                _name_set.add(f"mesh_{call._intergrid_ref.coarse.name}")
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
-        if non_intergrid_kernels and self._ig_kernels:
+        if non_intergrid_kernels and has_intergrid:
             raise GenerationError(
                 f"An invoke containing inter-grid kernels must contain no "
                 f"other kernel types but kernels "
@@ -2080,7 +2067,7 @@ class DynMeshes():
             # This is an inter-grid kernel so look-up the names of
             # the colourmap variables associated with the coarse
             # mesh (since that determines the iteration space).
-            carg_name = self._ig_kernels[id(call)].coarse.name
+            carg_name = call._intergrid_ref.coarse.name
             # Colour map
             base_name = "cmap_" + carg_name
             colour_map = sym_tab.find_or_create_array(
@@ -2104,10 +2091,9 @@ class DynMeshes():
                 base_name = "last_edge_cell_all_colours_" + carg_name
                 last_cell = self._schedule.symbol_table.find_or_create_array(
                     base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
-            # Add these symbols into the dictionary entry for this
-            # inter-grid kernel
-            self._ig_kernels[id(call)].set_colour_info(
-                colour_map, ncolours, last_cell)
+            # Add these symbols into the DynInterGrid entry for this kernel
+            call._intergrid_ref.set_colour_info(colour_map, ncolours,
+                                                last_cell)
 
         if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
@@ -2156,7 +2142,7 @@ class DynMeshes():
             name = self._symbol_table.lookup_with_tag(mtype).name
             parent.add(UseGen(parent, name=mmod, only=True,
                               funcnames=[name]))
-        if self._ig_kernels:
+        if self.intergrid_kernels:
             parent.add(UseGen(parent, name=mmap_mod, only=True,
                               funcnames=[mmap_type]))
         # Declare the mesh object(s) and associated halo depths
@@ -2173,7 +2159,7 @@ class DynMeshes():
                                    entity_decls=[name]))
 
         # Declare the inter-mesh map(s) and cell map(s)
-        for kern in self._ig_kernels.values():
+        for kern in self.intergrid_kernels:
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype=mmap_type,
                                    entity_decls=[kern.mmap + " => null()"]))
@@ -2211,8 +2197,8 @@ class DynMeshes():
                             kind=api_config.default_kind["integer"],
                             entity_decls=[decln]))
 
-        if not self._ig_kernels and (self._needs_colourmap or
-                                     self._needs_colourmap_halo):
+        if not self.intergrid_kernels and (self._needs_colourmap or
+                                           self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
@@ -2305,8 +2291,8 @@ class DynMeshes():
         # that we don't generate duplicate assignments
         initialised = []
 
-        # Loop over the DynInterGrid objects in our dictionary
-        for dig in self._ig_kernels.values():
+        # Loop over the DynInterGrid objects
+        for dig in self.intergrid_kernels:
             # We need pointers to both the coarse and the fine mesh as well
             # as the maximum halo depth for each.
             fine_mesh = self._schedule.symbol_table.find_or_create_tag(
@@ -2414,12 +2400,16 @@ class DynMeshes():
 
     @property
     def intergrid_kernels(self):
-        ''' Getter for the dictionary of intergrid kernels.
-
-        :returns: Dictionary of intergrid kernels, indexed by name.
-        :rtype: :py:class:`collections.OrderedDict`
         '''
-        return self._ig_kernels
+        :returns: A list of objects describing the intergrid kernels used in
+            this invoke.
+        :rtype: list[:py:class:`psyclone.dynamo3p0.DynInterGrid`]
+        '''
+        intergrids = []
+        for call in self._schedule.coded_kernels():
+            if call.is_intergrid:
+                intergrids.append(call._intergrid_ref)
+        return intergrids
 
 
 class DynInterGrid():
@@ -3790,6 +3780,19 @@ class LFRicHaloExchange(HaloExchange):
                           depth_info_list]
         return "max("+",".join(depth_str_list)+")"
 
+    def _psyir_depth_expression(self):
+        '''
+        :returns: the PSyIR expression to compute the halo depth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        depth_info_list = self._compute_halo_read_depth_info()
+        if len(depth_info_list) == 1:
+            return depth_info_list[0].psyir_expression()
+
+        return IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.MAX,
+                [depth.psyir_expression() for depth in depth_info_list])
+
     def _compute_halo_read_depth_info(self, ignore_hex_dep=False):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
         create an equivalent list of `psyclone.dynamo0p3.HaloDepth`
@@ -4111,25 +4114,44 @@ class LFRicHaloExchange(HaloExchange):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        parent.add(PSyIRGen(parent, self))
+
+    def lower_to_language_level(self):
+        '''
+        :returns: this node lowered to language-level PSyIR.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        symbol = DataSymbol(self._field.proxy_name, UnresolvedType())
+        method = self._halo_exchange_name
+        depth_expr = self._psyir_depth_expression()
+
+        # Create infrastructure Calls
         if self.vector_index:
-            ref = f"({self.vector_index})"
+            idx = Literal(str(self.vector_index), INTEGER_TYPE)
+            if_condition = Call.create(
+                ArrayOfStructuresReference.create(symbol, [idx], ['is_dirty']),
+                [('depth', depth_expr)])
+            if_body = Call.create(
+                ArrayOfStructuresReference.create(
+                    symbol, [idx.copy()], [method]),
+                [('depth', depth_expr.copy())])
         else:
-            ref = ""
+            if_condition = Call.create(
+                StructureReference.create(symbol, ['is_dirty']),
+                [('depth', depth_expr)])
+            if_body = Call.create(
+                StructureReference.create(symbol, [method]),
+                [('depth', depth_expr.copy())])
+
+        # Add the "if_dirty" check when necessary
         _, known = self.required()
         if not known:
-            if_then = IfThenGen(parent, self._field.proxy_name + ref +
-                                "%is_dirty(depth=" +
-                                self._compute_halo_depth() + ")")
-            parent.add(if_then)
-            halo_parent = if_then
+            haloex = IfBlock.create(if_condition, [if_body])
         else:
-            halo_parent = parent
-        halo_parent.add(
-            CallGen(
-                halo_parent, name=self._field.proxy_name + ref +
-                "%" + self._halo_exchange_name +
-                "(depth=" + self._compute_halo_depth() + ")"))
-        parent.add(CommentGen(parent, ""))
+            haloex = if_body
+
+        self.replace_with(haloex)
+        return haloex
 
 
 class LFRicHaloExchangeStart(LFRicHaloExchange):
@@ -4202,6 +4224,18 @@ class LFRicHaloExchangeStart(LFRicHaloExchange):
         '''
         # pylint: disable=protected-access
         return self._get_hex_end()._compute_halo_depth()
+
+    def _psyir_depth_expression(self):
+        '''
+        Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :returns: the PSyIR expression to compute the halo depth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        return self._get_hex_end()._psyir_depth_expression()
 
     def required(self):
         '''Call the required method in the corresponding halo exchange end
@@ -4328,6 +4362,8 @@ class HaloDepth():
         self._annexed_only = False
         # Keep a reference to the symbol table so that we can look-up
         # variables holding the maximum halo depth.
+        # FIXME #2503: This can become invalid if the HaloExchange
+        # containing this HaloDepth changes its ancestors.
         self._symbol_table = sym_table
 
     @property
@@ -4440,6 +4476,33 @@ class HaloDepth():
                 # Returns depth if depth has any value, including 0
                 depth_str = str(self.literal_depth)
         return depth_str
+
+    def psyir_expression(self):
+        '''
+        :returns: the PSyIR expression representing this HaloDepth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        if self.max_depth:
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            return Reference(max_depth)
+        if self.max_depth_m1:
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            return BinaryOperation.create(
+                        BinaryOperation.Operator.SUB,
+                        Reference(max_depth),
+                        Literal('1', INTEGER_TYPE))
+        if self.var_depth:
+            depth_ref = Reference(self._symbol_table.lookup(self.var_depth))
+            if self.literal_depth != 0:  # Ignores depth == 0
+                return BinaryOperation.create(
+                            BinaryOperation.Operator.ADD,
+                            depth_ref,
+                            Literal(f"{self.literal_depth}", INTEGER_TYPE))
+            return depth_ref
+        # Returns depth if depth has any value, including 0
+        return Literal(str(self.literal_depth), INTEGER_TYPE)
 
 
 def halo_check_arg(field, access_types):
@@ -5158,21 +5221,6 @@ class DynKernelArguments(Arguments):
         makes no sense for Dynamo. Need to refactor the Invoke base class
         and remove the need for this property (#279). '''
         return self._dofs
-
-    def raw_arg_list(self):
-        '''
-        Constructs the class-specific argument list for a kernel.
-
-        :returns: a list of all of the actual arguments to the \
-                  kernel call.
-        :rtype: list of str.
-
-        '''
-        create_arg_list = KernCallArgList(self._parent_call)
-        create_arg_list.generate()
-        self._raw_arg_list = create_arg_list.arglist
-
-        return self._raw_arg_list
 
     def psyir_expressions(self):
         '''

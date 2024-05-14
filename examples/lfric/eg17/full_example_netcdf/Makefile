@@ -68,7 +68,7 @@ compile: transform $(EXEC)
 transform: main_psy.f90
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs) $$(nc-config --libs)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf

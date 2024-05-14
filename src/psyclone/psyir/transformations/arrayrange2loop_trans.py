@@ -33,18 +33,26 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR Array Range to a
 PSyIR Loop. This could be useful for e.g. performance reasons, to
 allow further transformations e.g. loop fusion or if the back-end does
 not support array ranges.
 
+By default the transformation will reject character arrays,
+though this can be overriden by setting the
+allow_string option to True. Note that PSyclone expresses syntax such
+as `character(LEN=100)` as UnsupportedFortranType, and this
+transformation will convert unknown or unsupported types to loops.
+
 '''
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
-    Assignment, Call, IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.nodes import ArrayReference, Assignment, Call, \
+    IntrinsicCall, Loop, Literal, Range, Reference
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
+        UnresolvedType, UnsupportedType, ArrayType, NoType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -87,9 +95,12 @@ class ArrayRange2LoopTrans(Transformation):
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on a character type array range. Defaults to False.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         parent = node.parent
         symbol_table = node.scope.symbol_table
@@ -132,20 +143,33 @@ class ArrayRange2LoopTrans(Transformation):
         '''Perform various checks to ensure that it is valid to apply the
         ArrayRange2LoopTrans transformation to the supplied PSyIR Node.
 
+        By default the validate function will throw an TransofmrationError
+        on character arrays, though this can be overriden by setting the
+        allow_string option to True. Note that PSyclone expresses syntax such
+        as `character(LEN=100)` as UnsupportedFortranType, and this
+        transformation will convert unknown or unsupported types to loops.
+
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :param options: a dictionary with options for transformations
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on a character type array range. Defaults to False.
 
-        :raises TransformationError: if the node argument is not an \
+        :raises TransformationError: if the node argument is not an
             Assignment.
-        :raises TransformationError: if the node argument is an \
+        :raises TransformationError: if the node argument is an
             Assignment whose left hand side is not an ArrayReference.
-        :raises TransformationError: if the node argument is an \
-            Assignment whose left hand side is an ArrayReference that does \
-            not have Range specifying the access to at least one of its \
+        :raises TransformationError: if the node argument is an
+            Assignment whose left hand side is an ArrayReference that does
+            not have Range specifying the access to at least one of its
             dimensions.
-        :raises TransformationError: if two or more of the loop ranges \
-            in the assignment are different or are not known to be the \
+        :raises TransformationError: if two or more of the loop ranges
+            in the assignment are different or are not known to be the
             same.
+        :raises TransformationError: if node contains a character type
+                                     child and the allow_strings option is
+                                     not set.
 
         '''
         if not isinstance(node, Assignment):
@@ -213,6 +237,34 @@ class ArrayRange2LoopTrans(Transformation):
                             f"different or can't be determined in the "
                             f"assignment '{node}'.")
                     break
+
+        if not options:
+            options = {}
+        allow_string_array = options.get("allow_string", False)
+        # If we allow string arrays then we can skip the check.
+        if not allow_string_array:
+            # ArrayMixin datatype lookup can fail if the indices contain a
+            # Call or Intrinsic Call. We catch this exception and continue
+            # for now - TODO #1799
+            for child in node.walk((Literal, Reference)):
+                try:
+                    # Skip unresolved types
+                    if (isinstance(child.datatype,
+                                   (UnresolvedType, UnsupportedType, NoType))
+                        or (isinstance(child.datatype, ArrayType) and
+                            isinstance(child.datatype.datatype,
+                                       (UnresolvedType, UnsupportedType)))):
+                        continue
+                    if (child.datatype.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER):
+                        raise TransformationError(
+                            "The ArrayRange2LoopTrans transformation doesn't "
+                            "allow character arrays by default. This can be "
+                            "enabled by passing the allow_string option to "
+                            "the transformation."
+                        )
+                except NotImplementedError:
+                    pass
 
 
 __all__ = [

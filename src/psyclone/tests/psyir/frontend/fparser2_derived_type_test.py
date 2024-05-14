@@ -394,19 +394,21 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     lbound = amem.member.indices[0].children[0]
     assert isinstance(lbound, IntrinsicCall)
     assert lbound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-    assert lbound.children[0].symbol.name == "var"
-    assert isinstance(lbound.children[0], StructureReference)
+    assert lbound.arguments[0].symbol.name == "var"
+    assert isinstance(lbound.arguments[0], StructureReference)
     # The argument to the LBOUND intrinsic must ultimately resolve down
     # to a Member access, not an ArrayMember access.
-    assert isinstance(lbound.children[0].member.member.member, Member)
-    assert not isinstance(lbound.children[0].member.member.member, ArrayMember)
+    assert isinstance(lbound.arguments[0].member.member.member, Member)
+    assert not isinstance(lbound.arguments[0].member.member.member,
+                          ArrayMember)
     ubound = amem.member.indices[0].children[1]
     assert isinstance(ubound, IntrinsicCall)
     assert ubound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     # The argument to the UBOUND intrinsic must ultimately resolve down
     # to a Member access, not an ArrayMember access.
-    assert isinstance(ubound.children[0].member.member.member, Member)
-    assert not isinstance(ubound.children[0].member.member.member, ArrayMember)
+    assert isinstance(ubound.arguments[0].member.member.member, Member)
+    assert not isinstance(ubound.arguments[0].member.member.member,
+                          ArrayMember)
     gen = fortran_writer(amem)
     assert gen == "subgrid(3)%data(:)"
     # var%region%subgrid(3)%data(var%start:var%stop)
@@ -425,14 +427,16 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     assert isinstance(lbound, IntrinsicCall)
     assert lbound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
     # Argument to LBOUND must be a Member, not an ArrayMember
-    assert isinstance(lbound.children[0].member.member.member, Member)
-    assert not isinstance(lbound.children[0].member.member.member, ArrayMember)
+    assert isinstance(lbound.arguments[0].member.member.member, Member)
+    assert not isinstance(lbound.arguments[0].member.member.member,
+                          ArrayMember)
     ubound = data_node.children[0].children[1]
     assert isinstance(ubound, IntrinsicCall)
     assert ubound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     # Argument to UBOUND must be a Member, not an ArrayMember
-    assert isinstance(ubound.children[0].member.member.member, Member)
-    assert not isinstance(ubound.children[0].member.member.member, ArrayMember)
+    assert isinstance(ubound.arguments[0].member.member.member, Member)
+    assert not isinstance(ubound.arguments[0].member.member.member,
+                          ArrayMember)
     # vars(1)%region%subgrid(:)%data(1) = 1.0
     assign = assignments[6]
     amem = assign.lhs
@@ -440,9 +444,9 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     lbound = amem.member.member.children[1].children[0]
     assert isinstance(lbound, IntrinsicCall)
     assert lbound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-    assert lbound.children[0].member.member.name == "subgrid"
-    assert isinstance(lbound.children[0].member.member, Member)
-    assert not isinstance(lbound.children[0].member.member, ArrayMember)
+    assert lbound.arguments[0].member.member.name == "subgrid"
+    assert isinstance(lbound.arguments[0].member.member, Member)
+    assert not isinstance(lbound.arguments[0].member.member, ArrayMember)
     assert amem.member.member.member.name == "data"
     assert isinstance(amem.member.member.member, ArrayMember)
     # vars(:)%region%subgrid(3)%xstop
@@ -451,8 +455,8 @@ def test_derived_type_ref(f2008_parser, fortran_writer):
     lbound = amem.children[1].children[0]
     assert isinstance(lbound, IntrinsicCall)
     assert lbound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
-    assert isinstance(lbound.children[0], Reference)
-    assert lbound.children[0].symbol.name == "vars"
+    assert isinstance(lbound.arguments[0], Reference)
+    assert lbound.arguments[0].symbol.name == "vars"
 
 
 def test_array_of_derived_type_ref(f2008_parser):

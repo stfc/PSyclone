@@ -34,6 +34,7 @@
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. R. Porter, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# Modified J. Remy, Université Grenoble Alpes, Inria
 
 '''PSyIR Fortran backend. Implements a visitor that generates Fortran code
 from a PSyIR tree. '''
@@ -50,9 +51,10 @@ from psyclone.psyir.nodes import (
     Operation, Range, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    GenericInterfaceSymbol, IntrinsicSymbol, RoutineSymbol,
-    ScalarType, StructureType, Symbol, SymbolTable, UnresolvedInterface,
-    UnresolvedType, UnsupportedFortranType, UnsupportedType, )
+    GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
+    RoutineSymbol, ScalarType, StructureType, Symbol, SymbolTable,
+    UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
+    UnsupportedType, )
 
 
 # Mapping from PSyIR types to Fortran data types. Simply reverse the
@@ -946,6 +948,9 @@ class FortranWriter(LanguageWriter):
                     isinstance(sym, RoutineSymbol) and
                     isinstance(sym.interface, UnresolvedInterface)):
                 all_symbols.remove(sym)
+            # We ignore all symbols with a PreprocessorInterface
+            if isinstance(sym.interface, PreprocessorInterface):
+                all_symbols.remove(sym)
 
         # If the symbol table contains any symbols with an
         # UnresolvedInterface interface (they are not explicitly
@@ -964,8 +969,7 @@ class FortranWriter(LanguageWriter):
         except KeyError:
             internal_interface_symbol = None
         if unresolved_symbols and not (
-                symbol_table.has_wildcard_imports() or
-                internal_interface_symbol):
+                symbol_table.wildcard_imports() or internal_interface_symbol):
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(
@@ -1183,11 +1187,22 @@ class FortranWriter(LanguageWriter):
             whole_routine_scope = type(node.symbol_table)()
 
             for schedule in node.walk(Schedule):
-                whole_routine_scope.merge(schedule.symbol_table)
-
-            # Replace the symbol table
-            node.symbol_table.detach()
-            whole_routine_scope.attach(node)
+                sched_table = schedule.symbol_table
+                # We can't declare a routine inside itself so make sure we
+                # skip any RoutineSymbol representing this routine.
+                try:
+                    rsym = sched_table.lookup_with_tag("own_routine_symbol")
+                    skip = [rsym] if isinstance(rsym, RoutineSymbol) else []
+                except KeyError:
+                    skip = []
+                whole_routine_scope.merge(sched_table, skip)
+                if schedule is node:
+                    # Replace the Routine's symbol table as soon as we've
+                    # merged it into the new one. This ensures that the new
+                    # table has full information on outer scopes which is
+                    # important when merging.
+                    node.symbol_table.detach()
+                    whole_routine_scope.attach(node)
 
         # Generate module imports
         imports = ""
@@ -1483,13 +1498,32 @@ class FortranWriter(LanguageWriter):
             fort_oper = self.get_operator(node.operator)
             # If the parent node is a UnaryOperation or a BinaryOperation
             # such as '-' or '**' then we need parentheses. This ensures we
-            # don't generate invalid Fortran such as 'a ** -b' or 'a - -b'.
+            # don't generate invalid Fortran such as 'a ** -b', 'a - -b' or
+            # '-a ** b' which is '-(a ** b)' instead of intended '(-a) ** b'.
+            # Also consider the grandparent node to avoid generating invalid
+            # Fortran such as 'a + -b * c' instead of intended 'a + (-b) * c'.
             parent = node.parent
             if isinstance(parent, UnaryOperation):
                 return f"({fort_oper}{content})"
             if isinstance(parent, BinaryOperation):
-                if node is parent.children[1]:
+                parent_fort_oper = self.get_operator(parent.operator)
+                if (node is parent.children[1] or
+                        (parent_fort_oper == "**" and fort_oper == "-")):
                     return f"({fort_oper}{content})"
+                grandparent = parent.parent
+                # Case: 'a op1 (-b) op2 c'
+                # and precedence(op2) > precedence(op1)
+                # implying that '(-b) op2 c' is not parenthesized.
+                if isinstance(grandparent, BinaryOperation):
+                    grandparent_fort_oper = self.get_operator(
+                        grandparent.operator
+                    )
+                    if (parent is grandparent.children[1]
+                        and node is parent.children[0]
+                        and (precedence(parent_fort_oper)
+                             > precedence(grandparent_fort_oper))
+                            and fort_oper == "-"):
+                        return f"({fort_oper}{content})"
             return f"{fort_oper}{content}"
 
         except KeyError as error:
@@ -1527,7 +1561,8 @@ class FortranWriter(LanguageWriter):
             for ast_node in node.get_ast_nodes:
                 # Using tofortran() ensures we get any label associated
                 # with this statement.
-                result += f"{self._nindent}{ast_node.tofortran()}\n"
+                for line in ast_node.tofortran().split("\n"):
+                    result += f"{self._nindent}{line}\n"
         elif node.structure == CodeBlock.Structure.EXPRESSION:
             for ast_node in node.get_ast_nodes:
                 result += str(ast_node)
@@ -1658,7 +1693,7 @@ class FortranWriter(LanguageWriter):
 
         # All arguments have been validated, proceed to generate them
         result_list = []
-        for idx, child in enumerate(node.children):
+        for idx, child in enumerate(node.arguments):
             if node.argument_names[idx]:
                 result_list.append(
                     f"{node.argument_names[idx]}={self._visit(child)}")
@@ -1682,10 +1717,10 @@ class FortranWriter(LanguageWriter):
             # An allocate/deallocate doesn't have 'call'.
             return f"{self._nindent}{node.routine.name}({args})\n"
         if not node.parent or isinstance(node.parent, Schedule):
-            return f"{self._nindent}call {node.routine.name}({args})\n"
+            return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
 
         # Otherwise it is inside-expression function call
-        return f"{node.routine.name}({args})"
+        return f"{self._visit(node.routine)}({args})"
 
     def kernelfunctor_node(self, node):
         '''
