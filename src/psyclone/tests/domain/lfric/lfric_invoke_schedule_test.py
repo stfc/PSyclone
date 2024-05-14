@@ -111,5 +111,8 @@ def test_lfricinvsched_node_str_colourless():
     # colour set to False
     output = sched.node_str(colour=False)
 
-    assert(str("InvokeSchedule[invoke='" + sched.invoke.name + "', dm=False]")
-           in output)
+    # expected output
+    expected = str("InvokeSchedule[invoke='" + sched.invoke.name +
+                   "', dm=False]")
+
+    assert expected in output
