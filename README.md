@@ -2,9 +2,9 @@
   <img width="460" src="doc/logo/psyclone_v1.0.png">
 </p>
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11190458.svg)](https://doi.org/10.5281/zenodo.11190458)
 ![Build Status](https://github.com/stfc/PSyclone/workflows/PSyclone%20tests%20and%20examples/badge.svg)
 [![codecov](https://codecov.io/gh/stfc/PSyclone/branch/master/graph/badge.svg)](https://codecov.io/gh/stfc/PSyclone)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11190458.svg)](https://doi.org/10.5281/zenodo.11190458)
 
 PSyclone is a source-to-source Fortran compiler designed to programmatically
 optimise, parallelise and instrument HPC applications via user-provided
