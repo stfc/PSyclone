@@ -184,5 +184,7 @@ def test_lfricpsy_gen(monkeypatch):
         "      CALL f1_proxy%set_dirty()\n"
         "      !\n"
         "      DO df=loop1_start,loop1_stop\n"
+        "        ! Built-in: setval_c (set a real-valued field to a real "
+        "scalar value)\n"
         "        f1_data(df) = 0.0_r_def\n"
         "      END DO\n" in result)
