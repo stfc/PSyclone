@@ -384,6 +384,8 @@ class Config:
                     self._api_conf[api] = LFRicConfig(self, self._config[api])
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
+                elif api == "nemo":
+                    pass
                 else:
                     raise NotImplementedError(
                         f"Configuration file contains a {api} section but no "
