@@ -46,7 +46,7 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      LFRIC_REV: 45376
+      LFRIC_REV: 1192
       PYTHON_VERSION: 3.12.3
 
     steps:
@@ -84,14 +84,14 @@ jobs:
         spack load lfric-buildenv %gcc@11
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export MINIAPP_DIR=${HOME}/LFRic_${LFRIC_REV}/miniapps/gungho_model
-        export PSYCLONE_CONFIG=${HOME}/lfric_psyclone_config.cfg
-        cd ${MINIAPP_DIR}
-        # Compile
-        make clean
-        make -j 6 build
+        export PSYCLONE_CONFIG=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps
+        cd ${LFRIC_DIR}
+        # Clean previous version and compile again
+        rm appplications/gungho_model/working
+        ./build/local_build.py -a gungho_model
         # Run
-        cd example
+        cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
@@ -115,19 +115,19 @@ jobs:
         spack load gcc@11
         spack load lfric-buildenv %gcc@11
         source .runner_venv/bin/activate
-        source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export MINIAPP_DIR=${HOME}/LFRic_${LFRIC_REV}/miniapps/gungho_model
-        export PSYCLONE_CONFIG=${HOME}/lfric_psyclone_config.cfg
-        cd ${MINIAPP_DIR}
-        # Prepare script (LFRics expects a folder with a global.py)
-        mkdir -p psyclone-test
-        cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py psyclone-test/global.py
-        # Compile
-        make clean
-        make OPTIMISATION_PATH=${MINIAPP_DIR}/psyclone-test -j 6 build |& tee compiler_output.txt
+        export PSYCLONE_CONFIG=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        cd ${LFRIC_DIR}
+        # Psyclone scripts must now be under 'optimisation' and be called 'global.py'
+        mkdir -f applications/gungho_model/optimisation/psyclone-test
+        cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
+        # Clean previous version and compile again
+        rm appplications/gungho_model/working
+        ./build/local_build.py -a gungho_model -p psyclone-test
         # Run
-        cd example
+        cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
         export OMP_NUM_THREADS=6
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
