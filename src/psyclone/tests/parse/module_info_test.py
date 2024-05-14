@@ -236,9 +236,11 @@ def test_generic_interface():
     mod_info = mod_man.get_module_info("g_mod")
 
     # It should contain all three functions
-    assert mod_info.contains_routine("myfunc")
-    assert mod_info.contains_routine("myfunc1")
-    assert mod_info.contains_routine("myfunc2")
+    contr = mod_info.get_psyir()
+
+    assert contr.get_routine_psyir("myfunc")
+    assert contr.get_routine_psyir("myfunc1")
+    assert contr.get_routine_psyir("myfunc2")
 
     assert "myfunc" in mod_info._generic_interfaces
 
