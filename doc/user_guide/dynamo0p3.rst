@@ -771,17 +771,17 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. In the LFRic API there are five
-different Kernel types; general purpose, CMA, inter-grid, domain and
+in the :ref:`kernel-layer` section. In the LFRic API there are six
+different Kernel types; general purpose, CMA, inter-grid, domain, dof and
 :ref:`lfric-built-ins`. In the case of built-ins, PSyclone generates
 the source of the kernels.  This section explains the rules for the
-other four, user-supplied kernel types and then goes on to describe
+other five user-supplied kernel types and then goes on to describe
 their metadata and subroutine arguments.
 
-Domain kernels are distinct from the other three, user-supplied kernel
-types in that they must be passed data for the whole domain rather
-than a single cell-column. This permits the use of kernels that have
-not been written to conform to the single-column approach which
+Domain kernels are distinct from the other four user-supplied kernel
+types because they must be passed data for the whole domain rather
+than a single cell-column or dof. This permits the use of kernels that have
+not been written to conform to the single-column/dof approach which
 simplifies the integration with existing code. Obviously, any
 parallelisation in the 'domain' kernel must be consistent with that
 in the rest of the application. The motivation for such kernels in
@@ -796,7 +796,14 @@ support for i-first kernels
 point the looping (and associated parallelisation) will be put
 back into the PSy layer.
 
+<<<<<<< HEAD
 .. _lfric-user-kernel-rules:
+=======
+.. note:: Support for DoF kernels have not yet been implemented in PSyclone
+          (see PSyclone issue #1351 for progress).
+
+.. _dynamo0.3-user-kernel-rules:
+>>>>>>> origin/master
 
 Rules for all User-Supplied Kernels that Operate on Cell-Columns
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -848,7 +855,7 @@ types.
    an ``integer``-valued field as an argument.
 
 .. _lfric-no-cma-mdata-rules:
-   
+
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -973,7 +980,53 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 
 3) Stencil accesses are not permitted.
 
+<<<<<<< HEAD
 .. _lfric-api-kernel-metadata:
+=======
+.. _lfric-dof-kernel-rules:
+
+Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+.. note:: Support for DoF kernels have not yet been implemented in PSyclone
+          (see PSyclone issue #1351 for progress).
+
+Kernels that have ``operates_on = DOF`` and
+:ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
+scope, and the conventions that DoF Kernels must follow are influenced
+by those for built-ins as a result. This includes :ref:`metadata arguments
+<dynamo0.3-api-built-ins-metadata>` and :ref:`valid data types
+and access modes<lfric-built-ins-dtype-access>`. Naming conventions for DoF
+Kernels should follow those for General-Purpose Kernels.
+
+The list of rules for DoF Kernels is as follows:
+
+1) A DoF Kernel must have at least one argument that is a field.
+   This rule reflects that a Kernel operates on some subset of the
+   whole domain and is therefore designed to be called from within
+   a loop that iterates over those subsets of the domain. Only fields
+   (as opposed to e.g. field vectors or operators) are accepted for DoF
+   Kernels because only they have a single value at each DoF.
+
+2) All Kernel arguments must be either fields or scalars (`real-` and/or
+   `integer`-valued). DoF Kernels cannot accept operators.
+
+3) All field arguments to a given DoF Kernel must be on the same function
+   space so they have the same number of DoFs.
+
+4) They must have at least one modified (i.e. written to) field argument. Unlike
+   built-ins, this is not limited and more than one modified argument is
+   allowed.
+
+5) A Kernel may not write to a scalar argument. (Only built-ins are permitted
+   to do this.) Any scalar arguments must therefore be declared in the metadata
+   as `GH_READ` - see :ref:`below<dynamo0.3-kernel-valid-access>`
+
+6) Kernels must be written to operate on a single DoF, such that single DoFs
+   can be provided to the Kernel within a loop over the DoFs of a field.
+
+.. _dynamo0.3-api-kernel-metadata:
+>>>>>>> origin/master
 
 Metadata
 ++++++++
@@ -1277,7 +1330,7 @@ modes depend upon the argument type and the function space it is on:
 |                        |                              | GH_READWRITE       |
 +------------------------+------------------------------+--------------------+
 | GH_FIELD               | Continuous                   | GH_READ, GH_WRITE, |
-|                        |                              | GH_INC, GH_READINC | 
+|                        |                              | GH_INC, GH_READINC |
 +------------------------+------------------------------+--------------------+
 | GH_OPERATOR            | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
@@ -1852,7 +1905,8 @@ and their interpretation are summarised in the following table:
 operates_on  Data passed for each field/operator argument
 ===========  =========================================================
 cell_column  Single column of cells
-dof          Single DoF (currently :ref:`built-ins` only)
+dof          Single DoF (currently :ref:`built-ins` only, but see PSyclone
+             issue #1351)
 domain       All columns of cells
 ===========  =========================================================
 
@@ -2425,6 +2479,42 @@ on the whole domain, the number of columns in the mesh excluding those
 in the halo (``ncell_2d_no_halos``), must be passed in. This is provided
 as the second argument to the kernel (after ``nlayers``).
 ``ncell_2d_no_halos`` is an ``integer`` of kind ``i_def`` with intent ``in``.
+
+Rules for DoF Kernels
+#####################
+
+.. note:: Support for DoF kernels have not yet been implemented in PSyclone
+          (see PSyclone issue #1351 for progress).
+
+The rules for kernels that have ``operates_on = DOF`` are similar to those for
+general-purpose kernels but, due to the restriction that only fields and
+scalars can be passed to them, are much fewer. The full set of rules, along
+with PSyclone's naming conventions, are:
+
+   1) Include `df`, the index of the single dof to be operated on. This is an
+      ``integer`` of of kind ``i_def`` with intent ``in``.
+
+   2) For each scalar/field in the order specified by the meta_args metadata:
+
+      1) If the current entry is a scalar quantity then include the Fortran
+         variable in the argument list. The intent is determined from the
+         metadata (see meta_args for an explanation).
+
+      2) If the current entry is a field then include the field array. The
+         field array name is currently specified as being ``"field_"
+         <argument_position>``. A field array is a rank-1, real array with
+         extent equal to the number of unique degrees of freedom for the space
+         that the field is on. Its precision (kind) depends on how it is
+         defined in the algorithm layer, see the :ref:`Mixed Precision
+         <lfric-mixed-precision>` section for more details. This value is
+         passed in separately. Again, the intent is determined from the
+         metadata (see :ref:`meta_args <dynamo0.3-api-meta-args>`).
+
+   3) Include the unique number of degrees of freedom for the function space.
+      This is an ``integer`` of kind ``i_def`` with intent ``in``. The name of
+      this argument is simply ``undf`` without a function space suffix (as for
+      general purpose kernels) since all fields will be on the same function
+      space.
 
 .. _lfric-kernel-arg-intents:
 
