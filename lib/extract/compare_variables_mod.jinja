@@ -83,9 +83,9 @@ module compare_variables_mod
     integer, parameter :: L2_DIFF        = 3
     integer, parameter :: L2_COS_SIMILAR = 4
     integer, parameter :: count_0        = 5    ! No error
-    integer, parameter :: count_neg_3    = 6    ! rel error >=10^-3
-    integer, parameter :: count_neg_6    = 7    ! 10^-3 > rel error >=10^-6
-    integer, parameter :: count_neg_9    = 8    ! 10^-6 > rel error > 0
+    integer, parameter :: count_neg_9    = 6    ! 10^-9 > rel error > 0
+    integer, parameter :: count_neg_6    = 7    ! 10^-6 > rel error >=10^-9
+    integer, parameter :: count_neg_3    = 8    ! 10^-3 > rel error >=10^-6
 
     integer, parameter :: NUM_RESULTS = 8
 
@@ -146,7 +146,7 @@ contains
 
         write(out_format, "('(A',I0)" ) max_name_len
         write(*,out_format//",8A13)") "Variable", "max_abs", "max_rel",&
-            "l2_diff", "l2_cos", "count0", "count-3", "count-6", "count-9"
+            "l2_diff", "l2_cos", "identical", "count-9", "count-6", "count-3"
 
         out_format = trim(out_format)//"' ',8(E12.7,' '))"
 

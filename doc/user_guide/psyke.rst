@@ -510,9 +510,12 @@ Therefore, compilation for a created driver, e.g. the one created in
 
    $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
    $ ./driver-main-update
-   cell correct
-   field1 correct
+       Variable      max_abs      max_rel      l2_diff       l2_cos    identical      count-9      count-6      count-3
+           cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+    field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
+     dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
 
+(see :ref:`driver_summary_statistic` for details about the statistic`).
 Note that the Makefile in the example will actually provide additional include
 paths (infrastructure files and extraction library) for the compiler, but
 these flags are actually only required for compiling the example program, not
@@ -552,3 +555,38 @@ is used here.
 
   Driver creation in NEMO is not yet supported, and is
   tracked in issue #2058.
+
+.. _driver_summary_statistic:
+
+Driver Summary Statistic
+------------------------
+When a driver is executed, it will print a summary statistics at the end
+for each variable that was modified, indicating the difference between the
+`original` values compared when the data file was created, and the values
+`new` ones, computed when executing the kernel. These difference can be caused
+by changing the compilation options, or compiler version. Example output:
+
+.. code-block:: bash
+
+       Variable      max_abs      max_rel      l2_diff       l2_cos    identical      count-9      count-6      count-3
+           cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+    field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
+     dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+
+The columns from left to right are:
+
+* The variable name.
+* The maximum absolute error of all elements.
+* The maximum relative error of all elements. If an element has the value
+  0, the relative error for this element is considered to be 1.0.
+* The L2 difference: :math:`\sqrt{\sum{(original-new)^2}}`.
+* The cosine of the angle between the two vectors: :math:`\frac{\sum{original*new}}{\sqrt{\sum{original*original}}*\sqrt{\sum{new*new}}}`.
+* How many values are identical.
+* How many values have a relative error of less than 10\ :sup:`-9` but are not identical.
+* How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
+* How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
+
+.. note:: The usefulness of the columns printed is still being evaluated. Early
+    indications are that the cosine of the angle between the two vectors,
+    which is commonly used in AI, might not be sensitive enough to give
+    a good indication of the differences.
