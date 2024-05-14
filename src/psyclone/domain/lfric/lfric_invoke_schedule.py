@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,9 +58,9 @@ class LFRicInvokeSchedule(InvokeSchedule):
     :param str name: name of the Invoke.
     :param arg: list of KernelCalls parsed from the algorithm layer.
     :type arg: list of :py:class:`psyclone.parse.algorithm.KernelCall`
-    :param reserved_names: optional list of names that are not allowed in the \
+    :param reserved_names: optional list of names that are not allowed in the
                            new InvokeSchedule SymbolTable.
-    :type reserved_names: list of str
+    :type reserved_names: list[str]
     :param parent: the parent of this node in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -76,7 +76,7 @@ class LFRicInvokeSchedule(InvokeSchedule):
 
         :param bool colour: whether or not to include control codes for colour.
 
-        :returns: text summary of this node, optionally with control codes \
+        :returns: text summary of this node, optionally with control codes
                   for colour highlighting.
         :rtype: str
 

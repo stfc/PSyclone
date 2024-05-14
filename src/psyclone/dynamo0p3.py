@@ -2629,10 +2629,10 @@ class DynBasisFunctions(LFRicCollection):
     functions required by an invoke or kernel call. This covers both those
     required for quadrature and for evaluators.
 
-    :param node: either the schedule of an Invoke or a single Kernel object \
-                 for which to extract information on all required \
+    :param node: either the schedule of an Invoke or a single Kernel object
+                 for which to extract information on all required
                  basis/diff-basis functions.
-    :type node: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule` or
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises InternalError: if a call has an unrecognised evaluator shape.

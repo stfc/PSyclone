@@ -38,7 +38,8 @@
 import os
 from psyclone.domain.lfric import LFRicSymbolTable, LFRicInvokeSchedule
 from psyclone.parse.algorithm import parse
-from psyclone.psyir.nodes import Container
+from psyclone.psyir.nodes import Container, colored
+from psyclone.psyGen import PSyFactory
 
 
 BASE_PATH = os.path.join(
@@ -47,7 +48,7 @@ BASE_PATH = os.path.join(
 TEST_API = "dynamo0.3"
 
 
-def test_dyninvsched_parent():
+def test_lfricinvsched_parent():
     ''' Check the setting of the parent of a LFRicInvokeSchedule. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
@@ -60,3 +61,55 @@ def test_dyninvsched_parent():
     fake_parent = Container("my_mod", symbol_table=LFRicSymbolTable())
     dsched2 = LFRicInvokeSchedule("my_sched", kcalls, parent=fake_parent)
     assert dsched2.parent is fake_parent
+
+
+def test_lfricinvsched_node_str_coloured():
+    '''
+    Check the node_str method of the LFRicInvokeSchedule class. We need an
+    Invoke object for this which we get using the dynamo0.3 API.
+
+    This test checks that `dm` is printed equal to `True` when dist_mem is
+    `True` in the config and that `InvokeSchedule` is coloured when requested
+    by the `node_str` method.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.0.1_single_named_invoke.f90"),
+                           api="dynamo0.3")
+
+    # distributed_memory set to True
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    # Create a plain LFRicInvokeSchedule
+    sched = LFRicInvokeSchedule('name', None, None)
+    # Manually supply it with an Invoke object created with the LFRic API.
+    sched.invoke = psy.invokes.invoke_list[0]
+    output = sched.node_str()
+
+    assert colored("InvokeSchedule", LFRicInvokeSchedule._colour) in output
+    assert str("[invoke='" + sched.invoke.name + "', dm=True]") in output
+
+
+def test_lfricinvsched_node_str_colourless():
+    '''
+    Check the node_str method of the LFRicInvokeSchedule class. We need an
+    Invoke object for this which we get using the dynamo0.3 API.
+
+    This test checks that `dm` is printed equal to `False` when dist_mem is
+    `False` in the config and that `InvokeSchedule` is uncoloured when
+    requested by the `node_str` method.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.0.1_single_named_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    # Create a plain LFRicInvokeSchedule
+    sched = LFRicInvokeSchedule('name', None, None)
+    # Manually supply it with an Invoke object created with the LFRic API.
+    sched.invoke = psy.invokes.invoke_list[0]
+
+    # colour set to False
+    output = sched.node_str(colour=False)
+
+    assert(str("InvokeSchedule[invoke='" + sched.invoke.name + "', dm=False]")
+           in output)
