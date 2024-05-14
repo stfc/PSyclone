@@ -213,6 +213,7 @@ module a_mod
       module procedure :: brick_frontage, porticoed
       procedure :: wattle_and_daub
     end interface
+    integer :: not_a_routine
 contains
     subroutine brick_frontage(brick)
       integer :: brick
@@ -237,3 +238,8 @@ end module a_mod
     assert set(rt.name for rt in routines) == set(["brick_frontage",
                                                    "porticoed",
                                                    "wattle_and_daub"])
+    with pytest.raises(TypeError) as err:
+        cntr.get_routine_psyir("not_a_routine")
+    assert ("Expected 'not_a_routine' to correspond to either a RoutineSymbol"
+            " or a GenericInterfaceSymbol but found 'DataSymbol'"
+            in str(err.value))

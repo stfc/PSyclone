@@ -1229,7 +1229,7 @@ def test_lookup_1():
         str(error.value)
 
 
-def test_lookup_2():
+def test_lookup_vis_filtering():
     '''Test the visibility argument filtering functionality of the
     lookup() method.
 
@@ -1270,7 +1270,7 @@ def test_lookup_2():
             "searching for symbol 'var2'" in str(err.value))
 
 
-def test_lookup_3():
+def test_lookup_name_type_error():
     '''Check that lookup() in the SymbolTable class raises the expected
     exception if the name argument has the wrong type.
 
@@ -1283,7 +1283,7 @@ def test_lookup_3():
             "but found 'DataSymbol'." in str(info.value))
 
 
-def test_lookup_4():
+def test_lookup_scope_limit():
     '''Check that lookup() in the SymbolTable class behaves as
     expected with the scope_limit argument.
 
@@ -1312,6 +1312,28 @@ def test_lookup_4():
             container_symbol_table.lookup(symbol1.name, **arg)
         assert ("Could not find 'symbol1' in the Symbol Table."
                 in str(info.value))
+
+
+def test_lookup_default_value():
+    '''Test that the lookup() method returns the supplied (optional) default
+    value of a Symbol cannot be found.
+
+    '''
+    table = symbols.SymbolTable()
+    with pytest.raises(KeyError) as err:
+        table.lookup("missing")
+    assert "Could not find 'missing'" in str(err.value)
+    # The most common use case is to allow None to be returned rather than
+    # raising an error.
+    sym = table.lookup("missing", default=None)
+    assert sym is None
+    # But any other default value can be specified.
+    sym = table.lookup("missing", default=symbols.Symbol("missing"))
+    assert sym.name == "missing"
+    # The presence of other, optional arguments doesn't alter anything.
+    sym = table.lookup("missing", visibility=symbols.Symbol.Visibility.PUBLIC,
+                       default=1)
+    assert sym == 1
 
 
 def test_lookup_with_tag_1():
