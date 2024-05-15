@@ -83,7 +83,7 @@ jobs:
         spack load lfric-buildenv%gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export PSYCLONE_CONFIG=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps
         cd ${LFRIC_DIR}
         # Clean previous version and compile again
@@ -123,7 +123,7 @@ jobs:
         spack load lfric-buildenv%gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export PSYCLONE_CONFIG=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
         export LFRIC_DIR=${HOME}/LFRic/lfric_apps
         export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
         cd ${LFRIC_DIR}
