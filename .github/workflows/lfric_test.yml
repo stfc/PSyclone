@@ -47,7 +47,7 @@ jobs:
     runs-on: self-hosted
     env:
       LFRIC_REV: 45376
-      PYTHON_VERSION: 3.12.1
+      PYTHON_VERSION: 3.12.3
 
     steps:
     - uses: actions/checkout@v3
@@ -92,9 +92,9 @@ jobs:
         make -j 6 build
         # Run
         cd example
-        cp ${HOME}/lfric_gunho_configuration_4its.nml configuration.nml
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${HOME}/lfric_gunho_configuration_4its_output.txt output.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
@@ -136,10 +136,10 @@ jobs:
         make OPTIMISATION_PATH=${MINIAPP_DIR}/psyclone-test -j 6 build |& tee compiler_output.txt
         # Run
         cd example
-        cp ${HOME}/lfric_gunho_configuration_4its.nml configuration.nml
+        cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
         export OMP_NUM_THREADS=6
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
-        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${HOME}/lfric_gunho_configuration_4its_output.txt output.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
         cat timer.txt
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)

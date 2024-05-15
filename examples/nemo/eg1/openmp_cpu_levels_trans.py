@@ -39,6 +39,16 @@ directives into Nemo code. '''
 
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import Loop
+
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
 
 
 def trans(psy):

@@ -41,11 +41,10 @@ import pytest
 
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, CodeBlock, BinaryOperation, \
-    Call, Range, Literal
+    Call, Range, Literal, Loop
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ArrayType, \
     UnsupportedType, RoutineSymbol
 from psyclone.psyir.transformations import TransformationError
@@ -92,7 +91,7 @@ def test_apply_bounds(tmpdir):
         "  enddo\n" in result)
     assigns = schedule[0].walk(Assignment)
     assert len(assigns) == 1
-    assert isinstance(assigns[0].parent.parent, NemoLoop)
+    assert isinstance(assigns[0].parent.parent, Loop)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -494,11 +493,11 @@ def test_str():
 
     '''
     assert (str(NemoArrayRange2LoopTrans()) == "Convert the PSyIR assignment "
-            "for a specified ArrayReference Range into a PSyIR NemoLoop.")
+            "for a specified ArrayReference Range into a PSyIR Loop.")
 
 
 def test_name():
-    '''Check that the name property of the ArrayRange2LoopTrans class
+    '''Check that the name property of the NemoArrayRange2LoopTrans class
     returns the expected value.
 
     '''
@@ -617,3 +616,96 @@ def test_validate_not_outermost_range():
     assert ("Error in NemoArrayRange2LoopTrans transformation. This "
             "transformation can only be applied to the outermost "
             "Range." in str(info.value))
+
+
+def test_character_validation(fortran_reader):
+    '''Check that the validate method returns an exception if the
+    lhs of the assignment contains a character array and the allow_string
+    option isn't defined, and that it doesn't return an exception if the
+    allow_string option is True.'''
+
+    code = '''subroutine test()
+    character :: a(100)
+    character :: b(100)
+
+    a(1:94) = b(1:94)
+
+    end subroutine test'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The NemoArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    trans.validate(assign, options={"allow_string": True})
+
+    # Check it also works for rhs
+    code = '''subroutine test()
+    use some_mod
+    character :: b(100)
+
+    a(1:94) = b(1)
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The NemoArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    # Check it also works for RHS literals
+    code = '''subroutine test()
+    use some_mod
+
+    a(1:94) = 'x'
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assign)
+    assert (
+        "The NemoArrayRange2LoopTrans transformation doesn't allow "
+        "character arrays by default. This can be enabled by "
+        "passing the allow_string option to the transformation."
+        in str(info.value))
+
+    # Check we accept when we don't know due to expression in array indexing
+    code = '''subroutine test()
+    use some_mod
+
+    a(1:94) = b(3-2)
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    trans.validate(assign)
+
+    # Check we accept when we find character(LEN=x) syntax as this is an
+    # UnsupportedFortranType
+    # TODO #2441
+    code = '''subroutine test()
+    character(LEN=100) :: a
+    character(LEN=100) :: b
+
+    a(1:94) = b(1:94)
+    end subroutine test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Range)[0]
+
+    trans = NemoArrayRange2LoopTrans()
+    trans.validate(assign)

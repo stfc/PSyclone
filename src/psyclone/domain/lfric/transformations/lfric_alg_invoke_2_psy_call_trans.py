@@ -98,7 +98,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
             raise TransformationError(
                 f"The value of 'kernels' in the options argument must be a "
                 f"dictionary but found '{type(kernels).__name__}'.")
-        for kern_call in node.children:
+        for kern_call in node.arguments:
             if isinstance(kern_call, LFRicBuiltinFunctor):
                 # Skip builtins as their metadata is stored internally
                 continue
@@ -214,7 +214,7 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
         quad_arguments = []
 
         # pylint: disable=too-many-nested-blocks
-        for kern_call in node.children:
+        for kern_call in node.arguments:
             if isinstance(kern_call, LFRicBuiltinFunctor):
                 # metadata is stored in PSyclone builtin classes
                 builtin_name = kern_call.name.lower()

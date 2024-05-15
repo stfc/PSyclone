@@ -424,10 +424,7 @@ Occasionally the code that is to be compiled as part of a test may depend
 upon some piece of code that is not a Kernel or part of one of the supported
 infrastructure libraries. In order to support this, the ``code_compiles``
 method of ``psyclone.tests.utilities.Compile`` allows the user to supply a
-list of additional files upon which kernels depend:
-
-.. automethod:: psyclone.tests.utilities.Compile.code_compiles
-
+list of additional files upon which kernels depend.
 These files must be located in the same directory as the kernels.
 
 Continuous Integration

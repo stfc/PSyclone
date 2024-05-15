@@ -179,7 +179,7 @@ def test_initialise_field(lfric_alg, prog, fortran_writer):
     sym = table.new_symbol("field1", symbol_type=DataSymbol, datatype=ftype)
     lfric_alg.initialise_field(prog, sym, "w3")
     gen = fortran_writer(prog)
-    assert ("call field1 % initialise(vector_space=vector_space_w3_ptr, "
+    assert ("call field1%initialise(vector_space=vector_space_w3_ptr, "
             "name='field1')" in gen)
     # Second - a field vector.
     dtype = ArrayType(ftype, [3])
@@ -187,7 +187,7 @@ def test_initialise_field(lfric_alg, prog, fortran_writer):
     lfric_alg.initialise_field(prog, sym, "w2")
     gen = fortran_writer(prog)
     for idx in range(1, 4):
-        assert (f"call fieldv2({idx}_i_def) % initialise(vector_space="
+        assert (f"call fieldv2({idx}_i_def)%initialise(vector_space="
                 f"vector_space_w2_ptr, name='fieldv2')" in gen)
     # Third - invalid type.
     sym._datatype = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
@@ -382,15 +382,15 @@ def test_create_from_kernel_with_vector(lfric_alg, fortran_writer):
     type(field_type) :: field_3
 ''' in code
 
-    assert ("    call field_1 % initialise(vector_space=vector_space_w0_ptr, "
+    assert ("    call field_1%initialise(vector_space=vector_space_w0_ptr, "
             "name='field_1')\n"
-            "    call field_2(1_i_def) % initialise(vector_space="
+            "    call field_2(1_i_def)%initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "    call field_2(2_i_def) % initialise(vector_space="
+            "    call field_2(2_i_def)%initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "    call field_2(3_i_def) % initialise(vector_space="
+            "    call field_2(3_i_def)%initialise(vector_space="
             "vector_space_w0_ptr, name='field_2')\n"
-            "    call field_3 % initialise(vector_space=vector_space_w0_ptr, "
+            "    call field_3%initialise(vector_space=vector_space_w0_ptr, "
             "name='field_3')\n"
             "    call invoke(setval_c(field_1, 1.0_r_def), "
             "setval_c(field_2, 1.0_r_def), "

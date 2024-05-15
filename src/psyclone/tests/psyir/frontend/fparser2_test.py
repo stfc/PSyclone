@@ -63,7 +63,7 @@ from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
-    SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
+    SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, RoutineSymbol,
     UnsupportedFortranType, UnresolvedType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface,
     StructureType, DataTypeSymbol)
@@ -644,6 +644,7 @@ def test_get_routine_schedules_unmatching_arguments(parser):
             "Symbol Table.\"." in str(error.value))
 
 
+@pytest.mark.usefixtures("f2008_parser")
 @pytest.mark.parametrize("interface_code",
                          ["        module procedure dummy_code_32\n"
                           "        module procedure dummy_CODE_64\n",
@@ -1860,8 +1861,14 @@ def test_process_use_stmts_with_default_visibility():
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use this_mod\n"
-                                 "use other_mod, only: var1, var2\n")
+                                 "use other_mod, only: var1, var2, sub1\n")
     fparser2spec = Specification_Part(reader)
+
+    # In some cases we might already know that one of the symbols being
+    # brought into scope is a Routine so include this situation.
+    table = fake_parent.symbol_table
+    table.add(RoutineSymbol("sub1"))
+
     processor._process_use_stmts(fake_parent, fparser2spec.content)
 
     symtab = fake_parent.symbol_table
@@ -1870,15 +1877,19 @@ def test_process_use_stmts_with_default_visibility():
         container = symtab.lookup(module_name)
         assert isinstance(container, ContainerSymbol)
         assert container.name == module_name
-        assert not container._reference  # It is not evaluated explicitly told
+        # It is not evaluated unless explicitly requested
+        assert not container._reference
 
     for var in ["some_var", "var1", "var2"]:
         assert symtab.lookup(var).name == var
 
-    assert symtab.lookup("some_var").interface.container_symbol \
-        == symtab.lookup("my_mod")
-    assert symtab.lookup("var2").interface.container_symbol \
-        == symtab.lookup("other_mod")
+    assert (symtab.lookup("some_var").interface.container_symbol ==
+            symtab.lookup("my_mod"))
+    assert (symtab.lookup("var2").interface.container_symbol ==
+            symtab.lookup("other_mod"))
+    # The existing RoutineSymbol should have had its interface updated.
+    assert (symtab.lookup("sub1").interface.container_symbol ==
+            symtab.lookup("other_mod"))
 
     assert symtab.lookup("this_mod").visibility == Symbol.Visibility.PUBLIC
     assert symtab.lookup("var1").visibility == Symbol.Visibility.PUBLIC
@@ -2589,11 +2600,11 @@ def test_handling_unaryopbase():
     tree structure.
     '''
     reader = FortranStringReader("x=-4")
-    fp2unaryop = Execution_Part.match(reader)[0][0]
+    assign_stmt = Execution_Part.match(reader)[0][0]
 
     fake_parent = Schedule()
     processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fp2unaryop])
+    processor.process_nodes(fake_parent, [assign_stmt])
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent[0].rhs
@@ -2611,10 +2622,10 @@ def test_handling_unaryopbase():
         # Manipulate the fparser2 ParseTree so that it contains the operator
         # under test
         reader = FortranStringReader("x=" + opstring + "4")
-        fp2unaryop = Execution_Part.match(reader)[0][0]
+        assign_stmt = Execution_Part.match(reader)[0][0]
         # And then translate it to PSyIR again.
         fake_parent = Schedule()
-        processor.process_nodes(fake_parent, [fp2unaryop])
+        processor.process_nodes(fake_parent, [assign_stmt])
         assert len(fake_parent.children) == 1
         assert isinstance(fake_parent[0].rhs, UnaryOperation), \
             "Fails when parsing '" + opstring + "'"
@@ -2622,10 +2633,10 @@ def test_handling_unaryopbase():
             "Fails when parsing '" + opstring + "'"
 
     # Test that an unsupported unary operator creates a CodeBlock
-    fp2unaryop.items = (fp2unaryop.items[0], fp2unaryop.items[1],
-                        ('unsupported', fp2unaryop.items[2].items[1]))
+    fp2unaryop = assign_stmt.children[2]
+    fp2unaryop.items = ('unsupported', fp2unaryop.children[1])
     fake_parent = Schedule()
-    processor.process_nodes(fake_parent, [fp2unaryop])
+    processor.process_nodes(fake_parent, [assign_stmt])
 
     assert len(fake_parent.children) == 1
     new_node = fake_parent[0].rhs
@@ -2703,6 +2714,11 @@ def test_nodes_to_code_block_1(f2008_parser):
     schedule = psy.invokes.invoke_list[0].schedule
     assert isinstance(schedule[0], CodeBlock)
     assert schedule[0].structure == CodeBlock.Structure.STATEMENT
+    # Check that the error message that generated the codeblock has been
+    # added as a preceding comment by nodes_to_code_block
+    assert (schedule[0].preceding_comment ==
+            "PSyclone CodeBlock (unsupported code) reason:\n"
+            " - Unsupported label reference within DO")
 
 
 # (2/3) fparser2reader::nodes_to_code_block
@@ -2728,6 +2744,11 @@ def test_nodes_to_code_block_2(f2008_parser):
     schedule = psy.invokes.invoke_list[0].schedule
     assert isinstance(schedule[0].if_body[0], CodeBlock)
     assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
+    # Check that the error message that generated the codeblock has been
+    # added as a preceding comment by nodes_to_code_block
+    assert (schedule[0].if_body[0].preceding_comment ==
+            "PSyclone CodeBlock (unsupported code) reason:\n"
+            " - Unsupported label reference within DO")
 
 
 # (3/3) fparser2reader::nodes_to_code_block
@@ -2841,16 +2862,16 @@ def test_call_args(f2008_parser, args, arg_names):
     call_node = psyir.walk(Call)[0]
     assert isinstance(call_node, Call)
     assert call_node.ast == fparser2_call_node
-    assert len(call_node._argument_names) == len(call_node.children)
-    for idx, child in enumerate(call_node.children):
+    assert len(call_node._argument_names) == len(call_node.arguments)
+    for idx, child in enumerate(call_node.arguments):
         assert call_node._argument_names[idx] == (id(child), arg_names[idx])
     assert call_node.argument_names == arg_names
-    assert len(call_node.children) == 3
-    assert isinstance(call_node.children[0], Literal)
-    assert call_node.children[0].value == "1.0"
-    assert isinstance(call_node.children[1], Reference)
-    assert call_node.children[1].name == "a"
-    assert isinstance(call_node.children[2], BinaryOperation)
+    assert len(call_node.arguments) == 3
+    assert isinstance(call_node.arguments[0], Literal)
+    assert call_node.arguments[0].value == "1.0"
+    assert isinstance(call_node.arguments[1], Reference)
+    assert call_node.arguments[1].name == "a"
+    assert isinstance(call_node.arguments[2], BinaryOperation)
 
 
 def test_intrinsiccall_args(f2008_parser):
@@ -2874,19 +2895,19 @@ def test_intrinsiccall_args(f2008_parser):
 
     intrinsic_node = psyir.walk(IntrinsicCall)[0]
     assert isinstance(intrinsic_node, IntrinsicCall)
-    assert len(intrinsic_node._argument_names) == len(intrinsic_node.children)
+    assert len(intrinsic_node._argument_names) == len(intrinsic_node.arguments)
     arg_names = [None, "dim", "mask"]
-    for idx, child in enumerate(intrinsic_node.children):
+    for idx, child in enumerate(intrinsic_node.arguments):
         assert intrinsic_node._argument_names[idx] == (
             id(child), arg_names[idx])
     assert intrinsic_node.argument_names == arg_names
-    assert len(intrinsic_node.children) == 3
-    assert isinstance(intrinsic_node.children[0], Reference)
-    assert intrinsic_node.children[0].name == "a"
-    assert isinstance(intrinsic_node.children[1], Reference)
-    assert intrinsic_node.children[1].name == "d"
-    assert isinstance(intrinsic_node.children[2], Reference)
-    assert intrinsic_node.children[2].name == "m"
+    assert len(intrinsic_node.arguments) == 3
+    assert isinstance(intrinsic_node.arguments[0], Reference)
+    assert intrinsic_node.arguments[0].name == "a"
+    assert isinstance(intrinsic_node.arguments[1], Reference)
+    assert intrinsic_node.arguments[1].name == "d"
+    assert isinstance(intrinsic_node.arguments[2], Reference)
+    assert intrinsic_node.arguments[2].name == "m"
 
 
 def test_call_codeblock_args(fortran_reader):
@@ -2904,13 +2925,13 @@ def test_call_codeblock_args(fortran_reader):
     psyir = fortran_reader.psyir_from_source(test_code)
     call_node = psyir.walk(Call)[0]
     assert isinstance(call_node, Call)
-    assert len(call_node.children) == 4
-    assert isinstance(call_node.children[0], Reference)
-    assert call_node.children[0].name == "a"
-    assert isinstance(call_node.children[1], CodeBlock)
-    assert isinstance(call_node.children[2], CodeBlock)
-    assert isinstance(call_node.children[3], Reference)
-    assert call_node.children[3].name == "b"
+    assert len(call_node.arguments) == 4
+    assert isinstance(call_node.arguments[0], Reference)
+    assert call_node.arguments[0].name == "a"
+    assert isinstance(call_node.arguments[1], CodeBlock)
+    assert isinstance(call_node.arguments[2], CodeBlock)
+    assert isinstance(call_node.arguments[3], Reference)
+    assert call_node.arguments[3].name == "b"
 
 
 def test_declarations_with_initialisations_errors(parser):

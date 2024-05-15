@@ -78,6 +78,7 @@ from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
                                       Dynamo0p3KernelConstTrans,
                                       Dynamo0p3OMPLoopTrans,
                                       Dynamo0p3ColourTrans, OMPParallelTrans)
+from psyclone.psyir.backend.visitor import VisitorError
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -117,7 +118,7 @@ def test_object_index():
 def test_invalid_api():
     '''test that psyfactory raises appropriate error when an invalid api
     is supplied'''
-    with pytest.raises(GenerationError):
+    with pytest.raises(ValueError):
         _ = PSyFactory(api="invalid")
 
 
@@ -550,10 +551,10 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     coded_kern.module_inline = True
 
     # Fail if local routine symbol does not already exist
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(VisitorError) as err:
         gen = str(psy.gen)
     assert ("Cannot generate this kernel call to 'ru_code' because it "
-            "is marked as module-inline but no such subroutine exist in "
+            "is marked as module-inlined but no such subroutine exists in "
             "this module." in str(err.value))
 
     # Create the symbol and try again, it now must succeed
@@ -650,8 +651,8 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert not isinstance(call, CodedKern)
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
-    assert len(call.children) == number_of_arguments
-    assert isinstance(call.children[0], Literal)
+    assert len(call.arguments) == number_of_arguments
+    assert isinstance(call.arguments[0], Literal)
 
     # A RoutineSymbol and the ContainerSymbol from where it is imported are
     # in the symbol table
@@ -767,10 +768,6 @@ def test_arguments_abstract():
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.scalars
     assert ("Arguments.scalars must be implemented in sub-class"
-            in str(err.value))
-    with pytest.raises(NotImplementedError) as err:
-        _ = my_arguments.raw_arg_list()
-    assert ("Arguments.raw_arg_list must be implemented in sub-class"
             in str(err.value))
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.append("var", "type")
@@ -1065,12 +1062,12 @@ def test_reduction_no_set_precision(dist_mem):
             "      REAL, intent(out) :: asum\n"
             "      TYPE(field_type), intent(in) :: f1\n"
             "      TYPE(scalar_type) global_sum\n"
-            "      INTEGER df\n")
+            "      INTEGER(KIND=i_def) df\n")
     else:
         zero_sum_decls = (
             "      REAL, intent(out) :: asum\n"
             "      TYPE(field_type), intent(in) :: f1\n"
-            "      INTEGER df\n")
+            "      INTEGER(KIND=i_def) df\n")
     assert zero_sum_decls in generated_code
 
     zero_sum_output = (

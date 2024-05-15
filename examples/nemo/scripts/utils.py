@@ -123,7 +123,7 @@ def enhance_tree_information(schedule):
             if not isinstance(reference.symbol, RoutineSymbol):
                 # We haven't already specialised this Symbol.
                 reference.symbol.specialise(RoutineSymbol)
-            call = Call(reference.symbol)
+            call = Call.create(reference.symbol)
             for child in reference.children:
                 call.addchild(child.detach())
             reference.replace_with(call)
@@ -158,7 +158,7 @@ def normalise_loops(
         # Apply the HoistLocalArraysTrans when possible
         try:
             HoistLocalArraysTrans().apply(schedule)
-        except TransformationError as _:
+        except TransformationError:
             pass
 
     if convert_array_notation:
@@ -171,7 +171,7 @@ def normalise_loops(
             if isinstance(reference.symbol, DataSymbol):
                 try:
                     Reference2ArrayRangeTrans().apply(reference)
-                except TransformationError as _:
+                except TransformationError:
                     pass
 
     if loopify_array_intrinsics:
@@ -259,7 +259,7 @@ def insert_explicit_loop_parallelism(
                         for lp in loop.loop_body.walk(Loop)
                         for ref in lp.stop_expr.walk(Reference))
                  or (str(len(loop.walk(Loop))) !=
-                     loop.stop_expr.children[1].value))):
+                     loop.stop_expr.arguments[1].value))):
             print("ICE Loop not parallelised for performance reasons")
             continue
         # Skip if looping over ice categories, ice or snow layers
@@ -318,8 +318,10 @@ def insert_explicit_loop_parallelism(
                 num_nested_loops += 1
 
                 # If it has more than one children, the next loop will not be
-                # perfectly nested, so stop searching
-                if len(next_loop.loop_body.children) > 1:
+                # perfectly nested, so stop searching. If there is no child,
+                # we have an empty loop (which would cause a crash when
+                # accessing the child next)
+                if len(next_loop.loop_body.children) != 1:
                     break
 
                 next_loop = next_loop.loop_body.children[0]

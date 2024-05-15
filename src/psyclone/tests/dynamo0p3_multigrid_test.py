@@ -260,8 +260,7 @@ def test_dynintergrid():
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     # Get the DynIntergrid object from the tree:
-    dyn_intergrid = list(psy.invokes.invoke_list[0].meshes.
-                         intergrid_kernels.values())[0]
+    dyn_intergrid = psy.invokes.invoke_list[0].meshes.intergrid_kernels[0]
     # The objects will not get initialised before `gen` is called, so all
     # values should be None initially:
     assert dyn_intergrid.colourmap_symbol is None
@@ -351,8 +350,7 @@ def test_field_prolong(tmpdir, dist_mem):
             "      IF (field2_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL field2_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
-            "      DO cell=loop0_start,loop0_stop\n")
+            "      DO cell = loop0_start, loop0_stop, 1\n")
         assert expected in gen_code
     else:
         assert "loop0_stop = field2_proxy%vspace%get_ncell()\n" in gen_code
@@ -472,12 +470,10 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                 "      IF (field1_proxy%is_dirty(depth=1)) THEN\n"
                 "        CALL field1_proxy%halo_exchange(depth=1)\n"
                 "      END IF\n"
-                "      !\n"
                 "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
                 "        CALL field2_proxy%halo_exchange(depth=2)\n"
                 "      END IF\n"
-                "      !\n"
-                "      DO cell=loop0_start,loop0_stop\n")
+                "      DO cell = loop0_start, loop0_stop, 1\n")
         else:
             halo_exchs = (
                 "      ! Call kernels and communication routines\n"
@@ -485,14 +481,12 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                 "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
                 "        CALL field2_proxy%halo_exchange(depth=2)\n"
                 "      END IF\n"
-                "      !\n"
-                "      DO cell=loop0_start,loop0_stop\n")
+                "      DO cell = loop0_start, loop0_stop, 1\n")
         assert halo_exchs in output
 
     # We pass the whole dofmap for the fine mesh (we are reading from).
     # This is associated with the second kernel argument.
     kern_call = (
-        "        !\n"
         "        CALL restrict_test_kernel_code(nlayers, "
         "cell_map_field1(:,:,cell), ncpc_field2_field1_x, "
         "ncpc_field2_field1_y, ncell_field2, "
@@ -615,12 +609,10 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "      IF (fld_m_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL fld_m_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (cmap_fld_c_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL cmap_fld_c_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
-            "      DO cell=loop0_start,loop0_stop")
+            "      DO cell = loop0_start, loop0_stop, 1")
         assert expected in output
         assert "loop0_stop = mesh_cmap_fld_c%get_last_halo_cell(1)\n" in output
         # Since we loop into L1 halo of the coarse mesh, the L1 halo
@@ -636,8 +628,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "      IF (fld_f_proxy%is_dirty(depth=1)) THEN\n"
             "        CALL fld_f_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
-            "      !\n"
-            "      DO cell=loop1_start,loop1_stop\n")
+            "      DO cell = loop1_start, loop1_stop, 1\n")
         assert expected in output
         assert "loop1_stop = mesh_fld_m%get_last_halo_cell(1)\n" in output
         # Again the L1 halo for fld_f will now be clean but for restriction
@@ -649,9 +640,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                     "      CALL fld_f_proxy%set_clean(1)\n"
                     "      !\n"
                     "      CALL fld_f_proxy%halo_exchange(depth=2)\n"
-                    "      !\n"
-                    "      DO cell=loop2_start,loop2_stop\n"
-                    "        !\n"
+                    "      DO cell = loop2_start, loop2_stop, 1\n"
                     "        CALL restrict_test_kernel_code")
         assert expected in output
         assert "loop2_stop = mesh_fld_m%get_last_halo_cell(1)\n" in output
@@ -663,9 +652,7 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         expected = ("      CALL fld_m_proxy%set_dirty()\n"
                     "      !\n"
                     "      CALL fld_m_proxy%halo_exchange(depth=2)\n"
-                    "      !\n"
-                    "      DO cell=loop3_start,loop3_stop\n"
-                    "        !\n"
+                    "      DO cell = loop3_start, loop3_stop, 1\n"
                     "        CALL restrict_test_kernel_code")
         assert expected in output
         assert "loop3_stop = mesh_cmap_fld_c%get_last_halo_cell(1)\n" in output
@@ -675,31 +662,27 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         assert "loop2_stop = fld_m_proxy%vspace%get_ncell()\n" in output
         assert "loop3_stop = cmap_fld_c_proxy%vspace%get_ncell()\n" in output
         expected = (
-            "      DO cell=loop0_start,loop0_stop\n"
-            "        !\n"
+            "      DO cell = loop0_start, loop0_stop, 1\n"
             "        CALL prolong_test_kernel_code(nlayers, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, fld_m_data, "
             "cmap_fld_c_data, ndf_w1, undf_w1, map_w1, undf_w2, "
             "map_w2(:,cell))\n"
             "      END DO\n"
-            "      DO cell=loop1_start,loop1_stop\n"
-            "        !\n"
+            "      DO cell = loop1_start, loop1_stop, 1\n"
             "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
             "fld_f_data, fld_m_data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
             "      END DO\n"
-            "      DO cell=loop2_start,loop2_stop\n"
-            "        !\n"
+            "      DO cell = loop2_start, loop2_stop, 1\n"
             "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
             "fld_m_data, fld_f_data, undf_aspc1_fld_m, "
             "map_aspc1_fld_m(:,cell), ndf_aspc2_fld_f, undf_aspc2_fld_f, "
             "map_aspc2_fld_f)\n"
             "      END DO\n"
-            "      DO cell=loop3_start,loop3_stop\n"
-            "        !\n"
+            "      DO cell = loop3_start, loop3_stop, 1\n"
             "        CALL restrict_test_kernel_code(nlayers, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
             "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, cmap_fld_c_data, "
@@ -777,8 +760,8 @@ def test_no_stub_gen():
     with pytest.raises(NotImplementedError) as excinfo:
         generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.f90"),
                  api="dynamo0.3")
-    assert ("'prolong_test_kernel_code' is an inter-grid kernel and stub "
-            "generation is not yet supported for inter-grid kernels"
+    assert ("Intergrid kernels can only be setup inside an InvokeSchedule, "
+            "but attempted 'prolong_test_kernel_code' without it."
             in str(excinfo.value))
 
 
@@ -817,8 +800,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     expected = (
         "      ! Call kernels and communication routines\n"
         "      !\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,:,cell), "
         "ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
         "fld_m_data, fld_f_data, undf_adspc1_fld_m, "
@@ -845,18 +827,16 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     expected = (
         "      !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL restrict_kernel_code")
     assert expected in output
     assert "loop0_stop = mesh_fld_m%get_last_edge_cell()\n" in output
     expected = (
-        "      DO colour=loop2_start,loop2_stop\n"
+        "      DO colour = loop2_start, loop2_stop, 1\n"
         "        !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "        DO cell=loop3_start,"
-        "last_halo_cell_all_colours_fld_c(colour,1)\n"
-        "          !\n"
+        "        DO cell = loop3_start, "
+        "last_halo_cell_all_colours_fld_c(colour,1), 1\n"
         "          CALL prolong_test_kernel_code")
     assert expected in output
     assert "loop2_stop = ncolour_fld_c\n" in output
