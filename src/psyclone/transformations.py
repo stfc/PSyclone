@@ -2455,14 +2455,9 @@ class ACCEnterDataTrans(Transformation):
         elif isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
                 AccEnterDataDir
-        elif isinstance(sched, NemoInvokeSchedule):
-            from psyclone.nemo import NemoACCEnterDataDirective as \
-                AccEnterDataDir
         else:
-            # Should not get here provided that validate() has done its job
-            raise InternalError(
-                f"ACCEnterDataTrans.validate() has not rejected an "
-                f"(unsupported) schedule of type {type(sched)}")
+            from psyclone.psyir.nodes import ACCEnterDataDirective as \
+                AccEnterDataDir
 
         # Find the position of the first child statement of the current
         # schedule which contains an OpenACC compute construct.

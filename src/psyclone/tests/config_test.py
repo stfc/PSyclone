@@ -36,6 +36,7 @@
 #          R. W. Ford, STFC Daresbury Lab
 #           J. Henrichs, Bureau of Meteorology
 #           N. Nobre, STFC Daresbury Lab
+#           S. Siso, STFC Daresbury Lab
 
 '''
 Module containing tests relating to PSyclone configuration handling.
@@ -54,7 +55,6 @@ from psyclone.configuration import (APISpecificConfig, ConfigurationError,
 from psyclone.core.access_type import AccessType
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.nemo import NemoConstants
 from psyclone.parse import ModuleManager
 
 
@@ -771,8 +771,6 @@ def test_get_constants():
     assert isinstance(config.get_constants(), LFRicConstants)
     config.api = "gocean1.0"
     assert isinstance(config.get_constants(), GOceanConstants)
-    config.api = "nemo"
-    assert isinstance(config.get_constants(), NemoConstants)
 
 
 def test_config_class_initialised(monkeypatch):
