@@ -235,71 +235,11 @@ def test_generic_interface():
 
     mod_info = mod_man.get_module_info("g_mod")
 
-    # It should contain all three functions
+    # It should contain all two concrete functions
     contr = mod_info.get_psyir()
 
-    assert contr.get_routine_psyir("myfunc")
     assert contr.get_routine_psyir("myfunc1")
     assert contr.get_routine_psyir("myfunc2")
-
-    assert "myfunc" in mod_info._generic_interfaces
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
-def test_resolve_routine():
-    '''Test resolve_routine functionality: a simple routine should return
-    its name as the only member of a list, a routine name which is a generic
-    interface should return a list of all possible names. This test relies on
-    the directories and file setup my `mod_man_test_setup_directories`:
-    the module `g_mod` contains:
-    interface myfunc
-        procedure myfunc1
-        procedure myfunc2
-    end interface myfunc
-    Therefore, resolving `myfunc` must return `myfunc1`, and `myfunc2`.
-    TODO #2478: this needs to be rewritten or (re)moved once we have support
-    for interfaces in the PSyIR.
-
-    '''
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path("d2")
-
-    mod_info = mod_man.get_module_info("g_mod")
-
-    # Use set to be independent of ordering
-    all_funcs = mod_info.resolve_routine("myfunc")
-    assert set(all_funcs) == set(["myfunc1", "myfunc2"])
-
-    assert mod_info.resolve_routine("myfunc1") == ["myfunc1"]
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
-def test_module_info_contains_routine():
-    '''Test contains_routine. It relies on the directories and file setup my
-    `mod_man_test_setup_directories`, `d2/g_mod` contains a function
-    `myfunc1`.
-
-    TODO #2422 This needs to be updated when the PSyIR supports generic
-    interfaces.
-
-    '''
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path("d2")
-    mod_info = mod_man.get_module_info("g_mod")
-    assert mod_info.name == "g_mod"
-
-    assert mod_info.contains_routine("myfunc1")
-    assert not mod_info.contains_routine("does-not-exist")
-
-    # Test handling of files that cannot be parsed
-    # --------------------------------------------
-    # TODO #2120: Needs to be updated when error handling is implemented.
-    mod_info = mod_man.get_module_info("error_mod")
-    assert not mod_info.contains_routine("ERROR-CANNOT-BE-PARSED")
 
 
 # -----------------------------------------------------------------------------

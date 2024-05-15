@@ -196,7 +196,7 @@ class ModuleInfo:
             # TODO #11: Add proper logging
             # TODO #2120: Handle error
             print(f"[ModuleInfo._extract_import_information] Syntax error "
-                  f"parsing '{self._filename} - ignored")
+                  f"parsing '{self.filename} - ignored")
             # Hide syntax errors
             return
         for use in walk(parse_tree, Fortran2003.Use_Stmt):
