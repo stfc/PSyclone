@@ -58,8 +58,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList,
                                    LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable, LFRicKernCallFactory,
-                                   LFRicKern, LFRicInvokes, LFRicTypes,
-                                   LFRicLoop)
+                                   LFRicKern, LFRicTypes, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen,
