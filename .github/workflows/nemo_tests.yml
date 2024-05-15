@@ -88,6 +88,7 @@ jobs:
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
+        export MPI_INC_DIR=$(dirname $(which mpif90))/../include/
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
@@ -101,6 +102,7 @@ jobs:
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
+        export MPI_INC_DIR=$(dirname $(which mpif90))/../include/
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
@@ -131,6 +133,7 @@ jobs:
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
+        export MPI_INC_DIR=$(dirname $(which mpif90))/../include/
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
@@ -162,6 +165,7 @@ jobs:
         . .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
+        export MPI_INC_DIR=$(dirname $(which mpif90))/../include/
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
