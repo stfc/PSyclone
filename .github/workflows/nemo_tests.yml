@@ -49,7 +49,7 @@ jobs:
       HDF5_VERSION: 1.14.3
       NETCDF_C_VERSION: 4.9.2
       NETCDF_FORTRAN_VERSION: 4.6.1
-      NVFORTRAN_VERSION: 24.3
+      NVFORTRAN_VERSION: 23.7
       ONEAPI_VERSION: 2024.0.1
       PERL_VERSION: 5.38.2
       PYTHON_VERSION: 3.12.3
@@ -90,7 +90,6 @@ jobs:
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        export MPI_INC_DIR=$(dirname $(which mpif90))/../include/
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         make -j 4 passthrough
@@ -104,7 +103,6 @@ jobs:
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        export MPI_INC_DIR=$(dirname $(which mpif90))/../include/
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         make -j 4 openmp_gpu
@@ -143,7 +141,6 @@ jobs:
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        export MPI_INC_DIR=$(dirname $(which mpif90))/../include/
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         make -j 4 openacc_kernels
@@ -182,7 +179,6 @@ jobs:
         export NEMO_DIR=${HOME}/NEMO
         cd $PSYCLONE_NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
-        export MPI_INC_DIR=$(dirname $(which mpif90))/../include/
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
         make -j 4 openacc_loops
