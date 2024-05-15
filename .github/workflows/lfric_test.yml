@@ -80,8 +80,7 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/spack-upstream/share/spack/setup-env.sh
-        spack load gcc@11
-        spack load lfric-buildenv %gcc@11
+        spack load lfric-buildenv %gcc@11.4.0
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
@@ -112,8 +111,7 @@ jobs:
       run: |
         # Set up environment
         source /apps/spack/spack-upstream/share/spack/setup-env.sh
-        spack load gcc@11
-        spack load lfric-buildenv %gcc@11
+        spack load lfric-buildenv %gcc@11.4.0
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export PSYCLONE_CONFIG=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
