@@ -174,7 +174,7 @@ def test_str():
     '''
     assert (str(NemoOuterArrayRange2LoopTrans()) == "Convert a PSyIR "
             "assignment to the outermost ArrayReference Range into a "
-            "PSyIR NemoLoop.")
+            "PSyIR Loop.")
 
 
 def test_name():
