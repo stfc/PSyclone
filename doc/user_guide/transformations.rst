@@ -477,7 +477,7 @@ Algorithm-layer
 ---------------
 
 The gocean API supports the transformation of the algorithm
-layer. In the future the LFRic (lfric) API will also support
+layer. In the future the LFRic API will also support
 this. However, this is not relevant to the nemo API as it does not
 have the concept of an algorithm layer (just PSy and Kernel
 layers). The ability to transformation the algorithm layer is new and
@@ -797,7 +797,7 @@ below does the same thing as the example in the
     ...     ol.apply(schedule.children[0])
     ...     return psy
 
-In the gocean API (and in the future the lfric (lfric) API) an
+In the gocean API (and in the future the lfric API) an
 optional **trans_alg** function may also be supplied. This function
 accepts **PSyIR** (representing the algorithm layer) as an argument and
 returns **PSyIR** i.e.:

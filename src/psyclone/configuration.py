@@ -357,8 +357,6 @@ class Config:
                 elif api in GOCEAN_API_NAMES:
                     key = GOCEAN_API_NAMES[0]  # Use the first name internally
                     self._api_conf[key] = GOceanConfig(self, self._config[api])
-                elif api == "nemo":  # For backwards compatibility
-                    pass
                 else:
                     raise NotImplementedError(
                         f"Configuration file '{self._config_file}' contains a "

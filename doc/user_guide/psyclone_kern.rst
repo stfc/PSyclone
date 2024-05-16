@@ -94,7 +94,7 @@ The ``psyclone-kern`` command has the following arguments:
                             Defaults to stub.
       -o OUT_FILE           filename for created code.
       -api API              choose a particular API from ['lfric',
-                            'gocean', 'nemo'], default 'lfric'.
+                            'gocean'].
       -I INCLUDE, --include INCLUDE
                             path to Fortran INCLUDE or module files
       -l {off,all,output}, --limit {off,all,output}
@@ -134,11 +134,11 @@ Quick Start
    subroutine with no arguments.
 2) Run the following command ::
 
-    > psyclone-kern -gen stub <PATH>/my_file.f90
+    > psyclone-kern -api lfric -gen stub <PATH>/my_file.f90
 3) To have the generated code written to file rather than stdout use the
    `-o` flag ::
 
-    > psyclone-kern -gen stub -o my_stub_file.f90 ./my_kernel_mod.f90
+    > psyclone-kern -api lfric -gen stub -o my_stub_file.f90 ./my_kernel_mod.f90
 
 (Since stub generation is the default, the ``-gen stub`` may be omitted
 if desired.)
@@ -146,7 +146,7 @@ if desired.)
 Introduction
 ++++++++++++
 
-PSyclone provides a kernel stub generator for the LFRic (Dynamo 0.3) API.
+PSyclone provides a kernel stub generator for the LFRic API.
 The kernel stub generator takes a kernel file as input and outputs the
 kernel subroutine arguments and declarations. The word "stub" is used
 to indicate that it is only the subroutine arguments and their
@@ -263,7 +263,7 @@ is shown below:
 
 If we run the kernel stub generator on the ``testkern_simple_mod.f90`` example::
 
-  > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_simple_mod.f90
+  > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/testkern_simple_mod.f90
 
 we get the following kernel stub output:
 
@@ -316,7 +316,7 @@ subroutine for correctness.
           to append the name with the space that it is associated with.
 
 We now take a look at a more complicated example. The metadata in this
-example is the same as an actual LFRic (Dynamo 0.3) kernel, however the
+example is the same as an actual LFRic kernel, however the
 subroutine content and various comments have been removed. The metadata
 specifies that there are four fields passed by the algorithm layer, the
 fourth of which is a vector field of size three. All three of the spaces
@@ -369,7 +369,7 @@ Kernel, excluding the subroutine body, is given below:
 
 If we run the kernel stub generator on this example::
 
-  > psyclone-kern -gen stub tests/test_files/dynamo0p3/ru_kernel_mod.f90
+  > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/ru_kernel_mod.f90
 
 we obtain the following output:
 
@@ -429,7 +429,7 @@ the argument list of a kernel. An example of the use of the stub generator
 for a kernel that performs stencil operations is provided in
 ``examples/lfric/eg5``::
 
-  > psyclone-kern -gen stub ../../examples/lfric/eg5/conservative_flux_kernel_mod.F90
+  > psyclone-kern -api lfric -gen stub ../../examples/lfric/eg5/conservative_flux_kernel_mod.F90
 
 .. _stub-generation-errors:
 
@@ -459,10 +459,10 @@ supported in the stub generator::
 invalid for PSyclone stub generation testing purposes and should produce
 appropriate errors. Two examples are below::
 
-    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_invalid_fortran_mod.f90
+    > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/testkern_invalid_fortran_mod.f90
     Error: 'Parse Error: Code appears to be invalid Fortran'
 
-    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_no_datatype_mod.f90
+    > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/testkern_no_datatype_mod.f90
     Error: 'Parse Error: Kernel type testkern_type does not exist'
 
 ``testkern_dofs_mod.f90`` is an example with an unsupported feature, as the
@@ -472,7 +472,7 @@ appropriate errors. Two examples are below::
 Generic function space metadata ``any_space`` and ``any_discontinuous_space``
 (see Section :ref:`Supported Function Spaces <lfric-function-space>`
 for function-space identifiers) are currently only supported for
-:ref:`LFRic (Dynamo 0.3) fields <lfric-field>` in the stub generator. Basis
+:ref:`LFRic fields <lfric-field>` in the stub generator. Basis
 and differential basis functions on these generic function spaces, required
 for :ref:`quadrature <lfric-quadrature>` and
 :ref:`evaluators <lfric-gh-shape>`, are not supported. Hence,
@@ -480,7 +480,7 @@ for :ref:`quadrature <lfric-quadrature>` and
 ``testkern_any_discontinuous_space_op_2_mod.f90`` should fail with
 appropriate warnings because of that. For example::
 
-    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
+    > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/testkern_any_space_1_mod.f90
     Error: "Generation Error: Unsupported space for basis function, expecting
     one of ['w3', 'wtheta', 'w2v', 'w2vtrace', 'w2broken', 'w0', 'w1', 'w2',
     'w2trace', 'w2h', 'w2htrace', 'any_w2', 'wchi'] but found 'any_space_1'"
@@ -489,7 +489,7 @@ As noted above, if the LFRic API naming convention for module and type
 names is not followed, the stub generator will return with an error
 message. For example::
 
-    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_wrong_file_name.F90
+    > psyclone-kern -api lfric -gen stub tests/test_files/dynamo0p3/testkern_wrong_file_name.F90
     Error: "Parse Error: Error, module name 'testkern_wrong_file_name' does not have
     '_mod' as an extension. This convention is assumed."
 
@@ -505,7 +505,7 @@ Quick Start
 1) Use an existing Kernel file containing a full LFRic kernel implementation.
 2) Run the following command ::
 
-    > psyclone-kern -gen alg <PATH>/my_kern_file_mod.f90
+    > psyclone-kern -api lfric -gen alg <PATH>/my_kern_file_mod.f90
 
 3) The generated Algorithm code will be output to stdout by default. To have
    it written to a file use the `-o` flag.
@@ -521,8 +521,8 @@ is useful for a number of reasons:
 3) Constructing a test harness for the adjoint of a kernel produced by
    :ref:`PSyAD <psyad:introduction>`.
 
-Currently algorithm generation is only supported for the LFRic (Dynamo
-0.3) API but it could be extended to the GOcean API if desired.
+Currently algorithm generation is only supported for the LFRic API but it
+could be extended to the GOcean API if desired.
 
 Mapping of Function Spaces
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -544,7 +544,7 @@ Example
 If we take the same kernel used in the stub-generation
 :ref:`example <stub-generation-example>` then running ::
 
-  > psyclone-kern -gen alg tests/test_files/dynamo0p3/testkern_simple_mod.f90
+  > psyclone-kern -api lfric -gen alg tests/test_files/dynamo0p3/testkern_simple_mod.f90
 
 gives the following algorithm layer code:
 
@@ -604,8 +604,7 @@ See :ref:`lfric_alg_gen_example` for a full example of doing this.
 Limitations
 +++++++++++
 
- * Algorithm generation is only currently supported for the LFRic
-   (dynamo 0.3) API.
+ * Algorithm generation is only currently supported for the LFRic API.
  * All fields are currently set to unity. Obviously the generated algorithm
    code may be edited to change this.
  * The generator does not currently recognise 'special' fields that hold

@@ -167,7 +167,7 @@ def test_generate_adjoint_str_wrong_api():
     with pytest.raises(NotImplementedError) as err:
         generate_adjoint_str(tl_code, ["a", "b"], api="gocean")
     assert ("PSyAD only supports generic routines/programs or LFRic "
-            "(lfric) kernels but got API 'gocean'" in str(err.value))
+            "kernels but got API 'gocean'" in str(err.value))
 
 
 def test_generate_adjoint_str_trans(tmpdir):
@@ -221,7 +221,7 @@ def test_generate_adjoint_str_generate_harness_invalid_api():
         _ = generate_adjoint_str(TL_CODE, ["field"], api="gocean",
                                  create_test=True)
     assert ("PSyAD only supports generic routines/programs or LFRic "
-            "(lfric) kernels but got API 'gocean'" in str(err.value))
+            "kernels but got API 'gocean'" in str(err.value))
 
 
 def test_generate_adjoint_str_generate_harness_lfric():

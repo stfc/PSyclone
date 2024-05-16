@@ -120,12 +120,12 @@ def main(args):
     if args.api not in LFRIC_API_NAMES:
         if args.coord_arg is not None:
             logger.error(
-                "The '-coord-arg' argument is only applicable to the LFRic "
-                "('lfric') API.")
+                "The '-coord-arg' argument is only applicable to the 'lfric' "
+                "API.")
             sys.exit(1)
         if args.panel_id_arg is not None:
             logger.error("The '-panel-id-arg' argument is only applicable to "
-                         "the LFRic ('lfric') API.")
+                         "the 'lfric' API.")
             sys.exit(1)
 
     # TL Fortran code

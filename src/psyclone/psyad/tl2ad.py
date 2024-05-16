@@ -69,28 +69,28 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     and returns its adjoint encoded as a string along with (if requested)
     a test harness, also encoded as a string.
 
-    :param str tl_fortran_str: Fortran implementation of a tangent-linear \
+    :param str tl_fortran_str: Fortran implementation of a tangent-linear
         kernel.
     :param List[str] active_variables: list of active variable names.
     :param Optional[str] api: the PSyclone API in use, if any.
-    :param Optional[bool] create_test: whether or not to create test code for \
+    :param Optional[bool] create_test: whether or not to create test code for
         the adjoint kernel.
-    :param Optional[int] coord_arg_index: the (1-based) index of the kernel \
-        argument holding the mesh coordinates (if any). Only applies to the \
-        LFRic (lfric) API.
-    :param Optional[int] panel_id_arg_index: the (1-based) index of the kernel\
-        argument holding the panel IDs (if any). Only applies to the LFRic \
-        (lfric) API.
+    :param Optional[int] coord_arg_index: the (1-based) index of the kernel
+        argument holding the mesh coordinates (if any). Only applies to the
+        LFRic API.
+    :param Optional[int] panel_id_arg_index: the (1-based) index of the kernel
+        argument holding the panel IDs (if any). Only applies to the LFRic
+        API.
 
-    :returns: a 2-tuple consisting of a string containing the Fortran \
-        implementation of the supplied tangent-linear kernel and (if \
-        requested) a string containing the Fortran implementation of a test \
+    :returns: a 2-tuple consisting of a string containing the Fortran
+        implementation of the supplied tangent-linear kernel and (if
+        requested) a string containing the Fortran implementation of a test
         harness for the adjoint kernel.
     :rtype: Tuple[str, str]
 
     :raises NotImplementedError: if the tangent-linear code is a function.
     :raises NotImplementedError: if an unsupported API is specified.
-    :raises NotImplementedError: if test-harness generation is requested for \
+    :raises NotImplementedError: if test-harness generation is requested for
                                  the LFRic API.
     '''
     logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
     else:
         raise NotImplementedError(
             f"PSyAD only supports generic routines/programs or LFRic "
-            f"(lfric) kernels but got API '{api}'")
+            f"kernels but got API '{api}'")
 
     writer = FortranWriter()
 

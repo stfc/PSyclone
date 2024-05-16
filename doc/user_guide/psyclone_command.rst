@@ -82,7 +82,7 @@ by the command:
     -okern OKERN          directory in which to put transformed kernels,
                           default is the current working directory.
     -api API              choose a particular api from ['lfric',
-                          'gocean', 'nemo'], default 'lfric'.
+                          'gocean'].
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
@@ -255,7 +255,7 @@ Transformation script
 
 By default the ``psyclone`` command will generate 'vanilla'
 Algorithm-layer and PSy-layer code with unmodified kernels for the
-gocean and lfric (lfric) APIs. For the nemo API, ``psyclone``
+gocean and lfric APIs. For the nemo API, ``psyclone``
 will not perform any transformations on the input code.
 
 The -s option allows a Python script to be specified which can contain
