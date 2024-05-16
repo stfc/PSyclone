@@ -38,7 +38,6 @@
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
-from os import listdir, path
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.interfaces import SymbolInterface
 from psyclone.configuration import Config
