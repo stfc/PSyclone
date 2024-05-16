@@ -361,8 +361,9 @@ class Config:
                     pass
                 else:
                     raise NotImplementedError(
-                        f"Configuration file contains a {api} section but no "
-                        f"Config sub-class has been implemented for this API")
+                        f"Configuration file '{self._config_file}' contains a "
+                        f"'{api}' section but no Config sub-class has "
+                        f"been implemented for this API")
 
         # The scheme to use when re-naming transformed kernels.
         # By default we ensure that each transformed kernel is given a

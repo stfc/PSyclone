@@ -492,7 +492,7 @@ def test_api_unimplemented(tmpdir, monkeypatch):
 
     with pytest.raises(NotImplementedError) as err:
         get_config(config_file, content)
-    assert ("file contains a UNIMPLEMENTED section but no Config "
+    assert ("contains a 'UNIMPLEMENTED' section but no Config "
             "sub-class has been implemented for this API" in str(err.value))
 
 
