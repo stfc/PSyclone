@@ -82,7 +82,7 @@ class ModuleInfo:
     '''
 
     def __init__(self, name, finfo):
-        self._name = name
+        self._name = name.lower()
         self._file_info = finfo
 
         # A cache for the fparser tree
@@ -101,20 +101,6 @@ class ModuleInfo:
         # This is a dictionary containing the sets of symbols imported from
         # each module, indexed by the module names: dict[str, set[str]].
         self._used_symbols_from_module = None
-
-        # This variable will be a set that stores the name of all routines
-        # (based on fparser), so we can test is a routine is defined
-        # without having to convert the AST to PSyIR. It is initialised with
-        # None so we avoid trying to parse a file more than once (parsing
-        # errors would cause routine_names to be empty, so we can test
-        # if routine_name is None vs if routine_names is empty)
-        # TODO #2435: To be changed once we have support for interfaces
-        self._routine_names = None
-
-        # This map contains the list of routine names that are part
-        # of the same generic interface.
-        # TODO #2435: To be changed once we have support for interfaces
-        self._generic_interfaces = {}
 
         self._processor = Fparser2Reader()
 
@@ -139,8 +125,8 @@ class ModuleInfo:
 
     # ------------------------------------------------------------------------
     def get_source_code(self):
-        '''Returns the source code for the module. The first time, it
-        will be read from the file, but the data is then cached.
+        '''Returns the source code for the module using the associated
+        FileInfo instance (which caches it).
 
         :returns: the source code.
         :rtype: str
@@ -168,7 +154,7 @@ class ModuleInfo:
         if not self._parse_attempted:
             # This way we avoid that any other function might trigger to
             # parse this file again (in case of parsing errors).
-            self._parese_attempted = True
+            self._parse_attempted = True
 
             reader = FortranStringReader(
                 self._file_info.source,
@@ -265,9 +251,6 @@ class ModuleInfo:
         #TODO 2120: This should be revisited when improving on the error
         handling.
 
-        :param routine_name: optional the name of a routine.
-        :type routine_name: Optional[str]
-
         :returns: PSyIR representing this module.
         :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
 
@@ -289,7 +272,9 @@ class ModuleInfo:
                 module = Container("invalid-module")
                 self._psyir.children.append(module)
 
-        # TODO #2462: needs to be fixed to properly support multiple modules
-        # in one file
-        # Return the actual module Container (not the FileContainer)
-        return self._psyir.children[0]
+        # Return the Container with the correct name.
+        for cntr in self._psyir.walk(Container):
+            if cntr.name.lower() == self.name:
+                return cntr
+        raise InternalError(f"File '{self.filename}' does not contain a "
+                            f"module named '{self.name}'") 

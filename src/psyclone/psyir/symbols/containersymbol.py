@@ -38,6 +38,7 @@
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
+from psyclone.errors import InternalError
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.interfaces import SymbolInterface
 from psyclone.configuration import Config
@@ -194,7 +195,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
         :returns: container associated with the given name.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-        :raises SymbolError: the given Fortran module is not found on the \
+        :raises SymbolError: the given Fortran module is not found on the
             import path.
 
         '''
@@ -202,9 +203,15 @@ class FortranModuleInterface(ContainerSymbolInterface):
         from psyclone.parse import ModuleManager
         mod_manager = ModuleManager.get()
         mod_manager.add_search_path(Config.get().include_paths)
-        minfo = mod_manager.get_module_info(name)
+        minfo = None
+        try:
+            minfo = mod_manager.get_module_info(name)
+        except FileNotFoundError:
+            pass
         if not minfo:
-            return None
+           raise SymbolError(
+                   f"Module '{name}' not found in any of the include_paths "
+                   f"directories {Config.get().include_paths}.")
         container = minfo.get_psyir()
         if container.name.lower() == name.lower():
             return container
