@@ -52,10 +52,10 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import lfric_builtins, LFRicKern, LFRicKernMetadata
+from psyclone.domain.lfric import (lfric_builtins, LFRicInvokeSchedule,
+                                   LFRicKern, LFRicKernMetadata)
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import (DynInvokeSchedule, DynGlobalSum,
-                                DynKernelArguments)
+from psyclone.dynamo0p3 import DynGlobalSum, DynKernelArguments
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
 from psyclone.generator import generate
 from psyclone.gocean1p0 import GOKern
@@ -295,12 +295,12 @@ def test_invokes_can_always_be_printed():
     assert inv.__str__() == "invoke()"
 
     invoke_call = InvokeCall([], "TestName")
-    inv = Invoke(invoke_call, 12, DynInvokeSchedule, None)
+    inv = Invoke(invoke_call, 12, LFRicInvokeSchedule, None)
     # Name is converted to lower case if set in constructor of InvokeCall:
     assert inv.__str__() == "invoke_testname()"
 
     invoke_call._name = None
-    inv = Invoke(invoke_call, 12, DynInvokeSchedule, None)
+    inv = Invoke(invoke_call, 12, LFRicInvokeSchedule, None)
     assert inv.__str__() == "invoke_12()"
 
     # Last test case: one kernel call - to avoid constructing
@@ -311,7 +311,7 @@ def test_invokes_can_always_be_printed():
         api="lfric")
 
     alg_invocation = invoke.calls[0]
-    inv = Invoke(alg_invocation, 0, DynInvokeSchedule, None)
+    inv = Invoke(alg_invocation, 0, LFRicInvokeSchedule, None)
     assert inv.__str__() == \
         "invoke_0_testkern_type(a, f1_my_field, f1 % my_field, m1, m2)"
 
@@ -323,7 +323,7 @@ def test_invoke_container():
         api="lfric")
     alg_invocation = invoke.calls[0]
     # An isolated Invoke object has no associated Container
-    inv = Invoke(alg_invocation, 0, DynInvokeSchedule, None)
+    inv = Invoke(alg_invocation, 0, LFRicInvokeSchedule, None)
     assert inv._schedule.parent is None
     # Creating an Invokes object requires a PSy object but the construction of
     # the latter also creates the former. Therefore, we just create a PSy
