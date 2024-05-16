@@ -61,16 +61,16 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicKern, LFRicTypes, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen,
-                              ModuleGen, TypeDeclGen, UseGen, PSyIRGen)
+                              DeallocateGen, DeclGen, DoGen, TypeDeclGen,
+                              UseGen, PSyIRGen)
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
+from psyclone.psyGen import (InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
-    Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
+    Reference, ACCEnterDataDirective, ArrayOfStructuresReference,
     StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,

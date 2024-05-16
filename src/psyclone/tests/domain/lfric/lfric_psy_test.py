@@ -42,8 +42,7 @@ from collections import OrderedDict
 import os
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicPSy, LFRicConstants
-from psyclone.dynamo0p3 import LFRicInvokes
+from psyclone.domain.lfric import LFRicPSy, LFRicConstants, LFRicInvokes
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSy
 
