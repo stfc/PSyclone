@@ -84,7 +84,7 @@ stretching_method='linear',
   v0             = 0.0
   sbr_angle_lat  = 0.0
   sbr_angle_lon  = 0.0
-  smp_init_wind=.false.
+  smp_init_wind  = .false.
 /
 
 &initialization
@@ -200,6 +200,7 @@ stretching_method='linear',
   dep_pt_stencil_extent = 3
   inner_order = 2
   outer_order = 2
+  vertical_order = 2
   calculate_detj = 'upwind'
 /
 
@@ -219,12 +220,12 @@ stretching_method='linear',
 /
 
 &departure_points
-  departure_grid      = 'uniform'
   horizontal_limit    = 'none'
-  method              = 'euler'
+  horizontal_method   = 'euler'
   n_dep_pt_iterations = 1
   vertical_limit      = 'exponential'
   vertical_method     = 'euler'
+  vertical_sorting    = .false.
 /
 
 &transport
@@ -245,7 +246,9 @@ stretching_method='linear',
   log_space = .false., .false., .false.
   enforce_min_value=.false.,.false.,.false.
   max_vert_cfl_calc='dep_point'
+  min_val_method='iterative'
   min_value=0.0,0.0,-99999999.0,0.0
+  consistent_ffsl_splitting=3*1
   cfl_mol_1d_stab = 1.0
   cfl_mol_2d_stab = 1.0
   cfl_mol_3d_stab = 1.0
@@ -262,6 +265,7 @@ stretching_method='linear',
   runge_kutta_method = 'ssp5'
   min_val_abs_tol=-1.0e-12
   min_val_max_iterations=10
+  theta_dispersion_correction=.false.
   theta_variable='dry'
   use_density_predictor=.true.
   transport_ageofair=.false.

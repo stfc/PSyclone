@@ -43,26 +43,12 @@
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.symbol_table import SYMBOL_TABLES
-from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
 
 
 # The transformation that most of these tests use
 PTRANS = ProfileTrans()
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use the nemo API, and that we clean
-    up the config file at the end of the tests.'''
-
-    Config.get().api = "nemo"
-    yield
-    # At the end of all tests make sure that we wipe the Config object
-    # so we get a fresh/default one for any further test (and not a
-    # left-over one from a test here).
-    Config._instance = None
 
 
 def get_nemo_schedule(parser, code):
