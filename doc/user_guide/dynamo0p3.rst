@@ -38,14 +38,14 @@
 
 .. _lfric-api:
 
-LFRic (Dynamo0.3) API
-=====================
+LFRic API
+=========
 
-This section describes the LFRic (Dynamo0.3) application programming
+This section describes the LFRic application programming
 interface (API). This API explains what a user needs to write in order
 to make use of the LFRic API in PSyclone.
 
-As with the majority of PSyclone APIs, the LFRic (Dynamo0.3) specifies
+As with the majority of PSyclone APIs, the LFRic specifies
 how a user needs to write the algorithm layer and the kernel layer to
 allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.
@@ -78,7 +78,7 @@ LFRic-API-specific specialisations and extensions.
 Example
 +++++++
 
-An example LFRic (Dynamo0.3) API invoke call is given below with various
+An example LFRic API invoke call is given below with various
 different types of objects supported by the API. These different
 objects and their use are discussed in the following sections.
 
@@ -112,7 +112,7 @@ Please see the :ref:`algorithm-layer` section for a description of the
 Objects in the LFRic API can be categorised by their functionality
 as data structures and information that specifies supported operations on
 a particular data structure. These data structures are represented by the
-five LFRic (Dynamo 0.3) API argument types: :ref:`scalar <lfric-scalar>`,
+five LFRic API argument types: :ref:`scalar <lfric-scalar>`,
 :ref:`field <lfric-field>`, :ref:`field vector <lfric-field-vector>`,
 :ref:`operator <lfric-operator>` and :ref:`column-wise operator
 <lfric-cma-operator>`. All of them except the field vector are
@@ -365,7 +365,7 @@ up until compile time. However, PSyclone does check for the correct
 number of algorithm arguments. If the wrong number of arguments is
 provided then an exception is raised.
 
-For example, running test 19.2 from the LFRic (Dynamo0.3) API test suite gives:
+For example, running test 19.2 from the LFRic API test suite gives:
 
 .. code-block:: bash
 
@@ -728,7 +728,7 @@ PSy-layer
 ---------
 
 The general details of the PSy-layer are explained in the
-:ref:`PSy-layer` section. This section describes any dynamo0p3 specific
+:ref:`PSy-layer` section. This section describes any LFRic-specific
 issues.
 
 Module name
@@ -796,14 +796,10 @@ support for i-first kernels
 point the looping (and associated parallelisation) will be put
 back into the PSy layer.
 
-<<<<<<< HEAD
-.. _lfric-user-kernel-rules:
-=======
 .. note:: Support for DoF kernels have not yet been implemented in PSyclone
           (see PSyclone issue #1351 for progress).
 
-.. _dynamo0.3-user-kernel-rules:
->>>>>>> origin/master
+.. _lfric-user-kernel-rules:
 
 Rules for all User-Supplied Kernels that Operate on Cell-Columns
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -980,9 +976,6 @@ on a ``CELL_COLUMN`` without CMA Operators. Specifically:
 
 3) Stencil accesses are not permitted.
 
-<<<<<<< HEAD
-.. _lfric-api-kernel-metadata:
-=======
 .. _lfric-dof-kernel-rules:
 
 Rules for all User-Supplied Kernels that Operate on DoFs (DoF Kernels)
@@ -995,7 +988,7 @@ Kernels that have ``operates_on = DOF`` and
 :ref:`LFRic Built-ins<lfric-built-ins>` overlap significantly in their
 scope, and the conventions that DoF Kernels must follow are influenced
 by those for built-ins as a result. This includes :ref:`metadata arguments
-<dynamo0.3-api-built-ins-metadata>` and :ref:`valid data types
+<lfric-api-built-ins-metadata>` and :ref:`valid data types
 and access modes<lfric-built-ins-dtype-access>`. Naming conventions for DoF
 Kernels should follow those for General-Purpose Kernels.
 
@@ -1020,18 +1013,17 @@ The list of rules for DoF Kernels is as follows:
 
 5) A Kernel may not write to a scalar argument. (Only built-ins are permitted
    to do this.) Any scalar arguments must therefore be declared in the metadata
-   as `GH_READ` - see :ref:`below<dynamo0.3-kernel-valid-access>`
+   as `GH_READ` - see :ref:`below<lfric-kernel-valid-access>`
 
 6) Kernels must be written to operate on a single DoF, such that single DoFs
    can be provided to the Kernel within a loop over the DoFs of a field.
 
-.. _dynamo0.3-api-kernel-metadata:
->>>>>>> origin/master
+.. _lfric-api-kernel-metadata:
 
 Metadata
 ++++++++
 
-The code below outlines the elements of the LFRic (Dynamo0.3) API Kernel
+The code below outlines the elements of the LFRic API Kernel
 metadata, 1) 'meta_args_', 2) 'meta_funcs_', 3) 'meta_reference_element_',
 4) 'meta_mesh_', 5) 'gh_shape' (`gh_shape and gh_evaluator_targets`_),
 6) 'operates_on_' and 7) 'procedure_'::
@@ -2508,7 +2500,7 @@ with PSyclone's naming conventions, are:
          defined in the algorithm layer, see the :ref:`Mixed Precision
          <lfric-mixed-precision>` section for more details. This value is
          passed in separately. Again, the intent is determined from the
-         metadata (see :ref:`meta_args <dynamo0.3-api-meta-args>`).
+         metadata (see :ref:`meta_args <lfric-api-meta-args>`).
 
    3) Include the unique number of degrees of freedom for the function space.
       This is an ``integer`` of kind ``i_def`` with intent ``in``. The name of
@@ -2568,7 +2560,7 @@ Built-ins
 ---------
 
 The basic concept of a PSyclone Built-in is described in the
-:ref:`built-ins` section.  In the LFRic (Dynamo0.3) API, calls to
+:ref:`built-ins` section.  In the LFRic API, calls to
 Built-ins generally follow a convention that the field/scalar written
 to comes first in the argument list. LFRic Built-ins must conform to the
 following rules:
@@ -3705,7 +3697,7 @@ precisions <lfric-mixed-precision>` for ``GH_REAL`` fields, hence
 Boundary Conditions
 -------------------
 
-In the Dynamo0.3 API, boundary conditions for a field or LMA operator can
+In the LFRic API, boundary conditions for a field or LMA operator can
 be enforced by the algorithm developer by calling the Kernels
 ``enforce_bc_type`` or ``enforce_operator_bc_type``,
 respectively. These kernels take a field or operator as input and apply
@@ -3747,7 +3739,7 @@ The ``GH_READWRITE`` access is used for updating discontinuous operators
 Conventions
 -----------
 
-The naming of Dynamo0.3 API kernels and associated entities (types,
+The naming of LFRic API kernels and associated entities (types,
 subroutines and modules) follows the PSyclone Fortran naming
 conventions (see :ref:`fortran_naming`). However, PSyclone does not need
 this convention to be followed apart from the stub generator (see the
@@ -3782,7 +3774,7 @@ the boundary between processors must be replicated (as different cells
 share the same DoF). Only one processor can own a DoF, therefore
 processors will have continuous fields which contain DoFs that the
 processor does not own. These unowned DoFs are called `annexed` in the
-Dynamo0.3 API and are a separate, but related, concept to field halos.
+LFRic API and are a separate, but related, concept to field halos.
 
 When a kernel that operates on a cell-column needs to read a
 continuous field then the annexed DoFs must be up-to-date on all
@@ -3899,17 +3891,17 @@ supplied value is invalid.
 Transformations
 ---------------
 
-This section describes the Dynamo0.3-API-specific transformations. In
+This section describes the LFRic API-specific transformations. In
 cases, excepting **Dynamo0p3RedundantComputationTrans**,
 **Dynamo0p3AsyncHaloExchangeTrans** and **Dynamo0p3KernelConstTrans**,
 these transformations are specialisations of generic transformations
 described in the :ref:`transformations` section. The difference
 between these transformations and the generic ones is that these
-perform Dynamo0.3-API-specific checks to make sure the transformations
+perform LFRic API-specific checks to make sure the transformations
 are valid. In practice these transformations perform the required
 checks then call the generic ones internally.
 
-The use of the Dynamo0.3-API-specific transformations is exactly the
+The use of the LFRic API-specific transformations is exactly the
 same as the equivalent generic ones in all cases excepting
 **LFRicLoopFuseTrans**. In this case an additional optional argument
 **same_space** can be set when applying the transformation.
@@ -3931,16 +3923,16 @@ due to a prior transformation).
 
 The **Dynamo0p3RedundantComputationTrans** and
 **Dynamo0p3AsyncHaloExchange** transformations are only valid for the
-Dynamo0.3 API. This is because this API is currently the only one
+LFRic API. This is because this API is currently the only one
 that supports distributed memory.  An example of redundant computation
 can be found in ``examples/lfric/eg8`` and an example of asynchronous
 halo exchanges can be found in ``examples/lfric/eg11``.
 
 The **Dynamo0p3KernelConstTrans** transformation is only valid for the
-Dynamo0.3 API. This is because the properties that it makes constant
+LFRic API. This is because the properties that it makes constant
 are API specific.
 
-The LFRic (lfric) API-specific transformations currently available
+The LFRic API-specific transformations currently available
 are given below. Early transformations include "Dynamo0p3" or "Dynamo"
 in their name to indicate that these transformations are only valid
 for this particular API. More recent transformations typically include

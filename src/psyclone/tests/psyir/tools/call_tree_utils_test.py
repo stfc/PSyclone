@@ -241,7 +241,7 @@ def test_get_non_local_read_write_info(capsys):
 
     # Set up the module manager with a search directory that does not
     # contain any files used here:
-    kernels_dir = os.path.join(get_base_path("dynamo0.3"),
+    kernels_dir = os.path.join(get_base_path("lfric"),
                                "kernels", "dead_end", "no_really")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(kernels_dir)
@@ -469,14 +469,14 @@ def test_call_tree_utils_const_argument():
 def testcall_tree_utils_non_local_inout_parameters(capsys):
     '''Tests the collection of non-local input and output parameters.
     '''
-    Config.get().api = "dynamo0.3"
+    Config.get().api = "lfric"
     ctu = CallTreeUtils()
 
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False)
     schedule = psyir.invokes.invoke_list[0].schedule
 
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
 
@@ -509,7 +509,7 @@ def test_call_tree_error_var_not_found(capsys):
     contain the variable is handled, i.e. printing a warning and otherwise
     ignores (TODO #2120)
     '''
-    dyn_test_dir = get_base_path("dynamo0.3")
+    dyn_test_dir = get_base_path("lfric")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(os.path.join(dyn_test_dir, "infrastructure"))
 
@@ -529,7 +529,7 @@ def test_call_tree_error_module_is_codeblock(capsys):
     '''Tests that a module that cannot be parsed and becomes a codeblock
     is handled correctly.
     '''
-    dyn_test_dir = get_base_path("dynamo0.3")
+    dyn_test_dir = get_base_path("lfric")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(os.path.join(dyn_test_dir, "driver_creation"))
 
