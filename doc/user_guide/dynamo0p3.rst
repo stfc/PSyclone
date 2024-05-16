@@ -3939,7 +3939,7 @@ for this particular API. More recent transformations typically include
 "LFRic" in their name to indicate the same restriction. However, more
 importantly, transformations that are specific to LFRic reside in the
 LFRic-specific "psyclone.domain/lfric/transformations"
-directory. Note, the early LFRic (lfric) API-specific
+directory. Note, the early LFRic API-specific
 transformations have not yet been migrated to this directory.
 
 .. note:: Only the loop-colouring and OpenMP transformations are currently

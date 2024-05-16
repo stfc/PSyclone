@@ -6614,7 +6614,7 @@ def test_acckernelstrans():
 def test_acckernelstrans_dm():
     '''
     Test that an ACCKernelsTrans transformation can add an OpenACC
-    Kernels directive to the PSy layer in the LFRic (lfric) API when
+    Kernels directive to the PSy layer in the LFRic API when
     distributed memory is enabled.
 
     '''

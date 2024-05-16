@@ -607,7 +607,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
 
 def test_module_inline_lfric(tmpdir, monkeypatch, annexed, dist_mem):
     '''Tests that correct results are obtained when a kernel is inlined
-    into the psy-layer in the LFRic (lfric) API. All previous tests
+    into the psy-layer in the LFRic API. All previous tests
     use GOcean for testing.
 
     We also test when annexed is False and True as it affects how many halo

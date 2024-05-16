@@ -658,7 +658,7 @@ code. This allows us to generate a "vanilla" PSy layer. For example::
     >>> ast = parser(reader)
     >>> invoke_info = Parser().invoke_info(ast)
 
-    # This example uses the LFRic (lfric) API
+    # This example uses the LFRic API
     >>> api = "lfric"
 
     # Create the PSy-layer object using the invokeInfo
