@@ -62,8 +62,8 @@ module kernel_with_use_mod
 contains
  
   subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask)
-    ! rdt is a parameter but cbfr is not.
-    use model_mod, only: rdt, cbfr
+    ! rdt is a parameter but magic is not.
+    use model_mod, only: rdt, magic
     implicit none
     integer, intent(in)  :: ji, jj
     integer, dimension(:,:),  intent(in)    :: tmask
@@ -72,7 +72,7 @@ contains
     ! Locals
     real(go_wp) :: amp_tide, omega_tide, rtime
 
-    amp_tide   = 0.2_go_wp * cbfr
+    amp_tide   = 0.2_go_wp * rdt * magic
     omega_tide = 2.0_go_wp * 3.14159_go_wp / (12.42_go_wp * 3600._go_wp)
     rtime = real(istep) * rdt
 
