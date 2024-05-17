@@ -184,11 +184,8 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
     @staticmethod
     def import_container(name):
-        ''' Imports a Fortran module as a PSyIR container. The module is
-        expected to be found in a Fortran source file with the same name
-        as the module plus the '.[f|F]90' extension. The search
-        locations are provided in-order by the Config include_paths
-        attribute ('-I' in the psyclone script).
+        ''' Imports a Fortran module as a PSyIR container via the
+        ModuleManager.
 
         :param str name: name of the module to be imported.
 
@@ -212,14 +209,7 @@ class FortranModuleInterface(ContainerSymbolInterface):
            raise SymbolError(
                    f"Module '{name}' not found in any of the include_paths "
                    f"directories {Config.get().include_paths}.")
-        container = minfo.get_psyir()
-        if container.name.lower() == name.lower():
-            return container
-
-        raise InternalError(
-            f"Error importing the Fortran module '{name}' into a "
-            f"PSyIR container. The file with filename "
-            f"'{minfo.filename}' does not contain the expected module.")
+        return minfo.get_psyir()
 
 
 # For Sphinx AutoAPI documentation generation

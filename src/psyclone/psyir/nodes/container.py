@@ -208,7 +208,7 @@ class Container(ScopingNode, CommentableMixin):
         try:
             rsym = self.symbol_table.lookup(name)
         except KeyError:
-            return None
+            return []
         if isinstance(rsym, GenericInterfaceSymbol):
             return [rt[0].name.lower() for rt in rsym.routines]
         elif isinstance(rsym, RoutineSymbol):

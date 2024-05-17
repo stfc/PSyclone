@@ -212,7 +212,7 @@ end module broken_mod''')
     #assert broken_builtins_psyir.parent.name == "broken_mod.f90"
 
     out, _ = capsys.readouterr()
-    assert "Error trying to parse" in out
+    assert "Error parsing" in out
 
 
 # -----------------------------------------------------------------------------

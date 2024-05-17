@@ -278,5 +278,16 @@ class ModuleInfo:
         for cntr in self._psyir.walk(Container):
             if cntr.name.lower() == self.name:
                 return cntr
+
+        # Double-check the parse tree
+        for mod_stmt in walk(self.get_parse_tree(), Fortran2003.Module_Stmt):
+            if mod_stmt.children[1].string.lower() == self.name:
+                # The module exists but we couldn't create PSyIR for it.
+                # TODO #11: Add proper logging
+                print(f"File '{self.filename}' does contain module "
+                      f"'{self.name}' but PSyclone is unable to create the "
+                      f"PSyIR of it.")
+                return None
+
         raise InternalError(f"File '{self.filename}' does not contain a "
-                            f"module named '{self.name}'") 
+                            f"module named '{self.name}'")

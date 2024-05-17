@@ -387,10 +387,9 @@ class CallTreeUtils():
                 if not cntr:
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot get PSyIR for module '{module_name}' - "
-                          f"ignored.")
+                          f"ignoring unknown symbol '{signature[0]}'.")
                     continue
-                all_routines = cntr.resolve_routine(signature[0])
-                for routine_name in all_routines:
+                for routine_name in cntr.resolve_routine(signature[0]):
                     routine = cntr.get_routine_psyir(routine_name)
                     if not routine:
                         # TODO #11: Add proper logging
@@ -402,6 +401,10 @@ class CallTreeUtils():
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
                         self.get_non_local_symbols(routine))
+                else:
+                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                          f"Cannot resolve routine '{signature[0]}' in module "
+                          f"'{module_name}' - ignored.")
                 continue
 
             if external_type == "unknown":
@@ -422,26 +425,31 @@ class CallTreeUtils():
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot get PSyIR for module '{module_name}' - "
                           f"ignoring unknown symbol '{signature}'.")
-                    continue
-                psyir = cntr.get_routine_psyir(str(signature))
-                if psyir:
-                    # It is a routine, which we need to analyse for the use
-                    # of non-local symbols:
-                    outstanding_nonlocals.append(("routine", module_name,
-                                                  signature, access_info))
-                    continue
-                # Check if it is a constant (the symbol should always be found,
-                # but if a module cannot be parsed then the symbol table won't
-                # have been populated)
-                sym_tab = cntr.symbol_table
-                try:
-                    sym = sym_tab.lookup(signature[0])
-                    if sym.is_constant:
-                        continue
-                except KeyError:
-                    print(f"Unable to check if signature '{signature}' "
-                          f"is constant.")
                     sym = None
+                else:
+                    psyir = cntr.get_routine_psyir(str(signature))
+                    if psyir:
+                        # It is a routine, which we need to analyse for the use
+                        # of non-local symbols:
+                        outstanding_nonlocals.append(("routine", module_name,
+                                                      signature, access_info))
+                        continue
+                    else:
+                        print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                              f"Cannot find a routine '{signature}' in module "
+                              f"'{module_name}' - ignored.")
+                    # Check if it is a constant (the symbol should always be found,
+                    # but if a module cannot be parsed then the symbol table won't
+                    # have been populated)
+                    sym_tab = cntr.symbol_table
+                    try:
+                        sym = sym_tab.lookup(signature[0])
+                        if sym.is_constant:
+                            continue
+                    except KeyError:
+                        print(f"Unable to check if signature '{signature}' "
+                              f"is constant.")
+                        sym = None
                 # Otherwise fall through to the code that adds a reference:
 
             # Now it must be a reference, so add it to the list of input-

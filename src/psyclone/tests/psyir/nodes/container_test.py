@@ -245,4 +245,4 @@ end module a_mod
             " or a GenericInterfaceSymbol but found 'DataSymbol'"
             in str(err.value))
     # A name not present in the Container.
-    assert cntr.resolve_routine("missing") is None
+    assert cntr.resolve_routine("missing") == []

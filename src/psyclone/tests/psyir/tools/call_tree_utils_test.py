@@ -332,7 +332,7 @@ def test_call_tree_utils_outstanding_nonlocals(capsys):
              None)]
     ctu._resolve_calls_and_unknowns(todo, rw_info)
     out, _ = capsys.readouterr()
-    assert ("Cannot find symbol 'does-not-exist' in module "
+    assert ("Cannot resolve routine 'does-not-exist' in module "
             "'module_with_var_mod' - ignored." in out)
     assert rw_info.read_list == []
     assert rw_info.write_list == []
@@ -526,6 +526,7 @@ def test_call_tree_error_var_not_found(capsys):
 
 
 # -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_call_tree_error_module_is_codeblock(capsys):
     '''Tests that a module that cannot be parsed and becomes a codeblock
     is handled correctly.
@@ -548,5 +549,6 @@ def test_call_tree_error_module_is_codeblock(capsys):
         [("routine", "testkern_import_symbols_mod",
           Signature("testkern_import_symbols_code"), sva)], read_write_info)
     out, _ = capsys.readouterr()
-    assert ("Cannot find symbol 'testkern_import_symbols_code' in module "
-            "'testkern_import_symbols_mod' - ignored." in out)
+    assert ("_symbols_mod.f90' does contain module "
+            "'testkern_import_symbols_mod' but PSyclone is unable to create "
+            "the PSyIR of it." in out)
