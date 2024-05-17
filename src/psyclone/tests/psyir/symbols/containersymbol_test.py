@@ -212,12 +212,10 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     # F90 extension is also being imported as it does not produce a file
     # not found error.
     create_dummy_module(path, "different_name_module.F90")
-    with pytest.raises(ValueError) as error:
+    with pytest.raises(SymbolError) as error:
         container = fminterface.import_container("different_name_module")
-    assert ("Error importing the Fortran module 'different_name_module' "
-            "into a PSyIR container. The file with filename "
-            "'different_name_module.F90' does not contain the expected "
-            "module." in str(error.value))
+    assert ("Module 'different_name_module' not found in any of the "
+            "include_paths directories [" in str(error.value))
 
 
 def test_containersymbol_wildcard_import():

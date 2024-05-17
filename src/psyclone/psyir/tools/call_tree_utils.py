@@ -291,12 +291,22 @@ class CallTreeUtils():
                           f"ignored.")
                     continue
 
-                # TODO #2435: once we have interface support, this will be
-                # handled by the container node.
-                all_possible_routines = mod_info.resolve_routine(kernel.name)
+                # Get the Container for this module.
+                cntr = mod_info.get_psyir()
+                if not cntr:
+                    print(f"[CallTreeUtils.get_non_local_read_write_info] "
+                          f"Could not get PSyIR for module "
+                          f"'{kernel.module_name}' - ignored.")
+                    continue
+                all_possible_routines = cntr.resolve_routine(kernel.name)
                 for routine_name in all_possible_routines:
-                    psyir = \
-                        mod_info.get_psyir().get_routine_psyir(routine_name)
+                    psyir = cntr.get_routine_psyir(routine_name)
+                    if not psyir:
+                        print(f"[CallTreeUtils.get_non_local_read_write_info] "
+                              f"Could not get PSyIR for Routine "
+                              f"'{routine_name}' from module "
+                              f"'{kernel.module_name}' - ignored.")
+                        continue
                     todo.extend(self.get_non_local_symbols(psyir))
         return self._resolve_calls_and_unknowns(todo, read_write_info)
 
@@ -354,7 +364,13 @@ class CallTreeUtils():
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot find module '{module_name}' - ignored.")
                     continue
-                routine = mod_info.get_psyir().get_routine_psyir(signature[0])
+                cntr = mod_info.get_psyir()
+                if not cntr:
+                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                          f"Cannot get PSyIR for module '{module_name}' - "
+                          f"ignored.")
+                    continue
+                routine = cntr.get_routine_psyir(signature[0])
                 if routine:
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
@@ -380,7 +396,14 @@ class CallTreeUtils():
                           f"unknown symbol '{signature}'.")
                     continue
 
-                if mod_info.contains_routine(str(signature)):
+                cntr = mod_info.get_psyir()
+                if not cntr:
+                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                          f"Cannot get PSyIR for module '{module_name}' - "
+                          f"ignoring unknown symbol '{signature}'.")
+                    continue
+                psyir = cntr.get_routine_psyir(str(signature))
+                if psyir:
                     # It is a routine, which we need to analyse for the use
                     # of non-local symbols:
                     outstanding_nonlocals.append(("routine", module_name,

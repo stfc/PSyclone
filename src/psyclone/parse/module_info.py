@@ -262,6 +262,7 @@ class ModuleInfo:
             except (KeyError, SymbolError, InternalError,
                     FortranSyntaxError) as err:
                 print(f"Error trying to parse '{self.filename}': '{err}'")
+                return None
                 # TODO #11: Add proper logging
                 # TODO #2120: Handle error better. Long term we should not
                 # just ignore errors.

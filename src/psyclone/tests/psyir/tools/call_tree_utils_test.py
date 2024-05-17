@@ -349,7 +349,8 @@ def test_module_info_generic_interfaces():
     mod_info = mod_man.get_module_info("g_mod")
     ctu = CallTreeUtils()
 
-    all_routines = mod_info.resolve_routine("myfunc")
+    cntr = mod_info.get_psyir()
+    all_routines = cntr.resolve_routine("myfunc")
     all_non_locals = []
     for routine_name in all_routines:
         all_non_locals.extend(

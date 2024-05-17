@@ -2582,6 +2582,7 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert a_2.visibility == symbols.Symbol.Visibility.PRIVATE
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_different_capitalization(
         fortran_reader, tmpdir, monkeypatch):
     ''' Tests that the SymbolTable resolve_imports method works as expected
@@ -2615,6 +2616,7 @@ def test_resolve_imports_different_capitalization(
     assert symbol.visibility == symbols.Symbol.Visibility.PRIVATE
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports method raises the appropriate
     errors when it finds name clashes. '''
@@ -2652,6 +2654,7 @@ def test_resolve_imports_name_clashes(fortran_reader, tmpdir, monkeypatch):
             "symbols from container 'a_mod'." in str(err.value))
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
     ''' Tests the SymbolTable resolve_imports respects the accessibility
     statements when importing symbol information from external containers. '''
@@ -2718,6 +2721,7 @@ def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
     assert "other_private" not in symtab
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
     ''' Tests that the SymbolTable resolve_imports method work as expected when
     we are importing user-defined/derived types from an external container. '''
@@ -2785,6 +2789,7 @@ def test_resolve_imports_with_datatypes(fortran_reader, tmpdir, monkeypatch):
     assert my_type.components["array"].datatype.shape[1].upper.value == "10"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 @pytest.mark.parametrize('dependency_order', [['a_mod', 'b_mod'],
                                               ['b_mod', 'a_mod']])
 def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
@@ -2862,6 +2867,7 @@ def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
     assert new_sym.interface.container_symbol.name == "a_mod"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine,

@@ -231,7 +231,7 @@ end module a_mod
     cntr = psyir.children[0]
     assert isinstance(cntr, Container)
     # Individual routine.
-    assert cntr.resolve_routine("wattle_and_daub") == "wattle_and_daub"
+    assert cntr.resolve_routine("wattle_and_daub") == ["wattle_and_daub"]
     # Generic interface.
     routines = cntr.resolve_routine("a_facade")
     assert len(routines) == 3

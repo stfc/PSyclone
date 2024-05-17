@@ -198,9 +198,9 @@ class Container(ScopingNode, CommentableMixin):
 
         :param str name: the name of the routine to resolve
 
-        :returns: the PSyIR Routine instance(s) corresponding to the
-            supplied name or an empty list if there is no routine with that
-            name in this container.
+        :returns: the names of those routines that may actually be invoked
+            when the routine `name` is called or an empty list if there is no
+            routine with that name in this container.
         :rtype: list[None | psyclone.psyir.nodes.Routine]
         :raises TypeError: if the Symbol with the supplied name is not a
             RoutineSymbol or GenericInterfaceSymbol.
@@ -212,7 +212,7 @@ class Container(ScopingNode, CommentableMixin):
         if isinstance(rsym, GenericInterfaceSymbol):
             return [rt[0].name.lower() for rt in rsym.routines]
         elif isinstance(rsym, RoutineSymbol):
-            return name
+            return [name]
         else:
             raise TypeError(
                 f"Expected '{name}' to correspond to either a RoutineSymbol or"
