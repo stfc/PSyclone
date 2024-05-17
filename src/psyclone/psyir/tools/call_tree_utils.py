@@ -229,14 +229,27 @@ class CallTreeUtils():
                 read_write_info.add_write(signature)
 
     # -------------------------------------------------------------------------
-    def get_in_out_parameters(self, node_list, options=None):
+    def get_in_out_parameters(self, node_list, collect_non_local_symbols=False,
+                              options=None):
         '''Returns a ReadWriteInfo object that contains all variables that are
         input and output parameters to the specified node list. This function
         calls `get_input_parameter` and `get_output_parameter`, but avoids the
-        repeated computation of the variable usage.
+        repeated computation of the variable usage. If
+        `collect_non_local_symbols` is set to True, the code will also include
+        non-local symbols used directly or indirectly, i.e. it will follow the
+        call tree as much as possible (e.g. it cannot resolve a procedure
+        pointer, since then it is not known which function is actually called)
+        and collect any other variables that will be read or written when
+        executing the nodes specified in the node list. The corresponding
+        module name for these variables will be included in the ReadWriteInfo
+        result object. For this to work it is essential that the correct
+        search paths are specified for the module manager.
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: list[:py:class:`psyclone.psyir.nodes.Node`]
+        :param bool collect_non_local_symbols: whether non-local symbols
+            (i.e. symbols used in other modules either directly or
+            indirectly) should be included in the in/out information.
         :param options: a dictionary with options for the CallTreeUtils
             which will also be used when creating the VariablesAccessInfo
             instance if required.
@@ -255,6 +268,9 @@ class CallTreeUtils():
         read_write_info = ReadWriteInfo()
         self.get_input_parameters(read_write_info, node_list, variables_info)
         self.get_output_parameters(read_write_info, node_list, variables_info)
+        if collect_non_local_symbols:
+            self.get_non_local_read_write_info(node_list, read_write_info)
+
         return read_write_info
 
     # -------------------------------------------------------------------------
@@ -283,12 +299,14 @@ class CallTreeUtils():
                 # by querying the module that contains the kernel:
                 try:
                     mod_info = mod_manager.get_module_info(kernel.module_name)
-                except FileNotFoundError:
+                except FileNotFoundError as err:
                     # TODO #11: Add proper logging
                     # TODO #2120: Handle error
                     print(f"[CallTreeUtils.get_non_local_read_write_info] "
                           f"Could not find module '{kernel.module_name}' - "
                           f"ignored.")
+                    # This includes the currently defined search path:
+                    print(str(err))
                     continue
 
                 # Get the Container for this module.
@@ -332,7 +350,8 @@ class CallTreeUtils():
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
-        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-branches, too-many-locals
+        # pylint: disable=too-many-statements
         mod_manager = ModuleManager.get()
         done = set()
         # Using a set here means that duplicated entries will automatically
@@ -370,18 +389,19 @@ class CallTreeUtils():
                           f"Cannot get PSyIR for module '{module_name}' - "
                           f"ignored.")
                     continue
-                routine = cntr.get_routine_psyir(signature[0])
-                if routine:
+                all_routines = cntr.resolve_routine(signature[0])
+                for routine_name in all_routines:
+                    routine = cntr.get_routine_psyir(routine_name)
+                    if not routine:
+                        # TODO #11: Add proper logging
+                        # TODO #2120: Handle error
+                        print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
+                              f"Cannot find routine '{routine_name}' in module "
+                              f"'{module_name}' - ignored.")
+                        continue
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
                         self.get_non_local_symbols(routine))
-                else:
-                    # TODO #11: Add proper logging
-                    # TODO #2120: Handle error
-                    print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                          f"Cannot find symbol '{signature[0]}' in module "
-                          f"'{module_name}' - ignored.")
-                continue
 
             if external_type == "unknown":
                 # It could be a function (TODO #1314) or a variable. Check if
@@ -409,6 +429,19 @@ class CallTreeUtils():
                     outstanding_nonlocals.append(("routine", module_name,
                                                   signature, access_info))
                     continue
+                # Check if it is a constant (the symbol should always be found,
+                # but if a module cannot be parsed then the symbol table won't
+                # have been populated)
+                sym_tab = \
+                    mod_info.get_psyir().symbol_table
+                try:
+                    sym = sym_tab.lookup(signature[0])
+                    if sym.is_constant:
+                        continue
+                except KeyError:
+                    print(f"Unable to check if signature '{signature}' "
+                          f"is constant.")
+                    sym = None
                 # Otherwise fall through to the code that adds a reference:
 
             # Now it must be a reference, so add it to the list of input-
