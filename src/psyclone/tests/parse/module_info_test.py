@@ -41,7 +41,7 @@ import pytest
 from fparser.two import Fortran2003
 
 from psyclone.parse import FileInfo, ModuleInfo, ModuleInfoError, ModuleManager
-from psyclone.psyir.nodes import Container, FileContainer
+from psyclone.psyir.nodes import Container
 from psyclone.tests.utilities import get_base_path
 
 
@@ -203,13 +203,8 @@ end module broken_mod''')
     mod_man.add_search_path(str(tmpdir), recursive=False)
     broken_builtins = mod_man.get_module_info("broken_mod")
     broken_builtins_psyir = broken_builtins.get_psyir()
-
-    # We should still get an empty Container with a dummy Container:
+    # We should get no PSyIR
     assert broken_builtins_psyir is None
-    #assert isinstance(broken_builtins_psyir, Container)
-    #assert broken_builtins_psyir.name == "invalid-module"
-    #assert isinstance(broken_builtins_psyir.parent, FileContainer)
-    #assert broken_builtins_psyir.parent.name == "broken_mod.f90"
 
     out, _ = capsys.readouterr()
     assert "Error parsing" in out

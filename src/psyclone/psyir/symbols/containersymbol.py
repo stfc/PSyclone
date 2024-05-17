@@ -38,7 +38,6 @@
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
-from psyclone.errors import InternalError
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.interfaces import SymbolInterface
 from psyclone.configuration import Config
@@ -206,9 +205,9 @@ class FortranModuleInterface(ContainerSymbolInterface):
         except FileNotFoundError:
             pass
         if not minfo:
-           raise SymbolError(
-                   f"Module '{name}' not found in any of the include_paths "
-                   f"directories {Config.get().include_paths}.")
+            raise SymbolError(
+                f"Module '{name}' not found in any of the include_paths "
+                f"directories {Config.get().include_paths}.")
         return minfo.get_psyir()
 
 

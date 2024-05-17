@@ -400,9 +400,8 @@ class LFRicExtractDriverCreator:
                 # TODO #2120: This typically indicates a problem with parsing
                 # a module: the psyir does not have the full tree structure.
                 continue
-            sym_tab = mod_info.get_psyir().symbol_table
             try:
-                container_symbol = sym_tab.lookup(signature[0])
+                container_symbol = cntr.symbol_table.lookup(signature[0])
             except KeyError:
                 # TODO #2120: This typically indicates a problem with parsing
                 # a module: the psyir does not have the full tree structure.
@@ -623,9 +622,8 @@ class LFRicExtractDriverCreator:
                 mod_info = mod_man.get_module_info(module_name)
                 cntr = mod_info.get_psyir()
                 if cntr:
-                    sym_tab = cntr.symbol_table
                     try:
-                        orig_sym = sym_tab.lookup(signature[0])
+                        orig_sym = cntr.symbol_table.lookup(signature[0])
                     except KeyError:
                         # TODO 2120: We likely couldn't parse the module.
                         print(f"Error finding symbol '{sig_str}' in "
@@ -679,9 +677,8 @@ class LFRicExtractDriverCreator:
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             if module_name:
-                mod_info = mod_man.get_module_info(module_name)
-                sym_tab = mod_info.get_psyir().symbol_table
-                orig_sym = sym_tab.lookup(signature[0])
+                cntr = mod_man.get_module_info(module_name).get_psyir()
+                orig_sym = cntr.symbol_table.lookup(signature[0])
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
             is_input = read_write_info.is_read(signature)

@@ -395,8 +395,8 @@ class CallTreeUtils():
                         # TODO #11: Add proper logging
                         # TODO #2120: Handle error
                         print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                              f"Cannot find routine '{routine_name}' in module "
-                              f"'{module_name}' - ignored.")
+                              f"Cannot find routine '{routine_name}' in module"
+                              f" '{module_name}' - ignored.")
                         continue
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
@@ -438,9 +438,9 @@ class CallTreeUtils():
                         print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                               f"Cannot find a routine '{signature}' in module "
                               f"'{module_name}' - ignored.")
-                    # Check if it is a constant (the symbol should always be found,
-                    # but if a module cannot be parsed then the symbol table won't
-                    # have been populated)
+                    # Check whether it is a constant (the symbol should always
+                    # be found, but if a module cannot be parsed then the
+                    # symbol table won't have been populated)
                     sym_tab = cntr.symbol_table
                     try:
                         sym = sym_tab.lookup(signature[0])

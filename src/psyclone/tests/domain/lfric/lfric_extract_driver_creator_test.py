@@ -682,8 +682,10 @@ def test_lfric_driver_external_symbols_error(capsys):
     # First check output of extraction, which will detect the problems of
     # finding variables and functions:
     out, _ = capsys.readouterr()
-    assert ("Cannot get PSyIR for module 'module_with_error_mod' - ignoring unknown symbol 'non_existent_func'" in out)
-    assert ("Cannot get PSyIR for module 'module_with_error_mod' - ignoring unknown symbol 'non_existent_var'" in out)
+    assert ("Cannot get PSyIR for module 'module_with_error_mod' - ignoring "
+            "unknown symbol 'non_existent_func'" in out)
+    assert ("Cannot get PSyIR for module 'module_with_error_mod' - ignoring "
+            "unknown symbol 'non_existent_var'" in out)
 
     # This error comes from the driver creation: a variable is in the list
     # of variables to be processed, but its type cannot be found.

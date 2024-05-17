@@ -31,15 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          A. R. Porter, STFC Daresbury Laboratory
 
 '''This module contains the ModuleInfo class, which is used to store
-and cache information about a module: the filename, source code (if requested)
-and the fparser tree (if requested), and information about any routines it
-includes, and external symbol usage.
-'''
+and cache information about a module: a FileInfo instance holding information
+on the source file, the fparser tree (if requested) and the corresponding
+PSyIR (if requested).
 
-import os
+'''
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
@@ -49,7 +49,7 @@ from fparser.two.utils import FortranSyntaxError, walk
 from psyclone.configuration import Config
 from psyclone.errors import InternalError, PSycloneError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Container, FileContainer
+from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import SymbolError
 
 
@@ -72,12 +72,15 @@ class ModuleInfoError(PSycloneError):
 class ModuleInfo:
     # pylint: disable=too-many-instance-attributes
     '''This class stores mostly cached information about modules: it stores
-    the original filename, if requested it will read the file and then caches
-    the plain text file, and if required it will parse the file, and then
-    cache the fparser AST.
+    a FileInfo object holding details on the original source file.
+    If required it will parse the file and then
+    cache the fparser AST. Similarly, it will also process the AST to
+    create the corresponding PSyIR which is also then cached.
 
     :param str name: the module name.
-    :param finfo: 
+    :param finfo: object holding information on the source file which defines
+        this module.
+    :type finfo: :py:class:`psyclone.parse.FileInfo`
 
     '''
 

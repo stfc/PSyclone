@@ -150,20 +150,6 @@ class ModuleManager:
                 self._visited_files[full_path] = FileInfo(full_path)
                 new_files.append(self._visited_files[full_path])
         return new_files
-                #src = ModuleInfo.read_source(full_path)
-                # Obtain the names of all modules defined in this source file.
-                #all_modules = self.get_modules_in_file(src)
-                #for module in all_modules:
-                #    # Pre-processed file should always take precedence
-                #    # over non-pre-processed files. So if a module already
-                #    # exists in the mapping, only overwrite it if the new
-                #    # file is pre-processed (i.e. .f90). This still means that
-                #    # if files are not preprocessed (.F90), they will still be
-                #    # added (but might cause problems parsing later).
-                #    if (module not in self._mod_2_filename or
-                #            ext in [".f90", ".x90"]):
-                #        mod_info = ModuleInfo(module, full_path, src)
-                #        self._mod_2_filename[module] = mod_info
 
     def _find_module_in_files(self, name, file_list):
         '''
