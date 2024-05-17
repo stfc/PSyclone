@@ -2406,6 +2406,7 @@ end module gold'''
 
 # resolve_imports
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     ''' Tests that the SymbolTable resolve_imports method works as expected
     when importing symbol information from external containers and respects
@@ -2830,6 +2831,7 @@ def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
     assert symtab.lookup("common_import").datatype.intrinsic.name == "INTEGER"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
     '''Test that resolve_imports() works as expected if a Symbol is brought
     into scope from a parent table (which does not itself contain the Symbol
@@ -2910,6 +2912,7 @@ def test_resolve_imports_from_child_symtab(
     assert symbol.interface.container_symbol.name == "a_mod"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab_uft(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine,
@@ -2954,6 +2957,7 @@ def test_resolve_imports_from_child_symtab_uft(
     assert symbol.interface.container_symbol.name == "a_mod"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtabs(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
