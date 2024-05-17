@@ -1,3 +1,8 @@
+! Note that this file is provided as part of git to enable
+! compilation tests of drivers (which require this file).
+
+
+
 ! ================================================== !
 ! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !
 ! DO NOT MODIFY DIRECTLY!                            !
