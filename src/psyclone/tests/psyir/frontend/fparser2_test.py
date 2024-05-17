@@ -644,6 +644,7 @@ def test_get_routine_schedules_unmatching_arguments(parser):
             "Symbol Table.\"." in str(error.value))
 
 
+@pytest.mark.usefixtures("f2008_parser")
 @pytest.mark.parametrize("interface_code",
                          ["        module procedure dummy_code_32\n"
                           "        module procedure dummy_CODE_64\n",
