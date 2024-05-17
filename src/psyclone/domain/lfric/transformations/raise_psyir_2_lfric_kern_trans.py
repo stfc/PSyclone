@@ -81,9 +81,11 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
     nodes and symbols. This is currently limited to the specialisation
     of kernel metadata.
 
+    >>> from psyclone.configuration import Config
     >>> from psyclone.domain.lfric.transformations import \
             RaisePSyIR2LFRicKernTrans
     >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> config = Config.get().api_conf("dynamo0.3")
     >>> CODE = ("""
     ... MODULE example
     ... TYPE, EXTENDS(kernel_type) :: compute_cu

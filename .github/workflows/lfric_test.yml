@@ -46,7 +46,7 @@ jobs:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     env:
-      LFRIC_REV: 45376
+      LFRIC_APPS_REV: 1192
       PYTHON_VERSION: 3.12.3
 
     steps:
@@ -79,27 +79,18 @@ jobs:
     - name: LFRic passthrough (with DistributedMemory)
       run: |
         # Set up environment
-        source /apps/spack/spack-repo/share/spack/setup-env.sh
-        spack env activate lfric-gnu
-        export FC="gfortran"
-        export CC="gcc"
-        export CXX="g++"
-        export FPP="cpp -traditional-cpp"
-        export LDMPI="mpif90"
-        export FFLAGS="-Wall -Werror=conversion -Werror=unused-variable -Werror=character-truncation -Werror=unused-value -Werror=tabs -I$(spack location -e lfric-gnu)/.spack-env/view/include"
-        export LDFLAGS="-L$(spack location -e lfric-gnu)/.spack-env/view/lib"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib64"
+        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        spack load lfric-buildenv%gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export MINIAPP_DIR=${HOME}/LFRic_${LFRIC_REV}/miniapps/gungho_model
-        export PSYCLONE_CONFIG=${HOME}/lfric_psyclone_config.cfg
-        cd ${MINIAPP_DIR}
-        # Compile
-        make clean
-        make -j 6 build
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps
+        cd ${LFRIC_DIR}
+        # Clean previous version and compile again
+        rm -rf appplications/gungho_model/working
+        ./build/local_build.py -a gungho_model
         # Run
-        cd example
+        cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
         python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its_output.txt output.txt
@@ -107,6 +98,15 @@ jobs:
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_passthrough_performance_history
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "LFRic Passthrough with DM", lfric_apps_version: '"$LFRIC_APPS_REV"', system: "GlaDos",
+          compiler:"spack-gfortran-11", date: new Date(), elapsed_time: '"$VAR_TIME"',
+          num_of_halo_exchanges: '"$VAR_HALOS"'})'
 
     - name: Upload LFRic passthrough results
       uses: exuanbo/actions-deploy-gist@v1
@@ -119,30 +119,22 @@ jobs:
     - name: LFRic with all transformations
       run: |
         # Set up environment
-        source /apps/spack/spack-repo/share/spack/setup-env.sh
-        spack env activate lfric-gnu
-        export FC="gfortran"
-        export CC="gcc"
-        export CXX="g++"
-        export FPP="cpp -traditional-cpp"
-        export LDMPI="mpif90"
-        export FFLAGS="-I$(spack location -e lfric-gnu)/.spack-env/view/include"
-        export LDFLAGS="-L$(spack location -e lfric-gnu)/.spack-env/view/lib"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH::$(spack location -e lfric-gnu)/.spack-env/view/lib64"
+        source /apps/spack/spack-upstream/share/spack/setup-env.sh
+        spack load lfric-buildenv%gcc
         source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export MINIAPP_DIR=${HOME}/LFRic_${LFRIC_REV}/miniapps/gungho_model
-        export PSYCLONE_CONFIG=${HOME}/lfric_psyclone_config.cfg
-        cd ${MINIAPP_DIR}
-        # Prepare script (LFRics expects a folder with a global.py)
-        mkdir -p psyclone-test
-        cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py psyclone-test/global.py
-        # Compile
-        make clean
-        make OPTIMISATION_PATH=${MINIAPP_DIR}/psyclone-test -j 6 build |& tee compiler_output.txt
+        export PSYCLONE_CONFIG_FILE=${PSYCLONE_LFRIC_DIR}/KGOs/lfric_psyclone.cfg
+        export LFRIC_DIR=${HOME}/LFRic/lfric_apps
+        export OPT_DIR=${LFRIC_DIR}/applications/gungho_model/optimisation/psyclone-test
+        cd ${LFRIC_DIR}
+        # Psyclone scripts must now be under 'optimisation' and be called 'global.py'
+        mkdir -p applications/gungho_model/optimisation/psyclone-test
+        cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py ${OPT_DIR}/global.py
+        # Clean previous version and compile again
+        rm -rf appplications/gungho_model/working
+        ./build/local_build.py -a gungho_model -p psyclone-test
         # Run
-        cd example
+        cd applications/gungho_model/example
         cp ${PSYCLONE_LFRIC_DIR}/KGOs/lfric_gunho_configuration_4its.nml configuration.nml
         export OMP_NUM_THREADS=6
         mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
@@ -151,6 +143,15 @@ jobs:
         export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
         export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
         echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_optimised_performance_history
+        ${HOME}/mongosh-2.1.1-linux-x64/bin/mongosh \
+          "mongodb+srv://cluster0.x8ncpxi.mongodb.net/PerformanceMonitoring" \
+          --quiet --apiVersion 1 --username ${{ secrets.MONGODB_USERNAME }} \
+          --password ${{ secrets.MONGODB_PASSWORD }} \
+          --eval 'db.GitHub_CI.insertOne({branch_name: "'"$GITHUB_REF_NAME"'", commit: "'"$GITHUB_SHA"'",
+          github_job: "'"$GITHUB_RUN_ID"'"-"'"$GITHUB_RUN_ATTEMPT"'",
+          ci_test: "LFRic all transformations", lfric_version: '"$LFRIC_APPS_REV"', omp_threads: '"$OMP_NUM_THREADS"',
+          system: "GlaDos", compiler:"spack-gfortran-11", date: new Date(), elapsed_time: '"$VAR_TIME"',
+          num_of_halo_exchanges: '"$VAR_HALOS"'})'
 
     - name: Upload LFRic optimised results
       uses: exuanbo/actions-deploy-gist@v1
