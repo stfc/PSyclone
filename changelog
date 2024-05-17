@@ -83,7 +83,13 @@
 	variables from other modules.
 
 	31) PR #2547 towards #1779. Removes the NemoLoop node and makes
-  	the loop_type inference rules part of generic PSyIR.
+	the loop_type inference rules part of generic PSyIR.
+
+	32) PR #2590 fpr #2589. Moves to the latest LFRic (split repo)
+	and fixes the LFRic integration tests.
+
+	33) PR #2452 for #2451. Move and rename DynInvokeSchedule to
+	LFRicInvokeSchedule.
 
 release 2.5.0 14th of February 2024
 
