@@ -3011,6 +3011,7 @@ def test_resolve_imports_from_child_symtabs(
         assert reference.symbol is some_var_symbol
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtabs_utf(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
@@ -3070,6 +3071,7 @@ def test_resolve_imports_from_child_symtabs_utf(
         assert reference.symbol is some_var_symbol
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_resolve_imports_from_child_symtab_with_import(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine
