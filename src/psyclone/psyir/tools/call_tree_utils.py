@@ -402,6 +402,7 @@ class CallTreeUtils():
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
                         self.get_non_local_symbols(routine))
+                continue
 
             if external_type == "unknown":
                 # It could be a function (TODO #1314) or a variable. Check if
@@ -432,8 +433,7 @@ class CallTreeUtils():
                 # Check if it is a constant (the symbol should always be found,
                 # but if a module cannot be parsed then the symbol table won't
                 # have been populated)
-                sym_tab = \
-                    mod_info.get_psyir().symbol_table
+                sym_tab = cntr.symbol_table
                 try:
                     sym = sym_tab.lookup(signature[0])
                     if sym.is_constant:

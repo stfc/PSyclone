@@ -245,33 +245,34 @@ class ModuleInfo:
         cached. If the PSyIR must be modified, it needs to be copied,
         otherwise the modified tree will be returned from the cache in the
         future.
-        If the conversion to PSyIR fails, a dummy FileContainer with an
-        empty Container (module) is returned, which avoids additional error
-        handling in many other subroutines.
-        #TODO 2120: This should be revisited when improving on the error
-        handling.
+
+        If the conversion to PSyIR fails then None is returned.
 
         :returns: PSyIR representing this module.
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Node`]
+        :rtype: :py:class:`psyclone.psyir.nodes.Container` | NoneType
+
+        :raises InternalError: if the named Container (module) does not
+            exist in the PSyIR.
 
         '''
         if self._psyir is None:
             try:
-                self._psyir = \
-                    self._processor.generate_psyir(self.get_parse_tree())
-            except (KeyError, SymbolError, InternalError,
-                    FortranSyntaxError) as err:
-                print(f"Error trying to parse '{self.filename}': '{err}'")
-                return None
+                ptree = self.get_parse_tree()
+            except FortranSyntaxError as err:
                 # TODO #11: Add proper logging
-                # TODO #2120: Handle error better. Long term we should not
-                # just ignore errors.
-                # Create a dummy FileContainer with a dummy module. This avoids
-                # additional error handling in other subroutines, since they
-                # will all return 'no information', whatever you ask for
-                self._psyir = FileContainer(os.path.basename(self.filename))
-                module = Container("invalid-module")
-                self._psyir.children.append(module)
+                print(f"Error parsing '{self.filename}': '{err}'")
+                return None
+            if not ptree:
+                # TODO #11: Add proper logging
+                print(f"Empty parse tree returned for '{self.filename}'")
+                return None
+            try:
+                self._psyir = self._processor.generate_psyir(ptree)
+            except (KeyError, SymbolError, InternalError) as err:
+                # TODO #11: Add proper logging
+                print(f"Error trying to create PSyIR for '{self.filename}': "
+                      f"'{err}'")
+                return None
 
         # Return the Container with the correct name.
         for cntr in self._psyir.walk(Container):
