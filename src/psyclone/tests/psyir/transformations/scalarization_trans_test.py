@@ -41,146 +41,147 @@ from psyclone.psyir.transformations import ScalarizationTrans
 from psyclone.tests.utilities import Compile
 
 
-def test_scalarizationtrans_potential_array_symbols(fortran_reader):
-    ''' Test the possible code paths in the
-    _find_potential_scalarizable_array_symbols function.'''
-    code = '''subroutine test()
-        integer :: i
-        integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
-        integer, dimension(1:100) :: c
+def test_scalararizationtrans_is_local_array(fortran_reader):
+    code = '''subroutine test(a)
+       use mymod, only: arr
+       integer :: i
+       integer :: k
+       integer, dimension(1:100) :: local
+       integer, dimension(1:100) :: a
 
-        do i = 1, 100
-           arr(i) = i
-        end do
-    end subroutine
-    '''
-    strans = ScalarizationTrans()
+       do i = 1, 100
+          arr(i) = i
+          a(i) = i
+          local(i) = i
+       end do
+       end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
     var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    potential_targets = strans._find_potential_scalarizable_array_symbols(
-            node, var_accesses)
-    assert len(potential_targets) == 1
-    assert potential_targets[0].var_name == "arr"
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert not ScalarizationTrans._is_local_array(keys[1],
+                                                  var_accesses)
+    # Test a
+    assert var_accesses[keys[2]].var_name == "a"
+    assert not ScalarizationTrans._is_local_array(keys[2],
+                                                  var_accesses)
+    # Test local
+    assert var_accesses[keys[3]].var_name == "local"
+    assert ScalarizationTrans._is_local_array(keys[3],
+                                              var_accesses)
 
+    # Test filter behaviour same as used in the transformation
+    local_arrays = filter(
+            lambda sig: ScalarizationTrans._is_local_array(sig, var_accesses),
+            var_accesses)
+    local_arrays = list(local_arrays)
+    assert len(local_arrays) == 1
+    assert local_arrays[0].var_name == "local"
+
+
+def test_scalarizationtrans_have_same_unmodified_index(fortran_reader):
     code = '''subroutine test()
-        integer :: i
-        integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
-        integer, dimension(1:100) :: c
-
-        do i = 1, 99
-           k = i + 1
-           arr(k) = i
-        end do
-    end subroutine
-    '''
-    psyir = fortran_reader.psyir_from_source(code)
-    node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    potential_targets = strans._find_potential_scalarizable_array_symbols(
-            node, var_accesses)
-    assert len(potential_targets) == 0
-
-    code = '''subroutine test()
-        integer :: i
-        integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
-        integer, dimension(1:100) :: c
-        k = 3
-        do i = 1, 99
-           arr(i) = i + 1
-           arr(k) = arr(i) + 1
-        end do
-    end subroutine
-    '''
+       integer :: i
+       integer :: k
+       integer, dimension(1:100) :: a
+       integer, dimension(1:103) :: b
+       integer, dimension(1:100) :: c
+       k = 0
+       do i = 1, 100
+          a(i) = i
+          b(i+2) = i
+          b(i+3) = b(i) + b(i+1)
+          c(k) = 2
+          k = k + 1
+       end do
+       end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[1]
     var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    potential_targets = strans._find_potential_scalarizable_array_symbols(
-            node, var_accesses)
-    assert len(potential_targets) == 0
+    keys = list(var_accesses.keys())
+    # Test a
+    assert var_accesses[keys[1]].var_name == "a"
+    assert ScalarizationTrans._have_same_unmodified_index(keys[1],
+                                                          var_accesses)
+    # Test b (differeing indices)
+    assert var_accesses[keys[2]].var_name == "b"
+    assert not ScalarizationTrans._have_same_unmodified_index(keys[2],
+                                                              var_accesses)
+    # Test c (k is modified)
+    assert var_accesses[keys[3]].var_name == "c"
+    assert not ScalarizationTrans._have_same_unmodified_index(keys[3],
+                                                              var_accesses)
+    # Test filter behaviour same as used in the transformation
+    local_arrays = filter(
+            lambda sig: ScalarizationTrans._is_local_array(sig, var_accesses),
+            var_accesses)
+    local_arrays = list(local_arrays)
+    assert len(local_arrays) == 3
 
-    # Ensure that we don't access imports or arguments or unknowns
-    # for scalarization
-    # Not sure if we should expand this for anything else?
-    code = '''subroutine test(b)
-        use mymod, only: arr
-        integer :: i
-        integer :: k
-        integer, dimension(1:100) :: b
-
-        do i = 1, 100
-           arr(i) = i
-           b(i) = i
-           c(i) = i
-        end do
-    end subroutine
-    '''
-    strans = ScalarizationTrans()
-    psyir = fortran_reader.psyir_from_source(code)
-    node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    potential_targets = strans._find_potential_scalarizable_array_symbols(
-            node, var_accesses)
-    assert len(potential_targets) == 0
+    unmodified_indices = filter(
+            lambda sig: ScalarizationTrans._have_same_unmodified_index(
+                sig, var_accesses),
+            local_arrays)
+    unmodified_indices = list(unmodified_indices)
+    assert len(unmodified_indices) == 1
+    assert unmodified_indices[0].var_name == "a"
 
 
-def test_scalarization_first_access_is_write(fortran_reader):
-    ''' Test the scalarization transformation's
-    _check_first_access_is_write function.'''
+def test_scalarizationtrans_check_first_access_is_write(fortran_reader):
     code = '''subroutine test()
-        integer :: i
-        integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
-        integer, dimension(1:100) :: c
-
-        do i = 1, 100
-           arr(i) = i
-        end do
-    end subroutine
-    '''
-    strans = ScalarizationTrans()
+       integer :: i
+       integer :: k
+       integer, dimension(1:100) :: a
+       integer, dimension(1:100) :: b
+       integer, dimension(1:100) :: c
+       do i = 1, 100
+          a(i) = i
+          b(i) = b(i) + 1
+          c(i) = a(i) + b(i)
+       end do
+       end subroutine'''
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
     var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    potentials = [var_accesses.all_signatures[0]]
-    potential_targets = strans._check_first_access_is_write(
-            node, var_accesses, potentials)
+    keys = list(var_accesses.keys())
+    # Test a
+    assert var_accesses[keys[1]].var_name == "a"
+    assert ScalarizationTrans._check_first_access_is_write(keys[1],
+                                                           var_accesses)
+    # Test b (differeing indices)
+    assert var_accesses[keys[2]].var_name == "b"
+    assert not ScalarizationTrans._check_first_access_is_write(keys[2],
+                                                               var_accesses)
+    # Test c (k is modified)
+    assert var_accesses[keys[3]].var_name == "c"
+    assert ScalarizationTrans._check_first_access_is_write(keys[3],
+                                                           var_accesses)
 
-    assert len(potential_targets) == 1
-    assert potential_targets[0].var_name == "arr"
-    code = '''subroutine test()
-        integer :: i
-        integer :: k
-        integer, dimension(1:100) :: arr
-        integer, dimension(1:100) :: b
-        integer, dimension(1:100) :: c
+    # Test filter behaviour same as used in the transformation
+    local_arrays = filter(
+            lambda sig: ScalarizationTrans._is_local_array(sig, var_accesses),
+            var_accesses)
+    local_arrays = list(local_arrays)
+    assert len(local_arrays) == 3
 
-        do i = 1, 100
-           arr(i) = arr(i) + 1
-        end do
-    end subroutine
-    '''
-    strans = ScalarizationTrans()
-    psyir = fortran_reader.psyir_from_source(code)
-    node = psyir.children[0].children[0]
-    var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    potentials = [var_accesses.all_signatures[0]]
-    potential_targets = strans._check_first_access_is_write(
-            node, var_accesses, potentials)
+    unmodified_indices = filter(
+            lambda sig: ScalarizationTrans._have_same_unmodified_index(
+                sig, var_accesses),
+            local_arrays)
+    unmodified_indices = list(unmodified_indices)
+    assert len(unmodified_indices) == 3
 
-    assert len(potential_targets) == 0
+    first_write_arrays = filter(
+            lambda sig: ScalarizationTrans._check_first_access_is_write(
+                sig, var_accesses),
+            unmodified_indices)
+    first_write_arrays = list(first_write_arrays)
+    assert len(first_write_arrays) == 2
 
 
-def test_scalarization_trans_check_valid_following_access(fortran_reader):
-    ''' Test the scalarization transformation's
-    _check_valid_following_access function.'''
+def test_scalarizationtrans_value_unused_after_loop(fortran_reader):
     code = '''subroutine test()
         integer :: i
         integer :: k
@@ -196,16 +197,20 @@ def test_scalarization_trans_check_valid_following_access(fortran_reader):
         end do
     end subroutine
     '''
-    strans = ScalarizationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
     var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    # Only arr makes it through the 2 prior stages
-    potentials = [var_accesses.all_signatures[0]]
-    potential_targets = strans._check_valid_following_access(
-            node, var_accesses, potentials)
-    assert len(potential_targets) == 1
-    assert potential_targets[0].var_name == "arr"
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+                                                       node,
+                                                       var_accesses)
+    # Test b
+    assert var_accesses[keys[2]].var_name == "b"
+    assert not ScalarizationTrans._value_unused_after_loop(keys[2],
+                                                           node,
+                                                           var_accesses)
 
     # Test we ignore array next_access if they're in an if statement
     code = '''subroutine test()
@@ -226,16 +231,20 @@ def test_scalarization_trans_check_valid_following_access(fortran_reader):
         end if
         end subroutine test
         '''
-    strans = ScalarizationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0]
     var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    potentials = [var_accesses.all_signatures[0],
-                  var_accesses.all_signatures[1]]
-    potential_targets = strans._check_valid_following_access(
-            node, var_accesses, potentials)
-    assert len(potential_targets) == 1
-    assert potential_targets[0].var_name == "arr"
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+                                                       node,
+                                                       var_accesses)
+    # Test b
+    assert var_accesses[keys[2]].var_name == "b"
+    assert not ScalarizationTrans._value_unused_after_loop(keys[2],
+                                                           node,
+                                                           var_accesses)
     # Test we don't ignore array next_access if they're in an if statement
     # that is an ancestor of the loop we're scalarizing
     code = '''subroutine test()
@@ -255,17 +264,20 @@ def test_scalarization_trans_check_valid_following_access(fortran_reader):
         end if
         end subroutine test
         '''
-    strans = ScalarizationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0].if_body.children[0]
     var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    potentials = [var_accesses.all_signatures[0],
-                  var_accesses.all_signatures[1]]
-    potential_targets = strans._check_valid_following_access(
-            node, var_accesses, potentials)
-    assert len(potential_targets) == 2
-    assert potential_targets[0].var_name == "arr"
-    assert potential_targets[1].var_name == "b"
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+                                                       node,
+                                                       var_accesses)
+    # Test b
+    assert var_accesses[keys[2]].var_name == "b"
+    assert ScalarizationTrans._value_unused_after_loop(keys[2],
+                                                       node,
+                                                       var_accesses)
 
     # Test we don't ignore array next_access if they have an ancestor
     # that is a Call
@@ -287,16 +299,20 @@ def test_scalarization_trans_check_valid_following_access(fortran_reader):
         end if
         end subroutine test
         '''
-    strans = ScalarizationTrans()
     psyir = fortran_reader.psyir_from_source(code)
     node = psyir.children[0].children[0].if_body.children[0]
     var_accesses = VariablesAccessInfo(nodes=node.loop_body)
-    potentials = [var_accesses.all_signatures[0],
-                  var_accesses.all_signatures[1]]
-    potential_targets = strans._check_valid_following_access(
-            node, var_accesses, potentials)
-    assert len(potential_targets) == 1
-    assert potential_targets[0].var_name == "arr"
+    keys = list(var_accesses.keys())
+    # Test arr
+    assert var_accesses[keys[1]].var_name == "arr"
+    assert ScalarizationTrans._value_unused_after_loop(keys[1],
+                                                       node,
+                                                       var_accesses)
+    # Test b
+    assert var_accesses[keys[2]].var_name == "b"
+    assert not ScalarizationTrans._value_unused_after_loop(keys[2],
+                                                           node,
+                                                           var_accesses)
 
 
 def test_scalarization_trans_apply(fortran_reader, fortran_writer, tmpdir):
