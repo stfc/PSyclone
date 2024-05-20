@@ -1927,6 +1927,37 @@ def test_process_use_stmts_with_accessibility_statements(parser):
     assert symtab.lookup("some_var").visibility == Symbol.Visibility.PUBLIC
 
 
+def test_intrinsic_use_stmt(parser):
+    ''' Tests that intrinsic value is set correctly for an intrinsic module
+    use statement.'''
+    processor = Fparser2Reader()
+    reader = FortranStringReader('''
+        module test
+            use, intrinsic :: ieee_arithmetic, only: isnan =>ieee_is_nan
+            use mymod
+        end module test
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    psyir = processor._module_handler(module, None)
+    symtab = psyir.symbol_table
+    assert symtab.lookup("ieee_arithmetic").is_intrinsic
+    assert not symtab.lookup("mymod").is_intrinsic
+
+    processor = Fparser2Reader()
+    reader = FortranStringReader('''
+        module test
+            use, non_intrinsic :: ieee_arithmetic, only: isnan =>ieee_is_nan
+            use mymod
+        end module test
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    psyir = processor._module_handler(module, None)
+    symtab = psyir.symbol_table
+    assert not symtab.lookup("ieee_arithmetic").is_intrinsic
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_use_stmt_error(monkeypatch):
     ''' Check that we raise the expected error if the parse tree representing
