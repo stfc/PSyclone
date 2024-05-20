@@ -242,12 +242,6 @@ def fixture_lfric_config():
     Config.get().api = "lfric"
 
 
-@pytest.fixture(scope="function", name="gocean_config")
-def fixture_gocean_config():
-    '''Test should use the gocean API config and then clean it up.'''
-    Config.get().api = "gocean"
-
-
 @pytest.fixture(scope="function", autouse=True)
 def fixture_tear_down_config():
     ''' Whatever API we use (by using the previous fixtures or by the test

@@ -669,22 +669,32 @@ def test_main_invalid_api(capsys):
 
 
 def test_main_api():
-    '''Tests the three ways of specifying an API: command line, config
-    file, or relying on the default.
+    ''' Test that the API can be set by a command line parameter, also using
+    the API name aliases. '''
 
-    '''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                "test_files", "gocean1p0", "single_invoke.f90"))
 
-    # 1) Make sure if no parameters are given, we don't use an API
+    # By default we don't use an API
     assert Config.get().api == ''
 
-    # 2) Check that a command line option will overwrite the default
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "gocean1p0",
-                             "single_invoke.f90"))
-
-    assert Config.get().api != "gocean"
+    # Check that a command line option sets the API value
     main([filename, "-api", "gocean"])
     assert Config.get().api == "gocean"
+
+    main([filename, "-api", "gocean1.0"])
+    assert Config.get().api == "gocean"
+
+    filename = os.path.join(DYN03_BASE_PATH, "1_single_invoke.f90")
+    main([filename, "-api", "lfric"])
+    assert Config.get().api == "lfric"
+
+    main([filename, "-api", "dynamo0.3"])
+    assert Config.get().api == "lfric"
+
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    main([filename, "-api", "nemo"])
+    assert Config.get().api == ""
 
 
 def test_config_flag():

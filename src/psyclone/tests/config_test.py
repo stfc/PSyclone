@@ -733,3 +733,27 @@ def test_ignore_modules(tmpdir, monkeypatch):
     monkeypatch.setattr(mod_manager, "_ignore_modules", set())
     get_config(config_file, content)
     assert mod_manager.ignores() == set()
+
+
+def test_aliased_api_names(tmpdir):
+    ''' Test that using the aliased API names in the config files is accepted
+    and this are converted to the correct internal names '''
+    config_file = tmpdir.join("config")
+    content = _CONFIG_CONTENT
+    # Change lfric to dynamo0.3
+    content = re.sub(r"\[lfric]",
+                     "[dynamo0.3]",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    # Change a value to validate a non-default change
+    content = re.sub(r"^NUM_ANY_SPACE = 10$",
+                     "NUM_ANY_SPACE = 13",
+                     content,
+                     flags=re.MULTILINE)
+
+    config = get_config(config_file, content)
+
+    # The dynamo0.3 section has been stored as lfric
+    assert "lfric" in config._api_conf
+    assert "dynamo0.3" not in config._api_conf
+    assert config._api_conf['lfric'].num_any_space == 13

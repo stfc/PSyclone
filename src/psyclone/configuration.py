@@ -285,12 +285,6 @@ class Config:
                 f"Error while parsing DISTRIBUTED_MEMORY: {err}",
                 config=self) from err
 
-        # Sanity check
-        if self._api not in Config._supported_api_list:
-            raise ConfigurationError(
-                f"The API ({self._api}) is not in the list of supported "
-                f"APIs ({Config._supported_api_list}).", config=self)
-
         try:
             self._reproducible_reductions = self._config['DEFAULT'].getboolean(
                 'REPRODUCIBLE_REDUCTIONS')
@@ -402,8 +396,8 @@ class Config:
             raise ConfigurationError(
                 f"API '{api}' is not in the list '{self.supported_apis}'' of "
                 f"supported APIs.")
-        if not api:
-            return BaseConfig(self._config)
+        # if not api:
+        #     return BaseConfig(self._config)
         if api not in self._api_conf:
             raise ConfigurationError(
                 f"Configuration file did not contain a section for the "
