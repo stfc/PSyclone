@@ -294,3 +294,30 @@ class ModuleInfo:
 
         raise InternalError(f"File '{self.filename}' does not contain a "
                             f"module named '{self.name}'")
+
+    # ------------------------------------------------------------------------
+    def get_symbol(self, name):
+        '''
+        Gets the PSyIR Symbol with the supplied name from the Container
+        representing this Module (if available).
+
+        This utility mainly exists to insulate the user from having to check
+        that a Container has been successfully created for this module
+        (it might not have been if the source of the module cannot be found
+        or cannot be parsed) and that it contains the specified Symbol.
+
+        :param str name: the name of the symbol to get from this module.
+
+        :returns: the Symbol with the supplied name if the Container has
+            been successfully created and contains such a symbol and None
+            otherwise.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol` | None
+
+        '''
+        container = self.get_psyir()
+        if not container:
+            return None
+        try:
+            return container.symbol_table.lookup(name)
+        except KeyError:
+            return None
