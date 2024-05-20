@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by I. Kavcic, L. Turner and O. Brunt, Met Office
 
 Generic Code
@@ -1280,15 +1280,13 @@ information.
 Implicit Loops
 --------------
 
-When constructing the PSyIR of NEMO source code, PSyclone currently
-only considers explicit loops as candidates for being
-raised/transformed into ``NemoLoop`` instances. However, many of the
-loops in NEMO are written using Fortran array notation. Such use of
-array notation is encouraged in the NEMO Coding Conventions
+Many of the loops in NEMO are written using Fortran array notation. Such
+use of array notation is encouraged in the NEMO Coding Conventions
 :cite:`nemo_code_conv` and identifying these loops can be important
-when introducing, e.g. OpenMP. Currently these implicit loops are not
-automatically 'raised' into ``NemoLoop`` instances but can be done
-separately using the ``NemoAllArrayRange2LoopTrans`` transformation.
+when introducing, e.g. OpenMP. These implicit loops are not
+automatically represented as PSyIR Loop instances but can be converted
+to explicit loops using the ``NemoAllArrayRange2LoopTrans``
+transformation.
 
 
 However, not all uses of Fortran array notation in NEMO imply a
@@ -1307,9 +1305,17 @@ Alternatively, a statement that assigns to an array must imply a loop::
   twodarray2(:,:) = bfunc(twodarray1(:,:))
 
 but it can only be converted into an explicit loop by PSyclone if the
-function ``bfunc`` returns a scalar. Since PSyclone does not currently
-attempt to fully resolve all symbols when parsing NEMO code, this
-information is not available and therefore such statements are not
-identified as loops (issue
-https://github.com/stfc/PSyclone/issues/286). This may then mean that
-opportunities for optimisation are missed.
+function ``bfunc`` returns a scalar.
+
+Since PSyclone does not currently attempt to fully resolve all symbols
+when parsing NEMO code, this information is not available and therefore
+such statements are not identified as loops.
+
+In order to improve the PSyclone capabilities to convert implicit loops,
+the details of externally declared symbols can be resolved by using the
+`resolve_imports` method of the symbol table:
+
+.. code-block:: python
+
+   import_symbol = symbol_table.lookup(module_name)
+   symbol_table.resolve_imports(container_symbols=[import_symbol])

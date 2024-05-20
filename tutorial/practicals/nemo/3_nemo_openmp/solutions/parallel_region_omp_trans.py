@@ -49,6 +49,15 @@ from psyclone.psyir.nodes import Loop
 from psyclone.transformations import OMPParallelLoopTrans, OMPLoopTrans, \
     OMPParallelTrans, TransformationError
 
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
+
 # Get the transformation we will apply
 OMP_TRANS = OMPParallelLoopTrans()
 OMP_LOOP_TRANS = OMPLoopTrans()

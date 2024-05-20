@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter and R. W. Ford  STFC Daresbury Lab
+# Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Lab
 # Modified: I. Kavcic and L. Turner, Met Office
 
 
@@ -42,7 +42,6 @@ import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone import nemo
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
@@ -206,7 +205,7 @@ def test_do_loop(parser):
     schedule = psy.invokes.get("test_prog").schedule
 
     do_loop = schedule.children[0]
-    assert isinstance(do_loop, nemo.NemoLoop)
+    assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo(do_loop)
     assert (str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "
                                  "s: WRITE, t: READ")
@@ -229,7 +228,7 @@ def test_nemo_array_range(parser):
     schedule = psy.invokes.get("test_prog").schedule
 
     do_loop = schedule.children[0]
-    assert isinstance(do_loop, nemo.NemoLoop)
+    assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo(do_loop)
     assert (str(var_accesses) == "a: READ, jj: READ+WRITE, n: READ, "
             "s: WRITE, t: READ")

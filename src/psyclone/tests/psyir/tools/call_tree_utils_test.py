@@ -39,14 +39,16 @@
 ''' This module contains the pytest tests for the Routine class. '''
 
 import os
+import re
+
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.core import Signature
+from psyclone.core import Signature, SingleVariableAccessInfo
 from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn
-from psyclone.psyir.nodes import (Reference, Schedule)
+from psyclone.psyir.nodes import CodeBlock, Reference, Schedule
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -141,7 +143,7 @@ def test_call_tree_compute_all_non_locals_kernel():
     mod_psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
     psyir = mod_psyir.invokes.invoke_list[0].schedule
 
-    # This will return three schedule - the DynInvokeSchedule, and two
+    # This will return three schedule - the LFRicInvokeSchedule, and two
     # schedules for the kernel and builtin. Just make sure we have
     # the right parts before doing the actual test:
     schedules = psyir.walk(Schedule)
@@ -175,9 +177,11 @@ def test_call_tree_get_used_symbols_from_modules():
 
     non_locals_without_access = set((i[0], i[1], str(i[2]))
                                     for i in non_locals)
-    # Check that the expected symbols, modules and internal type are correct:
+    # Check that the expected symbols, modules and internal type are correct.
+    # Note that a constant variable from another module is still reported here
     expected = set([
             ("unknown", "constants_mod", "eps"),
+            ("unknown", "module_with_var_mod", "module_const"),
             ("reference", "testkern_import_symbols_mod",
              "dummy_module_variable"),
             ('routine', 'testkern_import_symbols_mod', "local_func"),
@@ -235,7 +239,14 @@ def test_get_non_local_read_write_info(capsys):
     psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
     schedule = psyir.invokes.invoke_list[0].schedule
 
-    # First call without setting up the module manager. This will result
+    # Set up the module manager with a search directory that does not
+    # contain any files used here:
+    kernels_dir = os.path.join(get_base_path("dynamo0.3"),
+                               "kernels", "dead_end", "no_really")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(kernels_dir)
+
+    # Since the right search path is missing, this will result
     # in the testkern_import_symbols_mod module not being found:
     read_write_info = ReadWriteInfo()
     rw_info = ctu.get_non_local_read_write_info(schedule, read_write_info)
@@ -243,7 +254,12 @@ def test_get_non_local_read_write_info(capsys):
     assert ("Could not find module 'testkern_import_symbols_mod' - ignored."
             in out)
 
-    # Now add the search path of the driver creation tests to the
+    # The search directories are absolute, so use a regex:
+    assert re.search("Could not find source file for module "
+                     "'testkern_import_symbols_mod' in any of the "
+                     "directories '.*kernels/dead_end/no_really'.", out)
+
+    # Now add the correct search path of the driver creation tests to the
     # module manager:
     test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
     mod_man = ModuleManager.get()
@@ -270,6 +286,11 @@ def test_get_non_local_read_write_info(capsys):
             in rw_info.write_list)
     assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
             in rw_info.write_list)
+
+    # Make sure that accessing a constant from a different module is
+    # not included:
+    assert (('module_with_var_mod', Signature("module_const"))
+            not in rw_info.read_list)
 
     # Check that we can ignore a module:
     mod_man.add_ignore_module("constants_mod")
@@ -389,8 +410,8 @@ def test_call_tree_utils_inout_parameters_generic(fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     loops = psyir.children[0].children
 
-    ctu = CallTreeUtils()
     read_write_info_read = ReadWriteInfo()
+    ctu = CallTreeUtils()
     ctu.get_input_parameters(read_write_info_read, loops)
 
     # Use set to be order independent
@@ -441,3 +462,90 @@ def test_call_tree_utils_const_argument():
     # Make sure the constant '0' is not listed
     assert "0" not in read_write_info.signatures_read
     assert Signature("0") not in read_write_info.signatures_read
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def testcall_tree_utils_non_local_inout_parameters(capsys):
+    '''Tests the collection of non-local input and output parameters.
+    '''
+    Config.get().api = "dynamo0.3"
+    ctu = CallTreeUtils()
+
+    test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
+    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    schedule = psyir.invokes.invoke_list[0].schedule
+
+    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(test_dir)
+
+    # The example does contain an unknown subroutine (by design), and the
+    # infrastructure directory has not been added, so constants_mod cannot
+    # be found:
+    rw_info = ctu.get_in_out_parameters(schedule,
+                                        collect_non_local_symbols=True)
+    out, _ = capsys.readouterr()
+    assert "Unknown routine 'unknown_subroutine - ignored." in out
+    assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
+            "'eps'." in out)
+
+    # We don't test the 14 local variables here, this was tested earlier.
+    # Focus on the remote symbols that are read:
+    assert (('module_with_var_mod', Signature("module_var_b"))
+            in rw_info.read_list)
+    # And check the remote symbols that are written:
+    assert (('module_with_var_mod', Signature("module_var_a"))
+            in rw_info.write_list)
+    assert (('module_with_var_mod', Signature("module_var_b"))
+            in rw_info.write_list)
+    assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
+            in rw_info.write_list)
+
+
+# -----------------------------------------------------------------------------
+def test_call_tree_error_var_not_found(capsys):
+    '''Tests that trying to import a variable from a module that does not
+    contain the variable is handled, i.e. printing a warning and otherwise
+    ignores (TODO #2120)
+    '''
+    dyn_test_dir = get_base_path("dynamo0.3")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(os.path.join(dyn_test_dir, "infrastructure"))
+
+    read_write_info = ReadWriteInfo()
+    ctu = CallTreeUtils()
+    sva = SingleVariableAccessInfo(Signature("a"))
+    ctu._resolve_calls_and_unknowns([("unknown", "constants_mod",
+                                      Signature("does_not_exist"), sva)],
+                                    read_write_info)
+    out, _ = capsys.readouterr()
+
+    assert "Unable to check if signature 'does_not_exist' is constant" in out
+
+
+# -----------------------------------------------------------------------------
+def test_call_tree_error_module_is_codeblock(capsys):
+    '''Tests that a module that cannot be parsed and becomes a codeblock
+    is handled correctly.
+    '''
+    dyn_test_dir = get_base_path("dynamo0.3")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(os.path.join(dyn_test_dir, "driver_creation"))
+
+    cblock = CodeBlock([], "dummy")
+    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
+    # get_psyir returns the module PSyIR, which we need to replace with
+    # the codeblock in order to reproduce this error:
+    container = mod_info.get_psyir()
+    container.replace_with(cblock)
+
+    ctu = CallTreeUtils()
+    sva = SingleVariableAccessInfo(Signature("a"))
+    read_write_info = ReadWriteInfo()
+    ctu._resolve_calls_and_unknowns(
+        [("routine", "testkern_import_symbols_mod",
+          Signature("testkern_import_symbols_code"), sva)], read_write_info)
+    out, _ = capsys.readouterr()
+    assert ("Cannot find symbol 'testkern_import_symbols_code' in module "
+            "'testkern_import_symbols_mod' - ignored." in out)
