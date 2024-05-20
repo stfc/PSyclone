@@ -1691,6 +1691,7 @@ class Fparser2Reader():
                     f"Expected the parse tree for a USE statement to contain "
                     f"5 items but found {len(decl.items)} for '{text}'")
 
+            # Check if the UseStmt has an intrinsic module-nature
             intrinsic = False
             if decl.items[0] is not None and str(decl.items[0]) == "INTRINSIC":
                 intrinsic = True

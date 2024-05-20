@@ -1940,8 +1940,21 @@ def test_intrinsic_use_stmt(parser):
     module = parse_tree.children[0]
     psyir = processor._module_handler(module, None)
     symtab = psyir.symbol_table
-    assert symtab.lookup("ieee_arithmetic").intrinsic
-    assert not symtab.lookup("mymod").intrinsic
+    assert symtab.lookup("ieee_arithmetic").is_intrinsic
+    assert not symtab.lookup("mymod").is_intrinsic
+
+    processor = Fparser2Reader()
+    reader = FortranStringReader('''
+        module test
+            use, non_intrinsic :: ieee_arithmetic, only: isnan =>ieee_is_nan
+            use mymod
+        end module test
+    ''')
+    parse_tree = parser(reader)
+    module = parse_tree.children[0]
+    psyir = processor._module_handler(module, None)
+    symtab = psyir.symbol_table
+    assert not symtab.lookup("ieee_arithmetic").is_intrinsic
 
 
 @pytest.mark.usefixtures("f2008_parser")
