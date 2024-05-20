@@ -487,7 +487,7 @@ class FortranWriter(LanguageWriter):
         # Add a space into the returned string if intrinsic is not set anyway.
         intrinsic_str = " "
         if symbol.is_intrinsic:
-            intrinsic_str = ", intrinsic:: "
+            intrinsic_str = ", intrinsic :: "
 
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:

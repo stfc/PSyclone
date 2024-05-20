@@ -120,7 +120,7 @@ def test_containersymbol_specialise_and_process_arguments():
 
     # Now with a wildcard_import argument
     sym2 = Symbol("symbol1")
-    sym2.specialise(ContainerSymbol, wildcard_import=True, intrinsic=True)
+    sym2.specialise(ContainerSymbol, wildcard_import=True, is_intrinsic=True)
     assert isinstance(sym1, ContainerSymbol)
     assert sym2.wildcard_import is True
     assert sym2.is_intrinsic is True
@@ -244,4 +244,4 @@ def test_container_symbol_is_intrinsic():
     assert csym.is_intrinsic
     with pytest.raises(TypeError) as err:
         csym.is_intrinsic = "true"
-    assert "Is_intrinsic must be a bool but got" in str(err.value)
+    assert "is_intrinsic must be a bool but got" in str(err.value)

@@ -51,21 +51,23 @@ class ContainerSymbol(Symbol):
     when needed.
 
     :param str name: name of the symbol.
-    :param bool wildcard_import: if all public Symbols of the Container are \
+    :param bool wildcard_import: if all public Symbols of the Container are
         imported into the current scope. Defaults to False.
-    :param kwargs: additional keyword arguments provided by \
+    :param bool is_intrinsic: if the module is an intrinsic import. Defauts
+        to False.
+    :param kwargs: additional keyword arguments provided by
         :py:class:`psyclone.psyir.symbols.Symbol`.
     :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, wildcard_import=False, **kwargs):
+    def __init__(self, name, **kwargs):
         super(ContainerSymbol, self).__init__(name)
 
         self._reference = None
         self._has_wildcard_import = False
         self._is_intrinsic = False
 
-        self._process_arguments(wildcard_import=wildcard_import, **kwargs)
+        self._process_arguments(**kwargs)
 
     def _process_arguments(self, **kwargs):
         ''' Process the arguments for the constructor and the specialise
@@ -73,14 +75,15 @@ class ContainerSymbol(Symbol):
         value for the interface.
 
         :param kwargs: keyword arguments which can be:\n
-            :param bool wildcard_import: if all public Symbols of the \
-                Container are imported into the current scope. Defaults to \
+            :param bool wildcard_import: if all public Symbols of the
+                Container are imported into the current scope. Defaults to
                 False.\n
-            :param bool intrinsic: if the module is an intrinsic import.
+            :param bool is_intrinsic: if the module is an intrinsic import.
+            Defaults to False.
             and the arguments in :py:class:`psyclone.psyir.symbols.Symbol`
         :type kwargs: unwrapped dict.
 
-        :raises TypeError: if it is provided with an interface argument other \
+        :raises TypeError: if it is provided with an interface argument other
                 then FortranModuleInterface.
 
         '''
@@ -92,8 +95,8 @@ class ContainerSymbol(Symbol):
         elif not hasattr(self, '_has_wildcard_import'):
             self._has_wildcard_import = False
 
-        if "intrinsic" in kwargs:
-            self.is_intrinsic = kwargs.pop("intrinsic")
+        if "is_intrinsic" in kwargs:
+            self.is_intrinsic = kwargs.pop("is_intrinsic")
 
         # TODO #1298: ContainerSymbol currently defaults to
         # FortranModuleInterface expecting externally defined containers
@@ -180,13 +183,12 @@ class ContainerSymbol(Symbol):
     @is_intrinsic.setter
     def is_intrinsic(self, value):
         '''
-        Set whether or not this is an intrinsic module import.
         :param bool value: whether or not this is an intrinsic module.
 
         :raises TypeError: if the supplied `value` is not a bool.
         '''
         if not isinstance(value, bool):
-            raise TypeError(f"Is_intrinsic must be a bool but got: "
+            raise TypeError(f"is_intrinsic must be a bool but got: "
                             f"'{type(value).__name__}'.")
         self._is_intrinsic = value
 

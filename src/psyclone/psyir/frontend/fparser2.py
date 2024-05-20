@@ -1707,7 +1707,7 @@ class Fparser2Reader():
                 new_container = True
                 container = ContainerSymbol(mod_name,
                                             visibility=mod_visibility,
-                                            intrinsic=intrinsic)
+                                            is_intrinsic=intrinsic)
                 parent.symbol_table.add(container)
             else:
                 new_container = False
