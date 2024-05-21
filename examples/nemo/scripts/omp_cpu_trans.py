@@ -81,9 +81,11 @@ def trans(psy):
             print("Skipping normalisation for ", invoke.name)
 
         elif invoke.name in (
-                "trc_oce_rgb",  # Produces incorrect results
-                "removepoints"  # Compiler error: The shapes of the array
-                                # expressions do not conform
+                "trc_oce_rgb",   # Produces incorrect results
+                "removepoints",  # Compiler error: The shapes of the array
+                                 # expressions do not conform
+                "bdytide_init"   # An array-valued argument is required ...
+                                 # (string argument)
                 ):
             # TODO #1841: These subroutines have a bug in the
             # array-range-to-loop transformation.
