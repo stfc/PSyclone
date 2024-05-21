@@ -457,10 +457,10 @@ class LFRicStencils(LFRicCollection):
         :rtype: int
 
         '''
-        cursor = self._declare_unique_extent_vars(parent)
-        cursor = self._declare_unique_direction_vars(parent)
-        cursor = self._declare_unique_max_branch_length_vars(parent)
-        cursor = self._declare_maps_stub(parent)
+        cursor = self._declare_unique_extent_vars(cursor)
+        cursor = self._declare_unique_direction_vars(cursor)
+        cursor = self._declare_unique_max_branch_length_vars(cursor)
+        cursor = self._declare_maps_stub(cursor)
         return cursor
 
     def initialise(self, cursor):

@@ -77,7 +77,7 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.symbols import (
     INTEGER_TYPE, DataSymbol, ScalarType, UnresolvedType, DataTypeSymbol,
     UnresolvedInterface, ContainerSymbol, ImportInterface, StructureType,
-    ArrayType, UnsupportedFortranType, ArgumentInterface)
+    ArrayType, UnsupportedFortranType, ArgumentInterface, SymbolError)
 
 
 # pylint: disable=too-many-lines
@@ -1264,11 +1264,18 @@ class DynFunctionSpaces(LFRicCollection):
         '''
         api_config = Config.get().api_conf("dynamo0.3")
 
-        if self._var_list:
+        # if self._var_list:
             # Declare ndf and undf for all function spaces
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=self._var_list))
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=self._var_list))
+
+        for var in self._var_list:
+            arg = self._symbol_table.find_or_create(
+                var, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(arg)
         return cursor
 
     def _invoke_declarations(self, cursor):
@@ -1842,9 +1849,14 @@ class DynCellIterators(LFRicCollection):
         api_config = Config.get().api_conf("dynamo0.3")
 
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[self._nlayers_name]))
+            # Already declared
+            sym = self._symbol_table.lookup(self._nlayers_name)
+            sym.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(sym)
+            
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=[self._nlayers_name]))
         return cursor
 
     def initialise(self, cursor):
@@ -1899,23 +1911,62 @@ class DynLMAOperators(LFRicCollection):
         lma_args = psyGen.args_filter(
             self._kernel.arguments.args, arg_types=["gh_operator"])
         if lma_args:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=["cell"]))
+            arg = self._symbol_table.find_or_create(
+                "cell", symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(arg)
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=["cell"]))
         for arg in lma_args:
             size = arg.name+"_ncell_3d"
             op_dtype = arg.intrinsic_type
             op_kind = arg.precision
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[size]))
-            ndf_name_to = arg.function_space_to.ndf_name
-            ndf_name_from = arg.function_space_from.ndf_name
-            parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
-                               dimension=",".join([ndf_name_to,
-                                                   ndf_name_from, size]),
-                               intent=arg.intent,
-                               entity_decls=[arg.name]))
+            size_sym = self._symbol_table.find_or_create(
+                size, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            size_sym.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(size_sym)
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=[size]))
+            ndf_name_to = self._symbol_table.lookup(
+                                    arg.function_space_to.ndf_name)
+            ndf_name_from = self._symbol_table.lookup(
+                                    arg.function_space_from.ndf_name)
+
+            # Create the PSyIR intrinsic DataType
+            kind_sym = self._symbol_table.find_or_create(
+                op_kind, symbol_type=DataSymbol, datatype=UnresolvedType(),
+                interface=ImportInterface(
+                    self._symbol_table.lookup("constants_mod")))
+            if op_dtype == "real":
+                intr_type = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
+            elif op_dtype == "integer":
+                intr_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
+            else:
+                raise NotImplementedError()
+            if arg.intent == "in":
+                intent = ArgumentInterface.Access.READ
+            elif arg.intent == "inout":
+                intent = ArgumentInterface.Access.READWRITE
+            else:
+                raise NotImplementedError()
+
+            arg_sym = self._symbol_table.find_or_create(
+                arg.name, symbol_type=DataSymbol,
+                datatype=ArrayType(intr_type,
+                                   [Reference(ndf_name_to),
+                                    Reference(ndf_name_from),
+                                    Reference(size_sym)]))
+            arg_sym.interface = ArgumentInterface(intent)
+            self._symbol_table.append_argument(arg_sym)
+            # parent.add(DeclGen(parent, datatype=op_dtype, kind=op_kind,
+            #                    dimension=",".join([ndf_name_to,
+            #                                        ndf_name_from, size]),
+            #                    intent=arg.intent,
+            #                    entity_decls=[arg.name]))
         return cursor
 
     def _invoke_declarations(self, cursor):
@@ -3120,46 +3171,120 @@ class DynBasisFunctions(LFRicCollection):
         # Get the lists of dimensioning variables and basis arrays
         var_dims, basis_arrays = self._basis_fn_declns()
 
-        if var_dims:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=var_dims))
+        for var in var_dims:
+            arg = self._symbol_table.find_or_create(
+                var, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(arg)
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=var_dims))
         for basis in basis_arrays:
-            parent.add(DeclGen(parent, datatype="real",
-                               kind=api_config.default_kind["real"],
-                               intent="in",
-                               dimension=",".join(basis_arrays[basis]),
-                               entity_decls=[basis]))
+            dims = []
+            for value in basis_arrays[basis]:
+                try:
+                    dims.append(Literal(value, INTEGER_TYPE))
+                except ValueError:
+                    dims.append(Reference(self._symbol_table.find_or_create(value)))
+            arg = self._symbol_table.find_or_create(
+                basis, symbol_type=DataSymbol,
+                datatype=ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
+                                   dims))
+            arg.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(arg)
+            # parent.add(DeclGen(parent, datatype="real",
+            #                    kind=api_config.default_kind["real"],
+            #                    intent="in",
+            #                    dimension=",".join(basis_arrays[basis]),
+            #                    entity_decls=[basis]))
 
         const = LFRicConstants()
 
         for shape in self._qr_vars:
             qr_name = "_qr_" + shape.split("_")[-1]
+            # Create the PSyIR intrinsic DataType
+            kind_sym = self._symbol_table.find_or_create(
+                const.QUADRATURE_TYPE_MAP[shape]["kind"],
+                symbol_type=DataSymbol, datatype=UnresolvedType(),
+                interface=ImportInterface(
+                    self._symbol_table.lookup("constants_mod")))
+            if const.QUADRATURE_TYPE_MAP[shape]["intrinsic"] == "real":
+                intr_type = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
+            elif const.QUADRATURE_TYPE_MAP[shape]["intrinsic"] == "integer":
+                intr_type = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
+            else:
+                raise NotImplementedError()
+
             if shape == "gh_quadrature_xyoz":
-                datatype = const.QUADRATURE_TYPE_MAP[shape]["intrinsic"]
-                kind = const.QUADRATURE_TYPE_MAP[shape]["kind"]
-                parent.add(DeclGen(
-                    parent, datatype=datatype, kind=kind,
-                    intent="in", dimension="np_xy"+qr_name,
-                    entity_decls=["weights_xy"+qr_name]))
-                parent.add(DeclGen(
-                    parent, datatype=datatype, kind=kind,
-                    intent="in", dimension="np_z"+qr_name,
-                    entity_decls=["weights_z"+qr_name]))
+                dim = self._symbol_table.find_or_create(
+                    "np_xy"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                sym = self._symbol_table.find_or_create(
+                    "weights_xy"+qr_name, symbol_type=DataSymbol,
+                    datatype=ArrayType(intr_type, [Reference(dim)]))
+                sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self._symbol_table.append_argument(sym)
+                dim = self._symbol_table.find_or_create(
+                    "np_z"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                sym = self._symbol_table.find_or_create(
+                    "weights_z"+qr_name, symbol_type=DataSymbol,
+                    datatype=ArrayType(intr_type, [Reference(dim)]))
+                sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self._symbol_table.append_argument(sym)
+                # datatype = const.QUADRATURE_TYPE_MAP[shape]["intrinsic"]
+                # kind = const.QUADRATURE_TYPE_MAP[shape]["kind"]
+                # parent.add(DeclGen(
+                #     parent, datatype=datatype, kind=kind,
+                #     intent="in", dimension="np_xy"+qr_name,
+                #     entity_decls=["weights_xy"+qr_name]))
+                # parent.add(DeclGen(
+                #     parent, datatype=datatype, kind=kind,
+                #     intent="in", dimension="np_z"+qr_name,
+                #     entity_decls=["weights_z"+qr_name]))
             elif shape == "gh_quadrature_face":
-                parent.add(DeclGen(
-                    parent,
-                    datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
-                    kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
-                    dimension=",".join(["np_xyz"+qr_name, "nfaces"+qr_name]),
-                    entity_decls=["weights_xyz"+qr_name]))
+                dim1 = self._symbol_table.find_or_create(
+                    "np_xyz"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                dim2 = self._symbol_table.find_or_create(
+                    "nfaces"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                sym = self._symbol_table.find_or_create(
+                    "weights_yxz"+qr_name, symbol_type=DataSymbol,
+                    datatype=ArrayType(intr_type, [Reference(dim1),
+                                                   Reference(dim2)]))
+                sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self._symbol_table.append_argument(sym)
+                # parent.add(DeclGen(
+                #     parent,
+                #     datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
+                #     kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
+                #     dimension=",".join(["np_xyz"+qr_name, "nfaces"+qr_name]),
+                #     entity_decls=["weights_xyz"+qr_name]))
             elif shape == "gh_quadrature_edge":
-                parent.add(DeclGen(
-                    parent,
-                    datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
-                    kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
-                    dimension=",".join(["np_xyz"+qr_name, "nedges"+qr_name]),
-                    entity_decls=["weights_xyz"+qr_name]))
+                dim1 = self._symbol_table.find_or_create(
+                    "np_xyz"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                dim2 = self._symbol_table.find_or_create(
+                    "nedges"+qr_name, symbol_type=DataSymbol,
+                    datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+                sym = self._symbol_table.find_or_create(
+                    "weights_yxz"+qr_name, symbol_type=DataSymbol,
+                    datatype=ArrayType(intr_type, [Reference(dim1),
+                                                   Reference(dim2)]))
+                sym.interface = ArgumentInterface(
+                                        ArgumentInterface.Access.READ)
+                self._symbol_table.append_argument(sym)
+                # parent.add(DeclGen(
+                #     parent,
+                #     datatype=const.QUADRATURE_TYPE_MAP[shape]["intrinsic"],
+                #     kind=const.QUADRATURE_TYPE_MAP[shape]["kind"], intent="in",
+                #     dimension=",".join(["np_xyz"+qr_name, "nedges"+qr_name]),
+                #     entity_decls=["weights_xyz"+qr_name]))
             else:
                 raise InternalError(
                     f"Quadrature shapes other than {supported_shapes} are not "

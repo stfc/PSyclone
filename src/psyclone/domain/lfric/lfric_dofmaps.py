@@ -51,11 +51,11 @@ from collections import OrderedDict
 
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicCollection
+from psyclone.domain.lfric import LFRicCollection, LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
 from psyclone.psyir.nodes import Assignment, Reference, Call, StructureReference
-from psyclone.psyir.symbols import UnsupportedFortranType, DataSymbol
+from psyclone.psyir.symbols import UnsupportedFortranType, DataSymbol, ArgumentInterface, ArrayType
 
 
 class LFRicDofmaps(LFRicCollection):
@@ -280,13 +280,24 @@ class LFRicDofmaps(LFRicCollection):
             # We declare ndf first as some compilers require this
             ndf_name = \
                 self._unique_fs_maps[dmap].function_space.ndf_name
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", dimension=ndf_name,
-                               entity_decls=[dmap]))
+            dim = self._symbol_table.find_or_create(
+                ndf_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
+            dim.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(dim)
+            dmap_symbol = self._symbol_table.find_or_create(
+                dmap, symbol_type=DataSymbol,
+                datatype=ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
+                                   [Reference(dim)]))
+            dmap_symbol.interface = ArgumentInterface(ArgumentInterface.Access.READ)
+            self._symbol_table.append_argument(dmap_symbol)
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", entity_decls=[ndf_name]))
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    intent="in", dimension=ndf_name,
+            #                    entity_decls=[dmap]))
         # Column-banded dofmaps
         for dmap, cma in self._unique_cbanded_maps.items():
             if cma["direction"] == "to":

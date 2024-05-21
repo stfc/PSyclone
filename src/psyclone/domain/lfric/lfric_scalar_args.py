@@ -204,6 +204,7 @@ class LFRicScalarArgs(LFRicCollection):
             const_mod_uses = self._invoke.invokes.psy.infrastructure_modules[
                 const_mod]
         else:
+            return cursor  # FIXME
             symtab = self._kern.schedule.symbol_table
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:

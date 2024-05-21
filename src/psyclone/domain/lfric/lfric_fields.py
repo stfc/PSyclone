@@ -49,7 +49,10 @@ from psyclone import psyGen
 from psyclone.domain.lfric import LFRicCollection, LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.f2pygen import DeclGen, TypeDeclGen
-from psyclone.psyir.symbols import ArgumentInterface
+from psyclone.psyir.nodes import Reference
+from psyclone.psyir.symbols import (
+    ArgumentInterface, DataSymbol, ScalarType, ArrayType, UnresolvedType,
+    ImportInterface)
 
 
 class LFRicFields(LFRicCollection):
@@ -161,22 +164,52 @@ class LFRicFields(LFRicCollection):
                     f"'{fld.declaration_name}'. Supported types are "
                     f"{const.VALID_FIELD_DATA_TYPES}.")
 
+            # Create the PSyIR DataType
+            kind_sym = self._symbol_table.find_or_create(
+                fld_kind, symbol_type=DataSymbol, datatype=UnresolvedType(),
+                interface=ImportInterface(
+                    self._symbol_table.lookup("constants_mod")))
+            if fld.intrinsic_type == "real":
+                intr = ScalarType(ScalarType.Intrinsic.REAL, kind_sym)
+            elif fld.intrinsic_type == "integer":
+                intr = ScalarType(ScalarType.Intrinsic.INTEGER, kind_sym)
+            else:
+                raise NotImplementedError()
+            undf_sym = self._symbol_table.find_or_create(undf_name)
+            datatype = ArrayType(intr, [Reference(undf_sym)])
+
+            if fld.intent == "in":
+                intent = ArgumentInterface.Access.READ
+            elif fld.intent == "inout":
+                intent = ArgumentInterface.Access.READWRITE
+            else:
+                raise NotImplementedError()
+
             if fld.vector_size > 1:
                 for idx in range(1, fld.vector_size+1):
                     text = (fld.name + "_" +
                             fld.function_space.mangled_name +
                             "_v" + str(idx))
-                    parent.add(
-                        DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
-                                dimension=undf_name,
-                                intent=fld.intent, entity_decls=[text]))
+                    arg = self._symbol_table.find_or_create(
+                        text, symbol_type=DataSymbol, datatype=datatype)
+                    arg.interface = ArgumentInterface(intent)
+                    self._symbol_table.append_argument(arg)
+                    # parent.add(
+                    #     DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
+                    #             dimension=undf_name,
+                    #             intent=fld.intent, entity_decls=[text]))
             else:
-                parent.add(
-                    DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
-                            intent=fld.intent,
-                            dimension=undf_name,
-                            entity_decls=[fld.name + "_" +
-                                          fld.function_space.mangled_name]))
+                name = fld.name + "_" + fld.function_space.mangled_name
+                arg = self._symbol_table.find_or_create(
+                    name, symbol_type=DataSymbol, datatype=datatype)
+                arg.interface = ArgumentInterface(intent)
+                self._symbol_table.append_argument(arg)
+                # parent.add(
+                #     DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
+                #             intent=fld.intent,
+                #             dimension=undf_name,
+                #             entity_decls=[fld.name + "_" +
+                #                           fld.function_space.mangled_name]))
         return cursor
 
 

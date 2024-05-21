@@ -53,10 +53,10 @@ from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.psyGen import InvokeSchedule, CodedKern, args_filter
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
-    Loop, Literal, Reference, KernelSchedule)
+    Loop, Literal, Reference, KernelSchedule, Container, Routine)
 from psyclone.psyir.symbols import (
     DataSymbol, ScalarType, ArrayType, UnsupportedFortranType, DataTypeSymbol,
-    UnresolvedType, SymbolTable)
+    UnresolvedType, SymbolTable, ContainerSymbol)
 
 
 class LFRicKern(CodedKern):
@@ -584,7 +584,7 @@ class LFRicKern(CodedKern):
     @property
     def gen_stub(self):
         '''
-        Create the fparser1 AST for a kernel stub.
+        Create the PSyIR for a kernel stub.
 
         :returns: root of fparser1 AST for the stub routine.
         :rtype: :py:class:`fparser.one.block_statements.Module`
@@ -607,11 +607,21 @@ class LFRicKern(CodedKern):
                 f"'{self.iterates_over}' in kernel '{self.name}'.")
 
         # Create an empty PSy layer module
-        psy_module = ModuleGen(self._base_name+"_mod")
+        psy_module = Container(self._base_name+"_mod")
 
         # Create the subroutine
-        sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
-                                 implicitnone=True)
+        sub_stub = Routine(self._base_name+"_code")
+        psy_module.addchild(sub_stub)
+        self._stub_symbol_table = sub_stub.symbol_table
+
+        # Add wildcard "use" statement for all supported argument
+        # kinds (precisions)
+        sub_stub.symbol_table.add(
+            ContainerSymbol(
+                const.UTILITIES_MOD_MAP["constants"]["module"],
+                wildcard_import=True
+            )
+        )
 
         # Add all the declarations
         # Import here to avoid circular dependency
@@ -627,24 +637,20 @@ class LFRicKern(CodedKern):
                          DynLMAOperators, LFRicStencils, DynBasisFunctions,
                          DynBoundaryConditions, DynReferenceElement,
                          LFRicMeshProperties]:
+            # import pdb; pdb.set_trace()
             entities(self).declarations(sub_stub)
 
-        # Add wildcard "use" statement for all supported argument
-        # kinds (precisions)
-        sub_stub.add(
-            UseGen(sub_stub,
-                   name=const.UTILITIES_MOD_MAP["constants"]["module"]))
 
-        # Create the arglist
+        # The declarations above are not in order, we need to use the
+        # KernStubArgList to generate a list of strings with the correct order
         create_arg_list = KernStubArgList(self)
         create_arg_list.generate()
+        arg_list = []
+        for argument_name in create_arg_list.arglist:
+            arg_list.append(sub_stub.symbol_table.lookup(argument_name))
+        sub_stub.symbol_table.specify_argument_list(arg_list)
 
-        # Add the arglist
-        sub_stub.args = create_arg_list.arglist
-
-        # Add the subroutine to the parent module
-        psy_module.add(sub_stub)
-        return psy_module.root
+        return psy_module
 
     def get_kernel_schedule(self):
         '''Returns a PSyIR Schedule representing the kernel code. The base

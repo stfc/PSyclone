@@ -73,9 +73,7 @@ class LFRicCollection():
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
-            # TODO #719 The symbol table is not connected to other parts of
-            # the Stub generation.
-            self._symbol_table = LFRicSymbolTable()
+            self._symbol_table = node._stub_symbol_table
             # We only have a single Kernel call in this case
             self._calls = [node]
         else:

@@ -577,7 +577,7 @@ class SymbolTable():
         if not isinstance(new_symbol, Symbol):
             raise InternalError(f"Symbol '{new_symbol}' is not a symbol, but "
                                 f"'{type(new_symbol).__name__}'.'")
-        # if new_symbol.name in ("weights_xy_qr",  ):
+        # if new_symbol.name in ("op_12", ):
         #     import pdb; pdb.set_trace()
 
         key = self._normalize(new_symbol.name)
@@ -933,6 +933,10 @@ class SymbolTable():
         '''
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
+
+    def append_argument(self, new_argument):
+        new_arg_list = self._argument_list + [new_argument]
+        self.specify_argument_list(new_arg_list)
 
     def lookup(self, name, visibility=None, scope_limit=None):
         '''Look up a symbol in the symbol table. The lookup can be limited
