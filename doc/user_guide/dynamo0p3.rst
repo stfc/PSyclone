@@ -406,7 +406,7 @@ Mixed Precision
 
 The LFRic API supports the ability to specify the precision required
 by the model via precision variables. To make use of this, the code
-developer must declare scalars, fields and operators in the algorithm
+developer must declare scalars, arrays, fields and operators in the algorithm
 layer with the required LFRic-supported precision. In the current
 implementation there are two supported precisions for ``REAL`` data and
 one each for ``INTEGER`` and ``LOGICAL`` data. The actual precision used in
@@ -423,33 +423,19 @@ associated kernel metadata description and their precision:
 +--------------------------+---------------------------------+-----------+
 | Data Type                | Kernel Metadata                 | Precision |
 +==========================+=================================+===========+
-| REAL(R_DEF)              | GH_SCALAR, GH_REAL              | R_DEF     |
+| REAL(R_DEF)              | GH_SCALAR/GH_ARRAY, GH_REAL     | R_DEF     |
 +--------------------------+---------------------------------+-----------+
-| REAL(R_BL)               | GH_SCALAR, GH_REAL              | R_BL      |
+| REAL(R_BL)               | GH_SCALAR/GH_ARRAY, GH_REAL     | R_BL      |
 +--------------------------+---------------------------------+-----------+
-| REAL(R_PHYS)             | GH_SCALAR, GH_REAL              | R_PHYS    |
+| REAL(R_PHYS)             | GH_SCALAR/GH_ARRAY, GH_REAL     | R_PHYS    |
 +--------------------------+---------------------------------+-----------+
-| REAL(R_SOLVER)           | GH_SCALAR, GH_REAL              | R_SOLVER  |
+| REAL(R_SOLVER)           | GH_SCALAR/GH_ARRAY, GH_REAL     | R_SOLVER  |
 +--------------------------+---------------------------------+-----------+
-| REAL(R_TRAN)             | GH_SCALAR, GH_REAL              | R_TRAN    |
+| REAL(R_TRAN)             | GH_SCALAR/GH_ARRAY, GH_REAL     | R_TRAN    |
 +--------------------------+---------------------------------+-----------+
-| INTEGER(I_DEF)           | GH_SCALAR, GH_INTEGER           | I_DEF     |
+| INTEGER(I_DEF)           | GH_SCALAR/GH_ARRAY, GH_INTEGER  | I_DEF     |
 +--------------------------+---------------------------------+-----------+
-| LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL           | L_DEF     |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_DEF)              | GH_ARRAY, GH_REAL               | R_DEF     |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_BL)               | GH_ARRAY, GH_REAL               | R_BL      |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_PHYS)             | GH_ARRAY, GH_REAL               | R_PHYS    |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_SOLVER)           | GH_ARRAY, GH_REAL               | R_SOLVER  |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_TRAN)             | GH_ARRAY, GH_REAL               | R_TRAN    |
-+--------------------------+---------------------------------+-----------+
-| INTEGER(I_DEF)           | GH_ARRAY, GH_INTEGER            | I_DEF     |
-+--------------------------+---------------------------------+-----------+
-| LOGICAL(L_DEF)           | GH_ARRAY, GH_LOGICAL            | L_DEF     |
+| LOGICAL(L_DEF)           | GH_SCALAR/GH_ARRAY, GH_LOGICAL  | L_DEF     |
 +--------------------------+---------------------------------+-----------+
 | FIELD_TYPE               | GH_FIELD, GH_REAL               | R_DEF     |
 +--------------------------+---------------------------------+-----------+
