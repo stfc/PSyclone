@@ -1935,11 +1935,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             return
 
         # Otherwise, we loop through the references in the IntrinsicCall
-        # and compute any new dependencies.
-        for ref in node.walk(Reference):
-            self._evaluate_readonly_reference(
-                ref, clause_lists
-            )
+        # arguments and compute any new dependencies.
+        for arg in node.arguments:
+            for ref in arg.walk(Reference):
+                self._evaluate_readonly_reference(
+                    ref, clause_lists
+                )
 
     def _evaluate_node(
         self,

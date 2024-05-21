@@ -45,13 +45,14 @@ from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicKern
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import CallGen, CommentGen
 from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCRegionDirective,
                                   OMPRegionDirective, Routine)
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 class LFRicLoop(PSyLoop):
@@ -97,9 +98,9 @@ class LFRicLoop(PSyLoop):
                     f"creating loop variable. Supported values are 'colours', "
                     f"'colour', 'dof' or '' (for cell-columns).")
 
-            symtab = self.scope.symbol_table
-            self.variable = symtab.find_or_create_integer_symbol(
-                suggested_name, tag)
+            self.variable = self.scope.symbol_table.find_or_create_tag(
+                tag, root_name=suggested_name, symbol_type=DataSymbol,
+                datatype=LFRicTypes("LFRicIntegerScalarDataType")())
 
         # Pre-initialise the Loop children  # TODO: See issue #440
         self.addchild(Literal("NOT_INITIALISED", INTEGER_TYPE,
@@ -128,30 +129,45 @@ class LFRicLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        super().lower_to_language_level()
         if self._loop_type != "null":
-            # Not a domain loop, i.e. there is a real loop
-            # We need to copy the expressions, since the original ones are
-            # attached to the original loop.
-            psy_loop = PSyLoop.create(self._variable,
-                                      self.start_expr.copy(),
-                                      self.stop_expr.copy(),
-                                      self.step_expr.copy(),
-                                      self.loop_body.pop_all_children())
-            self.replace_with(psy_loop)
-            return psy_loop
+            # This is not a 'domain' loop (i.e. there is a real loop). First
+            # check that there isn't any validation issues with the node.
+            for child in self.loop_body.children:
+                child.validate_global_constraints()
 
-        # Domain loop, i.e. no need for a loop at all. Remove the loop
-        # node (self), and insert its children directly
-        pos = self.position
-        parent = self.parent
-        self.detach()
-        all_children_reverse = reversed(self.loop_body.pop_all_children())
-        # Attach the children starting with the last, which
-        # preserves the original order of the children.
-        for child in all_children_reverse:
-            parent.children.insert(pos, child)
-        return parent
+            # Then generate the loop bounds, this needs to be done BEFORE
+            # lowering the loop body because it needs kernel information.
+            start = self.start_expr.copy()
+            stop = self.stop_expr.copy()
+            step = self.step_expr.copy()
+
+            # Now we can lower the nodes in the loop body
+            for child in self.loop_body.children:
+                child.lower_to_language_level()
+
+            # Finally create the new lowered Loop and replace the domain one
+            loop = Loop.create(self._variable, start, stop, step, [])
+            loop.loop_body._symbol_table = \
+                self.loop_body.symbol_table.shallow_copy()
+            loop.children[3] = self.loop_body.copy()
+            self.replace_with(loop)
+            lowered_node = loop
+        else:
+            # If loop_type is "null" we do not need a loop at all, just the
+            # kernel in its loop_body
+            for child in self.loop_body.children:
+                child.lower_to_language_level()
+            # TODO #1010: This restriction can be removed when also lowering
+            # the parent InvokeSchedule
+            if len(self.loop_body.children) > 1:
+                raise NotImplementedError(
+                    f"Lowering LFRic domain loops that produce more than one "
+                    f"children is not yet supported, but found:\n "
+                    f"{self.view()}")
+            lowered_node = self.loop_body[0].detach()
+            self.replace_with(lowered_node)
+
+        return lowered_node
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
@@ -788,7 +804,7 @@ class LFRicLoop(PSyLoop):
             if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if self._upper_bound_halo_depth:
                     # TODO: #696 Add kind (precision) once the
-                    # DynInvokeSchedule constructor has been extended to
+                    # LFRicInvokeSchedule constructor has been extended to
                     # create the necessary symbols.
                     halo_depth = Literal(str(self._upper_bound_halo_depth),
                                          INTEGER_TYPE)
@@ -827,8 +843,6 @@ class LFRicLoop(PSyLoop):
             f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
-        :raises GenerationError: if a loop over colours is within an \
-            OpenMP parallel region (as it must be serial).
 
         '''
         # pylint: disable=too-many-statements, too-many-branches
@@ -838,13 +852,11 @@ class LFRicLoop(PSyLoop):
             raise GenerationError("Cannot have a loop over colours within an "
                                   "OpenMP parallel region.")
 
-        if self._loop_type != "null":
-            super().gen_code(parent)
-        else:
-            # This is a 'null' loop and therefore we do not actually generate
-            # a loop - we go on down to the children instead.
-            for child in self.loop_body.children:
-                child.gen_code(parent)
+        super().gen_code(parent)
+        # TODO #1010: gen_code of this loop calls the PSyIR lowering version,
+        # but that method can not currently provide sibiling nodes because the
+        # ancestor is not PSyIR, so for now we leave the remainder of the
+        # gen_code logic here instead of removing the whole method.
 
         if not (Config.get().distributed_memory and
                 self._loop_type != "colour"):

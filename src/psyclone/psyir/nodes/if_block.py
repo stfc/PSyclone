@@ -60,8 +60,14 @@ class IfBlock(Statement):
     # with the Fortran 'case' or C 'switch' syntactic constructs;
     # 'was_where' - a conditional structure originally implied by a Fortran
     # WHERE construct.
+    # 'was_type_is' to tag a conditional structure originally
+    # written with the Fortran 'select type' construct with a 'type
+    # is' clause.
+    # 'was_class_is' to tag a conditional structure originally
+    # written with the Fortran 'select type' construct with a 'class
+    # is' clause.
     valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case',
-                         'was_where')
+                         'was_where', 'was_type_is', 'was_class_is')
     # Textual description of the node.
     _children_valid_format = "DataNode, Schedule [, Schedule]"
     _text_name = "If"

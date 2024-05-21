@@ -36,6 +36,7 @@
 #          R. W. Ford, STFC Daresbury Lab
 #           J. Henrichs, Bureau of Meteorology
 #           N. Nobre, STFC Daresbury Lab
+#           S. Siso, STFC Daresbury Lab
 
 '''
 Module containing tests relating to PSyclone configuration handling.
@@ -54,7 +55,7 @@ from psyclone.configuration import (APISpecificConfig, ConfigurationError,
 from psyclone.core.access_type import AccessType
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.nemo import NemoConstants
+from psyclone.parse import ModuleManager
 
 
 # constants
@@ -73,6 +74,7 @@ REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
+IGNORE_MODULES = netcdf, mpi
 BACKEND_CHECKS_ENABLED = false
 [dynamo0.3]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
@@ -552,7 +554,7 @@ def test_api_unimplemented(tmpdir, monkeypatch):
 
     with pytest.raises(NotImplementedError) as err:
         get_config(config_file, content)
-    assert ("file contains a UNIMPLEMENTED section but no Config "
+    assert ("contains a 'UNIMPLEMENTED' section but no Config "
             "sub-class has been implemented for this API" in str(err.value))
 
 
@@ -769,8 +771,6 @@ def test_get_constants():
     assert isinstance(config.get_constants(), LFRicConstants)
     config.api = "gocean1.0"
     assert isinstance(config.get_constants(), GOceanConstants)
-    config.api = "nemo"
-    assert isinstance(config.get_constants(), NemoConstants)
 
 
 def test_config_class_initialised(monkeypatch):
@@ -781,3 +781,33 @@ def test_config_class_initialised(monkeypatch):
 
     _ = Config().get()
     assert Config.has_config_been_initialised() is True
+
+
+def test_ignore_modules(tmpdir, monkeypatch):
+    '''Test that the config file ignores modules, i.e. adds them to the
+    ModuleManager. '''
+
+    mod_manager = ModuleManager.get()
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+    config_file = tmpdir.join("config")
+    get_config(config_file, _CONFIG_CONTENT)
+
+    assert mod_manager.ignores() == {'mpi', 'netcdf'}
+
+    # Make sure it works if IGNORE_MODULES is not specified at all by checking
+    # that the module manager list of modules to ignore stays empty.
+    content = re.sub(r"^IGNORE_MODULES.*$",
+                     "",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+    get_config(config_file, content)
+    assert mod_manager.ignores() == set()
+
+    # Make sure an empty entry works as expected (i.e. it does not get
+    # added as an empty string to the module manager):
+    content = re.sub(r"^IGNORE_MODULES.*$",
+                     "IGNORE_MODULES= ",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+    get_config(config_file, content)
+    assert mod_manager.ignores() == set()

@@ -36,10 +36,12 @@
 '''Tool module, containing all generic (API independent) tools.
 '''
 
+from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
 from psyclone.psyir.tools.dependency_tools import DTCode, DependencyTools
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 # For AutoAPI documentation generation.
-__all__ = ['DTCode',
+__all__ = ['CallTreeUtils',
+           'DTCode',
            'DependencyTools',
            'ReadWriteInfo']

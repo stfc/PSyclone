@@ -63,7 +63,8 @@ PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
+OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o \
+	   read_kernel_data_mod.o
 
 default: $(PSYDATA_LIB)
 
@@ -77,6 +78,9 @@ extract_netcdf_base.o:	psy_data_base.o
 
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
+
+read_kernel_data_mod.f90: $(LIB_TMPLT_DIR)/read_kernel_data_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > read_kernel_data_mod.f90
 
 extract_netcdf_base.f90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90

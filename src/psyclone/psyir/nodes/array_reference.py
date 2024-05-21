@@ -187,6 +187,12 @@ class ArrayReference(ArrayMixin, Reference):
             # shape in the fparser2 parse tree but, at this point, we
             # wouldn't know what the variable name should be (TODO #2137).
             return UnresolvedType()
+        if not isinstance(self.symbol.datatype, ArrayType):
+            # If we have an array reference to a symbol that is not considered
+            # an array by PSyIR, we don't know how to retrieve its element type
+            # (TODO #2448)
+            return UnresolvedType()
+
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return

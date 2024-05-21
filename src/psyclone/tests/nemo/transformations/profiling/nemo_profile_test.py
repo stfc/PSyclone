@@ -43,29 +43,12 @@
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.symbol_table import SYMBOL_TABLES
-from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop, ProfileNode
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
-from psyclone.transformations import OMPParallelLoopTrans, ACCKernelsTrans
-from psyclone.profiler import Profiler
 
 
 # The transformation that most of these tests use
 PTRANS = ProfileTrans()
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use the nemo API, and that we clean
-    up the config file at the end of the tests.'''
-
-    Config.get().api = "nemo"
-    yield
-    # At the end of all tests make sure that we wipe the Config object
-    # so we get a fresh/default one for any further test (and not a
-    # left-over one from a test here).
-    Config._instance = None
 
 
 def get_nemo_schedule(parser, code):
@@ -206,6 +189,8 @@ def test_profile_codeblock(parser):
     assert (
         "  call profile_psy_data % prestart(\"cb_test\", \"r0\", 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
+        "    ! psyclone codeblock (unsupported code) reason:\n"
+        "    !  - unsupported statement: write_stmt\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "  enddo\n"
         "  call profile_psy_data % postend\n" in code)
@@ -281,6 +266,8 @@ def test_profile_single_line_if(parser):
         "  if (do_this) then\n"
         "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0,"
         " 0)\n"
+        "    ! psyclone codeblock (unsupported code) reason:\n"
+        "    !  - unsupported statement: write_stmt\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "    call profile_psy_data % postend\n"
         "  end if\n" in gen_code)
