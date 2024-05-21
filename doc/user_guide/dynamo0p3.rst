@@ -117,7 +117,7 @@ Objects in the LFRic API can be categorised by their functionality
 as data structures and information that specifies supported operations on
 a particular data structure. These data structures are represented by the
 six LFRic (Dynamo 0.3) API argument types: :ref:`scalar <lfric-scalar>`,
-:ref:`array <lfric-array>`,:ref:`field <lfric-field>`, :ref:`field vector
+:ref:`array <lfric-array>`, :ref:`field <lfric-field>`, :ref:`field vector
 <lfric-field-vector>`, :ref:`operator <lfric-operator>` and :ref:`column-wise
 operator <lfric-cma-operator>`. All of them are represented in the above
 example. ``qr`` represents a quadrature object which provides information
@@ -876,7 +876,7 @@ types.
    an ``integer``-valued field as an argument.
 
 .. _lfric-no-cma-mdata-rules:
-   
+
 Rules specific to General-Purpose Kernels without CMA Operators
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1312,7 +1312,7 @@ modes depend upon the argument type and the function space it is on:
 |                        |                              | GH_READWRITE       |
 +------------------------+------------------------------+--------------------+
 | GH_FIELD               | Continuous                   | GH_READ, GH_WRITE, |
-|                        |                              | GH_INC, GH_READINC | 
+|                        |                              | GH_INC, GH_READINC |
 +------------------------+------------------------------+--------------------+
 | GH_OPERATOR            | Any for both 'to' and 'from' | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |
