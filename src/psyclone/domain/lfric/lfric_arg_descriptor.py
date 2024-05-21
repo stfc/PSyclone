@@ -63,26 +63,26 @@ class LFRicArgDescriptor(Descriptor):
     This class captures the information specified in one of LFRic API argument
     descriptors (scalars, fields and operators).
 
-    :param arg_type: LFRic API valid argument type (scalar, \
+    :param arg_type: LFRic API valid argument type (scalar,
                      field or operator).
-    :type arg_type: :py:class:`psyclone.expression.FunctionVar` or \
+    :type arg_type: :py:class:`psyclone.expression.FunctionVar` or
                     :py:class:`psyclone.expression.BinaryOperator`
-    :param str operates_on: value of operates_on from the parsed kernel \
+    :param str operates_on: value of operates_on from the parsed kernel
                             metadata (used for validation).
-    :param int metadata_index: position of this argument in the list of \
+    :param int metadata_index: position of this argument in the list of
                                arguments specified in the metadata.
 
     :raises ParseError: if a 'meta_arg' entry is not of 'arg_type' type.
-    :raises ParseError: if the first argument of a 'meta_arg' entry is not \
+    :raises ParseError: if the first argument of a 'meta_arg' entry is not
                         one of LFRic API valid argument types.
-    :raises ParseError: if the second argument of a 'meta_arg' entry is not \
+    :raises ParseError: if the second argument of a 'meta_arg' entry is not
                         one of LFRic API valid data types.
     :raises ParseError: if a 'meta_arg' entry has fewer than 3 args.
-    :raises ParseError: if the third 'meta_arg' entry is not a valid \
+    :raises ParseError: if the third 'meta_arg' entry is not a valid
                         access descriptor.
-    :raises InternalError: if the operates_on from the parsed kernel \
+    :raises InternalError: if the operates_on from the parsed kernel
                            metadata is not 'cell_column' or 'dof'.
-    :raises InternalError: if all the metadata checks fail to catch an \
+    :raises InternalError: if all the metadata checks fail to catch an
                            invalid argument type.
 
     '''
@@ -227,14 +227,14 @@ class LFRicArgDescriptor(Descriptor):
         :param arg_type: LFRic API field (vector) argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
-        :raises ParseError: if the field vector notation does not use \
+        :raises ParseError: if the field vector notation does not use
                             the '*' operator.
-        :raises ParseError: if the field vector notation is not in the \
-                            correct format '(field*n)' where 'n' is \
+        :raises ParseError: if the field vector notation is not in the
+                            correct format '(field*n)' where 'n' is
                             an integer.
-        :raises ParseError: if the field vector notation is used for the \
+        :raises ParseError: if the field vector notation is used for the
                             vector size of less than 2.
-        :raises ParseError: if the field vector notation is used for an \
+        :raises ParseError: if the field vector notation is used for an
                             argument that is not a field.
 
         '''
@@ -284,14 +284,14 @@ class LFRicArgDescriptor(Descriptor):
         :param arg_type: LFRic API array argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
-        :raises ParseError: if the array notation does not use \
+        :raises ParseError: if the array notation does not use
                             the '*' operator.
-        :raises ParseError: if the array notation is not in the \
-                            correct format '(NRANKS*n)' where 'n' is \
+        :raises ParseError: if the array notation is not in the
+                            correct format '(NRANKS*n)' where 'n' is
                             an integer.
-        :raises ParseError: if the array notation is used for the \
+        :raises ParseError: if the array notation is used for the
                             array size of less than 1.
-        :raises ParseError: if the array notation is used for an \
+        :raises ParseError: if the array notation is used for an
                             argument that is not an array.
 
         '''
@@ -340,36 +340,36 @@ class LFRicArgDescriptor(Descriptor):
 
         :param arg_type: LFRic API field (vector) argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
-        :param operates_on: value of operates_on from the parsed kernel \
+        :param operates_on: value of operates_on from the parsed kernel
                             metadata (used for validation).
         :type operates_on: str
 
-        :raises InternalError: if argument type other than a field is \
+        :raises InternalError: if argument type other than a field is
                                passed in.
         :raises ParseError: if there are fewer than 4 metadata arguments.
         :raises ParseError: if there are more than 5 metadata arguments.
         :raises ParseError: if a field argument has an invalid data type.
         :raises ParseError: if the 4th argument is not a valid function space.
-        :raises ParseError: if the optional 5th argument is not a stencil \
-                            specification or a mesh identifier (for \
+        :raises ParseError: if the optional 5th argument is not a stencil
+                            specification or a mesh identifier (for
                             inter-grid kernels).
-        :raises ParseError: if a field passed to a kernel that operates on \
-                            DoFs does not have a valid access \
+        :raises ParseError: if a field passed to a kernel that operates on
+                            DoFs does not have a valid access
                             (one of [READ, WRITE, READWRITE]).
-        :raises ParseError: if a field on a discontinuous function space \
-                            passed to a kernel that operates on cell-columns \
-                            does not have a valid access (one of \
+        :raises ParseError: if a field on a discontinuous function space
+                            passed to a kernel that operates on cell-columns
+                            does not have a valid access (one of
                             [READ, WRITE, READWRITE]).
-        :raises ParseError: if a field on a continuous function space \
-                            passed to a kernel that operates on cell-columns \
-                            does not have a valid access (one of [READ, WRITE,\
+        :raises ParseError: if a field on a continuous function space
+                            passed to a kernel that operates on cell-columns
+                            does not have a valid access (one of [READ, WRITE,
                             INC, READINC]).
-        :raises ParseError: if the kernel operates on the domain and is \
+        :raises ParseError: if the kernel operates on the domain and is
                             passed a field on a continuous space.
-        :raises InternalError: if an invalid value for operates_on is \
+        :raises InternalError: if an invalid value for operates_on is
                                passed in.
         :raises ParseError: if a field with a stencil access is not read-only.
-        :raises ParseError: if a field with a stencil access is passed to a \
+        :raises ParseError: if a field with a stencil access is passed to a
                             kernel that operates on the domain.
 
         '''
@@ -528,13 +528,13 @@ class LFRicArgDescriptor(Descriptor):
         :param arg_type: LFRic API operator argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
-        :raises InternalError: if argument type other than an operator is \
+        :raises InternalError: if argument type other than an operator is
                                passed in.
         :raises ParseError: if there are not exactly 5 metadata arguments.
         :raises ParseError: if an operator argument has an invalid data type.
-        :raises ParseError: if the function space to- is not one of the \
+        :raises ParseError: if the function space to- is not one of the
                             valid function spaces.
-        :raises ParseError: if the function space from- is not one of the \
+        :raises ParseError: if the function space from- is not one of the
                             valid function spaces.
         :raises ParseError: if the operator argument has an invalid access.
 
@@ -608,13 +608,13 @@ class LFRicArgDescriptor(Descriptor):
         :param arg_type: LFRic API scalar argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
-        :raises InternalError: if argument type other than a scalar is \
+        :raises InternalError: if argument type other than a scalar is
                                passed in.
         :raises ParseError: if there are not exactly 3 metadata arguments.
         :raises InternalError: if a scalar argument has an invalid data type.
         :raises ParseError: if scalar arguments do not have a read-only or
                             a reduction access.
-        :raises ParseError: if a scalar argument that is not a real \
+        :raises ParseError: if a scalar argument that is not a real
                             scalar has a reduction access.
 
         '''
@@ -674,12 +674,12 @@ class LFRicArgDescriptor(Descriptor):
         :param arg_type: LFRic API scalar array argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
-        :raises InternalError: if argument type other than an array is \
+        :raises InternalError: if argument type other than an array is
                                passed in.
         :raises ParseError: if there are not exactly 4 metadata arguments.
         :raises InternalError: if an array argument has an invalid data type.
         :raises ParseError: if array arguments do not have read-only access.
-        :raises ParseError: if a scalar argument that is not a real \
+        :raises ParseError: if a scalar argument that is not a real
                             scalar has a reduction access.
 
         '''
@@ -779,7 +779,7 @@ class LFRicArgDescriptor(Descriptor):
         depending on the argument type: a single function space for a field,
         function_space_from for an operator and nothing for a scalar.
 
-        :returns: function space relating to this kernel argument or \
+        :returns: function space relating to this kernel argument or
                   None (for a scalar).
         :rtype: str or NoneType
 
