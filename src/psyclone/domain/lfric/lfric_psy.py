@@ -58,7 +58,7 @@ class LFRicPSy(PSy):
     It also overrides the PSy gen method so that we generate
     LFRic-specific PSy module code.
 
-    :param invoke_info: object containing the required invocation information \
+    :param invoke_info: object containing the required invocation information
                         for code optimisation and generation.
     :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
 
@@ -109,8 +109,8 @@ class LFRicPSy(PSy):
     @property
     def name(self):
         '''
-        :returns: a name for the PSy layer. This is used as the PSy module \
-                  name. We override the default value as the Met Office \
+        :returns: a name for the PSy layer. This is used as the PSy module
+                  name. We override the default value as the Met Office
                   prefer "_psy" to be appended, rather than prepended.
         :rtype: str
 
@@ -129,8 +129,8 @@ class LFRicPSy(PSy):
     @property
     def infrastructure_modules(self):
         '''
-        :returns: the dictionary that holds the names of the required \
-                  LFRic infrastructure modules to create "use" \
+        :returns: the dictionary that holds the names of the required
+                  LFRic infrastructure modules to create "use"
                   statements in the PSy-layer modules.
         :rtype: dict of set
 

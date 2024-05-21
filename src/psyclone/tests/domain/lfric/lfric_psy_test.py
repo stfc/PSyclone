@@ -54,7 +54,7 @@ class DummyInvokeInfo():
     '''A dummy class that contains the minimum information required to
     allow LFRicPSy to be called.
 
-    :param str name: the name to use for this dummy invoke. Defaults \
+    :param str name: the name to use for this dummy invoke. Defaults
         to an empty string.
 
     '''
