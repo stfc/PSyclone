@@ -143,7 +143,7 @@ def test_call_tree_compute_all_non_locals_kernel():
     mod_psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
     psyir = mod_psyir.invokes.invoke_list[0].schedule
 
-    # This will return three schedule - the DynInvokeSchedule, and two
+    # This will return three schedule - the LFRicInvokeSchedule, and two
     # schedules for the kernel and builtin. Just make sure we have
     # the right parts before doing the actual test:
     schedules = psyir.walk(Schedule)

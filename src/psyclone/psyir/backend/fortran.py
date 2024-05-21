@@ -484,15 +484,21 @@ class FortranWriter(LanguageWriter):
                 # This variable is not renamed.
                 only_list.append(dsym.name)
 
+        # Add a space into the returned string if intrinsic is not set anyway.
+        intrinsic_str = " "
+        if symbol.is_intrinsic:
+            intrinsic_str = ", intrinsic :: "
+
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
             # We have a "use xxx, only:" - i.e. an empty only list
-            return f"{self._nindent}use {symbol.name}, only :\n"
+            return f"{self._nindent}use{intrinsic_str}{symbol.name}, only :\n"
         if only_list and not symbol.wildcard_import:
-            return f"{self._nindent}use {symbol.name}, only : " + \
-                    ", ".join(sorted(only_list)) + "\n"
+            return (f"{self._nindent}use{intrinsic_str}{symbol.name}, "
+                    f"only : " +
+                    ", ".join(sorted(only_list)) + "\n")
 
-        return f"{self._nindent}use {symbol.name}\n"
+        return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
 
     def gen_vardecl(self, symbol, include_visibility=False):
         '''Create and return the Fortran variable declaration for this Symbol
