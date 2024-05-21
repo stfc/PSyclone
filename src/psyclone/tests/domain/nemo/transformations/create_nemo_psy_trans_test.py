@@ -37,10 +37,10 @@
 '''Module containing tests for the CreateNemoPSyTrans transformation.'''
 
 import pytest
-from psyclone.psyir.nodes import Assignment, CodeBlock
+from psyclone.psyir.nodes import Assignment, CodeBlock, Loop
 from psyclone.transformations import Transformation, TransformationError
 from psyclone.domain.nemo.transformations import CreateNemoPSyTrans
-from psyclone.nemo import NemoInvokeSchedule, NemoLoop
+from psyclone.nemo import NemoInvokeSchedule
 
 
 @pytest.fixture(scope="session", name="psy_trans")
@@ -97,8 +97,8 @@ end subroutine basic_loop
     psy_trans.apply(psyir)
     sched = psyir.children[0]
     assert isinstance(sched, NemoInvokeSchedule)
-    assert isinstance(sched[0], NemoLoop)
-    assert isinstance(sched[0].loop_body[0], NemoLoop)
+    assert isinstance(sched[0], Loop)
+    assert isinstance(sched[0].loop_body[0], Loop)
     assert isinstance(sched[0].loop_body[0].loop_body[0], Assignment)
 
 
@@ -129,4 +129,4 @@ end module my_mod
     assert invokes[0].name == "init"
     assert isinstance(invokes[0][0], CodeBlock)
     assert invokes[1].name == "basic_loop"
-    assert isinstance(invokes[1][0], NemoLoop)
+    assert isinstance(invokes[1][0], Loop)

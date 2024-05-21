@@ -52,8 +52,8 @@ from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference, StructureReference
 from psyclone.psyir.symbols import (
-    DataSymbol, DataTypeSymbol, UnresolvedType,
-    ContainerSymbol, ImportInterface, ScalarType)
+    DataSymbol, DataTypeSymbol, UnresolvedType, ContainerSymbol,
+    ImportInterface, ScalarType)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -477,7 +477,8 @@ class KernCallArgList(ArgOrdering):
         '''
         # the direction of the stencil is not known so pass the value in
         name = arg.stencil.direction_arg.varname
-        self.append_integer_reference(name, f"AlgArgs_{name}")
+        tag = arg.stencil.direction_arg.text
+        self.append_integer_reference(name, f"AlgArgs_{tag}")
         self.append(name, var_accesses)
 
     def stencil(self, arg, var_accesses=None):

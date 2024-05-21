@@ -52,17 +52,14 @@ from typing import Any
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
-                                                  LFRicBuiltIn)
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   KernCallArgList,
-                                   LFRicCollection, LFRicConstants,
-                                   LFRicSymbolTable, LFRicKernCallFactory,
-                                   LFRicKern, LFRicInvokes, LFRicTypes,
-                                   LFRicLoop)
+                                   KernCallArgList, LFRicCollection,
+                                   LFRicConstants, LFRicSymbolTable, LFRicKern,
+                                   LFRicInvokes, LFRicTypes, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen, IfThenGen,
+                              DeallocateGen, DeclGen, DoGen,
                               ModuleGen, TypeDeclGen, UseGen, PSyIRGen)
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -70,7 +67,9 @@ from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Reference, ACCEnterDataDirective, ScopingNode
+from psyclone.psyir.nodes import (
+    Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
+    StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -1180,243 +1179,6 @@ class DynReferenceElement(LFRicCollection):
                     f"faces({self._face_out_normals_symbol.name})"))
 
 
-class DynDofmaps(LFRicCollection):
-    '''
-    Holds all information on the dofmaps (including column-banded and
-    indirection) required by an invoke.
-
-    :param node: Kernel or Invoke for which to manage dofmaps.
-    :type node: :py:class:`psyclone.domain.lfric.LFRicKern` or \
-                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
-
-    '''
-    def __init__(self, node):
-        # pylint: disable=too-many-branches
-        super().__init__(node)
-
-        # Look at every kernel call in this invoke and generate a list
-        # of the unique function spaces involved.
-        # We create a dictionary whose keys are the map names and entries
-        # are the corresponding field objects.
-        self._unique_fs_maps = OrderedDict()
-        # We also create a dictionary of column-banded dofmaps. Entries
-        # in this one are themselves dictionaries containing two entries:
-        # "argument" - the object holding information on the CMA kernel
-        #              argument
-        # "direction" - whether the dofmap is required for the "to" or
-        #               "from" function space of the operator.
-        self._unique_cbanded_maps = OrderedDict()
-        # A dictionary of required CMA indirection dofmaps. As with the
-        # column-banded dofmaps, each entry is itself a dictionary with
-        # "argument" and "direction" entries.
-        self._unique_indirection_maps = OrderedDict()
-
-        for call in self._calls:
-            # We only need a dofmap if the kernel operates on a cell_column
-            # or the domain.
-            if call.iterates_over in ["cell_column", "domain"]:
-                for unique_fs in call.arguments.unique_fss:
-                    # We only need a dofmap if there is a *field* on this
-                    # function space. If there is then we use it to look
-                    # up the dofmap.
-                    fld_arg = unique_fs.field_on_space(call.arguments)
-                    if fld_arg:
-                        map_name = unique_fs.map_name
-                        if map_name not in self._unique_fs_maps:
-                            self._unique_fs_maps[map_name] = fld_arg
-                if call.cma_operation == "assembly":
-                    # A kernel that assembles a CMA operator requires
-                    # column-banded dofmaps for its 'to' and 'from'
-                    # function spaces
-                    cma_args = psyGen.args_filter(
-                        call.arguments.args,
-                        arg_types=["gh_columnwise_operator"])
-
-                    # Sanity check - we expect only one CMA argument
-                    if len(cma_args) != 1:
-                        raise GenerationError(
-                            f"Internal error: there should only be one CMA "
-                            f"operator argument for a CMA assembly kernel but "
-                            f"found {len(cma_args)}")
-
-                    map_name = \
-                        cma_args[0].function_space_to.cbanded_map_name
-                    if map_name not in self._unique_cbanded_maps:
-                        self._unique_cbanded_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "to"}
-                    map_name = \
-                        cma_args[0].function_space_from.cbanded_map_name
-                    if map_name not in self._unique_cbanded_maps:
-                        self._unique_cbanded_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "from"}
-                elif call.cma_operation == "apply":
-                    # A kernel that applies (or applies the inverse of) a
-                    # CMA operator requires the indirection dofmaps for the
-                    # to- and from-spaces of the operator.
-                    cma_args = psyGen.args_filter(
-                        call.arguments.args,
-                        arg_types=["gh_columnwise_operator"])
-
-                    # Sanity check - we expect only one CMA argument
-                    if len(cma_args) != 1:
-                        raise GenerationError(
-                            f"Internal error: there should only be one CMA "
-                            f"operator argument for a kernel that applies a "
-                            f"CMA operator but found {len(cma_args)}")
-
-                    map_name = cma_args[0].function_space_to\
-                        .cma_indirection_map_name
-                    if map_name not in self._unique_indirection_maps:
-                        self._unique_indirection_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "to"}
-                    map_name = cma_args[0].function_space_from\
-                        .cma_indirection_map_name
-                    if map_name not in self._unique_indirection_maps:
-                        self._unique_indirection_maps[map_name] = {
-                            "argument": cma_args[0],
-                            "direction": "from"}
-
-    def initialise(self, parent):
-        ''' Generates the calls to the LFRic infrastructure that
-        look-up the necessary dofmaps. Adds these calls as children
-        of the supplied parent node. This must be an appropriate
-        f2pygen object. '''
-
-        # If we've got no dofmaps then we do nothing
-        if self._unique_fs_maps:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Look-up dofmaps for each function space"))
-            parent.add(CommentGen(parent, ""))
-
-            for dmap, field in self._unique_fs_maps.items():
-                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=field.proxy_name_indexed +
-                                     "%" + field.ref_name() +
-                                     "%get_whole_dofmap()"))
-        if self._unique_cbanded_maps:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Look-up required column-banded dofmaps"))
-            parent.add(CommentGen(parent, ""))
-
-            for dmap, cma in self._unique_cbanded_maps.items():
-                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=cma["argument"].proxy_name_indexed +
-                                     "%column_banded_dofmap_" +
-                                     cma["direction"]))
-
-        if self._unique_indirection_maps:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Look-up required CMA indirection dofmaps"))
-            parent.add(CommentGen(parent, ""))
-
-            for dmap, cma in self._unique_indirection_maps.items():
-                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=cma["argument"].proxy_name_indexed +
-                                     "%indirection_dofmap_"+cma["direction"]))
-
-    def _invoke_declarations(self, parent):
-        '''
-        Declare all unique function space dofmaps in the PSy layer as pointers
-        to integer arrays of rank 2.
-
-        :param parent: the f2pygen node to which to add the declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        # Function space dofmaps
-        decl_map_names = \
-            [dmap+"(:,:) => null()" for dmap in sorted(self._unique_fs_maps)]
-
-        if decl_map_names:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=decl_map_names))
-
-        # Column-banded dofmaps
-        decl_bmap_names = \
-            [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
-        if decl_bmap_names:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=decl_bmap_names))
-
-        # CMA operator indirection dofmaps
-        decl_ind_map_names = \
-            [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
-        if decl_ind_map_names:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=decl_ind_map_names))
-
-    def _stub_declarations(self, parent):
-        '''
-        Add dofmap-related declarations to a Kernel stub.
-
-        :param parent: node in the f2pygen AST representing the Kernel stub.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-        api_config = Config.get().api_conf("dynamo0.3")
-
-        # Function space dofmaps
-        for dmap in sorted(self._unique_fs_maps):
-            # We declare ndf first as some compilers require this
-            ndf_name = \
-                self._unique_fs_maps[dmap].function_space.ndf_name
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", dimension=ndf_name,
-                               entity_decls=[dmap]))
-        # Column-banded dofmaps
-        for dmap, cma in self._unique_cbanded_maps.items():
-            if cma["direction"] == "to":
-                ndf_name = cma["argument"].function_space_to.ndf_name
-            elif cma["direction"] == "from":
-                ndf_name = cma["argument"].function_space_from.ndf_name
-            else:
-                raise InternalError(
-                    f"Invalid direction ('{cma['''direction''']}') found for "
-                    f"CMA operator when collecting column-banded dofmaps. "
-                    f"Should be either 'to' or 'from'.")
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[ndf_name]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in",
-                               dimension=",".join([ndf_name, "nlayers"]),
-                               entity_decls=[dmap]))
-        # CMA operator indirection dofmaps
-        for dmap, cma in self._unique_indirection_maps.items():
-            if cma["direction"] == "to":
-                dim_name = cma["argument"].name + "_nrow"
-            elif cma["direction"] == "from":
-                dim_name = cma["argument"].name + "_ncol"
-            else:
-                raise InternalError(
-                    f"Invalid direction ('{cma['''direction''']}') found for "
-                    f"CMA operator when collecting indirection dofmaps. "
-                    f"Should be either 'to' or 'from'.")
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", entity_decls=[dim_name]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               intent="in", dimension=dim_name,
-                               entity_decls=[dmap]))
-
-
 class DynFunctionSpaces(LFRicCollection):
     '''
     Handles the declaration and initialisation of all function-space-related
@@ -2286,10 +2048,6 @@ class DynMeshes():
     '''
 
     def __init__(self, invoke, unique_psy_vars):
-        # Dict of DynInterGrid objects holding information on the mesh-related
-        # variables required by each inter-grid kernel. Keys are the kernel
-        # names.
-        self._ig_kernels = OrderedDict()
         # List of names of unique mesh variables referenced in the Invoke
         self._mesh_tag_names = []
         # Whether or not the associated Invoke requires colourmap information
@@ -2315,6 +2073,7 @@ class DynMeshes():
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
+        has_intergrid = False
         for call in self._schedule.coded_kernels():
 
             if (call.reference_element.properties or call.mesh.properties or
@@ -2323,27 +2082,15 @@ class DynMeshes():
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
-                # Skip over any non-inter-grid kernels
-                continue
-
-            fine_args = psyGen.args_filter(call.arguments.args,
-                                           arg_meshes=["gh_fine"])
-            coarse_args = psyGen.args_filter(call.arguments.args,
-                                             arg_meshes=["gh_coarse"])
-            fine_arg = fine_args[0]
-            coarse_arg = coarse_args[0]
-
-            # Create an object to capture info. on this inter-grid kernel
-            # and store in our dictionary
-            self._ig_kernels[id(call)] = DynInterGrid(fine_arg, coarse_arg)
-
-            # Create and store the names of the associated mesh objects
-            _name_set.add(f"mesh_{fine_arg.name}")
-            _name_set.add(f"mesh_{coarse_arg.name}")
+            else:
+                has_intergrid = True
+                # Create and store the names of the associated mesh objects
+                _name_set.add(f"mesh_{call._intergrid_ref.fine.name}")
+                _name_set.add(f"mesh_{call._intergrid_ref.coarse.name}")
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
-        if non_intergrid_kernels and self._ig_kernels:
+        if non_intergrid_kernels and has_intergrid:
             raise GenerationError(
                 f"An invoke containing inter-grid kernels must contain no "
                 f"other kernel types but kernels "
@@ -2443,7 +2190,7 @@ class DynMeshes():
             # This is an inter-grid kernel so look-up the names of
             # the colourmap variables associated with the coarse
             # mesh (since that determines the iteration space).
-            carg_name = self._ig_kernels[id(call)].coarse.name
+            carg_name = call._intergrid_ref.coarse.name
             # Colour map
             base_name = "cmap_" + carg_name
             colour_map = sym_tab.find_or_create_array(
@@ -2467,10 +2214,9 @@ class DynMeshes():
                 base_name = "last_edge_cell_all_colours_" + carg_name
                 last_cell = self._schedule.symbol_table.find_or_create_array(
                     base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
-            # Add these symbols into the dictionary entry for this
-            # inter-grid kernel
-            self._ig_kernels[id(call)].set_colour_info(
-                colour_map, ncolours, last_cell)
+            # Add these symbols into the DynInterGrid entry for this kernel
+            call._intergrid_ref.set_colour_info(colour_map, ncolours,
+                                                last_cell)
 
         if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
@@ -2519,7 +2265,7 @@ class DynMeshes():
             name = self._symbol_table.lookup_with_tag(mtype).name
             parent.add(UseGen(parent, name=mmod, only=True,
                               funcnames=[name]))
-        if self._ig_kernels:
+        if self.intergrid_kernels:
             parent.add(UseGen(parent, name=mmap_mod, only=True,
                               funcnames=[mmap_type]))
         # Declare the mesh object(s) and associated halo depths
@@ -2536,7 +2282,7 @@ class DynMeshes():
                                    entity_decls=[name]))
 
         # Declare the inter-mesh map(s) and cell map(s)
-        for kern in self._ig_kernels.values():
+        for kern in self.intergrid_kernels:
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype=mmap_type,
                                    entity_decls=[kern.mmap + " => null()"]))
@@ -2574,8 +2320,8 @@ class DynMeshes():
                             kind=api_config.default_kind["integer"],
                             entity_decls=[decln]))
 
-        if not self._ig_kernels and (self._needs_colourmap or
-                                     self._needs_colourmap_halo):
+        if not self.intergrid_kernels and (self._needs_colourmap or
+                                           self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
@@ -2668,8 +2414,8 @@ class DynMeshes():
         # that we don't generate duplicate assignments
         initialised = []
 
-        # Loop over the DynInterGrid objects in our dictionary
-        for dig in self._ig_kernels.values():
+        # Loop over the DynInterGrid objects
+        for dig in self.intergrid_kernels:
             # We need pointers to both the coarse and the fine mesh as well
             # as the maximum halo depth for each.
             fine_mesh = self._schedule.symbol_table.find_or_create_tag(
@@ -2777,12 +2523,16 @@ class DynMeshes():
 
     @property
     def intergrid_kernels(self):
-        ''' Getter for the dictionary of intergrid kernels.
-
-        :returns: Dictionary of intergrid kernels, indexed by name.
-        :rtype: :py:class:`collections.OrderedDict`
         '''
-        return self._ig_kernels
+        :returns: A list of objects describing the intergrid kernels used in
+            this invoke.
+        :rtype: list[:py:class:`psyclone.dynamo3p0.DynInterGrid`]
+        '''
+        intergrids = []
+        for call in self._schedule.coded_kernels():
+            if call.is_intergrid:
+                intergrids.append(call._intergrid_ref)
+        return intergrids
 
 
 class DynInterGrid():
@@ -2879,10 +2629,10 @@ class DynBasisFunctions(LFRicCollection):
     functions required by an invoke or kernel call. This covers both those
     required for quadrature and for evaluators.
 
-    :param node: either the schedule of an Invoke or a single Kernel object \
-                 for which to extract information on all required \
+    :param node: either the schedule of an Invoke or a single Kernel object
+                 for which to extract information on all required
                  basis/diff-basis functions.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule` or
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises InternalError: if a call has an unrecognised evaluator shape.
@@ -3879,41 +3629,6 @@ class DynBoundaryConditions(LFRicCollection):
                               "get_boundary_dofs()"])))
 
 
-class DynInvokeSchedule(InvokeSchedule):
-    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
-    specific factories for creating kernel and infrastructure calls
-    to the base class so it creates the ones we require.
-
-    :param str name: name of the Invoke.
-    :param arg: list of KernelCalls parsed from the algorithm layer.
-    :type arg: list of :py:class:`psyclone.parse.algorithm.KernelCall`
-    :param reserved_names: optional list of names that are not allowed in the \
-                           new InvokeSchedule SymbolTable.
-    :type reserved_names: list of str
-    :param parent: the parent of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-
-    def __init__(self, name, arg, reserved_names=None, parent=None):
-        super().__init__(name, LFRicKernCallFactory,
-                         LFRicBuiltInCallFactory, arg, reserved_names,
-                         parent=parent, symbol_table=LFRicSymbolTable())
-
-    def node_str(self, colour=True):
-        ''' Creates a text summary of this node.
-
-        :param bool colour: whether or not to include control codes for colour.
-
-        :returns: text summary of this node, optionally with control codes \
-                  for colour highlighting.
-        :rtype: str
-
-        '''
-        return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
-                "', dm=" + str(Config.get().distributed_memory)+"]")
-
-
 class DynGlobalSum(GlobalSum):
     '''
     Dynamo specific global sum class which can be added to and
@@ -4152,6 +3867,19 @@ class LFRicHaloExchange(HaloExchange):
         depth_str_list = [str(depth_info) for depth_info in
                           depth_info_list]
         return "max("+",".join(depth_str_list)+")"
+
+    def _psyir_depth_expression(self):
+        '''
+        :returns: the PSyIR expression to compute the halo depth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        depth_info_list = self._compute_halo_read_depth_info()
+        if len(depth_info_list) == 1:
+            return depth_info_list[0].psyir_expression()
+
+        return IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.MAX,
+                [depth.psyir_expression() for depth in depth_info_list])
 
     def _compute_halo_read_depth_info(self, ignore_hex_dep=False):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
@@ -4474,25 +4202,44 @@ class LFRicHaloExchange(HaloExchange):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        parent.add(PSyIRGen(parent, self))
+
+    def lower_to_language_level(self):
+        '''
+        :returns: this node lowered to language-level PSyIR.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        symbol = DataSymbol(self._field.proxy_name, UnresolvedType())
+        method = self._halo_exchange_name
+        depth_expr = self._psyir_depth_expression()
+
+        # Create infrastructure Calls
         if self.vector_index:
-            ref = f"({self.vector_index})"
+            idx = Literal(str(self.vector_index), INTEGER_TYPE)
+            if_condition = Call.create(
+                ArrayOfStructuresReference.create(symbol, [idx], ['is_dirty']),
+                [('depth', depth_expr)])
+            if_body = Call.create(
+                ArrayOfStructuresReference.create(
+                    symbol, [idx.copy()], [method]),
+                [('depth', depth_expr.copy())])
         else:
-            ref = ""
+            if_condition = Call.create(
+                StructureReference.create(symbol, ['is_dirty']),
+                [('depth', depth_expr)])
+            if_body = Call.create(
+                StructureReference.create(symbol, [method]),
+                [('depth', depth_expr.copy())])
+
+        # Add the "if_dirty" check when necessary
         _, known = self.required()
         if not known:
-            if_then = IfThenGen(parent, self._field.proxy_name + ref +
-                                "%is_dirty(depth=" +
-                                self._compute_halo_depth() + ")")
-            parent.add(if_then)
-            halo_parent = if_then
+            haloex = IfBlock.create(if_condition, [if_body])
         else:
-            halo_parent = parent
-        halo_parent.add(
-            CallGen(
-                halo_parent, name=self._field.proxy_name + ref +
-                "%" + self._halo_exchange_name +
-                "(depth=" + self._compute_halo_depth() + ")"))
-        parent.add(CommentGen(parent, ""))
+            haloex = if_body
+
+        self.replace_with(haloex)
+        return haloex
 
 
 class LFRicHaloExchangeStart(LFRicHaloExchange):
@@ -4565,6 +4312,18 @@ class LFRicHaloExchangeStart(LFRicHaloExchange):
         '''
         # pylint: disable=protected-access
         return self._get_hex_end()._compute_halo_depth()
+
+    def _psyir_depth_expression(self):
+        '''
+        Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :returns: the PSyIR expression to compute the halo depth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        return self._get_hex_end()._psyir_depth_expression()
 
     def required(self):
         '''Call the required method in the corresponding halo exchange end
@@ -4691,6 +4450,8 @@ class HaloDepth():
         self._annexed_only = False
         # Keep a reference to the symbol table so that we can look-up
         # variables holding the maximum halo depth.
+        # FIXME #2503: This can become invalid if the HaloExchange
+        # containing this HaloDepth changes its ancestors.
         self._symbol_table = sym_table
 
     @property
@@ -4803,6 +4564,33 @@ class HaloDepth():
                 # Returns depth if depth has any value, including 0
                 depth_str = str(self.literal_depth)
         return depth_str
+
+    def psyir_expression(self):
+        '''
+        :returns: the PSyIR expression representing this HaloDepth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        if self.max_depth:
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            return Reference(max_depth)
+        if self.max_depth_m1:
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            return BinaryOperation.create(
+                        BinaryOperation.Operator.SUB,
+                        Reference(max_depth),
+                        Literal('1', INTEGER_TYPE))
+        if self.var_depth:
+            depth_ref = Reference(self._symbol_table.lookup(self.var_depth))
+            if self.literal_depth != 0:  # Ignores depth == 0
+                return BinaryOperation.create(
+                            BinaryOperation.Operator.ADD,
+                            depth_ref,
+                            Literal(f"{self.literal_depth}", INTEGER_TYPE))
+            return depth_ref
+        # Returns depth if depth has any value, including 0
+        return Literal(str(self.literal_depth), INTEGER_TYPE)
 
 
 def halo_check_arg(field, access_types):
@@ -5521,21 +5309,6 @@ class DynKernelArguments(Arguments):
         makes no sense for Dynamo. Need to refactor the Invoke base class
         and remove the need for this property (#279). '''
         return self._dofs
-
-    def raw_arg_list(self):
-        '''
-        Constructs the class-specific argument list for a kernel.
-
-        :returns: a list of all of the actual arguments to the \
-                  kernel call.
-        :rtype: list of str.
-
-        '''
-        create_arg_list = KernCallArgList(self._parent_call)
-        create_arg_list.generate()
-        self._raw_arg_list = create_arg_list.arglist
-
-        return self._raw_arg_list
 
     def psyir_expressions(self):
         '''
@@ -6440,7 +6213,6 @@ class DynACCEnterDataDirective(ACCEnterDataDirective):
 __all__ = [
     'DynFuncDescriptor03',
     'DynamoPSy',
-    'DynDofmaps',
     'DynFunctionSpaces',
     'DynProxies',
     'DynCellIterators',
@@ -6450,7 +6222,6 @@ __all__ = [
     'DynInterGrid',
     'DynBasisFunctions',
     'DynBoundaryConditions',
-    'DynInvokeSchedule',
     'DynGlobalSum',
     'LFRicHaloExchange',
     'LFRicHaloExchangeStart',

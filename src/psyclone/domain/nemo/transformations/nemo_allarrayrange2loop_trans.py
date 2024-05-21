@@ -32,12 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk and S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation from an Assignment node
 containing an Array Reference node in its left-hand-side which in turn
 has at least one PSyIR Range node specifying an access to an array
 index (equivalent to an array assignment statement in Fortran) to the
-equivalent loop representation using the required number of NemoLoop
+equivalent loop representation using the required number of Loop
 nodes.
 
 '''
@@ -53,7 +54,7 @@ from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
 
 class NemoAllArrayRange2LoopTrans(Transformation):
     '''Provides a transformation for all PSyIR Array Ranges in an
-    assignment to PSyIR NemoLoops. For example:
+    assignment to PSyIR Loops. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -81,8 +82,8 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         Range node specifying an access to an array index. If this is
         the case then all Range nodes within array references within
         the assignment are replaced with references to the appropriate
-        loop indices. The appropriate number of NemoLoop loops are
-        also placed around the modified assignment statement.
+        loop indices. The appropriate number of Loops are also placed around
+        the modified assignment statement.
 
         The name of each loop index is taken from the PSyclone
         configuration file if a name exists for the particular array
@@ -91,7 +92,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         not, the loop bounds are taken from the PSyclone configuration
         file if a bounds value is supplied. If not, the LBOUND or
         UBOUND intrinsics are used as appropriate. The type of the
-        NemoLoop is also taken from the configuration file if it is
+        Loop is also taken from the configuration file if it is
         supplied for that index, otherwise it is specified as being
         "unknown".
 
@@ -106,14 +107,16 @@ class NemoAllArrayRange2LoopTrans(Transformation):
             transformations fails, and therefor the reason why the inner
             transformation failed is not propagated.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on a character type array range. Defaults to False.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         trans = NemoOuterArrayRange2LoopTrans()
         try:
             while True:
-                trans.apply(node)
+                trans.apply(node, options)
         except TransformationError as err:
             # TODO #11: Instead we could use proper logging
             if options and options.get("verbose", False):
@@ -128,7 +131,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
 
     def __str__(self):
         return ("Convert all array ranges in a PSyIR assignment into "
-                "PSyIR NemoLoops.")
+                "PSyIR Loops.")
 
     @property
     def name(self):

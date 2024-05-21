@@ -67,14 +67,14 @@ def test_intrinsiccall_constructor():
     # Wrong type of routine argument.
     with pytest.raises(TypeError) as err:
         _ = IntrinsicCall(None)
-    assert ("IntrinsicCall 'routine' argument should be an instance of "
+    assert ("IntrinsicCall 'intrinsic' argument should be an instance of "
             "IntrinsicCall.Intrinsic, but found 'NoneType'." in str(err.value))
     # Check that supplied intrinsic and optional parent node is stored
     # correctly.
     sched = Schedule()
     call = IntrinsicCall(IntrinsicCall.Intrinsic.MINVAL, parent=sched)
-    assert call._intrinsic is IntrinsicCall.Intrinsic.MINVAL
-    assert isinstance(call.routine, IntrinsicSymbol)
+    assert call.routine.symbol.intrinsic is IntrinsicCall.Intrinsic.MINVAL
+    assert isinstance(call.routine.symbol, IntrinsicSymbol)
     assert call.routine.name == "MINVAL"
     assert call.parent is sched
 
@@ -120,7 +120,38 @@ def test_intrinsiccall_is_inquiry():
                 (IntrinsicCall.Intrinsic.MAX, True),
                 (IntrinsicCall.Intrinsic.MAXVAL, False),
                 (IntrinsicCall.Intrinsic.ALLOCATE, False),
-                (IntrinsicCall.Intrinsic.MATMUL, False)])
+                (IntrinsicCall.Intrinsic.MATMUL, False),
+                (IntrinsicCall.Intrinsic.ACOS, True),
+                (IntrinsicCall.Intrinsic.AINT, True),
+                (IntrinsicCall.Intrinsic.ANINT, True),
+                (IntrinsicCall.Intrinsic.ASIN, True),
+                (IntrinsicCall.Intrinsic.ATAN, True),
+                (IntrinsicCall.Intrinsic.ATAN2, True),
+                (IntrinsicCall.Intrinsic.COS, True),
+                (IntrinsicCall.Intrinsic.COSH, True),
+                (IntrinsicCall.Intrinsic.DBLE, True),
+                (IntrinsicCall.Intrinsic.DPROD, True),
+                (IntrinsicCall.Intrinsic.EXP, True),
+                (IntrinsicCall.Intrinsic.IAND, True),
+                (IntrinsicCall.Intrinsic.IEOR, True),
+                (IntrinsicCall.Intrinsic.INT, True),
+                (IntrinsicCall.Intrinsic.IOR, True),
+                (IntrinsicCall.Intrinsic.LOG, True),
+                (IntrinsicCall.Intrinsic.LOG10, True),
+                (IntrinsicCall.Intrinsic.MOD, True),
+                (IntrinsicCall.Intrinsic.NINT, True),
+                (IntrinsicCall.Intrinsic.NOT, True),
+                (IntrinsicCall.Intrinsic.REAL, True),
+                (IntrinsicCall.Intrinsic.SIGN, True),
+                (IntrinsicCall.Intrinsic.SIN, True),
+                (IntrinsicCall.Intrinsic.SINH, True),
+                (IntrinsicCall.Intrinsic.SQRT, True),
+                (IntrinsicCall.Intrinsic.TAN, True),
+                (IntrinsicCall.Intrinsic.TANH, True),
+                (IntrinsicCall.Intrinsic.PRODUCT, True),
+                (IntrinsicCall.Intrinsic.SUM, True),
+                (IntrinsicCall.Intrinsic.LBOUND, True),
+                (IntrinsicCall.Intrinsic.UBOUND, True)])
 def test_intrinsiccall_is_available_on_device(intrinsic, result):
     '''Tests that the is_available_on_device() method works as expected.'''
     intrinsic_call = IntrinsicCall(intrinsic)
@@ -143,7 +174,7 @@ def test_intrinsiccall_alloc_create():
         [ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])])
     assert isinstance(alloc, IntrinsicCall)
     assert alloc.intrinsic is IntrinsicCall.Intrinsic.ALLOCATE
-    assert isinstance(alloc.routine, IntrinsicSymbol)
+    assert isinstance(alloc.routine.symbol, IntrinsicSymbol)
     assert alloc.routine.name == "ALLOCATE"
     alloc = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.ALLOCATE,
@@ -168,9 +199,9 @@ def test_intrinsiccall_dealloc_create():
         IntrinsicCall.Intrinsic.DEALLOCATE, [Reference(sym)])
     assert isinstance(dealloc, IntrinsicCall)
     assert dealloc.intrinsic is IntrinsicCall.Intrinsic.DEALLOCATE
-    assert isinstance(dealloc.routine, IntrinsicSymbol)
+    assert isinstance(dealloc.routine.symbol, IntrinsicSymbol)
     assert dealloc.routine.name == "DEALLOCATE"
-    assert dealloc.children[0].symbol is sym
+    assert dealloc.arguments[0].symbol is sym
     # With 'stat' optional argument.
     dealloc = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.DEALLOCATE, [Reference(sym),
@@ -188,9 +219,9 @@ def test_intrinsiccall_random_create():
         IntrinsicCall.Intrinsic.RANDOM_NUMBER, [Reference(sym)])
     assert isinstance(rand, IntrinsicCall)
     assert rand.intrinsic is IntrinsicCall.Intrinsic.RANDOM_NUMBER
-    assert isinstance(rand.routine, IntrinsicSymbol)
+    assert isinstance(rand.routine.symbol, IntrinsicSymbol)
     assert rand.routine.name == "RANDOM_NUMBER"
-    assert rand.children[0].symbol is sym
+    assert rand.arguments[0].symbol is sym
 
 
 @pytest.mark.parametrize("intrinsic_call", [
@@ -211,10 +242,10 @@ def test_intrinsiccall_minmaxsum_create(intrinsic_call):
         intrinsic_call, [Reference(array)])
     assert isinstance(intrinsic, IntrinsicCall)
     assert intrinsic.intrinsic is intrinsic_call
-    assert isinstance(intrinsic.routine, IntrinsicSymbol)
+    assert isinstance(intrinsic.routine.symbol, IntrinsicSymbol)
     intrinsic_name = intrinsic_call.name
     assert intrinsic.routine.name == intrinsic_name
-    assert intrinsic.children[0].symbol is array
+    assert intrinsic.arguments[0].symbol is array
     # array and optional dim
     intrinsic = IntrinsicCall.create(
         intrinsic_call, [Reference(array), ("dim", Reference(dim))])
@@ -260,13 +291,13 @@ def test_intrinsiccall_tinyhuge_create(intrinsic_call, form):
         intrinsic_call, [arg])
     assert isinstance(intrinsic, IntrinsicCall)
     assert intrinsic.intrinsic is intrinsic_call
-    assert isinstance(intrinsic.routine, IntrinsicSymbol)
+    assert isinstance(intrinsic.routine.symbol, IntrinsicSymbol)
     intrinsic_name = intrinsic_call.name
     assert intrinsic.routine.name == intrinsic_name
     if form == "array":
-        assert intrinsic.children[0].symbol is array
+        assert intrinsic.arguments[0].symbol is array
     else:  # "literal"
-        assert intrinsic.children[0] is arg
+        assert intrinsic.arguments[0] is arg
 
 
 def test_intrinsiccall_create_errors():
@@ -278,13 +309,13 @@ def test_intrinsiccall_create_errors():
     aref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create("ALLOCATE", [Reference(sym)])
-    assert ("'routine' argument should be an instance of "
-            "IntrinsicCall.Intrinsic but found 'str'" in str(err.value))
+    assert ("'intrinsic' argument should be an instance of "
+            "IntrinsicCall.Intrinsic, but found 'str'" in str(err.value))
     # Supplied arguments must be a list.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, aref)
-    assert ("IntrinsicCall.create() 'arguments' argument should be a list "
-            "but found 'ArrayReference'" in str(err.value))
+    assert ("IntrinsicCall.create() 'arguments' argument should be an Iterable"
+            " but found 'ArrayReference'" in str(err.value))
     # An allocate must have one or more References as argument.
     with pytest.raises(ValueError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE, [])
@@ -354,31 +385,31 @@ def test_create_positional_arguments_with_names():
     intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
                                 [aref.copy(), bref.copy()])
     assert isinstance(intr, IntrinsicCall)
-    assert intr.children[0] == aref
-    assert intr.children[1] == bref
+    assert intr.arguments[0] == aref
+    assert intr.arguments[1] == bref
     assert intr.argument_names == [None, None]
 
     intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
                                 [aref.copy(), ("vector_b", bref.copy())])
     assert isinstance(intr, IntrinsicCall)
-    assert intr.children[0] == aref
-    assert intr.children[1] == bref
+    assert intr.arguments[0] == aref
+    assert intr.arguments[1] == bref
     assert intr.argument_names == [None, "vector_b"]
 
     intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
                                 [("vector_a", aref.copy()),
                                  ("vector_b", bref.copy())])
     assert isinstance(intr, IntrinsicCall)
-    assert intr.children[0] == aref
-    assert intr.children[1] == bref
+    assert intr.arguments[0] == aref
+    assert intr.arguments[1] == bref
     assert intr.argument_names == ["vector_a", "vector_b"]
 
     intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
                                 [("vector_b", bref.copy()),
                                  ("vector_a", aref.copy())])
     assert isinstance(intr, IntrinsicCall)
-    assert intr.children[0] == bref
-    assert intr.children[1] == aref
+    assert intr.arguments[0] == bref
+    assert intr.arguments[1] == aref
     assert intr.argument_names == ["vector_b", "vector_a"]
 
 

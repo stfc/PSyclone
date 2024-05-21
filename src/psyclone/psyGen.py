@@ -48,7 +48,7 @@ import abc
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
+from psyclone.f2pygen import (AllocateGen, AssignGen, CommentGen,
                               DeclGen, DeallocateGen, DoGen, UseGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -92,25 +92,6 @@ def object_index(alist, item):
         if entry is item:
             return idx
     raise ValueError(f"Item '{item}' not found in list: {alist}")
-
-
-def get_api(api):
-    ''' If no API is specified then return the default. Otherwise, check that
-    the supplied API is valid.
-    :param str api: The PSyclone API to check or an empty string.
-    :returns: The API that is in use.
-    :rtype: str
-    :raises GenerationError: if the specified API is not supported.
-
-    '''
-    if api == "":
-        api = Config.get().default_api
-    else:
-        if api not in Config.get().supported_apis:
-            raise GenerationError(f"get_api: Unsupported API '{api}' "
-                                  f"specified. Supported types are "
-                                  f"{Config.get().supported_apis}.")
-    return api
 
 
 def zero_reduction_variables(red_call_list, parent):
@@ -193,8 +174,11 @@ class PSyFactory():
             raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
+        if api == "":
+            api = Config.get().default_api
+        Config.get().api = api
         Config.get().distributed_memory = _distributed_memory
-        self._type = get_api(api)
+        self._type = api
 
     def create(self, invoke_info):
         '''
@@ -791,7 +775,7 @@ class InvokeSchedule(Routine):
             parent.add(UseGen(parent, name=module_name, only=True,
                               funcnames=var_list))
 
-        for entity in self._children:
+        for entity in self.children:
             entity.gen_code(parent)
 
 
@@ -1531,7 +1515,10 @@ class CodedKern(Kern):
             self.rename_and_write()
             # Then find or create the imported RoutineSymbol
             try:
-                rsymbol = symtab.lookup(self._name)
+                # Limit scope to this Invoke, since a kernel with the same name
+                # may have been inlined from another invoke in the same file,
+                # but we have it here marked as "not module-inlined"
+                rsymbol = symtab.lookup(self._name, scope_limit=symtab.node)
             except KeyError:
                 csymbol = symtab.find_or_create(
                         self._module_name,
@@ -1539,10 +1526,19 @@ class CodedKern(Kern):
                 rsymbol = symtab.new_symbol(
                         self._name,
                         symbol_type=RoutineSymbol,
+                        # And allow shadowing in case it is also inlined with
+                        # the same name by another invoke
+                        shadowing=True,
                         interface=ImportInterface(csymbol))
         else:
             # If its inlined, the symbol must exist
-            rsymbol = self.scope.symbol_table.lookup(self._name)
+            try:
+                rsymbol = self.scope.symbol_table.lookup(self._name)
+            except KeyError as err:
+                raise GenerationError(
+                    f"Cannot generate this kernel call to '{self.name}' "
+                    f"because it is marked as module-inlined but no such "
+                    f"subroutine exists in this module.") from err
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
@@ -1551,40 +1547,6 @@ class CodedKern(Kern):
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
         return call_node
-
-    def gen_code(self, parent):
-        '''
-        Generates the f2pygen AST of the Fortran for this kernel call and
-        writes the kernel itself to file if it has been transformed.
-
-        :param parent: The parent of this kernel call in the f2pygen AST.
-        :type parent: :py:class:`psyclone.f2pygen.LoopGen`
-
-        :raises GenerationError: if the call is module-inlined but the \
-            subroutine in not declared in this module.
-        '''
-        # If the kernel has been transformed then we rename it.
-        if not self.module_inline:
-            self.rename_and_write()
-
-        # Add the subroutine call with the necessary arguments
-        arguments = self.arguments.raw_arg_list()
-        parent.add(CallGen(parent, self._name, arguments))
-
-        # Also add the subroutine declaration, this can just be the import
-        # statement, or the whole subroutine inlined into the module.
-        if not self.module_inline:
-            parent.add(UseGen(parent, name=self._module_name, only=True,
-                              funcnames=[self._name]))
-        else:
-            # If its inlined, the symbol must already exist
-            try:
-                self.scope.symbol_table.lookup(self._name)
-            except KeyError as err:
-                raise GenerationError(
-                    f"Cannot generate this kernel call to '{self.name}' "
-                    f"because it is marked as module-inline but no such "
-                    f"subroutine exist in this module.") from err
 
     def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a
@@ -1930,24 +1892,13 @@ class Arguments():
     :type parent_call: sub-class of :py:class:`psyclone.psyGen.Kern`
     '''
     def __init__(self, parent_call):
+        # TODO #2503: This reference is not kept updated when copign the
+        # parent
         self._parent_call = parent_call
         # The container object holding information on all arguments
         # (derived from both kernel meta-data and the kernel call
         # in the Algorithm layer).
         self._args = []
-        # The actual list of arguments that must be supplied to a
-        # subroutine call.
-        self._raw_arg_list = []
-
-    def raw_arg_list(self):
-        '''
-        Abstract method to construct the class-specific argument list for a
-        kernel call. Must be overridden in API-specific sub-class.
-
-        :raises NotImplementedError: abstract method.
-        '''
-        raise NotImplementedError("Arguments.raw_arg_list must be "
-                                  "implemented in sub-class")
 
     @abc.abstractmethod
     def psyir_expressions(self):
