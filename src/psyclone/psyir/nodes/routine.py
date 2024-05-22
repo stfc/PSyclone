@@ -217,6 +217,8 @@ class Routine(Schedule, CommentableMixin):
             # to store as own_routine_symbol. This ensures we copy any
             # properties of the Routine (such as elemental or impure)
             # into the RoutineSymbol.
+            # TODO #2592 - this can be improved when we add the _symbol
+            # property to Routine.
             rsymbol = None
             if self._parent:
                 try:
@@ -232,9 +234,10 @@ class Routine(Schedule, CommentableMixin):
             # if a return_value type is provided.
             self.symbol_table.add(rsymbol, tag='own_routine_symbol')
         elif self._name != new_name:
-            # TODO #2852: When we rename the symbol we should also update
+            # TODO #2592: When we rename the symbol we should also update
             # the parent container's RoutineSymbol's name to reflect this
-            # change.
+            # change. This will be simplfied when we have Routine._symbol.name
+            # as a single source of truth.
             symbol = self.symbol_table.lookup(self._name)
             self._name = new_name
             self.symbol_table.rename_symbol(symbol, new_name)
