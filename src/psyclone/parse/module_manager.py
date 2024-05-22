@@ -151,6 +151,7 @@ class ModuleManager:
                 new_files.append(self._visited_files[full_path])
         return new_files
 
+    # ------------------------------------------------------------------------
     def _find_module_in_files(self, name, file_list):
         '''
         '''
@@ -159,7 +160,7 @@ class ModuleManager:
             # We only proceed to read a file to check for a module if its
             # name is sufficiently similar to that of the module.
             score = SequenceMatcher(None,
-                                    finfo.filename, name).ratio()
+                                    finfo.basename, name).ratio()
             if score > self._threshold_similarity:
                 mod_names = self.get_modules_in_file(finfo)
                 if name in mod_names:

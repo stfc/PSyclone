@@ -124,7 +124,7 @@ class ModuleInfo:
         :rtype: str
 
         '''
-        return self._file_info.qualified_filename
+        return self._file_info.filename
 
     # ------------------------------------------------------------------------
     def get_source_code(self):

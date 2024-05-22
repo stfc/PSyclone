@@ -75,19 +75,24 @@ class FileInfo:
         self._source_code = None
 
     # ------------------------------------------------------------------------
-    #@property
-    #def filename(self):
-    #    ''':returns: the full filename that this FileInfo object represents.
-    #    :rtype: str
-    #
-    #    '''
-    #    return os.path.basename(self._filename)
+    @property
+    def basename(self):
+        '''
+        :returns: the base name (i.e. without path or suffix) of the filename
+                  that this FileInfo object represents.
+        :rtype: str
+        '''
+        # Remove the path from the filename.
+        bname = os.path.basename(self._filename)
+        # splitext returns (root, ext) and it's `root` that we want.
+        return os.path.splitext(bname)[0]
 
     # ------------------------------------------------------------------------
     @property
-    def qualified_filename(self):
+    def filename(self):
         '''
-        TODO!
+        :returns: the full filename that this FileInfo object represents.
+        :rtype: str
         '''
         return self._filename
 
@@ -104,18 +109,17 @@ class FileInfo:
 
         '''
         if self._source_code is None:
-            self._source_code = self.read_source(self._filename)
+            self._source_code = self.read_source()
 
         return self._source_code
 
     # ------------------------------------------------------------------------
-    @staticmethod
-    def read_source(path):
+    def read_source(self):
         '''
         '''
         # Error handler is defined at the top of this file. It simply skips any
         # characters that result in decoding errors. (Comments in a code may
         # contain all sorts of weird things.)
-        with open(path, "r", encoding='utf-8',
+        with open(self._filename, "r", encoding='utf-8',
                   errors='file-error-handler') as file_in:
             return file_in.read()
