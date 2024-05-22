@@ -1,7 +1,6 @@
-! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2023-2024, Science and Technology Facilities Council.
+! Copyright (c) 2023-2024, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,20 +28,40 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
 
-! This modules renames a variable it imports. This is used to test the
-! handling of renaming of non-local variables in extraction and
-! driver creation.
+! This simple module is used to showcase and test the extraction of non-local
+! module variables with the driver extraction.
 
-module module_renaming_external_var_mod
+module dummy_mod
+  integer :: dummy_var1
+  real :: dummy_var2
+  real :: dummy_var3 = 3
 
-contains
+  public :: dummy_code
 
-  subroutine renaming_subroutine(a)
-    use module_with_var_mod, only: renamed_var => module_var_a
+  interface dummy_code
+   module procedure dummy_code_1, dummy_code_2
+  end interface
+
+  contains
+
+  subroutine dummy_code_1(a)
+    implicit none
     integer :: a
-    a = renamed_var
-  end subroutine renaming_subroutine
+    dummy_var1 = dummy_var1 + 1
+  end subroutine dummy_code_1
 
-end module module_renaming_external_var_mod
+  subroutine dummy_code_2(a)
+    implicit none
+    real :: a
+    dummy_var1 = dummy_var1 + 1
+  end subroutine dummy_code_2
+
+  integer function dummy_func(a)
+    implicit none
+    integer :: a
+    dummy_func = a+1 + dummy_var2
+  end function dummy_func
+
+end module dummy_mod

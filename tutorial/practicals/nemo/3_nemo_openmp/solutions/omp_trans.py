@@ -48,6 +48,13 @@ Fortran.
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
+
 # Get the transformation we will apply.
 OMP_TRANS = OMPParallelLoopTrans()
 
