@@ -51,6 +51,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Loop
 
 
+# pylint: disable=too-many-lines
+
 class DTCode(IntEnum):
     '''A simple enum to store the various info, warning and error
     codes used in the dependency analysis. It is based in IntEnum
