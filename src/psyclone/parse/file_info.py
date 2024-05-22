@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory.
 
-'''This module contains the FileInfo class, which TODO
+'''This module contains the FileInfo class.
 
 '''
 
@@ -60,10 +60,9 @@ codecs.register_error("file-error-handler", log_decode_error_handler)
 
 # ============================================================================
 class FileInfo:
-    # pylint: disable=too-many-instance-attributes
     '''This class stores mostly cached information about files: it stores
-    the original filename, if requested it will read the file and then caches
-    the plain text file.
+    the original filename and, if requested, it will read the file and then
+    cache the (plain text) contents.
 
     :param str filename: the name of the source file that stores this module
         (including path).
@@ -76,18 +75,13 @@ class FileInfo:
         self._source_code = None
 
     # ------------------------------------------------------------------------
-    @property
-    def filename(self):
-        ''':returns: the full filename that this FileInfo object represents.
-        :rtype: str
-
-        '''
-        return os.path.basename(self._filename)
-
-    # ------------------------------------------------------------------------
-    @property
-    def base_name(self):
-        return os.path.splitext(self.filename)
+    #@property
+    #def filename(self):
+    #    ''':returns: the full filename that this FileInfo object represents.
+    #    :rtype: str
+    #
+    #    '''
+    #    return os.path.basename(self._filename)
 
     # ------------------------------------------------------------------------
     @property

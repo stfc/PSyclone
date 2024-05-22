@@ -395,14 +395,8 @@ class LFRicExtractDriverCreator:
             # its type. And since they are not imported, they need to be
             # explicitly declared.
             mod_info = mod_man.get_module_info(module_name)
-            cntr = mod_info.get_psyir()
-            if not cntr:
-                # TODO #2120: This typically indicates a problem with parsing
-                # a module: the psyir does not have the full tree structure.
-                continue
-            try:
-                container_symbol = cntr.symbol_table.lookup(signature[0])
-            except KeyError:
+            container_symbol = mod_info.get_symbol(signature[0])
+            if not container_symbol:
                 # TODO #2120: This typically indicates a problem with parsing
                 # a module: the psyir does not have the full tree structure.
                 continue
@@ -617,7 +611,6 @@ class LFRicExtractDriverCreator:
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             sig_str = self._flatten_signature(signature)
-            orig_sym = None
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
                 orig_sym = mod_info.get_symbol(signature[0])
