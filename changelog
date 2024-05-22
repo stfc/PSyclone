@@ -91,7 +91,11 @@
 	33) PR #2452 for #2451. Move and rename DynInvokeSchedule to
 	LFRicInvokeSchedule.
 
-	24) PR #2574 for #2196. Add support for use-intrinsic imports.
+	34) PR #2574 for #2196. Add support for use-intrinsic imports.
+
+	35) PR #2566 towards #2156. Bug fixes for routines declared as
+	ELEMENTAL or IMPURE. (Alters the Fortran backend and 
+	Routine.copy().)
 
 release 2.5.0 14th of February 2024
 
