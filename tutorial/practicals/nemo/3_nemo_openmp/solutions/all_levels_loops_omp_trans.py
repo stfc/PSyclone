@@ -52,6 +52,15 @@ from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 # Get the transformation we will apply
 OMP_TRANS = OMPParallelLoopTrans()
 
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
+
 
 def trans(psy):
     ''' Transform a specific Schedule by making all loops
