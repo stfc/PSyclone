@@ -887,8 +887,8 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
 
     for routine in routines:
 
-        # Fortran routines are impure by default.
-        is_pure = False
+        # Fortran routines are of unknown purity by default.
+        is_pure = None
         # By default, Fortran routines are not elemental.
         is_elemental = False
         # Name of the routine.
