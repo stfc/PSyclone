@@ -1808,7 +1808,7 @@ class SymbolTable():
             for symbol in self._symbols.values():
                 # pylint: disable=unidiomatic-typecheck
                 if type(symbol) is symbol_type:
-                    header += f"  {str(symbol)}\n"
+                    header += f"  {symbol}\n"
 
         return header
 
