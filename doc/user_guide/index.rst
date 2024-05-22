@@ -31,7 +31,7 @@
    ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
-   Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+   Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
    Modified by I. Kavcic, Met Office
 
 .. only:: html
@@ -85,6 +85,7 @@ PSyclone User Guide
     introduction
     getting_going
     psyclone_command
+    configuration
     tutorial
     examples
     libraries
@@ -92,28 +93,19 @@ PSyclone User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: PSyKAl
-
-    kernel_layer
-    algorithm_layer
-    psy_layer
-    built_ins
-
-.. toctree::
-    :maxdepth: 2
-    :caption: Domain APIs
-
-    dynamo0p3
-    gocean1p0
-    nemo
-
-.. toctree::
-    :maxdepth: 2
-    :caption: PSyclone Transformations
+    :caption: Code Transformation 
 
     psyir
     transformations
+
+.. toctree::
+    :maxdepth: 2
+    :caption: PSyKAl DSLs
+
+    introduction_to_psykal
     distributed_memory
+    dynamo0p3
+    gocean1p0
 
 
 .. toctree::
@@ -123,11 +115,9 @@ PSyclone User Guide
     psyclone_kern
     line_length
     fortran_naming_conventions
-    api
     psy_data
     profiling
     psyke
-    configuration
 
 .. toctree::
     :maxdepth: 2
