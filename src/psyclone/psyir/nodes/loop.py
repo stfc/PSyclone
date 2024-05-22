@@ -82,6 +82,10 @@ class Loop(Statement):
     _text_name = "Loop"
     _colour = "red"
 
+    # Set of rules that give a loop a certain loop_type by inspecting
+    # its variable name
+    _loop_type_inference_rules = {}
+
     def __init__(self, variable=None, annotations=None, **kwargs):
         # Although the base class checks on the annotations individually, we
         # need to do further checks here
@@ -117,6 +121,65 @@ class Loop(Statement):
         is_eq = is_eq and self.variable.name == other.variable.name
 
         return is_eq
+
+    @property
+    def loop_type(self):
+        '''
+        :returns: the type of this loop.
+        :rtype: str
+        '''
+        return self._loop_type_inference_rules.get(self.variable.name, None)
+
+    @classmethod
+    def set_loop_type_inference_rules(cls, rules):
+        '''
+        Specify the rules that define a loop type by inspecting its variable,
+        name. This affects all instances of the Loop class. For example:
+
+        .. code-block::
+
+            rules = {
+                "lon": {"variable": "ji"},
+                "lat": {"variable": "jj"}
+            }
+
+        :param rules: new set of rules for inferring loop_types.
+        :type rules: dict[str, dict[str, str]]
+        '''
+        if rules is None:
+            cls._loop_type_inference_rules = {}
+            return
+
+        # Check that the provided rules have the right format
+        if not isinstance(rules, dict):
+            raise TypeError(f"The rules argument must be of type 'dict' but "
+                            f"found '{type(rules)}'.")
+        for key, rule in rules.items():
+            if not isinstance(key, str):
+                raise TypeError(f"The rules keys must be of type 'str' but "
+                                f"found '{type(key)}'.")
+            if not isinstance(rule, dict):
+                raise TypeError(f"The rules values must be of type 'dict' but "
+                                f"found '{type(rule)}'.")
+            for rkey, value in rule.items():
+                if not isinstance(rkey, str) or not isinstance(value, str):
+                    raise TypeError(
+                        f"All the values of the rule definition must be "
+                        f"of type 'str' but found '{rule}'.")
+                if rkey != "variable":
+                    raise TypeError(f"Currently only the 'variable' rule key"
+                                    f" is accepted, but found: '{rkey}'.")
+            if "variable" not in rule:
+                raise TypeError(f"A rule must at least have a 'variable' field"
+                                f" to specify the loop variable name that "
+                                f"defines this loop_type, but the rule for "
+                                f"'{key}' does not have it.")
+
+        # Convert the rules to a dictionary with variable as a key
+        inference_rules = {}
+        for key, rule in rules.items():
+            inference_rules[rule["variable"]] = key
+        cls._loop_type_inference_rules = inference_rules
 
     @staticmethod
     def _check_variable(variable):
@@ -322,7 +385,11 @@ class Loop(Statement):
         :rtype: str
 
         '''
-        return f"{self.coloured_name(colour)}[variable='{self.variable.name}']"
+        result = f"{self.coloured_name(colour)}["
+        result += f"variable='{self.variable.name}'"
+        if self.loop_type:
+            result += f", loop_type='{self.loop_type}'"
+        return result + "]"
 
     @property
     def variable(self):
@@ -349,8 +416,10 @@ class Loop(Statement):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
-        result += "variable:'" + self.variable.name
-        result += "']\n"
+        result += f"variable:'{self.variable.name}'"
+        if self.loop_type:
+            result += f", loop_type:'{self.loop_type}'"
+        result += "]\n"
         for entity in self._children:
             result += str(entity) + "\n"
         result += "End " + name

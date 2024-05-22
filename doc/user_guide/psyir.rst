@@ -49,9 +49,9 @@
  PSyIR : The PSyclone Internal Representation
 ==============================================
 
-The PSyIR is at the heart of PSyclone, representing code (at both the
-PSy- and kernel-layer levels) in a language-agnostic form. A PSyIR may
-be constructed from scratch (in Python) or by processing existing
+The PSyIR is at the heart of PSyclone, representing code for existing
+code and PSyKAl DSLs (at both the PSy- and kernel-layer levels). A PSyIR
+tree may be constructed from scratch (in Python) or by processing existing
 source code using a frontend. Transformations act on the PSyIR and
 ultimately the generated code is produced by one of the PSyIR's
 backends.
@@ -61,84 +61,63 @@ PSyIR Nodes
 
 The PSyIR consists of classes whose instances can be connected
 together to form a tree which represent computation in a
-language-independent way. These classes all inherit from the ``Node``
+syntax-independent way. These classes all inherit from the ``Node``
 baseclass and, as a result, PSyIR instances are often referred to
 collectively as 'PSyIR nodes'.
 
 At the present time PSyIR classes can be essentially split into two
-types. PSy-layer classes and Kernel-layer classes. PSy-layer classes
-make use of a ``gen_code()`` method to create Fortran code whereas
-Kernel-layer classes make use of PSyIR backends to create code.
+types: language-level nodes, which are nodes that the PSyIR backends
+support, and therefore they can be directly translated to code; and
+higher-level nodes, which are additional nodes that each domain can
+insert. These nodes must implement a `lower_to_language_level` method
+in order to be converted to their equivalent representation using only
+language-level nodes. This then permits code to be generated for them.
 
-.. note:: This separation will be removed in the future and eventually
-	  all PSyIR classes will make use of backends with the
-	  expectation that ``gen_code()`` methods
-	  will be removed. Further this separation will be superseded
-	  by a separation between ``language-level PSyIR`` and
-	  ``domain-specific PSyIR``.
-
-PSy-layer nodes
----------------
-
-PSy-layer PSyIR classes are primarily used to create the
-PSy-layer. These tend to be relatively descriptive and do not specify
-how a particular PSyclone frontend would implement them. With the
-exception of ``Loop``, these classes are currently not compatible with
-the PSyIR backends. The generic (non-api-specific) PSy-layer PSyIR
-nodes are: ``InvokeSchedule``, ``Directive``, ``GlobalSum``,
-``HaloExchange``, ``Loop`` and ``Kern``. The ``Directive`` class is
-subclassed into many directives associated with OpenMP and
-OpenACC. The ``Kern`` class is subclassed into ``CodedKern``,
-``InlinedKern`` and ``BuiltinKern``.
+The rest of this document describes only the language-level nodes, but as
+all nodes inherit from the same base classes, the methods described here
+are applicable to all PSyIR nodes.
 
 
-Kernel-layer nodes
-------------------
+Available language-level nodes
+==============================
 
-Kernel-layer PSyIR classes are currently used to describe existing
-code in a language independent way. Consequently these nodes are more
-prescriptive and are independent of a particular PSyclone
-frontend. These nodes are designed to be used with PSyIR backends. Two
-PSy-layer classes (``Loop`` and ``Schedule``) can also be used as
-Kernel-layer classes. Additionally, the ``Schedule`` class is further
-subclassed into a ``Routine`` and then a kernel-layer
-``KernelSchedule``.  In addition to ``KernelSchedule``, Kernel-layer
-PSyIR nodes are: ``Loop``, ``WhileLoop``, ``IfBlock``, ``CodeBlock``,
-``Assignment``, ``Range``, ``Reference``, ``Operation``, ``Literal``, ``Call``,
-``Return`` and ``Container``. The ``Reference`` class is further
-subclassed into ``ArrayReference``, ``StructureReference`` and
-``ArrayOfStructuresReference``, the ``Operation`` class is further
-subclassed into ``UnaryOperation``, ``BinaryOperation`` and
-the ``Container`` class is further subclassed
-into ``FileContainer`` (representing a file that may contain more than
-one ``Container`` and/or ``Routine``. Those nodes representing
-references to structures (derived types in Fortran) have a ``Member``
-child node representing the member of the structure being
-accessed. The ``Member`` class is further subclassed into
-``StructureMember`` (representing a member of a structure that is
-itself a structure), ``ArrayMember`` (a member of a structure that is
-an array of primitive types) and ``ArrayOfStructuresMember`` (a member
-of a structure this is itself an array of structures).
+- :ref_guide:`ArrayMember psyclone.psyir.nodes.html#psyclone.psyir.nodes.ArrayMember`
+- :ref_guide:`ArrayReference psyclone.psyir.nodes.html#psyclone.psyir.nodes.ArrayReference`
+- :ref_guide:`ArrayOfStructuresMember psyclone.psyir.nodes.html#psyclone.psyir.nodes.ArrayOfStructuresMember`
+- :ref_guide:`ArrayOfStructuresReference psyclone.psyir.nodes.html#psyclone.psyir.nodes.ArrayOfStructuresReference`
+- :ref_guide:`Assignment psyclone.psyir.nodes.html#psyclone.psyir.nodes.Assignment`
+- :ref_guide:`BinaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.BinaryOperation`
+- :ref_guide:`Call psyclone.psyir.nodes.html#psyclone.psyir.nodes.Call`
+- :ref_guide:`CodeBlock psyclone.psyir.nodes.html#psyclone.psyir.nodes.CodeBlock`
+- :ref_guide:`Container psyclone.psyir.nodes.html#psyclone.psyir.nodes.Container`
+- :ref_guide:`FileContainer psyclone.psyir.nodes.html#psyclone.psyir.nodes.FileContainer`
+- :ref_guide:`IfBlock psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`
+- :ref_guide:`IntrinsicCall psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`
+- :ref_guide:`Literal psyclone.psyir.nodes.html#psyclone.psyir.nodes.Literal`
+- :ref_guide:`Loop psyclone.psyir.nodes.html#psyclone.psyir.nodes.Loop`
+- :ref_guide:`Member psyclone.psyir.nodes.html#psyclone.psyir.nodes.Member`
+- :ref_guide:`Node psyclone.psyir.nodes.html#psyclone.psyir.nodes.Node`
+- :ref_guide:`Range psyclone.psyir.nodes.html#psyclone.psyir.nodes.Range`
+- :ref_guide:`Reference psyclone.psyir.nodes.html#psyclone.psyir.nodes.Reference`
+- :ref_guide:`Return psyclone.psyir.nodes.html#psyclone.psyir.nodes.Return`
+- :ref_guide:`Routine psyclone.psyir.nodes.html#psyclone.psyir.nodes.Routine`
+- :ref_guide:`Schedule psyclone.psyir.nodes.html#psyclone.psyir.nodes.Schedule`
+- :ref_guide:`Statement psyclone.psyir.nodes.html#psyclone.psyir.nodes.Statement`
+- :ref_guide:`StructureMember psyclone.psyir.nodes.html#psyclone.psyir.nodes.StructureMember`
+- :ref_guide:`StructureReference psyclone.psyir.nodes.html#psyclone.psyir.nodes.StructureReference`
+- :ref_guide:`UnaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.UnaryOperation`
+- :ref_guide:`WhileLoop psyclone.psyir.nodes.html#psyclone.psyir.nodes.WhileLoop`
 
-
-Node Descriptions
-=================
-
-The Range node
---------------
-
-.. autoclass:: psyclone.psyir.nodes.Range
-    :members: create, start, step, stop
 
 Text Representation
 ===================
 
 When developing a transformation script it is often necessary to examine
 the structure of the PSyIR. All nodes in the PSyIR have the ``view`` method
-that writes a text-representation of that node and all of its
-descendants to stdout. If the ``termcolor`` package is installed
-(see :ref:`getting-going`) then colour highlighting is used for this
-output. For instance, part of the Schedule constructed for the second NEMO
+that provides a text-representation of that node and all of its descendants.
+If the ``termcolor`` package is installed (see :ref:`getting-going`) then
+colour highlighting is used as part of the output string.
+For instance, part of the Schedule constructed for the second NEMO
 `example <https://github.com/stfc/PSyclone/blob/master/examples/nemo/eg2/
 omp_levels_trans.py>`_ is rendered as:
 
@@ -149,8 +128,8 @@ Schedules have their indices shown. This means that nodes representing
 e.g. loop bounds or the conditional part of ``if`` statements are not
 indexed. For the example shown, the PSyIR node representing the
 ``if(l_hst)`` code would be reached by
-``schedule.children[6].if_body.children[1]`` or, using the shorthand
-notation (see below), ``schedule[6].if_body[1]`` where ``schedule`` is
+``schedule.children[14].if_body.children[1]`` or, using the shorthand
+notation (see below), ``schedule[14].if_body[1]`` where ``schedule`` is
 the overall parent Schedule node (omitted from the above image).
 
 One problem with the ``view`` method is that the output can become very
@@ -163,17 +142,36 @@ embedded as `< node >` expressions.
 Tree Navigation
 ===============
 
-Each PSyIR node provides several ways to navigate the AST:
+Each PSyIR node provides several ways to navigate the AST. These can be
+categorised as homogeneous naviation methods (available in all nodes), and
+heterogenous or semantic navigation methods (different methods available
+depending on the node type). The homogeneous methods must be used for generic
+code navigation that should work regardless of its context. However, when
+the context is known, we recommend using the semantic methods to increase
+the code readability.
 
-The `children` and `parent` properties (available in all nodes) provide an
-homogeneous method to go up and down the tree hierarchy. This method
-is recommended when applying general operations or analysis to the tree,
-however, if one intends to navigate the tree in a way that depends on the type
-of node, the `children` and `parent` methods should be avoided. The structure
-of the tree may change in different versions of PSyclone and the encoded
-navigation won't be future-proof.
+The homogeneous navigation methods are:
 
-To solve this issue some Nodes also provide methods for semantic navigation:
+   .. automethod:: psyclone.psyir.nodes.Node.children()
+   .. automethod:: psyclone.psyir.nodes.Node.siblings()
+   .. automethod:: psyclone.psyir.nodes.Node.parent()
+   .. automethod:: psyclone.psyir.nodes.Node.root()
+   .. automethod:: psyclone.psyir.nodes.Node.walk()
+   .. automethod:: psyclone.psyir.nodes.Node.get_sibling_lists()
+   .. automethod:: psyclone.psyir.nodes.Node.ancestor()
+   .. automethod:: psyclone.psyir.nodes.Node.scope()
+   .. automethod:: psyclone.psyir.nodes.Node.path_from()
+
+In addition to the navigation methods, nodes also have homogeneous methods to
+interrogate their location and surrounding nodes.
+
+   .. automethod:: psyclone.psyir.nodes.Node.immediately_precedes()
+   .. automethod:: psyclone.psyir.nodes.Node.immediately_follows()
+   .. automethod:: psyclone.psyir.nodes.Node.position()
+   .. automethod:: psyclone.psyir.nodes.Node.abs_position()
+   .. automethod:: psyclone.psyir.nodes.Node.sameParent()
+
+The semantic navigation methods are:
 
 - ``Schedule``:
    subscript operator for indexing the statements (children) inside the
@@ -198,48 +196,6 @@ To solve this issue some Nodes also provide methods for semantic navigation:
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
 
-These are the recommended methods to navigate the tree for analysis or
-operations that depend on the Node type.
-
-Additionally, the `walk` method (available in all nodes) is able to recurse
-through the tree and return objects of a given type. This is useful when the
-objective is to move down the tree to a specific node or list of nodes without
-information about the exact location.
-
-.. automethod:: psyclone.psyir.nodes.Node.walk
-
-All nodes also provide the `ancestor` method which may be used to
-recurse back up the tree from a given node in order to find a node of a
-particular type:
-
-.. automethod:: psyclone.psyir.nodes.Node.ancestor
-
-Finally, the `path_from` method can be used to find the route through the
-tree from an ancestor node to the node:
-
-.. automethod:: psyclone.psyir.nodes.Node.path_from
-
-Tree Interrogation
-==================
-
-Each PSyIR node provides several ways to interrogate the AST:
-
-Following the `parent` and `children` terminology, we define a node's `siblings`
-as the children of its parent. Note that this definition implies that all nodes
-are their own siblings.
-
-.. autoproperty:: psyclone.psyir.nodes.Node.siblings
-
-We can check whether two nodes are siblings which immediately precede or follow
-one another using the following methods:
-
-.. automethod:: psyclone.psyir.nodes.Node.immediately_precedes
-.. automethod:: psyclone.psyir.nodes.Node.immediately_follows
-
-Finally, the `get_sibling_lists` method provides functionality to `walk` over
-the tree associated with a node and gather those which are immediate siblings.
-
-.. automethod:: psyclone.psyir.nodes.Node.get_sibling_lists
 
 DataTypes
 =========

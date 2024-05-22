@@ -48,10 +48,9 @@ import abc
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import (KernCallArgList, LFRicConstants, LFRicKern,
-                                   LFRicLoop)
-from psyclone.dynamo0p3 import (LFRicHaloExchangeEnd, LFRicHaloExchangeStart,
-                                DynInvokeSchedule)
+from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
+                                   LFRicInvokeSchedule, LFRicKern, LFRicLoop)
+from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
@@ -1806,7 +1805,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             :py:class:`psyclone.psyir.nodes.Directive`.
         :raises TransformationError: if the parent of the loop is not a\
             :py:class:`psyclone.psyir.nodes.Loop` or a\
-            :py:class:`psyclone.psyGen.DynInvokeSchedule`.
+            :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the original loop does\
             not iterate over 'colour'.
@@ -1815,7 +1814,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             iterate over 'colours'.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is\
-            not a :py:class:`psyclone.psyGen.DynInvokeSchedule`.
+            not a :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
         :raises TransformationError: if this transformation is applied\
             when distributed memory is not switched on.
         :raises TransformationError: if the loop does not iterate over\
@@ -1860,12 +1859,13 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 f"method the supplied loop is sits beneath a directive of "
                 f"type {type(dir_node)}. Redundant computation must be applied"
                 f" before directives are added.")
-        if not (isinstance(node.parent, DynInvokeSchedule) or
+        if not (isinstance(node.parent, LFRicInvokeSchedule) or
                 isinstance(node.parent.parent, Loop)):
             raise TransformationError(
                 f"In the Dynamo0p3RedundantComputation transformation "
                 f"apply method the parent of the supplied loop must be the "
-                f"DynInvokeSchedule, or a Loop, but found {type(node.parent)}")
+                f"LFRicInvokeSchedule, or a Loop, but found "
+                f"{type(node.parent)}")
         if isinstance(node.parent.parent, Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
@@ -1879,12 +1879,12 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the parent must iterate over "
                     f"'colours', but found '{node.parent.parent.loop_type}'")
-            if not isinstance(node.parent.parent.parent, DynInvokeSchedule):
+            if not isinstance(node.parent.parent.parent, LFRicInvokeSchedule):
                 raise TransformationError(
                     f"In the Dynamo0p3RedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the parent's parent must be the "
-                    f"DynInvokeSchedule, but found {type(node.parent)}")
+                    f"LFRicInvokeSchedule, but found {type(node.parent)}")
         if not Config.get().distributed_memory:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
@@ -2449,20 +2449,15 @@ class ACCEnterDataTrans(Transformation):
         self.validate(sched, options)
 
         # pylint: disable=import-outside-toplevel
-        if isinstance(sched, DynInvokeSchedule):
+        if isinstance(sched, LFRicInvokeSchedule):
             from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
                 AccEnterDataDir
         elif isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
                 AccEnterDataDir
-        elif isinstance(sched, NemoInvokeSchedule):
-            from psyclone.nemo import NemoACCEnterDataDirective as \
-                AccEnterDataDir
         else:
-            # Should not get here provided that validate() has done its job
-            raise InternalError(
-                f"ACCEnterDataTrans.validate() has not rejected an "
-                f"(unsupported) schedule of type {type(sched)}")
+            from psyclone.psyir.nodes import ACCEnterDataDirective as \
+                AccEnterDataDir
 
         # Find the position of the first child statement of the current
         # schedule which contains an OpenACC compute construct.
@@ -2691,7 +2686,8 @@ class ACCKernelsTrans(RegionTrans):
         node_list = self.get_node_list(nodes)
 
         # Check that the front-end is valid
-        sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
+        sched = node_list[0].ancestor((NemoInvokeSchedule,
+                                       LFRicInvokeSchedule))
         if not sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
