@@ -278,6 +278,12 @@ class CallTreeUtils():
         '''Returns the information about non-local variables that are read
         or written.
 
+        :param node_list: list of nodes containing Kernel calls to interrogate.
+        :type node_list: list[:py:class:`psyclone.psyGen.Kern`]
+        :param read_write_info: the object to update with the read/write
+                                information obtained.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
+
         '''
         # First collect all non-local symbols from the kernels called. They
         # are collected in the todo list. This list will initially contain
@@ -342,9 +348,10 @@ class CallTreeUtils():
         object.
 
         :param outstanding_nonlocals: the information about symbol type,
-            module_name, symbol_name and access information
-        :type outstanding_nonlocals: list[tuple[str, str, str,
-                              :py:class:`psyclone.core.Signature`,str]]
+            module_name, symbol_name, signature and access information.
+        :type outstanding_nonlocals: list[tuple[
+            str, str, str, :py:class:`psyclone.core.Signature`,
+            :py:class:`psyclone.core.SingleVariableAccessInfo`]]
         :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`

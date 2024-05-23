@@ -47,16 +47,15 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, SingleVariableAccessInfo
 from psyclone.domain.lfric import LFRicKern
 from psyclone.parse import ModuleManager
-from psyclone.psyGen import BuiltIn
+from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.nodes import CodeBlock, Reference, Schedule
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.tests.utilities import get_base_path, get_invoke
 
-# pylint: disable=unused-import
 # This is used in a fixture
+# pylint: disable-next=unused-import
 from psyclone.tests.parse.conftest \
     import mod_man_test_setup_directories  # noqa: F401
-# pylint: enable=unused-import
 
 
 # -----------------------------------------------------------------------------
@@ -301,9 +300,43 @@ def test_get_non_local_read_write_info(capsys):
     assert "constants_mod" not in out
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_get_non_local_read_write_info_errors(capsys):
+    '''
+    Test get_non_local_read_write_info() when we fail to get either the Routine
+    PSyIR or the Container PSyIR.
+    '''
+    Config.get().api = "dynamo0.3"
+    ctu = CallTreeUtils()
+    test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
+    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    schedule = psyir.invokes.invoke_list[0].schedule
+
+    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(test_dir)
+    kernels = schedule.walk(Kern)
+    minfo = mod_man.get_module_info(kernels[0].module_name)
+    cntr = minfo.get_psyir()
+    routine = cntr.get_routine_psyir("testkern_import_symbols_code")
+    # Remove the kernel routine from the PSyIR.
+    routine.detach()
+    rw_info = ReadWriteInfo()
+    ctu.get_non_local_read_write_info(schedule, rw_info)
+    out, _ = capsys.readouterr()
+    assert (f"Could not get PSyIR for Routine 'testkern_import_symbols_code' "
+            f"from module '{kernels[0].module_name}'" in out)
+    # Remove the module Container from the PSyIR.
+    cntr.detach()
+    ctu.get_non_local_read_write_info(schedule, rw_info)
+    out, _ = capsys.readouterr()
+    assert (f"Could not get PSyIR for module '{kernels[0].module_name}'"
+            in out)
+
+
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
-def test_call_tree_utils_outstanding_nonlocals(capsys):
+def test_call_tree_utils_resolve_calls_unknowns(capsys):
     '''Tests resolving symbols in case of missing modules, subroutines, and
     unknown type (e.g. function call or array access).
     '''
@@ -347,6 +380,43 @@ def test_call_tree_utils_outstanding_nonlocals(capsys):
                                   Signature("module_var_b"))]
     assert rw_info.write_list == [('module_with_var_mod',
                                    Signature("module_var_b"))]
+
+    # Get the associated PSyIR and break it by removing the Routine and
+    # associated Symbol.
+    info = SingleVariableAccessInfo(Signature("module_subroutine"))
+    minfo = mod_man.get_module_info("module_with_var_mod")
+    cntr = minfo.get_psyir()
+    cntr.get_routine_psyir("module_subroutine").detach()
+    todo = [('routine', 'module_with_var_mod',
+             Signature("module_subroutine"), info)]
+    ctu._resolve_calls_and_unknowns(todo, rw_info)
+    out, _ = capsys.readouterr()
+    assert ("Cannot find routine 'module_subroutine' in module "
+            "'module_with_var_mod' - ignored" in out)
+
+    rsym = cntr.symbol_table.lookup("module_subroutine")
+    cntr.symbol_table.remove(rsym)
+    todo = [('unknown', 'module_with_var_mod',
+             Signature("module_subroutine"), info)]
+    ctu._resolve_calls_and_unknowns(todo, rw_info)
+    out, _ = capsys.readouterr()
+    assert ("Cannot find a routine 'module_subroutine' in module "
+            "'module_with_var_mod'" in out)
+    todo = [('routine', 'module_with_var_mod',
+             Signature("module_subroutine"), info)]
+    ctu._resolve_calls_and_unknowns(todo, rw_info)
+    out, _ = capsys.readouterr()
+    assert ("Cannot resolve routine 'module_subroutine' in module "
+            "'module_with_var_mod' - ignored" in out)
+
+    # Break the PSyIR more seriously by removing the Container.
+    cntr.detach()
+    todo = [('unknown', 'module_with_var_mod',
+             Signature("module_subroutine"), info)]
+    ctu._resolve_calls_and_unknowns(todo, rw_info)
+    out, _ = capsys.readouterr()
+    assert ("Cannot get PSyIR for module 'module_with_var_mod' - ignoring "
+            "unknown symbol 'module_subroutine'" in out)
 
 
 # -----------------------------------------------------------------------------
