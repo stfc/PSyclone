@@ -138,7 +138,7 @@ class ModuleInfo:
 
         '''
         try:
-            return self._file_info.source
+            return self._file_info.contents
         except FileNotFoundError as err:
             raise ModuleInfoError(
                 f"Could not find file '{self._file_info.filename}' when trying"
@@ -160,7 +160,7 @@ class ModuleInfo:
             self._parse_attempted = True
 
             reader = FortranStringReader(
-                self._file_info.source,
+                self._file_info.contents,
                 include_dirs=Config.get().include_paths)
             parser = ParserFactory().create(std="f2008")
             self._parse_tree = parser(reader)

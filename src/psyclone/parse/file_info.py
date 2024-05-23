@@ -98,28 +98,25 @@ class FileInfo:
 
     # ------------------------------------------------------------------------
     @property
-    def source(self):
-        '''Returns the source code for the module. The first time, it
+    def contents(self):
+        '''Returns the contents of the file. The first time, it
         will be read from the file, but the data is then cached.
 
-        :returns: the source code.
-        :rtype: str
+        If any decoding errors are encountered then the associated character(s)
+        are simply skipped. This is because this class is intended for reading
+        Fortran source and the only way such characters can appear is if they
+        are in comments.
 
-        :raises ModuleInfoError: when the file cannot be read.
+        :returns: the contents of the file (utf-8 encoding).
+        :rtype: str
 
         '''
         if self._source_code is None:
-            self._source_code = self.read_source()
+            # Error handler is defined at the top of this file. It simply skips
+            # any characters that result in decoding errors. (Comments in a
+            # code may contain all sorts of weird things.)
+            with open(self._filename, "r", encoding='utf-8',
+                      errors='file-error-handler') as file_in:
+                self._source_code = file_in.read()
 
         return self._source_code
-
-    # ------------------------------------------------------------------------
-    def read_source(self):
-        '''
-        '''
-        # Error handler is defined at the top of this file. It simply skips any
-        # characters that result in decoding errors. (Comments in a code may
-        # contain all sorts of weird things.)
-        with open(self._filename, "r", encoding='utf-8',
-                  errors='file-error-handler') as file_in:
-            return file_in.read()

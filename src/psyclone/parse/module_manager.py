@@ -264,7 +264,7 @@ class ModuleManager:
         # TODO: this regex could be defeated by e.g.
         #   module &
         #    my_mod
-        mod_names = _MODULE_PATTERN.findall(finfo.source)
+        mod_names = _MODULE_PATTERN.findall(finfo.contents)
 
         return [name.lower() for name in mod_names]
 
