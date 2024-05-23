@@ -160,7 +160,7 @@ class ModuleInfo:
             self._parse_attempted = True
 
             reader = FortranStringReader(
-                self._file_info.contents,
+                self.get_source_code(),
                 include_dirs=Config.get().include_paths)
             parser = ParserFactory().create(std="f2008")
             self._parse_tree = parser(reader)
@@ -282,7 +282,7 @@ class ModuleInfo:
             if cntr.name.lower() == self.name:
                 return cntr
 
-        # Double-check the parse tree
+        # We failed to find the Container - double-check the parse tree
         for mod_stmt in walk(self.get_parse_tree(), Fortran2003.Module_Stmt):
             if mod_stmt.children[1].string.lower() == self.name:
                 # The module exists but we couldn't create PSyIR for it.
