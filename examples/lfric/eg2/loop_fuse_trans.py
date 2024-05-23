@@ -48,12 +48,12 @@ def trans(psy):
     sake of this example we use the 'same_space' option to tell the
     transformation that this is safe to do.
 
-    :param psy: the PSy object that PSyclone has constructed for the \
+    :param psy: the PSy object that PSyclone has constructed for the
                 'invoke'(s) found in the Algorithm file.
-    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+    :type psy: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
     :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
     '''
     print(psy.gen)

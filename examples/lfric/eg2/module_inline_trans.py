@@ -46,12 +46,12 @@ def trans(psy):
     PSyclone transformation routine. This is an example which module-inlines
     the kernel used in the second 'invoke' in the supplied PSy object.
 
-    :param psy: the PSy object that PSyclone has constructed for the \
+    :param psy: the PSy object that PSyclone has constructed for the
                 'invoke'(s) found in the Algorithm file.
-    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+    :type psy: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
     :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
     '''
     invokes = psy.invokes
