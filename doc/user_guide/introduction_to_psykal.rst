@@ -42,8 +42,8 @@ Introduction to PSyKAl
 
 PSyKAl is a kernel-based software architecture proposed in the `GungHo project
 <https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation>`_
-to design Fortran-embedded domain-specific languages that provide a clear separations
-of concerns between the science code and the optimisation/parallelisation
+to design Fortran-embedded domain-specific languages that provide a clear
+separations of concerns between the science code and the optimisation/parallelisation
 details of an application.
 The model distinguishes between three layers: the Algorithm layer, the
 Kernel layer and the Parallelisation System (PSy) layer; which together give
@@ -51,13 +51,14 @@ the model its name.
 
 The Algorithm layer is responsible for providing a high-level description of the
 algorithm that the scientist wants to run. This layer operates on full fields
-and includes calls to kernel routines and built-in operations.
+and includes calls to kernel and built-in operations.
 
-The Kernel layer contains the actual implementation of the code kernels as functors.
-These functors implement a method that operates on individual sections of the fields,
+The Kernel layer contains the actual implementation of the kernels as functors.
+Each functor implements a method that operates on individual sections of the fields,
 which can be a set of elements, a vertical column, or a set of vertical columns depending
-on the specific kernel. The kernel also specifies metadata that describe the data
-dependencies between different kernels.
+on the specific kernel, and also specifies metadata that describe the data
+dependencies between different kernels. Bult-ins are similar to kernels but are
+provided by the PSyclone infrastructure itself.
 
 The PSy layer acts as a bridge between the algorithm and kernel layers. It is
 responsible of enabling concurrent execution of kernels and to choose the optimal
@@ -73,18 +74,36 @@ of it, optionally with distributed-memory parallelism. This can then be programa
 optimised by applying PSyclone transfomrations (e.g. kernel fusing, colouring,
 inlining, ...) to better fit the target architecture.
 
+The rest of this page describes how to use ``psyclone`` to process PSyKAl DSLs and
+how to implement each layer, providing examples for each of them.
+
+.. _distributed_memory:
+
+Usage
+-----
+
+To use PSyclone to process a PSyKAl algorithm file the ``-api API_NAME`` parameter
+must be provided. In addition distributed memory can be switched on or off by 
+using the ``-dm``/``--dist_mem`` or ``-nodm``/``--no_dist_mem`` flags. And in the
+case of PSyKAl, the optional transformation script provided by the ``-s SCRIPT``
+parameter will be applied to the PSy-layer PSyIR representation.
+
+For example, the following command will process an LFRic PSyKAl algorithm file by
+generating distributed memory parallelism and a transformation script:
+
 .. code-block:: bash
 
-   > psyclone -nodm -oalg solver_mod.f90 -opsy solver_mod_psy.f90  solver_mod.x90
+   psyclone -api lfric -dm -s additional_optimisations.py algorithm.f90 \
+      -oalg algorithm_output.f90 -opsy psy_layer_output.f90
 
-The rest of this section provides examples of each layer and describe them in more
-detail.
-
-To date, there are two PSyKAl DSL implementations: the LFRic PSyKAl API, a mixed
-finite-element DSL used to implement the next-generation UK Met Office's atmospheric
-model dynamical core; and the GOcean PSyKAl API, a finite difference ocean model
+To date, there are two PSyKAl DSL implementations: the
+:ref:`LFRic PSyKAl API <dynamo0.3-api>`, a mixed
+finite-element DSL used to implement the next-generation UK Met Office
+atmospheric model dynamical core; and the
+:ref:`GOcean PSyKAl API <gocean1.0-api>`, a finite difference ocean model
 benchmark. Following sections provide more details about each specific API.
 
+.. highlight:: fortran
 
 .. _algorithm-layer:
 
@@ -126,8 +145,8 @@ As well as generating the PSy layer code, PSyclone modifies the
 Algorithm layer code, replacing ``invoke`` calls with calls to the
 generated PSy layer so that the algorithm code is compilable and
 linkable to the PSy layer and adding in the appropriate ``use``
-statement. For example, the above ``integrate_one_kernel`` invoke is
-translated into something like the following::
+statement. For example, the invoke above is translated into something
+like the following::
 
   ...
   use psy, only : invoke_example_invoke
@@ -188,9 +207,9 @@ can contain one or more kernel functors. Each kernel functor provides a set of
 meta-data attributes and a method with the same name as the functor and the
 prefix _code.
 
-In the example below the module ``integrate_one_module`` contains one kernel
+In the example below the module ``w3_solver_kernel_mnod`` contains one kernel
 named ``w3_solver_kernel_type`` and its individual element execution method in
-subroutine ``integrate_one_code``.
+subroutine ``w3_solver_code``.
 
 The metadata is API-specific and describes the kernel iteration space and
 dependencies, so that PSyclone can generate correct PSy layer code. The
@@ -281,9 +300,8 @@ these operations in whatever way it chooses.
 Example
 +++++++
 
-.. highlight:: fortran
 
-In the following example from the LFRic API, the invoke call includes a call
+The following algorithm-layer example from the LFRic API, the invoke call includes a call
 to two Built-ins (``setval_c`` and ``X_divideby_Y``) and a user-supplied kernel
 (``matrix_vector_kernel_mm_type``).
 The ``setval_c`` Built-in sets all values in the field ``Ax`` to ``1.0`` and
@@ -381,25 +399,18 @@ metadata describing the Built-in operations. Finally,
 PSy layer
 ---------
 
-In the PSyKAl separation of concerns, the PSy layer is responsible for
-linking together the Algorithm and Kernel layers and for providing the
-implementation of any Built-in operations used. Its
-functional responsibilities are to
+In the PSyKAl model, the PSy layer is the bridge between the Algorithm
+full field operations and the Kernel and Built-Ins individual element
+operations. As such, it is responsible for:
 
-
-1. map the arguments supplied by an Algorithm ``invoke`` call to the arguments required by a Built-in or Kernel call (as these will not have a one-to-one correspondence).
-2. call any Kernel routines such that they cover the required iteration space and
-3. perform any Built-in operations (either by including the necessary code
-   directly in the PSy layer or by e.g. calling a maths library) and
-4. include any required distributed memory operations such as halo swaps and reductions.
-
-Its other role is to allow the optimisation expert to optimise any
-required distributed memory operations, include and optimise any
-shared memory parallelism and optimise for single node (e.g. cache and
-vectorisation) performance.
-
-Code Generation
-+++++++++++++++
+1. calling any Kernel and expanding any Buit-In so that they iterate over
+their specified interation space;
+2. map the Kernel and Built-In arguments supplied by an Algorithm ``invoke``
+call to the arguments required by a Built-in or Kernel methods;
+3. include any required distributed-memory operations such as halo swaps
+and reductions to guarantee the correctness of the code;
+4. and enable an entry point for the optimisation expert to provide
+additional optimisations for the target architecture. 
 
 The PSy layer can be written manually but this is error prone and
 potentially complex to optimise. The PSyclone code generation system
@@ -426,25 +437,6 @@ to a PSy-generation stage which creates a high level view of the PSy
 layer. From this high level view the PSy-generation stage can generate
 the required PSy code.
 
-For example, the following Python code shows a code being parsed, a
-PSy-generation object being created using the output from the parser
-and the PSy layer code being generated by the PSy-generation object.
-::
-
-    from psyclone.parse.algorithm import parse
-    from psyclone.psyGen import PSyFactory
-    
-    # This example uses the LFRic (Dynamo 0.3) API
-    api = "dynamo0.3"
-    
-    # Parse the file containing the algorithm specification and
-    # return the Abstract Syntax Tree and invokeInfo objects
-    ast, invokeInfo = parse("dynamo.F90", api=api)
-    
-    # Create the PSy-layer object using the invokeInfo
-    psy = PSyFactory(api).create(invokeInfo)
-    # Generate the Fortran code for the PSy layer
-    print psy.gen
 
 API
 +++
@@ -486,39 +478,9 @@ manipulated directly, however, to simplify optimisation, a set of
 transformations are supplied. These transformations are discussed in
 the next section.
 
-InvokeSchedule visualisation
-++++++++++++++++++++++++++++
 
-PSyclone supports visualising an InvokeSchedule (or any other PSyIR node)
-in two ways. First the `view()` method outputs textual information about
-the contents of a PSyIR node. If we were to look at the LFRic eg6 example
-we would see the following output:
-
-.. code-block: python
-
-   >>> print(schedule.view())
-   InvokeSchedule[invoke='invoke_0', dm=True]
-       0: Directive[OMP parallel do]
-           Schedule[]
-               0: Loop[type='dofs',field_space='any_space_1',it_space='dofs','upper_bound='ndofs']
-                   Literal[value:'NOT_INITIALISED']
-                   Literal[value:'NOT_INITIALISED']
-                   Literal[value:'1']
-                   Schedule[]
-                       0: BuiltIn setval_X_code(p,z)
-                       1: BuiltIn X_innerproduct_Y_code(rs_old,res,z)
-       1: GlobalSum[scalar='rs_old']
-
-
-The above output tells us that the invoke name for the InvokeSchedule we are
-looking at is `invoke_0` and that the distributed_memory option has
-been switched on. Within the InvokeSchedule is an OpenMP parallel directive
-containing a loop which itself contains two built-in calls. As the
-latter of the two built-in calls requires a reduction and distributed
-memory is switched on, PSyclone has added a GlobalSum call for the
-appropriate scalar.
-
-Second, the `dag()` method (standing for directed acyclic graph),
+In addition to all the functionality available for PSyIR Nodes, the
+PSy-layer nodes have a `dag()` method (standing for directed acyclic graph),
 outputs the PSyIR nodes and its data dependencies. By default a file in
 dot format is output with the name ``dag`` and a file in svg format is
 output with the name ``dag.svg``. The file name can be changed using

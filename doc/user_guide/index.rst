@@ -103,7 +103,6 @@ PSyclone User Guide
     :caption: PSyKAl DSLs
 
     introduction_to_psykal
-    distributed_memory
     dynamo0p3
     gocean1p0
 
