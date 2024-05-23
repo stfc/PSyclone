@@ -1210,16 +1210,17 @@ For example::
           does not yet support ``integer`` and ``logical`` reductions.
 
 For a scalar, the argument metadata contains only these three entries.
-However, fields and operators require further entries specifying
+However, arrays, fields and operators require further entries specifying
 function-space information.
-The meaning of these further entries differs depending on whether a
+The meaning of these further entries differs depending on whether an array, a
 field or an operator is being described.
 
-In the case of an operator, the fourth and fifth arguments describe
-the ``to`` and ``from`` function spaces respectively. In the case of a
-field the fourth argument specifies the function space that the field
-lives on. More details about the supported function spaces are in
-subsection :ref:`lfric-function-space`.
+In the case of an operator, the fourth and fifth arguments describe the ``to``
+and ``from`` function spaces respectively. In the case of a field the fourth
+argument specifies the function space that the field lives on. In the case of
+an array, the fourth argument specifies the number of dimensions the array has.
+More details about the supported function spaces are in subsection
+:ref:`lfric-function-space`.
 
 For example, the metadata for a kernel that applies a column-wise
 operator to a field might look like::
