@@ -5392,11 +5392,8 @@ class Fparser2Reader():
                 # declared with its own local name. Be wary that this
                 # function may not be referenced so there might not be
                 # a RoutineSymbol.
-                try:
-                    routine_symbol = routine.symbol_table.lookup(routine.name)
-                    routine_symbol.datatype = base_type
-                except KeyError:
-                    pass
+                routine_symbol = routine.symbol_table.lookup(routine.name)
+                routine_symbol.datatype = base_type
 
                 routine.symbol_table.new_symbol(return_name,
                                                 tag=keep_tag,

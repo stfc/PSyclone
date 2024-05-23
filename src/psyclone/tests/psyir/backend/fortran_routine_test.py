@@ -463,7 +463,6 @@ def test_fw_routine_prefixes_nomodule(fortran_reader, fortran_writer):
     '''
         Test for routine prefixes outside of a module.
     '''
-    # Handle xfail case when prefixed subroutine isn't in a module.
     code = '''impure elemental subroutine sub()
     end subroutine sub'''
     container = fortran_reader.psyir_from_source(code)
