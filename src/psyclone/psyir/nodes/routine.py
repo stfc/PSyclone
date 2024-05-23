@@ -34,7 +34,8 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
 # Modified by: S. Siso, STFC Daresbury Lab
-# MOdified by: J. Henrichs, Bureau of Meteorology
+# Modified by: J. Henrichs, Bureau of Meteorology
+# Modified by: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Routine node implementation.'''
@@ -65,11 +66,14 @@ class Routine(Schedule, CommentableMixin):
     _text_name = "Routine"
 
     def __init__(self, name, is_program=False, **kwargs):
+        # This attribute needs to be set before anything, as the _symbol
+        # is required for setting the _parent, which is overriden by Routine
+        self._symbol = None
         super().__init__(**kwargs)
 
         self._return_symbol = None
-        self._name = None
-        # Name is set-up by the name setter property
+        # Symbol is set-up by the name setter property.
+        # name property is taken from the symbol.
         self.name = name
 
         if not isinstance(is_program, bool):
@@ -161,6 +165,16 @@ class Routine(Schedule, CommentableMixin):
         return self.coloured_name(colour) + "[name:'" + self.name + "']"
 
     @property
+    def _parent(self):
+        return self._parent_node
+
+    @_parent.setter
+    def _parent(self, parent):
+        self._parent_node = parent
+        if self._symbol and parent is not None:
+            parent.symbol_table.add(self._symbol)
+
+    @property
     def dag_name(self):
         '''
         :returns: the name of this node in the dag.
@@ -174,7 +188,7 @@ class Routine(Schedule, CommentableMixin):
         :returns: the name of this Routine.
         :rtype: str
         '''
-        return self._name
+        return self._symbol.name
 
     @name.setter
     def name(self, new_name):
@@ -198,20 +212,7 @@ class Routine(Schedule, CommentableMixin):
         # symbol.name that there is in the local symbol table. This setter
         # updates both but note that a better solution is needed because
         # renaming the symbol_table symbol alone would make it inconsistent.
-        if not self._name:
-            # If the 'own_routine_symbol' tag already exist check that is
-            # consistent with the given routine name.
-            if 'own_routine_symbol' in self.symbol_table.tags_dict:
-                existing_symbol = self.symbol_table.lookup_with_tag(
-                        'own_routine_symbol', scope_limit=self)
-                if existing_symbol.name.lower() == new_name.lower():
-                    self._name = new_name
-                    return  # The preexisting symbol already matches
-                # Otherwise raise an exception
-                raise KeyError(
-                    f"Can't assign '{new_name}' as the routine name because "
-                    f"its symbol table contains a symbol ({existing_symbol}) "
-                    f"already tagged as 'own_routine_symbol'.")
+        if not self._symbol:
             # If the parent container exists and contains a RoutineSymbol
             # to this Routine, then we create a copy of that RoutineSymbol
             # to store as own_routine_symbol. This ensures we copy any
@@ -227,20 +228,23 @@ class Routine(Schedule, CommentableMixin):
                     pass
             if not rsymbol:
                 rsymbol = RoutineSymbol(new_name, NoType())
+                # This handles entry point from non-fparser construction
+                if self._parent:
+                    self.parent.symbol_table.add(rsymbol)
 
-            self._name = new_name
+            self._symbol = rsymbol
             # Since the constructor can not mark methods as functions directly
             # the symbol will always start being NoType and must be updated
             # if a return_value type is provided.
-            self.symbol_table.add(rsymbol, tag='own_routine_symbol')
-        elif self._name != new_name:
+        elif self.name != new_name:
             # TODO #2592: When we rename the symbol we should also update
             # the parent container's RoutineSymbol's name to reflect this
             # change. This will be simplfied when we have Routine._symbol.name
             # as a single source of truth.
-            symbol = self.symbol_table.lookup(self._name)
-            self._name = new_name
-            self.symbol_table.rename_symbol(symbol, new_name)
+            symbol = self._symbol
+            container_sym_tab = symbol.find_symbol_table(self)
+            if container_sym_tab is not None:
+                container_sym_tab.rename_symbol(symbol, new_name)
 
     def __str__(self):
         result = self.node_str(False) + ":\n"
@@ -282,15 +286,19 @@ class Routine(Schedule, CommentableMixin):
         if not isinstance(value, DataSymbol):
             raise TypeError(f"Routine return-symbol should be a DataSymbol "
                             f"but found '{type(value).__name__}'.")
-        if value not in self.symbol_table.datasymbols:
+        if (value not in self.symbol_table.datasymbols and
+                value.name != self.name):
             raise KeyError(
                 f"For a symbol to be a return-symbol, it must be present in "
-                f"the symbol table of the Routine but '{value.name}' is not.")
+                f"the symbol table of the Routine or share a name with the "
+                f"routine but '{value.name}' does neither.")
         self._return_symbol = value
-        # The routine symbol must be updated accordingly, this is because the
-        # function datatype is provided by the type of the return symbol which
-        # may be given after the Routine is created.
-        self.symbol_table.lookup(self._name).datatype = value.datatype
+
+        # If the symbol isn't yet in the symbol table then we need to
+        # add the return value to the symbol table (as its a symbol that
+        # can be used in the PSyIR).
+        if value not in self.symbol_table.datasymbols:
+            self.symble_table.add(value)
 
     def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most

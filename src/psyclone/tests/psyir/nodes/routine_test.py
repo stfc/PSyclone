@@ -34,14 +34,15 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the pytest tests for the Routine class. '''
 
 import pytest
 
-from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
-                                  ScopingNode)
+from psyclone.psyir.nodes import (Assignment, Literal, FileContainer,
+                                  Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (REAL_TYPE, DataSymbol,
                                     SymbolTable, RoutineSymbol)
 from psyclone.tests.utilities import check_links
@@ -49,19 +50,23 @@ from psyclone.tests.utilities import check_links
 
 def test_routine_constructor():
     ''' Check the constructor and associated type checking. '''
+    fc = FileContainer("test_file.f90")
     with pytest.raises(TypeError) as err:
         Routine(1)
     assert "must be a str but got" in str(err.value)
     with pytest.raises(TypeError) as err:
-        Routine("hello", is_program=1)
+        Routine("hello", is_program=1, parent=fc)
     assert "'is_program' must be a bool" in str(err.value)
-    node = Routine("hello")
-    assert node._name == "hello"
+    node = Routine("hello", parent=fc)
+    assert node.name == "hello"
+    assert isinstance(node._symbol, RoutineSymbol)
+    assert node._symbol.name == "hello"
 
 
 def test_routine_properties():
     ''' Check the various properties of the Routine class. '''
-    node1 = Routine("hello")
+    fc = FileContainer("test_file.f90")
+    node1 = Routine("hello", parent=fc)
     assert node1.dag_name == "routine_hello_0"
     assert node1.return_symbol is None
     assert node1.is_program is False
@@ -70,10 +75,10 @@ def test_routine_properties():
     node1.addchild(Assignment())
     assert "Routine[name:'hello']:\nAssignment" in str(node1)
 
-    node2 = Routine("bonjour")
+    node2 = Routine("bonjour", parent=fc)
     assert node2.is_program is False
 
-    node3 = Routine("gutentag", is_program=True)
+    node3 = Routine("gutentag", is_program=True, parent=fc)
     assert node3.is_program
 
 
@@ -81,50 +86,23 @@ def test_routine_name_setter():
     ''' Check the name setter property of the Routine class updates its
     name and its associated Routine symbol. '''
 
-    node = Routine("hello")  # The constructor has an implicit name setter
+    fc = FileContainer("test_file.f90")
+    node = Routine("hello", parent=fc)
+    # The constructor has an implicit name setter
     # Check the associated RoutineSymbol has been created
-    assert "hello" in node.symbol_table
-    assert isinstance(node.symbol_table.lookup("hello"), RoutineSymbol)
+    assert "hello" == node._symbol.name
+    assert isinstance(node._symbol, RoutineSymbol)
     # Check with an incorrect value type
     with pytest.raises(TypeError) as err:
         node.name = 3
     assert "must be a str but got" in str(err.value)
 
     # Perform a successful name change
+    assert node.name == "hello"
     node.name = "goodbye"
     assert node.name == "goodbye"
     # Check that the previous symbol has been deleted and the new one created
-    assert "welcome" not in node.symbol_table
-    assert "goodbye" in node.symbol_table
-    # Check that the 'own_routine_symbol' tag has been updated
-    assert node.symbol_table.lookup_with_tag('own_routine_symbol').name == \
-        "goodbye"
-
-
-def test_routine_name_setter_preexisting_tag():
-    ''' Check that if the routine is initialized with a SymbolTable that
-    already contains a 'own_routine_symbol' tag, the names must match.'''
-
-    node = Routine("hello")
-    symtab = node.symbol_table
-
-    # Creating a routine that will try to set the routine name to 'bye' while
-    # having a differently named 'own_routine_symbol' tag in the symbol table
-    with pytest.raises(KeyError) as err:
-        node2 = Routine("bye", symbol_table=symtab.deep_copy())
-    assert ("Can't assign 'bye' as the routine name because its symbol table "
-            "contains a symbol (hello: RoutineSymbol<NoType, pure=unknown, "
-            "elemental=unknown>) already tagged as 'own_routine_symbol'."
-            in str(err.value))
-
-    # But it is fine if the name is the same
-    node2 = Routine("hello", symbol_table=symtab.deep_copy())
-    # The new routine has a new instance of the symbol table
-    assert node2.symbol_table is not node.symbol_table
-    # And successive name changes are also fine
-    node2.name = "bye"
-    assert (node2.symbol_table.lookup_with_tag("own_routine_symbol").name ==
-            "bye")
+    assert node.name != "hello" not in node.symbol_table
 
 
 def test_routine_return_symbol_setter():
@@ -132,7 +110,8 @@ def test_routine_return_symbol_setter():
     values.
 
     '''
-    node = Routine("hello")
+    fc = FileContainer("test_file.f90")
+    node = Routine("hello", parent=fc)
     assert node.return_symbol is None
     with pytest.raises(TypeError) as err:
         node.return_symbol = "wrong"
@@ -142,7 +121,8 @@ def test_routine_return_symbol_setter():
     with pytest.raises(KeyError) as err:
         node.return_symbol = sym
     assert ("For a symbol to be a return-symbol, it must be present in the "
-            "symbol table of the Routine but 'result' is not." in
+            "symbol table of the Routine or share a name with the routine "
+            "but 'result' does neither." in
             str(err.value))
     node.symbol_table.add(sym)
     node.return_symbol = sym
