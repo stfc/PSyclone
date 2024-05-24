@@ -55,9 +55,8 @@ BASE_PATH = os.path.join(
     "test_files", "dynamo0p3")
 
 
-@pytest.mark.usefixtures("parser")
 @pytest.fixture(name="prog", scope="function")
-def create_prog_fixture():
+def create_prog_fixture(parser):
     '''
     :returns: a PSyIR Routine node representing a program.
     :rtype: :py:class:`psyclone.psyir.nodes.Routine`
