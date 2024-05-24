@@ -85,24 +85,6 @@ def init_module_manager():
 
 
 # ----------------------------------------------------------------------------
-def test_add_all_kernel_symbols():
-    '''
-    Remove this test?
-    '''
-    ledc = LFRicExtractDriverCreator()
-    table = SymbolTable()
-    _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
-                           dist_mem=False, idx=0)
-    proxy_name_mapping = ledc._get_proxy_name_mapping(invoke.schedule)
-    ctu = CallTreeUtils()
-    rw_info = ctu.get_in_out_parameters([invoke.schedule[0]],
-                                        collect_non_local_symbols=True)
-
-    ledc._add_all_kernel_symbols(invoke.schedule[0], table,
-                                 proxy_name_mapping,
-                                 rw_info)
-
-
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
     '''

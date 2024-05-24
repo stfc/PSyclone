@@ -224,10 +224,14 @@ class FortranModuleInterface(ContainerSymbolInterface):
             import path.
 
         '''
-        # pylint: disable=import-outside-toplevel
+        # pylint: disable-next=import-outside-toplevel
         from psyclone.parse import ModuleManager
         mod_manager = ModuleManager.get()
+
+        # TODO #2011 - rationalise how this interacts with the kernel search
+        # path set in generate().
         mod_manager.add_search_path(Config.get().include_paths)
+
         minfo = None
         try:
             minfo = mod_manager.get_module_info(name)
