@@ -55,7 +55,7 @@ from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_ast, get_base_path, get_invoke
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def check_psyir_results(create_arg_list, fortran_writer):

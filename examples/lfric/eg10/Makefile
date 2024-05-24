@@ -44,7 +44,7 @@ F90FLAGS += -I$(LFRIC_DIR)
 .PHONY: transform compile run kernels
 
 transform:
-	${PSYCLONE} intergrid_3levels.x90
+	${PSYCLONE} -api lfric intergrid_3levels.x90
 
 # TODO #1203 compilation of this example is not yet working. The Algorithm
 # (and possibly infrastructure) needs updating.

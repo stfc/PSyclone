@@ -48,7 +48,7 @@ from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 REF_ELEM_QUAD_MDATA = '''
 module testkern_refelem_quad_mod

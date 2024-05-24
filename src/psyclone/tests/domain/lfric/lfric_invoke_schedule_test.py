@@ -45,7 +45,7 @@ from psyclone.psyGen import PSyFactory
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))), "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def test_lfricinvsched_parent():
@@ -66,7 +66,7 @@ def test_lfricinvsched_parent():
 def test_lfricinvsched_node_str_coloured():
     '''
     Check the node_str method of the LFRicInvokeSchedule class. We need an
-    Invoke object for this which we get using the dynamo0.3 API.
+    Invoke object for this which we get using the LFRic API.
 
     This test checks that `dm` is printed equal to `True` when dist_mem is
     `True` in the config and that `InvokeSchedule` is coloured when requested
@@ -75,10 +75,10 @@ def test_lfricinvsched_node_str_coloured():
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
-                           api="dynamo0.3")
+                           api="lfric")
 
     # distributed_memory set to True
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     # Create a plain LFRicInvokeSchedule
     sched = LFRicInvokeSchedule('name', None, None)
     # Manually supply it with an Invoke object created with the LFRic API.
@@ -92,7 +92,7 @@ def test_lfricinvsched_node_str_coloured():
 def test_lfricinvsched_node_str_colourless():
     '''
     Check the node_str method of the LFRicInvokeSchedule class. We need an
-    Invoke object for this which we get using the dynamo0.3 API.
+    Invoke object for this which we get using the LFRic API.
 
     This test checks that `dm` is printed equal to `False` when dist_mem is
     `False` in the config and that `InvokeSchedule` is uncoloured when
@@ -101,8 +101,8 @@ def test_lfricinvsched_node_str_colourless():
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     # Create a plain LFRicInvokeSchedule
     sched = LFRicInvokeSchedule('name', None, None)
     # Manually supply it with an Invoke object created with the LFRic API.

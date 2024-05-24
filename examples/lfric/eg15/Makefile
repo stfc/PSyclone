@@ -37,7 +37,7 @@
 include ../../common.mk
 
 transform:
-	${PSYCLONE} -s ./matvec_opt.py \
+	${PSYCLONE} -api lfric -s ./matvec_opt.py \
   ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
   -oalg /dev/null -opsy /dev/null
 

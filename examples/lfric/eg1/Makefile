@@ -42,9 +42,9 @@ include ../../common.mk
 # '../code' directory when looking for user-supplied kernels.
 transform:
 	@echo "Sequential code:"
-	${PSYCLONE} -api dynamo0.3 -d ../code -nodm ./single_invoke.x90
+	${PSYCLONE} -api lfric -d ../code -nodm ./single_invoke.x90
 	@echo "With distributed-memory support:"
-	${PSYCLONE} -api dynamo0.3 -d ../code ./single_invoke.x90
+	${PSYCLONE} -api lfric -d ../code ./single_invoke.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg1"
