@@ -688,7 +688,6 @@ def test_main_api():
     assert Config.get().api == "lfric"
 
 
-
 def test_config_flag():
     ''' Test that -c/--config take precedence over the configuration
         file references in the environment variable.
