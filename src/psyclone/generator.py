@@ -507,7 +507,7 @@ def main(args):
     # and config will load the default config file.
     Config.get().load(args.config)
 
-    # Check API, if none is specified, take the setting from the config file
+    # Check whether a PSyKAl API has been specified.
     if args.api is None:
         api = ""
     elif args.api not in Config.get().supported_apis:
