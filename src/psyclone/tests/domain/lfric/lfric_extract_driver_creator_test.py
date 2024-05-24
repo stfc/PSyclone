@@ -47,7 +47,7 @@ from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.tools import CallTreeUtils
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
