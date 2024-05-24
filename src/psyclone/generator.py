@@ -435,7 +435,7 @@ def main(args):
                         help='directory in which to put transformed kernels, '
                         'default is the current working directory.')
     parser.add_argument('-api',
-                        help=f'choose a particular PSyKAl DSL API from '
+                        help=f'whether to use particular PSyKAl DSL API from '
                         f'{Config.get().curated_api_list}.')
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
@@ -509,10 +509,7 @@ def main(args):
 
     # Check API, if none is specified, take the setting from the config file
     if args.api is None:
-        # No command line option, use the one specified in Config - which
-        # is either based on a parameter in the config file, or otherwise
-        # the default:
-        api = Config.get().api
+        api = ""
     elif args.api not in Config.get().supported_apis:
         print(f"Unsupported API '{args.api}' specified. Supported APIs are "
               f"{Config.get().curated_api_list}.", file=sys.stderr)
@@ -521,7 +518,7 @@ def main(args):
         # There is a valid API specified on the command line. Set it
         # as API in the config object as well.
         api = args.api
-        Config.get().api = api
+    Config.get().api = api
 
     # Record any profiling options.
     if args.profile:

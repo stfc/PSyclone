@@ -465,8 +465,7 @@ def test_call_tree_utils_const_argument():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("clear_module_manager_instance")
-@pytest.mark.usefixtures("lfric_config")
+@pytest.mark.usefixtures("clear_module_manager_instance", "lfric_config")
 def testcall_tree_utils_non_local_inout_parameters(capsys):
     '''Tests the collection of non-local input and output parameters.
     '''

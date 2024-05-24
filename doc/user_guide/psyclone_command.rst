@@ -81,7 +81,7 @@ by the command:
     -opsy OPSY            filename of generated PSy code
     -okern OKERN          directory in which to put transformed kernels,
                           default is the current working directory.
-    -api API              choose a particular api from ['lfric',
+    -api API              whether to use a particular api from ['lfric',
                           'gocean'].
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script

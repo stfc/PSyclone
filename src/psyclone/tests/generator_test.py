@@ -662,13 +662,17 @@ def test_main_api():
     ''' Test that the API can be set by a command line parameter, also using
     the API name aliases. '''
 
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                "test_files", "gocean1p0", "single_invoke.f90"))
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
 
     # By default we don't use an API
-    Config._instance = None
-    assert Config.get().api == ''
+    main([filename])
+    assert Config.get().api == ""
 
+    # We accept nemo for backward compatibility, but it acts as no API
+    main([filename, "-api", "nemo"])
+    assert Config.get().api == ""
+
+    filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
     # Check that a command line option sets the API value
     main([filename, "-api", "gocean"])
     assert Config.get().api == "gocean"
@@ -683,9 +687,6 @@ def test_main_api():
     main([filename, "-api", "dynamo0.3"])
     assert Config.get().api == "lfric"
 
-    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
-    main([filename, "-api", "nemo"])
-    assert Config.get().api == ""
 
 
 def test_config_flag():
