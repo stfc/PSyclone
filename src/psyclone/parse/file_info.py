@@ -64,8 +64,8 @@ class FileInfo:
     the original filename and, if requested, it will read the file and then
     cache the (plain text) contents.
 
-    :param str filename: the name of the source file that stores this module
-        (including path).
+    :param str filename: the name of the source file (including path) that this
+                         object holds information on.
 
     '''
 

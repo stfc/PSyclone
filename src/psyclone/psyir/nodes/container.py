@@ -202,6 +202,7 @@ class Container(ScopingNode, CommentableMixin):
             when the routine `name` is called or an empty list if there is no
             routine with that name in this container.
         :rtype: list[None | psyclone.psyir.nodes.Routine]
+
         :raises TypeError: if the Symbol with the supplied name is not a
             RoutineSymbol or GenericInterfaceSymbol.
         '''
@@ -211,12 +212,12 @@ class Container(ScopingNode, CommentableMixin):
             return []
         if isinstance(rsym, GenericInterfaceSymbol):
             return [rt[0].name.lower() for rt in rsym.routines]
-        elif isinstance(rsym, RoutineSymbol):
+        if isinstance(rsym, RoutineSymbol):
             return [name]
-        else:
-            raise TypeError(
-                f"Expected '{name}' to correspond to either a RoutineSymbol or"
-                f" a GenericInterfaceSymbol but found '{type(rsym).__name__}'")
+
+        raise TypeError(
+            f"Expected '{name}' to correspond to either a RoutineSymbol or"
+            f" a GenericInterfaceSymbol but found '{type(rsym).__name__}'")
 
 
 # For AutoAPI documentation generation

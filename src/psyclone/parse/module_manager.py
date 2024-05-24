@@ -154,6 +154,17 @@ class ModuleManager:
     # ------------------------------------------------------------------------
     def _find_module_in_files(self, name, file_list):
         '''
+        Searches the files represented by the supplied list of FileInfo objects
+        to find the one defining the named Fortran module.
+
+        :param str name: the name of the module to locate.
+        :param file_list: the files to search.
+        :type file_list: list[:py:class:`psyclone.parse.FileInfo`]
+
+        :returns: information on the file that contains the module or None if
+                  it wasn't found.
+        :rtype: :py:class:`psyclone.parse.FileInfo` | None
+
         '''
         mod_info = None
         for finfo in file_list:
@@ -210,11 +221,11 @@ class ModuleManager:
         if mod_lower in self._ignore_modules:
             return None
 
-        # First check if we have already seen this module
+        # First check if we have already seen this module. We only end the
+        # search early if the file we've found does not require pre-processing
+        # (i.e. has a .f90 suffix).
         mod_info = self._modules.get(mod_lower, None)
         if mod_info and mod_info.filename.endswith(".f90"):
-            # TODO permit check below to continue if the source file
-            # associated with this module ends in .F90 or .x90.
             return mod_info
         old_mod_info = mod_info
 
@@ -222,8 +233,6 @@ class ModuleManager:
         mod_info = self._find_module_in_files(mod_lower,
                                               self._visited_files.values())
         if mod_info and mod_info.filename.endswith(".f90"):
-            # TODO permit check below to continue if the source file
-            # associated with this module ends in .F90 or .x90.
             return mod_info
         old_mod_info = mod_info
 
@@ -261,9 +270,11 @@ class ModuleManager:
         :rtype: list[str]
 
         '''
-        # TODO: this regex could be defeated by e.g.
+        # TODO #2597: use the fparser FortranReader here as this regex could
+        # be defeated by e.g.
         #   module &
         #    my_mod
+        # `finfo.contents` will read the file if it hasn't already been cached.
         mod_names = _MODULE_PATTERN.findall(finfo.contents)
 
         return [name.lower() for name in mod_names]
