@@ -193,8 +193,7 @@ class Config:
         # The name (including path) of the config file read.
         self._config_file = None
 
-        # The API selected by the user - either on the command line,
-        # or in the config file (or the default if neither).
+        # The API selected by the user
         self._api = ""
 
         # True if distributed memory code should be created.
@@ -396,8 +395,6 @@ class Config:
             raise ConfigurationError(
                 f"API '{api}' is not in the list '{self.supported_apis}'' of "
                 f"supported APIs.")
-        # if not api:
-        #     return BaseConfig(self._config)
         if api not in self._api_conf:
             raise ConfigurationError(
                 f"Configuration file did not contain a section for the "
@@ -523,7 +520,7 @@ class Config:
     def curated_api_list(self):
         '''
         :returns: the curated list of PSyKAl DSLs supported.
-        :rtype: str
+        :rtype: list[str]
         '''
         return Config._curated_api_list
 

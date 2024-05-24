@@ -240,7 +240,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     if api not in Config.get().supported_apis:
         raise GenerationError(
             f"generate: Unsupported API '{api}' specified. Supported "
-            f"types are {Config.get().supported_apis}.")
+            f"types are {Config.get().curated_api_list}.")
 
     # Store Kernel-output options in our Configuration object
     Config.get().kernel_output_dir = kern_out_path
@@ -436,7 +436,7 @@ def main(args):
                         'default is the current working directory.')
     parser.add_argument('-api',
                         help=f'choose a particular PSyKAl DSL API from '
-                        f'{str(Config.get().curated_api_list)}.')
+                        f'{Config.get().curated_api_list}.')
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -515,7 +515,7 @@ def main(args):
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
         print(f"Unsupported API '{args.api}' specified. Supported APIs are "
-              f"{Config.get().supported_apis}.", file=sys.stderr)
+              f"{Config.get().curated_api_list}.", file=sys.stderr)
         sys.exit(1)
     else:
         # There is a valid API specified on the command line. Set it

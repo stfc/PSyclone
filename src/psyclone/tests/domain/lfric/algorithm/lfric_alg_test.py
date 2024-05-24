@@ -70,7 +70,7 @@ def create_prog_fixture():
     :rtype: :py:class:`psyclone.psyir.nodes.Routine`
     '''
     Config.get().api = "lfric"
-    # The tests below sometime fail (dependeing of the number of parallel
+    # The tests below sometime fail (depending of the number of parallel
     # jobs) if the LFRicSymbolTable has not been not set up.
     ScopingNode._symbol_table_class = LFRicSymbolTable
     prog = Routine("test_prog", is_program=True)

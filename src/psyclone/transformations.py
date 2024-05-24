@@ -2691,7 +2691,7 @@ class ACCKernelsTrans(RegionTrans):
         if not sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
-                "nemo and LFRic front-ends")
+                "Nemo and LFRic InvokeSchedules")
         super().validate(node_list, options)
 
         # Check that we have at least one loop or array range within

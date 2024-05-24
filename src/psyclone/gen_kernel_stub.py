@@ -48,7 +48,7 @@ import fparser
 from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
-from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
+from psyclone.configuration import Config, LFRIC_API_NAMES
 
 
 def generate(filename, api=""):
@@ -73,10 +73,10 @@ def generate(filename, api=""):
     :raises ParseError: if the given file could not be parsed.
 
     '''
-    if api not in LFRIC_API_NAMES + GOCEAN_API_NAMES:
+    if api not in LFRIC_API_NAMES:
         raise GenerationError(
             f"Kernel stub generator: Unsupported API '{api}' specified. "
-            f"Supported APIs are {Config.get().curated_api_list}.")
+            f"Supported APIs are {LFRIC_API_NAMES[0]}.")
     else:
         Config.get().api = api
 

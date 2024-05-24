@@ -60,12 +60,10 @@ from psyclone.tests.utilities import get_base_path, get_invoke
 API = "gocean"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use gocean as API.'''
     Config.get().api = API
-    yield
-    Config._instance = None
 
 
 def test_gokernelarguments_append():

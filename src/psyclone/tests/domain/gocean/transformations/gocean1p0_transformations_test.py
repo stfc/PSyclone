@@ -35,8 +35,7 @@
 # Modified work Copyright (c) 2017-2024 by J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
-''' Module containing tests of Transformations when using the
-    GOcean 1.0 API '''
+''' Module containing tests of Transformations when using the GOcean API '''
 
 import re
 import inspect
@@ -62,12 +61,10 @@ from psyclone.tests.utilities import count_lines, get_invoke
 API = "gocean"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use gocean as API.'''
     Config.get().api = "gocean"
-    yield
-    Config._instance = None
 
 
 def test_loop_fuse_error():
@@ -1471,8 +1468,8 @@ def test_acc_kernels_error():
     accktrans = ACCKernelsTrans()
     with pytest.raises(NotImplementedError) as err:
         accktrans.apply(schedule.children)
-    assert ("kernels regions are currently only supported for the nemo"
-            " and LFRic front-ends" in str(err.value))
+    assert ("kernels regions are currently only supported for the Nemo"
+            " and LFRic InvokeSchedules" in str(err.value))
 
 
 def test_accroutinetrans_module_use():

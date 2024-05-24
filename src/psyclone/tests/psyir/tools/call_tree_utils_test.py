@@ -466,10 +466,10 @@ def test_call_tree_utils_const_argument():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
+@pytest.mark.usefixtures("lfric_config")
 def testcall_tree_utils_non_local_inout_parameters(capsys):
     '''Tests the collection of non-local input and output parameters.
     '''
-    Config.get().api = "lfric"
     ctu = CallTreeUtils()
 
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")

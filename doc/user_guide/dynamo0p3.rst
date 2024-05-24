@@ -45,7 +45,7 @@ This section describes the LFRic application programming
 interface (API). This API explains what a user needs to write in order
 to make use of the LFRic API in PSyclone.
 
-As with the majority of PSyclone APIs, the LFRic specifies
+As with the majority of PSyclone APIs, the LFRic API specifies
 how a user needs to write the algorithm layer and the kernel layer to
 allow PSyclone to generate the PSy layer. These algorithm and kernel
 APIs are discussed separately in the following sections.

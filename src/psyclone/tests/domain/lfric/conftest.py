@@ -44,10 +44,8 @@ from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 
 @pytest.fixture(scope="module", autouse=True)
 def api_setup_fixture():
-    '''Make sure that all tests here use LFRic (Dynamo0.3) as API.'''
+    '''Make sure that all tests here use LFRic as API.'''
     Config.get().api = "lfric"
-    yield
-    Config._instance = None
 
 
 @pytest.fixture(name="lfrickern", scope="module")

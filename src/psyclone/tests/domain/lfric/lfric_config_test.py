@@ -54,8 +54,6 @@ TEST_API = "lfric"
 # Valid configuration file content for testing purposes
 _CONFIG_CONTENT = '''\
 [DEFAULT]
-API = lfric
-DEFAULTSTUBAPI = lfric
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8

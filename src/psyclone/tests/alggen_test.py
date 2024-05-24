@@ -51,12 +51,10 @@ from psyclone.generator import generate, GenerationError
 from psyclone.errors import InternalError
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use lfric as API.'''
     Config.get().api = "lfric"
-    yield
-    Config._instance = None
 
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

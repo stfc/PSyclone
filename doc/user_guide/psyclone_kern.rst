@@ -112,11 +112,6 @@ written to a particular file. If this is not specified then the Python
 ``print`` statement is used to write to stdout.  Typically this
 results in the output being printed to the terminal.
 
-As is indicated when using the ``-h`` option, the ``-api`` option only
-accepts ``lfric`` (LFRic) at the moment and is redundant as this option
-is also the default. However the number of supported APIs is expected to
-expand in the future.
-
 The ``-l``, or ``--limit`` option utilises the PSyclone support for
 wrapping of lines within the 132 character limit in the generated Fortran code
 (please see the :ref:`Line Length <line-length>` chapter for more details).

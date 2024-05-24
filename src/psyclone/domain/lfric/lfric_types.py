@@ -141,8 +141,8 @@ class LFRicTypes:
     @staticmethod
     def _create_precision_from_const_module():
         '''This function implements all precisions defined in the LFRic domain.
-        It adds "constants_mod" as ContainerSymbol. The names are added to the
-        global mapping.
+        It adds "constants_mod" as a ContainerSymbol. The names are added to
+        the global mapping.
 
         '''
         # The first Module namedtuple argument specifies the name of the

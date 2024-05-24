@@ -477,10 +477,8 @@ Algorithm-layer
 ---------------
 
 The gocean API supports the transformation of the algorithm
-layer. In the future the LFRic API will also support
-this. However, this is not relevant to the nemo API as it does not
-have the concept of an algorithm layer (just PSy and Kernel
-layers). The ability to transformation the algorithm layer is new and
+layer. In the future the LFRic API will also support this.
+The ability to transformation the algorithm layer is new and
 at this time no relevant transformations have been developed.
 
 Kernels

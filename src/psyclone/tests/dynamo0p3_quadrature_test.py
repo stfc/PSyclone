@@ -59,12 +59,10 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use lfric as API.'''
     Config.get().api = "lfric"
-    yield
-    Config._instance = None
 
 
 def test_field_xyoz(tmpdir):
@@ -770,7 +768,6 @@ end module dummy_mod
 '''
 
 
-@pytest.mark.usefixtures("lfric_config")
 def test_qr_basis_stub():
     ''' Test that basis functions for quadrature are handled correctly for
     kernel stubs.
@@ -886,7 +883,6 @@ def test_qr_basis_stub():
     assert output in generated_code
 
 
-@pytest.mark.usefixtures("lfric_config")
 def test_stub_basis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring basis functions
     for quadrature raises the correct errors if the kernel metadata is
@@ -914,7 +910,6 @@ def test_stub_basis_wrong_shape(monkeypatch):
             "dynamo0p3.qr_basis_alloc_args" in str(excinfo.value))
 
 
-@pytest.mark.usefixtures("lfric_config")
 def test_stub_dbasis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring differential basis
     functions for quadrature raises the correct errors if the kernel metadata

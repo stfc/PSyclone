@@ -80,12 +80,10 @@ DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 TEST_API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use lfric as API.'''
     Config.get().api = "lfric"
-    yield
-    Config._instance = None
 
 
 CODE = '''

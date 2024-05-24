@@ -35,10 +35,7 @@
 
 
 # This is a gocean specific configuration file used in various tests.
-# It tests that 'gocean' is picked as api even without an API= keyword
-# (since there is only one API-specific section)
 [DEFAULT]
-DEFAULTSTUBAPI = lfric
 DISTRIBUTED_MEMORY = false
 REPRODUCIBLE_REDUCTIONS = false
 # Amount to pad the local summation array when REPRODUCIBLE_REDUCTIONS is true

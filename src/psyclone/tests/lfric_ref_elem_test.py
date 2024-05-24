@@ -83,12 +83,10 @@ end module testkern_refelem_mod
 # Tests for parsing the metadata
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "lfric"
-    yield
-    Config._instance = None
 
 
 def test_mdata_parse():

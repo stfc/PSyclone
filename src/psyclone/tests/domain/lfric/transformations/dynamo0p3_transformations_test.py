@@ -76,12 +76,10 @@ from psyclone.transformations import OMPParallelTrans, \
 TEST_API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use lfric as API.'''
     Config.get().api = "lfric"
-    yield
-    Config._instance = None
 
 
 def test_colour_trans_create_colours_loop(dist_mem):

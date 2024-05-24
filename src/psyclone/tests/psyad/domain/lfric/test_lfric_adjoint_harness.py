@@ -39,8 +39,7 @@
 import pytest
 from fparser import api as fpapi
 
-from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicSymbolTable, LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import LFRicSymbolTable, LFRicTypes
 from psyclone.domain.lfric.algorithm import (
     LFRicBuiltinFunctor, LFRicAlg, LFRicBuiltinFunctorFactory,
     LFRicKernelFunctor)
@@ -60,18 +59,6 @@ from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, BOOLEAN_TYPE,
                                     ArrayType, DataTypeSymbol, UnresolvedType,
                                     INTEGER_TYPE, ContainerSymbol,
                                     ImportInterface, ScalarType, SymbolTable)
-
-
-@pytest.fixture(name="type_map", scope="module")
-def lfric_consts_fixture():
-    '''pytest fixture that returns the DATA_TYPE_MAP from LFRicConstants.'''
-    return LFRicConstants().DATA_TYPE_MAP
-
-
-@pytest.fixture(scope="module", name="lfric_config", autouse=True)
-def fixture_lfric_config():
-    '''Test should use the lfric API config and then clean it up.'''
-    Config.get().api = "lfric"
 
 
 # _compute_lfric_inner_products

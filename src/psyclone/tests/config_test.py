@@ -119,7 +119,7 @@ def clear_config_instance():
 
 
 @pytest.fixture(name="bool_entry",
-                scope="module",
+                scope="function",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
                         "COMPUTE_ANNEXED_DOFS",
@@ -139,7 +139,7 @@ def bool_entry_fixture(request):
 
 
 @pytest.fixture(name="int_entry",
-                scope="module",
+                scope="function",
                 params=["REPROD_PAD_SIZE", "OCL_DEVICES_PER_NODE"])
 def int_entry_fixture(request):
     '''
@@ -309,6 +309,7 @@ def test_read_values():
     Check that we get the expected values from the test config file.
     '''
     _config = Config.get()
+    # The dummy_config.cfg has a non-default REPROD_PAD_SIZE of 7
     _config.load(config_file=TEST_CONFIG)
     # Whether distributed memory is enabled
     dist_mem = _config.distributed_memory
@@ -328,7 +329,7 @@ def test_read_values():
     # How much to pad arrays by when doing reproducible reductions
     pad = _config.reprod_pad_size
     assert isinstance(pad, int)
-    assert pad == 8
+    assert pad == 7
     # The filename of the config file which was parsed to produce
     # the Config object
     assert _config.filename == str(TEST_CONFIG)

@@ -50,8 +50,7 @@ Open this file in your favourite editor. You will see that it has a
 general (`default`) section for settings that are common to all APIs and
 subsequent, separate sections for each of the APIs.
 
-We are using the API called `lfric`. Note, this is a historical
-name which will be changed to `lfric` in the future.
+We are using the API called `lfric`.
 
 Find the `lfric` section and the `COMPUTE_ANNEXED_DOFS` option
 within that section.

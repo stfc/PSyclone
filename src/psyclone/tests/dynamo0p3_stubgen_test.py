@@ -55,12 +55,10 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 TEST_API = "lfric"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use lfric as API.'''
     Config.get().api = "lfric"
-    yield
-    Config._instance = None
 
 
 def test_kernel_stub_invalid_iteration_space():

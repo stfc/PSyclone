@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,23 +30,23 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# ------------------------------------------------------------------------------
-# Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
+# -----------------------------------------------------------------------------
+# Authors: S. Siso, STFC Daresbury Lab
 
-include ../../../../common.mk
+'''Provides fixtures for the adjoint tests.'''
 
-transform:
-	# Uses the psyclone.cfg configuration file in this directory
-	$(PSYCLONE) -api lfric -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
+import pytest
+from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicConstants
 
-compile: transform
-	@echo "No compilation supported for tutorial/lfric/distributed_memory/2_annexed_dofs"
 
-run: compile
-	@echo "No run targets for tutorial/lfric/distributed_memory/2_annexed_dofs"
+@pytest.fixture(name="type_map", scope="module")
+def lfric_consts_fixture():
+    '''pytest fixture that returns the DATA_TYPE_MAP from LFRicConstants.'''
+    return LFRicConstants().DATA_TYPE_MAP
 
-clean:
-	@echo "Nothing to clean"
 
-allclean: clean
+@pytest.fixture(scope="function", autouse=True)
+def fixture_lfric_config():
+    '''All tests here should use the lfric API config.'''
+    Config.get().api = "lfric"

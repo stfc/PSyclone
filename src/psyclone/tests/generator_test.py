@@ -94,15 +94,6 @@ def delete_module(modname):
             pass
 
 
-def teardown_function():
-    '''This teardown function is called at the end of each test and makes
-    sure that we wipe the Config object so we get a fresh/default one
-    for any further test (and not a left-over one from a test here).
-
-    '''
-    Config._instance = None
-
-
 # handle_script() tests
 
 def test_script_file_not_found():
@@ -663,8 +654,7 @@ def test_main_invalid_api(capsys):
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
     expected_output = ("Unsupported API 'madeup' specified. Supported APIs "
-                       "are ['lfric', 'dynamo0.3', 'gocean', 'gocean1.0', "
-                       "'nemo', ''].\n")
+                       "are ['lfric', 'gocean'].\n")
     assert output == expected_output
 
 
@@ -676,6 +666,7 @@ def test_main_api():
                 "test_files", "gocean1p0", "single_invoke.f90"))
 
     # By default we don't use an API
+    Config._instance = None
     assert Config.get().api == ''
 
     # Check that a command line option sets the API value
@@ -704,6 +695,7 @@ def test_config_flag():
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "test_files", "dynamo0p3",
                             "1_single_invoke.f90")
+    # dummy_config has a non-default REPORD_PAD_SIZE of 7
     config_name = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dummy_config.cfg")
 
@@ -712,18 +704,21 @@ def test_config_flag():
     main([filename, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
+    assert Config.get().reprod_pad_size == 8
 
     # Test with with --config
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     main([filename, "--config", config_name, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
+    assert Config.get().reprod_pad_size == 7
 
     # Test with with -c
     Config._HAS_CONFIG_BEEN_INITIALISED = False
     main([filename, "-c", config_name, "-api", "lfric"])
     assert Config.get().api == "lfric"
     assert Config.has_config_been_initialised() is True
+    assert Config.get().reprod_pad_size == 7
 
 
 def test_main_directory_arg(capsys):

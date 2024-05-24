@@ -442,8 +442,8 @@ For the :ref:`NEMO API <nemo-api>`,
   function/subroutine/program (based on the profile node's position in
   the PSyIR representation relative to any other profile nodes).
 
-For the :ref:`LFRic (Dynamo0.3) <lfric-api>` and
-:ref:`GOcean1.0 <gocean-api>` APIs,
+For the :ref:`LFRic <lfric-api>` and
+:ref:`GOcean <gocean-api>` APIs,
 
 * the `module_name` string is set to the module name of the generated
   PSy-layer. This name should be unique by design (otherwise module

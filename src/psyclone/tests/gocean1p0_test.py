@@ -61,12 +61,10 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "gocean1p0")
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use gocean as API.'''
     Config.get().api = "gocean"
-    yield
-    Config._instance = None
 
 
 def test_field(tmpdir, dist_mem):

@@ -42,7 +42,6 @@
 import os
 import pytest
 
-from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.f2pygen import ModuleGen
@@ -69,14 +68,6 @@ from psyclone.transformations import (
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use a new Config instance.'''
-    Config._instance = None
-    yield
-    Config._instance = None
 
 
 # Class ACCRegionDirective

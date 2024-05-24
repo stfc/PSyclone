@@ -90,8 +90,7 @@ def generate_adjoint_str(tl_fortran_str, active_variables,
 
     :raises NotImplementedError: if the tangent-linear code is a function.
     :raises NotImplementedError: if an unsupported API is specified.
-    :raises NotImplementedError: if test-harness generation is requested for
-                                 the LFRic API.
+
     '''
     logger = logging.getLogger(__name__)
     logger.debug(tl_fortran_str)

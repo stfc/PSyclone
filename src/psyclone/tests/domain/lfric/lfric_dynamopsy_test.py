@@ -36,7 +36,7 @@
 
 
 '''This module tests the DynamoPSy class, currently located within the
-lfric.py file.'''
+dynamo0p3.py file.'''
 
 from collections import OrderedDict
 import os
