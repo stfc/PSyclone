@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab,
+# Modified by J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
@@ -580,6 +581,10 @@ def test_fw_gen_use(fortran_writer):
     result = fortran_writer.gen_use(container_symbol, symbol_table)
     assert "use my_module, only : dummy1=>orig_name, my_sub" not in result
     assert "use my_module\n" in result
+
+    container_symbol.is_intrinsic = True
+    result = fortran_writer.gen_use(container_symbol, symbol_table)
+    assert "use, intrinsic :: my_module" in result
 
     # container2 has no symbols associated with it and has not been marked
     # as having a wildcard import. It should therefore result in a USE
@@ -1131,6 +1136,8 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b**(-b + c)\n"
         "    a = (-b)**c\n"
         "    a = -(-b)\n"
+        "    a = b * (-c) + d\n"
+        "    a = b + (-c) * d\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1147,8 +1154,10 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = LOG(b * c)\n"
         "    a = b ** (-c)\n"
         "    a = b ** (-b + c)\n"
-        "    a = -b ** c\n"
-        "    a = -(-b)\n")
+        "    a = (-b) ** c\n"
+        "    a = -(-b)\n"
+        "    a = b * (-c) + d\n"
+        "    a = b + (-c) * d\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
@@ -1796,7 +1805,7 @@ def test_fw_call_node_namedargs(fortran_writer):
     result = fortran_writer(call)
     assert result == "call mysub(1.0, arg2=2.0, arg3=3.0)\n"
 
-    call.children[2] = Literal("4.0", REAL_TYPE)
+    call.children[3] = Literal("4.0", REAL_TYPE)
 
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer(call)

@@ -52,17 +52,14 @@ from typing import Any
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
-                                                  LFRicBuiltIn)
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   KernCallArgList,
-                                   LFRicCollection, LFRicConstants,
-                                   LFRicSymbolTable, LFRicKernCallFactory,
-                                   LFRicKern, LFRicInvokes, LFRicTypes,
-                                   LFRicLoop)
+                                   KernCallArgList, LFRicCollection,
+                                   LFRicConstants, LFRicSymbolTable, LFRicKern,
+                                   LFRicInvokes, LFRicTypes, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
-                              DeallocateGen, DeclGen, DoGen, IfThenGen,
+                              DeallocateGen, DeclGen, DoGen,
                               ModuleGen, TypeDeclGen, UseGen, PSyIRGen)
 from psyclone.parse.kernel import getkerneldescriptors
 from psyclone.parse.utils import ParseError
@@ -70,7 +67,9 @@ from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess)
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Reference, ACCEnterDataDirective, ScopingNode
+from psyclone.psyir.nodes import (
+    Reference, ACCEnterDataDirective, ScopingNode, ArrayOfStructuresReference,
+    StructureReference, Literal, IfBlock, Call, BinaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     UnresolvedType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -2630,10 +2629,10 @@ class DynBasisFunctions(LFRicCollection):
     functions required by an invoke or kernel call. This covers both those
     required for quadrature and for evaluators.
 
-    :param node: either the schedule of an Invoke or a single Kernel object \
-                 for which to extract information on all required \
+    :param node: either the schedule of an Invoke or a single Kernel object
+                 for which to extract information on all required
                  basis/diff-basis functions.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule` or
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises InternalError: if a call has an unrecognised evaluator shape.
@@ -3630,41 +3629,6 @@ class DynBoundaryConditions(LFRicCollection):
                               "get_boundary_dofs()"])))
 
 
-class DynInvokeSchedule(InvokeSchedule):
-    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
-    specific factories for creating kernel and infrastructure calls
-    to the base class so it creates the ones we require.
-
-    :param str name: name of the Invoke.
-    :param arg: list of KernelCalls parsed from the algorithm layer.
-    :type arg: list of :py:class:`psyclone.parse.algorithm.KernelCall`
-    :param reserved_names: optional list of names that are not allowed in the \
-                           new InvokeSchedule SymbolTable.
-    :type reserved_names: list of str
-    :param parent: the parent of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-
-    def __init__(self, name, arg, reserved_names=None, parent=None):
-        super().__init__(name, LFRicKernCallFactory,
-                         LFRicBuiltInCallFactory, arg, reserved_names,
-                         parent=parent, symbol_table=LFRicSymbolTable())
-
-    def node_str(self, colour=True):
-        ''' Creates a text summary of this node.
-
-        :param bool colour: whether or not to include control codes for colour.
-
-        :returns: text summary of this node, optionally with control codes \
-                  for colour highlighting.
-        :rtype: str
-
-        '''
-        return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
-                "', dm=" + str(Config.get().distributed_memory)+"]")
-
-
 class DynGlobalSum(GlobalSum):
     '''
     Dynamo specific global sum class which can be added to and
@@ -3903,6 +3867,19 @@ class LFRicHaloExchange(HaloExchange):
         depth_str_list = [str(depth_info) for depth_info in
                           depth_info_list]
         return "max("+",".join(depth_str_list)+")"
+
+    def _psyir_depth_expression(self):
+        '''
+        :returns: the PSyIR expression to compute the halo depth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        depth_info_list = self._compute_halo_read_depth_info()
+        if len(depth_info_list) == 1:
+            return depth_info_list[0].psyir_expression()
+
+        return IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.MAX,
+                [depth.psyir_expression() for depth in depth_info_list])
 
     def _compute_halo_read_depth_info(self, ignore_hex_dep=False):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
@@ -4225,25 +4202,44 @@ class LFRicHaloExchange(HaloExchange):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        parent.add(PSyIRGen(parent, self))
+
+    def lower_to_language_level(self):
+        '''
+        :returns: this node lowered to language-level PSyIR.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        symbol = DataSymbol(self._field.proxy_name, UnresolvedType())
+        method = self._halo_exchange_name
+        depth_expr = self._psyir_depth_expression()
+
+        # Create infrastructure Calls
         if self.vector_index:
-            ref = f"({self.vector_index})"
+            idx = Literal(str(self.vector_index), INTEGER_TYPE)
+            if_condition = Call.create(
+                ArrayOfStructuresReference.create(symbol, [idx], ['is_dirty']),
+                [('depth', depth_expr)])
+            if_body = Call.create(
+                ArrayOfStructuresReference.create(
+                    symbol, [idx.copy()], [method]),
+                [('depth', depth_expr.copy())])
         else:
-            ref = ""
+            if_condition = Call.create(
+                StructureReference.create(symbol, ['is_dirty']),
+                [('depth', depth_expr)])
+            if_body = Call.create(
+                StructureReference.create(symbol, [method]),
+                [('depth', depth_expr.copy())])
+
+        # Add the "if_dirty" check when necessary
         _, known = self.required()
         if not known:
-            if_then = IfThenGen(parent, self._field.proxy_name + ref +
-                                "%is_dirty(depth=" +
-                                self._compute_halo_depth() + ")")
-            parent.add(if_then)
-            halo_parent = if_then
+            haloex = IfBlock.create(if_condition, [if_body])
         else:
-            halo_parent = parent
-        halo_parent.add(
-            CallGen(
-                halo_parent, name=self._field.proxy_name + ref +
-                "%" + self._halo_exchange_name +
-                "(depth=" + self._compute_halo_depth() + ")"))
-        parent.add(CommentGen(parent, ""))
+            haloex = if_body
+
+        self.replace_with(haloex)
+        return haloex
 
 
 class LFRicHaloExchangeStart(LFRicHaloExchange):
@@ -4316,6 +4312,18 @@ class LFRicHaloExchangeStart(LFRicHaloExchange):
         '''
         # pylint: disable=protected-access
         return self._get_hex_end()._compute_halo_depth()
+
+    def _psyir_depth_expression(self):
+        '''
+        Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :returns: the PSyIR expression to compute the halo depth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        return self._get_hex_end()._psyir_depth_expression()
 
     def required(self):
         '''Call the required method in the corresponding halo exchange end
@@ -4442,6 +4450,8 @@ class HaloDepth():
         self._annexed_only = False
         # Keep a reference to the symbol table so that we can look-up
         # variables holding the maximum halo depth.
+        # FIXME #2503: This can become invalid if the HaloExchange
+        # containing this HaloDepth changes its ancestors.
         self._symbol_table = sym_table
 
     @property
@@ -4554,6 +4564,33 @@ class HaloDepth():
                 # Returns depth if depth has any value, including 0
                 depth_str = str(self.literal_depth)
         return depth_str
+
+    def psyir_expression(self):
+        '''
+        :returns: the PSyIR expression representing this HaloDepth.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        '''
+        if self.max_depth:
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            return Reference(max_depth)
+        if self.max_depth_m1:
+            max_depth = self._symbol_table.lookup_with_tag(
+                "max_halo_depth_mesh")
+            return BinaryOperation.create(
+                        BinaryOperation.Operator.SUB,
+                        Reference(max_depth),
+                        Literal('1', INTEGER_TYPE))
+        if self.var_depth:
+            depth_ref = Reference(self._symbol_table.lookup(self.var_depth))
+            if self.literal_depth != 0:  # Ignores depth == 0
+                return BinaryOperation.create(
+                            BinaryOperation.Operator.ADD,
+                            depth_ref,
+                            Literal(f"{self.literal_depth}", INTEGER_TYPE))
+            return depth_ref
+        # Returns depth if depth has any value, including 0
+        return Literal(str(self.literal_depth), INTEGER_TYPE)
 
 
 def halo_check_arg(field, access_types):
@@ -6185,7 +6222,6 @@ __all__ = [
     'DynInterGrid',
     'DynBasisFunctions',
     'DynBoundaryConditions',
-    'DynInvokeSchedule',
     'DynGlobalSum',
     'LFRicHaloExchange',
     'LFRicHaloExchangeStart',

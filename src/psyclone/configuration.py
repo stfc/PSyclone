@@ -384,12 +384,11 @@ class Config:
                     self._api_conf[api] = LFRicConfig(self, self._config[api])
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
-                elif api == "nemo":
-                    self._api_conf[api] = NemoConfig(self, self._config[api])
                 else:
                     raise NotImplementedError(
-                        f"Configuration file contains a {api} section but no "
-                        f"Config sub-class has been implemented for this API")
+                        f"Configuration file '{self._config_file}' contains a "
+                        f"'{api}' section but no Config sub-class has "
+                        f"been implemented for this API")
 
         # The scheme to use when re-naming transformed kernels.
         # By default we ensure that each transformed kernel is given a
@@ -744,9 +743,8 @@ class Config:
 
     def get_constants(self):
         ''':returns: the constants instance of the current API.
-        :rtype: either :py:class:`psyclone.domain.lfric.LFRicConstants`, \
-            :py:class:`psyclone.domain.gocean.GOceanConstants`, or \
-            :py:class:`psyclone.domain.nemo.NemoConstants`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicConstants` |
+            :py:class:`psyclone.domain.gocean.GOceanConstants`
         '''
         return self.api_conf().get_constants()
 
@@ -881,9 +879,8 @@ class APISpecificConfig:
     @abc.abstractmethod
     def get_constants(self):
         ''':returns: an object containing all constants for the API.
-        :rtype: either :py:class:`psyclone.domain.lfric.LFRicConstants`, \
-            :py:class:`psyclone.domain.gocean.GOceanConstants`, or \
-            :py:class:`psyclone.domain.nemo.NemoConstants`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicConstants` |
+            :py:class:`psyclone.domain.gocean.GOceanConstants`
         '''
 
 
@@ -1295,131 +1292,6 @@ class GOceanConfig(APISpecificConfig):
         return GOceanConstants()
 
 
-# =============================================================================
-class NemoConfig(APISpecificConfig):
-    '''Nemo-specific Config sub-class. Holds configuration options
-    specific to the Nemo API.
-
-    :param config: The 'parent' Config object.
-    :type config: :py:class:`psyclone.configuration.Config`
-    :param section: The entry for the NEMO section of \
-                    the configuration file, as produced by ConfigParser.
-    :type section:  :py:class:`configparser.SectionProxy`
-
-    '''
-    # pylint: disable=too-few-public-methods
-    def __init__(self, config, section):
-        super().__init__(section)
-
-        # Maps a variable name to lon, lat etc. to determine the loop type
-        # (e.g. lon, lat, ...)
-        self._loop_type_mapping = {}
-
-        # Maps a loop type (lon, ...) to a dictionary containing the
-        # corresponding variable name and start/stop values.
-        self._loop_type_data = {}
-
-        # The order in which loops should be created in NemoExplicitLoopTrans
-        self._index_order = []
-
-        # This is used to detect if a variable name is duplicated in
-        # mapping-* keys:
-        var_defined = []
-        for key in section.keys():
-            # Do not handle any keys from the DEFAULT section
-            # since they are handled by Config(), not this class.
-            if key in config.get_default_keys():
-                continue
-
-            # Handle the definition of variables
-            if key[:8] == "mapping-":
-                loop_type = key[8:]
-                data = self.create_dict_from_list(section.getlist(key))
-                # Make sure the required keys exist:
-                for subkey in ["var", "start", "stop"]:
-                    if subkey not in data:
-                        raise ConfigurationError(
-                            f"mapping-'{loop_type}' does not contain key "
-                            f"'{subkey}' in file '{config.filename}'.")
-
-                var = data['var']
-                if var in var_defined:
-                    raise ConfigurationError(
-                        f"mapping-{loop_type} defines variable '{var}' again "
-                        f"in the 'nemo' section of the file "
-                        f"'{config.filename}'.")
-                var_defined.append(var)
-
-                # Update the mapping of variable to loop type
-                self._loop_type_mapping[var] = loop_type
-                # And the mapping of loop type to the remaining data
-                self._loop_type_data[loop_type] = data
-
-            elif key == "index-order":
-                self._index_order = section.getlist(key)
-
-            else:
-                raise ConfigurationError(
-                    f"Invalid key '{key}' found in the 'nemo' section of the "
-                    f"configuration file '{config.filename}'.")
-        # Consistency test: any value in index-order must have a
-        # corresponding key in valid_loop_types:
-        for loop_type in self._index_order:
-            if loop_type not in self._loop_type_data:
-                valid = str(list(self._loop_type_data.keys()))
-                raise ConfigurationError(
-                    f"Invalid loop type '{loop_type}' found in index-order in "
-                    f"'{config.filename}'.\nMust be one of {valid}.")
-
-    def get_loop_type_mapping(self):
-        '''
-        :returns: the mapping of variable names to loop type.
-        :rtype: Dictionary of strings.
-        '''
-        return self._loop_type_mapping
-
-    def get_loop_type_data(self):
-        '''
-        :returns: the mapping of a loop type (lon, ...) to a dictionary \
-            containing the corresponding variable name and start/stop values.\
-            Example: = {"lon": {"var": "ji", "start": "1", "stop": "jpi"}, \
--                       "lat": {"var": "jj", "start": "1", "stop": "jpj"} }
-
-        :rtype: dictionary with str keys, with each value being a \
-            dictionary mapping 'var', 'start', and 'stop' to str.
-        '''
-        return self._loop_type_data
-
-    def get_valid_loop_types(self):
-        '''
-        The list is sorted to have reproducible results for testing.
-        :returns: a sorted list of valid loop types.
-        :rtype: list of str.
-
-        '''
-        valid_types_list = list(self._loop_type_data)
-        valid_types_list.sort()
-        return valid_types_list
-
-    def get_index_order(self):
-        '''
-        :returns: the order in which loops should be created in \
-            NemoExplicitLoopTrans.
-        :rtype: list of str.
-        '''
-        return self._index_order
-
-    # ---------------------------------------------------------------------
-    def get_constants(self):
-        ''':returns: an object containing all constants for Nemo.
-        :rtype: :py:class:`psyclone.domain.nemo.NemoConstants`
-        '''
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.nemo import NemoConstants
-        return NemoConstants()
-
-
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
@@ -1427,5 +1299,4 @@ __all__ = ["APISpecificConfig",
            "Config",
            "ConfigurationError",
            "LFRicConfig",
-           "GOceanConfig",
-           "NemoConfig"]
+           "GOceanConfig"]

@@ -139,8 +139,15 @@ transformation script to perform finer-grained profiling.
    ```python
    loops = sched.walk(Loop)
    ```
-   Next, identify those loops that are over `levels` using the `loop_type`
-   property and then enclose each of them within a profiling region:
+   Next, identify those loops that are over vertical `levels`. These are
+   loops that use the 'jk' loop variable as required in the NEMO Code
+   Conventions. One way to easily select this loop, is to set the following
+   loop_type inference rule:
+   ```python
+    Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"}})
+   ```
+   With this, we can use the `loop_type` property and then enclose each of
+   them within a profiling region:
    ```python
    for loop in loops:
        if loop.loop_type == "levels":
@@ -151,7 +158,7 @@ transformation script to perform finer-grained profiling.
 
        12: Profile[]
            Schedule[]
-               0: Loop[type='levels', field_space='None', it_space='None']
+               0: Loop[variable='jk', loop_type='levels']
                    Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
                    BinaryOperation[operator:'SUB']
                        Reference[name:'jpk']

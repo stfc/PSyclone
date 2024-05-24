@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Perform py.test tests on the psygen.psyir.symbols.routinesymbol file '''
@@ -142,3 +143,27 @@ def test_routinesymbol_str():
     assert (str(routine_symbol) ==
             "eyore: RoutineSymbol<some_type: DataTypeSymbol, pure=True, "
             "elemental=False>")
+
+
+def test_routinesymbol_copy():
+    '''
+    Test the RoutineSymbol.copy() method.
+    '''
+    asym = RoutineSymbol("a", is_elemental=True, is_pure=True)
+    new_sym = asym.copy()
+    assert new_sym is not asym
+    assert new_sym.name == asym.name
+    assert new_sym.visibility == asym.visibility
+    assert new_sym.is_elemental
+    assert new_sym.is_pure
+
+    # Default is elemental and pure is None
+    sym2 = RoutineSymbol("a")
+    new_sym = sym2.copy()
+    assert new_sym is not sym2
+    assert new_sym.name == sym2.name
+    assert new_sym.visibility == sym2.visibility
+    assert new_sym.is_elemental == sym2.is_elemental
+    assert new_sym.is_elemental is None
+    assert new_sym.is_pure == sym2.is_pure
+    assert new_sym.is_pure is None
