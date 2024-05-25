@@ -70,7 +70,7 @@ dm_fd_lib:
 	${MAKE} -C ${INF_DIR} F90=${F90} dm_fd_lib
 
 ompt_psy.f90 ompt_alg.f90: shallow_alg.f90
-	${PSYCLONE} -nodm -s ./openmp_taskloop_trans.py -api gocean1.0 \
+	${PSYCLONE} -nodm -s ./openmp_taskloop_trans.py -api gocean \
 		-opsy ompt_psy.f90 -oalg ompt_alg.f90 shallow_alg.f90
 
 openmp_taskloop: ompt_psy.f90 ompt_alg.f90
@@ -97,7 +97,7 @@ openmp:
 
 
 mpi:
-	${PSYCLONE} -api gocean1.0 shallow_alg.f90
+	${PSYCLONE} -api gocean shallow_alg.f90
 
 loop_fuse:
 	$(ENV) ${PYTHON} ./runme_loop_fuse.py
@@ -112,4 +112,4 @@ openacc:
 # versions of OpenCL kernels called multiple times.
 opencl:
 	${PSYCLONE} -nodm -s ./opencl_transformation.py --kernel-renaming single \
-		-api gocean1.0 shallow_alg.f90
+		-api gocean shallow_alg.f90

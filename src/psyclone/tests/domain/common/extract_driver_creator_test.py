@@ -62,7 +62,7 @@ from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_base_path, get_invoke
 
 # API names
-GOCEAN_API = "gocean1.0"
+GOCEAN_API = "gocean"
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -376,7 +376,7 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
 
     # Monkey patch the grid property dictionary to remove the
     # go_grid_lat_u entry, triggering an earlier error:
-    api_config = Config.get().api_conf("gocean1.0")
+    api_config = Config.get().api_conf("gocean")
     grid_properties = api_config.grid_properties
     monkeypatch.delitem(grid_properties, "go_grid_lat_u")
 
@@ -543,7 +543,7 @@ def test_driver_node_verification():
     # exception, which would result in the driver being created
     # in the current directory.
 
-    api = "gocean1.0"
+    api = "gocean"
     _, info = parse(os.path.join(get_base_path(api), "driver_test.f90"),
                     api=api)
     psy = PSyFactory(api, distributed_memory=False).create(info)

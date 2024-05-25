@@ -73,7 +73,7 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> import os
-    >>> TEST_API = "gocean1.0"
+    >>> TEST_API = "gocean"
     >>> _, info = parse(os.path.join("tests", "test_files", "gocean1p0",
     ...                              "single_invoke.f90"),
     ...                 api=TEST_API)
@@ -201,7 +201,7 @@ class GOConstLoopBoundsTrans(Transformation):
 
         # Look-up the loop bounds using the first field object in the
         # list
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         xstop = api_config.grid_properties["go_grid_xstop"].fortran \
             .format(field)
         ystop = api_config.grid_properties["go_grid_ystop"].fortran \

@@ -124,7 +124,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
     >>> from pysclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -575,7 +575,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -687,7 +687,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         >>> from psyclone.parse.algorithm import parse
         >>> from psyclone.psyGen import PSyFactory
         >>> ast, invokeInfo = parse("dynamo.F90")
-        >>> psy = PSyFactory("dynamo0.3").create(invokeInfo)
+        >>> psy = PSyFactory("lfric").create(invokeInfo)
         >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> # Uncomment the following line to see a text view of the schedule
         >>> # print(schedule.view())
@@ -1048,7 +1048,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>> import os
     >>> import pytest
     >>>
-    >>> TEST_API = "dynamo0.3"
+    >>> TEST_API = "lfric"
     >>> _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
     >>>              "tests", "test_files", "dynamo0p3",
     >>>              "4.6_multikernel_invokes.f90"),
@@ -1088,7 +1088,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         return "Split a Dynamo 0.3 loop over cells into colours"
 
     def apply(self, node, options=None):
-        '''Performs Dynamo0.3-specific error checking and then uses the parent
+        '''Performs LFRic-specific error checking and then uses the parent
         class to convert the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
@@ -1288,7 +1288,7 @@ class OMPSingleTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1420,7 +1420,7 @@ class OMPMasterTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1473,7 +1473,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1669,7 +1669,7 @@ class MoveTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> ast,invokeInfo=parse("dynamo.F90")
-    >>> psy=PSyFactory("dynamo0.3").create(invokeInfo)
+    >>> psy=PSyFactory("lfric").create(invokeInfo)
     >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
@@ -1994,7 +1994,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "dynamo0.3"
+    >>> api = "lfric"
     >>> ast, invokeInfo = parse("file.f90", api=api)
     >>> psy=PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
@@ -2080,7 +2080,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "dynamo0.3"
+    >>> api = "lfric"
     >>> ast, invokeInfo = parse("file.f90", api=api)
     >>> psy=PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
@@ -2393,7 +2393,7 @@ class ACCEnterDataTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -2512,7 +2512,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -2691,7 +2691,7 @@ class ACCKernelsTrans(RegionTrans):
         if not sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
-                "nemo and dynamo0.3 front-ends")
+                "Nemo and LFRic InvokeSchedules")
         super().validate(node_list, options)
 
         # Check that we have at least one loop or array range within

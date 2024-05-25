@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso, STFC Daresbury Laboratory
+# Authors: S. Siso, STFC Daresbury Lab
 
-include ../../common.mk
+'''Provides fixtures for the adjoint tests.'''
 
-GENERATED_FILES += 
-ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
+import pytest
+from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicConstants
 
-.PHONY: transform
 
-transform:
-	${PSYCLONE} -nodm -s ./backends_transform.py -api gocean alg.f90 \
-		-oalg /dev/null -opsy /dev/null
+@pytest.fixture(name="type_map", scope="module")
+def lfric_consts_fixture():
+    '''pytest fixture that returns the DATA_TYPE_MAP from LFRicConstants.'''
+    return LFRicConstants().DATA_TYPE_MAP
+
+
+@pytest.fixture(scope="function", autouse=True)
+def fixture_lfric_config():
+    '''All tests here should use the lfric API config.'''
+    Config.get().api = "lfric"

@@ -25,7 +25,7 @@ transformation script (`openmp_taskloop_trans.py`). This can be run
 using the PSyclone command:
 
 ```sh
-psyclone -nodm -s ./openmp_taskloop_trans.py -api gocean1.0 shallow_alg.f90
+psyclone -nodm -s ./openmp_taskloop_trans.py -api gocean shallow_alg.f90
 ```
 
 ## OpenCL PSyclone script
@@ -34,7 +34,7 @@ The OpenCL transformation is provided with a PSyclone transformation script
 (`opencl_transformation.py`). This can be run using the PSyclone command:
 
 ```sh
-psyclone -s ./opencl_transformation.py -api gocean1.0 shallow_alg.f90
+psyclone -s ./opencl_transformation.py -api gocean shallow_alg.f90
 ```
 
 
