@@ -85,6 +85,14 @@ def test_name():
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = y(idx)\n"),
 
+         # Multi-dimensional array LHS and RHS
+         # ("integer, dimension(:,:,:) :: x, y\n"
+         #  "x(:,:,:) = y(:,:,:)\n",
+         #  "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+         #  "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
+         #  "      do idx_2 = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
+         #  "        x(idx, idx_1, idx_2) = y(idx, idx_1, idx_2)\n"),
+
          # Multiple array RHS and LHS
          ("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = y(:) + z(:) * t(:)\n",
@@ -94,12 +102,6 @@ def test_name():
          # Elemental intrinsic
 
          # Non-Elemental intrinsic
-
-         # 2D RHS and LHS
-         ("integer, dimension(:,:) :: x, y\n"
-          "x(:,:) = y(:,:)\n",
-          "  do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
-          "    x(:,idx) = y(:,idx)\n"),
 
          # Mix different array ranks with fixed indices
          ("integer, dimension(:) :: x\n"
@@ -120,10 +122,17 @@ def test_name():
           "    x(:,idx) = y(:,n,idx)\n"),
 
          # Same rank but different range locations
-         ("integer, dimension(:,:,:) :: x, y\n"
-          "x(:,n,:,n,:) = y(n,:,:,:,n) + 1.0\n",
-          "  do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
-          "    x(:,idx) = y(:,n,idx)\n"),
+         # ("integer, parameter :: jpi=2, jpj=4, jpk=6, jpt=9, ndim=10\n"
+         #  "real, dimension(jpi,jpj,jpk,jpt,ndim) :: umask, vmask\n"
+         #  "umask(:,jpj,:,ndim,:) = vmask(jpi,:,:,:,ndim) + 1.0\n",
+         #  "  do idx = LBOUND(umask, dim=5), UBOUND(umask, dim=5), 1\n"
+         #  "    do idx_1 = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
+         #  "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
+         #  "        umask(idx_2,jpj,idx_1,ndim,idx) = vmask(jpi,idx_2,idx_1,"
+         #  "idx,ndim) + 1.0\n"
+         #  "      enddo\n"
+         #  "    enddo\n"
+         #  "  enddo"),
 
          # Explicit slice values
          ("integer, dimension(:) :: x\n"
@@ -139,7 +148,7 @@ def test_name():
           "  do idx = 2, 8, 4\n"
           "    x(idx) = 0\n"),
 
-         # Specific dimension values
+         # Explicitly declared dimension values
          ("integer, dimension(2:4) :: x\n"
           "x(:) = 0",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
@@ -169,7 +178,7 @@ def test_apply(code, expected, tmpdir, fortran_reader, fortran_writer):
     trans = ArrayRange2LoopTrans()
     trans.apply(assignment)
     result = fortran_writer(psyir)
-    assert expected in result, "\n" + code + "=>\n" + result
+    assert expected in result, f"\nExpected:\n{expected}\nBut got:\n{result}"
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -179,14 +188,14 @@ def test_apply_calls_validate():
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
     assert ("Error in ArrayRange2LoopTrans transformation. The supplied node "
-            "argument should be a PSyIR Assignment, but found 'NoneType'."
+            "should be a PSyIR Assignment, but found 'NoneType'."
             in str(info.value))
 
 
-def test_validate_no_array_lhs():
+def test_validate_no_assignment_with_array_range_on_lhs():
     '''Test that the validate method in the ArrayRange2LoopTrans class
     raises the expected exceptions when the provided node is not an
-    array Assignment (it does not log an error message).
+    array Assignment with a Range in the LHS expression.
 
     '''
     trans = ArrayRange2LoopTrans()
@@ -194,15 +203,16 @@ def test_validate_no_array_lhs():
         trans.validate(Node())
     assert (
         "Error in ArrayRange2LoopTrans transformation. The supplied node "
-        "argument should be a PSyIR Assignment, but found 'Node'."
+        "should be a PSyIR Assignment, but found 'Node'."
         in str(info.value))
 
     with pytest.raises(TransformationError) as info:
         trans.validate(Assignment.create(DataNode(), DataNode()))
     assert (
-        "Error in ArrayRange2LoopTrans transformation. The lhs of the "
-        "supplied Assignment node should be a PSyIR ArrayReference, but found "
-        "'DataNode'." in str(info.value))
+        "Error in ArrayRange2LoopTrans transformation. The LHS of the "
+        "supplied Assignment node should be a Reference that contains an "
+        "array accessor somewhere in the expression, but found "
+         in str(info.value))
 
     # Array Reference but with acessor that resolve to a single scalar
     array_symbol = DataSymbol("x", ArrayType(INTEGER_TYPE, [10, 10]))

@@ -48,9 +48,12 @@ transformation will convert unknown or unsupported types to loops.
 
 '''
 
+from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import ArrayReference, Assignment, Call, \
-    IntrinsicCall, Loop, Literal, Range, Reference
+from psyclone.psyir.nodes import (
+    ArrayReference, Assignment, Call, IntrinsicCall, Loop, Literal, Range,
+    Reference, CodeBlock)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
         UnresolvedType, UnsupportedType, ArrayType, NoType
 from psyclone.psyir.transformations.transformation_error \
@@ -104,8 +107,8 @@ class ArrayRange2LoopTrans(Transformation):
 
 
 
-    def _range_to_loop(node, range_idx, symtab):
-        ''
+    # def _range_to_loop(node, range_idx, symtab):
+    #     ''
         parent = node.parent
         loop_variable = symbol_table.new_symbol("idx", symbol_type=DataSymbol,
                                                 datatype=INTEGER_TYPE)
@@ -142,6 +145,9 @@ class ArrayRange2LoopTrans(Transformation):
         '''
         return type(self).__name__
 
+    def _validate_range_expansion(assignment, range_to_expand):
+        pass
+    
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
         ArrayRange2LoopTrans transformation to the supplied PSyIR Node.
@@ -175,6 +181,9 @@ class ArrayRange2LoopTrans(Transformation):
                                      not set.
 
         '''
+        if not options:
+            options = {}
+
         if not isinstance(node, Assignment):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
@@ -183,40 +192,75 @@ class ArrayRange2LoopTrans(Transformation):
 
         array_accessors = node.lhs.walk(ArrayMixin)
         if not (isinstance(node.lhs, Reference) and array_accessors):
-            raise TransformationError(
-                f"Error in {self.name} transformation. The LHS of the supplied"
-                f" assignment node should be a Reference that contains an "
-                f"array access somewhere in the expression, "
-                f"but found '{node.lhs}'.")
-
+            raise TransformationError(LazyString(
+                lambda: f"Error in {self.name} transformation. The LHS of the"
+                f" supplied Assignment node should be a Reference that "
+                f"contains an array accessor somewhere in the expression, "
+                f"but found '{node.lhs.debug_string()}'."))
 
         if not [dim for dim in node.lhs.children if isinstance(dim, Range)]:
-            raise TransformationError(
-                f"Error in {self.name} transformation. The lhs of the supplied"
-                f" Assignment node should be a PSyIR ArrayReference with at "
-                f"least one of its dimensions being a Range, but none were "
-                f"found in '{node.debug_string()}'.")
+            raise TransformationError(LazyString(
+                lambda: f"Error in {self.name} transformation. The lhs of the "
+                f"supplied Assignment node should be a PSyIR ArrayReference "
+                f"with at least one of its dimensions being a Range, but none "
+                f"were found in '{node.debug_string()}'."))
 
-        if options and options.get("verbose", False):
-            # Add error comment
-            pass
+        # Do not allow to transform expressions with CodeBlocks
+        if node.walk(CodeBlock):
+            raise TransformationError(LazyString(
+                lambda: f"Error in NemoArrayRange2LoopTrans transformation. "
+                f"This transformation does not support array assignments that"
+                f" contain a CodeBlock anywhere in the expression, but found:"
+                f"\n{node.debug_string()}"))
 
-        # TODO #2004: Note that the NEMOArrayRange2Loop transforamtion has
-        # a different implementation that accepts many more statemetns (e.g.
-        # elemental function calls) but lacks in the use of symbolics. Both
-        # implementation should be merged (as well as their tests) to one
-        # combining the advantages of both.
+        # Add errors below this point will optionally log the resason, which
+        # at the moment means adding a comment in the output code
+        verbose = options.get("verbose", False)
 
-        # Currently we don't accept calls (with the exception of L/UBOUND)
+        # We don't support nested range expressions
+        for range_expr in node.walk(Range):
+            ancestor_array = range_expr.parent.ancestor(ArrayMixin)
+            if ancestor_array and any(index.walk(Range) for index
+                                      in ancestor_array.indices):
+                message = (f"{self.name} does not support array assignments "
+                           f"that contain nested Range expressions")
+                if verbose:
+                    node.preceding_comment.append(message)
+                raise TransformationError(LazyString(
+                    f"{message}, but found:\n{node.debug_string()}"))
+
+        # If we allow string arrays then we can skip the check.
+        if not options.get("allow_string", False):
+            for child in node.walk((Literal, Reference)):
+                try:
+                    if (child.datatype.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER):
+                        message = (f"{self.name} does not expand ranges over"
+                                   f" on character arrays by default (use the"
+                                   f"'allow_string' option to expand them).")
+                        if verbose:
+                            node.preceding_comment.append(message)
+                        raise TransformationError(LazyString(
+                            f"{message}, but found:"
+                            f"\n{node.debug_string()}"))
+                except (NotImplementedError, AttributeError):
+                    # We cannot always get the datatype, we ignore this for now
+                    pass
+
+        # We don't accept calls that are not guaranteed to be elemental
         for call in node.rhs.walk(Call):
-            if isinstance(call, IntrinsicCall) and call.intrinsic in \
-                (IntrinsicCall.Intrinsic.LBOUND,
-                 IntrinsicCall.Intrinsic.UBOUND):
-                continue
-            raise TransformationError(
-                f"Error in {self.name} transformation. The rhs of the supplied"
-                f" Assignment contains a non-elemental call to "
-                f"'{call.debug_string()}'.")
+            if isinstance(call, IntrinsicCall):
+                if call.intrinsic.is_inquiry:
+                    continue  # Inquiry intrinsic calls are fine
+            if not call.is_elemental:
+                message = (f"{self.name} does not accept calls which are not"
+                           f"guaranteed to be elemental, but found:"
+                           f"{call.name}")
+                if verbose:
+                    node.preceding_comment.append(message)
+                # pylint: disable=cell-var-from-loop
+                raise TransformationError(LazyString(
+                    lambda: f"{message} in:\n{node.debug_string()}."))
 
         # Find the outermost range for the array on the lhs of the
         # assignment and save its index.
@@ -248,34 +292,6 @@ class ArrayRange2LoopTrans(Transformation):
                             f"different or can't be determined in the "
                             f"assignment '{node}'.")
                     break
-
-        if not options:
-            options = {}
-        allow_string_array = options.get("allow_string", False)
-        # If we allow string arrays then we can skip the check.
-        if not allow_string_array:
-            # ArrayMixin datatype lookup can fail if the indices contain a
-            # Call or Intrinsic Call. We catch this exception and continue
-            # for now - TODO #1799
-            for child in node.walk((Literal, Reference)):
-                try:
-                    # Skip unresolved types
-                    if (isinstance(child.datatype,
-                                   (UnresolvedType, UnsupportedType, NoType))
-                        or (isinstance(child.datatype, ArrayType) and
-                            isinstance(child.datatype.datatype,
-                                       (UnresolvedType, UnsupportedType)))):
-                        continue
-                    if (child.datatype.intrinsic ==
-                            ScalarType.Intrinsic.CHARACTER):
-                        raise TransformationError(
-                            "The ArrayRange2LoopTrans transformation doesn't "
-                            "allow character arrays by default. This can be "
-                            "enabled by passing the allow_string option to "
-                            "the transformation."
-                        )
-                except NotImplementedError:
-                    pass
 
 
 __all__ = [
