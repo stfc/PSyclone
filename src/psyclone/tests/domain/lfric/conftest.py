@@ -44,10 +44,8 @@ from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 
 @pytest.fixture(scope="module", autouse=True)
 def api_setup_fixture():
-    '''Make sure that all tests here use LFRic (Dynamo0.3) as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use LFRic as API.'''
+    Config.get().api = "lfric"
 
 
 @pytest.fixture(name="lfrickern", scope="module")
@@ -88,7 +86,7 @@ end module testkern_field_mod
     # Once we switch over to using fparser2 (#1631) then this fixture may
     # need to ensure that fparser2 is initialised correctly.
     kernel_metadata = get_kernel_parse_tree(mdata_code)
-    ktype = KernelTypeFactory(api="dynamo0.3").create(
+    ktype = KernelTypeFactory(api="lfric").create(
         kernel_metadata, name="testkern_field_type")
     kern = LFRicKern()
     kern.load_meta(ktype)
@@ -131,7 +129,7 @@ end module testkern_field_mod
     # Once we switch over to using fparser2 (#1631) then this fixture may
     # need to ensure that fparser2 is initialised correctly.
     kernel_metadata = get_kernel_parse_tree(mdata_code)
-    ktype = KernelTypeFactory(api="dynamo0.3").create(
+    ktype = KernelTypeFactory(api="lfric").create(
         kernel_metadata, name="testkern_field_type")
     kern = LFRicKern()
     kern.load_meta(ktype)

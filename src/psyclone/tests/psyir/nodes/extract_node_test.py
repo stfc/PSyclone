@@ -67,7 +67,7 @@ def test_extract_node_gen_code():
 
     '''
     _, invoke = get_invoke("1.0.1_single_named_invoke.f90",
-                           "dynamo0.3", idx=0, dist_mem=False)
+                           "lfric", idx=0, dist_mem=False)
     loop = invoke.schedule.children[0]
     loop.detach()
     en = ExtractNode()

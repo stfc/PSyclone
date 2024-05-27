@@ -195,9 +195,9 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
 def test_omptask_inline_kernels():
     '''Test the _inline_kernels functionality up to inlining of Call nodes.'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     taskt = OMPTaskTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     # Cover the _inline_kernels code
@@ -209,11 +209,11 @@ def test_omptask_inline_kernels():
 def test_omptask_apply_gocean():
     ''' Test the apply method of the OMPTaskTrans. '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     taskt = OMPTaskTrans()
     master = OMPSingleTrans()
     parallel = OMPParallelTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
