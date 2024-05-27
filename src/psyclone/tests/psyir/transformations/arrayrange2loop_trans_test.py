@@ -40,12 +40,13 @@ transformation.'''
 
 import pytest
 
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Range, ArrayReference, Assignment, Node, DataNode, KernelSchedule, \
-    IntrinsicCall
+from psyclone.psyir.nodes import (
+    Literal, BinaryOperation, Reference, Range, ArrayReference, Assignment,
+    Node, DataNode, KernelSchedule, IntrinsicCall, CodeBlock)
 from psyclone.psyGen import Transformation
-from psyclone.psyir.symbols import (ArgumentInterface, ArrayType, DataSymbol,
-                                    INTEGER_TYPE, REAL_TYPE, SymbolTable)
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, DataSymbol, INTEGER_TYPE, REAL_TYPE,
+    SymbolTable, UnresolvedType)
 from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
     TransformationError
 from psyclone.errors import InternalError
@@ -86,14 +87,14 @@ def test_name():
           "    x(idx) = y(idx)\n"),
 
          # Multi-dimensional array LHS and RHS
-         # ("integer, dimension(:,:,:) :: x, y\n"
-         #  "x(:,:,:) = y(:,:,:)\n",
-         #  "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
-         #  "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
-         #  "      do idx_2 = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
-         #  "        x(idx, idx_1, idx_2) = y(idx, idx_1, idx_2)\n"),
+         ("integer, dimension(:,:,:) :: x, y\n"
+          "x(:,:,:) = y(:,:,:)\n",
+          "  do idx = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
+          "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "        x(idx_2,idx_1,idx) = y(idx_2,idx_1,idx)\n"),
 
-         # Multiple array RHS and LHS
+         # Multiple arrays on RHS
          ("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = y(:) + z(:) * t(:)\n",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
@@ -119,20 +120,21 @@ def test_name():
          ("integer, dimension(:,:) :: x, y\n"
           "x(:,:)=y(:,n,:)\n",
           "  do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
-          "    x(:,idx) = y(:,n,idx)\n"),
+          "    do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "      x(idx_1,idx) = y(idx_1,n,idx)\n"),
 
          # Same rank but different range locations
-         # ("integer, parameter :: jpi=2, jpj=4, jpk=6, jpt=9, ndim=10\n"
-         #  "real, dimension(jpi,jpj,jpk,jpt,ndim) :: umask, vmask\n"
-         #  "umask(:,jpj,:,ndim,:) = vmask(jpi,:,:,:,ndim) + 1.0\n",
-         #  "  do idx = LBOUND(umask, dim=5), UBOUND(umask, dim=5), 1\n"
-         #  "    do idx_1 = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
-         #  "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
-         #  "        umask(idx_2,jpj,idx_1,ndim,idx) = vmask(jpi,idx_2,idx_1,"
-         #  "idx,ndim) + 1.0\n"
-         #  "      enddo\n"
-         #  "    enddo\n"
-         #  "  enddo"),
+         ("integer, parameter :: jpi=2, jpj=4, jpk=6, jpt=9, ndim=10\n"
+          "real, dimension(jpi,jpj,jpk,jpt,ndim) :: umask, vmask\n"
+          "umask(:,jpj,:,ndim,:) = vmask(jpi,:,:,:,ndim) + 1.0\n",
+          "  do idx = LBOUND(umask, dim=5), UBOUND(umask, dim=5), 1\n"
+          "    do idx_1 = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
+          "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
+          "        umask(idx_2,jpj,idx_1,ndim,idx) = vmask(jpi,idx_2,idx_1,"
+          "idx,ndim) + 1.0\n"
+          "      enddo\n"
+          "    enddo\n"
+          "  enddo"),
 
          # Explicit slice values
          ("integer, dimension(:) :: x\n"
@@ -148,12 +150,63 @@ def test_name():
           "  do idx = 2, 8, 4\n"
           "    x(idx) = 0\n"),
 
-         # Explicitly declared dimension values
+         # Explicitly declared dimension values (L/UBOUND are correct)
          ("integer, dimension(2:4) :: x\n"
           "x(:) = 0",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = 0\n"),
 
+         # SoA in LHS
+         ("mystruct%field2%field(:,:,:) = 0.0d0",
+          "  do idx = LBOUND(mystruct%field2%field, dim=3), "
+          "UBOUND(mystruct%field2%field, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%field2%field, dim=2), "
+          "UBOUND(mystruct%field2%field, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%field2%field, dim=1), "
+          "UBOUND(mystruct%field2%field, dim=1), 1\n"
+          "        mystruct%field2%field(idx_2,idx_1,idx) = 0.0d0\n"),
+
+         # Array in LHS and SoA in RHS
+         ("umask(:,:,:) = struct%field(:,:,:) + struct%field2%field(:,:,:)",
+          "  do idx = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
+          "    do idx_1 = LBOUND(umask, dim=2), UBOUND(umask, dim=2), 1\n"
+          "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
+          "        umask(idx_2,idx_1,idx) = struct%field(idx_2,idx_1,idx) "
+          "+ struct%field2%field(idx_2,idx_1,idx)\n"),
+
+         # SoAoS on LHS
+         ("mystruct%field3(:,:,:)%field4 = 0.0d0",
+          "  do idx = LBOUND(mystruct%field3, dim=3), "
+          "UBOUND(mystruct%field3, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%field3, dim=2), "
+          "UBOUND(mystruct%field3, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%field3, dim=1), "
+          "UBOUND(mystruct%field3, dim=1), 1\n"
+          "        mystruct%field3(idx_2,idx_1,idx)%field4 = 0.0d0\n"),
+
+         # SoAoS in the LHS and SoA in the RHS
+         ("mystruct%field3(:,:,:)%field4 = mystruct%field2%field(:,:,:)",
+          "  do idx = LBOUND(mystruct%field3, dim=3), "
+          "UBOUND(mystruct%field3, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%field3, dim=2), "
+          "UBOUND(mystruct%field3, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%field3, dim=1), "
+          "UBOUND(mystruct%field3, dim=1), 1\n"
+          "        mystruct%field3(idx_2,idx_1,idx)%field4 = "
+          "mystruct%field2%field(idx_2,idx_1,idx)\n"),
+
+         # 2 array accessors in each expression but only one has ranges
+         ("mystruct%field2(4, 3)%field(:,:,:) = "
+          "mystruct%field2(5, 8)%field(:,:,:)",
+          "  do idx = LBOUND(mystruct%field2(4,3)%field, dim=3), "
+          "UBOUND(mystruct%field2(4,3)%field, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%field2(4,3)%field, dim=2), "
+          "UBOUND(mystruct%field2(4,3)%field, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%field2(4,3)%field, dim=1), "
+          "UBOUND(mystruct%field2(4,3)%field, dim=1), 1\n"
+          "        mystruct%field2(4,3)%field(idx_2,idx_1,idx) = "
+          "mystruct%field2(5,8)%field(idx_2,idx_1,idx)\n"),
+         
          # Symbolic equalities
 
          # Combine multiple features
@@ -170,6 +223,7 @@ def test_apply(code, expected, tmpdir, fortran_reader, fortran_writer):
     '''
     psyir = fortran_reader.psyir_from_source(f'''
         subroutine test()
+          use other_mod
           integer :: n
           {code}
         end subroutine test
@@ -221,18 +275,18 @@ def test_validate_no_assignment_with_array_range_on_lhs():
     with pytest.raises(TransformationError) as info:
         trans.validate(Assignment.create(array_assignment, DataNode()))
     assert (
-        "Error in ArrayRange2LoopTrans transformation. The lhs of the "
-        "supplied Assignment node should be a PSyIR ArrayReference with at "
-        "least one of its dimensions being a Range, but none were found in "
-        "'x(1,1) =" in str(info.value))
+        "Error in ArrayRange2LoopTrans transformation. The LHS of the supplied"
+        " Assignment node should contain an array accessor with at least one "
+        "of its dimensions being a Range, but none were found in 'x(1,1) ="
+        in str(info.value))
 
 
 @pytest.mark.parametrize(
         "code, expected", [
          ("integer, dimension(:,:) :: x, y, z\n"
           "x(:) = matmul(y, z)",
-          "The rhs of the supplied Assignment contains a non-elemental call "
-          "to 'MATMUL(y, z)'.")])
+          "ArrayRange2LoopTrans does not accept calls which are not "
+          "guaranteed to be elemental, but found:MATMUL")])
 def test_validate_with_log(code, expected, fortran_reader):
     '''Check that the validate method returns an exception if the rhs of
     the assignment contains an operator that only returns an array
@@ -251,8 +305,7 @@ def test_validate_with_log(code, expected, fortran_reader):
     trans = ArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment)
-    assert ("Error in ArrayRange2LoopTrans transformation. " + expected
-            in str(err.value))
+    assert expected in str(err.value)
 
 
 def test_character_validation(fortran_reader):
@@ -274,9 +327,8 @@ def test_character_validation(fortran_reader):
     with pytest.raises(TransformationError) as info:
         trans.validate(assign)
     assert (
-        "The ArrayRange2LoopTrans transformation doesn't allow "
-        "character arrays by default. This can be enabled by "
-        "passing the allow_string option to the transformation."
+        "ArrayRange2LoopTrans does not expand ranges on character arrays "
+        "by default (use the'allow_string' option to expand them), but found"
         in str(info.value))
 
     trans.validate(assign, options={"allow_string": True})
@@ -295,9 +347,8 @@ def test_character_validation(fortran_reader):
     with pytest.raises(TransformationError) as info:
         trans.validate(assign)
     assert (
-        "The ArrayRange2LoopTrans transformation doesn't allow "
-        "character arrays by default. This can be enabled by "
-        "passing the allow_string option to the transformation."
+        "ArrayRange2LoopTrans does not expand ranges on character arrays "
+        "by default (use the'allow_string' option to expand them), but found"
         in str(info.value))
 
     # Check it also works for RHS literals
@@ -312,9 +363,8 @@ def test_character_validation(fortran_reader):
     with pytest.raises(TransformationError) as info:
         trans.validate(assign)
     assert (
-        "The ArrayRange2LoopTrans transformation doesn't allow "
-        "character arrays by default. This can be enabled by "
-        "passing the allow_string option to the transformation."
+        "ArrayRange2LoopTrans does not expand ranges on character arrays "
+        "by default (use the'allow_string' option to expand them), but found"
         in str(info.value))
 
     # Check we accept when we find character(LEN=x) syntax as this is an
@@ -332,209 +382,26 @@ def test_character_validation(fortran_reader):
     trans.validate(assign)
 
 
-def test_apply_different_dims(tmpdir):
-    '''Check that the apply method adds loop iterators appropriately when
-    the range dimensions differ in different arrays.'''
-    _, invoke_info = get_invoke("implicit_different_dims.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    assignment = schedule[0]
-    array_ref = assignment.lhs
-    trans = ArrayRange2LoopTrans()
-    for index in [4, 2, 0]:
-        range_node = array_ref.children[index]
-        trans.apply(range_node)
-    result = fortran_writer(schedule)
-    assert (
-        "  do idx = LBOUND(umask, dim=5), UBOUND(umask, dim=5), 1\n"
-        "    do idx_1 = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
-        "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
-        "        umask(idx_2,jpj,idx_1,ndim,idx) = vmask(jpi,idx_2,idx_1,idx,"
-        "ndim) + 1.0\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo" in result)
-    assert Compile(tmpdir).string_compiles(result)
-
-
-def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
-    '''Check that the apply method works when the assignment expression
-    contains structures of arrays.
-
-    '''
-    trans = ArrayRange2LoopTrans()
-
-    # Case 1: SoA in the RHS
-    psyir = fortran_reader.psyir_from_source('''
-    subroutine test
-        use my_variables
-        umask(:,:,:) = mystruct%field(:,:,:) + mystruct%field2%field(:,:,:)
-    end subroutine test
-    ''')
-    array_ref = psyir.walk(Assignment)[0].lhs
-    trans.apply(array_ref.children[2])
-    trans.apply(array_ref.children[1])
-    trans.apply(array_ref.children[0])
-    result = fortran_writer(psyir)
-    assert (
-        "  do idx = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
-        "    do idx_1 = LBOUND(umask, dim=2), UBOUND(umask, dim=2), 1\n"
-        "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
-        "        umask(idx_2,idx_1,idx) = mystruct%field(idx_2,idx_1,idx) "
-        "+ mystruct%field2%field(idx_2,idx_1,idx)\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n" in result)
-
-    # Case 2: SoA in the LHS
-    psyir = fortran_reader.psyir_from_source('''
-    subroutine test
-        use my_variables
-        mystruct%field2%field(:,:,:) = 0.0d0
-    end subroutine test
-    ''')
-    array_ref = psyir.walk(Assignment)[0].lhs
-    trans.apply(array_ref.member.member.children[2])
-    trans.apply(array_ref.member.member.children[1])
-    trans.apply(array_ref.member.member.children[0])
-    result = fortran_writer(psyir)
-    assert (
-        "  do idx = LBOUND(mystruct%field2%field, dim=3), "
-        "UBOUND(mystruct%field2%field, dim=3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field2%field, dim=2), "
-        "UBOUND(mystruct%field2%field, dim=2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field2%field, dim=1), "
-        "UBOUND(mystruct%field2%field, dim=1), 1\n"
-        "        mystruct%field2%field(idx_2,idx_1,idx) = 0.0d0\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n" in result)
-
-    # Case 3: SoAoS in the LHS
-    psyir = fortran_reader.psyir_from_source('''
-    subroutine test
-        use my_variables
-        mystruct%field3(:,:,:)%field4 = 0.0d0
-    end subroutine test
-    ''')
-    array_ref = psyir.walk(Assignment)[0].lhs
-    trans.apply(array_ref.member.children[3])
-    trans.apply(array_ref.member.children[2])
-    trans.apply(array_ref.member.children[1])
-    result = fortran_writer(psyir)
-    assert (
-        "  do idx = LBOUND(mystruct%field3, dim=3), "
-        "UBOUND(mystruct%field3, dim=3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field3, dim=2), "
-        "UBOUND(mystruct%field3, dim=2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field3, dim=1), "
-        "UBOUND(mystruct%field3, dim=1), 1\n"
-        "        mystruct%field3(idx_2,idx_1,idx)%field4 = 0.0d0\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n" in result)
-
-    # Case 4: SoAoS in the LHS and SoA in the RHS
-    psyir = fortran_reader.psyir_from_source('''
-    subroutine test
-        use my_variables
-        mystruct%field3(:,:,:)%field4 = mystruct%field2%field(:,:,:)
-    end subroutine test
-    ''')
-    array_ref = psyir.walk(Assignment)[0].lhs
-    trans.apply(array_ref.member.children[3])
-    trans.apply(array_ref.member.children[2])
-    trans.apply(array_ref.member.children[1])
-    result = fortran_writer(psyir)
-    assert (
-        "  do idx = LBOUND(mystruct%field3, dim=3), "
-        "UBOUND(mystruct%field3, dim=3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field3, dim=2), "
-        "UBOUND(mystruct%field3, dim=2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field3, dim=1), "
-        "UBOUND(mystruct%field3, dim=1), 1\n"
-        "        mystruct%field3(idx_2,idx_1,idx)%field4 = "
-        "mystruct%field2%field(idx_2,idx_1,idx)\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n" in result)
-
-
-def test_apply_structure_of_arrays_multiple_arrays(fortran_reader,
-                                                   fortran_writer):
-    '''Check that the apply method works when the assignment expression
-    contains structures of arrays with multiple array accessors.
-
-    '''
-    trans = ArrayRange2LoopTrans()
-
-    # Case 1: 2 array accessors in LHS but only one has ranges
-    psyir = fortran_reader.psyir_from_source('''
-    subroutine test
-        use my_variables
-        mystruct%field2(4, 3)%field(:,:,:) = mystruct%field2(5, 8)%field(:,:,:)
-    end subroutine test
-    ''')
-    array_ref = psyir.walk(Assignment)[0].lhs
-    trans.apply(array_ref.member.member.children[2])
-    trans.apply(array_ref.member.member.children[1])
-    trans.apply(array_ref.member.member.children[0])
-    result = fortran_writer(psyir)
-    assert (
-        "  do idx = LBOUND(mystruct%field2(4,3)%field, dim=3), "
-        "UBOUND(mystruct%field2(4,3)%field, dim=3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field2(4,3)%field, dim=2), "
-        "UBOUND(mystruct%field2(4,3)%field, dim=2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field2(4,3)%field, dim=1), "
-        "UBOUND(mystruct%field2(4,3)%field, dim=1), 1\n"
-        "        mystruct%field2(4,3)%field(idx_2,idx_1,idx) = "
-        "mystruct%field2(5,8)%field(idx_2,idx_1,idx)\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n" in result)
-
-
-def test_transform_apply_fixed():
-    '''Check that the PSyIR is transformed as expected for a lat,lon loop
-    when the lhs of the loop has known fixed bounds with the same
-    values for each index. There used to be a bug where the first
-    index was picked up in error instead of the second in the
-    arrayrange2loop validate method but this should now be fixed.
-
-    '''
-    _, invoke_info = get_invoke("fixed_lhs.f90", api=API, idx=0)
-    schedule = invoke_info.schedule
-    assignment = schedule[0]
-    range_node = assignment.lhs.children[1]
-    trans = ArrayRange2LoopTrans()
-    trans.apply(range_node)
-    result = fortran_writer(schedule)
-    print(result)
-    expected = (
-        "  do idx = 6, 8, 1\n"
-        "    sshn(2:4,idx) = sshn(2:4,idx) + ssh_ref * tmask(2:4,idx)\n"
-        "  enddo\n")
-    assert expected in result
-
-
 def test_validate_unsupported_structure_of_arrays(fortran_reader):
-    '''Check that nested structure_of_arrays are not supported. '''
+    ''' Check that nested structure_of_arrays are not supported. '''
     trans = ArrayRange2LoopTrans()
 
     # Case 1: 2 array accessors in LHS and both have ranges
+    # This is invalid Fortran but there are no restrictions in the PSyIR.
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
         use my_variables
         mystruct%field2(4)%field(:,:,:) = 0
     end subroutine test
     ''')
-    array_ref = psyir.walk(Assignment)[0].lhs
-    array_ref.member.indices[0].replace_with(Range.create(
+    assignment = psyir.walk(Assignment)[0]
+    assignment.lhs.member.indices[0].replace_with(Range.create(
         Literal("1", INTEGER_TYPE), Literal("10", INTEGER_TYPE)))
     with pytest.raises(TransformationError) as info:
-        trans.apply(array_ref.member.member.children[2])
-    assert ("Error in ArrayRange2LoopTrans transformation. This "
-            "transformation does not support array assignments that contain "
-            "nested Range structures, but found:\n" in str(info.value))
+        trans.apply(assignment)
+    assert ("ArrayRange2LoopTrans does not support array assignments that "
+            "contain nested Range structures, but found"
+            in str(info.value))
 
     # Case 2: Nested array in another array
     psyir = fortran_reader.psyir_from_source('''
@@ -543,12 +410,12 @@ def test_validate_unsupported_structure_of_arrays(fortran_reader):
         mystruct%field5(indices(:)) = 0.0d0
     end subroutine test
     ''')
-    array_ref = psyir.walk(Assignment)[0].lhs
+    assignment = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as info:
-        trans.apply(array_ref.member.indices[0].indices[0])
-    assert ("Error in ArrayRange2LoopTrans transformation. This "
-            "transformation does not support array assignments that contain "
-            "nested Range structures, but found:\n" in str(info.value))
+        trans.apply(assignment)
+    assert ("ArrayRange2LoopTrans does not support array assignments that "
+            "contain nested Range structures, but found"
+            in str(info.value))
 
     # Case 3: Nested array in another array which also have Ranges
     psyir = fortran_reader.psyir_from_source('''
@@ -558,23 +425,26 @@ def test_validate_unsupported_structure_of_arrays(fortran_reader):
             mystruct%field(mystruct%field2%field3(:),:,:)
     end subroutine test
     ''')
-    array_ref = psyir.walk(Assignment)[0].lhs
+    assignment = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as info:
-        trans.apply(array_ref.children[2])
-    assert ("Error in ArrayRange2LoopTrans transformation. This "
-            "transformation does not support array assignments that contain "
-            "nested Range structures, but found:\n" in str(info.value))
+        trans.apply(assignment)
+    assert ("ArrayRange2LoopTrans does not support array assignments that "
+            "contain nested Range structures, but found"
+            in str(info.value))
 
 
-def test_validate_with_codeblock():
+def test_validate_with_codeblock(fortran_reader):
     '''Check that the validation method of the transformation raises an
     exception if there is a Codeblock as part of the assignment.
     '''
-    _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        x(:,:,:) = 0
+    end subroutine test
+    ''')
     trans = ArrayRange2LoopTrans()
-    schedule = invoke_info.schedule
-    assignment = schedule[0]
-    array_ref = assignment.lhs
+    assignment = psyir.walk(Assignment)[0]
     previous_rhs = assignment.rhs.detach()
     assignment.addchild(
             BinaryOperation.create(
@@ -583,67 +453,88 @@ def test_validate_with_codeblock():
                 CodeBlock([], CodeBlock.Structure.EXPRESSION)))
 
     with pytest.raises(TransformationError) as info:
-        trans.apply(array_ref.children[2])
-    assert ("This transformation does not support array assignments that "
-            "contain a CodeBlock anywhere in the expression, but found:\n"
-            "umask(:,:,:) = 0.0d0 + \n" in str(info.value))
+        trans.apply(assignment)
+    assert ("ArrayRange2LoopTrans does not support array assignments that "
+            "contain a CodeBlock anywhere in the expression, but found"
+            in str(info.value))
 
 
-def test_validate_with_a_function_call():
-    '''Check that the validation method of the transformation raises an
-    exception if there is a Call as part of the assignment.
+def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
+    ''' If the RHS has a plain symbol reference, we need to know its type
+    because if its scalar, the value can be re-used for each iteration of
+    the loop, but if its an array, it has to be accessed properly. Therefore
+    we can not transform loops with Unresolved or Unsupported types.
     '''
-    _, invoke_info = get_invoke("implicit_do.f90", api=API, idx=0)
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test(unsupported)
+        use my_variables, only: unresolved
+        integer :: scalar = 1
+        integer, dimension(:) :: array = 1, x
+        integer, dimension(:), optional :: unsupported
+
+        x(:) = scalar
+        x(:) = array
+        x(:) = unresolved
+        x(:) = unsupported
+    end subroutine test
+    ''')
+
+    opts = {"verbose": True}
     trans = ArrayRange2LoopTrans()
-    schedule = invoke_info.schedule
-    assignment = schedule[0]
-    array_ref = assignment.lhs
-    previous_rhs = assignment.rhs.detach()
-    assignment.addchild(
-            BinaryOperation.create(
-                BinaryOperation.Operator.ADD,
-                previous_rhs,
-                Call.create(RoutineSymbol("func"), [])))
 
+    # The first one succeeds
+    trans.apply(psyir.walk(Assignment)[0])
+
+    # This succeeds by internally applying the Reference2ArrayRange first
+    trans.apply(psyir.walk(Assignment)[1])
+
+    # The unresolved and unsupported fail
+    assign_with_unresolved = psyir.walk(Assignment)[2]
     with pytest.raises(TransformationError) as info:
-        trans.apply(array_ref.children[2])
-    assert ("This transformation does not support non-elemental Calls on the "
-            "rhs of the associated Assignment node, but found 'func' in:\n"
-            "umask(:,:,:) = 0.0d0 + func()\n" in str(info.value))
-
-
-def test_validate_with_array_with_hidden_accessor():
-    '''Check that the validation method of the transformation raises an
-    exception if there is a RHS array (or UnsupportedType) with the accessor
-    expression missing.
-    '''
-    _, invoke_info = get_invoke("implicit_do_hidden_accessor.f90",
-                                api=API, idx=0)
-    trans = ArrayRange2LoopTrans()
-    schedule = invoke_info.schedule
-    assignment1 = schedule[0]
-    assignment2 = schedule[1]
-    # This test expects arg1 is parsed as ArrayType and arg2 as UnsupportedType
-    assert isinstance(schedule.symbol_table.lookup("arg1").datatype,
-                      ArrayType)
-    assert isinstance(schedule.symbol_table.lookup("arg2").datatype,
-                      UnsupportedType)
-
-    # The first one fails because we know the type of the RHS reference is
-    # an array but we don't have explicit dimensions.
+        trans.apply(assign_with_unresolved, opts)
+    assert ("ArrayRange2LoopTrans cannot expand expression because it "
+            "contains the variable 'unresolved' which is not a DataSymbol "
+            "and therefore cannot be guaranteed to be ScalarType. Resolving "
+            "the import that brings this variable into scope may help."
+            in str(info.value))
+    # Knowing that it is a DataSymbol is still not enough
+    assign_with_unresolved.scope.symbol_table.lookup("unresolved").specialise(
+        DataSymbol, datatype=UnresolvedType())
     with pytest.raises(TransformationError) as info:
-        trans.apply(assignment1.lhs.children[2])
-    assert ("Error in ArrayRange2LoopTrans transformation. Variable "
-            "'arg1' must be a DataSymbol of ScalarType, but it's a 'arg1: "
-            "DataSymbol<Array<Scalar<REAL" in str(info.value))
-
-    # The second fails because it's an UnsupportedType and we don't know
-    # whether it's an scalar or an array.
+        trans.apply(assign_with_unresolved)
+    assert ("ArrayRange2LoopTrans cannot expand expression because it "
+            "contains the variable 'unresolved' which is an UnresolvedType "
+            "and therefore cannot be guaranteed to be ScalarType. Resolving "
+            "the import that brings this variable into scope may help."
+            in str(info.value))
     with pytest.raises(TransformationError) as info:
-        trans.apply(assignment2.lhs.children[2])
-    assert ("Error in ArrayRange2LoopTrans transformation. Variable "
-            "'arg2' must be a DataSymbol of ScalarType, but it's a 'arg2: "
-            "DataSymbol<UnsupportedFortranType" in str(info.value))
+        trans.apply(psyir.walk(Assignment)[3], opts)
+    assert ("ArrayRange2LoopTrans cannot expand expression because it "
+            "contains the variable 'unsupported' which is an Unsupported"
+            "FortranType('INTEGER, DIMENSION(:), OPTIONAL :: unsupported') "
+            "and therefore cannot be guaranteed to be ScalarType."
+            in str(info.value))
+
+    # The end result should look like:
+    print(fortran_writer(psyir))
+    assert (
+        "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+        "    x(idx) = scalar\n"
+        "  enddo\n"
+        "  do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+        "    x(idx_1) = array(idx_1)\n"
+        "  enddo\n"
+        "  ! ArrayRange2LoopTrans cannot expand expression because it contains"
+        " the variable 'unresolved' which is not a DataSymbol and therefore "
+        "cannot be guaranteed to be ScalarType. Resolving the import that "
+        "brings this variable into scope may help.\n"
+        "  x(:) = unresolved\n"
+        "  ! ArrayRange2LoopTrans cannot expand expression because it contains"
+        " the variable 'unsupported' which is an UnsupportedFortranType("
+        "'INTEGER, DIMENSION(:), OPTIONAL :: unsupported') and therefore "
+        "cannot be guaranteed to be ScalarType.\n"
+        "  x(:) = unsupported\n"
+    ) in fortran_writer(psyir)
 
 
 def test_apply_different_num_dims(tmpdir, fortran_reader, fortran_writer):
@@ -671,45 +562,3 @@ def test_apply_different_num_dims(tmpdir, fortran_reader, fortran_writer):
             "assignment are not equal. Any such case should have "
             "been dealt with by the validation method or represents "
             "invalid PSyIR." in str(info.value))
-
-
-def test_validate_imported_function(tmpdir, fortran_reader, fortran_writer):
-    '''Check that the validation method of the transformation raises an
-    exception when range nodes are inside a function, as it does not know if
-    the function is declared as 'elemental' which changes the semantics of the
-    array notation.
-    '''
-    psyir = fortran_reader.psyir_from_source('''
-    program implicit_do
-      use some_mod, only: ptr_sjk
-      implicit none
-      integer, parameter :: jpi=10, jpj=10, jpk=10, jpn=2
-      integer :: ji, jk, jn
-      real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: umask
-      real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: z3d
-      integer, dimension(jpi,jpj,jpk) :: pvtr
-      integer, dimension(jpi,jpj) :: btm30
-      integer, dimension(jpi,jpj,jpn) :: btmsk
-
-      ! Test code with array notation used in call to array-valued function
-      ! (`ptr_sjk`).
-      jn = 2
-
-      z3d(1,:,:) =  ptr_sjk(pvtr(:,:,:), btmsk(:,:,jn)*btm30(:,:))
-
-    end program implicit_do
-    ''')
-    assignment = psyir.walk(Assignment)[1]
-    trans = ArrayRange2LoopTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.apply(assignment)
-    # TODO fparser/#201: currently fparser parses imported symbols that can be
-    # functions or arrays always as arrays accessors, for this reason the error
-    # message talks about arrays instead of functions. If this is resolved this
-    # test would be equivalent to test_apply_with_a_function_call.
-    assert ("Error in ArrayRange2LoopTrans transformation. This "
-            "transformation does not support array assignments that contain "
-            "nested Range structures, but found:\n" in str(info.value))
-
-    # We can obtains the information that the symbol is a routine, but we still
-    # don't know what to do if we don't know if it is elemental or not.

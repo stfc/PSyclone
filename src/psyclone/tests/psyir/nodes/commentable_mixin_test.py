@@ -68,6 +68,16 @@ def test_statement_comment_properties():
     assert "The inline_comment must be a string but found 'int'." \
         in str(err.value)
 
+    # Check the append_preceding_comment method
+    statement.preceding_comment = ""
+    with pytest.raises(TypeError) as err:
+        statement.append_preceding_comment(1)
+    assert "The preceding_comment must be a string but found 'int'." \
+        in str(err.value)
+    statement.append_preceding_comment("First comment")
+    statement.append_preceding_comment("Second comment")
+    assert statement.preceding_comment == "First comment\nSecond comment"
+
 
 def test_other_commentable_nodes():
     ''' Check that other nodes with the CommentableMixin have the

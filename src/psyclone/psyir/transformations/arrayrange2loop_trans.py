@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
-#
+
 # Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
@@ -52,12 +52,14 @@ from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, Call, IntrinsicCall, Loop, Literal, Range,
-    Reference, CodeBlock)
+    Reference, CodeBlock, Routine, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
         UnresolvedType, UnsupportedType, ArrayType, NoType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.transformations.reference2arrayrange_trans import (
+    Reference2ArrayRangeTrans)
 
 
 class ArrayRange2LoopTrans(Transformation):
@@ -103,34 +105,65 @@ class ArrayRange2LoopTrans(Transformation):
 
         '''
         self.validate(node, options)
-        symbol_table = node.scope.symbol_table
+
+        # If there is any array reference without the accessor syntax,
+        # we need to add it first.
+        for reference in node.walk(Reference):
+            try:
+                Reference2ArrayRangeTrans().apply(reference)
+            except TransformationError:
+                pass
+
+        # Start by the outermost (rightmost) array range
+        for array in node.lhs.walk(ArrayMixin):
+            for range_node in reversed(array.walk(Range)):
+                self._range_to_loop(node, range_node)
 
 
+    def _range_to_loop(self, assignment, range_node):
+        parent = assignment.parent
+        # If possible use the routine-level symbol table for nicer names
+        if assignment.ancestor(Routine):
+            symbol_table = assignment.ancestor(Routine).symbol_table
+        else:
+            symbol_table = assignment.scope.symbol_table
 
-    # def _range_to_loop(node, range_idx, symtab):
-    #     ''
-        parent = node.parent
-        loop_variable = symbol_table.new_symbol("idx", symbol_type=DataSymbol,
-                                                datatype=INTEGER_TYPE)
+        # Create a new, unique, iteration variable for the new loop
+        loop_variable_symbol = symbol_table.new_symbol(root_name="idx",
+                                                       symbol_type=DataSymbol,
+                                                       datatype=INTEGER_TYPE)
 
-        # Replace the rightmost range found in all arrays with the
-        # iterator and use the range from the LHS range for the loop
-        # iteration space.
-        for array in node.walk(ArrayReference):
-            for idx, child in reversed(list(enumerate(array.children))):
-                if isinstance(child, Range):
-                    if array is node.lhs:
-                        # Save this range to determine indexing
-                        lhs_range = child
-                    array.children[idx] = Reference(
-                        loop_variable, parent=array)
-                    break
-        position = node.position
-        # Issue #806: If Loop bounds were a Range we would just
-        # need to provide the range node which would be simpler.
-        start, stop, step = lhs_range.pop_all_children()
-        loop = Loop.create(loop_variable, start, stop, step, [node.detach()])
+        # Replace the loop_idx array dimension with the loop variable.
+        n_ranges = None
+        # Just loop the top-level arrays since we just do 1 substitution per
+        # array construct, even if they have nested arrays in turn.
+        for top_level_ref in assignment.walk(ArrayMixin, stop_type=ArrayMixin):
+            # Then start checking from the outermost (rightmost) array
+            for array in reversed(top_level_ref.walk(ArrayMixin)):
+                current_n_ranges = len([child for child in array.children
+                                        if isinstance(child, Range)])
+                if current_n_ranges == 0:
+                    continue  # This sub-expression already has explicit dims
+                if n_ranges is None:
+                    n_ranges = current_n_ranges
+                elif n_ranges != current_n_ranges:
+                    raise InternalError(
+                        "The number of ranges in the arrays within this "
+                        "assignment are not equal. Any such case should have "
+                        "been dealt with by the validation method or "
+                        "represents invalid PSyIR.")
+
+                idx = array.get_outer_range_index()
+                array.children[idx] = Reference(loop_variable_symbol)
+                break  # If one is found, go to the next top level expression
+
+        # Replace the assignment with the new explicit loop structure
+        position = assignment.position
+        start, stop, step = range_node.pop_all_children()
+        loop = Loop.create(loop_variable_symbol, start, stop, step,
+                           [assignment.detach()])
         parent.children.insert(position, loop)
+
 
     def __str__(self):
         return ("Convert a PSyIR assignment to an array Range into a "
@@ -198,18 +231,28 @@ class ArrayRange2LoopTrans(Transformation):
                 f"contains an array accessor somewhere in the expression, "
                 f"but found '{node.lhs.debug_string()}'."))
 
-        if not [dim for dim in node.lhs.children if isinstance(dim, Range)]:
+        # There should be at least one Range in the LHS
+        if not node.lhs.walk(Range):
             raise TransformationError(LazyString(
-                lambda: f"Error in {self.name} transformation. The lhs of the "
-                f"supplied Assignment node should be a PSyIR ArrayReference "
-                f"with at least one of its dimensions being a Range, but none "
-                f"were found in '{node.debug_string()}'."))
+                lambda: f"Error in {self.name} transformation. The LHS of"
+                f" the supplied Assignment node should contain an array "
+                f"accessor with at least one of its dimensions being a "
+                f"Range, but none were found in '{node.debug_string()}'."))
+
+        # We don't support nested range expressions anywhere in the assignment
+        for range_expr in node.walk(Range):
+            ancestor_array = range_expr.parent.ancestor(ArrayMixin)
+            if ancestor_array and any(index.walk(Range) for index
+                                      in ancestor_array.indices):
+                raise TransformationError(LazyString(
+                    lambda: f"{self.name} does not support array assignments"
+                    f" that contain nested Range structures, but found:"
+                    f"\n{node.debug_string()}"))
 
         # Do not allow to transform expressions with CodeBlocks
         if node.walk(CodeBlock):
             raise TransformationError(LazyString(
-                lambda: f"Error in NemoArrayRange2LoopTrans transformation. "
-                f"This transformation does not support array assignments that"
+                lambda: f"{self.name} does not support array assignments that"
                 f" contain a CodeBlock anywhere in the expression, but found:"
                 f"\n{node.debug_string()}"))
 
@@ -225,9 +268,9 @@ class ArrayRange2LoopTrans(Transformation):
                 message = (f"{self.name} does not support array assignments "
                            f"that contain nested Range expressions")
                 if verbose:
-                    node.preceding_comment.append(message)
+                    node.append_preceding_comment(message)
                 raise TransformationError(LazyString(
-                    f"{message}, but found:\n{node.debug_string()}"))
+                    lambda: f"{message}, but found:\n{node.debug_string()}"))
 
         # If we allow string arrays then we can skip the check.
         if not options.get("allow_string", False):
@@ -235,13 +278,14 @@ class ArrayRange2LoopTrans(Transformation):
                 try:
                     if (child.datatype.intrinsic ==
                             ScalarType.Intrinsic.CHARACTER):
-                        message = (f"{self.name} does not expand ranges over"
-                                   f" on character arrays by default (use the"
-                                   f"'allow_string' option to expand them).")
+                        message = (f"{self.name} does not expand ranges "
+                                   f"on character arrays by default (use the"
+                                   f"'allow_string' option to expand them)")
                         if verbose:
-                            node.preceding_comment.append(message)
+                            node.append_preceding_comment(message)
+                        # pylint: disable=cell-var-from-loop
                         raise TransformationError(LazyString(
-                            f"{message}, but found:"
+                            lambda: f"{message}, but found:"
                             f"\n{node.debug_string()}"))
                 except (NotImplementedError, AttributeError):
                     # We cannot always get the datatype, we ignore this for now
@@ -252,15 +296,58 @@ class ArrayRange2LoopTrans(Transformation):
             if isinstance(call, IntrinsicCall):
                 if call.intrinsic.is_inquiry:
                     continue  # Inquiry intrinsic calls are fine
+                name = call.intrinsic.name
+            else:
+                name = call.symbol.name
             if not call.is_elemental:
                 message = (f"{self.name} does not accept calls which are not"
-                           f"guaranteed to be elemental, but found:"
-                           f"{call.name}")
+                           f" guaranteed to be elemental, but found:"
+                           f"{name}")
                 if verbose:
-                    node.preceding_comment.append(message)
+                    node.append_preceding_comment(message)
                 # pylint: disable=cell-var-from-loop
                 raise TransformationError(LazyString(
                     lambda: f"{message} in:\n{node.debug_string()}."))
+
+        for reference in node.walk(Reference):
+            # As special case we always allow references to whole arrays as
+            # part of the LBOUND and UBOUND intrinsics, regardless of the
+            # restrictions below
+            if isinstance(reference.parent, IntrinsicCall):
+                intrinsic = reference.parent.intrinsic
+                valid = (IntrinsicCall.Intrinsic.LBOUND,
+                         IntrinsicCall.Intrinsic.UBOUND)
+                if intrinsic in valid:
+                    continue
+
+            # We allow any references that have explicit array syntax
+            # because we infer that they are not scalars from the context
+            # where they are found (even if they have UnresolvedType)
+            if isinstance(reference, (ArrayReference, StructureReference)):
+                continue
+
+            # However, if it doesn't have explicity array accessors
+            # syntax, we must be ensure that it represents a scalar.
+            if not isinstance(reference.symbol, DataSymbol) or \
+                    isinstance(reference.symbol.datatype, (
+                        UnresolvedType, UnsupportedType)):
+                if isinstance(reference.symbol, DataSymbol):
+                    typestr = f"an {reference.symbol.datatype}"
+                else:
+                    typestr = "not a DataSymbol"
+                message = (
+                    f"{self.name} cannot expand expression because it "
+                    f"contains the variable '{reference.symbol.name}' "
+                    f"which is {typestr} and therefore cannot be guaranteed"
+                    f" to be ScalarType.")
+                if not isinstance(reference.symbol, DataSymbol) or \
+                        isinstance(reference.symbol.datatype, UnresolvedType):
+                    message += (" Resolving the import that brings this"
+                                " variable into scope may help.")
+                if verbose:
+                    node.append_preceding_comment(message)
+                raise TransformationError(LazyString(
+                    lambda: f"{message} In:\n{node.debug_string()}"))
 
         # Find the outermost range for the array on the lhs of the
         # assignment and save its index.

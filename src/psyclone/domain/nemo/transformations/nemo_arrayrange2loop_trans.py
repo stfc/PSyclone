@@ -231,10 +231,10 @@ class NemoArrayRange2LoopTrans(Transformation):
         # Is the array reference the lhs of the assignment?
         if node not in assignment.lhs.walk(Node):
             raise TransformationError(
-                "Error in NemoArrayRange2LoopTrans transformation. The "
-                "supplied node argument should be within an array access "
-                "node that is within the left-hand-side of an Assignment "
-                "node, but it is on the right-hand-side.")
+                f"Error in {self.name} transformation. The "
+                f"supplied node argument should be within an array access "
+                f"node that is within the left-hand-side of an Assignment "
+                f"node, but it is on the right-hand-side.")
 
         # We don't support nested range expressions
         for range_expr in assignment.walk(Range):
@@ -242,8 +242,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             if ancestor_array and any(index.walk(Range) for index
                                       in ancestor_array.indices):
                 raise TransformationError(LazyString(
-                    lambda: f"Error in NemoArrayRange2LoopTrans transformation"
-                    f". This transformation does not support array assignments"
+                    lambda: f"{self.name} does not support array assignments"
                     f" that contain nested Range structures, but found:"
                     f"\n{assignment.debug_string()}"))
 
