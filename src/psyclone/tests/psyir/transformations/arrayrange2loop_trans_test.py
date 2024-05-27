@@ -537,10 +537,10 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     ) in fortran_writer(psyir)
 
 
-def test_apply_different_num_dims(tmpdir, fortran_reader, fortran_writer):
+def test_validate_different_num_of_ranges(fortran_reader):
     '''Check that the validate method raises an exception when the number of
     range dimensions differ in different arrays. This should never
-    happen as it is invalid PSyIR.
+    happen as it is invalid Fortran, but fparser-psyir accepts it.
 
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -556,9 +556,60 @@ def test_apply_different_num_dims(tmpdir, fortran_reader, fortran_writer):
     ''')
     assignment = psyir.walk(Assignment)[0]
     trans = ArrayRange2LoopTrans()
-    with pytest.raises(InternalError) as info:
+    with pytest.raises(TransformationError) as info:
         trans.apply(assignment)
-    assert ("The number of ranges in the arrays within this "
-            "assignment are not equal. Any such case should have "
-            "been dealt with by the validation method or represents "
-            "invalid PSyIR." in str(info.value))
+    assert ("ArrayRange2LoopTrans does not support array  with array accessor "
+            "with a different number ofranges in the expression, but found:"
+            in str(info.value))
+
+
+def test_validate_different_arrays_different_bounds(fortran_reader):
+    '''Check that the validate method raises an exception when the bounds of
+    the range expressions are different, or they can not be guaranteed to be
+    the same. '''
+    psyir = fortran_reader.psyir_from_source('''
+        program test
+          implicit none
+          integer, parameter :: jpi=64, jpj=32
+          real, dimension(jpi,jpj) :: x, y
+          x(:,:) = y(2:4,:) + 1.0
+        end program test
+    ''')
+    assignment = psyir.walk(Assignment)[0]
+    trans = ArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.apply(assignment)
+    assert ("ArrayRange2LoopTrans cannot expand ranges that are not guaranteed"
+            " to have the same bounds."
+            in str(info.value))
+
+    # This takes into account the declaration bounds and symbolic expressions,
+    # the functionality is provided by ArrayMixin.same_range, so further tests
+    # are provided there.
+    psyir = fortran_reader.psyir_from_source('''
+        program test
+          implicit none
+          integer, parameter :: jpi=64, jpj=32
+          real, dimension(2:4,jpj) :: x, y
+          x(:,:) = y(2:3+1,:) + 1.0
+        end program test
+    ''')
+    assignment = psyir.walk(Assignment)[0]
+    trans = ArrayRange2LoopTrans()
+    trans.apply(assignment)
+
+    psyir = fortran_reader.psyir_from_source('''
+        program test
+          implicit none
+          real, dimension(3) :: x
+          real, dimension(0:3) :: y
+          x(:) = y(:)
+        end program test
+    ''')
+    assignment = psyir.walk(Assignment)[0]
+    trans = ArrayRange2LoopTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.apply(assignment)
+    assert ("ArrayRange2LoopTrans cannot expand ranges that are not guaranteed"
+            " to have the same bounds."
+            in str(info.value))

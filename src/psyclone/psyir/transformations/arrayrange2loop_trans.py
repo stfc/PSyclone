@@ -54,6 +54,8 @@ from psyclone.psyir.nodes import (
     ArrayReference, Assignment, Call, IntrinsicCall, Loop, Literal, Range,
     Reference, CodeBlock, Routine, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.array_of_structures_mixin import (
+    ArrayOfStructuresMixin)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
         UnresolvedType, UnsupportedType, ArrayType, NoType
 from psyclone.psyir.transformations.transformation_error \
@@ -146,12 +148,6 @@ class ArrayRange2LoopTrans(Transformation):
                     continue  # This sub-expression already has explicit dims
                 if n_ranges is None:
                     n_ranges = current_n_ranges
-                elif n_ranges != current_n_ranges:
-                    raise InternalError(
-                        "The number of ranges in the arrays within this "
-                        "assignment are not equal. Any such case should have "
-                        "been dealt with by the validation method or "
-                        "represents invalid PSyIR.")
 
                 idx = array.get_outer_range_index()
                 array.children[idx] = Reference(loop_variable_symbol)
@@ -248,6 +244,23 @@ class ArrayRange2LoopTrans(Transformation):
                     lambda: f"{self.name} does not support array assignments"
                     f" that contain nested Range structures, but found:"
                     f"\n{node.debug_string()}"))
+
+        # All the ArrayMixins must have the same number of Ranges to expand
+        found = None
+        for accessor in node.walk(ArrayMixin):
+            num_of_ranges = len(accessor.walk(Range))
+            if num_of_ranges > 0:
+                if not found:
+                    # If its the first value we find, we store it
+                    found = num_of_ranges
+                else:
+                    # Otherwise we compare it agains the previous found value
+                    if found != num_of_ranges:
+                        raise TransformationError(LazyString(
+                            lambda: f"{self.name} does not support array "
+                            f" with array accessor with a different number of"
+                            "ranges in the expression, but found:"
+                            f"\n{node.debug_string()}"))
 
         # Do not allow to transform expressions with CodeBlocks
         if node.walk(CodeBlock):
@@ -349,36 +362,33 @@ class ArrayRange2LoopTrans(Transformation):
                 raise TransformationError(LazyString(
                     lambda: f"{message} In:\n{node.debug_string()}"))
 
-        # Find the outermost range for the array on the lhs of the
-        # assignment and save its index.
-        for idx, child in reversed(list(enumerate(node.lhs.children))):
-            if isinstance(child, Range):
-                lhs_index = idx
-                break
-
-        # For each array on the rhs of the assignment find the
-        # outermost range if there is one, then compare this range
-        # with the one on the lhs.
-        for array in node.walk(ArrayReference):
-            for idx, child in reversed(list(enumerate(array.children))):
-                if isinstance(child, Range):
-                    # Issue #814 We should add support for adding
-                    # loop variables where the ranges are
-                    # different, or occur in different index
-                    # locations.
-                    if not node.lhs.same_range(lhs_index, array, idx):
-                        # Ranges are, or may be, different so we
-                        # can't safely replace this range with a
-                        # loop iterator.
+        # For each expression with ranges (we have already proven that the num
+        # of ranges are the same and there are not nested ranges), we must now
+        # guarantee that each of them have the same bounds:
+        # - get the lhs baseline
+        lhs_ranges = None
+        for accessor in node.lhs.walk(ArrayMixin):
+            if any(isinstance(child, Range) for child in accessor.children):
+                lhs_ranges = accessor.walk(Range)
+        # - compare each rhs against the baseline
+        for accessor in node.rhs.walk(ArrayMixin):
+            if any(isinstance(child, Range) for child in accessor.children):
+                expr_ranges = accessor.walk(Range)
+                for range1, range2 in zip(lhs_ranges, expr_ranges):
+                    array1 = range1.parent
+                    array2 = range2.parent
+                    array1_idx = range1.position
+                    array2_idx = range2.position
+                    # In array of structures we need to account for the Member
+                    if isinstance(array1, ArrayOfStructuresMixin):
+                        array1_idx -= 1
+                    if isinstance(array1, ArrayOfStructuresMixin):
+                        array1_idx -= 1
+                    # import pdb; pdb.set_trace()
+                    if not array1.same_range(array1_idx, array2, array2_idx):
                         raise TransformationError(
-                            f"The ArrayRange2LoopTrans transformation only "
-                            f"supports ranges that are known to be the "
-                            f"same as each other but array access "
-                            f"'{node.lhs.name}' dimension {lhs_index} and "
-                            f"'{array.name}' dimension {idx} are either "
-                            f"different or can't be determined in the "
-                            f"assignment '{node}'.")
-                    break
+                            f"{self.name} cannot expand ranges that are not "
+                            f"guaranteed to have the same bounds. ")
 
 
 __all__ = [
