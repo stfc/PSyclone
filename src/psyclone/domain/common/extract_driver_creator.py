@@ -522,7 +522,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         for child in all_children:
             program.addchild(child)
 
-        BaseDriverCreator.add_result_tests(program, output_symbols)
+        self.add_result_tests(program, output_symbols)
 
         return file_container
 
