@@ -141,9 +141,9 @@ main_alg.f90: main_psy.f90
 	$(FPP) $< >$@
 
 %_psy.f90:	%.x90
-	${PSYCLONE} -s ./extract_transform.py       \
-	-d . -d $(EXTRACT_DIR)                      \
-	-d $(LFRIC_PATH)                            \
+	${PSYCLONE} -api lfric -s ./extract_transform.py       \
+	-d . -d $(EXTRACT_DIR)                                 \
+	-d $(LFRIC_PATH)                                       \
 	-nodm -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean

@@ -131,7 +131,7 @@ def test_extract_validate():
     '''Test that the validate function can successfully finish.'''
 
     _, invoke = get_invoke("single_invoke_three_kernels.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     etrans = ExtractTrans()
     etrans.validate(invoke.schedule.children)
 
@@ -142,7 +142,7 @@ def test_extract_halo_exchange():
     not allowed to be included.'''
 
     _, invoke = get_invoke("single_invoke_three_kernels.f90",
-                           "gocean1.0", idx=0, dist_mem=True)
+                           "gocean", idx=0, dist_mem=True)
     etrans = ExtractTrans()
     with pytest.raises(TransformationError) as excinfo:
         etrans.validate(invoke.schedule)
@@ -157,7 +157,7 @@ def test_extract_kern_builtin_no_loop():
 
     gocetrans = ExtractTrans()
     _, invoke = get_invoke("single_invoke_three_kernels.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Test Kernel call
     kernel_call = schedule.children[0].loop_body[0].loop_body[0]
@@ -177,7 +177,7 @@ def test_extract_loop_no_directive_dynamo0p3():
 
     # Test a Loop nested within the OMP Parallel DO Directive
     _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90",
-                           "dynamo0.3", idx=0, dist_mem=False)
+                           "lfric", idx=0, dist_mem=False)
     schedule = invoke.schedule
     # Apply DynamoOMPParallelLoopTrans to the second Loop
     otrans = DynamoOMPParallelLoopTrans()
@@ -201,7 +201,7 @@ def test_extract_directive_no_loop():
     accpara = ACCParallelTrans()
 
     _, invoke = get_invoke("single_invoke_three_kernels.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
 
     # Apply the OpenACC Loop transformation to every loop in the Schedule

@@ -146,7 +146,7 @@ contains
 
         write(out_format, "('(A',I0)" ) max_name_len
         write(*,out_format//",8A13)") "Variable", "max_abs", "max_rel",&
-            "l2_diff", "l2_cos", "identical", "count-9", "count-6", "count-3"
+            "l2_diff", "l2_cos", "identical", "#rel<1E-9", "#rel<1E-6", "#rel<1E-3"
 
         out_format = trim(out_format)//"' ',8(E12.7,' '))"
 
@@ -167,12 +167,14 @@ contains
     {% endif %}
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes the value of a scalar {{type}}
-    !! variable to the file. It takes the variable id from the
-    !! corresponding declaration.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !> @brief This subroutine compares the value of a scalar {{type}}
+    !! variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results  will be printed when `compare_summary` is called.
+
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
+    !! @param[in] correct_value The expected value of the variable.
     subroutine compare_scalar_{{name}}(name, value, correct_value)
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                                   real32, real64 
@@ -234,8 +236,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a {{dim}}D array of {{type}}
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a {{dim}}D array of
+    !! {{type}} variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_{{dim}}d{{name}}(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &

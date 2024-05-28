@@ -180,7 +180,7 @@ The ``ExtractTrans`` transformation cannot be applied to:
 * A Loop over cells in a colour without its parent Loop over colours in
   the LFRic API,
 
-* An inner Loop without its parent outer Loop in the GOcean1.0 API.
+* An inner Loop without its parent outer Loop in the GOcean API.
 
 * Kernels that have a halo exchange call between them.
 
@@ -414,7 +414,7 @@ and
 `lib/extract/netcdf/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
 implement the full PSyData API for use with the
-:ref:`GOcean1.0 <gocean1.0-api>` dl_esm_inf infrastructure library.
+:ref:`GOcean <gocean-api>` dl_esm_inf infrastructure library.
 When running the instrumented executable, it will create either a binary or
 a NetCDF file for each instrumented
 code region. It includes all variables that are read before the code
@@ -472,7 +472,7 @@ and
 `lib/extract/netcdf/lfric
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/lfric>`_
 implement the full PSyData API for use with the
-:ref:`LFRic <dynamo0.3-api>` infrastructure library. When running the
+:ref:`LFRic <lfric-api>` infrastructure library. When running the
 code, it will create an output file for each instrumented code region.
 The same logic for naming variables (using ``_post`` for output variables)
 used in :ref:`extraction_for_gocean` is used here.
@@ -526,16 +526,16 @@ line.
 Therefore, compilation for a created driver, e.g. the one created in
 ``examples/lfric/eg17/full_example_extract``, is simple:
 
-.. code-block:: bash
+.. code-block::
 
    $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
    $ ./driver-main-update
-       Variable      max_abs      max_rel      l2_diff       l2_cos    identical      count-9      count-6      count-3
+       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
            cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
     field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
      dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
 
-(see :ref:`driver_summary_statistic` for details about the statistic`).
+(see :ref:`driver_summary_statistics` for details about the statistics`).
 Note that the Makefile in the example will actually provide additional include
 paths (infrastructure files and extraction library) for the compiler, but
 these flags are actually only required for compiling the example program, not
@@ -576,19 +576,19 @@ is used here.
   Driver creation in NEMO is not yet supported, and is
   tracked in issue #2058.
 
-.. _driver_summary_statistic:
+.. _driver_summary_statistics:
 
-Driver Summary Statistic
-------------------------
-When a driver is executed, it will print a summary statistics at the end
+Driver Summary Statistics
+-------------------------
+When a driver is executed, it will print summary statistics at the end
 for each variable that was modified, indicating the difference between the
-`original` values compared when the data file was created, and the values
-`new` ones, computed when executing the kernel. These difference can be caused
+`original` values from when the data file was created, and the new ones
+computed when executing the kernel. These differences can be caused
 by changing the compilation options, or compiler version. Example output:
 
-.. code-block:: bash
+.. code-block::
 
-       Variable      max_abs      max_rel      l2_diff       l2_cos    identical      count-9      count-6      count-3
+       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
            cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
     field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
      dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00

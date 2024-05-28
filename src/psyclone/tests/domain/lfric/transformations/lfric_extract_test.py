@@ -54,7 +54,7 @@ from psyclone.transformations import (Dynamo0p3ColourTrans,
                                       DynamoOMPParallelLoopTrans)
 
 # API names
-DYNAMO_API = "dynamo0.3"
+DYNAMO_API = "lfric"
 
 
 @pytest.fixture(scope="function", autouse=True)

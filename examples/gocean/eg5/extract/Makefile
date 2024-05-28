@@ -112,7 +112,7 @@ transform: psy.f90
 F90FLAGS += -I$(INF_INC) -I$(EXTRACT_DIR)
 
 alg.f90 psy.f90: test.x90 extract_transform.py
-	$(PSYCLONE) -nodm -api "gocean1.0" -s ./extract_transform.py\
+	$(PSYCLONE) -nodm -api "gocean" -s ./extract_transform.py\
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
 $(NAME): $(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o

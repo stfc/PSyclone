@@ -114,7 +114,7 @@ class ExtractDriverCreator(BaseDriverCreator):
 
         '''
         fortran_expression = writer(reference)
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         grid_properties = api_config.grid_properties
 
         for prop_name in grid_properties:
