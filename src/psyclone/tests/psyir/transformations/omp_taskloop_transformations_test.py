@@ -119,11 +119,11 @@ def test_omptaskloop_apply(monkeypatch):
     taskloop's inbuilt value. Use the gocean API.
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     taskloop = OMPTaskloopTrans()
     master = OMPMasterTrans()
     parallel = OMPParallelTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -160,7 +160,7 @@ def test_omptaskloop_apply(monkeypatch):
     assert taskloop._nogroup is False
     with pytest.raises(TransformationError) as excinfo:
         _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                               "single_invoke.f90"), api="gocean1.0")
+                               "single_invoke.f90"), api="gocean")
         schedule = psy.invokes.invoke_list[0].schedule
         taskloop.apply(schedule[0], {"nogroup": True})
     assert "Fake error" in str(excinfo.value)
@@ -225,8 +225,8 @@ def test_omptaskwait_validate_multiple_parallel_regions():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
                                         "identical_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -255,8 +255,8 @@ def test_omptaskwait_validate_barrierless_single_region():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
                                         "identical_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -309,8 +309,8 @@ def test_omptaskwait_validate_master_region():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
                                         "identical_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -393,8 +393,8 @@ def test_omptaskwait_get_forward_dependence1():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
                                         "identical_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -423,8 +423,8 @@ def test_omptaskwait_get_forward_dependence2():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
                                         "identical_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -454,8 +454,8 @@ def test_omptaskwait_get_forward_dependence3():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
                                         "identical_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -487,8 +487,8 @@ def test_omptaskwait_get_forward_dependence4():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
                                         "identical_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -519,8 +519,8 @@ def test_omptaskwait_get_forward_dependence5():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
                                         "identical_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -548,8 +548,8 @@ def test_omptaskwait_get_forward_dependence6():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
                                         "identical_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -579,8 +579,8 @@ def test_omptaskwait_apply_simple():
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_two_"
                                         "identical_kernels.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -612,8 +612,8 @@ def test_omptaskwait_apply_multidepend():
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "multi_dependent_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -647,8 +647,8 @@ def test_omptaskwait_apply_multidepend2():
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "multi_dependent_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -688,8 +688,8 @@ def test_omptaskwait_apply_multidepend3():
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "multi_dependent_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -727,8 +727,8 @@ def test_omptaskwait_apply_multiloops():
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "multi_dependent_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -763,8 +763,8 @@ def test_omptaskwait_apply_multiregion():
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "multi_dependent_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -800,8 +800,8 @@ def test_omptaskwait_apply_multiregion2():
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "multi_dependent_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)
@@ -835,8 +835,8 @@ def test_omptaskwait_ignore_nogroup_clause():
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "multi_dependent_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     trans = OMPParallelTrans()
     tloop = OMPTaskloopTrans(nogroup=True)

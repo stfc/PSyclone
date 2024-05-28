@@ -60,7 +60,7 @@ class GOceanConstants():
 
         '''
         if not GOceanConstants._VALID_ACCESS_TYPES:
-            conf = Config.get().api_conf("gocean1.0")
+            conf = Config.get().api_conf("gocean")
             GOceanConstants._VALID_ACCESS_TYPES = \
                 list(conf.get_access_mapping().keys())
         return GOceanConstants._VALID_ACCESS_TYPES

@@ -155,7 +155,7 @@ Distributed memory
 
 As noted in the :ref:`distributed_memory` section, support for distributed
 memory in PSyclone is currently limited to the
-:ref:`LFRic (Dynamo0.3) API <dynamo0.3-api>`. Since the implementation
+:ref:`LFRic API <lfric-api>`. Since the implementation
 generates calls to LFRic infrastructure (e.g. runtime checks for status
 of field halos), code extraction is not allowed when distributed memory
 is enabled.
@@ -175,7 +175,7 @@ The ``ExtractTrans`` transformation cannot be applied to:
 * A Loop over cells in a colour without its parent Loop over colours in
   the LFRic API,
 
-* An inner Loop without its parent outer Loop in the GOcean1.0 API.
+* An inner Loop without its parent outer Loop in the GOcean API.
 
 .. _psyke-use:
 
@@ -394,7 +394,7 @@ and
 `lib/extract/netcdf/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
 implement the full PSyData API for use with the
-:ref:`GOcean1.0 <gocean1.0-api>` dl_esm_inf infrastructure library.
+:ref:`GOcean <gocean-api>` dl_esm_inf infrastructure library.
 When running the instrumented executable, it will create either a binary or
 a NetCDF file for each instrumented
 code region. It includes all variables that are read before the code
@@ -452,7 +452,7 @@ and
 `lib/extract/netcdf/lfric
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/lfric>`_
 implement the full PSyData API for use with the
-:ref:`LFRic <dynamo0.3-api>` infrastructure library. When running the
+:ref:`LFRic <lfric-api>` infrastructure library. When running the
 code, it will create an output file for each instrumented code region.
 The same logic for naming variables (using ``_post`` for output variables)
 used in :ref:`extraction_for_gocean` is used here.

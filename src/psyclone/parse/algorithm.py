@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Data_Component_Def_Stmt, Component_Decl
 # pylint: enable=no-name-in-module
 
-from psyclone.configuration import Config
+from psyclone.configuration import Config, LFRIC_API_NAMES, NO_API_NAMES
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import BuiltInKernelTypeFactory, get_kernel_ast, \
     KernelTypeFactory
@@ -132,7 +132,7 @@ class Parser():
     For example:
 
     >>> from psyclone.parse.algorithm import Parser
-    >>> parser = Parser(api="gocean1.0")
+    >>> parser = Parser(api="gocean")
     >>> ast, info = parser.parse(SOURCE_FILE)
 
     '''
@@ -147,12 +147,9 @@ class Parser():
             self._kernel_paths = kernel_paths
         self._line_length = line_length
 
-        _config = Config.get()
-        if not api:
-            api = _config.default_api
-        else:
-            check_api(api)
+        check_api(api)
         self._api = api
+        Config.get().api = api
 
         self._arg_name_to_module_name = {}
         # Dict holding a 2-tuple consisting of type and precision
@@ -197,7 +194,7 @@ class Parser():
             check_line_length(alg_filename)
         alg_parse_tree = parse_fp2(alg_filename)
 
-        if self._api == "nemo":
+        if self._api in NO_API_NAMES:
             # For this API we just parse the NEMO code and return the resulting
             # fparser2 AST with None for the Algorithm AST.
             return None, alg_parse_tree
@@ -539,7 +536,7 @@ def get_builtin_defs(api):
     check_api(api)
 
     # pylint: disable=import-outside-toplevel
-    if api == "dynamo0.3":
+    if api in LFRIC_API_NAMES:
         from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP \
             as builtins
         from psyclone.domain.lfric.lfric_builtins import \
@@ -960,7 +957,7 @@ class ParsedCall():
         if len(self._args) < self._ktype.nargs:
             # we cannot test for equality here as API's may have extra
             # arguments passed in from the algorithm layer (e.g. 'QR'
-            # in dynamo0.3), but we do expect there to be at least the
+            # in lfric), but we do expect there to be at least the
             # same number of real arguments as arguments specified in
             # the metadata.
             raise ParseError(

@@ -91,7 +91,7 @@ from the ``generate`` function by setting the optional
 Status
 ------
 
-Distributed memory support is currently supported by the ``dynamo0.3`` and
+Distributed memory support is currently supported by the ``lfric`` and
 the ``gocean1p0`` APIs.  The remaining APIs ignore the distributed memory flag
 and continue to produce code without any distributed memory functionality,
 irrespective of its value.
