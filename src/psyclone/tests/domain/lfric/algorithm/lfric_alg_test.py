@@ -50,6 +50,7 @@ from psyclone.psyir.nodes import Container, Routine, ScopingNode
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, UnresolvedType, DataTypeSymbol,
     ImportInterface, ArrayType, ScalarType, INTEGER_TYPE)
+
 # Constants
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
