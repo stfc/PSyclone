@@ -318,7 +318,7 @@ class Parser():
                     invoke_call = self.create_invoke_call(statement)
                     invoke_calls.append(invoke_call)
 
-        return FileInfo(container_name, invoke_calls)
+        return AlgFileInfo(container_name, invoke_calls)
 
     def create_invoke_call(self, statement):
         '''Takes the part of a parse tree containing an invoke call and
@@ -857,14 +857,14 @@ def create_var_name(arg_parse_tree):
 # Section 3: Classes holding algorithm information.
 
 
-class FileInfo():
+class AlgFileInfo():
     '''Captures information about the algorithm file and the invoke calls
     found within the contents of the file.
 
-    :param str name: the name of the algorithm program unit (program, \
-    module, subroutine or function)
+    :param str name: the name of the algorithm program unit (program,
+                     module, subroutine or function)
     :param calls: information about the invoke calls in the algorithm code.
-    :type calls: list of :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :type calls: list[:py:class:`psyclone.parse.algorithm.InvokeCall`]
 
     '''
 
@@ -1170,6 +1170,7 @@ class Arg():
         return self._form == "literal"
 
 
+# For auto-API documentation generation.
 __all__ = ["parse", "Parser", "get_builtin_defs", "get_invoke_label",
-           "get_kernel", "create_var_name", "FileInfo", "InvokeCall",
+           "get_kernel", "create_var_name", "AlgFileInfo", "InvokeCall",
            "ParsedCall", "KernelCall", "BuiltInCall", "Arg"]
