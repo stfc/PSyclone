@@ -38,24 +38,6 @@
 '''
 
 import os
-import codecs
-
-
-# ============================================================================
-def log_decode_error_handler(err):
-    '''
-    A custom error handler for use when reading files. Simply skips any
-    characters that cause decoding errors.
-
-    :returns: 2-tuple containing replacement for bad chars (an empty string
-              and the position from where encoding should continue).
-    :rtype: tuple[str, int]
-
-    '''
-    return ("", err.end)
-
-
-codecs.register_error("file-error-handler", log_decode_error_handler)
 
 
 # ============================================================================
@@ -68,7 +50,6 @@ class FileInfo:
                          object holds information on.
 
     '''
-
     def __init__(self, filename):
         self._filename = filename
         # A cache for the source code:
@@ -112,11 +93,11 @@ class FileInfo:
 
         '''
         if self._source_code is None:
-            # Error handler is defined at the top of this file. It simply skips
-            # any characters that result in decoding errors. (Comments in a
-            # code may contain all sorts of weird things.)
+            # Specifying errors='ignore' simply skips any characters that
+            # result in decoding errors. (Comments in a code may contain all
+            # sorts of weird things.)
             with open(self._filename, "r", encoding='utf-8',
-                      errors='file-error-handler') as file_in:
+                      errors='ignore') as file_in:
                 self._source_code = file_in.read()
 
         return self._source_code
