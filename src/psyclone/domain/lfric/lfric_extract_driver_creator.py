@@ -165,11 +165,11 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
        example, a variable ``f`` which was modified in the kernel call(s),
        will then be compared with ``f_post``.
 
-    :param precision: a mapping of the various precisions used in LFRic to \
+    :param precision: a mapping of the various precisions used in LFRic to
         the actual Fortran data type to be used in a stand-alone driver.
     :type precision: Optional[Dict[str, str]]
 
-    :raises InternalError: if the precision argument is specified but \
+    :raises InternalError: if the precision argument is specified but
         is not a dictionary.
 
     '''
@@ -190,7 +190,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         :param str name: a proposed unit name.
 
-        :returns: a valid program or routine  name with special characters \
+        :returns: a valid program or routine  name with special characters
             removed and restricted to a length of 63 characters.
         :rtype: str
 
@@ -248,16 +248,16 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         driver.
 
         :param old_reference: a reference to a structure member.
-        :type old_reference: \
+        :type old_reference:
             :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param symbol_table: the symbol table to which to add the newly \
+        :param symbol_table: the symbol table to which to add the newly
             defined flattened symbol.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param proxy_name_mapping: a mapping of proxy names to the original \
+        :param proxy_name_mapping: a mapping of proxy names to the original
             names.
         :type proxy_name_mapping: Dict[str,str]
 
-        :raises InternalError: if the old_reference is not a \
+        :raises InternalError: if the old_reference is not a
             :py:class:`psyclone.psyir.nodes.StructureReference`
         :raises GenerationError: if an array of structures is used
 
@@ -308,10 +308,10 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         :param sched: the schedule that will be called by this driver program.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param symbol_table: the symbol table to which to add all found \
+        :param symbol_table: the symbol table to which to add all found
             symbols.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param proxy_name_mapping: a mapping of proxy names to the original \
+        :param proxy_name_mapping: a mapping of proxy names to the original
             names.
         :type proxy_name_mapping: Dict[str,str]
         :param read_write_info: information about all input and output
@@ -710,7 +710,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         '''This function adds an import of the various precision
         symbols used by LFRic from the constants_mod module.
 
-        :param symbol_table: the symbol table to which the precision symbols \
+        :param symbol_table: the symbol table to which the precision symbols
             must be added.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
@@ -745,20 +745,20 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         :param nodes: a list of nodes.
         :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output \
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
+        :param str prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols ``extract_psydata``.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
+        :param str postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param Tuple[str,str] region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
+        :param Tuple[str,str] region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
             should uniquely identify a region.
 
         :returns: the program PSyIR for a stand-alone driver.
@@ -878,12 +878,12 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         It returns a dictionary, with the keys being all the (directly or
         indirectly) used modules.
 
-        :param file_container: the FileContainer for which to collect all \
+        :param file_container: the FileContainer for which to collect all
             used modules.
-        :type file_container: \
+        :type file_container:
             :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
 
-        :returns: a dictionary, with the required module names as key, and \
+        :returns: a dictionary, with the required module names as key, and
             as value a set of all modules required by the key module.
         :rtype: Dict[str, Set[str]]
 
@@ -975,25 +975,25 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :param nodes: a list of nodes containing the body of the driver
             routine.
         :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output \
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
+        :param str prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
+        :param str postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param Tuple[str,str] region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
+        :param Tuple[str,str] region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
             should uniquely identify a region.
-        :param writer: a backend visitor to convert PSyIR \
-            representation to the selected language. It defaults to \
+        :param writer: a backend visitor to convert PSyIR
+            representation to the selected language. It defaults to
             the FortranWriter.
-        :type writer: \
+        :type writer:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''

@@ -506,16 +506,16 @@ line.
 Therefore, compilation for a created driver, e.g. the one created in
 ``examples/lfric/eg17/full_example_extract``, is simple:
 
-.. code-block:: bash
+.. code-block::
 
    $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
    $ ./driver-main-update
-       Variable      max_abs      max_rel      l2_diff       l2_cos    identical      count-9      count-6      count-3
+       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
            cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
     field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
      dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
 
-(see :ref:`driver_summary_statistic` for details about the statistic`).
+(see :ref:`driver_summary_statistics` for details about the statistics`).
 Note that the Makefile in the example will actually provide additional include
 paths (infrastructure files and extraction library) for the compiler, but
 these flags are actually only required for compiling the example program, not
@@ -556,19 +556,19 @@ is used here.
   Driver creation in NEMO is not yet supported, and is
   tracked in issue #2058.
 
-.. _driver_summary_statistic:
+.. _driver_summary_statistics:
 
-Driver Summary Statistic
-------------------------
-When a driver is executed, it will print a summary statistics at the end
+Driver Summary Statistics
+-------------------------
+When a driver is executed, it will print summary statistics at the end
 for each variable that was modified, indicating the difference between the
-`original` values compared when the data file was created, and the values
-`new` ones, computed when executing the kernel. These difference can be caused
+`original` values from when the data file was created, and the new ones
+computed when executing the kernel. These differences can be caused
 by changing the compilation options, or compiler version. Example output:
 
-.. code-block:: bash
+.. code-block::
 
-       Variable      max_abs      max_rel      l2_diff       l2_cos    identical      count-9      count-6      count-3
+       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
            cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
     field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
      dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00

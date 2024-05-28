@@ -145,8 +145,8 @@ def test_lfric_driver_add_call(fortran_writer):
     driver_creator = LFRicExtractDriverCreator()
     with pytest.raises(TypeError) as err:
         driver_creator.add_call(program, "test", [])
-    assert ("Routine 'test' is a symbol of type 'Symbol', not a "
-            "'RoutineSymbol'" in str(err.value))
+    assert ("Error creating call to 'test' - existing symbol is of type "
+            "'Symbol', not a 'RoutineSymbol'" in str(err.value))
     # Clean up previous invalid test symbol
     del program.symbol_table._symbols['test']
     del program.symbol_table._tags['test']

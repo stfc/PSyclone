@@ -39,8 +39,8 @@ implementations.
 
 from psyclone.psyir.nodes import Call, Literal, Reference
 from psyclone.psyir.symbols import (CHARACTER_TYPE, ContainerSymbol,
-                                    UnresolvedType, ImportInterface,
-                                    INTEGER_TYPE, RoutineSymbol)
+                                    ImportInterface, INTEGER_TYPE, NoType,
+                                    RoutineSymbol)
 
 
 class BaseDriverCreator:
@@ -57,25 +57,26 @@ class BaseDriverCreator:
     def add_call(program, name, args):
         '''This function creates a call to the subroutine of the given name,
         providing the arguments. The call will be added to the program and
-        to the symbol table.
+        the supplied program and the corresponding RoutineSymbol to its
+        symbol table (if not already present).
 
-        :param program: the PSyIR Routine to which any code must \
+        :param program: the PSyIR Routine to which any code must
             be added. It also contains the symbol table to be used.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param str name: name of the subroutine to call.
         :param args: list of all arguments for the call.
-        :type args: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type args: list[:py:class:`psyclone.psyir.nodes.Node`]
 
-        :raises TypeError: if there is a symbol with the \
+        :raises TypeError: if there is a symbol with the
             specified name defined that is not a RoutineSymbol.
         '''
         if name in program.symbol_table:
             routine_symbol = program.symbol_table.lookup(name)
             if not isinstance(routine_symbol, RoutineSymbol):
                 raise TypeError(
-                    f"Error when adding call: Routine '{name}' is "
-                    f"a symbol of type '{type(routine_symbol).__name__}', "
-                    f"not a 'RoutineSymbol'.")
+                    f"Error creating call to '{name}' - existing symbol is "
+                    f"of type '{type(routine_symbol).__name__}', not a "
+                    f"'RoutineSymbol'.")
         else:
             routine_symbol = RoutineSymbol(name)
             program.symbol_table.add(routine_symbol)
@@ -90,19 +91,20 @@ class BaseDriverCreator:
 
         :param program: the program to which the tests should be added.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param output_symbols: a list containing all output variables of \
-            the executed code. Each entry in the list is a 2-tuple, \
-            containing first the symbol that was computed when executing \
-            the kernels, and then the symbol containing the expected \
+        :param output_symbols: a list containing all output variables of
+            the executed code. Each entry in the list is a 2-tuple,
+            containing first the symbol that was computed when executing
+            the kernels, and then the symbol containing the expected
             values that have been read in from a file.
-        :type output_symbols: list of 2-tuples of \
-            :py:class:`psyclone.psyir.symbols.Symbol`
+        :type output_symbols: list[tuple[
+            :py:class:`psyclone.psyir.symbols.Symbol`,
+            :py:class:`psyclone.psyir.symbols.Symbol`]]
         '''
 
         module = ContainerSymbol("compare_variables_mod")
         program.symbol_table.add(module)
         for compare_func in ["compare", "compare_init", "compare_summary"]:
-            compare_sym = RoutineSymbol(compare_func, UnresolvedType(),
+            compare_sym = RoutineSymbol(compare_func, NoType(),
                                         interface=ImportInterface(module))
             program.symbol_table.add(compare_sym)
 
