@@ -50,7 +50,7 @@ from psyclone.tests.utilities import get_invoke
 
 # The version of the PSyclone API that the tests in this file
 # exercise
-API = "gocean1.0"
+API = "gocean"
 
 
 def test_const_loop_bounds_name_and_str():

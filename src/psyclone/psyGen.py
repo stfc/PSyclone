@@ -45,7 +45,8 @@ import os
 from collections import OrderedDict
 import abc
 
-from psyclone.configuration import Config
+from psyclone.configuration import (
+    Config, LFRIC_API_NAMES, GOCEAN_API_NAMES, NO_API_NAMES)
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CommentGen,
@@ -151,9 +152,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
 
 class PSyFactory():
     '''
-    Creates a specific version of the PSy. If a particular api is not
-    provided then the default api, as specified in the psyclone.cfg
-    file, is chosen.
+    Creates a specific version of the PSy.
 
     :param str api: name of the PSyclone API (domain) for which to create \
         a factory.
@@ -174,8 +173,6 @@ class PSyFactory():
             raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
-        if api == "":
-            api = Config.get().default_api
         Config.get().api = api
         Config.get().distributed_memory = _distributed_memory
         self._type = api
@@ -199,11 +196,11 @@ class PSyFactory():
         # Conditional run-time importing is a part of this factory
         # implementation.
         # pylint: disable=import-outside-toplevel
-        if self._type == "dynamo0.3":
+        if self._type in LFRIC_API_NAMES:
             from psyclone.dynamo0p3 import DynamoPSy as PSyClass
-        elif self._type == "gocean1.0":
+        elif self._type in GOCEAN_API_NAMES:
             from psyclone.gocean1p0 import GOPSy as PSyClass
-        elif self._type == "nemo":
+        elif self._type in NO_API_NAMES:
             from psyclone.nemo import NemoPSy as PSyClass
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed

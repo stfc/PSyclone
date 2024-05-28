@@ -454,7 +454,7 @@ def test_long_line_continuator():
                                                    abspath(__file__)),
                                    "test_files", "dynamo0p3",
                                    "13.2_alg_long_line_continuator.f90"),
-                      api="dynamo0.3")
+                      api="lfric")
     input_string = str(alg)
     fll = FortLineLength()
     _ = fll.process(input_string)

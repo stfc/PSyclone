@@ -12,7 +12,7 @@ PSyclone can be run in the directory containing this file by
 executing, e.g.:
 
 ```sh
-psyclone -api "gocean1.0" alg.f90
+psyclone -api "gocean" alg.f90
 ```
 
 This will generate 'vanilla' PSy-layer code which is output to stdout.
@@ -21,7 +21,7 @@ In order to generate an OpenCL PSy layer instead, PSyclone must be
 provided with a transformation script::
 
 ```sh
-psyclone -api "gocean1.0" -s ./ocl_trans.py alg.f90
+psyclone -api "gocean" -s ./ocl_trans.py alg.f90
 ```
 
 where `ocl_trans.py` simply applies the

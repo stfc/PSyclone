@@ -343,7 +343,7 @@ file ``transformation.py`` uses::
         For example:
 
         >>> from psyclone.parse.algorithm import parse
-        >>> api = "gocean1.0"
+        >>> api = "gocean"
         >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
         ...
         >>> dtrans.apply(schedule)
@@ -406,11 +406,11 @@ functions from the LFRic infrastructure is included in
 are requested, the stub files are automatically compiled to create the required
 .mod files. 
 
-For the gocean1.0 domain a complete copy of the dl_esm_inf library is included 
+For the gocean domain a complete copy of the dl_esm_inf library is included 
 as a submodule in ``<PSYCLONEHOME>/external/dl_esm_inf``. Before running tests
 with compilation, make sure this submodule is up-to-date (see
 :ref:`dev-installation`). The test process will compile dl_esm_inf
-automatically, and all PSyclone gocean1.0 compilation tests will reference
+automatically, and all PSyclone gocean compilation tests will reference
 these files.
 
 If you  run the tests in parallel (see :ref:`parallel_execution` section) each

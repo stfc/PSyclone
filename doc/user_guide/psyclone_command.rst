@@ -81,8 +81,8 @@ by the command:
     -opsy OPSY            filename of generated PSy code
     -okern OKERN          directory in which to put transformed kernels,
                           default is the current working directory.
-    -api API              choose a particular api from ['dynamo0.3',
-                          'gocean1.0', 'nemo'], default 'dynamo0.3'.
+    -api API              whether to use a particular api from ['lfric',
+                          'gocean'].
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
@@ -149,7 +149,7 @@ If your code uses an API that is different to the default then you can
 specify this as an argument to the ``psyclone`` command.
 ::
 
-    > psyclone -api gocean1.0 alg.f90
+    > psyclone -api gocean alg.f90
 
 File output
 -----------
@@ -203,7 +203,7 @@ following code gives an error:
     program no_use
       call invoke(testkern_type(a,b,c,d,e))
     end program no_use
-    > psyclone -api gocean1.0 no_use.f90
+    > psyclone -api gocean no_use.f90
     "Parse Error: kernel call 'testkern_type' must either be named in a use statement or be a recognised built-in (one of '[]' for this API)"
 
 (If the chosen API has any :ref:`built-ins` defined then
@@ -242,7 +242,7 @@ specified directory:
     > cd <PSYCLONEHOME>/src/psyclone
     > psyclone -d . use.f90 
     More than one match for kernel file 'testkern.[fF]90' found!
-    > psyclone -d tests/test_files/dynamo0p3 -api dynamo0.3 use.f90 
+    > psyclone -d tests/test_files/dynamo0p3 -api lfric use.f90 
     [code output]
 
 .. note:: The ``-d`` option can be repeated to add as many search
@@ -255,7 +255,7 @@ Transformation script
 
 By default the ``psyclone`` command will generate 'vanilla'
 Algorithm-layer and PSy-layer code with unmodified kernels for the
-gocean1.0 and lfric (dynamo0.3) APIs. For the nemo API, ``psyclone``
+gocean and lfric APIs. For the nemo API, ``psyclone``
 will not perform any transformations on the input code.
 
 The -s option allows a Python script to be specified which can contain

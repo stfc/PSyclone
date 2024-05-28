@@ -69,7 +69,7 @@ by the kernel developer and is kept with the kernel code in the same
 module using a sub-type of the ``kernel_type`` type. In the example
 below the ``w3_solver_kernel_type`` type specifies the appropriate
 metadata information describing the kernel code for the
-``dynamo0.3`` api::
+``lfric`` api::
 
   module w3_solver_kernel_mod
 

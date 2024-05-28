@@ -65,6 +65,10 @@ _FILE_NAME = "psyclone.cfg"
 #          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
+LFRIC_API_NAMES = ["lfric", "dynamo0.3"]
+GOCEAN_API_NAMES = ["gocean", "gocean1.0"]
+NO_API_NAMES = ["nemo", ""]
+
 
 # pylint: disable=too-many-lines
 class ConfigurationError(PSycloneError):
@@ -99,14 +103,12 @@ class Config:
     _HAS_CONFIG_BEEN_INITIALISED = False
 
     # List of supported API by PSyclone
-    _supported_api_list = ["dynamo0.3", "gocean1.0", "nemo"]
+    _supported_api_list = LFRIC_API_NAMES + GOCEAN_API_NAMES + NO_API_NAMES
+    # List for printing purposes (remove duplicates and use prefered names)
+    _curated_api_list = [LFRIC_API_NAMES[0], GOCEAN_API_NAMES[0]]
 
     # List of supported stub API by PSyclone
-    _supported_stub_api_list = ["dynamo0.3"]
-
-    # The default API, i.e. the one to be used if neither a command line
-    # option is specified nor is the API in the config file used.
-    _default_api = "dynamo0.3"
+    _supported_stub_api_list = LFRIC_API_NAMES
 
     # The default scheme to use when (re)naming transformed kernels.
     # By default we support multiple, different versions of any given
@@ -191,12 +193,8 @@ class Config:
         # The name (including path) of the config file read.
         self._config_file = None
 
-        # The API selected by the user - either on the command line,
-        # or in the config file (or the default if neither).
-        self._api = None
-
-        # The default stub API to use.
-        self._default_stub_api = None
+        # The API selected by the user
+        self._api = ""
 
         # True if distributed memory code should be created.
         self._distributed_mem = None
@@ -286,40 +284,6 @@ class Config:
                 f"Error while parsing DISTRIBUTED_MEMORY: {err}",
                 config=self) from err
 
-        # API for PSyclone
-        if "DEFAULTAPI" in self._config["DEFAULT"]:
-            self._api = self._config['DEFAULT']['DEFAULTAPI']
-        else:
-            self._api = Config._default_api
-            # Test if we have exactly one section (besides DEFAULT).
-            # If so, make this section the API (otherwise stick with
-            # the default API)
-            if len(self._config) == 2:
-                for section in self._config:
-                    self._api = section.lower()
-                    if self._api != "default":
-                        break
-
-        # Sanity check
-        if self._api not in Config._supported_api_list:
-            raise ConfigurationError(
-                f"The API ({self._api}) is not in the list of supported "
-                f"APIs ({Config._supported_api_list}).", config=self)
-
-        # Default API for stub-generator
-        if 'defaultstubapi' not in self._config['DEFAULT']:
-            # Use the default API if no default is specified for stub API
-            self._default_stub_api = Config._default_api
-        else:
-            self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
-
-        # Sanity check for defaultstubapi:
-        if self._default_stub_api not in Config._supported_stub_api_list:
-            raise ConfigurationError(
-                f"The default stub API ({self._default_stub_api}) is not in "
-                f"the list of supported stub APIs ("
-                f"{Config._supported_stub_api_list}).", config=self)
-
         try:
             self._reproducible_reductions = self._config['DEFAULT'].getboolean(
                 'REPRODUCIBLE_REDUCTIONS')
@@ -380,10 +344,12 @@ class Config:
         self._api_conf = {}
         for api in Config._supported_api_list:
             if api in self._config:
-                if api == "dynamo0.3":
-                    self._api_conf[api] = LFRicConfig(self, self._config[api])
-                elif api == "gocean1.0":
-                    self._api_conf[api] = GOceanConfig(self, self._config[api])
+                if api in LFRIC_API_NAMES:
+                    key = LFRIC_API_NAMES[0]  # Use the first name internally
+                    self._api_conf[key] = LFRicConfig(self, self._config[api])
+                elif api in GOCEAN_API_NAMES:
+                    key = GOCEAN_API_NAMES[0]  # Use the first name internally
+                    self._api_conf[key] = GOceanConfig(self, self._config[api])
                 else:
                     raise NotImplementedError(
                         f"Configuration file '{self._config_file}' contains a "
@@ -422,9 +388,8 @@ class Config:
         :raises ConfigurationError: if the config file did not contain a \
                                     section for the requested API.
         '''
-
         if not api:
-            return self._api_conf[self._api]
+            api = self._api
 
         if api not in self.supported_apis:
             raise ConfigurationError(
@@ -520,16 +485,6 @@ class Config:
         self._distributed_mem = dist_mem
 
     @property
-    def default_api(self):
-        '''
-        Getter for the default API used by PSyclone.
-
-        :returns: default PSyclone API
-        :rtype: str
-        '''
-        return self._default_api
-
-    @property
     def api(self):
         '''Getter for the API selected by the user.
 
@@ -562,14 +517,12 @@ class Config:
         return Config._supported_api_list
 
     @property
-    def default_stub_api(self):
+    def curated_api_list(self):
         '''
-        Getter for the default API used by the stub generator.
-
-        :returns: default API for the stub generator
-        :rtype: str
+        :returns: the curated list of PSyKAl DSLs supported.
+        :rtype: list[str]
         '''
-        return self._default_stub_api
+        return Config._curated_api_list
 
     @property
     def backend_checks_enabled(self):
@@ -750,7 +703,7 @@ class Config:
 
 
 # =============================================================================
-class APISpecificConfig:
+class BaseConfig:
     '''A base class for functions that each API-specific class must provide.
     At the moment this is just the function 'access_mapping' that maps between
     API-specific access-descriptor strings and the PSyclone internal
@@ -770,26 +723,27 @@ class APISpecificConfig:
         # Get the mapping if one exists and convert it into a
         # dictionary. The input is in the format: key1:value1,
         # key2=value2, ...
-        mapping_list = section.getlist("ACCESS_MAPPING")
-        if mapping_list is not None:
-            self._access_mapping = \
-                APISpecificConfig.create_dict_from_list(mapping_list)
-        # Now convert the string type ("read" etc) to AccessType
-        # TODO (issue #710): Add checks for duplicate or missing access
-        # key-value pairs
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.core.access_type import AccessType
+        if "ACCESS_MAPPING" in section:
+            mapping_list = section.getlist("ACCESS_MAPPING")
+            if mapping_list is not None:
+                self._access_mapping = \
+                    BaseConfig.create_dict_from_list(mapping_list)
+            # Now convert the string type ("read" etc) to AccessType
+            # TODO (issue #710): Add checks for duplicate or missing access
+            # key-value pairs
+            # Avoid circular import
+            # pylint: disable=import-outside-toplevel
+            from psyclone.core.access_type import AccessType
 
-        for api_access_name, access_type in self._access_mapping.items():
-            try:
-                self._access_mapping[api_access_name] = \
-                    AccessType.from_string(access_type)
-            except ValueError as err:
-                # Raised by from_string()
-                raise ConfigurationError(
-                    f"Unknown access type '{access_type}' found for key "
-                    f"'{api_access_name}'") from err
+            for api_access_name, access_type in self._access_mapping.items():
+                try:
+                    self._access_mapping[api_access_name] = \
+                        AccessType.from_string(access_type)
+                except ValueError as err:
+                    # Raised by from_string()
+                    raise ConfigurationError(
+                        f"Unknown access type '{access_type}' found for key "
+                        f"'{api_access_name}'") from err
 
         # Now create the reverse lookup (for better error messages):
         self._reverse_access_mapping = {v: k for k, v in
@@ -833,7 +787,7 @@ class APISpecificConfig:
         '''
         precisions_list = section.getlist("precision_map")
         return_dict = {}
-        return_dict = APISpecificConfig.create_dict_from_list(precisions_list)
+        return_dict = BaseConfig.create_dict_from_list(precisions_list)
 
         for key, value in return_dict.items():
             # isdecimal returns True if all the characters are decimals (0-9).
@@ -885,14 +839,14 @@ class APISpecificConfig:
 
 
 # =============================================================================
-class LFRicConfig(APISpecificConfig):
+class LFRicConfig(BaseConfig):
     '''
     LFRic-specific (Dynamo 0.3) Config sub-class. Holds configuration options
     specific to the LFRic (Dynamo 0.3) API.
 
     :param config: the 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
-    :param section: the entry for the '[dynamo0.3]' section of \
+    :param section: the entry for the '[lfric]' section of \
                     the configuration file, as produced by ConfigParser.
     :type section: :py:class:`configparser.SectionProxy`
 
@@ -1130,13 +1084,13 @@ class LFRicConfig(APISpecificConfig):
 
 
 # =============================================================================
-class GOceanConfig(APISpecificConfig):
+class GOceanConfig(BaseConfig):
     '''Gocean1.0-specific Config sub-class. Holds configuration options
     specific to the GOcean 1.0 API.
 
     :param config: The 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
-    :param section: The entry for the gocean1.0 section of \
+    :param section: The entry for the gocean section of \
                     the configuration file, as produced by ConfigParser.
     :type section:  :py:class:`configparser.SectionProxy`
 
@@ -1172,7 +1126,7 @@ class GOceanConfig(APISpecificConfig):
                 for it_space in new_iteration_spaces:
                     GOLoop.add_bounds(it_space)
             elif key == "access_mapping":
-                # Handled in the base class APISpecificConfig
+                # Handled in the base class BaseConfig
                 pass
             elif key == "debug_mode":
                 # Boolean that specifies if debug mode is enabled
@@ -1295,7 +1249,7 @@ class GOceanConfig(APISpecificConfig):
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
-__all__ = ["APISpecificConfig",
+__all__ = ["BaseConfig",
            "Config",
            "ConfigurationError",
            "LFRicConfig",

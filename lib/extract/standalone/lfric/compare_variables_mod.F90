@@ -1,8 +1,3 @@
-! Note that this file is provided as part of git to enable
-! compilation tests of drivers (which require this file).
-
-
-
 ! ================================================== !
 ! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !
 ! DO NOT MODIFY DIRECTLY!                            !
@@ -134,7 +129,7 @@ contains
 
         write(out_format, "('(A',I0)" ) max_name_len
         write(*,out_format//",8A13)") "Variable", "max_abs", "max_rel",&
-            "l2_diff", "l2_cos", "identical", "count-9", "count-6", "count-3"
+            "l2_diff", "l2_cos", "identical", "#rel<1E-9", "#rel<1E-6", "#rel<1E-3"
 
         out_format = trim(out_format)//"' ',8(E12.7,' '))"
 
@@ -148,12 +143,14 @@ contains
     ! -------------------------------------------------------------------------
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes the value of a scalar character(*)
-    !! variable to the file. It takes the variable id from the
-    !! corresponding declaration.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !> @brief This subroutine compares the value of a scalar character(*)
+    !! variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results  will be printed when `compare_summary` is called.
+
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
+    !! @param[in] correct_value The expected value of the variable.
     subroutine compare_scalar_Char(name, value, correct_value)
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                                   real32, real64 
@@ -185,8 +182,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 1D array of character(*)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 1D array of
+    !! character(*) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_1dChar(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -251,8 +253,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 2D array of character(*)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 2D array of
+    !! character(*) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_2dChar(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -317,8 +324,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 3D array of character(*)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 3D array of
+    !! character(*) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_3dChar(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -383,8 +395,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 4D array of character(*)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 4D array of
+    !! character(*) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_4dChar(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -445,12 +462,14 @@ contains
     end subroutine Compare_array_4dChar
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes the value of a scalar integer(kind=int32)
-    !! variable to the file. It takes the variable id from the
-    !! corresponding declaration.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !> @brief This subroutine compares the value of a scalar integer(kind=int32)
+    !! variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results  will be printed when `compare_summary` is called.
+
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
+    !! @param[in] correct_value The expected value of the variable.
     subroutine compare_scalar_Int(name, value, correct_value)
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                                   real32, real64 
@@ -491,8 +510,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 1D array of integer(kind=int32)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 1D array of
+    !! integer(kind=int32) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_1dInt(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -553,8 +577,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 2D array of integer(kind=int32)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 2D array of
+    !! integer(kind=int32) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_2dInt(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -615,8 +644,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 3D array of integer(kind=int32)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 3D array of
+    !! integer(kind=int32) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_3dInt(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -677,8 +711,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 4D array of integer(kind=int32)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 4D array of
+    !! integer(kind=int32) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_4dInt(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -735,12 +774,14 @@ contains
     end subroutine Compare_array_4dInt
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes the value of a scalar Logical(kind=4)
-    !! variable to the file. It takes the variable id from the
-    !! corresponding declaration.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !> @brief This subroutine compares the value of a scalar Logical(kind=4)
+    !! variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results  will be printed when `compare_summary` is called.
+
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
+    !! @param[in] correct_value The expected value of the variable.
     subroutine compare_scalar_Logical(name, value, correct_value)
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                                   real32, real64 
@@ -772,8 +813,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 1D array of Logical(kind=4)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 1D array of
+    !! Logical(kind=4) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_1dLogical(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -836,8 +882,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 2D array of Logical(kind=4)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 2D array of
+    !! Logical(kind=4) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_2dLogical(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -900,8 +951,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 3D array of Logical(kind=4)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 3D array of
+    !! Logical(kind=4) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_3dLogical(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -964,8 +1020,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 4D array of Logical(kind=4)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 4D array of
+    !! Logical(kind=4) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_4dLogical(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -1024,12 +1085,14 @@ contains
     end subroutine Compare_array_4dLogical
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes the value of a scalar real(kind=real32)
-    !! variable to the file. It takes the variable id from the
-    !! corresponding declaration.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !> @brief This subroutine compares the value of a scalar real(kind=real32)
+    !! variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results  will be printed when `compare_summary` is called.
+
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
+    !! @param[in] correct_value The expected value of the variable.
     subroutine compare_scalar_Real(name, value, correct_value)
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                                   real32, real64 
@@ -1069,8 +1132,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 1D array of real(kind=real32)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 1D array of
+    !! real(kind=real32) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_1dReal(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -1131,8 +1199,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 2D array of real(kind=real32)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 2D array of
+    !! real(kind=real32) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_2dReal(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -1193,8 +1266,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 3D array of real(kind=real32)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 3D array of
+    !! real(kind=real32) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_3dReal(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -1255,8 +1333,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 4D array of real(kind=real32)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 4D array of
+    !! real(kind=real32) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_4dReal(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -1313,12 +1396,14 @@ contains
     end subroutine Compare_array_4dReal
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes the value of a scalar real(kind=real64)
-    !! variable to the file. It takes the variable id from the
-    !! corresponding declaration.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
+    !> @brief This subroutine compares the value of a scalar real(kind=real64)
+    !! variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results  will be printed when `compare_summary` is called.
+
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
+    !! @param[in] correct_value The expected value of the variable.
     subroutine compare_scalar_Double(name, value, correct_value)
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                                   real32, real64 
@@ -1358,8 +1443,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 1D array of real(kind=real64)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 1D array of
+    !! real(kind=real64) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_1dDouble(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -1420,8 +1510,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 2D array of real(kind=real64)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 2D array of
+    !! real(kind=real64) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_2dDouble(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -1482,8 +1577,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 3D array of real(kind=real64)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 3D array of
+    !! real(kind=real64) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_3dDouble(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &
@@ -1544,8 +1644,13 @@ contains
     ! -------------------------------------------------------------------------
     !> @brief This subroutine writes a 4D array of real(kind=real64)
     !! to the file.
-    !! @param[in,out] this The instance of the ExtractStandaloneBaseType.
-    !! @param[in] value The value of the variable.
+    !> @brief This subroutine compares the value of a 4D array of
+    !! real(kind=real64) variable with the expected correct value and adds statistics
+    !! about this comparison to the global field all_result fields. The
+    !! results will be printed when `compare_summary` is called.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] values The values of the variable.
+    !! @param[in] correct_values The expected value of the variable.
     subroutine compare_array_4dDouble(name, values, correct_values)
 
         use, intrinsic :: iso_fortran_env, only : int64, int32,   &

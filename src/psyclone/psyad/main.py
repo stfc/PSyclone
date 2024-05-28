@@ -42,7 +42,7 @@ import argparse
 import logging
 import sys
 
-from psyclone.configuration import Config
+from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.line_length import FortLineLength
 from psyclone.psyad.tl2ad import generate_adjoint_str
 from psyclone.psyad.transformations import TangentLinearError
@@ -117,15 +117,15 @@ def main(args):
     generate_test = args.gen_test or args.test_filename
 
     # Check the command-line arguments for consistency.
-    if args.api != "dynamo0.3":
+    if args.api not in LFRIC_API_NAMES:
         if args.coord_arg is not None:
             logger.error(
-                "The '-coord-arg' argument is only applicable to the LFRic "
-                "('dynamo0.3') API.")
+                "The '-coord-arg' argument is only applicable to the 'lfric' "
+                "API.")
             sys.exit(1)
         if args.panel_id_arg is not None:
             logger.error("The '-panel-id-arg' argument is only applicable to "
-                         "the LFRic ('dynamo0.3') API.")
+                         "the 'lfric' API.")
             sys.exit(1)
 
     # TL Fortran code

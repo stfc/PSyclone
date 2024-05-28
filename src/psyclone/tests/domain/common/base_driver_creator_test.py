@@ -44,7 +44,7 @@ from psyclone.psyir.nodes import Literal, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, RoutineSymbol
 
 
-def test_basicc_driver_add_call(fortran_writer):
+def test_basic_driver_add_call(fortran_writer):
     '''Tests that adding a call detects errors and adds calls
     with and without parameters as expected.
     '''
@@ -52,8 +52,9 @@ def test_basicc_driver_add_call(fortran_writer):
     program.symbol_table.find_or_create_tag("test")
     with pytest.raises(TypeError) as err:
         BaseDriverCreator.add_call(program, "test", [])
-    assert ("Routine 'test' is a symbol of type 'Symbol', not a "
-            "'RoutineSymbol'" in str(err.value))
+    assert ("Error creating call to 'test' - existing symbol is of type "
+            "'Symbol', not a 'RoutineSymbol'" in str(err.value))
+
     # Clean up previous invalid test symbol
     del program.symbol_table._symbols['test']
     del program.symbol_table._tags['test']
