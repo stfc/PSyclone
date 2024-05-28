@@ -47,7 +47,7 @@
    psyir
    psyir_symbols
    psyir_backends
-   parsing
+   psykal
    APIs
    modules
    dependency
