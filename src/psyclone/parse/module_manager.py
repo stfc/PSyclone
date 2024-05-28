@@ -48,12 +48,6 @@ from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo
 
 
-# regex to find Fortran module names. Have to be careful not to match
-# e.g. "module procedure :: some_sub".
-_MODULE_PATTERN = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
-                             flags=(re.IGNORECASE | re.MULTILINE))
-
-
 class ModuleManager:
     '''This class implements a singleton that manages module
     dependencies.
@@ -75,6 +69,7 @@ class ModuleManager:
         '''
         if not ModuleManager._instance:
             ModuleManager._instance = ModuleManager()
+
         return ModuleManager._instance
 
     # ------------------------------------------------------------------------
@@ -83,8 +78,7 @@ class ModuleManager:
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
-        # Cached mapping from module name to filename.
-        self._mod_2_filename = {}
+
         self._modules = {}
         self._visited_files = {}
 
@@ -95,6 +89,11 @@ class ModuleManager:
         self._original_search_paths = []
 
         self._ignore_modules = set()
+
+        # Setup the regex used to find Fortran modules. Have to be careful not
+        # to match e.g. "module procedure :: some_sub".
+        self._module_pattern = re.compile(r"^\s*module\s+([a-z]\S*)\s*$",
+                                          flags=(re.IGNORECASE | re.MULTILINE))
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -141,8 +140,8 @@ class ModuleManager:
         with os.scandir(directory) as all_entries:
             for entry in all_entries:
                 _, ext = os.path.splitext(entry.name)
-                if (not entry.is_file()) or \
-                        ext not in [".F90", ".f90", ".X90", ".x90"]:
+                if (not entry.is_file() or
+                        ext not in [".F90", ".f90", ".X90", ".x90"]):
                     continue
                 full_path = os.path.join(directory, entry.name)
                 if full_path in self._visited_files:
@@ -263,19 +262,19 @@ class ModuleManager:
         Uses a regex search to find all modules defined in the file with the
         supplied name.
 
-        :param str filename: the fully-qualified name of the file to check for
-                             Fortran modules.
+        :param finfo: object holding information on the file to examine.
+        :type finfo: :py:class:`psyclone.parse.FileInfo`
 
         :returns: the names of any modules present in the supplied file.
         :rtype: list[str]
 
         '''
-        # TODO #2597: use the fparser FortranReader here as this regex could
-        # be defeated by e.g.
+        # TODO #2597: perhaps use the fparser FortranReader here as this regex
+        # could be defeated by e.g.
         #   module &
         #    my_mod
         # `finfo.contents` will read the file if it hasn't already been cached.
-        mod_names = _MODULE_PATTERN.findall(finfo.contents)
+        mod_names = self._module_pattern.findall(finfo.contents)
 
         return [name.lower() for name in mod_names]
 

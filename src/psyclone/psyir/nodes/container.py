@@ -191,7 +191,7 @@ class Container(ScopingNode, CommentableMixin):
     def resolve_routine(self, name):
         '''This function returns a list of function names that might be
         actually called when the routine `name` is called. In most cases
-        this is exactly name, but in case of a generic subroutine the
+        this is exactly `name`, but in case of a generic subroutine the
         name might change. For now (since we cannot compare routine
         signatures yet), we return the list of all possible functions that
         might be called.
@@ -201,7 +201,7 @@ class Container(ScopingNode, CommentableMixin):
         :returns: the names of those routines that may actually be invoked
             when the routine `name` is called or an empty list if there is no
             routine with that name in this container.
-        :rtype: list[None | psyclone.psyir.nodes.Routine]
+        :rtype: list[str | None]
 
         :raises TypeError: if the Symbol with the supplied name is not a
             RoutineSymbol or GenericInterfaceSymbol.

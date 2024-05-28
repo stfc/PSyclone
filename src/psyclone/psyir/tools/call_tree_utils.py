@@ -432,7 +432,6 @@ class CallTreeUtils():
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot get PSyIR for module '{module_name}' - "
                           f"ignoring unknown symbol '{signature}'.")
-                    sym = None
                 else:
                     psyir = cntr.get_routine_psyir(str(signature))
                     if psyir:
@@ -456,7 +455,6 @@ class CallTreeUtils():
                     except KeyError:
                         print(f"Unable to check if signature '{signature}' "
                               f"is constant.")
-                        sym = None
                 # Otherwise fall through to the code that adds a reference:
 
             # Now it must be a reference, so add it to the list of input-

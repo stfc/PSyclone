@@ -152,6 +152,12 @@ def test_mod_manager_add_files_from_dir():
                                                   "d1/d3/b_mod.F90",
                                                   "d1/d3/c_mod.x90",
                                                   "d2/d4/e_mod.F90"}
+    # Repeating shouldn't add anything.
+    mod_man._add_all_files_from_dir("d2/d4")
+    assert set(mod_man._visited_files.keys()) == {"d1/a_mod.f90",
+                                                  "d1/d3/b_mod.F90",
+                                                  "d1/d3/c_mod.x90",
+                                                  "d2/d4/e_mod.F90"}
 
 
 # ----------------------------------------------------------------------------

@@ -65,9 +65,13 @@ def test_module_info():
     # Try to read the file a_mod.f90, which is contained in the d1 directory
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
+    assert len(mod_man._visited_files) == 0
 
     mod_info = mod_man.get_module_info("a_mod")
     assert isinstance(mod_info, ModuleInfo)
+    # Check that we've only read one file.
+    assert len(mod_man._visited_files) == 1
+    assert "d1/a_mod.f90" in mod_man._visited_files
     source_code = mod_info.get_source_code()
     assert source_code.startswith("module a_mod")
     assert "end module a_mod" in source_code
