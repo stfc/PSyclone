@@ -127,13 +127,16 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     def _add_all_files_from_dir(self, directory):
-        '''This function adds all files with an extension of (F/f/X/x)90 in the
-        given directory to the mapping of module names to file names. The
-        module names are based on the filename using `get_modules_in_file()`.
-        By default it is assumed that `a_mod.f90` contains the module `a_mod`.
+        '''This function creates (and caches) FileInfo objects for all files
+        with an extension of (F/f/X/x)90 in the given directory that have
+        not previously been visited. The new FileInfo objects are returned.
 
         :param str directory: the directory containing Fortran files
             to analyse.
+
+        :returns: the FileInfo objects for any files that we have not
+                  previously visited.
+        :rtype: list[:py:class:`psyclone.parse.FileInfo` | None]
 
         '''
         new_files = []
@@ -208,8 +211,9 @@ class ModuleManager:
 
         :param str module_name: name of the module.
 
-        :returns: the filename that contains the module
-        :rtype: str
+        :returns: object describing the requested module or None if the
+                  manager has been configured to ignore this module.
+        :rtype: :py:class:`psyclone.parse.ModuleInfo` | None
 
         :raises FileNotFoundError: if the module_name is not found in
             either the cached data nor in the search path.

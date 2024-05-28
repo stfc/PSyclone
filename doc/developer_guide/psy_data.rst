@@ -972,6 +972,7 @@ Some of the wrapper libraries use the PSyData base class (e.g. dl_timer,
 simple_timing, template), others do not (e.g. NVIDIA profiling, TAU,
 DrHook wrapper).
 
+.. _psyke:
 
 Kernel Extraction (PSyKE)
 -------------------------
@@ -1220,5 +1221,5 @@ compared with the expected values in ``field1_post``.
 .. note:: For now the created driver still depends on the infrastructure
     library and any other modules used. Issue #1991 improves this.
 
-The LFRic driver creation utilises the ``ModuleManager`` to find
+The LFRic driver creation utilises the :ref:`module_manager` to find
 and inline all modules required by the driver.

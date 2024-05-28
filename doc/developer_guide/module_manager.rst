@@ -36,54 +36,79 @@
 
 .. testsetup::
 
-    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
-    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
-        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+    import os
+    from psyclone.parse import ModuleManager
+
+.. _module_manager:
 
 Module Manager
 ##############
 
-PSyclone uses a `ModuleManager` to handle searching for files containing
+PSyclone uses a ``ModuleManager`` to handle searching for files containing
 Fortran modules. This object acts as the top-level interface to the
 code making up a program. It may be used to obtain the PSyIR for each
 Container (Fortran module) in a code. It is used by the Container import
-interface and the PSyclone Kernel Extractor. For the latter it is used
+interface and the :ref:`psyke`. For the latter it
+is used
 to discover all of the source files required to make a standalone driver.
 
-.. autoclass:: psyclone.parse.ModuleManager
-    :members:
+The :ref_guide:`ModuleManager psyclone.parse.html#psyclone.parse.ModuleManager`
+is a singleton which must be obtained via
+`ModuleManager.get()`. Having obtained the instance, it may be used to
+search for a particular module via the `get_module_info` method:
+
+.. automethod:: psyclone.parse.ModuleManager.get_module_info
 
 Any PSyclone command line option ``-d`` (see :ref:`psyclone_command`)
-will be added to the ``ModuleManager`` as recursive search paths. The
-``ModuleManager`` is a singleton and it can be queried for information about
-any module. It internally uses caching to avoid repeatedly searching
-directories, and it will only access search paths as required. For example,
-if the first search path will be sufficient to find all modules during the
-lifetime of the module manager, no other search path will ever be accessed.
-The caching also implies that the ModuleManager will *not* detect any new files
-created during its lifetime.
+will be added to the ``ModuleManager`` as recursive search
+paths. Internally, the ``ModuleManager`` uses caching to avoid
+repeatedly searching directories, and it will only access search paths
+as required. For example, if it should happen that the first search
+path is sufficient to find all modules during the lifetime of the
+module manager, no other search path will ever be accessed.  The
+caching also implies that the ModuleManager will *not* detect any new
+files created during its lifetime.
 
-The ``ModuleManager`` also provides a static function that will sort
-a list of module dependencies, so that compiling the modules in this order
-(or adding them in this order to a file) will allow compilation, i.e. any
-module will only depend on previously defined modules.
+Rather than rely on any particular naming convention to identify which
+Fortran source file contains a given module, a measure of the
+'similarity' of the target module name and the base name (i.e. the
+filename stripped of any path and suffix) of any source file is used
+to identify likely candidates. The standard Python
+``difflib.SequenceMatcher.ratio`` method is used to obtain the
+similarity score. If the score is above a certain threshold (currently
+set to 0.7 in the ``ModuleManager`` class) then the file is read, its
+contents cached within a :ref_guide:`FileInfo
+psyclone.parse.html#psyclone.parse.FileInfo` object, and a regular
+expression used to determine whether or not it does contain the target
+module. This approach has been designed to minimise IO activity since
+this could get very costly on the types of shared filesystem common on
+HPC resources. The use of a ``FileInfo`` object also facilitates the
+decoupling of the concept of a file from that of a module since the
+former can contain more than one of the latter.
 
-The ``ModuleManager`` will return a ``ModuleInfo`` object to make information
-about a module available:
-
-.. autoclass:: psyclone.parse.ModuleInfo
-    :members:
-
-Similar to the ``ModuleManager``, a ``ModuleInfo`` object will heavily rely on
+The ``ModuleManager`` will return a :ref_guide:`ModuleInfo
+psyclone.parse.html#psyclone.parse.ModuleInfo` object to make
+information about a module available.
+Similar to the ``ModuleManager``, a ``ModuleInfo`` object relies heavily on
 caching to avoid repeatedly reading a source file or parsing it. The side
 effect is that changes to a source file during the lifetime of the
 ``ModuleManager`` will not be reflected in its information.
 
-At this stage, the ``ModuleInfo`` can be used to get the original source
-code of a module as string and to query a module about modules and symbols
-it depends on. It uses the fparser parse tree to detect this information (which
-means it can handle files that are not supported by PSyIR, e.g. files with
-preprocessor directives).
+The ``ModuleManager`` also provides a static function that will sort
+a list of module dependencies, so that compiling the modules in this order
+(or adding them in this order to a file) will allow compilation, i.e. any
+module will only depend on previously defined modules:
+
+.. automethod:: psyclone.parse.ModuleManager.sort_modules
+
+Once a ``ModuleInfo`` has been obtained, its primary role is to provide
+access to the PSyIR of the ``Container`` representing the module:
+
+.. automethod:: psyclone.parse.ModuleInfo.get_psyir
+
+However, it also provides methods (``get_used_modules``,
+``get_used_symbols_from_modules``) for interrogating the parse tree which
+can be useful if it is not possible to represent this in PSyIR.
 
 An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects,
 which prints the filenames of all modules used in ``tl_testkern_mod``:

@@ -35,9 +35,7 @@
 #          A. R. Porter, STFC Daresbury Laboratory
 
 '''This module contains the ModuleInfo class, which is used to store
-and cache information about a module: a FileInfo instance holding information
-on the source file, the fparser tree (if requested) and the corresponding
-PSyIR (if requested).
+and cache information about a module.
 
 '''
 
@@ -71,10 +69,10 @@ class ModuleInfoError(PSycloneError):
 # ============================================================================
 class ModuleInfo:
     # pylint: disable=too-many-instance-attributes
-    '''This class stores mostly cached information about modules: it stores
-    a FileInfo object holding details on the original source file.
-    If required it will parse the file and then
-    cache the fparser AST. Similarly, it will also process the AST to
+    '''This class stores mostly cached information about a Fortran module.
+    It stores a FileInfo object holding details on the original source file.
+    If required it will parse this file and then cache the fparser2 parse tree.
+    Similarly, it will also process this parse tree to
     create the corresponding PSyIR which is also then cached.
 
     :param str name: the module name.
@@ -83,7 +81,6 @@ class ModuleInfo:
     :type finfo: :py:class:`psyclone.parse.FileInfo`
 
     '''
-
     def __init__(self, name, finfo):
         self._name = name.lower()
         self._file_info = finfo
