@@ -53,7 +53,7 @@ class GOceanExtractTrans(ExtractTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>>
-    >>> API = "gocean1.0"
+    >>> API = "gocean"
     >>> FILENAME = "shallow_alg.f90"
     >>> ast, invokeInfo = parse(FILENAME, api=API)
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)

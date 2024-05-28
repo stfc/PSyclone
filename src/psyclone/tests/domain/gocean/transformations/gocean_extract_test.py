@@ -56,7 +56,7 @@ from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.utilities import get_invoke
 
 # API names
-GOCEAN_API = "gocean1.0"
+GOCEAN_API = "gocean"
 
 
 @pytest.fixture(scope="function", autouse=True)

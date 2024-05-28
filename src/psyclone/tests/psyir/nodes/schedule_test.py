@@ -86,8 +86,8 @@ def test_sched_getitem():
     given index child'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
 
     sched = psy.invokes.invoke_list[0].schedule
     for indx in range(len(sched._children)):
@@ -109,8 +109,8 @@ def test_sched_can_be_printed():
     ''' Check the schedule class can always be printed'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
 
     # For this test use the generic class
     psy.invokes.invoke_list[0].schedule.__class__ = Schedule

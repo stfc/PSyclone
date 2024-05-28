@@ -50,7 +50,7 @@ PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
 KERNEL_SRC = $(wildcard *_kernel_mod.f90)
 
 # PSyclone command-line options
-PSYCLONE_CMD = -nodm -l all
+PSYCLONE_CMD = -api lfric -nodm -l all
 
 # Executable
 EXEC = ./simple_kernels_part1

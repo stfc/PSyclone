@@ -47,7 +47,7 @@ DEPTH = 1
 
 
 def trans(psy):
-    '''PSyclone transformation script for the dynamo0.3 API to apply
+    '''PSyclone transformation script for the lfric API to apply
     redundant computation into the level 1 halo generically to all
     loops that iterate over dofs and exclusively contain the setval_c
     builtin. The reason for choosing this particular builtin is that

@@ -19,7 +19,7 @@ the necessary sequential PSy-layer code for a single invoke() that
 specifies one Built-in kernel and one user-supplied kernel:
 ```sh
 cd eg1/
-psyclone -nodm -d ../code ./single_invoke.x90
+psyclone -api lfric -nodm -d ../code ./single_invoke.x90
 ```
 
 (The `-d ../code` argument tells PSyclone where it should search for any
@@ -41,17 +41,17 @@ transformations to:
 1. display the PSyclone Internal Representation of the PSy-layer code:
    ```sh
    cd eg2/
-   psyclone -nodm -d ../code -s ./print_psyir_trans.py ./multi_invoke_mod.x90
+   psyclone -api lfric -nodm -d ../code -s ./print_psyir_trans.py ./multi_invoke_mod.x90
    ```
 
 2. module-inline a user-supplied kernel into the PSy layer:
    ```sh
-   psyclone -nodm -d ../code -s ./module_inline_trans.py ./multi_invoke_mod.x90
+   psyclone -api lfric -nodm -d ../code -s ./module_inline_trans.py ./multi_invoke_mod.x90
    ```
 
 3. perform loop fusion:
    ```sh
-   psyclone -nodm -d ../code -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
+   psyclone -api lfric -nodm -d ../code -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
    ```
 
 Please see the individual transformation scripts for more details.
@@ -63,7 +63,7 @@ The third example can be used to demonstrate PSyclone:
 1. generating distributed memory parallel code
    ```sh
    cd eg3/
-   psyclone solver_mod.x90
+   psyclone -api lfric solver_mod.x90
    # look for %set_dirty and %halo_exchange in the generated code
    ```
 
@@ -71,13 +71,13 @@ The third example can be used to demonstrate PSyclone:
    parallelisation, either with distributed memory parallel code:
    ```sh
    cd eg3/
-   psyclone -s ./colouring_and_omp.py solver_mod.x90
+   psyclone -api lfric -s ./colouring_and_omp.py solver_mod.x90
    ```
 
    or without distributed memory parallel code:
    ```sh
    cd eg3/
-   psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
+   psyclone -api lfric -s ./colouring_and_omp.py -nodm solver_mod.x90
    ```
 
 This example also demonstrates the use of `Wchi` function space metadata
@@ -91,7 +91,7 @@ It also includes the use of the enforce_bc_kernel_type kernel to apply
 boundary conditions.
 ```sh
 cd eg4/
-psyclone solver_mod.x90
+psyclone -api lfric solver_mod.x90
 ```
 It also has the `backends` Makefile target to inform the development of
 PSy-layer code generation using the PSyIR backends.
@@ -103,7 +103,7 @@ passing of extent and direction information (where appropriate) from the
 algorithm layer.
 ```sh
 cd eg5/
-psyclone alg.f90
+psyclone -api lfric alg.f90
 ```
 
 ## Example 6: Reductions
@@ -116,25 +116,25 @@ generated and the dag method will silently return. The example may be
 run sequentially:
 ```sh
 cd eg6/
-psyclone -nodm alg.x90
+psyclone -api lfric -nodm alg.x90
 ```
 
 code parallelised with MPI:
 ```sh
 cd eg6/
-psyclone alg.x90
+psyclone -api lfric alg.x90
 ```
 
 code parallelised with OpenMP (and loop fused)
 ```sh
 cd eg6/
-psyclone -nodm -s ./omp_script.py alg.x90
+psyclone -api lfric -nodm -s ./omp_script.py alg.x90
 ```
 
 or code parallelised with both MPI and OpenMP (and loop fused)
 ```sh
 cd eg6/
-psyclone -s ./omp_script.py alg.x90
+psyclone -api lfric -s ./omp_script.py alg.x90
 ```
 
 By default the OpenMP implementations make use of the OpenMP reduction
@@ -146,7 +146,7 @@ the same results from one run to the next when using the same number
 of threads
 ```sh
 cd eg6/
-psyclone -s ./omp_reprod_script.py alg.x90
+psyclone -api lfric -s ./omp_reprod_script.py alg.x90
 ```
 
 ## Example 7: Column-Matrix Assembly Operators
@@ -155,7 +155,7 @@ The seventh example illustrates the use of PSyclone with kernels that
 perform operations with column-wise (Column-Matrix Assembly) operators:
 ```sh
 cd eg7/
-psyclone alg.x90
+psyclone -api lfric alg.x90
 ```
 
 ## Example 8: Redundant Computation
@@ -164,7 +164,7 @@ The eighth example illustrates the use of redundant computation to
 remove and/or change the location and depth of halo exchanges:
 ```sh
 cd eg8/
-psyclone helmholtz_solver_alg_mod.x90 -s ./redundant_script.py
+psyclone -api lfric helmholtz_solver_alg_mod.x90 -s ./redundant_script.py
 ```
 
 ## Example 9: Writing to Discontinuous Fields
@@ -173,14 +173,14 @@ The ninth example illustrates the behaviour of discontinuous field writers
 and readwriters:
 ```sh
 cd eg9/
-psyclone advective_inc_alg_mod.x90
+psyclone -api lfric advective_inc_alg_mod.x90
 ```
 
 This example also demonstrates how to write a PSyclone transformation
 script that only colours loops over continuous spaces:
 ```sh
 cd eg9/
-psyclone -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
+psyclone -api lfric -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
 ```
 
 ## Example 10: Inter-grid Kernels
@@ -192,7 +192,7 @@ that takes a field on a fine mesh and restricts it twice before undoing
 that by prolonging it twice:
 ```sh
 cd eg10/
-psyclone intergrid_3levels.x90
+psyclone -api lfric intergrid_3levels.x90
 ```
 
 This example also demonstrates the use of `ANY_DISCONTINUOUS_SPACE`
@@ -204,7 +204,7 @@ This example shows how asynchronous halo exchange calls can be created
 and manipulated:
 ```sh
 cd eg11/
-psyclone -s ./async_script.py helmholtz_solver_alg_mod.x90
+psyclone -api lfric -s ./async_script.py helmholtz_solver_alg_mod.x90
 ```
 
 ## Example 12: Code Extraction
@@ -216,7 +216,7 @@ extraction is being developed (please note that distributed memory will not
 be supported). This example can extract a list of Nodes:
 ```sh
 cd eg12/
-${PSYCLONE} -nodm -s ./extract_nodes.py \
+${PSYCLONE} -api lfric -nodm -s ./extract_nodes.py \
   gw_mixed_schur_preconditioner_alg_mod.x90
 ```
 
@@ -224,7 +224,7 @@ or the specific Kernel from one Invoke which contains the Kernel
 call after applying transformations (here colouring and OpenMP):
 ```sh
 cd eg12/
-${PSYCLONE} -nodm -s ./extract_kernel_with_transformations.py \
+${PSYCLONE} -api lfric -nodm -s ./extract_kernel_with_transformations.py \
   gw_mixed_schur_preconditioner_alg_mod.x90
 ```
 
@@ -270,7 +270,7 @@ points and the number of layers can be made constant (as they are
 passed in by argument by default). To run:
 ```sh
 cd eg13/
-psyclone -s ./kernel_constants.py \
+psyclone -api lfric -s ./kernel_constants.py \
 ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
 -oalg alg.f90 -opsy psy.f90
 ```
@@ -284,7 +284,7 @@ kernel with the addition of an `ACC routine` directive.
 
 ```sh
 cd eg14/
-psyclone -s ./acc_parallel.py main.x90
+psyclone -api lfric -s ./acc_parallel.py main.x90
 ```
 
 The supplied Makefile defines a `compile` target that will build the
@@ -297,7 +297,7 @@ PSyclone in the same way as it was hand optimised to run efficiently
 on a multi-core CPU. This is work in progress. To run:
 ```sh
 cd eg15/
-psyclone -s ./matvec_opt.py \
+psyclone -api lfric -s ./matvec_opt.py \
 ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
 -oalg /dev/null -opsy /dev/null
 ```
@@ -348,7 +348,7 @@ To run:
 
 ```sh
 cd eg18/
-psyclone advection_alg_mod.x90
+psyclone -api lfric advection_alg_mod.x90
 # Optionally edit 'impose_min_flux_kernel_mod.f90' line 65 to replace
 # 'GH_READINC' with 'GH_INC', change the value of 'COMPUTE_ANNEXED_DOFS' to
 # 'true' in the config file and re-run psyclone.
@@ -371,7 +371,7 @@ algorithm layer run:
 
 ```sh
 cd eg20/
-psyclone-kern -gen alg ../code/testkern_mod.F90
+psyclone-kern -api lfric -gen alg ../code/testkern_mod.F90
 ```
 
 Compilation is not supported for this example because it requires the full

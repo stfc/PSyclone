@@ -64,7 +64,7 @@ def test_call_tree_compute_all_non_locals_non_kernel():
     '''Test _compute_all_non_locals() functionality for source code
     that has no kernels.
     '''
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
     mod_info = mod_man.get_module_info("module_call_tree_mod")
@@ -139,7 +139,7 @@ def test_call_tree_compute_all_non_locals_kernel():
     # invoke-call and builtin has been replaced with the builtin/kernel
     # objects.
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    mod_psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    mod_psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False)
     psyir = mod_psyir.invokes.invoke_list[0].schedule
 
     # This will return three schedule - the LFRicInvokeSchedule, and two
@@ -163,7 +163,7 @@ def test_call_tree_compute_all_non_locals_kernel():
 def test_call_tree_get_used_symbols_from_modules():
     '''Tests that we get the used symbols from a routine reported correctly.
     '''
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
 
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
@@ -207,7 +207,7 @@ def test_call_tree_get_used_symbols_from_modules_renamed():
     '''Tests that we get the used symbols from a routine reported correctly
     when a symbol is renamed, we need to get the original name.
     '''
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
 
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
@@ -231,16 +231,16 @@ def test_call_tree_get_used_symbols_from_modules_renamed():
 def test_get_non_local_read_write_info(capsys):
     '''Tests the collection of non-local input and output parameters.
     '''
-    Config.get().api = "dynamo0.3"
+    Config.get().api = "lfric"
     ctu = CallTreeUtils()
 
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False)
     schedule = psyir.invokes.invoke_list[0].schedule
 
     # Set up the module manager with a search directory that does not
     # contain any files used here:
-    kernels_dir = os.path.join(get_base_path("dynamo0.3"),
+    kernels_dir = os.path.join(get_base_path("lfric"),
                                "kernels", "dead_end", "no_really")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(kernels_dir)
@@ -260,7 +260,7 @@ def test_get_non_local_read_write_info(capsys):
 
     # Now add the correct search path of the driver creation tests to the
     # module manager:
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
 
@@ -342,7 +342,7 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     '''
     # Add the search path of the driver creation tests to the
     # module manager:
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
 
@@ -526,7 +526,7 @@ def test_call_tree_utils_const_argument():
     '''Check that using a const scalar as parameter works, i.e. is not
     listed as input variable.'''
     _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
-                           api="gocean1.0", idx=0)
+                           api="gocean", idx=0)
     cut = CallTreeUtils()
     read_write_info = ReadWriteInfo()
     cut.get_input_parameters(read_write_info, invoke.schedule)
@@ -536,18 +536,17 @@ def test_call_tree_utils_const_argument():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("clear_module_manager_instance")
+@pytest.mark.usefixtures("clear_module_manager_instance", "lfric_config")
 def testcall_tree_utils_non_local_inout_parameters(capsys):
     '''Tests the collection of non-local input and output parameters.
     '''
-    Config.get().api = "dynamo0.3"
     ctu = CallTreeUtils()
 
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False)
     schedule = psyir.invokes.invoke_list[0].schedule
 
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
 
@@ -580,7 +579,7 @@ def test_call_tree_error_var_not_found(capsys):
     contain the variable is handled, i.e. printing a warning and otherwise
     ignores (TODO #2120)
     '''
-    dyn_test_dir = get_base_path("dynamo0.3")
+    dyn_test_dir = get_base_path("lfric")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(os.path.join(dyn_test_dir, "infrastructure"))
 
@@ -601,7 +600,7 @@ def test_call_tree_error_module_is_codeblock(capsys):
     '''Tests that a module that cannot be parsed and becomes a codeblock
     is handled correctly.
     '''
-    dyn_test_dir = get_base_path("dynamo0.3")
+    dyn_test_dir = get_base_path("lfric")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(os.path.join(dyn_test_dir, "driver_creation"))
 

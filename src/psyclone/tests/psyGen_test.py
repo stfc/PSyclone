@@ -89,12 +89,10 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 # Module fixtures
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 # Tests for utilities
@@ -272,8 +270,8 @@ def test_invokes_get():
     # Making an Invokes object is not easy so we do a full PSy generation.
     _, invoke = parse(
         os.path.join(BASE_PATH, "1.0.1_single_named_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke)
     # Check that the get isn't case sensitive and doesn't require the
     # leading "invoke_" text.
     inv = psy.invokes.get("important_INVOKE")
@@ -308,7 +306,7 @@ def test_invokes_can_always_be_printed():
 
     _, invoke = parse(
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
-        api="dynamo0.3")
+        api="lfric")
 
     alg_invocation = invoke.calls[0]
     inv = Invoke(alg_invocation, 0, LFRicInvokeSchedule, None)
@@ -320,7 +318,7 @@ def test_invoke_container():
     ''' Test the setting of the container associated with an Invoke. '''
     _, invoke = parse(
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
-        api="dynamo0.3")
+        api="lfric")
     alg_invocation = invoke.calls[0]
     # An isolated Invoke object has no associated Container
     inv = Invoke(alg_invocation, 0, LFRicInvokeSchedule, None)
@@ -329,7 +327,7 @@ def test_invoke_container():
     # the latter also creates the former. Therefore, we just create a PSy
     # object and check that a Container with the correct parent/child
     # relationships is created.
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke)
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke)
     assert isinstance(psy.container, Container)
     assert psy.invokes.invoke_list[0].schedule.parent is psy.container
     assert psy.container.children == [psy.invokes.invoke_list[0].schedule]
@@ -342,7 +340,7 @@ def test_same_name_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(
             os.path.join(BASE_PATH, "1.10_single_invoke_same_name.f90"),
-            api="dynamo0.3")
+            api="lfric")
     assert ("Argument 'f1' is passed into kernel 'testkern_code' code "
             "more than once") in str(excinfo.value)
 
@@ -355,7 +353,7 @@ def test_same_name_invalid_array():
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(
             os.path.join(BASE_PATH, "1.11_single_invoke_same_name_array.f90"),
-            api="dynamo0.3")
+            api="lfric")
     assert ("Argument 'f1(1, n)' is passed into kernel 'testkern_code' code "
             "more than once") in str(excinfo.value)
 
@@ -368,8 +366,8 @@ def test_derived_type_deref_naming(tmpdir):
     '''
     _, invoke = parse(
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke)
     generated_code = str(psy.gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -409,11 +407,11 @@ end module dummy_mod
 
 def test_invokeschedule_node_str():
     ''' Check the node_str method of the InvokeSchedule class. We need an
-    Invoke object for this which we get using the dynamo0.3 API. '''
+    Invoke object for this which we get using the lfric API. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     # Create a plain InvokeSchedule
     sched = InvokeSchedule('name', None, None)
     # Manually supply it with an Invoke object created with the Dynamo API.
@@ -426,8 +424,8 @@ def test_invokeschedule_can_be_printed():
     ''' Check the InvokeSchedule class can always be printed'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
 
     # For this test use the generic class
     psy.invokes.invoke_list[0].schedule.__class__ = InvokeSchedule
@@ -442,8 +440,8 @@ def test_invokeschedule_gen_code_with_preexisting_globals():
     the same module will be part of a single USE statement.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
 
     # Add some globals into the SymbolTable before calling gen_code()
     schedule = psy.invokes.invoke_list[0].schedule
@@ -463,8 +461,8 @@ def test_kern_get_kernel_schedule():
     ''' Tests the get_kernel_schedule method in the Kern class.
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
     kern_schedule = kern.get_kernel_schedule()
@@ -473,7 +471,7 @@ def test_kern_get_kernel_schedule():
 
 def test_codedkern_node_str():
     '''Tests the node_str method in the CodedKern class. The simplest way
-    to do this is via the dynamo0.3 subclass.
+    to do this is via the lfric subclass.
 
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
@@ -493,8 +491,8 @@ def test_codedkern_module_inline_getter_and_setter():
     # Use LFRic example with a repeated CodedKern
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     coded_kern_1 = schedule.children[0].loop_body[0]
@@ -536,8 +534,8 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     # Use LFRic example with a repeated CodedKern
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     coded_kern = schedule.children[0].loop_body[0]
@@ -573,8 +571,8 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     # the first invoke and 3 times in the second invoke.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
 
     # By default the kernel is imported once per invoke
     gen = str(psy.gen)
@@ -611,8 +609,8 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     ''' Check that a generic CodedKern can be lowered to a subroutine call
     with the appropriate arguments'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[0].loop_body[0]
 
@@ -673,8 +671,8 @@ def test_kern_coloured_text():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ckern = schedule.children[0].loop_body[0]
@@ -801,8 +799,8 @@ def test_incremented_arg():
 def test_kern_is_coloured1():
     ''' Check that the is_coloured method behaves as expected. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.walk(Kern)[0]
     assert not kern.is_coloured()
@@ -866,8 +864,8 @@ def test_globalsum_node_str():
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
         if isinstance(child, DynGlobalSum):
@@ -887,8 +885,8 @@ def test_globalsum_children_validation():
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gsum = None
     for child in psy.invokes.invoke_list[0].schedule.children:
         if isinstance(child, DynGlobalSum):
@@ -908,8 +906,8 @@ def test_args_filter():
     dynamo0p3 example which includes two kernels which share argument
     names. We choose dm=False to make it easier to fuse the loops.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=False).create(invoke_info)
     # fuse our loops so we have more than one Kernel in a loop
     schedule = psy.invokes.invoke_list[0].schedule
@@ -929,8 +927,8 @@ def test_args_filter2():
     with the former method calling the latter. This example tests the cases
     when one or both of the intent and type arguments are not specified. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
 
@@ -960,8 +958,8 @@ def test_reduction_var_error(dist_mem):
     ''' Check that we raise an exception if the zero_reduction_variable()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     call = schedule.kernels()[0]
@@ -981,8 +979,8 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.7_single_invoke_3scalar.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     call = schedule.kernels()[0]
@@ -999,8 +997,8 @@ def test_reduction_sum_error(dist_mem):
     ''' Check that we raise an exception if the reduction_sum_loop()
     method is provided with an incorrect type of argument. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     call = schedule.kernels()[0]
@@ -1025,9 +1023,9 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
                                            "multi_reduction_builtins_mod.f90"))
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
-        api="dynamo0.3")
+        api="lfric")
     with pytest.raises(GenerationError) as err:
-        _ = PSyFactory("dynamo0.3",
+        _ = PSyFactory("lfric",
                        distributed_memory=dist_mem).create(invoke_info)
     assert ("PSyclone currently only supports a single reduction in a kernel "
             "or builtin" in str(err.value))
@@ -1042,8 +1040,8 @@ def test_reduction_no_set_precision(dist_mem):
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.8.1_sum_X_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=dist_mem).create(invoke_info)
 
     # A reduction argument will always have a precision value so we
@@ -1083,8 +1081,8 @@ def test_invokes_wrong_schedule_gen_code():
     # Use LFRic example with a repeated CodedKern
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
 
     # Set the invoke.schedule to something else other than a InvokeSchedule
     psy.invokes.invoke_list[0].schedule = Node()
@@ -1099,8 +1097,8 @@ def test_invoke_name():
     layer results in a correctly-named routine in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
     assert "SUBROUTINE invoke_important_invoke" in gen
@@ -1111,8 +1109,8 @@ def test_multi_kern_named_invoke(tmpdir):
     kernel invocations result in a correctly-named routine in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.9_named_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
     assert "SUBROUTINE invoke_some_name" in gen
@@ -1125,8 +1123,8 @@ def test_named_multi_invokes(tmpdir):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "3.2_multi_functions_multi_named_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
     assert "SUBROUTINE invoke_my_first(" in gen
@@ -1140,8 +1138,8 @@ def test_named_invoke_name_clash(tmpdir):
     subroutine generated by an Invoke. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.11_named_invoke_name_clash.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
     assert ("SUBROUTINE invoke_a(invoke_a_1, b, istp, rdt, d, e, ascalar, "
@@ -1159,8 +1157,8 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     monkeypatch.setattr(config._instance, "_reprod_pad_size", 0)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=dist_mem).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1219,8 +1217,8 @@ def test_argument_depends_on():
     value for arguments with combinations of read and write access'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     arg_f1_inc_1 = schedule.children[0].loop_body[0].arguments.args[0]
@@ -1242,8 +1240,8 @@ def test_argument_depends_on():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     arg_f1_write_1 = schedule.children[0].loop_body[0].arguments.args[1]
@@ -1256,8 +1254,8 @@ def test_argument_find_argument():
     argument in a list of nodes, or None if none are found. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns none if none found
@@ -1277,8 +1275,8 @@ def test_argument_find_argument():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # a) kern arg depends on halo arg
@@ -1292,8 +1290,8 @@ def test_argument_find_argument():
     # 4: globalsum node
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # a) globalsum arg depends on kern arg
@@ -1311,8 +1309,8 @@ def test_argument_find_read_arguments():
     arguments in a list of nodes.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
@@ -1345,8 +1343,8 @@ def test_globalsum_arg():
     points to the GlobalSum node '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
@@ -1361,8 +1359,8 @@ def test_haloexchange_arg():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     halo_exchange = schedule.children[2]
@@ -1376,8 +1374,8 @@ def test_argument_forward_read_dependencies():
     arguments in a schedule.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # 1: returns [] if not a writer. f1 is read, not written.
@@ -1406,12 +1404,12 @@ def test_argument_forward_dependence(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     f1_first_read = schedule.children[0].loop_body[0].arguments.args[2]
@@ -1426,8 +1424,8 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     if annexed:
@@ -1446,8 +1444,8 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
@@ -1473,12 +1471,12 @@ def test_argument_backward_dependence(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     f1_last_read = schedule.children[6].loop_body[0].arguments.args[2]
@@ -1493,8 +1491,8 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     if annexed:
@@ -1513,8 +1511,8 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     prev_arg = schedule.children[0].loop_body[0].arguments.args[1]
@@ -1538,8 +1536,8 @@ def test_call_args():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     kern = schedule.children[0].loop_body[0]
@@ -1556,8 +1554,8 @@ def test_haloexchange_can_be_printed():
     '''Test that the HaloExchange class can always be printed'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     for haloexchange in schedule.children[:2]:
@@ -1574,8 +1572,8 @@ def test_haloexchange_node_str():
     # one that supports halo exchanges.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # We have to manually call the correct node_str() method as the one we want
@@ -1602,8 +1600,8 @@ def test_haloexchange_args():
     argument '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     for haloexchange in schedule.children[:2]:
@@ -1616,8 +1614,8 @@ def test_globalsum_args():
     argument '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     global_sum = schedule.children[2]
@@ -1631,8 +1629,8 @@ def test_call_forward_dependence():
     None if none are found. This is achieved by loop fusing first.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
@@ -1660,8 +1658,8 @@ def test_call_backward_dependence():
     None if none are found. This is achieved by loop fusing first.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     ftrans = LFRicLoopFuseTrans()
@@ -1700,8 +1698,8 @@ def test_haloexchange_vector_index_depend():
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.9_named_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     first_e_field_halo_exchange = schedule.children[3]
@@ -1723,8 +1721,8 @@ def test_find_write_arguments_for_write():
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1748,12 +1746,12 @@ def test_find_w_args_hes_no_vec(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1791,12 +1789,12 @@ def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1834,12 +1832,12 @@ def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1879,12 +1877,12 @@ def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1921,8 +1919,8 @@ def test_check_vect_hes_differ_wrong_argtype():
     '''
 
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1946,8 +1944,8 @@ def test_check_vec_hes_differ_diff_names():
     '''
 
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+                           api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1974,13 +1972,13 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed, tmpdir):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -2015,13 +2013,13 @@ def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -2050,13 +2048,13 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     '''
 
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf("lfric")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -2093,7 +2091,7 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
 
 def test_kern_ast():
     ''' Test that we can obtain the fparser2 AST of a kernel. '''
-    _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
     assert isinstance(kern, GOKern)
@@ -2110,8 +2108,8 @@ def test_dataaccess_vector():
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -2162,8 +2160,8 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3",
+        api="lfric")
+    psy = PSyFactory("lfric",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -2194,7 +2192,7 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     characters. This test checks that this linewrapping works.
 
     '''
-    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    psy, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     # This example does not conform to the <name>_code, <name>_mod

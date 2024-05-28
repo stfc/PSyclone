@@ -45,7 +45,7 @@ ALGORITHM_SRC = $(ALGORITHMS:.x90=.f90)
 PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
 
 # PSyclone command-line options
-PSYCLONE_CMD = -nodm -l all
+PSYCLONE_CMD = -api lfric -nodm -l all
 
 # Executable
 EXEC = ./builtins

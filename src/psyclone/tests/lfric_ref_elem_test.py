@@ -57,7 +57,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
 # Constants
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 REF_ELEM_MDATA = '''
 module testkern_refelem_mod
@@ -83,12 +83,10 @@ end module testkern_refelem_mod
 # Tests for parsing the metadata
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    Config.get().api = "lfric"
 
 
 def test_mdata_parse():

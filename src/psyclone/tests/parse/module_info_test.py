@@ -194,7 +194,7 @@ def test_mod_info_get_used_modules():
     # (cached) list object
     assert dep_cached is dep
 
-    dyn_path = get_base_path("dynamo0.3")
+    dyn_path = get_base_path("lfric")
     # This will add all subdirectories, including infrastructure:
     mod_man.add_search_path(dyn_path, recursive=True)
     # This module imports the intrinsic module iso_fortran_env,
@@ -250,7 +250,7 @@ def test_mod_info_get_psyir(capsys, tmpdir):
     '''
 
     mod_man = ModuleManager.get()
-    dyn_path = get_base_path("dynamo0.3")
+    dyn_path = get_base_path("lfric")
     mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
 
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")

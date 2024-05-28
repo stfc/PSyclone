@@ -448,7 +448,7 @@ def test_variables_access_info_domain_loop():
     structure, so especially the loop variable is not defined) work as
     expected.
     '''
-    _, invoke = get_invoke("25.1_kern_two_domain.f90", "dynamo0.3", idx=0)
+    _, invoke = get_invoke("25.1_kern_two_domain.f90", "lfric", idx=0)
     vai = VariablesAccessInfo(invoke.schedule)
     assert str(vai) == ("a: READ, b: READ, f1_data: READWRITE, f2_data: "
                         "READWRITE, map_w3: READ, ncell_2d_no_halos: READ, "
@@ -460,7 +460,7 @@ def test_lfric_access_info():
     '''Test some LFRic specific potential bugs:
     '''
 
-    psy, _ = get_invoke("int_real_literal_scalar.f90", "dynamo0.3",
+    psy, _ = get_invoke("int_real_literal_scalar.f90", "lfric",
                         dist_mem=False, idx=0)
 
     schedule = psy.invokes.invoke_list[0].schedule
