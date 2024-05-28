@@ -77,7 +77,7 @@ inlining, ...) to better fit the target architecture.
 The rest of this page describes how to use ``psyclone`` command to process PSyKAl DSLs
 and how to implement each layer, providing examples for each of them.
 
-.. _distributed_memory:
+.. _psykal_usage:
 
 Usage
 -----

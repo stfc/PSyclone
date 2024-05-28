@@ -153,12 +153,11 @@ are used or not.
 Distributed memory
 ##################
 
-As noted in the :ref:`distributed_memory` section, support for distributed
-memory in PSyclone is currently limited to the
-:ref:`LFRic API <lfric-api>`. Since the implementation
-generates calls to LFRic infrastructure (e.g. runtime checks for status
-of field halos), code extraction is not allowed when distributed memory
-is enabled.
+As noted in the :ref:`PSyKAl Introduction <introduction_to_psykal>` section,
+support for distributed memory in PSyclone is currently limited to the PSyKAl
+APIs. Since the PSyKE implementation generates calls to infrastructure (e.g.
+runtime checks for status of field halos), code extraction is not allowed when
+distributed memory is enabled.
 
 .. _psyke-intro-restrictions-shared:
 
