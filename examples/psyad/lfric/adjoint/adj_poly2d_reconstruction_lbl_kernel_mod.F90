@@ -1,30 +1,35 @@
 module adj_poly2d_reconstruction_lbl_kernel_mod
-  use argument_mod, only : any_discontinuous_space_1, any_discontinuous_space_2, any_discontinuous_space_3, arg_type, cell_column, &
-&func_type, gh_field, gh_integer, gh_read, gh_readwrite, gh_real, gh_scalar, gh_write, region, stencil
+  use argument_mod, only : any_discontinuous_space_1, any_discontinuous_space_2,   &
+       any_discontinuous_space_3, arg_type, cell_column,                           &
+       func_type, gh_field, gh_integer, gh_read, gh_readwrite, gh_real, gh_scalar, &
+       gh_write, region, stencil
   use constants_mod, only : i_def, l_def, r_tran
   use kernel_mod, only : kernel_type
   implicit none
   type, public, extends(kernel_type) :: adj_poly2d_reconstruction_lbl_kernel_type
-     type(ARG_TYPE) :: META_ARGS(5) = (/ &
-    ! This is really gh_read but we need at least one arg. written to.
-    arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
-    ! This is really gh_readwrite but as it has a stencil we fake it.   
-    arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_2, stencil(region)), &
-    arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_3), &
-    arg_type(gh_scalar, gh_integer, gh_read), &
-    arg_type(gh_scalar, gh_integer, gh_read)/)
-  INTEGER :: OPERATES_ON = cell_column
-  CONTAINS
-    PROCEDURE, NOPASS :: adj_poly2d_reconstruction_lbl_code
-END TYPE adj_poly2d_reconstruction_lbl_kernel_type
+    type(ARG_TYPE) :: META_ARGS(5) = (/                                                 &
+      ! This is really gh_read but we need at least one arg. written to. This works because
+      ! PSyclone does not check for consistency between the kernel metadata and its implementation.
+      arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1),                 &
+      ! This is really gh_readwrite but as it has a stencil we fake it.   
+      arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_2, stencil(region)), &
+      arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_3),                  &
+      arg_type(gh_scalar, gh_integer, gh_read),                                         &
+      arg_type(gh_scalar, gh_integer, gh_read)/)
+      integer :: operates_on = cell_column
+    contains
+      procedure, nopass :: adj_poly2d_reconstruction_lbl_code
+  end type adj_poly2d_reconstruction_lbl_kernel_type
 
   private
 
   public :: adj_poly2d_reconstruction_lbl_code
 
-  contains
-  subroutine adj_poly2d_reconstruction_lbl_code(nlayers, reconstruction, tracer, cells_in_stencil, stencil_map, coeff, ndata, &
-&stencil_size, ndf_md, undf_md, map_md, ndf_ws, undf_ws, map_ws, ndf_c, undf_c, map_c)
+contains
+
+  subroutine adj_poly2d_reconstruction_lbl_code(nlayers, reconstruction, tracer,   &
+         cells_in_stencil, stencil_map, coeff, ndata, stencil_size, ndf_md, undf_md, &
+         map_md, ndf_ws, undf_ws, map_ws, ndf_c, undf_c, map_c)
     integer(kind=i_def), parameter :: nfaces = 4
     integer(kind=i_def), intent(in) :: nlayers
     integer(kind=i_def), intent(in) :: ndf_ws

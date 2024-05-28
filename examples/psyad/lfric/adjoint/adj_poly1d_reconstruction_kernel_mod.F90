@@ -113,14 +113,6 @@ module adj_poly1d_reconstruction_kernel_mod
       enddo
     enddo
 
-    ! Zeroing must be done in subsequent built-in to avoid race condition.
-!!$    do f = nfaces, 1, -1
-!!$      df = f * nl + f - nl + map_md(1) - 1
-!!$      do idx = df + nl, df, -1
-!!$        reconstruction(idx) = 0.0
-!!$      enddo
-!!$    enddo
-
   end subroutine adj_poly1d_reconstruction_code
   subroutine adj_compute_reconstruction(p, f, order, reconstruction, recon_cell,   &
                                         coeff, coeff_cell, tracer, tracer_cell, nl)
