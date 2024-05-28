@@ -306,13 +306,13 @@ def test_get_non_local_read_write_info_errors(capsys):
     Test get_non_local_read_write_info() when we fail to get either the Routine
     PSyIR or the Container PSyIR.
     '''
-    Config.get().api = "dynamo0.3"
+    Config.get().api = "lfric"
     ctu = CallTreeUtils()
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    psyir, _ = get_invoke(test_file, "lfric", 0, dist_mem=False)
     schedule = psyir.invokes.invoke_list[0].schedule
 
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    test_dir = os.path.join(get_base_path("lfric"), "driver_creation")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
     kernels = schedule.walk(Kern)

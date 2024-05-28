@@ -1490,7 +1490,7 @@ def test_accroutinetrans_module_use():
     # Tell the ModuleManager where to find the module that is being USED by
     # the kernel.
     mod_man = ModuleManager.get()
-    mod_man.add_search_path(get_base_path("gocean1.0"))
+    mod_man.add_search_path(get_base_path("gocean"))
     # Now that we can resolve the symbols, we know that `rdt` is a parameter
     # (and is not a problem) but that `magic` is a variable.
     with pytest.raises(TransformationError) as err:
