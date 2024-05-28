@@ -489,9 +489,9 @@ Cell iterators: Discontinuous
 
 When a kernel is written to iterate over cells and modify a
 discontinuous field, PSyclone only needs to compute dofs on owned
-cells. Users can apply a redundant computation transformation (see the
-:ref:`dynamo0.3-api-transformations` section) to redundantly compute
-into the halo but this is not done by default.
+cells. Users can apply a redundant-computation transformation (see the
+:ref:`user_guide:dynamo0.3-api-transformations` section) to
+redundantly compute into the halo but this is not done by default.
 
 .. _annexed_dofs:
 
