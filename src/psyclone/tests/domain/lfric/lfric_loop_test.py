@@ -65,7 +65,7 @@ BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def test_constructor_invalid_loop_type(monkeypatch):
@@ -960,6 +960,7 @@ def test_lfricloop_halo_read_access_error2(monkeypatch):
             "found 'unsupported'." in str(info.value))
 
 
+@pytest.mark.usefixtures("lfric_config")
 def test_null_loop():
     ''' Check that we can create a 'null'-type loop and that the validation
     check in the 'load()' method behaves as expected.

@@ -46,7 +46,7 @@ from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
 from psyclone.transformations import KernelImportsToArguments, \
     TransformationError
 
-API = "gocean1.0"
+API = "gocean"
 
 # Each os.path.dirname() move up in the folder hierarchy
 BASEPATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -59,8 +59,8 @@ def test_kernelimportstoargumentstrans_wrongapi():
     trans = KernelImportsToArguments()
     path = os.path.join(BASEPATH, "dynamo0p3")
     _, invoke_info = parse(os.path.join(path, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric").create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
     with pytest.raises(TransformationError) as err:

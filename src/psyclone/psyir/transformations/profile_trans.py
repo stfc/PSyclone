@@ -50,7 +50,7 @@ class ProfileTrans(PSyDataTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
     >>> from psyclone.psyir.transformations import ProfileTrans
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> filename = "nemolite2d_alg.f90"
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
     >>> psy = PSyFactory(api).create(invokeInfo)

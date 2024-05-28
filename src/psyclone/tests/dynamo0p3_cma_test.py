@@ -58,7 +58,7 @@ from psyclone.psyGen import PSyFactory
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 # Define LMA/CMA operator write accesses for testing purposes
 OP_WRITE_ACCESSES = ["gh_write", "gh_readwrite"]
@@ -85,12 +85,10 @@ end module testkern_cma
 '''
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use LFRic as API.'''
+    Config.get().api = "lfric"
 
 
 def test_cma_mdata_assembly():
@@ -1312,9 +1310,9 @@ def test_cma_asm_stub_gen():
     ''' Test the kernel-stub generator for CMA operator assembly.
 
     '''
-    result = generate(os.path.join(BASE_PATH,
-                                   "columnwise_op_asm_kernel_mod.F90"),
-                      api=TEST_API)
+
+    path = os.path.join(BASE_PATH, "columnwise_op_asm_kernel_mod.F90")
+    result = generate(path, api=TEST_API)
 
     expected = (
         "  MODULE columnwise_op_asm_kernel_mod\n"

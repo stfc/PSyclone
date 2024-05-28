@@ -34,6 +34,7 @@
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. R. Porter, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# Modified J. Remy, Université Grenoble Alpes, Inria
 
 '''PSyIR Fortran backend. Implements a visitor that generates Fortran code
 from a PSyIR tree. '''
@@ -46,8 +47,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
-    BinaryOperation, Call, CodeBlock, DataNode, IntrinsicCall, Literal,
-    Operation, Range, Routine, Schedule, UnaryOperation)
+    BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
+    Literal, Operation, Range, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
@@ -483,15 +484,21 @@ class FortranWriter(LanguageWriter):
                 # This variable is not renamed.
                 only_list.append(dsym.name)
 
+        # Add a space into the returned string if intrinsic is not set anyway.
+        intrinsic_str = " "
+        if symbol.is_intrinsic:
+            intrinsic_str = ", intrinsic :: "
+
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
             # We have a "use xxx, only:" - i.e. an empty only list
-            return f"{self._nindent}use {symbol.name}, only :\n"
+            return f"{self._nindent}use{intrinsic_str}{symbol.name}, only :\n"
         if only_list and not symbol.wildcard_import:
-            return f"{self._nindent}use {symbol.name}, only : " + \
-                    ", ".join(sorted(only_list)) + "\n"
+            return (f"{self._nindent}use{intrinsic_str}{symbol.name}, "
+                    f"only : " +
+                    ", ".join(sorted(only_list)) + "\n")
 
-        return f"{self._nindent}use {symbol.name}\n"
+        return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
 
     def gen_vardecl(self, symbol, include_visibility=False):
         '''Create and return the Fortran variable declaration for this Symbol
@@ -968,8 +975,7 @@ class FortranWriter(LanguageWriter):
         except KeyError:
             internal_interface_symbol = None
         if unresolved_symbols and not (
-                symbol_table.has_wildcard_imports() or
-                internal_interface_symbol):
+                symbol_table.wildcard_imports() or internal_interface_symbol):
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(
@@ -1158,6 +1164,23 @@ class FortranWriter(LanguageWriter):
             result = f"{self._nindent}program {node.name}\n"
             routine_type = "program"
         else:
+            # Find RoutineSymbol
+            container = node.ancestor(Container)
+            rsym = None
+            if container:
+                rsym = container.symbol_table.get_symbols().get(
+                    node.name, None)
+            prefix = ""
+            if rsym:
+                if rsym.is_elemental:
+                    # elemental => pure unless known to be False
+                    if rsym.is_pure or rsym.is_pure is None:
+                        prefix = "elemental "
+                    else:
+                        prefix = "impure elemental "
+                elif rsym.is_pure:
+                    prefix = "pure "
+
             args = [symbol.name for symbol in node.symbol_table.argument_list]
             suffix = ""
             if node.return_symbol:
@@ -1167,7 +1190,7 @@ class FortranWriter(LanguageWriter):
                     suffix = f" result({node.return_symbol.name})"
             else:
                 routine_type = "subroutine"
-            result = f"{self._nindent}{routine_type} {node.name}("
+            result = f"{self._nindent}{prefix}{routine_type} {node.name}("
             result += ", ".join(args) + f"){suffix}\n"
 
         self._depth += 1
@@ -1196,10 +1219,13 @@ class FortranWriter(LanguageWriter):
                 except KeyError:
                     skip = []
                 whole_routine_scope.merge(sched_table, skip)
-
-            # Replace the symbol table
-            node.symbol_table.detach()
-            whole_routine_scope.attach(node)
+                if schedule is node:
+                    # Replace the Routine's symbol table as soon as we've
+                    # merged it into the new one. This ensures that the new
+                    # table has full information on outer scopes which is
+                    # important when merging.
+                    node.symbol_table.detach()
+                    whole_routine_scope.attach(node)
 
         # Generate module imports
         imports = ""
@@ -1495,13 +1521,32 @@ class FortranWriter(LanguageWriter):
             fort_oper = self.get_operator(node.operator)
             # If the parent node is a UnaryOperation or a BinaryOperation
             # such as '-' or '**' then we need parentheses. This ensures we
-            # don't generate invalid Fortran such as 'a ** -b' or 'a - -b'.
+            # don't generate invalid Fortran such as 'a ** -b', 'a - -b' or
+            # '-a ** b' which is '-(a ** b)' instead of intended '(-a) ** b'.
+            # Also consider the grandparent node to avoid generating invalid
+            # Fortran such as 'a + -b * c' instead of intended 'a + (-b) * c'.
             parent = node.parent
             if isinstance(parent, UnaryOperation):
                 return f"({fort_oper}{content})"
             if isinstance(parent, BinaryOperation):
-                if node is parent.children[1]:
+                parent_fort_oper = self.get_operator(parent.operator)
+                if (node is parent.children[1] or
+                        (parent_fort_oper == "**" and fort_oper == "-")):
                     return f"({fort_oper}{content})"
+                grandparent = parent.parent
+                # Case: 'a op1 (-b) op2 c'
+                # and precedence(op2) > precedence(op1)
+                # implying that '(-b) op2 c' is not parenthesized.
+                if isinstance(grandparent, BinaryOperation):
+                    grandparent_fort_oper = self.get_operator(
+                        grandparent.operator
+                    )
+                    if (parent is grandparent.children[1]
+                        and node is parent.children[0]
+                        and (precedence(parent_fort_oper)
+                             > precedence(grandparent_fort_oper))
+                            and fort_oper == "-"):
+                        return f"({fort_oper}{content})"
             return f"{fort_oper}{content}"
 
         except KeyError as error:

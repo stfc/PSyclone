@@ -50,6 +50,59 @@
 	19) PR #2527 for #1495. Add PSyIR support for type-bound procedure
 	calls.
 
+	20) PR #2529 towards #1779. Generalise NemoArrayAccess2Loop
+	transformation to ArrayAccess2Loop.
+
+	21) PR #2517 for #2515. Fix bugs in the symbol_table merge method.
+
+	22) PR #2553 for #2449. Add next/previous_access reference method.
+
+	23) PR #2557 towards #2543. Update the introduction to the User
+	Guide and the top-level README.
+
+	24) PR #2560 for #2559. Marks the PRODUCT intrinsic as available on
+	accelerator devices.
+
+	25) PR #2581 for #2576. Updates a tutorial README to remove a now-
+	dead link to the VMWare KnowledgeBase from a quoted VMWare error
+	message.
+
+	26) PR #2571 for #2569. Update integration tests for new system
+	(lfric still has issues that will be resolved separately).
+
+	27) PR #2567 for #1333. Fixes bug in Fortran backend with missing
+	parentheses for unary minus operator.
+
+	28) PR #2579 for #2578. Fix missing location update for Call node
+	in DA tooling.
+
+	29) PR #2556 towards #1351. Documents the new OPERATES_ON=dof
+	LFRic kernel type.
+
+	30) PR #2252 for #1990. Support extraction of kernels that import
+	variables from other modules.
+
+	31) PR #2547 towards #1779. Removes the NemoLoop node and makes
+	the loop_type inference rules part of generic PSyIR.
+
+	32) PR #2590 fpr #2589. Moves to the latest LFRic (split repo)
+	and fixes the LFRic integration tests.
+
+	33) PR #2452 for #2451. Move and rename DynInvokeSchedule to
+	LFRicInvokeSchedule.
+
+	34) PR #2574 for #2196. Add support for use-intrinsic imports.
+
+	35) PR #2566 towards #2156. Bug fixes for routines declared as
+	ELEMENTAL or IMPURE. (Alters the Fortran backend and 
+	Routine.copy().)
+
+	36) PR #2572 for #2195. Improves SymbolTable.__str__ such that
+	Symbols are listed by type and in alpha-order.
+
+	37) PR #2593 for #1779. Removes the 'default' API concept and
+	renames 'dynamo0.3' -> 'lfric' and 'gocean0.1' -> 'gocean'.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

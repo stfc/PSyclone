@@ -316,6 +316,8 @@ class Call(Statement, DataNode):
                 # an impure routine in which case any arguments to that Call
                 # will have READWRITE access.)
                 arg.reference_accesses(var_accesses)
+        # Make sure that the next statement will be on the next location
+        var_accesses.next_location()
 
     @property
     def routine(self):
@@ -340,9 +342,9 @@ class Call(Statement, DataNode):
     @property
     def is_elemental(self):
         '''
-        :returns: whether the routine being called is elemental (provided with\
-            an input array it will apply the operation individually to each of\
-            the array elements and return an array with the results). If this \
+        :returns: whether the routine being called is elemental (provided with
+            an input array it will apply the operation individually to each of
+            the array elements and return an array with the results). If this
             information is not known then it returns None.
         :rtype: NoneType | bool
         '''

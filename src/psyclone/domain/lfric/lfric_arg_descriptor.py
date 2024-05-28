@@ -55,7 +55,7 @@ from psyclone.parse.kernel import Descriptor, get_stencil, get_mesh
 from psyclone.parse.utils import ParseError
 
 # API configuration
-API = "dynamo0.3"
+API = "lfric"
 
 
 class LFRicArgDescriptor(Descriptor):

@@ -37,7 +37,7 @@
 include ../../common.mk
 
 transform:
-	${PSYCLONE} alg.f90
+	${PSYCLONE} -api lfric alg.f90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg5"

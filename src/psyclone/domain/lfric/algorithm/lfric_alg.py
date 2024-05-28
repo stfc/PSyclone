@@ -422,8 +422,8 @@ class LFRicAlg:
                             be found in the supplied parse tree.
         '''
         try:
-            ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
-                                                              name=kernel_name)
+            ktype = KernelTypeFactory(api="lfric").create(parse_tree,
+                                                          name=kernel_name)
         except ParseError as err:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "

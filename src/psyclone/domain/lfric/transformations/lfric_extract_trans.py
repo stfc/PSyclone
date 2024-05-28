@@ -47,13 +47,13 @@ from psyclone.psyir.transformations import ExtractTrans, TransformationError
 
 
 class LFRicExtractTrans(ExtractTrans):
-    ''' Dynamo0.3 API application of ExtractTrans transformation \
+    ''' LFRic API application of ExtractTrans transformation
     to extract code into a stand-alone program. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>>
-    >>> API = "dynamo0.3"
+    >>> API = "lfric"
     >>> FILENAME = "solver_alg.x90"
     >>> ast, invokeInfo = parse(FILENAME, api=API)
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -148,13 +148,13 @@ class LFRicExtractTrans(ExtractTrans):
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
         # Get the input- and output-parameters of the node list
-        read_write_info = ctu.get_in_out_parameters(nodes)
+        read_write_info = \
+            ctu.get_in_out_parameters(nodes, collect_non_local_symbols=True)
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,
                                                  postfix="_post")
         my_options["post_var_postfix"] = postfix
-
         if my_options.get("create_driver", False):
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not

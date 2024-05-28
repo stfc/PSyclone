@@ -38,7 +38,7 @@ include ${PSYROOT}/examples/common.mk
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
-API = -api dynamo0.3
+API = -api lfric
 F90FLAGS += -ffree-line-length-none
 
 OUT_DIR ?= ../adjoint_partial

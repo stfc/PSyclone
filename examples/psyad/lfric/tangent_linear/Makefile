@@ -52,7 +52,7 @@ GENERATED_FILES = ${OUT_DIR}/adj*.[fF]90 ../adjoint/adj_transpose_matrix_vector_
 single: ${ADJ_KERNEL_FILE}
 
 ${ADJ_KERNEL_FILE}: ${TL_KERNEL_FILE}
-	$(PSYAD) -api dynamo0.3 $< -oad ${OUT_DIR}/$@ -a ${ACTIVE_VAR_LIST}
+	$(PSYAD) -api lfric $< -oad ${OUT_DIR}/$@ -a ${ACTIVE_VAR_LIST}
 
 transform:
 	# The following files need modifying after being processed by

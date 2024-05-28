@@ -631,7 +631,7 @@ class GOceanKernelMetadata():
 
             '''
             config = Config.get()
-            api_config = config.api_conf("gocean1.0")
+            api_config = config.api_conf("gocean")
             grid_property_names = list(api_config.grid_properties.keys())
             if value.lower() not in grid_property_names:
                 raise ValueError(
