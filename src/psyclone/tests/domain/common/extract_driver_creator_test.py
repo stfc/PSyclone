@@ -98,7 +98,7 @@ def test_driver_creation1():
 
     driver = Path("driver-psy_extract_example_with_various_"
                   "variable_access_patterns-invoke_0_compute_"
-                  "kernel-compute_kernel_code-r0.f90")
+                  "kernel-compute_kernel_code-r0.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
@@ -122,7 +122,8 @@ def test_driver_creation1():
   real*8, allocatable, dimension(:,:) :: in_out_fld_post
   type(ReadKernelDataType) :: extract_psy_data
   call extract_psy_data%OpenReadModuleRegion('psy_extract_example_with_various_variable_''' \
-  '''access_patterns', 'invoke_0_compute_kernel-compute_kernel_code-r0')
+  '''access_patterns', &
+&'invoke_0_compute_kernel-compute_kernel_code-r0')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
   ALLOCATE(out_fld, mold=out_fld_post)
   out_fld = 0
@@ -264,7 +265,7 @@ def test_rename_suffix_if_name_clash():
     # Now we also need to check that the driver uses the new suffix,
     # i.e. both as key for ReadVariable, as well as for the variable
     # names.
-    driver = Path("driver-module_name-local_name.f90")
+    driver = Path("driver-module_name-local_name.F90")
     assert driver.is_file()
 
     with driver.open("r", encoding="utf-8") as driver_file:
