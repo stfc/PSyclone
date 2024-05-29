@@ -400,8 +400,8 @@ def test_errors_add_call():
     # Then try to add a call to 'psy_data_mod':
     with pytest.raises(TypeError) as err:
         edc.add_call(program, "psy_data_mod", [])
-    assert ("Error when adding call: Routine 'psy_data_mod' is a "
-            "symbol of type 'ContainerSymbol', not a 'RoutineSymbol'."
+    assert ("Error creating call to 'psy_data_mod' - existing symbol is "
+            "of type 'ContainerSymbol', not a 'RoutineSymbol'."
             in str(err.value))
 
 

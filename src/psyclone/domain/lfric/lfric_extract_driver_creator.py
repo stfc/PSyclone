@@ -603,8 +603,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}_data")
                     name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
-                    BaseDriverCreator.add_call(program, read_var,
-                                               [name_lit, Reference(sym)])
+                    self.add_call(program, read_var,
+                                  [name_lit, Reference(sym)])
                 continue
 
             if module_name:
@@ -623,8 +623,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             else:
                 sym = symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
-            BaseDriverCreator.add_call(program, read_var,
-                                       [name_lit, Reference(sym)])
+            self.add_call(program, read_var,
+                          [name_lit, Reference(sym)])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -855,8 +855,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # will reconstruct the name of the data file to read.
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
-        BaseDriverCreator.add_call(program, f"{psy_data.name}%OpenRead",
-                                   [module_str, region_str])
+        self.add_call(program, f"{psy_data.name}%OpenRead",
+                      [module_str, region_str])
 
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
