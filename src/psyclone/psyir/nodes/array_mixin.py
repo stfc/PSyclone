@@ -667,31 +667,31 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             raise TypeError(
                 f"The 'index2' argument of the same_range() method should be "
                 f"an int but found '{type(index2).__name__}'.")
-        if not index < len(self.children):
+        if not index < len(self.indices):
             raise IndexError(
                 f"The value of the 'index' argument of the same_range() method"
                 f" is '{index}', but it should be less than the number of "
                 f"dimensions in the associated array, which is "
-                f"'{len(self.children)}'.")
-        if not index2 < len(array2.children):
+                f"'{len(self.indices)}'.")
+        if not index2 < len(array2.indices):
             raise IndexError(
                 f"The value of the 'index2' argument of the same_range() "
                 f"method is '{index2}', but it should be less than the number"
                 f" of dimensions in the associated array 'array2', which is "
-                f"'{len(array2.children)}'.")
-        if not isinstance(self.children[index], Range):
+                f"'{len(array2.indices)}'.")
+        if not isinstance(self.indices[index], Range):
             raise TypeError(
                 f"The child of the first array argument at the specified index"
                 f" '{index}' should be a Range node, but found "
-                f"'{type(self.children[index]).__name__}'.")
-        if not isinstance(array2.children[index2], Range):
+                f"'{type(self.indices[index]).__name__}'.")
+        if not isinstance(array2.indices[index2], Range):
             raise TypeError(
                 f"The child of the second array argument at the specified "
                 f"index '{index2}' should be a Range node, but found "
-                f"'{type(array2.children[index2]).__name__}'.")
+                f"'{type(array2.indices[index2]).__name__}'.")
 
-        range1 = self.children[index]
-        range2 = array2.children[index2]
+        range1 = self.indices[index]
+        range2 = array2.indices[index2]
 
         sym_maths = SymbolicMaths.get()
         # The logic below assumes array expressions come from valid Fortran,
@@ -702,6 +702,17 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             (self.ancestor(Statement) is array2.ancestor(Statement) or
              self.symbol is array2.symbol) and index == index2
         )
+
+        array1_type = None
+        if (isinstance(self, Reference) and isinstance(self.symbol, DataSymbol)
+                and isinstance(self.symbol.datatype, ArrayType)):
+            array1_type = self.symbol.datatype
+        array2_type = None
+        if (isinstance(array2, Reference) and
+                isinstance(array2.symbol, DataSymbol) and
+                isinstance(array2.symbol.datatype, ArrayType)):
+            array2_type = array2.symbol.datatype
+
         range1_start = None
         range2_start = None
         if assume_same_length:
@@ -712,16 +723,14 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             #   integer, dimension(3:5) :: b
             # would make it "not equal".
             if self.is_lower_bound(index):
-                if (isinstance(self.symbol, DataSymbol) and
-                        isinstance(self.symbol.datatype, ArrayType)):
-                    range1_start = self.symbol.datatype.shape[index].lower
+                if array1_type:
+                    range1_start = array1_type.shape[index].lower
                 else:
                     return False
 
             if array2.is_lower_bound(index2):
-                if (isinstance(array2.symbol, DataSymbol) and
-                        isinstance(array2.symbol.datatype, ArrayType)):
-                    range2_start = array2.symbol.datatype.shape[index2].lower
+                if array2_type:
+                    range2_start = array2_type.shape[index2].lower
                 else:
                     return False
         else:
@@ -742,18 +751,16 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # If we can not guarantee the same length, we also need to check
             # the upper bound
             if self.is_upper_bound(index):
-                if (isinstance(self.symbol, DataSymbol) and
-                        isinstance(self.symbol.datatype, ArrayType)):
-                    range1_stop = self.symbol.datatype.shape[index].upper
+                if array1_type:
+                    range1_stop = array1_type.shape[index].upper
                 else:
                     return False
             else:
                 range1_stop = range1.stop
 
             if array2.is_upper_bound(index2):
-                if (isinstance(array2.symbol, DataSymbol) and
-                        isinstance(array2.symbol.datatype, ArrayType)):
-                    range2_stop = array2.symbol.datatype.shape[index2].upper
+                if array2_type:
+                    range2_stop = array2_type.shape[index2].upper
                 else:
                     return False
             else:

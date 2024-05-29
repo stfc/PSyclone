@@ -43,6 +43,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     ArrayOfStructuresReference, ArrayReference, BinaryOperation, Range,
     Literal, Routine, StructureReference, Assignment, Reference, IntrinsicCall)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, UnresolvedType, INTEGER_TYPE,
     REAL_TYPE, StructureType, Symbol)
@@ -734,4 +735,25 @@ def test_same_range(fortran_reader):
     array1, array2 = psyir.walk(Assignment)[0].children
     assert array1.same_range(0, array2, 0) is True
     assert array1.same_range(1, array2, 1) is True
+    assert array1.same_range(2, array2, 2) is False
+
+    # This functionality also works with SoA and SoAoS
+    code = '''
+    subroutine test()
+        use other, only: othertype
+        type :: mytype
+            type(othertype), dimension(4, 4, 4) :: field
+            integer, dimension(4, 1:4, 2:5) :: field2
+        end type
+        type(mytype) :: mystruct
+
+        mystruct%field(2:4,:,:)%value = mystruct%field(1+1:2+2, :, :)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    array1, array2 = psyir.walk(ArrayMixin)
+    assert array1.same_range(0, array2, 0) is True
+    # But we can not get the component type shape easily yet, so for now this
+    # is more conservative that regular arrays, but could be improved.
+    assert array1.same_range(1, array2, 1) is False
     assert array1.same_range(2, array2, 2) is False
