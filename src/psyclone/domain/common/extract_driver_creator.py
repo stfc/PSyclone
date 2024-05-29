@@ -64,10 +64,10 @@ class ExtractDriverCreator(BaseDriverCreator):
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.
 
-    :param integer_type: default scalar integer type to be used for integer \
+    :param integer_type: default scalar integer type to be used for integer
         variables. Defaults to INTEGER_TYPE.
     :type integer_type: :py:class:`psyclone.psyir.symbols.ScalarType`
-    :param real_type: default scalar real type to be used for real \
+    :param real_type: default scalar real type to be used for real
         variables. Defaults to REAL8_TYPE.
     :type real_type: :py:class:`psyclone.psyir.symbols.ScalarType`
 
@@ -88,25 +88,25 @@ class ExtractDriverCreator(BaseDriverCreator):
         type that the reference resolves to, e.g. fld%data... will be mapped
         to `real, dimension(:,:)`, and `fld%data$whole%xstart` to `integer`.
 
-        :param str flattened_name: the new 'flattened' name to be used for \
+        :param str flattened_name: the new 'flattened' name to be used for
             the newly created symbol.
         :param reference: the reference to a structure.
         :type reference: :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param symbol_table: the symbol table to use to make sure a unique \
+        :param symbol_table: the symbol table to use to make sure a unique
             name is created (based on `flattened_name`).
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a backend visitor to convert the reference into a \
-            string, which is then used to find the corresponding \
+        :param writer: a backend visitor to convert the reference into a
+            string, which is then used to find the corresponding
             gocean-grid-properties.
-        :type writer: \
+        :type writer:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
-        :raises InternalError: if the structure access is not to a \
+        :raises InternalError: if the structure access is not to a
             GOCean grid property.
-        :raises InternalError: if there is no default type defined for \
-            the type of the GOCean grid property (defaults are defined in \
+        :raises InternalError: if there is no default type defined for
+            the type of the GOCean grid property (defaults are defined in
             the constructor of this class).
-        :raises InternalError: if the gocean grid property type is \
+        :raises InternalError: if the gocean grid property type is
             neither 'array' nor 'scalar'.
 
         :returns: the new symbol created.
@@ -176,12 +176,12 @@ class ExtractDriverCreator(BaseDriverCreator):
         simple Reference and a flattened name (replacing all % with _).
 
         :param old_reference: a reference to a structure member.
-        :type old_reference: \
+        :type old_reference:
             :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param symbol_table: the symbol table to which to add the newly \
+        :param symbol_table: the symbol table to which to add the newly
             defined flattened symbol.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a Fortran writer used when flattening a \
+        :param writer: a Fortran writer used when flattening a
             `StructureReference`.
         :type writer: :py:class:`psyclone.psyir.backend.fortran.FortranWriter`
 
@@ -219,17 +219,17 @@ class ExtractDriverCreator(BaseDriverCreator):
 
         :param sched: the schedule that will be called by this driver program.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param symbol_table: the symbol table to which to add all found \
+        :param symbol_table: the symbol table to which to add all found
             symbols.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a Fortran writer used when flattening a \
+        :param writer: a Fortran writer used when flattening a
             `StructureReference`.
         :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
 
-        :raises InternalError: if a non-derived type has an unknown \
+        :raises InternalError: if a non-derived type has an unknown
             intrinsic type.
-        :raises InternalError: if an unknown derived type is \
-            encountered. At this stage only the dl_esm_inf `field` type \
+        :raises InternalError: if an unknown derived type is
+            encountered. At this stage only the dl_esm_inf `field` type
             is supported.
 
         '''
@@ -319,25 +319,25 @@ class ExtractDriverCreator(BaseDriverCreator):
           parameter to the function), allocates it based on the shape of
           the corresponding "_post" variable, and initialises it with 0.
 
-        :param program: the PSyIR Routine to which any code must \
+        :param program: the PSyIR Routine to which any code must
             be added. It also contains the symbol table to be used.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param psy_data: the PSyData symbol to be used.
         :type psy_data: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param read_write_info: information about all input and output \
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str postfix: a postfix that is added to a variable to \
-            create the corresponding variable that stores the output \
+        :param str postfix: a postfix that is added to a variable to
+            create the corresponding variable that stores the output
             value from the kernel data file.
 
-        :returns: a list with all output parameters, i.e. variables that \
-            need to be verified after executing the kernel. Each entry is \
-            a 2-tuple containing the symbol of the computed variable, and \
-            the symbol of the variable that contains the value read from \
+        :returns: a list with all output parameters, i.e. variables that
+            need to be verified after executing the kernel. Each entry is
+            a 2-tuple containing the symbol of the computed variable, and
+            the symbol of the variable that contains the value read from
             the file.
-        :rtype: list of 2-tuples of \
-            :py:class:`psyclone.psyir.symbols.Symbol`
+        :rtype: list[tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
+            :py:class:`psyclone.psyir.symbols.Symbol`]]
 
         '''
         symbol_table = program.scope.symbol_table
@@ -411,10 +411,10 @@ class ExtractDriverCreator(BaseDriverCreator):
         get a ContainerSymbol added for the module, and a RoutineSymbol
         with an import interface pointing to this module.
 
-        :param program: the PSyIR Routine to which any code must \
+        :param program: the PSyIR Routine to which any code must
             be added. It also contains the symbol table to be used.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param sched: the schedule that will be called by the driver \
+        :param sched: the schedule that will be called by the driver
             program created.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
 
@@ -446,21 +446,21 @@ class ExtractDriverCreator(BaseDriverCreator):
         file container which contains the driver.
 
         :param nodes: a list of nodes.
-        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param read_write_info: information about all input and output \
+        :type nodes: list[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
+        :param str prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
+        :param str postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param (str,str) region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
+        :param (str,str) region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
             should uniquely identify a region.
 
         :returns: the program PSyIR for a stand-alone driver.
@@ -522,7 +522,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         for child in all_children:
             program.addchild(child)
 
-        BaseDriverCreator.add_result_tests(program, output_symbols)
+        self.add_result_tests(program, output_symbols)
 
         return file_container
 
@@ -537,26 +537,26 @@ class ExtractDriverCreator(BaseDriverCreator):
         (defaults to Fortran).
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output \
+        :type nodes: list[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
+        :param str prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
+        :param str postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param (str,str) region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
+        :param (str,str) region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
             should uniquely identify a region.
-        :param language_writer: a backend visitor to convert PSyIR \
-            representation to the selected language. It defaults to \
+        :param language_writer: a backend visitor to convert PSyIR
+            representation to the selected language. It defaults to
             the FortranWriter.
-        :type language_writer: \
+        :type language_writer:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         :returns: the driver in the selected language.
@@ -577,26 +577,26 @@ class ExtractDriverCreator(BaseDriverCreator):
         "driver-"+module_name+"_"+region_name+".f90"
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output \
+        :type nodes: list[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
+        :param str prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
+        :param str postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param (str,str) region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
+        :param (str,str) region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
             should uniquely identify a region.
-        :param language_writer: a backend visitor to convert PSyIR \
-            representation to the selected language. It defaults to \
+        :param language_writer: a backend visitor to convert PSyIR
+            representation to the selected language. It defaults to
             the FortranWriter.
-        :type language_writer: \
+        :type language_writer:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''

@@ -526,7 +526,7 @@ line.
 Therefore, compilation for a created driver, e.g. the one created in
 ``examples/lfric/eg17/full_example_extract``, is simple:
 
-.. code-block::
+.. code-block:: output
 
    $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
    $ ./driver-main-update
@@ -582,11 +582,11 @@ Driver Summary Statistics
 -------------------------
 When a driver is executed, it will print summary statistics at the end
 for each variable that was modified, indicating the difference between the
-`original` values from when the data file was created, and the new ones
+`original` values from when the data file was created, and the `new` ones
 computed when executing the kernel. These differences can be caused
 by changing the compilation options, or compiler version. Example output:
 
-.. code-block::
+.. code-block:: output
 
        Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
            cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
