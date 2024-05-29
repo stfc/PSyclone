@@ -672,45 +672,15 @@ def test_same_range_error(fortran_reader):
 def test_same_range(fortran_reader):
     '''Test that the same_range method produces the expected results. '''
 
-    array2 = fortran_reader.psyir_from_statement("b(:) = 0").lhs
-    array1 = fortran_reader.psyir_from_statement("a(:) = 0").lhs
-
-    # lower bounds both use lbound, upper bounds both use ubound and
-    # step is the same so everything matches.
-    assert array1.same_range(0, array2, 0) is True
-
-    # Check if steps are different
-    array2.children[0].step = Literal("2", INTEGER_TYPE)
-    assert array1.same_range(0, array2, 0) is False
-
-    # one of upper bounds uses ubound, other does not
-    array2 = fortran_reader.psyir_from_statement("b(:4) = 0").lhs
-    assert array1.same_range(0, array2, 0) is False
-
-    # both have an specific ubound and are different
-    array1 = fortran_reader.psyir_from_statement("a(:3) = 0").lhs
-    assert array1.same_range(0, array2, 0) is False
-
-    # one of lower bounds uses lbound, other does not
-    array2 = fortran_reader.psyir_from_statement("b(2:) = 0").lhs
-    assert array1.same_range(0, array2, 0) is False
-
-    # both have an specific lbound and are different
-    array1 = fortran_reader.psyir_from_statement("a(3:) = 0").lhs
-    assert array1.same_range(0, array2, 0) is False
-
-    # Both have lower and upper bound but are symbolically equal
-    array1 = fortran_reader.psyir_from_statement("a(3:5) = 0").lhs
-    array2 = fortran_reader.psyir_from_statement("a(2+1:6-1) = 0").lhs
-    assert array1.same_range(0, array2, 0) is True
-
-    # One uses bound and the other does not, but the compile time known
-    # shape is the same
+    # If values are explicit, we can compare them symbolically without
+    # knowing the symbol shape
     code = '''
     subroutine test()
-        real, dimension(4, 5-1, 2:5) :: A
-        real, dimension(4,   4,   4) :: B
-        A(:,:,:) = B(1:4,1:4, 1:4)
+        use other_mod
+        ! Same ranges
+        A(2-1:3+1,val:,val+1-1:other) = B(1:4,val:4, val:)
+        ! Different ranges
+        A(2:5,val:,2:4) = B(1:,val+1:4, ::2)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -718,15 +688,27 @@ def test_same_range(fortran_reader):
     assert array1.same_range(0, array2, 0) is True
     assert array1.same_range(1, array2, 1) is True
     assert array1.same_range(2, array2, 2) is True
+    # But not if we don't compare the same dimension (e.g. these are both
+    # "val:", but we don't know if the upper bound is the same)
+    assert array1.same_range(1, array2, 2) is False
 
-    # The asserts below are incorrect
-    pytest.xfail("issue #2485: same_range still has problems")
+    array3, array4 = psyir.walk(Assignment)[1].children
+    assert array3.same_range(0, array4, 0) is False
+    assert array3.same_range(1, array4, 1) is False
+    assert array3.same_range(2, array4, 2) is False
 
-    # Full-ranges but the compile time known shape is not the same
+    # If the lower values are symbolicaly equal but they in a different
+    # statements, it is not enough
+    assert array1.same_range(0, array4, 0) is False
+    # Unless they refer to the same symbol and dimension
+    assert array1.same_range(1, array3, 1) is True
+
+    # If values are implicit, we can not guarantee the same range unless
+    # we know the shape
     code = '''
     subroutine test()
-        real, dimension(4, 5-1, 2:5) :: A
-        real, dimension(5,   5,   5) :: B
+        use other_mod
+        ! We don't know
         A(:,:,:) = B(:,:,:)
     end subroutine
     '''
@@ -736,16 +718,20 @@ def test_same_range(fortran_reader):
     assert array1.same_range(1, array2, 1) is False
     assert array1.same_range(2, array2, 2) is False
 
-    # Same range length, but shifted
+    # If the values are implicit, but we know the declaration we can also
+    # compare them.
+    # TODO #949: Currently expressions inside shape (e.g. dimension(5-1)),
+    # produce an UnsupportedFortranType but when this is resolved, shape
+    # comparisons should also work symbolically
     code = '''
     subroutine test()
-        real, dimension(4, 5-1, 2:5) :: A
-        real, dimension(5,   5,   5) :: B
-        A(2:4,2:4,2:4) = B(3:5,3:5,3:5)
+        real, dimension(1:4, 1:4, 2:5) :: A
+        real, dimension(4,   4,   4) :: B
+        A(:,:,:) = B(:,:,:)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
     array1, array2 = psyir.walk(Assignment)[0].children
     assert array1.same_range(0, array2, 0) is True
     assert array1.same_range(1, array2, 1) is True
-    assert array1.same_range(2, array2, 2) is True
+    assert array1.same_range(2, array2, 2) is False

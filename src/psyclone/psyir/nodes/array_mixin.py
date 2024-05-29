@@ -52,6 +52,7 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import (
     ScalarType, ArrayType, UnresolvedType, UnsupportedType, INTEGER_TYPE)
@@ -693,50 +694,75 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         range2 = array2.children[index2]
 
         sym_maths = SymbolicMaths.get()
-        # compare lower bounds
-        if self.is_lower_bound(index) and array2.is_lower_bound(index2):
-            # Both self and array2 use the lbound() intrinsic to
-            # specify the lower bound of the array dimension. We may
-            # not be able to determine what the lower bounds of these
-            # arrays are statically but at runtime the code will fail
-            # if the ranges do not match so we assume that the lower
-            # bounds are consistent.
-            pass
-        elif self.is_lower_bound(index) or array2.is_lower_bound(index2):
-            # One and only one of self and array2 use the lbound()
-            # intrinsic to specify the lower bound of the array
-            # dimension. In this case assume that the ranges are
-            # different (although they could potentially be the same).
-            return False
-        elif not sym_maths.equal(range1.start, range2.start):
-            # Neither self nor array2 use the lbound() intrinsic to
-            # specify the lower bound of the array dimension. Try to
-            # determine if they are the same by matching the
-            # text. Use symbolic maths to do the comparison.
+        # The logic below assumes array expressions come from valid Fortran,
+        # and therefore, we assume the length of all ranges in the same
+        # dimension-position of a statement are the same.
+        # (e.g. a(2:4) = b(2:5) is not valid Fortran)
+        assume_same_length = (
+            (self.ancestor(Statement) is array2.ancestor(Statement) or
+             self.symbol is array2.symbol) and index == index2
+        )
+        range1_start = None
+        range2_start = None
+        if assume_same_length:
+            # If we have a implicit lower bound, e.g. a(:) = b(:)
+            # we need to prove that they have the same lower bound value on the
+            # declaration. For example
+            #   integer, dimension(1:3) :: a
+            #   integer, dimension(3:5) :: b
+            # would make it "not equal".
+            if self.is_lower_bound(index):
+                if (isinstance(self.symbol, DataSymbol) and
+                        isinstance(self.symbol.datatype, ArrayType)):
+                    range1_start = self.symbol.datatype.shape[index].lower
+                else:
+                    return False
+
+            if array2.is_lower_bound(index2):
+                if (isinstance(array2.symbol, DataSymbol) and
+                        isinstance(array2.symbol.datatype, ArrayType)):
+                    range2_start = array2.symbol.datatype.shape[index2].lower
+                else:
+                    return False
+        else:
+            # Otherwise we can only guarantee it if they are both explicit
+            if self.is_lower_bound(index) or self.is_lower_bound(index):
+                return False
+
+        # If the previous block didn't populate the start value, it's explicit
+        if not range1_start:
+            range1_start = range1.start
+        if not range2_start:
+            range2_start = range2.start
+
+        if not sym_maths.equal(range1_start, range2_start):
             return False
 
-        # compare upper bounds
-        if self.is_upper_bound(index) and array2.is_upper_bound(index2):
-            # Both self and array2 use the ubound() intrinsic to
-            # specify the upper bound of the array dimension. We may
-            # not be able to determine what the upper bounds of these
-            # arrays are statically but at runtime the code will fail
-            # if the ranges do not match so we assume that the upper
-            # bounds are consistent.
-            pass
-        elif self.is_upper_bound(index) or array2.is_upper_bound(index2):
-            # One and only one of self and array2 use the ubound()
-            # intrinsic to specify the upper bound of the array
-            # dimension. In this case assume that the ranges are
-            # different (although they could potentially be the same).
-            return False
-        elif not sym_maths.equal(range1.stop, range2.stop):
-            # Neither self nor array2 use the ubound() intrinsic to
-            # specify the upper bound of the array dimension. Use
-            # symbolic maths to check if they are equal.
-            return False
+        if not assume_same_length:
+            # If we can not guarantee the same length, we also need to check
+            # the upper bound
+            if self.is_upper_bound(index):
+                if (isinstance(self.symbol, DataSymbol) and
+                        isinstance(self.symbol.datatype, ArrayType)):
+                    range1_stop = self.symbol.datatype.shape[index].upper
+                else:
+                    return False
+            else:
+                range1_stop = range1.stop
 
-        # compare steps
+            if array2.is_upper_bound(index2):
+                if (isinstance(array2.symbol, DataSymbol) and
+                        isinstance(array2.symbol.datatype, ArrayType)):
+                    range2_stop = array2.symbol.datatype.shape[index2].upper
+                else:
+                    return False
+            else:
+                range2_stop = range2.stop
+
+            if not sym_maths.equal(range1_stop, range2_stop):
+                return False
+
+        # Compare steps
         if not sym_maths.equal(range1.step, range2.step):
             return False
 
