@@ -1468,8 +1468,8 @@ def test_acc_kernels_error():
     accktrans = ACCKernelsTrans()
     with pytest.raises(NotImplementedError) as err:
         accktrans.apply(schedule.children)
-    assert ("kernels regions are currently only supported for the Nemo"
-            " and LFRic InvokeSchedules" in str(err.value))
+    assert ("kernels regions are not currently supported for "
+            "GOcean InvokeSchedules" in str(err.value))
 
 
 def test_accroutinetrans_module_use():
