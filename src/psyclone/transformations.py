@@ -62,13 +62,13 @@ from psyclone.psyir.nodes import (
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
-    Return, Routine, Schedule)
+    Return, Routine, Schedule, Statement)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
     ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE,
-    ScalarType, Symbol, SymbolError)
+    ScalarType, Symbol, SymbolError, UnsupportedFortranType)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
@@ -2693,9 +2693,19 @@ class ACCKernelsTrans(RegionTrans):
         for node in node_list:
             for lit in node.walk(Literal):
                 if lit.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                    raise TransformationError(
-                        f"Character expressions cannot be enclosed in an "
-                        f"OpenACC region but found '{lit.debug_string()}'")
+                    # Does the parent statement involve an assumed-size
+                    # character string?
+                    stmt = lit.ancestor(Statement)
+                    for ref in stmt.walk(Reference):
+                        try:
+                            dtype = ref.datatype
+                        except NotImplementedError:
+                            continue
+                        if isinstance(dtype, UnsupportedFortranType):
+                            raise TransformationError(
+                                f"Assumed-size character variables cannot be "
+                                f"enclosed in an OpenACC region but found "
+                                f"'{stmt.debug_string()}'")
             for icall in node.walk(IntrinsicCall):
                 if not icall.is_available_on_device():
                     raise TransformationError(
