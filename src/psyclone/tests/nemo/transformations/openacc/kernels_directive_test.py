@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''Module containing py.test tests for the transformation of the PSy
-   representation of NEMO code using the OpenACC 'kernels' directive.
+'''Module containing py.test tests for the transformation of the PSyIR
+   of generic code using the OpenACC 'kernels' directive.
 
 '''
 
@@ -44,7 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 
 from psyclone.errors import GenerationError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop
+from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop, Routine
 from psyclone.psyir.transformations import TransformationError, ProfileTrans
 from psyclone.transformations import ACCKernelsTrans, ACCLoopTrans
 
@@ -407,3 +407,41 @@ def test_no_psydata_in_kernels(parser, monkeypatch):
         _ = psy.gen
     assert ("Cannot include CodeBlocks or calls to PSyData routines within "
             "OpenACC regions but found [" in str(err.value))
+
+
+def test_no_char_in_kernels(fortran_reader):
+    '''
+    Check that the transformation rejects any character-string manipulation
+    or intrinsics that aren't available on GPU.
+
+    '''
+    code = '''\
+subroutine ice(assumed_size_char)
+  implicit none
+  character(len = *), intent(in) :: assumed_size_char
+  real, dimension(10,10) :: my_var
+
+  if (assumed_size_char == 'literal') then
+    my_var(:) = 0.0
+  end if
+
+  assumed_size_char(:) = ' '
+
+  assumed_size_char(:) = achar(9)
+end
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    sub = psyir.walk(Routine)[0]
+    acc_trans = ACCKernelsTrans()
+    with pytest.raises(TransformationError) as err:
+        acc_trans.apply(sub.children[0])
+    assert ("Character expressions cannot be enclosed in an OpenACC region "
+            "but found ''literal''" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        acc_trans.apply(sub.children[1])
+    assert ("Character expressions cannot be enclosed in an OpenACC region "
+            "but found '' ''" in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        acc_trans.apply(sub.children[2])
+    assert ("Cannot include intrinsic 'ACHAR(9)' in an OpenACC region because "
+            "it is not available on GPU" in str(err.value))

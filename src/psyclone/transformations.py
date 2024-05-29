@@ -53,14 +53,13 @@ from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
 from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
-from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
                              BuiltIn)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective, ACCEnterDataDirective, ACCKernelsDirective,
     ACCLoopDirective, ACCParallelDirective, ACCRoutineDirective, Assignment,
-    Call, CodeBlock, Directive, Loop, Node, OMPDeclareTargetDirective,
-    OMPDirective, OMPMasterDirective,
+    Call, CodeBlock, Directive, IntrinsicCall, Literal, Loop, Node,
+    OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
     Return, Routine, Schedule)
@@ -68,8 +67,8 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import (
-    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE, ScalarType,
-    Symbol, SymbolError)
+    ArgumentInterface, DataSymbol, UnresolvedType, INTEGER_TYPE,
+    ScalarType, Symbol, SymbolError)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
@@ -2620,14 +2619,6 @@ class ACCKernelsTrans(RegionTrans):
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
                            psyGen.HaloExchange)
 
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation class.
-        :rtype: str
-        '''
-        return "ACCKernelsTrans"
-
     def apply(self, node, options=None):
         '''
         Enclose the supplied list of PSyIR nodes within an OpenACC
@@ -2669,15 +2660,15 @@ class ACCKernelsTrans(RegionTrans):
         Check that we can safely enclose the supplied node or list of nodes
         within OpenACC kernels ... end kernels directives.
 
-        :param nodes: the proposed PSyIR node or nodes to enclose in the \
+        :param nodes: the proposed PSyIR node or nodes to enclose in the
                       kernels region.
         :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises NotImplementedError: if the supplied Nodes belong to \
+        :raises NotImplementedError: if the supplied Nodes belong to
                                      a GOInvokeSchedule.
-        :raises TransformationError: if there are no Loops within the \
+        :raises TransformationError: if there are no Loops within the
                                      proposed region.
 
         '''
@@ -2686,13 +2677,31 @@ class ACCKernelsTrans(RegionTrans):
         node_list = self.get_node_list(nodes)
 
         # Check that the front-end is valid
-        sched = node_list[0].ancestor((NemoInvokeSchedule,
-                                       LFRicInvokeSchedule))
-        if not sched:
+        if node_list[0].ancestor(GOInvokeSchedule):
             raise NotImplementedError(
-                "OpenACC kernels regions are currently only supported for the "
-                "Nemo and LFRic InvokeSchedules")
+                "OpenACC kernels regions are not currently supported for "
+                "GOcean InvokeSchedules")
         super().validate(node_list, options)
+
+        # Check that there are no character literals in the target region.
+        # The presence of these is used as a proxy to avoid the following
+        # problems:
+        #  * accessing assumed-size character literals causes an Internal
+        #    Compiler Error with NVHPC;
+        #  * character manipulations are not supported on (at least) NVIDIA
+        #    GPUs;
+        for node in node_list:
+            for lit in node.walk(Literal):
+                if lit.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
+                    raise TransformationError(
+                        f"Character expressions cannot be enclosed in an "
+                        f"OpenACC region but found '{lit.debug_string()}'")
+            for icall in node.walk(IntrinsicCall):
+                if not icall.is_available_on_device():
+                    raise TransformationError(
+                        f"Cannot include intrinsic '{icall.debug_string()}' in"
+                        f" an OpenACC region because it is not available on "
+                        f"GPU.")
 
         # Check that we have at least one loop or array range within
         # the proposed region
