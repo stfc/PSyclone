@@ -284,7 +284,7 @@ def test_n_not_integer():
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_array_type"
     code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, 1)",
-                              "arg_type(gh_array,   gh_real,  gh_read, 0.5)", 1)
+                              "arg_type(gh_array,  gh_real,  gh_read, 0.5)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
