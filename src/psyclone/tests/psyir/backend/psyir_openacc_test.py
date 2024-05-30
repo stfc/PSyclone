@@ -281,7 +281,7 @@ def test_gocean_acc_parallel():
     is created correctly.
 
     '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke.f90", "gocean",
                            idx=0, dist_mem=False)
 
     ptrans = ACCParallelTrans()

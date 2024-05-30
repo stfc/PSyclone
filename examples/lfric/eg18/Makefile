@@ -40,7 +40,7 @@ include ../../common.mk
 transform: vanilla
 
 vanilla:
-	${PSYCLONE} -d ./ -d ../code advection_alg_mod.x90
+	${PSYCLONE} -api lfric -d ./ -d ../code advection_alg_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg18"

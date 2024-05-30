@@ -139,7 +139,7 @@ def test_paralooptrans_validate_colours(monkeypatch):
     permitted.
 
     '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                            name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
     child = schedule.walk(Loop)[0]

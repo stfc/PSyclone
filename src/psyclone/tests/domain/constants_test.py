@@ -53,7 +53,7 @@ def test_lfric_const():
     LFRicConstants.HAS_BEEN_INITIALISED = False
     config = Config.get()
 
-    lfric_const = config.api_conf("dynamo0.3").get_constants()
+    lfric_const = config.api_conf("lfric").get_constants()
     # Don't test intrinsic_types, which comes from the config file
     assert lfric_const.VALID_ARG_TYPE_NAMES == ["gh_field", "gh_operator",
                                                 "gh_columnwise_operator",

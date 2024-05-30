@@ -52,7 +52,7 @@ from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import DTCode
 from psyclone.tests.utilities import get_invoke
 
-API = "gocean1.0"
+API = "gocean"
 
 
 def test_goloop_no_parent():

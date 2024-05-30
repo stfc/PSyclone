@@ -167,7 +167,7 @@ class ExtractTrans(PSyDataTrans):
         # support distributed memory, so ignore the setting of distributed
         # memory in this case:
         config = Config.get()
-        if config.distributed_memory and config.api != "nemo":
+        if config.distributed_memory and config.api != "":
             raise TransformationError(
                 f"Error in {self.name}: Distributed memory is not supported.")
 

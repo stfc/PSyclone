@@ -66,7 +66,7 @@ class LFRicConstants():
                                 "config file is loaded")
 
         LFRicConstants.HAS_BEEN_INITIALISED = True
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # ---------- Evaluators: quadrature -----------------------------------
         LFRicConstants.VALID_QUADRATURE_SHAPES = \
