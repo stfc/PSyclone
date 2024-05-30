@@ -57,6 +57,22 @@ class BaseDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def _flatten_signature(signature):
+        '''Creates a 'flattened' string for a signature by using ``_`` to
+        separate the parts of a signature. For example, in Fortran
+        a reference to ``a%b`` would be flattened to be ``a_b``.
+
+        :param signature: the signature to be flattened.
+        :type signature: :py:class:`psyclone.core.Signature`
+
+        :returns: a flattened string (all '%' replaced with '_'.)
+        :rtype: str
+
+        '''
+        return str(signature).replace("%", "_")
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def _make_valid_unit_name(name):
         '''Valid program or routine names are restricted to 63 characters,
         and no special characters like '-' (which is used when adding

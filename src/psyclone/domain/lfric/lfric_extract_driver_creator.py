@@ -207,22 +207,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         return proxy_name_mapping
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def _flatten_signature(signature):
-        '''Creates a 'flattened' string for a signature by using ``_`` to
-        separate the parts of a signature. For example, in Fortran
-        a reference to ``a%b`` would be flattened to be ``a_b``.
-
-        :param signature: the signature to be flattened.
-        :type signature: :py:class:`psyclone.core.Signature`
-
-        :returns: a flattened string (all '%' replaced with '_'.)
-        :rtype: str
-
-        '''
-        return str(signature).replace("%", "_")
-
-    # -------------------------------------------------------------------------
     def _flatten_reference(self, old_reference, symbol_table,
                            proxy_name_mapping):
         '''Replaces ``old_reference``, which is a structure type, with a new

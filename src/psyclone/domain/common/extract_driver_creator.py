@@ -156,20 +156,6 @@ class ExtractDriverCreator(BaseDriverCreator):
         return new_symbol
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def flatten_string(fortran_string):
-        '''Replaces all `%` with `_` in the string, creating a 'flattened'
-        name.
-
-        :param str fortran_string: the Fortran string containing '%'.
-
-        :returns: a flattened string (all '%' replaced with '_'.)
-        :rtype: str
-
-        '''
-        return fortran_string.replace("%", "_")
-
-    # -------------------------------------------------------------------------
     def flatten_reference(self, old_reference, symbol_table,
                           writer=FortranWriter()):
         '''Replaces `old_reference` which is a structure type with a new
@@ -193,19 +179,19 @@ class ExtractDriverCreator(BaseDriverCreator):
         # Furthermore, the netcdf file declares the variable without `%data`,
         # so removing `%data` here also simplifies code creation later on.
         signature, _ = old_reference.get_signature_and_indices()
-        fortran_string = writer(old_reference)
         if signature[-1] == "data":
-            # Remove %data
-            fortran_string = fortran_string[:-5]
+            # Remove %data to make the name more recognisable
+            signature = signature[:-1]
         try:
-            symbol = symbol_table.lookup_with_tag(fortran_string)
+            symbol = symbol_table.lookup_with_tag(str(signature))
         except KeyError:
-            flattened_name = self.flatten_string(fortran_string)
+            flattened_name = self._flatten_signature(signature)
+
             # Symbol not in table, create a new symbol
             symbol = self.create_flattened_symbol(flattened_name,
                                                   old_reference, symbol_table,
                                                   writer)
-            symbol_table.add(symbol, tag=fortran_string)
+            symbol_table.add(symbol, tag=str(signature))
         # We need to create a new, flattened Reference and replace the
         # StructureReference with it:
         old_reference.replace_with(Reference(symbol))
