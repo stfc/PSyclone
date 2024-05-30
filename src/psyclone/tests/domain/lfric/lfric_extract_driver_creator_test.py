@@ -150,7 +150,7 @@ def test_lfric_driver_import_modules():
     # Initially we should only have one symbol:
     assert ["routine"] == [sym.name for sym in program.symbol_table.symbols]
 
-    driver_creator._import_modules(program.scope.symbol_table, sched)
+    driver_creator.import_modules(program.scope.symbol_table, sched)
     # We should now have two more symbols:
     all_symbols = ["routine", "testkern_coord_w0_2_mod",
                    "testkern_coord_w0_2_code"]
@@ -158,7 +158,7 @@ def test_lfric_driver_import_modules():
 
     # Import twice so we test the handling of symbols that
     # are already in the symbol table:
-    driver_creator._import_modules(program.scope.symbol_table, sched)
+    driver_creator.import_modules(program.scope.symbol_table, sched)
 
     # The symbol table should be the same as it was before:
     assert (all_symbols == [sym.name for sym in program.symbol_table.symbols])
@@ -179,7 +179,7 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
     sched.lower_to_language_level()
     driver_creator = LFRicExtractDriverCreator()
     program = Routine("routine", is_program=True)
-    driver_creator._import_modules(program.scope.symbol_table, sched)
+    driver_creator.import_modules(program.scope.symbol_table, sched)
     # Only the program routine itself should be in the symbol table after
     # calling `import_modules`.
     assert (["routine"] == [sym.name for sym in program.symbol_table.symbols])

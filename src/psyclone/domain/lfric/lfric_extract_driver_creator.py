@@ -59,7 +59,7 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
-                                    RoutineSymbol, UnsupportedFortranType)
+                                    UnsupportedFortranType)
 from psyclone.psyir.transformations import ExtractTrans
 
 
@@ -642,38 +642,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _import_modules(symbol_table, sched):
-        '''This function adds all the import statements required for the
-        actual kernel calls. It finds all calls in the schedule and
-        checks for calls with an ImportInterface. Any such call will
-        add a ContainerSymbol for the module and a RoutineSymbol (pointing
-        to the container) to the symbol table.
-
-        :param symbol_table: the symbol table to which the symbols are added.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param sched: the schedule to analyse for module imports.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-
-        '''
-        for call in sched.walk(Call):
-            routine = call.routine.symbol
-            if not isinstance(routine.interface, ImportInterface):
-                # No import required, can be ignored.
-                continue
-            if routine.name in symbol_table:
-                # Symbol has already been added - ignore
-                continue
-            # We need to create a new symbol for the module and the routine
-            # called (the PSyIR backend will then create a suitable import
-            # statement).
-            module = ContainerSymbol(routine.interface.container_symbol.name)
-            symbol_table.add(module)
-            new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
-                                            interface=ImportInterface(module))
-            symbol_table.add(new_routine_sym)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
     def _add_precision_symbols(symbol_table):
         '''This function adds an import of the various precision
         symbols used by LFRic from the constants_mod module.
@@ -901,7 +869,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # Find all imported routines and add them to the symbol table
         # of the driver, so the driver will have the correct import
         # statements.
-        self._import_modules(program.scope.symbol_table, schedule_copy)
+        self.import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
         self._add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                      proxy_name_mapping, read_write_info)

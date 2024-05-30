@@ -45,7 +45,7 @@ from psyclone.configuration import Config
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
+from psyclone.psyir.nodes import (Assignment, FileContainer,
                                   IntrinsicCall, Literal, Reference, Routine,
                                   StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE, IntrinsicSymbol,
@@ -389,40 +389,6 @@ class ExtractDriverCreator(BaseDriverCreator):
         return output_symbols
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def import_modules(program, sched):
-        '''This function adds all the import statements required for the
-        actual kernel calls. It finds all calls in the PSyIR tree and
-        checks for calls with a ImportInterface. Any such call will
-        get a ContainerSymbol added for the module, and a RoutineSymbol
-        with an import interface pointing to this module.
-
-        :param program: the PSyIR Routine to which any code must
-            be added. It also contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param sched: the schedule that will be called by the driver
-            program created.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-
-        '''
-        symbol_table = program.scope.symbol_table
-        for call in sched.walk(Call):
-            routine = call.routine.symbol
-            if not isinstance(routine.interface, ImportInterface):
-                continue
-            if routine.name in symbol_table:
-                # Symbol has already been added - ignore
-                continue
-            # We need to create a new symbol for the module and the routine
-            # called (the PSyIR backend will then create a suitable import
-            # statement).
-            module = ContainerSymbol(routine.interface.container_symbol.name)
-            symbol_table.add(module)
-            new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
-                                            interface=ImportInterface(module))
-            symbol_table.add(new_routine_sym)
-
-    # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
@@ -487,7 +453,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         # in the node list have the same parent.
         schedule_copy = nodes[0].parent.copy()
         schedule_copy.lower_to_language_level()
-        self.import_modules(program, schedule_copy)
+        self.import_modules(program_symbol_table, schedule_copy)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                     writer)
 
