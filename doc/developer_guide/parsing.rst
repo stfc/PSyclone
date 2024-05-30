@@ -358,7 +358,7 @@ to `fparser2` in the future.
 
 The `KernelTypeFactory create` method is used for both coded kernels
 and built-in kernels to specify the API-specific class to use. As an
-example, in the case of the `dynamo0.3` API, the class is
+example, in the case of the `lfric` API, the class is
 `LFRicKernMetadata` which is found in `psyclone.domain.lfric`. Once this
 instance has been created (by passing it an `fparser1` parse tree) it can
 return information about the metadata contained therein. Moving from

@@ -62,7 +62,7 @@ class OMPTaskwaitTrans(Transformation):
 
     >>> from pysclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> filename = "nemolite2d_alg.f90"
     >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
     >>> psy = PSyFactory(api).create(invokeInfo)
