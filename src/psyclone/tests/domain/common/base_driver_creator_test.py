@@ -39,11 +39,36 @@
 
 import pytest
 
+from psyclone.core import Signature
 from psyclone.domain.common import BaseDriverCreator
 from psyclone.psyir.nodes import Literal, Routine
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, RoutineSymbol
 
 
+# ----------------------------------------------------------------------------
+def test_lfric_driver_flatten_signature():
+    '''Tests that a user-defined type access is correctly converted
+    to a 'flattened' string.'''
+
+    new_name = BaseDriverCreator._flatten_signature(Signature("a%b%c"))
+    assert new_name == "a_b_c"
+
+
+# ----------------------------------------------------------------------------
+def test_lfric_driver_valid_unit_name():
+    '''Tests that we create valid unit names, i.e. less than 64 characters,
+    and no ":" in name.'''
+
+    long_name = "A"*100
+    new_name = BaseDriverCreator._make_valid_unit_name(long_name)
+    assert new_name == "A"*63
+
+    special_characters = "aaa-bbb"
+    new_name = BaseDriverCreator._make_valid_unit_name(special_characters)
+    assert new_name == "aaabbb"
+
+
+# ----------------------------------------------------------------------------
 def test_basic_driver_add_call(fortran_writer):
     '''Tests that adding a call detects errors and adds calls
     with and without parameters as expected.

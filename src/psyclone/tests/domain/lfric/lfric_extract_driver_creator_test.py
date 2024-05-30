@@ -40,7 +40,6 @@
 import os
 import pytest
 
-from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
@@ -82,30 +81,6 @@ def init_module_manager():
 
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
-
-
-# ----------------------------------------------------------------------------
-def test_lfric_driver_valid_unit_name():
-    '''Tests that we create valid unit names, i.e. less than 64 characters,
-    and no ":" in name.'''
-
-    long_name = "A"*100
-    new_name = LFRicExtractDriverCreator._make_valid_unit_name(long_name)
-    assert new_name == "A"*63
-
-    special_characters = "aaa-bbb"
-    new_name = \
-        LFRicExtractDriverCreator._make_valid_unit_name(special_characters)
-    assert new_name == "aaabbb"
-
-
-# ----------------------------------------------------------------------------
-def test_lfric_driver_flatten_signature():
-    '''Tests that a user-defined type access is correctly converted
-    to a 'flattened' string.'''
-
-    new_name = LFRicExtractDriverCreator._flatten_signature(Signature("a%b%c"))
-    assert new_name == "a_b_c"
 
 
 # ----------------------------------------------------------------------------
