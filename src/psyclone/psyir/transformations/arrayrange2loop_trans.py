@@ -333,10 +333,11 @@ class ArrayRange2LoopTrans(Transformation):
                 if intrinsic in valid:
                     continue
 
-            # We allow any references that have explicit array syntax
-            # because we infer that they are not scalars from the context
-            # where they are found (even if they have UnresolvedType)
-            if isinstance(reference, (ArrayReference, StructureReference)):
+            # We allow any references that have explicit array syntax because
+            # we can infer that they are not scalars, regarless of the type.
+            if isinstance(reference, ArrayReference):
+                continue
+            if isinstance(reference, StructureReference):
                 continue
 
             # However, if it doesn't have explicity array accessors
@@ -362,6 +363,7 @@ class ArrayRange2LoopTrans(Transformation):
                 raise TransformationError(LazyString(
                     lambda: f"{message} In:\n{node.debug_string()}"))
 
+        return
         # For each expression with ranges (we have already proven that the num
         # of ranges are the same and there are not nested ranges), we must now
         # guarantee that each of them have the same bounds:

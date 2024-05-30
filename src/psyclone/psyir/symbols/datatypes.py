@@ -488,7 +488,7 @@ class ArrayType(DataType):
     def precision(self):
         '''
         :returns: the precision of each element in the array.
-        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
+        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`,
             int or :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._precision
@@ -496,20 +496,20 @@ class ArrayType(DataType):
     @property
     def shape(self):
         '''
-        :returns: the (validated) shape of the symbol in column-major order \
-            (leftmost index is contiguous in memory) with each entry \
+        :returns: the (validated) shape of the symbol in column-major order
+            (leftmost index is contiguous in memory) with each entry
             representing an array dimension.
+            If an entry is ArrayType.Extent.ATTRIBUTE the extent of that
+            dimension is unknown but can be obtained by querying the run-time
+            system (e.g. using the SIZE intrinsic in Fortran). If it is
+            ArrayType.Extent.DEFERRED then the extent is also unknown and may
+            or may not be defined at run-time (e.g. the array is ALLOCATABLE
+            in Fortran). Otherwise an entry is an ArrayBounds namedtupe with
+            lower and upper components.
 
-        :rtype: a list of ArrayType.Extent.ATTRIBUTE, \
-            ArrayType.Extent.DEFERRED, or \
-            :py:class:`psyclone.psyir.nodes.ArrayType.ArrayBounds`. If an \
-            entry is ArrayType.Extent.ATTRIBUTE the extent of that dimension \
-            is unknown but can be obtained by querying the run-time \
-            system (e.g. using the SIZE intrinsic in Fortran). If it \
-            is ArrayType.Extent.DEFERRED then the extent is also \
-            unknown and may or may not be defined at run-time \
-            (e.g. the array is ALLOCATABLE in Fortran). Otherwise an \
-            entry is a DataNode that returns an int.
+        :rtype: list[ArrayType.Extent.ATTRIBUTE | \
+                     ArrayType.Extent.DEFERRED | \
+                     :py:class:`psyclone.psyir.nodes.ArrayType.ArrayBounds`].
 
         '''
         self._validate_shape(self._shape)

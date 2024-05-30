@@ -723,16 +723,24 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             #   integer, dimension(3:5) :: b
             # would make it "not equal".
             if self.is_lower_bound(index):
-                if array1_type:
-                    range1_start = array1_type.shape[index].lower
-                else:
+                if not array1_type:
                     return False
+                if array1_type.shape[index] == ArrayType.Extent.DEFERRED:
+                    return False
+                if array1_type.shape[index] == ArrayType.Extent.ATTRIBUTE:
+                    range1_start = Literal("1", INTEGER_TYPE)
+                else:
+                    range1_start = array1_type.shape[index].lower
 
             if array2.is_lower_bound(index2):
-                if array2_type:
-                    range2_start = array2_type.shape[index2].lower
-                else:
+                if not array2_type:
                     return False
+                if array2_type.shape[index] == ArrayType.Extent.DEFERRED:
+                    return False
+                if array2_type.shape[index] == ArrayType.Extent.ATTRIBUTE:
+                    range2_start = Literal("1", INTEGER_TYPE)
+                else:
+                    range2_start = array2_type.shape[index].lower
         else:
             # Otherwise we can only guarantee it if they are both explicit
             if self.is_lower_bound(index) or self.is_lower_bound(index):

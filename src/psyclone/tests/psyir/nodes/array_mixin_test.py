@@ -704,6 +704,22 @@ def test_same_range(fortran_reader):
     # Unless they refer to the same symbol and dimension
     assert array1.same_range(1, array3, 1) is True
 
+    # The assumtion of same size is for slice sections of the array
+    code = '''
+    subroutine test()
+        use other_mod
+        ! lhs dim 2 and 5 match length of rhs dim 1 and 2, because lhs
+        ! dims 1, 3 and 4 do not produce slices
+        A(4:4,:,n, 5:6:10, :) = B(val:4, val:)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    array1, array2 = psyir.walk(Assignment)[0].children
+    assert array1.same_range(0, array2, 0) is False
+    assert array1.same_range(1, array2, 1) is False
+    assert array1.same_range(1, array2, 0) is True
+    assert array1.same_range(4, array2, 2) is True
+
     # If values are implicit, we can not guarantee the same range unless
     # we know the shape
     code = '''
@@ -736,6 +752,24 @@ def test_same_range(fortran_reader):
     assert array1.same_range(0, array2, 0) is True
     assert array1.same_range(1, array2, 1) is True
     assert array1.same_range(2, array2, 2) is False
+
+    # If the values are implicit, and the declaration uses ATTRIBUTE or
+    # DEFERRED shape, we return the appropriate results
+    code = '''
+    subroutine test(arg1, arg2)
+        real, dimension(:) :: arg1
+        real, dimension(:) :: arg2
+        real, dimension(:), allocatable :: alloc1
+        real, dimension(:), allocatable :: alloc2
+        arg1(:) = arg2(:)
+        alloc1(:) = alloc2(:)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    array1, array2 = psyir.walk(Assignment)[0].children
+    array3, array4 = psyir.walk(Assignment)[1].children
+    assert array1.same_range(0, array2, 0) is True
+    assert array3.same_range(0, array4, 0) is False
 
     # This functionality also works with SoA and SoAoS
     code = '''
