@@ -44,7 +44,6 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.kernel import (
     CommonMetaArgMetadata, ScalarArgMetadata)
 from psyclone.errors import InternalError
-from psyclone.parse.utils import ParseError
 
 
 # pylint: disable=abstract-class-instantiated
