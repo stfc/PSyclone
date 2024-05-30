@@ -108,28 +108,22 @@ compile: transform $(NAME) $(DRIVER_INIT).$(TYPE) $(DRIVER_UPDATE).$(TYPE)
 
 transform: psy.f90
 
-
 F90FLAGS += -I$(INF_INC) -I$(EXTRACT_DIR)
 
 alg.f90 psy.f90: test.x90 extract_transform.py
-	$(PSYCLONE) -nodm -api "gocean" -s ./extract_transform.py\
+	$(PSYCLONE) -nodm -api "gocean" -s ./extract_transform.py \
+	            -d . -d $(INF_INC) -d $(EXTRACT_DIR)          \
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
 $(NAME): $(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(KERNELS) alg.o psy.o
 	$(F90) $(F90FLAGS) $(KERNELS) alg.o psy.o -o $(NAME) \
 	$(EXTRACT_DIR)/$(LIB_NAME) $(INF_LIB) $(LDFLAGS)
 
-#TODO #1757: $(INF_LIB) is required because of the meta-data in the
-#            kernel - once this is fixed, $(INF_LIB) can be removed.
 $(DRIVER_INIT).$(TYPE):	$(KERNELS) $(DRIVER_INIT).o
-	$(F90) $(KERNELS) $(DRIVER_INIT).o -o $(DRIVER_INIT).$(TYPE) \
-		$(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(LDFLAGS)
+	$(F90) $(DRIVER_INIT).o -o $(DRIVER_INIT).$(TYPE) $(LDFLAGS)
 
-#TODO #1757: $(INF_LIB) is required because of the meta-data in the
-#            kernel - once this is fixed, $(INF_LIB) can be removed.
 $(DRIVER_UPDATE).$(TYPE): $(KERNELS) $(DRIVER_UPDATE).o
-	$(F90) $(KERNELS) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE).$(TYPE) \
-		$(INF_LIB) $(EXTRACT_DIR)/$(LIB_NAME) $(LDFLAGS)
+	$(F90) $(DRIVER_UPDATE).o -o $(DRIVER_UPDATE).$(TYPE) $(LDFLAGS)
 
 # The dl_esm_inf library
 $(INF_LIB):
