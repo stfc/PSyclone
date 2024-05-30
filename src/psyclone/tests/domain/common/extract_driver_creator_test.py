@@ -53,16 +53,52 @@ from psyclone.errors import InternalError
 from psyclone.domain.common import ExtractDriverCreator
 from psyclone.domain.gocean.transformations import (GOceanExtractTrans,
                                                     GOConstLoopBoundsTrans)
+from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
 from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
-from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.tests.utilities import Compile, get_base_path, get_invoke
+
 
 # API names
 GOCEAN_API = "gocean"
+
+
+@pytest.fixture(scope='function')
+def init_module_manager():
+    ''' The tests in this module all assume that there is no pre-existing
+    ModuleManager object, so this fixture ensures that the module manager
+    instance is deleted before and after each test function. The latter
+    makes sure that any other test executed next will automatically reload
+    the default ModuleManager file.
+
+    '''
+    test_files_path = Path(get_base_path(GOCEAN_API))
+    # Define the path to the ReadKernelData module (which contains functions
+    # to read extracted data from a file) relative to the test_files path:
+    psyclone_root = test_files_path.parents[4]
+    read_mod_path = psyclone_root / "lib" / "extract" / "standalone"
+    infrastructure_path = (psyclone_root / "external" / "dl_esm_inf" /
+                           "finite_difference" / "src")
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
+
+    module_manager = ModuleManager.get()
+    # For compilation, we need the module manager to find the kernel files
+    # from the test directories, the infrastructure files, and the read
+    # kernel library
+    module_manager.add_search_path(str(test_files_path))
+    module_manager.add_search_path(str(infrastructure_path))
+    module_manager.add_search_path(str(read_mod_path))
+
+    # Now execute all tests
+    yield
+
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -78,7 +114,7 @@ def clear_region_name_cache():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_driver_creation1():
     '''Test that driver is created correctly for all variable access
     modes (input, input-output, output). Do not specify a region name,
@@ -147,6 +183,13 @@ def test_driver_creation1():
     expected_lines = expected.split("\n")
     for line in expected_lines:
         assert line in driver_code
+
+    # TODO: This requires mpi atm, since the inlines infrastructure file
+    # parallel_utils_mod is used (and not parallel_utils_stub_mod)
+    build = Compile(".")
+    build.compile_file("driver-psy_extract_example_with_various_"
+                       "variable_access_patterns-invoke_0_compute_"
+                       "kernel-compute_kernel_code-r0.F90")
 
 
 # -----------------------------------------------------------------------------
