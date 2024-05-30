@@ -60,9 +60,9 @@ module testkern_mod
 
   type, extends(kernel_type) :: testkern_array_type
      type(arg_type), meta_args(5) =                                          &
-          (/ arg_type(gh_array,   gh_real,    gh_read, NRANKS*1),            &
-             arg_type(gh_array,   gh_integer, gh_read, NRANKS*2),            &
-             arg_type(gh_array,   gh_logical, gh_read, NRANKS*4),            &
+          (/ arg_type(gh_array,   gh_real,    gh_read, 1),                   &
+             arg_type(gh_array,   gh_integer, gh_read, 2),                   &
+             arg_type(gh_array,   gh_logical, gh_read, 4),                   &
              arg_type(gh_operator, gh_real,   gh_read, w2, w2),              &
              arg_type(gh_field,    gh_real,   gh_write, w3)                  &
            /)
@@ -97,8 +97,8 @@ def test_ad_array_type_wrong_num_of_args():
     metadata for an array has fewer than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = ARRAY_CODE.replace(
-        "arg_type(gh_array,   gh_real,    gh_read, NRANKS*1)",
-        "arg_type(gh_array,  gh_real,    gh_read)", 1)
+        "arg_type(gh_array,   gh_real,    gh_read, 1)",
+        "arg_type(gh_array,   gh_real,    gh_read)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_array_type"
     with pytest.raises(ParseError) as excinfo:
@@ -113,9 +113,9 @@ def test_ad_array_invalid_data_type():
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_array_type"
     # check real array
-    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                              "NRANKS*1)", "arg_type(gh_array, gh_unreal, "
-                              "gh_read, NRANKS*1)", 1)
+    code = ARRAY_CODE.replace(
+        "arg_type(gh_array,   gh_real,    gh_read, 1)",
+        "arg_type(gh_array, gh_unreal,    gh_read, 1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
@@ -123,11 +123,11 @@ def test_ad_array_invalid_data_type():
     assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             f"be a valid data type (one of {const.VALID_ARRAY_DATA_TYPES}), "
             f"but found 'gh_unreal' in 'arg_type(gh_array, gh_unreal, "
-            f"gh_read, nranks * 1)'." in str(excinfo.value))
+            f"gh_read, 1)'." in str(excinfo.value))
     # check integer array
-    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_integer, gh_read, "
-                              "NRANKS*2)", "arg_type(gh_array, gh_frac, "
-                              "gh_read, NRANKS*2)", 1)
+    code = ARRAY_CODE.replace(
+        "arg_type(gh_array,   gh_integer, gh_read, 2)",
+        "arg_type(gh_array,   gh_frac,    gh_read, 2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
@@ -135,11 +135,11 @@ def test_ad_array_invalid_data_type():
     assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             f"be a valid data type (one of {const.VALID_ARRAY_DATA_TYPES}), "
             f"but found 'gh_frac' in 'arg_type(gh_array, gh_frac, "
-            f"gh_read, nranks * 2)'." in str(excinfo.value))
+            f"gh_read, 2)'." in str(excinfo.value))
     # check logical array
-    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_logical, gh_read, "
-                              "NRANKS*4)", "arg_type(gh_array, gh_illogical, "
-                              "gh_read, NRANKS*4)", 1)
+    code = ARRAY_CODE.replace(
+        "arg_type(gh_array,   gh_logical, gh_read, 4)",
+        "arg_type(gh_array, gh_illogical, gh_read, 4)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
@@ -147,7 +147,7 @@ def test_ad_array_invalid_data_type():
     assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             f"be a valid data type (one of {const.VALID_ARRAY_DATA_TYPES}), "
             f"but found 'gh_illogical' in 'arg_type(gh_array, gh_illogical, "
-            f"gh_read, nranks * 4)'." in str(excinfo.value))
+            f"gh_read, 4)'." in str(excinfo.value))
 
 
 def test_ad_array_init_wrong_data_type(monkeypatch):
@@ -178,8 +178,8 @@ def test_ad_array_type_no_write():
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_array_type"
     code = ARRAY_CODE.replace(
-        "arg_type(gh_array,   gh_real,    gh_read, NRANKS*1)",
-        "arg_type(gh_array,   gh_real,    gh_write, NRANKS*1)", 1)
+        "arg_type(gh_array,   gh_real,    gh_read, 1)",
+        "arg_type(gh_array,   gh_real,    gh_write, 1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
@@ -193,8 +193,8 @@ def test_ad_array_type_no_inc():
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_array_type"
     code = ARRAY_CODE.replace(
-        "arg_type(gh_array,   gh_real,    gh_read, NRANKS*1)",
-        "arg_type(gh_array,   gh_real,    gh_inc, NRANKS*1)", 1)
+        "arg_type(gh_array,   gh_real,    gh_read, 1)",
+        "arg_type(gh_array,   gh_real,    gh_inc, 1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
@@ -208,8 +208,8 @@ def test_ad_array_type_no_readwrite():
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_array_type"
     code = ARRAY_CODE.replace(
-        "arg_type(gh_array,   gh_real,    gh_read, NRANKS*1)",
-        "arg_type(gh_array,   gh_real, gh_readwrite, NRANKS*1)", 1)
+        "arg_type(gh_array,   gh_real,    gh_read, 1)",
+        "arg_type(gh_array,   gh_real, gh_readwrite, 1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
@@ -222,8 +222,8 @@ def test_ad_array_type_no_sum():
     metadata for an array specifies 'GH_SUM' access (reduction). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = ARRAY_CODE.replace(
-        "arg_type(gh_array,   gh_real,    gh_read, NRANKS*1)",
-        "arg_type(gh_array,   gh_real,    gh_sum, NRANKS*1)", 1)
+        "arg_type(gh_array,   gh_real,    gh_read, 1)",
+        "arg_type(gh_array,   gh_real,    gh_sum,  1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_array_type"
     with pytest.raises(ParseError) as excinfo:
@@ -237,9 +237,8 @@ def test_no_vector_array():
     specifies a vector scalar argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_array_type"
-    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                              "NRANKS*1)", "arg_type(gh_array*3, gh_real, "
-                              "gh_read, NRANKS*1)", 1)
+    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, 1)",
+                              "arg_type(gh_array*3, gh_real,  gh_read, 1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
@@ -280,53 +279,18 @@ def test_arg_descriptor_array(array_ind, array_type, array_ndims):
     assert array_descriptor.stencil is None
 
 
-def test_keyword_not_nranks():
-    ''' Tests that we raise an error when the keyword is not nranks'''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    name = "testkern_array_type"
-    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                              "NRANKS*1)", "arg_type(gh_array, gh_real, "
-                              "gh_read, SKNARN*1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("the 4th argument of a 'meta_arg' entry must use 'NRANKS' as "
-            "the keyword in the format 'NRANKS*n' if the 1st argument "
-            "is 'GH_ARRAY', but found 'sknarn' as the keyword in "
-            "'arg_type(gh_array, gh_real, gh_read, sknarn * 1)'."
-            in str(excinfo.value))
-
-
-def test_incorrect_operator():
-    ''' Tests that we raise an error when the operator is incorrect'''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    name = "testkern_array_type"
-    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                              "NRANKS*1)", "arg_type(gh_array, gh_real, "
-                              "gh_read, NRANKS+1)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = LFRicKernMetadata(ast, name=name)
-    assert ("the 4th argument of a 'meta_arg' entry may be an "
-            "array but if so must use '*' as the separator "
-            "in the format 'NRANKS*n', but found '+' in "
-            "'arg_type(gh_array, gh_real, gh_read, nranks + 1)'."
-            in str(excinfo.value))
-
-
 def test_n_not_integer():
     ''' Tests that we raise an error when n is not an integer'''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_array_type"
-    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                              "NRANKS*1)", "arg_type(gh_array, gh_real, "
-                              "gh_read, NRANKS*0.5)", 1)
+    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, 1)",
+                              "arg_type(gh_array,   gh_real,  gh_read, 0.5)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("the array notation must be in the format 'NRANKS*n' "
+    assert ("the array notation must be in the format 'n' "
             "where 'n' is an integer, but '0.5' was found in "
-            "'arg_type(gh_array, gh_real, gh_read, nranks * 0.5)'."
+            "'arg_type(gh_array, gh_real, gh_read, 0.5)'."
             in str(excinfo.value))
 
 
@@ -335,12 +299,12 @@ def test_n_less_than_one():
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_array_type"
     code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
-                              "NRANKS*1)", "arg_type(gh_array, gh_real, "
-                              "gh_read, NRANKS*0)", 1)
+                              "1)", "arg_type(gh_array, gh_real, "
+                              "gh_read, 0)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("the array notation must be in the format 'NRANKS*n' "
+    assert ("the array notation must be in the format 'n' "
             "where 'n' is an integer >= 1. However, found n = '0' in "
-            "'arg_type(gh_array, gh_real, gh_read, nranks * 0)'."
+            "'arg_type(gh_array, gh_real, gh_read, 0)'."
             in str(excinfo.value))

@@ -284,10 +284,8 @@ class LFRicArgDescriptor(Descriptor):
         :param arg_type: LFRic API array argument type.
         :type arg_type: :py:class:`psyclone.expression.FunctionVar`
 
-        :raises ParseError: if the array notation does not use
-                            the '*' operator.
         :raises ParseError: if the array notation is not in the
-                            correct format '(NRANKS*n)' where 'n' is
+                            correct format 'n' where 'n' is
                             an integer.
         :raises ParseError: if the array notation is used for the
                             array size of less than 1.
@@ -295,40 +293,24 @@ class LFRicArgDescriptor(Descriptor):
                             argument that is not an array.
 
         '''
-        print(arg_type.args[3].toks[0])
-        if arg_type.args[3].toks[0].name != "NRANKS".lower():
-            raise ParseError(
-                f"In the LFRic API, the 4th argument of a 'meta_arg' "
-                f"entry must use 'NRANKS' as the keyword in the format "
-                f"'NRANKS*n' if the 1st argument is 'GH_ARRAY', but "
-                f"found '{arg_type.args[3].toks[0]}' as the keyword "
-                f"in '{arg_type}'.")
-
-        # Check that the operator is correct
-        if arg_type.args[3].toks[1] != "*":
-            raise ParseError(
-                f"In the LFRic API, the 4th argument of a 'meta_arg' "
-                f"entry may be an array but if so must use '*' as "
-                f"the separator in the format 'NRANKS*n', but found "
-                f"'{arg_type.args[3].toks[1]}' in '{arg_type}'.")
         print(arg_type.args[3])
 
-        # Now try to find the array size for a scalar array and return
+        # Try to find the array size for a scalar array and return
         # an error if it is not an integer number...
         try:
-            array_ndims = int(arg_type.args[3].toks[2])
+            array_ndims = int(arg_type.args[3])
         except ValueError as err:
             raise ParseError(
                 f"In the LFRic API, the array notation must be in "
-                f"the format 'NRANKS*n' where 'n' is an integer, "
-                f"but '{arg_type.args[3].toks[2]}' was found in "
+                f"the format 'n' where 'n' is an integer, "
+                f"but '{arg_type.args[3]}' was found in "
                 f"'{arg_type}'.") from err
 
         # ... or it is less than 1 (1 is the default for all fields)...
         if array_ndims < 1:
             raise ParseError(
                 f"In the LFRic API, the array notation must be in "
-                f"the format 'NRANKS*n' where 'n' is an integer >= 1. "
+                f"the format 'n' where 'n' is an integer >= 1. "
                 f"However, found n = '{array_ndims}' in '{arg_type}'.")
         # ... and set the array size if all checks pass
         self._array_ndims = array_ndims

@@ -99,7 +99,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :rtype: str
         '''
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
-                f"nranks*{self.array_ndims})")
+                f"{self.array_ndims})")
 
     @staticmethod
     def check_datatype(value):

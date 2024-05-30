@@ -222,20 +222,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         '''
         array_datatype = CommonArgMetadata.get_arg(
             fparser2_tree, cls.array_size_arg_index)
-        components = array_datatype.split("*")
-        print(components)
-        if len(components) != 2:
-            raise TypeError(
-                f"The array size metadata should be in the form "
-                f"'NRANKS*array_ndims' but found '{array_datatype}'.")
-        if components[0].lower().strip() != "NRANKS".lower():
-            raise ParseError(
-                f"In the LFRic API, the 4th argument of a 'meta_arg' "
-                f"entry must use 'NRANKS' as the keyword in the format "
-                f"'NRANKS*n' if the 1st argument is 'GH_ARRAY', but "
-                f"found '{components[0].strip()}' as the keyword in "
-                f"'{array_datatype}'.")
-        array_ndims = components[1].strip()
+        array_ndims = array_datatype.strip()
         return array_ndims
 
     @property
