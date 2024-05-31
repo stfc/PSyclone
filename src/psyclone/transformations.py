@@ -2699,12 +2699,20 @@ class ACCKernelsTrans(RegionTrans):
         #    Compiler Error with NVHPC;
         #  * character manipulations are not supported on (at least) NVIDIA
         #    GPUs;
+        stmt_cache = set()
         for node in node_list:
             for lit in node.walk(Literal):
                 if lit.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                    # Does the parent statement involve an assumed-size
-                    # character string?
+                    # We've found a character literal so we go up to the
+                    # ancestor statement and then check the types of all
+                    # symbols that are referenced by it.
                     stmt = lit.ancestor(Statement)
+                    # Check whether we've already seen (and checked) this
+                    # statement.
+                    if id(stmt) in stmt_cache:
+                        continue
+                    stmt_cache.add(id(stmt))
+
                     for ref in stmt.walk(Reference):
                         try:
                             dtype = ref.datatype
@@ -2722,6 +2730,7 @@ class ACCKernelsTrans(RegionTrans):
                                     f"Assumed-size character variables cannot "
                                     f"be enclosed in an OpenACC region but "
                                     f"found '{stmt.debug_string()}'")
+            # Check that any Intrinsics are supported on the device.
             for icall in node.walk(IntrinsicCall):
                 if not icall.is_available_on_device():
                     raise TransformationError(
