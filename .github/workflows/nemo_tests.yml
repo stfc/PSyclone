@@ -87,12 +87,14 @@ jobs:
     - name: NEMO 5.0 beta passthrough
       run: |
         . .runner_venv/bin/activate
+        # PSYCLONE_HOME has `/bin` appended to it by the build system.
+        export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=${HOME}/NEMOv5
         cd $NEMO_DIR
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
-        ./makenemo -r BENCH -m linux_nvidia -n BENCH_PASSTHROUGH del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4
+        ./makenemo -r BENCH -m linux_nvidia -n BENCH_PASSTHROUGH -p passthrough del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH/EXP00
         mpirun -np 1 ./nemo.exe
 
