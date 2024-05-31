@@ -87,6 +87,7 @@ jobs:
     - name: NEMO 5.0 beta passthrough
       run: |
         . .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         # PSYCLONE_HOME has `/bin` appended to it by the build system.
         export PSYCLONE_HOME=${PWD}/.runner_venv
         export NEMO_DIR=${HOME}/NEMOv5
@@ -97,6 +98,7 @@ jobs:
         ./makenemo -r BENCH -m linux_nvidia -n BENCH_PASSTHROUGH -p passthrough del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH/EXP00
         mpirun -np 1 ./nemo.exe
+        diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca1.1mpi.10steps
 
     # PSyclone passthrough for MetOffice NEMO
     - name: NEMO MetOffice Passthrough
