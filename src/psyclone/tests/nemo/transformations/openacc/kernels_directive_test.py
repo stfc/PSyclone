@@ -409,9 +409,9 @@ def test_no_psydata_in_kernels(parser, monkeypatch):
             "OpenACC regions but found [" in str(err.value))
 
 
-def test_no_char_in_kernels(fortran_reader):
+def test_no_assumed_size_char_in_kernels(fortran_reader):
     '''
-    Check that the transformation rejects any character-string manipulation
+    Check that the transformation rejects any assumed-size character variables
     or intrinsics that aren't available on GPU.
 
     '''
@@ -419,6 +419,8 @@ def test_no_char_in_kernels(fortran_reader):
 subroutine ice(assumed_size_char)
   implicit none
   character(len = *), intent(in) :: assumed_size_char
+  character*(*) :: assumed2
+  character(len=10) :: explicit_size_char
   real, dimension(10,10) :: my_var
 
   if (assumed_size_char == 'literal') then
@@ -427,21 +429,35 @@ subroutine ice(assumed_size_char)
 
   assumed_size_char(:) = ' '
 
-  assumed_size_char(:) = achar(9)
+  explicit_size_char(:) = achar(9)
+
+  if(explicit_size_char == 'literal') then
+    my_var(:) = 0.0
+  end if
+
+  assumed2(:) = ''
 end
 '''
     psyir = fortran_reader.psyir_from_source(code)
     sub = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
-        acc_trans.apply(sub.children[0])
-    assert ("Character expressions cannot be enclosed in an OpenACC region "
-            "but found ''literal''" in str(err.value))
+        acc_trans.validate(sub.children[0], options={})
+    assert ("Assumed-size character variables cannot be enclosed in an "
+            "OpenACC region but found 'if (assumed_size_char == 'literal')"
+            in str(err.value))
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(sub.children[1])
-    assert ("Character expressions cannot be enclosed in an OpenACC region "
-            "but found '' ''" in str(err.value))
+    assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
+            " region but found 'assumed_size_char(:) = " in str(err.value))
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(sub.children[2])
     assert ("Cannot include intrinsic 'ACHAR(9)' in an OpenACC region because "
             "it is not available on GPU" in str(err.value))
+    # String with explicit length is fine.
+    acc_trans.validate(sub.children[3], options={})
+    # CHARACTER*(*) notation is also rejected.
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[4], options={})
+    assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
+            " region but found 'assumed2(:) = ''" in str(err.value))

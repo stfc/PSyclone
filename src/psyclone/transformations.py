@@ -44,6 +44,7 @@
 # pylint: disable=too-many-lines
 
 import abc
+import re
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -2667,9 +2668,13 @@ class ACCKernelsTrans(RegionTrans):
         :type options: Optional[Dict[str, Any]]
 
         :raises NotImplementedError: if the supplied Nodes belong to
-                                     a GOInvokeSchedule.
+            a GOInvokeSchedule.
+        :raises TransformationError: if there is an access to an assumed-size
+            character variable within the region.
+        :raises TransformationError: if the proposed region contains a call to
+            an intrinsic that is not available on the accelerator.
         :raises TransformationError: if there are no Loops within the
-                                     proposed region.
+            proposed region.
 
         '''
         # Ensure we are always working with a list of nodes, even if only
@@ -2682,6 +2687,10 @@ class ACCKernelsTrans(RegionTrans):
                 "OpenACC kernels regions are not currently supported for "
                 "GOcean InvokeSchedules")
         super().validate(node_list, options)
+
+        # The regex we use to determine whether a character declaration is
+        # of assumed size ('LEN=*' or '*(*)').
+        assumed_size = re.compile(r"\(\s*len\s*=\s*\*\s*\)|\*\s*\(\s*\*\s*\)")
 
         # Check that there are no character literals in the target region.
         # The presence of these is used as a proxy to avoid the following
@@ -2701,11 +2710,18 @@ class ACCKernelsTrans(RegionTrans):
                             dtype = ref.datatype
                         except NotImplementedError:
                             continue
+                        # Currently the fparser2 frontend does not support any
+                        # type of LEN= specification on a character variable so
+                        # we resort to a regex to check whether it is assumed-
+                        # size.
                         if isinstance(dtype, UnsupportedFortranType):
-                            raise TransformationError(
-                                f"Assumed-size character variables cannot be "
-                                f"enclosed in an OpenACC region but found "
-                                f"'{stmt.debug_string()}'")
+                            type_txt = dtype.type_text.lower()
+                            if (type_txt.startswith("character") and
+                                    assumed_size.search(type_txt)):
+                                raise TransformationError(
+                                    f"Assumed-size character variables cannot "
+                                    f"be enclosed in an OpenACC region but "
+                                    f"found '{stmt.debug_string()}'")
             for icall in node.walk(IntrinsicCall):
                 if not icall.is_available_on_device():
                     raise TransformationError(
