@@ -37,13 +37,16 @@
 implementations.
 '''
 
+from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Call, Literal, Reference
+from psyclone.psyir.nodes import Call, Literal, Reference, StructureReference
 from psyclone.psyir.symbols import (CHARACTER_TYPE, ContainerSymbol,
+                                    DataSymbol,
                                     ImportInterface, INTEGER_TYPE, NoType,
-                                    RoutineSymbol, UnresolvedType)
+                                    RoutineSymbol,
+                                    UnresolvedType)
 
 
 class BaseDriverCreator:
@@ -188,6 +191,99 @@ class BaseDriverCreator:
             new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
                                             interface=ImportInterface(module))
             symbol_table.add(new_routine_sym)
+
+    # -------------------------------------------------------------------------
+    def is_supported_derived_type(self, symbol):
+        '''This method checks if a unknown derived type is being used, which
+        might not be supported in all domains. This default implementation
+        will allow all derived types through.
+
+        :param symbol: the symbol whose datatype is to be checked.
+        :type symbol: py:class:`psyclone.psyir.symbols.Symbol`
+
+        :returns: whether the datatype is supported or not
+        :rtype bool:
+
+        '''
+        # pylint: disable=unused-argument
+        return False
+
+    # -------------------------------------------------------------------------
+    def add_all_kernel_symbols(self, sched, symbol_table, read_write_info,
+                               writer=FortranWriter()):
+
+        '''Partial implementation of add_all_kernel_symbols.
+        TODO!!!
+        '''
+        all_references = sched.walk(Reference)
+
+        # Now handle all derived types. The name of a derived type is
+        # 'flattened', i.e. all '%' are replaced with '_', and this is then
+        # declared as a non-structured type. We also need to make sure that a
+        # flattened name does not clash with a variable declared by the user.
+        # We use the structured name (with '%') as tag to handle this.
+        for reference in all_references:
+            # Skip routine references
+            if (isinstance(reference.parent, Call) and
+                    reference.parent.routine is reference):
+                continue
+
+            # Skip references that are not any kind of structure
+            if not isinstance(reference, StructureReference):
+                continue
+
+            old_symbol = reference.symbol
+            if self.is_supported_derived_type(old_symbol):
+                fortran_string = writer(reference)
+                raise InternalError(
+                    f"Error when constructing driver for '{sched.name}': "
+                    f"Unknown derived type '{old_symbol.datatype.name}' "
+                    f"in reference '{fortran_string}'.")
+            # We have a structure reference to a field, flatten it, and
+            # replace the StructureReference with a new Reference to this
+            # flattened name (e.g. `fld%data` becomes `fld_data`)
+
+            self._flatten_reference(reference, symbol_table)
+
+        # Now add all non-local symbols, which need to be
+        # imported from the appropriate module:
+        # -----------------------------------------------
+        mod_man = ModuleManager.get()
+        for module_name, signature in read_write_info.set_of_all_used_vars:
+            if not module_name:
+                # Ignore local symbols, which will have been added above
+                continue
+            container = symbol_table.find_or_create(
+                module_name, symbol_type=ContainerSymbol)
+
+            # Now look up the original symbol. While the variable could
+            # be declared Unresolved here (i.e. just imported), we need the
+            # type information for the output variables (VAR_post), which
+            # are created later and which will query the original symbol for
+            # its type. And since they are not imported, they need to be
+            # explicitly declared.
+            mod_info = mod_man.get_module_info(module_name)
+            sym_tab = mod_info.get_psyir().symbol_table
+            try:
+                container_symbol = sym_tab.lookup(signature[0])
+            except KeyError:
+                # TODO #2120: This typically indicates a problem with parsing
+                # a module: the psyir does not have the full tree structure.
+                continue
+
+            # It is possible that external symbol name (signature[0]) already
+            # exist in the symbol table (the same name is used in the local
+            # subroutine and in a module). In this case, the imported symbol
+            # must be renamed:
+            if signature[0] in symbol_table:
+                interface = ImportInterface(container, orig_name=signature[0])
+            else:
+                interface = ImportInterface(container)
+
+            symbol_table.find_or_create_tag(
+                tag=f"{signature[0]}@{module_name}", root_name=signature[0],
+                symbol_type=DataSymbol, interface=interface,
+                datatype=container_symbol.datatype)
 
     # -------------------------------------------------------------------------
     @staticmethod

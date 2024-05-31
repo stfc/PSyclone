@@ -180,6 +180,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         self._all_field_types = ["integer_field_type", "field_type",
                                  "r_bl_field", "r_solver_field_type",
                                  "r_tran_field_type"]
+        self._proxy_name_mapping = {}
 
     # -------------------------------------------------------------------------
     def _get_proxy_name_mapping(self, schedule):
@@ -207,8 +208,23 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         return proxy_name_mapping
 
     # -------------------------------------------------------------------------
-    def _flatten_reference(self, old_reference, symbol_table,
-                           proxy_name_mapping):
+    def map_signature_to_user_name(self, signature):
+        '''This function maps a signature that contains a `proxy` back to the
+        name the user expects (e.g. `f1_proxy` becomes `f1`). It uses the
+        proxy_name_mapping for the various types that LFRic supports.
+
+        :param signature: the signature from which to remove the proxy (if
+            it exists).
+        :type signature: :py:class:`psyclone.core.Signature`
+
+        :returns: the potentially shortened name.
+        :rtype: str
+
+        '''
+        return self._proxy_name_mapping.get(signature[0], signature[0])
+
+    # -------------------------------------------------------------------------
+    def _flatten_reference(self, old_reference, symbol_table):
         '''Replaces ``old_reference``, which is a structure type, with a new
         simple Reference and a flattened name (replacing all % with _). It will
         also remove a '_proxy' in the name, so that the program uses the names
@@ -221,9 +237,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :param symbol_table: the symbol table to which to add the newly
             defined flattened symbol.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param proxy_name_mapping: a mapping of proxy names to the original
-            names.
-        :type proxy_name_mapping: Dict[str,str]
 
         :raises InternalError: if the old_reference is not a
             :py:class:`psyclone.psyir.nodes.StructureReference`
@@ -246,7 +259,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         signature, _ = old_reference.get_signature_and_indices()
         # Now remove '_proxy' that might have been added to a variable name,
         # to preserve the expected names from a user's point of view.
-        symbol_name = proxy_name_mapping.get(signature[0], signature[0])
+        symbol_name = self.map_signature_to_user_name(signature)
 
         # Other types need to get the member added to the name,
         # to make unique symbols (e.g. 'op_a_proxy%ncell_3d').
@@ -268,8 +281,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         old_reference.replace_with(new_ref)
 
     # -------------------------------------------------------------------------
-    def _add_all_kernel_symbols(self, sched, symbol_table, proxy_name_mapping,
-                                read_write_info):
+    def _add_all_kernel_symbols(self, sched, symbol_table, read_write_info):
         '''This function adds all symbols used in ``sched`` to the symbol
         table. It uses LFRic-specific knowledge to declare fields and flatten
         their name.
@@ -279,9 +291,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         :param symbol_table: the symbol table to which to add all found
             symbols.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param proxy_name_mapping: a mapping of proxy names to the original
-            names.
-        :type proxy_name_mapping: Dict[str,str]
         :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
@@ -332,61 +341,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                                  datatype=datatype)
             reference.symbol = new_symbol
 
-        # Now handle all derived type. The name of a derived type is
-        # 'flattened', i.e. all '%' are replaced with '_', and this is then
-        # declared as a non-structured type. We also need to make sure that a
-        # flattened name does not clash with a variable declared by the user.
-        # We use the structured name (with '%') as tag to handle this.
-        for reference in all_references:
-            # Skip routine references
-            if (isinstance(reference.parent, Call) and
-                    reference.parent.routine is reference):
-                continue
-            # Skip references that are not any kind of structure
-            if not isinstance(reference, StructureReference):
-                continue
-            self._flatten_reference(reference, symbol_table,
-                                    proxy_name_mapping)
-
-        # Now add all non-local symbols, which need to be
-        # imported from the appropriate module:
-        # -----------------------------------------------
-        mod_man = ModuleManager.get()
-        for module_name, signature in read_write_info.set_of_all_used_vars:
-            if not module_name:
-                # Ignore local symbols, which will have been added above
-                continue
-            container = symbol_table.find_or_create(
-                module_name, symbol_type=ContainerSymbol)
-
-            # Now look up the original symbol. While the variable could
-            # be declared Unresolved here (i.e. just imported), we need the
-            # type information for the output variables (VAR_post), which
-            # are created later and which will query the original symbol for
-            # its type. And since they are not imported, they need to be
-            # explicitly declared.
-            mod_info = mod_man.get_module_info(module_name)
-            sym_tab = mod_info.get_psyir().symbol_table
-            try:
-                container_symbol = sym_tab.lookup(signature[0])
-            except KeyError:
-                # TODO #2120: This typically indicates a problem with parsing
-                # a module: the psyir does not have the full tree structure.
-                continue
-
-            # It is possible that external symbol name (signature[0]) already
-            # exist in the symbol table (the same name is used in the local
-            # subroutine and in a module). In this case, the imported symbol
-            # must be renamed:
-            if signature[0] in symbol_table:
-                interface = ImportInterface(container, orig_name=signature[0])
-            else:
-                interface = ImportInterface(container)
-
-            symbol_table.find_or_create_tag(
-                tag=f"{signature[0]}@{module_name}", root_name=signature[0],
-                symbol_type=DataSymbol, interface=interface,
-                datatype=container_symbol.datatype)
+        super().add_all_kernel_symbols(sched, symbol_table, read_write_info)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -828,6 +783,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         schedule_copy = invoke_sched.copy()
 
+        self._proxy_name_mapping = self._get_proxy_name_mapping(schedule_copy)
+
         # Halo exchanges are not allowed to be included in an exchange region,
         # so there can never be a HaloExchange node here. But if it should be
         # useful to include them (e.g. for performance testing of several
@@ -845,7 +802,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         #         parent.children.remove(halo)
 
         original_symbol_table = invoke_sched.symbol_table
-        proxy_name_mapping = self._get_proxy_name_mapping(schedule_copy)
 
         # Now clean up the try: remove nodes in the copy that are not
         # supposed to be extracted. Any node that should be extract
@@ -872,7 +828,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         self.import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
         self._add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                     proxy_name_mapping, read_write_info)
+                                     read_write_info)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,

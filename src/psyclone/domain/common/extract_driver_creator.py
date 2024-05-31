@@ -82,6 +82,21 @@ class ExtractDriverCreator(BaseDriverCreator):
                                "real": real_type}
 
     # -------------------------------------------------------------------------
+    def is_supported_derived_type(self, symbol):
+        '''This method checks if a unknown derived type is being used, which
+        might not be supported in all domains.
+
+        :param symbol: the symbol whose datatype is to be checked.
+        :type symbol: py:class:`psyclone.psyir.symbols.Symbol`
+
+        :returns: whether the datatype is supported or not
+        :rtype bool:
+
+        '''
+        # In gocean we only allow r2d_field
+        return symbol.datatype.name != "r2d_field"
+
+    # -------------------------------------------------------------------------
     def create_flattened_symbol(self, flattened_name, reference, symbol_table,
                                 writer=FortranWriter()):
         '''Takes a reference to a structure and creates a new Symbol of the
@@ -156,8 +171,8 @@ class ExtractDriverCreator(BaseDriverCreator):
         return new_symbol
 
     # -------------------------------------------------------------------------
-    def flatten_reference(self, old_reference, symbol_table,
-                          writer=FortranWriter()):
+    def _flatten_reference(self, old_reference, symbol_table,
+                           writer=FortranWriter()):
         '''Replaces `old_reference` which is a structure type with a new
         simple Reference and a flattened name (replacing all % with _).
 
@@ -197,7 +212,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         old_reference.replace_with(Reference(symbol))
 
     # -------------------------------------------------------------------------
-    def add_all_kernel_symbols(self, sched, symbol_table,
+    def add_all_kernel_symbols(self, sched, symbol_table, read_write_info,
                                writer=FortranWriter()):
         '''This function adds all symbols used in `sched` to the symbol table.
         It uses GOcean-specific knowledge to declare fields and flatten their
@@ -259,31 +274,8 @@ class ExtractDriverCreator(BaseDriverCreator):
                                                  datatype=new_type)
             reference.symbol = new_symbol
 
-        # Now handle all derived type. In GOcean the only supported derived
-        # type is "r2d_field". This type might be used to access the field
-        # data, loop boundaries or other properties. We use the
-        # grid_properties information from the config file to identify which
-        # property is used. The name of a derived type is 'flattened', i.e.
-        # all '%' are replaced with '_', and this is then declared as a
-        # non-structured type. We also need to make sure that a flattened
-        # name does not clash with a variable declared by the user. We use
-        # the structured name (with '%') as tag to handle this.
-        for reference in all_references:
-            if isinstance(reference.symbol, (RoutineSymbol, IntrinsicSymbol)):
-                continue
-            if not isinstance(reference, StructureReference):
-                continue
-            old_symbol = reference.symbol
-            if old_symbol.datatype.name != "r2d_field":
-                fortran_string = writer(reference)
-                raise InternalError(
-                    f"Error when constructing driver for '{sched.name}': "
-                    f"Unknown derived type '{old_symbol.datatype.name}' "
-                    f"in reference '{fortran_string}'.")
-            # We have a structure reference to a field, flatten it, and
-            # replace the StructureReference with a new Reference to this
-            # flattened name (e.g. `fld%data` becomes `fld_data`)
-            self.flatten_reference(reference, symbol_table, writer=writer)
+        super().add_all_kernel_symbols(sched, symbol_table, read_write_info,
+                                       writer)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -455,7 +447,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         schedule_copy.lower_to_language_level()
         self.import_modules(program_symbol_table, schedule_copy)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                    writer)
+                                    read_write_info, writer)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,

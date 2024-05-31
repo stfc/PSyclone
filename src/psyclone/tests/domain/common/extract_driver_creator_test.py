@@ -469,9 +469,11 @@ def test_driver_creation_add_all_kernel_symbols_errors():
     assert ref.symbol.name == "out_fld"
     assert ref.symbol.datatype.name == "r2d_field"
     ref.symbol.datatype._name = "unknown type"
+    read_write_info = ReadWriteInfo()
     symbol_table = SymbolTable()
     with pytest.raises(InternalError) as err:
-        edc.add_all_kernel_symbols(schedule_copy, symbol_table)
+        edc.add_all_kernel_symbols(schedule_copy, symbol_table,
+                                   read_write_info)
     assert ("Error when constructing driver for 'invoke_0_compute_kernel': "
             "Unknown derived type 'unknown type' in reference "
             "'out_fld%internal%ystart'." in str(err.value))
@@ -482,7 +484,8 @@ def test_driver_creation_add_all_kernel_symbols_errors():
     edc._default_types = {"a": "a", "b": "b"}
     symbol_table = SymbolTable()
     with pytest.raises(InternalError) as err:
-        edc.add_all_kernel_symbols(schedule_copy, symbol_table)
+        edc.add_all_kernel_symbols(schedule_copy, symbol_table,
+                                   read_write_info)
     # With no default types defined at all, the reference to 'i' will be
     # the first reference that triggers the unknown intrinsic
     assert ("Error when constructing driver for 'invoke_0_compute_kernel': "
