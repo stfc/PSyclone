@@ -416,7 +416,7 @@ def test_no_assumed_size_char_in_kernels(fortran_reader):
 
     '''
     code = '''\
-subroutine ice(assumed_size_char)
+subroutine ice(assumed_size_char, assumed2)
   implicit none
   character(len = *), intent(in) :: assumed_size_char
   character*(*) :: assumed2
@@ -424,10 +424,11 @@ subroutine ice(assumed_size_char)
   real, dimension(10,10) :: my_var
 
   if (assumed_size_char == 'literal') then
-    my_var(:) = 0.0
+    my_var(:UBOUND(my_var)) = 0.0
+    explicit_size_char = 'hello'
   end if
 
-  assumed_size_char(:) = ' '
+  assumed_size_char(:LEN(explicit_size_char)) = ' '
 
   explicit_size_char(:) = achar(9)
 
@@ -436,6 +437,7 @@ subroutine ice(assumed_size_char)
   end if
 
   assumed2(:) = ''
+
 end
 '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -447,11 +449,11 @@ end
             "OpenACC region but found 'if (assumed_size_char == 'literal')"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.apply(sub.children[1])
+        acc_trans.validate(sub.children[1], options={})
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
-            " region but found 'assumed_size_char(:) = " in str(err.value))
+            " region but found 'assumed_size_char(:LEN(explicit_size_char)) = " in str(err.value))
     with pytest.raises(TransformationError) as err:
-        acc_trans.apply(sub.children[2])
+        acc_trans.validate(sub.children[2], options={})
     assert ("Cannot include intrinsic 'ACHAR(9)' in an OpenACC region because "
             "it is not available on GPU" in str(err.value))
     # String with explicit length is fine.

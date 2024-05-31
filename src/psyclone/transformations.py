@@ -2692,14 +2692,8 @@ class ACCKernelsTrans(RegionTrans):
         # of assumed size ('LEN=*' or '*(*)').
         assumed_size = re.compile(r"\(\s*len\s*=\s*\*\s*\)|\*\s*\(\s*\*\s*\)")
 
-        # Check that there are no character literals in the target region.
-        # The presence of these is used as a proxy to avoid the following
-        # problems:
-        #  * accessing assumed-size character literals causes an Internal
-        #    Compiler Error with NVHPC;
-        #  * character manipulations are not supported on (at least) NVIDIA
-        #    GPUs;
-        stmt_cache = set()
+        # Check that there are no assumed-size character variables as these
+        # causes an Internal Compiler Error with NVHPC.
         for node in node_list:
             for lit in node.walk(Literal):
                 if lit.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
@@ -2707,17 +2701,13 @@ class ACCKernelsTrans(RegionTrans):
                     # ancestor statement and then check the types of all
                     # symbols that are referenced by it.
                     stmt = lit.ancestor(Statement)
-                    # Check whether we've already seen (and checked) this
-                    # statement.
-                    if id(stmt) in stmt_cache:
-                        continue
-                    stmt_cache.add(id(stmt))
-
                     for ref in stmt.walk(Reference):
-                        try:
-                            dtype = ref.datatype
-                        except NotImplementedError:
+                        if not ref.symbol.is_argument:
+                            # Only arguments can be of assumed length.
                             continue
+                        # We only need to check the datatype of the underlying
+                        # Symbol.
+                        dtype = ref.symbol.datatype
                         # Currently the fparser2 frontend does not support any
                         # type of LEN= specification on a character variable so
                         # we resort to a regex to check whether it is assumed-
