@@ -191,7 +191,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # First, walk up to the parent reference and get its type. For a simple
         # ArrayReference this will just be self.
         root_ref = self.ancestor(Reference, include_self=True)
-        cursor_type = root_ref.symbol.datatype
+        if isinstance(root_ref.symbol, DataSymbol):
+            cursor_type = root_ref.symbol.datatype
+        else:
+            cursor_type = UnresolvedType()
 
         # Walk back down the structure, looking up the type information as we
         # go. We also collect the necessary information for creating a new
@@ -430,31 +433,42 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: bool
 
         '''
+
+        def _get_base_and_depth(array):
+            if isinstance(array, Member):
+                # This node is somewhere within a structure access so we need
+                # to get the parent Reference and keep a record of how deep
+                # this node is within the structure access. e.g. if this node
+                # was the StructureMember 'b' in a%c%b%d then its depth would
+                # be 2.
+                depth = 1
+                current = array
+                while current.parent and not isinstance(current.parent,
+                                                        Reference):
+                    depth += 1
+                    current = current.parent
+                base = current.parent
+                if not base:
+                    return False
+            else:
+                depth = 0
+                base = self
+            return base, depth
+
         if not isinstance(node, (Member, Reference)):
             return False
 
-        if isinstance(self, Member):
-            # This node is somewhere within a structure access so we need to
-            # get the parent Reference and keep a record of how deep this node
-            # is within the structure access. e.g. if this node was the
-            # StructureMember 'b' in a%c%b%d then its depth would be 2.
-            depth = 1
-            current = self
-            while current.parent and not isinstance(current.parent, Reference):
-                depth += 1
-                current = current.parent
-            parent_ref = current.parent
-            if not parent_ref:
-                return False
-        else:
-            depth = 0
-            parent_ref = self
+        # First check that the base and depths are the same
+        self_base, depth = _get_base_and_depth(self)
+        node_base, node_depth = _get_base_and_depth(node)
+        if self_base != node_base or depth != node_depth:
+            return False
 
-        # Now we have the parent Reference and the depth, we can construct the
-        # Signatures and compare them to the required depth.
-        self_sig, self_indices = parent_ref.get_signature_and_indices()
-        node_sig, node_indices = node.get_signature_and_indices()
-        if self_sig[:depth+1] != node_sig[:]:
+        # Then use the signatures to compare that the memebers until
+        # depth are also the same
+        self_sig, self_indices = self_base.get_signature_and_indices()
+        node_sig, node_indices = node_base.get_signature_and_indices()
+        if self_sig[:depth+1] != node_sig[:depth+1]:
             return False
 
         # Examine the indices, ignoring any on the innermost accesses (hence
@@ -695,14 +709,23 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         sym_maths = SymbolicMaths.get()
         # The logic below assumes array expressions come from valid Fortran,
-        # and therefore, we assume the length of all ranges in the same
-        # dimension-position of a statement are the same.
         # (e.g. a(2:4) = b(2:5) is not valid Fortran)
+        # and therefore, we assume the length of the equivalent ranges in the
+        # same statement matches:
+        # e.g. a(3, :) and b(4:, 4)
+        # a dim 2 and b dim 1 must have the same length, but not necessarely
+        # the same range (lower and upper bounds)
+        n_range1 = len([x for x in self.children[:index]
+                        if isinstance(x, Range)])
+        n_range2 = len([x for x in array2.children[:index2]
+                        if isinstance(x, Range)])
         assume_same_length = (
             (self.ancestor(Statement) is array2.ancestor(Statement) or
-             self.symbol is array2.symbol) and index == index2
+             self.is_same_array(array2)) and n_range1 == n_range2
         )
 
+        # Try to get the datatypes, only if they are ArrayType (so we know
+        # that these have the shape attribute)
         array1_type = None
         if (isinstance(self, Reference) and isinstance(self.symbol, DataSymbol)
                 and isinstance(self.symbol.datatype, ArrayType)):
@@ -713,6 +736,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 isinstance(array2.symbol.datatype, ArrayType)):
             array2_type = array2.symbol.datatype
 
+        # Try to get the ranges start values
         range1_start = None
         range2_start = None
         if assume_same_length:
@@ -724,6 +748,11 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # would make it "not equal".
             if self.is_lower_bound(index):
                 if not array1_type:
+                    # If we don't have type we can still prove the same range
+                    # if the other also uses a lbound expression
+                    if (self.is_same_array(array2) and
+                            array2.is_lower_bound(index2)):
+                        return True
                     return False
                 if array1_type.shape[index] == ArrayType.Extent.DEFERRED:
                     return False
@@ -735,15 +764,15 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             if array2.is_lower_bound(index2):
                 if not array2_type:
                     return False
-                if array2_type.shape[index] == ArrayType.Extent.DEFERRED:
+                if array2_type.shape[index2] == ArrayType.Extent.DEFERRED:
                     return False
-                if array2_type.shape[index] == ArrayType.Extent.ATTRIBUTE:
+                if array2_type.shape[index2] == ArrayType.Extent.ATTRIBUTE:
                     range2_start = Literal("1", INTEGER_TYPE)
                 else:
-                    range2_start = array2_type.shape[index].lower
+                    range2_start = array2_type.shape[index2].lower
         else:
             # Otherwise we can only guarantee it if they are both explicit
-            if self.is_lower_bound(index) or self.is_lower_bound(index):
+            if self.is_lower_bound(index) or array2.is_lower_bound(index2):
                 return False
 
         # If the previous block didn't populate the start value, it's explicit
@@ -752,12 +781,13 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if not range2_start:
             range2_start = range2.start
 
+        # Now we can do a symbolic comparison of the start values
         if not sym_maths.equal(range1_start, range2_start):
             return False
 
+        # If we can not guarantee the same length, we also need to check
+        # the upper bound
         if not assume_same_length:
-            # If we can not guarantee the same length, we also need to check
-            # the upper bound
             if self.is_upper_bound(index):
                 if array1_type:
                     range1_stop = array1_type.shape[index].upper
