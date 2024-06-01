@@ -52,12 +52,11 @@ from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, Assignment, Call, IntrinsicCall, Loop, Literal, Range,
-    Reference, CodeBlock, Routine, StructureReference)
+    Reference, CodeBlock, Routine, StructureReference, BinaryOperation)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.array_of_structures_mixin import (
-    ArrayOfStructuresMixin)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
-        UnresolvedType, UnsupportedType, ArrayType, NoType
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, ScalarType, UnresolvedType, UnsupportedType,
+    ArrayType, NoType, SymbolError)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
@@ -108,58 +107,68 @@ class ArrayRange2LoopTrans(Transformation):
         '''
         self.validate(node, options)
 
+        # If possible use the routine-level symbol table for nicer names
+        if node.ancestor(Routine):
+            symbol_table = node.ancestor(Routine).symbol_table
+        else:
+            # We checked in the validate that at least there is a scope
+            symbol_table = node.scope.symbol_table
+
         # If there is any array reference without the accessor syntax,
         # we need to add it first.
-        for reference in node.walk(Reference):
-            try:
-                Reference2ArrayRangeTrans().apply(reference)
-            except TransformationError:
-                pass
+        # for reference in node.walk(Reference):
+        #     try:
+        #         Reference2ArrayRangeTrans().apply(reference)
+        #     except TransformationError:
+        #         pass
 
-        # Start by the outermost (rightmost) array range
-        for array in node.lhs.walk(ArrayMixin):
-            for range_node in reversed(array.walk(Range)):
-                self._range_to_loop(node, range_node)
+        # import pdb; pdb.set_trace()
+        # Start by the rightmost array range
+        # import pdb; pdb.set_trace()
+        for lhs_range in reversed(node.lhs.walk(Range)):
+            lhs_array = lhs_range.parent
+            lhs_index = lhs_range.get_dimension()
+            lhs_lbound = lhs_array.get_lbound_expression(lhs_index)
 
+            # Create a new, unique, iteration variable for the new loop
+            loop_variable_symbol = symbol_table.new_symbol(
+                                        root_name="idx",
+                                        symbol_type=DataSymbol,
+                                        datatype=INTEGER_TYPE)
 
-    def _range_to_loop(self, assignment, range_node):
-        parent = assignment.parent
-        # If possible use the routine-level symbol table for nicer names
-        if assignment.ancestor(Routine):
-            symbol_table = assignment.ancestor(Routine).symbol_table
-        else:
-            symbol_table = assignment.scope.symbol_table
+            # Replace one range for each top-level array expression in the
+            # assignment
+            for expr in reversed(node.walk(ArrayMixin, stop_type=ArrayMixin)):
+                for range_to_replace in reversed(expr.walk(Range)):
+                    array = range_to_replace.parent
+                    index = range_to_replace.get_dimension()
+                    lhs_array.is_same_array(array)
+                    if lhs_array.same_range(lhs_index, array, index):
+                        # If they iterate over the same bounds we just need a
+                        # reference to the iteration index
+                        index_expr = Reference(loop_variable_symbol)
+                    else:
+                        # import pdb; pdb.set_trace()
+                        # lhs_array.same_range(lhs_index, array, index)
+                        # If we can not prove that both ranges iterate over the
+                        # exact same bounds we need to provide an offset like:
+                        # array2(idx1 + (lbound_array2 - lbound_array1)
+                        offset = BinaryOperation.create(
+                                    BinaryOperation.Operator.SUB,
+                                    array.get_lbound_expression(index),
+                                    lhs_lbound.copy())
+                        index_expr = BinaryOperation.create(
+                                    BinaryOperation.Operator.ADD,
+                                    Reference(loop_variable_symbol),
+                                    offset)
+                    range_to_replace.replace_with(index_expr)
+                    break  # We just substitue one per top-level array
 
-        # Create a new, unique, iteration variable for the new loop
-        loop_variable_symbol = symbol_table.new_symbol(root_name="idx",
-                                                       symbol_type=DataSymbol,
-                                                       datatype=INTEGER_TYPE)
-
-        # Replace the loop_idx array dimension with the loop variable.
-        n_ranges = None
-        # Just loop the top-level arrays since we just do 1 substitution per
-        # array construct, even if they have nested arrays in turn.
-        for top_level_ref in assignment.walk(ArrayMixin, stop_type=ArrayMixin):
-            # Then start checking from the outermost (rightmost) array
-            for array in reversed(top_level_ref.walk(ArrayMixin)):
-                current_n_ranges = len([child for child in array.children
-                                        if isinstance(child, Range)])
-                if current_n_ranges == 0:
-                    continue  # This sub-expression already has explicit dims
-                if n_ranges is None:
-                    n_ranges = current_n_ranges
-
-                idx = array.get_outer_range_index()
-                array.children[idx] = Reference(loop_variable_symbol)
-                break  # If one is found, go to the next top level expression
-
-        # Replace the assignment with the new explicit loop structure
-        position = assignment.position
-        start, stop, step = range_node.pop_all_children()
-        loop = Loop.create(loop_variable_symbol, start, stop, step,
-                           [assignment.detach()])
-        parent.children.insert(position, loop)
-
+            # Replace the assignment with the new explicit loop structure
+            start, stop, step = lhs_range.pop_all_children()
+            loop = Loop.create(loop_variable_symbol, start, stop, step, [])
+            node.replace_with(loop)
+            loop.loop_body.addchild(node)
 
     def __str__(self):
         return ("Convert a PSyIR assignment to an array Range into a "
@@ -174,9 +183,6 @@ class ArrayRange2LoopTrans(Transformation):
         '''
         return type(self).__name__
 
-    def _validate_range_expansion(assignment, range_to_expand):
-        pass
-    
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
         ArrayRange2LoopTrans transformation to the supplied PSyIR Node.
@@ -218,6 +224,15 @@ class ArrayRange2LoopTrans(Transformation):
                 f"Error in {self.name} transformation. The supplied node "
                 f"should be a PSyIR Assignment, but found "
                 f"'{type(node).__name__}'.")
+
+        try:
+            node.scope
+        except SymbolError:
+            # pylint: disable=raise-missing-from
+            raise TransformationError(LazyString(
+                lambda: f"Error in {self.name} transformation. The "
+                f"assignment should be in a scope to create the necessary new "
+                f"symbols, but '{node.debug_string()}' is not."))
 
         array_accessors = node.lhs.walk(ArrayMixin)
         if not (isinstance(node.lhs, Reference) and array_accessors):
@@ -282,6 +297,7 @@ class ArrayRange2LoopTrans(Transformation):
                            f"that contain nested Range expressions")
                 if verbose:
                     node.append_preceding_comment(message)
+                # pylint: disable=cell-var-from-loop
                 raise TransformationError(LazyString(
                     lambda: f"{message}, but found:\n{node.debug_string()}"))
 
@@ -323,15 +339,14 @@ class ArrayRange2LoopTrans(Transformation):
                     lambda: f"{message} in:\n{node.debug_string()}."))
 
         for reference in node.walk(Reference):
-            # As special case we always allow references to whole arrays as
-            # part of the LBOUND and UBOUND intrinsics, regardless of the
-            # restrictions below
-            if isinstance(reference.parent, IntrinsicCall):
-                intrinsic = reference.parent.intrinsic
-                valid = (IntrinsicCall.Intrinsic.LBOUND,
-                         IntrinsicCall.Intrinsic.UBOUND)
-                if intrinsic in valid:
+            if isinstance(reference.parent, Call):
+                # The call routine references are fine
+                if reference.parent.routine is reference:
                     continue
+                # Arguments of inquiry intrinsics are also fine
+                if isinstance(reference.parent, IntrinsicCall):
+                    if reference.parent.is_inquiry:
+                        continue
 
             # We allow any references that have explicit array syntax because
             # we can infer that they are not scalars, regarless of the type.
@@ -360,37 +375,9 @@ class ArrayRange2LoopTrans(Transformation):
                                 " variable into scope may help.")
                 if verbose:
                     node.append_preceding_comment(message)
+                # pylint: disable=cell-var-from-loop
                 raise TransformationError(LazyString(
                     lambda: f"{message} In:\n{node.debug_string()}"))
-
-        return
-        # For each expression with ranges (we have already proven that the num
-        # of ranges are the same and there are not nested ranges), we must now
-        # guarantee that each of them have the same bounds:
-        # - get the lhs baseline
-        lhs_ranges = None
-        for accessor in node.lhs.walk(ArrayMixin):
-            if any(isinstance(child, Range) for child in accessor.children):
-                lhs_ranges = accessor.walk(Range)
-        # - compare each rhs against the baseline
-        for accessor in node.rhs.walk(ArrayMixin):
-            if any(isinstance(child, Range) for child in accessor.children):
-                expr_ranges = accessor.walk(Range)
-                for range1, range2 in zip(lhs_ranges, expr_ranges):
-                    array1 = range1.parent
-                    array2 = range2.parent
-                    array1_idx = range1.position
-                    array2_idx = range2.position
-                    # In array of structures we need to account for the Member
-                    if isinstance(array1, ArrayOfStructuresMixin):
-                        array1_idx -= 1
-                    if isinstance(array1, ArrayOfStructuresMixin):
-                        array1_idx -= 1
-                    # import pdb; pdb.set_trace()
-                    if not array1.same_range(array1_idx, array2, array2_idx):
-                        raise TransformationError(
-                            f"{self.name} cannot expand ranges that are not "
-                            f"guaranteed to have the same bounds. ")
 
 
 __all__ = [

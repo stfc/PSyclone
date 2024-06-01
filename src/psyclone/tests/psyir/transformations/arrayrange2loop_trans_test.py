@@ -42,7 +42,7 @@ import pytest
 
 from psyclone.psyir.nodes import (
     Literal, BinaryOperation, Reference, Range, ArrayReference, Assignment,
-    Node, DataNode, KernelSchedule, IntrinsicCall, CodeBlock)
+    Node, DataNode, KernelSchedule, IntrinsicCall, CodeBlock, Schedule)
 from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, INTEGER_TYPE, REAL_TYPE,
@@ -100,9 +100,11 @@ def test_name():
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = y(idx) + z(idx) * t(idx)\n"),
 
-         # Elemental intrinsic
-
-         # Non-Elemental intrinsic
+         # Argument of elemental functions are expanded
+         ("integer, dimension(:) :: x, y, z\n"
+          "x(:) = max(y(:), z(:))\n",
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "    x(idx) = MAX(y(idx), z(idx))\n"),
 
          # Mix different array ranks with fixed indices
          ("integer, dimension(:) :: x\n"
@@ -117,7 +119,8 @@ def test_name():
           "  do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
           "    x(n,idx) = y(idx)\n"),
 
-         ("integer, dimension(:,:) :: x, y\n"
+         ("integer, dimension(:,:) :: x\n"
+          "integer, dimension(:,:,:) :: y\n"
           "x(:,:)=y(:,n,:)\n",
           "  do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
           "    do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
@@ -156,6 +159,13 @@ def test_name():
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = 0\n"),
 
+         # Combine multiple previous features
+         ("integer, dimension(:,:) :: x,z\n"
+          "integer, dimension(:) :: y,t\n"
+          "x(n,2:n:2)=y(2:n:2)*z(1,2:n:2)+t(1)",
+          "  do idx = 2, n, 2\n"
+          "    x(n,idx) = y(idx) * z(1,idx) + t(1)"),
+
          # SoA in LHS
          ("mystruct%field2%field(:,:,:) = 0.0d0",
           "  do idx = LBOUND(mystruct%field2%field, dim=3), "
@@ -167,12 +177,12 @@ def test_name():
           "        mystruct%field2%field(idx_2,idx_1,idx) = 0.0d0\n"),
 
          # Array in LHS and SoA in RHS
-         ("umask(:,:,:) = struct%field(:,:,:) + struct%field2%field(:,:,:)",
+         ("umask(:,:,:) = 3 + struct%field2%field(:,:,:)",
           "  do idx = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
           "    do idx_1 = LBOUND(umask, dim=2), UBOUND(umask, dim=2), 1\n"
           "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
-          "        umask(idx_2,idx_1,idx) = struct%field(idx_2,idx_1,idx) "
-          "+ struct%field2%field(idx_2,idx_1,idx)\n"),
+          # Ignore offset for this test, it is tested below
+          "        umask(idx_2,idx_1,idx) = 3 + struct%field2%field(idx_2 + "),
 
          # SoAoS on LHS
          ("mystruct%field3(:,:,:)%field4 = 0.0d0",
@@ -185,15 +195,14 @@ def test_name():
           "        mystruct%field3(idx_2,idx_1,idx)%field4 = 0.0d0\n"),
 
          # SoAoS in the LHS and SoA in the RHS
-         ("mystruct%field3(:,:,:)%field4 = mystruct%field2%field(:,:,:)",
+         ("mystruct%field3(:,4,:)%field4 = mystruct%field2%field(3,:,:)",
           "  do idx = LBOUND(mystruct%field3, dim=3), "
           "UBOUND(mystruct%field3, dim=3), 1\n"
-          "    do idx_1 = LBOUND(mystruct%field3, dim=2), "
-          "UBOUND(mystruct%field3, dim=2), 1\n"
-          "      do idx_2 = LBOUND(mystruct%field3, dim=1), "
+          "    do idx_1 = LBOUND(mystruct%field3, dim=1), "
           "UBOUND(mystruct%field3, dim=1), 1\n"
-          "        mystruct%field3(idx_2,idx_1,idx)%field4 = "
-          "mystruct%field2%field(idx_2,idx_1,idx)\n"),
+          # Ignore offset for this test, it is tested below
+          "      mystruct%field3(idx_1,4,idx)%field4 = "
+          "mystruct%field2%field(3,idx_1 + "),
 
          # 2 array accessors in each expression but only one has ranges
          ("mystruct%field2(4, 3)%field(:,:,:) = "
@@ -204,17 +213,9 @@ def test_name():
           "UBOUND(mystruct%field2(4,3)%field, dim=2), 1\n"
           "      do idx_2 = LBOUND(mystruct%field2(4,3)%field, dim=1), "
           "UBOUND(mystruct%field2(4,3)%field, dim=1), 1\n"
+          # Ignore offset for this test, it is tested below
           "        mystruct%field2(4,3)%field(idx_2,idx_1,idx) = "
-          "mystruct%field2(5,8)%field(idx_2,idx_1,idx)\n"),
-         
-         # Symbolic equalities
-
-         # Combine multiple features
-         ("integer, dimension(:,:) :: x,z\n"
-          "integer, dimension(:) :: y,t\n"
-          "x(n,2:n:2)=y(2:n:2)*z(1,2:n:2)+t(1)",
-          "  do idx = 2, n, 2\n"
-          "    x(n,idx) = y(idx) * z(1,idx) + t(1)")])
+          "mystruct%field2(5,8)%field(idx_2 +")])
 def test_apply(code, expected, tmpdir, fortran_reader, fortran_writer):
     '''Check that the PSyIR is transformed as expected for various types
     of ranges in an array. The resultant Fortran code is used to
@@ -260,20 +261,31 @@ def test_validate_no_assignment_with_array_range_on_lhs():
         "should be a PSyIR Assignment, but found 'Node'."
         in str(info.value))
 
+    assignment = Assignment.create(DataNode(), DataNode())
     with pytest.raises(TransformationError) as info:
-        trans.validate(Assignment.create(DataNode(), DataNode()))
+        trans.validate(assignment)
+    assert (
+        " Error in ArrayRange2LoopTrans transformation. The assignment should"
+        " be in a scope to create the necessary new symbols, but"
+        in str(info.value))
+
+    scope = Schedule(children=[assignment])
+    with pytest.raises(TransformationError) as info:
+        trans.validate(assignment)
     assert (
         "Error in ArrayRange2LoopTrans transformation. The LHS of the "
         "supplied Assignment node should be a Reference that contains an "
         "array accessor somewhere in the expression, but found "
-         in str(info.value))
+        in str(info.value))
 
     # Array Reference but with acessor that resolve to a single scalar
     array_symbol = DataSymbol("x", ArrayType(INTEGER_TYPE, [10, 10]))
     one = Literal("1", INTEGER_TYPE)
     array_assignment = ArrayReference.create(array_symbol, [one, one.copy()])
+    assignment = Assignment.create(array_assignment, DataNode())
+    scope.addchild(assignment)
     with pytest.raises(TransformationError) as info:
-        trans.validate(Assignment.create(array_assignment, DataNode()))
+        trans.validate(assignment)
     assert (
         "Error in ArrayRange2LoopTrans transformation. The LHS of the supplied"
         " Assignment node should contain an array accessor with at least one "
