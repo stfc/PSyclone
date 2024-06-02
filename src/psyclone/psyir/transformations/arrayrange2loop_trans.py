@@ -127,7 +127,7 @@ class ArrayRange2LoopTrans(Transformation):
         # import pdb; pdb.set_trace()
         for lhs_range in reversed(node.lhs.walk(Range)):
             lhs_array = lhs_range.parent
-            lhs_index = lhs_range.get_dimension()
+            lhs_index = lhs_array.indices.index(lhs_range)
             lhs_lbound = lhs_array.get_lbound_expression(lhs_index)
 
             # Create a new, unique, iteration variable for the new loop
@@ -141,7 +141,7 @@ class ArrayRange2LoopTrans(Transformation):
             for expr in reversed(node.walk(ArrayMixin, stop_type=ArrayMixin)):
                 for range_to_replace in reversed(expr.walk(Range)):
                     array = range_to_replace.parent
-                    index = range_to_replace.get_dimension()
+                    index = array.indices.index(range_to_replace)
                     lhs_array.is_same_array(array)
                     if lhs_array.same_range(lhs_index, array, index):
                         # If they iterate over the same bounds we just need a

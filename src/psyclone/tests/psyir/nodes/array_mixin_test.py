@@ -152,7 +152,7 @@ def test_is_bound_validate_index(fortran_reader):
 def test_is_bound_ulbound(fortran_reader, bounds, lower, upper):
     '''Test the _is_bound method returns True when the access to the bound
     is [ul]bound due to the use of array notation in the original
-    Fortran code. Test with an access to a regular array and and
+    Fortran code. Test with an access to a regular array and an
     access to an array in a structure. Also test with the declarations
     of the arrays not being available.
 
@@ -283,8 +283,40 @@ def test_is_bound_access(fortran_reader, bounds, access, lower, upper):
     assert array_ref._is_bound(0, "lower") is lower
     assert array_ref._is_bound(0, "upper") is upper
 
-# is_same_array, is_full_range, and indices methods are all tested in
+# is_full_range, and indices methods are all tested in
 # the ArrayReference class.
+
+
+def test_is_same_array(fortran_reader):
+    ''' Test that the is_same_array works for Arrays and ArrayMembers '''
+    psyir = fortran_reader.psyir_from_source("""
+        subroutine test()
+            use other, only: struct
+            integer, dimension(:) :: a
+            a(4) = 3
+            a(3) = struct%val(3,3)%array(3)
+            struct%val(2,2)%array(3) = struct%val(3,3)%array
+            a = 3
+        end subroutine
+    """)
+
+    assignments = psyir.walk(Assignment)
+    # Check the array itself is the same, not the accessed index
+    assert assignments[0].lhs.is_same_array(assignments[1].lhs)
+    # Also works when comparion with a plain reference of the array
+    assert assignments[0].lhs.is_same_array(assignments[3].lhs)
+    # Also works with ArrayMembers and plain Members which are an array
+    assert assignments[1].rhs.member.member.is_same_array(
+                                assignments[2].rhs.member.member)
+    # But not if along the way to the array they use different indices
+    assert not assignments[1].rhs.member.member.is_same_array(
+                                assignments[2].lhs.member.member)
+    # Or is a different member of the structure
+    assert not assignments[1].rhs.member.member.is_same_array(
+                                assignments[2].rhs.member)
+    # Also it can compare Arrays against SoA
+    assert not assignments[1].lhs.is_same_array(assignments[1].rhs.member)
+    assert not assignments[1].rhs.member.is_same_array(assignments[1].lhs)
 
 
 def test_get_bound_expression():
@@ -704,21 +736,20 @@ def test_same_range(fortran_reader):
     # Unless they refer to the same symbol and dimension
     assert array1.same_range(1, array3, 1) is True
 
-    # The assumtion of same size is for slice sections of the array
+    # The assumtion of same size is for the matching slice sections
     code = '''
-    subroutine test()
+    subroutine test(A)
         use other_mod
+        integer, dimension(:,:,:,:,:) :: A
         ! lhs dim 2 and 5 match length of rhs dim 1 and 2, because lhs
         ! dims 1, 3 and 4 do not produce slices
-        A(4:4,:,n, 5:6:10, :) = B(val:4, val:)
+        A(3,:,n, val, :) = B(1:4, 1:5)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
     array1, array2 = psyir.walk(Assignment)[0].children
-    assert array1.same_range(0, array2, 0) is False
-    assert array1.same_range(1, array2, 1) is False
     assert array1.same_range(1, array2, 0) is True
-    assert array1.same_range(4, array2, 2) is True
+    assert array1.same_range(4, array2, 1) is True
 
     # If values are implicit, we can not guarantee the same range unless
     # we know the shape

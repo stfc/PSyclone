@@ -53,7 +53,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, _is_array_range_literal, _is_bound_full_extent,
-    _is_range_full_extent, _check_args, default_precision,
+    _check_args, default_precision,
     default_integer_type, default_real_type, _first_type_match,
     _get_arg_names)
 from psyclone.psyir.nodes import (
@@ -288,40 +288,6 @@ def test_is_array_range_literal():
     # 1st dimension, second argument to range has an unexpected
     # value.
     assert not _is_array_range_literal(array_reference, 1, 1, 2)
-
-
-def test_is_range_full_extent():
-    ''' Test the _is_range_full_extent function.'''
-    one = Literal("1", INTEGER_TYPE)
-    array_type = ArrayType(REAL_TYPE, [2])
-    symbol = DataSymbol('a', array_type)
-    lbound_op = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.LBOUND,
-        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
-    ubound_op = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.UBOUND,
-        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
-
-    my_range = Range.create(lbound_op, ubound_op, one)
-    _ = ArrayReference.create(symbol, [my_range])
-    # Valid structure
-    _is_range_full_extent(my_range)
-
-    # Invalid start (as 1st argument should be lower bound)
-    my_range = Range.create(ubound_op.copy(), ubound_op.copy(), one.copy())
-    _ = ArrayReference.create(symbol, [my_range])
-    assert not _is_range_full_extent(my_range)
-
-    # Invalid stop (as 2nd argument should be upper bound)
-    my_range = Range.create(lbound_op.copy(), lbound_op.copy(), one.copy())
-    _ = ArrayReference.create(symbol, [my_range])
-    assert not _is_range_full_extent(my_range)
-
-    # Invalid step (as 3rd argument should be Literal)
-    my_range = Range.create(lbound_op.copy(), ubound_op.copy(),
-                            ubound_op.copy())
-    _ = ArrayReference.create(symbol, [my_range])
-    assert not _is_range_full_extent(my_range)
 
 
 @pytest.mark.parametrize("value",

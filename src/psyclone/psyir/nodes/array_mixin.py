@@ -53,6 +53,7 @@ from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import (
     ScalarType, ArrayType, UnresolvedType, UnsupportedType, INTEGER_TYPE)
@@ -142,10 +143,17 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: bool
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.structure_reference import StructureReference
         if (isinstance(expr, IntrinsicCall) and
                 expr.intrinsic == bound_operator):
+            array = expr.arguments[0]
+            # If its a structure, we want to compare the whole accessor
+            while (isinstance(array, (StructureReference, StructureMember))
+                         and array.member):
+                array = array.member
             # This is the expected bound
-            if self.is_same_array(expr.arguments[0]):
+            if self.is_same_array(array):
                 # The arrays match
                 if (isinstance(expr.arguments[1], Literal) and
                         expr.arguments[1].datatype.intrinsic ==
@@ -433,38 +441,25 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: bool
 
         '''
-
-        def _get_base_and_depth(array):
-            if isinstance(array, Member):
-                # This node is somewhere within a structure access so we need
-                # to get the parent Reference and keep a record of how deep
-                # this node is within the structure access. e.g. if this node
-                # was the StructureMember 'b' in a%c%b%d then its depth would
-                # be 2.
-                depth = 1
-                current = array
-                while current.parent and not isinstance(current.parent,
-                                                        Reference):
-                    depth += 1
-                    current = current.parent
-                base = current.parent
-                if not base:
-                    return False
-            else:
-                depth = 0
-                base = self
-            return base, depth
-
         if not isinstance(node, (Member, Reference)):
             return False
 
         # First check that the base and depths are the same
-        self_base, depth = _get_base_and_depth(self)
-        node_base, node_depth = _get_base_and_depth(node)
-        if self_base != node_base or depth != node_depth:
+        if isinstance(self, Member):
+            self_base, depth = self.get_base_and_depth()
+        else:
+            self_base, depth = self, 0
+        if isinstance(node, Member):
+            node_base, node_depth = node.get_base_and_depth()
+        else:
+            node_base, node_depth = node, 0
+        if (not isinstance(self_base, Reference) or
+                not isinstance(node_base, Reference)):
+            return False
+        if self_base.symbol != node_base.symbol or depth != node_depth:
             return False
 
-        # Then use the signatures to compare that the memebers until
+        # Then use the signatures to compare that each member until
         # depth are also the same
         self_sig, self_indices = self_base.get_signature_and_indices()
         node_sig, node_indices = node_base.get_signature_and_indices()

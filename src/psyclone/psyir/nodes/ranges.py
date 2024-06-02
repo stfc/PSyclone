@@ -260,16 +260,3 @@ class Range(Node):
 
     def __str__(self):
         return self.node_str(colour=False)
-
-    def get_dimension(self):
-        '''
-        :returns: the dimension of the parent array on which this range
-        operates.
-        :rtype: int
-        '''
-        from psyclone.psyir.nodes.array_of_structures_mixin import (
-            ArrayOfStructuresMixin)
-        if self.parent:
-            if isinstance(self.parent, ArrayOfStructuresMixin):
-                return self.position - 1
-        return self.position
