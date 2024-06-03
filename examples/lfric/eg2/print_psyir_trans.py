@@ -44,7 +44,7 @@ def trans(psy):
     PSyclone transformation routine. This is an example which only prints
     information about the object with which it has been supplied.
 
-    :param psy: the PSy object that PSyclone has constructed for the \
+    :param psy: the PSy object that PSyclone has constructed for the
                 'invoke'(s) found in the Algorithm file.
     :type psy: :py:class:`psyclone.domain.lfric.LFRicPSy`
 
