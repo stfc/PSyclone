@@ -134,7 +134,7 @@ class ContainerSymbol(Symbol):
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
         '''
         if not self._reference:
-            self._reference = self._interface.import_container(self._name)
+            self._reference = self._interface.get_container(self._name)
         return self._reference
 
     def __str__(self):
@@ -196,7 +196,7 @@ class ContainerSymbolInterface(SymbolInterface):
     ''' Abstract implementation of the ContainerSymbol Interface '''
 
     @staticmethod
-    def import_container(name):
+    def get_container(name):
         ''' Abstract method to import an external container, the specific
         implementation depends on the language used.
 
@@ -211,9 +211,9 @@ class FortranModuleInterface(ContainerSymbolInterface):
     ''' Implementation of ContainerSymbolInterface for Fortran modules '''
 
     @staticmethod
-    def import_container(name):
-        ''' Imports a Fortran module as a PSyIR container via the
-        ModuleManager.
+    def get_container(name):
+        ''' Imports a Fortran module as a PSyIR Container (via the
+        ModuleManager) and returns it.
 
         :param str name: name of the module to be imported.
 

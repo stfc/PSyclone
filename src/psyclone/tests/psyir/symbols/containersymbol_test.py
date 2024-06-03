@@ -153,12 +153,12 @@ def test_containersymbol_str():
 
 
 def test_containersymbol_resolve_external_container(monkeypatch):
-    '''Test that a ContainerSymbol uses its interface import_container method
+    '''Test that a ContainerSymbol uses its interface get_container method
     the first time its associated container reference is needed'''
 
     sym = ContainerSymbol("my_mod")
 
-    monkeypatch.setattr(sym._interface, "import_container",
+    monkeypatch.setattr(sym._interface, "get_container",
                         lambda x: "MockContainer")
 
     # At the beginning the reference is never resolved (lazy evaluation)
@@ -169,7 +169,7 @@ def test_containersymbol_resolve_external_container(monkeypatch):
     assert sym._reference == "MockContainer"
 
     # Check that subsequent invocations do not update the container reference
-    monkeypatch.setattr(sym._interface, "import_container",
+    monkeypatch.setattr(sym._interface, "get_container",
                         staticmethod(lambda x: "OtherContainer"))
     assert sym.container == "MockContainer"
 
@@ -180,7 +180,7 @@ def test_containersymbol_generic_interface():
     abstractinterface = ContainerSymbolInterface
 
     with pytest.raises(NotImplementedError) as error:
-        abstractinterface.import_container("name")
+        abstractinterface.get_container("name")
     assert "Abstract method" in str(error.value)
 
 
@@ -194,20 +194,20 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     # Try with a non-existent module and no include path
     monkeypatch.setattr(Config.get(), "_include_paths", [])
     with pytest.raises(SymbolError) as error:
-        fminterface.import_container("fake_module")
+        fminterface.get_container("fake_module")
     assert ("Module 'fake_module' not found in any of the include_paths "
             "directories []." in str(error.value))
 
     # Try with a non-existent module and an existing directory
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
     with pytest.raises(SymbolError) as error:
-        fminterface.import_container("fake_module")
+        fminterface.get_container("fake_module")
     assert ("Module 'fake_module' not found in any of the include_paths "
             "directories " in str(error.value))
 
     # Try importing an existing Fortran module
     create_dummy_module(path)
-    container = fminterface.import_container("dummy_module")
+    container = fminterface.get_container("dummy_module")
     assert isinstance(container, Container)
     assert container.name.lower() == "dummy_module"
 
@@ -216,7 +216,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     # not found error.
     create_dummy_module(path, "different_name_module.F90")
     with pytest.raises(SymbolError) as error:
-        container = fminterface.import_container("different_name_module")
+        container = fminterface.get_container("different_name_module")
     assert ("Module 'different_name_module' not found in any of the "
             "include_paths directories [" in str(error.value))
 
