@@ -206,7 +206,7 @@ class BaseDriverCreator:
 
         '''
         # pylint: disable=unused-argument
-        return False
+        return True
 
     # -------------------------------------------------------------------------
     def add_all_kernel_symbols(self, sched, symbol_table, read_write_info,
@@ -233,7 +233,11 @@ class BaseDriverCreator:
                 continue
 
             old_symbol = reference.symbol
-            if self.is_supported_derived_type(old_symbol):
+            # TODO: Do we actually need this test? Since it's a kernel call,
+            # any derived type will only use a Fortran base class, which
+            # the kernel extraction and driver creation should be able to
+            # handle.
+            if not self.is_supported_derived_type(old_symbol):
                 fortran_string = writer(reference)
                 raise InternalError(
                     f"Error when constructing driver for '{sched.name}': "

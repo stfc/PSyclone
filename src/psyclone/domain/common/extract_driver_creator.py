@@ -94,7 +94,7 @@ class ExtractDriverCreator(BaseDriverCreator):
 
         '''
         # In gocean we only allow r2d_field
-        return symbol.datatype.name != "r2d_field"
+        return symbol.datatype.name == "r2d_field"
 
     # -------------------------------------------------------------------------
     def create_flattened_symbol(self, flattened_name, reference, symbol_table,
