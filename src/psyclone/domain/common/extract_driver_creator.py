@@ -314,6 +314,25 @@ class ExtractDriverCreator(BaseDriverCreator):
         return output_symbols
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _add_precision_symbols(symbol_table):
+        '''This function adds an import of go_wp from kind_params_mod.
+
+        :param symbol_table: the symbol table to which the precision symbols
+            must be added.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        kind_params_mod = ContainerSymbol("kind_params_mod")
+        symbol_table.add(kind_params_mod)
+
+        symbol_table.new_symbol("go_wp",
+                                tag="go_wp@kind_params_mod",
+                                symbol_type=DataSymbol,
+                                datatype=INTEGER_TYPE,
+                                interface=ImportInterface(kind_params_mod))
+
+    # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
@@ -378,6 +397,7 @@ class ExtractDriverCreator(BaseDriverCreator):
         # in the node list have the same parent.
         schedule_copy = nodes[0].parent.copy()
         schedule_copy.lower_to_language_level()
+        self._add_precision_symbols(program.scope.symbol_table)
         self.import_modules(program_symbol_table, schedule_copy)
         self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
                                     read_write_info, writer)
