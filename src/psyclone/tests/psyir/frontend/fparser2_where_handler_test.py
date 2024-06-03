@@ -212,7 +212,7 @@ def test_where_array_notation_rank():
     array_type = ArrayType(REAL_TYPE, [10])
     my_array = ArrayReference.create(
         DataSymbol("my_array", array_type),
-        [Range.create(Literal("1", INTEGER_TYPE),
+        [Range.create(Literal("2", INTEGER_TYPE),
                       Literal("10", INTEGER_TYPE))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)

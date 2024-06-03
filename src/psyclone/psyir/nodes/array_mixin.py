@@ -85,6 +85,24 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return True
 
+    def index_of(self, node):
+        '''
+        If the given node is one of the indices expressions of the array,
+        it returns the dimension of the array that it belongs to. Note that
+        this is different to `node.position` because ArraysOfStructures have
+        a member children, and it is different from `array.indices.index(node)`
+        because that would use the equality operator, but sibiling indices may
+        be equal and provide unexpected results.
+
+        :returns: the index of the given node in the array.
+        :rtype: int
+
+        :raises ValueError: if node is not an index of the array.
+        '''
+        if node.parent is self:
+            return node.position
+        raise ValueError("'{child}' is not a children of '{self}'")
+
     def get_signature_and_indices(self):
         '''
         Constructs the Signature of this array access and a list of the

@@ -127,7 +127,7 @@ class ArrayRange2LoopTrans(Transformation):
         # Start by the rightmost array range
         for lhs_range in reversed(node.lhs.walk(Range)):
             lhs_array = lhs_range.parent
-            lhs_index = lhs_array.indices.index(lhs_range)
+            lhs_index = lhs_array.index_of(lhs_range)
 
             # Create a new, unique, iteration variable for the new loop
             loop_variable_symbol = symbol_table.new_symbol(
@@ -140,7 +140,7 @@ class ArrayRange2LoopTrans(Transformation):
             for expr in reversed(node.walk(ArrayMixin, stop_type=ArrayMixin)):
                 for range_to_replace in reversed(expr.walk(Range)):
                     array = range_to_replace.parent
-                    index = array.indices.index(range_to_replace)
+                    index = array.index_of(range_to_replace)
                     if lhs_array.same_range(lhs_index, array, index):
                         # If they iterate over the same bounds we just need a
                         # reference to the iteration index

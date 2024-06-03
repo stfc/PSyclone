@@ -44,7 +44,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import (
     HoistLoopBoundExprTrans, HoistTrans, ProfileTrans, HoistLocalArraysTrans,
     Maxval2LoopTrans, Reference2ArrayRangeTrans)
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+from psyclone.psyir.transformations import ArrayRange2LoopTrans
 from psyclone.transformations import TransformationError
 
 
@@ -184,9 +184,12 @@ def normalise_loops(
 
     if convert_range_loops:
         # Convert all array implicit loops to explicit loops
-        explicit_loops = NemoAllArrayRange2LoopTrans()
+        explicit_loops = ArrayRange2LoopTrans()
         for assignment in schedule.walk(Assignment):
-            explicit_loops.apply(assignment)
+            try:
+                explicit_loops.apply(assignment)
+            except TransformationError:
+                pass
 
     if hoist_expressions:
         # First hoist all possible expressions

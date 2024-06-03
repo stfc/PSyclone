@@ -1283,7 +1283,7 @@ use of array notation is encouraged in the NEMO Coding Conventions
 :cite:`nemo_code_conv` and identifying these loops can be important
 when introducing, e.g. OpenMP. These implicit loops are not
 automatically represented as PSyIR Loop instances but can be converted
-to explicit loops using the ``NemoAllArrayRange2LoopTrans``
+to explicit loops using the ``ArrayRange2LoopTrans``
 transformation.
 
 

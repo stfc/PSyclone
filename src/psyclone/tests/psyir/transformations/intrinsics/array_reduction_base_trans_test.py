@@ -443,7 +443,9 @@ def test_allocate(fortran_reader, fortran_writer, tmpdir):
         "  do idx = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
         "    do idx_1 = LBOUND(a, dim=2), UBOUND(a, dim=2), 1\n"
         "      do idx_2 = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
-        "        result = MAX(result, a(idx_2,idx_1,idx))\n"
+        "        result = MAX(result, a(idx_2 + (LBOUND(a, dim=1) - "
+        "LBOUND(a, dim=1)),idx_1 + (LBOUND(a, dim=2) - LBOUND(a, dim=2)),"
+        "idx + (LBOUND(a, dim=3) - LBOUND(a, dim=3))))\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n"
@@ -454,7 +456,7 @@ def test_allocate(fortran_reader, fortran_writer, tmpdir):
     node = psyir.walk(IntrinsicCall)[1]
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert expected in result
+    assert expected in result, result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -488,7 +490,7 @@ def test_references(fortran_reader, fortran_writer, tmpdir):
     node = psyir.children[0].children[0].children[1]
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert expected in result
+    assert expected in result, result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -740,9 +742,13 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
     code_before = fortran_writer(psyir)
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
-    assert ("NemoAllArrayRange2LoopTrans could not convert the expression "
-            "'a(:,:undeclared) = a(:,:undeclared)\n' into a loop."
-            in str(info.value))
+    assert ("ArrayRange2LoopTrans could not convert the expression:\n"
+            "a(:,:undeclared) = a(:,:undeclared)\n\n into a loop because:\n"
+            "Transformation Error: ArrayRange2LoopTrans cannot expand "
+            "expression because it contains the variable 'undeclared' which "
+            "is not a DataSymbol and therefore cannot be guaranteed to be "
+            "ScalarType. Resolving the import that brings this variable into "
+            "scope may help." in str(info.value))
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
     assert code_before == code_after

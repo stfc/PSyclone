@@ -4180,7 +4180,7 @@ class Fparser2Reader():
             if isinstance(idx_node, Range):
                 # Found array syntax notation. Check that it is the
                 # simple ":" format.
-                if not array.is_full_range(array.indices.index(idx_node)):
+                if not array.is_full_range(array.index_of(idx_node)):
                     raise NotImplementedError(
                         "Only array notation of the form my_array(:, :, ...) "
                         "is supported.")

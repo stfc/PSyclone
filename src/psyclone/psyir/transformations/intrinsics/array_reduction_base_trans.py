@@ -41,8 +41,8 @@ PSyIR array-reduction intrinsic to PSyIR code.
 from abc import ABC, abstractmethod
 
 from psyclone.psyir.nodes import (
-    Assignment, Reference, ArrayReference, IfBlock, Loop,
-    IntrinsicCall, Node, UnaryOperation, BinaryOperation)
+    Assignment, Reference, ArrayReference, IfBlock, IntrinsicCall, Node,
+    UnaryOperation, BinaryOperation)
 from psyclone.psyir.symbols import ArrayType, DataSymbol, ScalarType
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
@@ -295,22 +295,22 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         assignment_position = assignment.position
         # Must be placed here to avoid circular imports
         # pylint: disable=import-outside-toplevel
-        from psyclone.domain.nemo.transformations import \
-            NemoAllArrayRange2LoopTrans
-        array_range = NemoAllArrayRange2LoopTrans()
-        array_range.apply(assignment)
-        outer_loop = assignment_parent.children[assignment_position]
-        if not isinstance(outer_loop, Loop):
-            # The NemoAllArrayRange2LoopTrans could fail to convert the
-            # ranges without raising a TransformationError, unfortunately
-            # this can not be tested before previous modifications to the
+        from psyclone.psyir.transformations import ArrayRange2LoopTrans
+        try:
+            ArrayRange2LoopTrans().apply(assignment)
+        except TransformationError as err:
+            # The ArrayRange2LoopTrans could fail to convert the ranges,
+            # unfortunately this can not be tested before modifications to the
             # tree (e.g. in the validate), so the best we can do is reverting
             # to the orginal statement (with maybe some leftover tmp variable)
             # and produce the error here.
             assignment.replace_with(orig_assignment)
+            # pylint: disable=raise-missing-from
             raise TransformationError(
-                f"NemoAllArrayRange2LoopTrans could not convert the "
-                f"expression '{assignment.debug_string()}' into a loop.")
+                f"ArrayRange2LoopTrans could not convert the expression:\n"
+                f"{assignment.debug_string()}\n into a loop because:\n"
+                f"{err.value}")
+        outer_loop = assignment_parent.children[assignment_position]
         if mask_ref:
             # remove mask from the rhs of the assignment
             orig_assignment = assignment_rhs.children[0].copy()
