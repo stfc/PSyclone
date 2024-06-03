@@ -2666,6 +2666,9 @@ class ACCKernelsTrans(RegionTrans):
         :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["disable_loop_check"]: whether to disable the
+            check that the supplied region contains 1 or more loops. Default
+            is False (i.e. the check is enabled).
 
         :raises NotImplementedError: if the supplied Nodes belong to
             a GOInvokeSchedule.
@@ -2674,7 +2677,7 @@ class ACCKernelsTrans(RegionTrans):
         :raises TransformationError: if the proposed region contains a call to
             an intrinsic that is not available on the accelerator.
         :raises TransformationError: if there are no Loops within the
-            proposed region.
+            proposed region and options["disable_loop_check"] is not True.
 
         '''
         # Ensure we are always working with a list of nodes, even if only
@@ -2728,11 +2731,11 @@ class ACCKernelsTrans(RegionTrans):
                         f" an OpenACC region because it is not available on "
                         f"GPU.")
 
-        if options and options.get("permit_scalar_assignment", False):
+        # Check that we have at least one loop or array range within
+        # the proposed region unless this has been disabled.
+        if options and options.get("disable_loop_check", False):
             return
 
-        # Check that we have at least one loop or array range within
-        # the proposed region
         for node in node_list:
             if (any(assign for assign in node.walk(Assignment)
                     if assign.is_array_assignment) or node.walk(Loop)):

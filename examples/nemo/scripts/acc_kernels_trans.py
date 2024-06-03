@@ -191,9 +191,14 @@ def valid_acc_kernel(node):
     routine_name = node.ancestor(NemoInvokeSchedule).invoke.name
 
     try:
-        ACC_KERN_TRANS.validate(node, options={"permit_scalar_assignment":
+        # Since we do this check on a node-by-node basis, we disable the
+        # check that the 'region' contains a loop.
+        ACC_KERN_TRANS.validate(node, options={"disable_loop_check":
                                                True})
-    except TransformationError:
+    except TransformationError as err:
+        log_msg(routine_name,
+                f"Node '{enode}' rejected by ACCKernelTrans.validate: "
+                f"{err.value}")
         return False
 
     # Allow for per-routine setting of what to exclude from within KERNELS
@@ -272,11 +277,11 @@ def valid_acc_kernel(node):
     #    if(do_this)my_array(:,:) = 1.0
     # inside a kernels region. Once we generate Fortran instead of modifying
     # the fparser2 parse tree this will become possible.
-    if isinstance(node.parent, Schedule) and \
-       isinstance(node.parent.parent, IfBlock) and \
-       "was_single_stmt" in node.parent.parent.annotations:
-        log_msg(routine_name, "Would split single-line If statement", node)
-        return False
+    #if isinstance(node.parent, Schedule) and \
+    #   isinstance(node.parent.parent, IfBlock) and \
+    #   "was_single_stmt" in node.parent.parent.annotations:
+    #    log_msg(routine_name, "Would split single-line If statement", node)
+    #    return False
 
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.
