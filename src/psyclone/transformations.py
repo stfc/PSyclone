@@ -2655,7 +2655,7 @@ class ACCKernelsTrans(RegionTrans):
 
         parent.children.insert(start_index, directive)
 
-    def validate(self, nodes, options):
+    def validate(self, nodes, options=None):
         # pylint: disable=signature-differs
         '''
         Check that we can safely enclose the supplied node or list of nodes
