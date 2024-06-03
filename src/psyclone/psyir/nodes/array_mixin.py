@@ -52,8 +52,6 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import (
     ScalarType, ArrayType, UnresolvedType, UnsupportedType, INTEGER_TYPE)
@@ -144,13 +142,13 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes.structure_reference import StructureReference
+        from psyclone.psyir.nodes.structure_accessor_mixin import (
+            StructureAccessorMixin)
         if (isinstance(expr, IntrinsicCall) and
                 expr.intrinsic == bound_operator):
             array = expr.arguments[0]
             # If its a structure, we want to compare the whole accessor
-            while (isinstance(array, (StructureReference, StructureMember))
-                         and array.member):
+            while isinstance(array, StructureAccessorMixin) and array.member:
                 array = array.member
             # This is the expected bound
             if self.is_same_array(array):
@@ -699,6 +697,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 f"index '{index2}' should be a Range node, but found "
                 f"'{type(array2.indices[index2]).__name__}'.")
 
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.assignment import Assignment
         range1 = self.indices[index]
         range2 = array2.indices[index2]
 
@@ -715,7 +715,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         n_range2 = len([x for x in array2.children[:index2]
                         if isinstance(x, Range)])
         assume_same_length = (
-            (self.ancestor(Statement) is array2.ancestor(Statement) or
+            (self.ancestor(Assignment) is array2.ancestor(Assignment) or
              self.is_same_array(array2)) and n_range1 == n_range2
         )
 

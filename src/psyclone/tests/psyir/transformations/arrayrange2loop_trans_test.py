@@ -41,17 +41,13 @@ transformation.'''
 import pytest
 
 from psyclone.psyir.nodes import (
-    Literal, BinaryOperation, Reference, Range, ArrayReference, Assignment,
-    Node, DataNode, KernelSchedule, IntrinsicCall, CodeBlock, Schedule)
-from psyclone.psyGen import Transformation
+    Literal, BinaryOperation, Range, ArrayReference, Assignment,
+    Node, DataNode, CodeBlock, Schedule)
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, DataSymbol, INTEGER_TYPE, REAL_TYPE,
-    SymbolTable, UnresolvedType)
+    ArrayType, DataSymbol, INTEGER_TYPE, UnresolvedType)
 from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
     TransformationError
-from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
-
 
 
 def test_str():
@@ -235,6 +231,62 @@ def test_apply(code, expected, tmpdir, fortran_reader, fortran_writer):
     result = fortran_writer(psyir)
     assert expected in result, f"\nExpected:\n{expected}\nBut got:\n{result}"
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
+    '''Check that the apply method inserts the correct index offsets when
+    the lhs and rhs range bounds can not be guaranteed to be the same. '''
+    psyir = fortran_reader.psyir_from_source('''
+        program test
+          use other
+          integer, dimension(10,10) :: x2
+          integer, dimension(10:20,20:30) :: y2
+
+          ! Test 1: we don't know the bounds
+          x1(:,:) = y1(:,:)
+
+          ! Test 2: We know the bounds and they are not equal
+          x2(:,:) = y2(:,:)
+
+          ! Test 3: We know the bounds and we have implicit bounds accesses
+          x2(2:4,4:6) = y2(15:17,28:30) + 1.0
+
+          ! Test 4: SoA and SoAoS
+          x(:) = struct%values(:) + struct%array(:)%value
+        end program test
+    ''')
+    trans = ArrayRange2LoopTrans()
+    for assignment in psyir.walk(Assignment):
+        trans.apply(assignment)
+
+    # When we don't know the bounds, so we must use L/UBOUND expressions
+    output_test1 = fortran_writer(psyir.walk(Assignment)[0])
+    assert ("x1(idx_1,idx) = y1(idx_1 + (LBOUND(y1, dim=1) - LBOUND(x1, "
+            "dim=1)),idx + (LBOUND(y1, dim=2) - LBOUND(x1, dim=2)))"
+            in output_test1)
+
+    # When we know the bounds and can't see they are different, so we also
+    # need the offsets
+    output_test2 = fortran_writer(psyir.walk(Assignment)[1])
+    assert ("x2(idx_3,idx_2) = y2(idx_3 + (LBOUND(y2, dim=1) - LBOUND(x2, "
+            "dim=1)),idx_2 + (LBOUND(y2, dim=2) - LBOUND(x2, dim=2)))"
+            in output_test2)
+
+    # If the bounds are implicit, the offset should also use the implicit
+    # values
+    output_test3 = fortran_writer(psyir)
+    assert ("""
+  do idx_4 = 4, 6, 1
+    do idx_5 = 2, 4, 1
+      x2(idx_5,idx_4) = y2(idx_5 + (15 - 2),idx_4 + (28 - 4)) + 1.0"""
+            in output_test3)
+
+    # SoA and SoAoS bounds are also calculated
+    output_test4 = fortran_writer(psyir.walk(Assignment)[3])
+    assert (" struct%values(idx_6 + (LBOUND(struct%values, dim=1) - "
+            "LBOUND(x, dim=1))) + struct%array(idx_6 + ("
+            "LBOUND(struct%array, dim=1) - LBOUND(x, dim=1)))%value"
+            in output_test4)
 
 
 def test_apply_calls_validate():
@@ -570,58 +622,6 @@ def test_validate_different_num_of_ranges(fortran_reader):
     trans = ArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment)
-    assert ("ArrayRange2LoopTrans does not support array  with array accessor "
+    assert ("ArrayRange2LoopTrans does not support array with array accessor "
             "with a different number ofranges in the expression, but found:"
-            in str(info.value))
-
-
-def test_validate_different_arrays_different_bounds(fortran_reader):
-    '''Check that the validate method raises an exception when the bounds of
-    the range expressions are different, or they can not be guaranteed to be
-    the same. '''
-    psyir = fortran_reader.psyir_from_source('''
-        program test
-          implicit none
-          integer, parameter :: jpi=64, jpj=32
-          real, dimension(jpi,jpj) :: x, y
-          x(:,:) = y(2:4,:) + 1.0
-        end program test
-    ''')
-    assignment = psyir.walk(Assignment)[0]
-    trans = ArrayRange2LoopTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.apply(assignment)
-    assert ("ArrayRange2LoopTrans cannot expand ranges that are not guaranteed"
-            " to have the same bounds."
-            in str(info.value))
-
-    # This takes into account the declaration bounds and symbolic expressions,
-    # the functionality is provided by ArrayMixin.same_range, so further tests
-    # are provided there.
-    psyir = fortran_reader.psyir_from_source('''
-        program test
-          implicit none
-          integer, parameter :: jpi=64, jpj=32
-          real, dimension(2:4,jpj) :: x, y
-          x(:,:) = y(2:3+1,:) + 1.0
-        end program test
-    ''')
-    assignment = psyir.walk(Assignment)[0]
-    trans = ArrayRange2LoopTrans()
-    trans.apply(assignment)
-
-    psyir = fortran_reader.psyir_from_source('''
-        program test
-          implicit none
-          real, dimension(3) :: x
-          real, dimension(0:3) :: y
-          x(:) = y(:)
-        end program test
-    ''')
-    assignment = psyir.walk(Assignment)[0]
-    trans = ArrayRange2LoopTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.apply(assignment)
-    assert ("ArrayRange2LoopTrans cannot expand ranges that are not guaranteed"
-            " to have the same bounds."
             in str(info.value))

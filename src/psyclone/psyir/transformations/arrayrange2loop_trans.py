@@ -51,12 +51,14 @@ transformation will convert unknown or unsupported types to loops.
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, Call, IntrinsicCall, Loop, Literal, Range,
-    Reference, CodeBlock, Routine, StructureReference, BinaryOperation)
+    Assignment, Call, IntrinsicCall, Loop, Literal, Range, Reference,
+    CodeBlock, Routine, BinaryOperation)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.structure_accessor_mixin import (
+    StructureAccessorMixin)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, UnresolvedType, UnsupportedType,
-    ArrayType, NoType, SymbolError)
+    SymbolError)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
@@ -116,19 +118,16 @@ class ArrayRange2LoopTrans(Transformation):
 
         # If there is any array reference without the accessor syntax,
         # we need to add it first.
-        # for reference in node.walk(Reference):
-        #     try:
-        #         Reference2ArrayRangeTrans().apply(reference)
-        #     except TransformationError:
-        #         pass
+        for reference in node.walk(Reference):
+            try:
+                Reference2ArrayRangeTrans().apply(reference)
+            except TransformationError:
+                pass
 
-        # import pdb; pdb.set_trace()
         # Start by the rightmost array range
-        # import pdb; pdb.set_trace()
         for lhs_range in reversed(node.lhs.walk(Range)):
             lhs_array = lhs_range.parent
             lhs_index = lhs_array.indices.index(lhs_range)
-            lhs_lbound = lhs_array.get_lbound_expression(lhs_index)
 
             # Create a new, unique, iteration variable for the new loop
             loop_variable_symbol = symbol_table.new_symbol(
@@ -142,7 +141,6 @@ class ArrayRange2LoopTrans(Transformation):
                 for range_to_replace in reversed(expr.walk(Range)):
                     array = range_to_replace.parent
                     index = array.indices.index(range_to_replace)
-                    lhs_array.is_same_array(array)
                     if lhs_array.same_range(lhs_index, array, index):
                         # If they iterate over the same bounds we just need a
                         # reference to the iteration index
@@ -155,8 +153,8 @@ class ArrayRange2LoopTrans(Transformation):
                         # array2(idx1 + (lbound_array2 - lbound_array1)
                         offset = BinaryOperation.create(
                                     BinaryOperation.Operator.SUB,
-                                    array.get_lbound_expression(index),
-                                    lhs_lbound.copy())
+                                    range_to_replace.start.copy(),
+                                    lhs_range.start.copy())
                         index_expr = BinaryOperation.create(
                                     BinaryOperation.Operator.ADD,
                                     Reference(loop_variable_symbol),
@@ -273,8 +271,8 @@ class ArrayRange2LoopTrans(Transformation):
                     if found != num_of_ranges:
                         raise TransformationError(LazyString(
                             lambda: f"{self.name} does not support array "
-                            f" with array accessor with a different number of"
-                            "ranges in the expression, but found:"
+                            f"with array accessor with a different number of"
+                            f"ranges in the expression, but found:"
                             f"\n{node.debug_string()}"))
 
         # Do not allow to transform expressions with CodeBlocks
@@ -348,15 +346,26 @@ class ArrayRange2LoopTrans(Transformation):
                     if reference.parent.is_inquiry:
                         continue
 
-            # We allow any references that have explicit array syntax because
-            # we can infer that they are not scalars, regarless of the type.
-            if isinstance(reference, ArrayReference):
-                continue
-            if isinstance(reference, StructureReference):
+            # In some cases we can infer that they are scalar without needing
+            # the datatype by the fact that they come from valid Fortran
+            # assignments, for instance, if the expression already has ranges:
+            # e.g. A%B(:)%C
+            # C can not be further expanded into an array because
+            # e.g. A%B(:)%C(:) is not valid Fortran
+            # Also, if we find explicit array syntax in the inner element,
+            # e.g. A%B%C(3), C doesn't have more dimentions otherwise it would
+            # cause a rank mismatch
+            inner = reference
+            has_ranges = False
+            while isinstance(inner, StructureAccessorMixin) and inner.member:
+                if any(isinstance(x, Range) for x in inner.children):
+                    has_ranges = True
+                inner = inner.member
+            if has_ranges or isinstance(inner, ArrayMixin):
                 continue
 
-            # However, if it doesn't have explicity array accessors
-            # syntax, we must be ensure that it represents a scalar.
+            # Otherwise we need the datatype to ensure that it represents a
+            # scalar.
             if not isinstance(reference.symbol, DataSymbol) or \
                     isinstance(reference.symbol.datatype, (
                         UnresolvedType, UnsupportedType)):

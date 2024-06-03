@@ -39,8 +39,6 @@
 ''' This module contains the implementation of the abstract
     ArrayOfStructuresMixin. '''
 
-from __future__ import absolute_import
-
 import abc
 
 from psyclone.core import Signature
@@ -48,16 +46,16 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.structure_accessor_mixin import (
+    StructureAccessorMixin)
 from psyclone.errors import InternalError
 
 
-class ArrayOfStructuresMixin(ArrayMixin, metaclass=abc.ABCMeta):
+class ArrayOfStructuresMixin(ArrayMixin,  StructureAccessorMixin,
+                             metaclass=abc.ABCMeta):
     '''
-    Abstract class used to extend the ArrayMixin class with functionality
-    common to Nodes that represent accesses to arrays of structures. The
-    primary difference is that the first child of such Nodes must be an
-    instance of Member. Subsequent children then represent the array-index
-    expressions.
+    Abstract class that combines the ArrayMixin and the StructureAccessorMixin.
+    As such, it has a member (as child 0) and indices (starting from child 1)
 
     '''
     @staticmethod
