@@ -63,7 +63,7 @@ from psyclone.psyir.nodes import (
     OMPDeclareTargetDirective, OMPDirective, OMPMasterDirective,
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
-    Return, Routine, Schedule, Statement)
+    Return, Routine, Schedule, Statement, WhileLoop)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
@@ -2618,7 +2618,7 @@ class ACCKernelsTrans(RegionTrans):
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
-                           psyGen.HaloExchange)
+                           psyGen.HaloExchange, WhileLoop)
 
     def apply(self, node, options=None):
         '''

@@ -62,11 +62,11 @@ from utils import add_profiling
 from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
-    ArrayReference, Assignment, BinaryOperation, Loop, WhileLoop, \
-    Literal, Return, Call, ACCLoopDirective
-from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
-                                           ACCUpdateTrans
+from psyclone.psyir.nodes import (
+    IfBlock, Schedule, ArrayReference, Assignment, BinaryOperation, Loop,
+    Literal, Call, ACCLoopDirective)
+from psyclone.psyir.transformations import (TransformationError, ProfileTrans,
+                                            ACCUpdateTrans)
 from psyclone.transformations import ACCEnterDataTrans
 
 # Set up some loop_type inference rules in order to reference useful domain
@@ -190,6 +190,11 @@ def valid_acc_kernel(node):
     # The Fortran routine which our parent Invoke represents
     routine_name = node.ancestor(NemoInvokeSchedule).invoke.name
 
+    try:
+        ACC_KERN_TRANS.validate(node)
+    except TransformationError:
+        return False
+
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
     # in another (with the Nvidia compiler).
@@ -197,14 +202,13 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (CodeBlock, Return, Call, IfBlock, Loop, WhileLoop)
+    excluded_types = (Call, IfBlock, Loop)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
-        if isinstance(enode, Call) and enode.is_available_on_device():
-            continue
-
-        if isinstance(enode, (CodeBlock, Return, Call, WhileLoop)):
+        if isinstance(enode, Call):
+            if enode.is_available_on_device():
+                continue
             log_msg(routine_name,
                     f"region contains {type(enode).__name__}", enode)
             return False
