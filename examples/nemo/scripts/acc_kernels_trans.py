@@ -191,7 +191,8 @@ def valid_acc_kernel(node):
     routine_name = node.ancestor(NemoInvokeSchedule).invoke.name
 
     try:
-        ACC_KERN_TRANS.validate(node)
+        ACC_KERN_TRANS.validate(node, options={"permit_scalar_assignment":
+                                               True})
     except TransformationError:
         return False
 

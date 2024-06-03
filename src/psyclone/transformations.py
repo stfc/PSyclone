@@ -2728,6 +2728,9 @@ class ACCKernelsTrans(RegionTrans):
                         f" an OpenACC region because it is not available on "
                         f"GPU.")
 
+        if options and options.get("permit_scalar_assignment", False):
+            return
+
         # Check that we have at least one loop or array range within
         # the proposed region
         for node in node_list:
