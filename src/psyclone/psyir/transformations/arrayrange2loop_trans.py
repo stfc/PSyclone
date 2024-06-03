@@ -325,7 +325,7 @@ class ArrayRange2LoopTrans(Transformation):
                     continue  # Inquiry intrinsic calls are fine
                 name = call.intrinsic.name
             else:
-                name = call.symbol.name
+                name = call.routine.symbol.name
             if not call.is_elemental:
                 message = (f"{self.name} does not accept calls which are not"
                            f" guaranteed to be elemental, but found:"
