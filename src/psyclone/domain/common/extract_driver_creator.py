@@ -46,13 +46,12 @@ from psyclone.domain.common import BaseDriverCreator
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Assignment, FileContainer,
-                                  IntrinsicCall, Literal, Reference, Routine,
-                                  StructureReference)
-from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE, IntrinsicSymbol,
+                                  IntrinsicCall, Literal, Reference, Routine)
+from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
-                                    REAL8_TYPE, RoutineSymbol, ScalarType)
+                                    REAL8_TYPE, ScalarType)
 from psyclone.psyir.transformations import ExtractTrans
 
 # TODO 1382: once we support LFRic, make this into a proper base class
@@ -210,72 +209,6 @@ class ExtractDriverCreator(BaseDriverCreator):
         # We need to create a new, flattened Reference and replace the
         # StructureReference with it:
         old_reference.replace_with(Reference(symbol))
-
-    # -------------------------------------------------------------------------
-    def add_all_kernel_symbols(self, sched, symbol_table, read_write_info,
-                               writer=FortranWriter()):
-        '''This function adds all symbols used in `sched` to the symbol table.
-        It uses GOcean-specific knowledge to declare fields and flatten their
-        name.
-
-        :param sched: the schedule that will be called by this driver program.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param symbol_table: the symbol table to which to add all found
-            symbols.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param writer: a Fortran writer used when flattening a
-            `StructureReference`.
-        :type writer: :py:class:`psyclone.psyir.backend.fortan.FortranWriter`
-
-        :raises InternalError: if a non-derived type has an unknown
-            intrinsic type.
-        :raises InternalError: if an unknown derived type is
-            encountered. At this stage only the dl_esm_inf `field` type
-            is supported.
-
-        '''
-        all_references = sched.walk(Reference)
-        # First we add all non-structure names to the symbol table. This way
-        # the flattened name can be ensured not to clash with a variable name
-        # used in the program.
-        for reference in all_references:
-            if isinstance(reference.symbol, (RoutineSymbol, IntrinsicSymbol)):
-                continue
-            # For now ignore structure names, which require flattening
-            if isinstance(reference, StructureReference):
-                continue
-            old_symbol = reference.symbol
-            if old_symbol.name in symbol_table:
-                # The symbol has already been declared. We then still
-                # replace the old symbol with the new symbol to have all
-                # symbols consistent:
-                reference.symbol = symbol_table.lookup(old_symbol.name)
-                continue
-
-            # We found a new symbol, so we create a new symbol in the new
-            # symbol table here. GOcean does not support any arbitrary array
-            # as kernel argument (only fields and grid properties), so we
-            # only need to declare scalars here.
-            try:
-                new_type = self._default_types[old_symbol.datatype.intrinsic]
-            except KeyError as err:
-                fortran_string = writer(reference)
-                valid = list(self._default_types.keys())
-                # Sort to make sure we get a reproducible order for testing
-                valid.sort()
-                raise InternalError(
-                    f"Error when constructing driver for '{sched.name}': "
-                    f"Unknown intrinsic data type "
-                    f"'{old_symbol.datatype.intrinsic}' in reference "
-                    f"'{fortran_string}'. Valid types are '{valid}'.") from err
-            new_symbol = symbol_table.new_symbol(root_name=reference.name,
-                                                 tag=reference.name,
-                                                 symbol_type=DataSymbol,
-                                                 datatype=new_type)
-            reference.symbol = new_symbol
-
-        super().add_all_kernel_symbols(sched, symbol_table, read_write_info,
-                                       writer)
 
     # -------------------------------------------------------------------------
     @staticmethod

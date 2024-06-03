@@ -46,7 +46,7 @@ from psyclone.psyir.symbols import (CHARACTER_TYPE, ContainerSymbol,
                                     DataSymbol,
                                     ImportInterface, INTEGER_TYPE, NoType,
                                     RoutineSymbol,
-                                    UnresolvedType)
+                                    UnresolvedType, UnsupportedFortranType)
 
 
 class BaseDriverCreator:
@@ -212,10 +212,65 @@ class BaseDriverCreator:
     def add_all_kernel_symbols(self, sched, symbol_table, read_write_info,
                                writer=FortranWriter()):
 
-        '''Partial implementation of add_all_kernel_symbols.
-        TODO!!!
+        '''This function adds all symbols used in ``sched`` to the symbol
+        table. It uses LFRic-specific knowledge to declare fields and flatten
+        their name.
+
+        :param sched: the schedule that will be called by this driver program.
+        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
+        :param symbol_table: the symbol table to which to add all found
+            symbols.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param read_write_info: information about all input and output
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
+
         '''
+        # pylint: disable=too-many-branches, too-many-locals
         all_references = sched.walk(Reference)
+
+        # First we add all non-structure names to the symbol table. This way
+        # the flattened name can be ensured not to clash with a variable name
+        # used in the program.
+        for reference in all_references:
+            # Skip routine references
+            if (isinstance(reference.parent, Call) and
+                    reference.parent.routine is reference):
+                continue
+            # For now ignore structure names, which require flattening (which
+            # could introduce duplicated symbols, so they need to be processed
+            # after all existing symbols have been added.
+            if isinstance(reference, StructureReference):
+                continue
+
+            old_symbol = reference.symbol
+            if old_symbol.name in symbol_table:
+                # The symbol has already been declared. We then still
+                # replace the old symbol with the new symbol to have all
+                # symbols consistent (otherwise if we would for whatever
+                # reason modify a symbol in the driver's symbol table, only
+                # some references would use the new values, the others
+                # would be the symbol from the original kernel for which
+                # the driver is being created).
+                reference.symbol = symbol_table.lookup(old_symbol.name)
+                continue
+
+            # Now we have a reference with a symbol that is in the old symbol
+            # table (i.e. not in the one of the driver). Create a new symbol
+            # (with the same name) in the driver's symbol table), and use
+            # it in the reference.
+            datatype = old_symbol.datatype
+            if isinstance(datatype, UnsupportedFortranType):
+                # Currently fields are of UnsupportedFortranType because they
+                # are pointers in the PSy layer. Here we just want the base
+                # type (i.e. not a pointer).
+                datatype = old_symbol.datatype.partial_datatype
+
+            new_symbol = symbol_table.new_symbol(root_name=reference.name,
+                                                 tag=reference.name,
+                                                 symbol_type=DataSymbol,
+                                                 datatype=datatype)
+            reference.symbol = new_symbol
 
         # Now handle all derived types. The name of a derived type is
         # 'flattened', i.e. all '%' are replaced with '_', and this is then

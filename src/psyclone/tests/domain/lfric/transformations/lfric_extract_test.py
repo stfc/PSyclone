@@ -129,8 +129,8 @@ def test_distmem_error(monkeypatch):
     # Try applying Extract transformation
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(schedule.children[3])
-    assert ("Error in LFRicExtractTrans: Distributed memory is "
-            "not supported.") in str(excinfo.value)
+    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
+            "LFRicExtractTrans transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing HaloExchange
     # We have to disable distributed memory, otherwise an earlier test

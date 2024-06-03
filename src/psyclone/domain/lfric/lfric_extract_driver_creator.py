@@ -52,7 +52,7 @@ from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
+from psyclone.psyir.nodes import (Assignment, FileContainer,
                                   IntrinsicCall, Literal, Reference,
                                   Routine, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
@@ -281,69 +281,6 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         old_reference.replace_with(new_ref)
 
     # -------------------------------------------------------------------------
-    def _add_all_kernel_symbols(self, sched, symbol_table, read_write_info):
-        '''This function adds all symbols used in ``sched`` to the symbol
-        table. It uses LFRic-specific knowledge to declare fields and flatten
-        their name.
-
-        :param sched: the schedule that will be called by this driver program.
-        :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param symbol_table: the symbol table to which to add all found
-            symbols.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param read_write_info: information about all input and output
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-
-        '''
-        # pylint: disable=too-many-locals, too-many-branches
-        all_references = sched.walk(Reference)
-
-        # First we add all non-structure names to the symbol table. This way
-        # the flattened name can be ensured not to clash with a variable name
-        # used in the program.
-        for reference in all_references:
-            # Skip routine references
-            if (isinstance(reference.parent, Call) and
-                    reference.parent.routine is reference):
-                continue
-            # For now ignore structure names, which require flattening (which
-            # could introduce duplicated symbols, so they need to be processed
-            # after all existing symbols have been added.
-            if isinstance(reference, StructureReference):
-                continue
-            old_symbol = reference.symbol
-            if old_symbol.name in symbol_table:
-                # The symbol has already been declared. We then still
-                # replace the old symbol with the new symbol to have all
-                # symbols consistent (otherwise if we would for whatever
-                # reason modify a symbol in the driver's symbol table, only
-                # some references would use the new values, the others
-                # would be the symbol from the original kernel for which
-                # the driver is being created).
-                reference.symbol = symbol_table.lookup(old_symbol.name)
-                continue
-
-            # Now we have a reference with a symbol that is in the old symbol
-            # table (i.e. not in the one of the driver). Create a new symbol
-            # (with the same name) in the driver's symbol table), and use
-            # it in the reference.
-            datatype = old_symbol.datatype
-            if isinstance(datatype, UnsupportedFortranType):
-                # Currently fields are of UnsupportedFortranType because they
-                # are pointers in the PSy layer. Here we just want the base
-                # type (i.e. not a pointer).
-                datatype = old_symbol.datatype.partial_datatype
-
-            new_symbol = symbol_table.new_symbol(root_name=reference.name,
-                                                 tag=reference.name,
-                                                 symbol_type=DataSymbol,
-                                                 datatype=datatype)
-            reference.symbol = new_symbol
-
-        super().add_all_kernel_symbols(sched, symbol_table, read_write_info)
-
-    # -------------------------------------------------------------------------
     @staticmethod
     def _create_output_var_code(name, program, is_input, read_var,
                                 postfix, index=None, module_name=None):
@@ -506,7 +443,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
-            # in the symbol table (in _add_all_kernel_symbols).
+            # in the symbol table (in add_all_kernel_symbols).
             sig_str = self._flatten_signature(signature)
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
@@ -565,7 +502,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
-            # in the symbol table (in _add_all_kernel_symbols).
+            # in the symbol table (in add_all_kernel_symbols).
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
                 sym_tab = mod_info.get_psyir().symbol_table
@@ -827,8 +764,8 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         # statements.
         self.import_modules(program.scope.symbol_table, schedule_copy)
         self._add_precision_symbols(program.scope.symbol_table)
-        self._add_all_kernel_symbols(schedule_copy, program_symbol_table,
-                                     read_write_info)
+        self.add_all_kernel_symbols(schedule_copy, program_symbol_table,
+                                    read_write_info)
 
         root_name = prefix + "psy_data"
         psy_data = program_symbol_table.new_symbol(root_name=root_name,
