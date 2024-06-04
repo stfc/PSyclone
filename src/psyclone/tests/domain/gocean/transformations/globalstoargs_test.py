@@ -222,8 +222,8 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     fwriter = FortranWriter()
     kernel_code = fwriter(kernel.get_kernel_schedule())
 
-    assert "subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)" \
-        in kernel_code
+    assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
+            "magic)" in kernel_code)
     assert "integer, intent(in) :: rdt" in kernel_code
 
 
@@ -278,13 +278,15 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
     # The kernels are checked before the psy.gen, so they don't include the
     # modified suffix.
     expected = [
-        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)",
+        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
+         "magic)",
          "real, intent(inout) :: rdt"],
         ["subroutine kernel_with_use2_code(ji, jj, istep, ssha, tmask, cbfr,"
          " rdt)",
          "real, intent(inout) :: cbfr\n  real, intent(inout) :: rdt"],
-        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)",
-         "real, intent(inout) :: rdt"]]
+        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
+         "magic)",
+         "real, intent(inout) :: rdt\n  real, intent(inout) :: magic"]]
 
     # Monkeypatch the resolve_type() methods to avoid searching and
     # importing of module during this test.
@@ -302,8 +304,8 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
 
         # Check the kernel code is generated as expected
         kernel_code = fwriter(kschedule)
-        assert expected[num][0] in kernel_code
-        assert expected[num][1] in kernel_code
+        for part in expected[num]:
+            assert part in kernel_code
 
     generated_code = str(psy.gen)
 
@@ -318,12 +320,12 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
             in generated_code)
 
     # Check the kernel calls have the imported symbol passed as last argument
-    assert "CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, " \
-           "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "CALL kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, " \
-           "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "CALL kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, " \
-           "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
+    assert ("CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, "
+            "cu_fld%grid%tmask, rdt, magic)" in generated_code)
+    assert ("CALL kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, "
+            "cu_fld%grid%tmask, rdt, magic)" in generated_code)
+    assert ("CALL kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, "
+            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
