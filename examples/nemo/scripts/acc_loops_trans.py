@@ -77,17 +77,9 @@ def trans(psy):
         # S-0074-Illegal number or type of arguments to ubound [and lbound]
         # - keyword argument array; and  NVFORTRAN-S-0082-Illegal substring
         # expression for variable filtide
-        # if invoke.name in ("bdytide_init", "sbc_cpl_init"):
-        #     print("Skipping", invoke.name)
-        #     continue
-
-        # TODO #1841: These files have a bug in the array-range-to-loop
-        # transformation. One leads to the following compiler error
-        # NVFORTRAN-S-0083-Vector expression used where scalar expression
-        # required, the other to an incorrect result.
-        # if invoke.name in ("trc_oce_rgb", ):
-        #     print("Skipping", invoke.name)
-        #     continue
+        if invoke.name in ("bdytide_init", "sbc_cpl_init"):
+            print("Skipping", invoke.name)
+            continue
 
         # This are functions with scalar bodies, we don't want to parallelise
         # them, but we could:

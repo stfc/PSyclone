@@ -609,7 +609,7 @@ def test_get_effective_shape(fortran_reader):
     assert shape[1].debug_string() == "5 - 2 + 1"
     # An indirect array slice can only be 1D.
     child_idx += 1
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(NotImplementedError) as err:
         _ = routine.children[child_idx].lhs._get_effective_shape()
     assert ("array defining a slice of a dimension of another array must be "
             "1D but 'indices' used to index into 'b' has 2 dimensions" in

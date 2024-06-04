@@ -615,7 +615,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     # array, e.g. `a(b(1:4))`.
                     indirect_array_shape = dtype.shape
                     if len(indirect_array_shape) > 1:
-                        raise InternalError(
+                        raise NotImplementedError(
                             f"An array defining a slice of a dimension of "
                             f"another array must be 1D but '{idx_expr.name}' "
                             f"used to index into '{self.name}' has "
