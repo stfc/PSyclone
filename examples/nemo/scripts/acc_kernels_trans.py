@@ -197,8 +197,8 @@ def valid_acc_kernel(node):
                                                True})
     except TransformationError as err:
         log_msg(routine_name,
-                f"Node '{node}' rejected by ACCKernelTrans.validate: "
-                f"{err.value}")
+                f"Node rejected by ACCKernelTrans.validate: "
+                f"{err.value}", node)
         return False
 
     # Allow for per-routine setting of what to exclude from within KERNELS
