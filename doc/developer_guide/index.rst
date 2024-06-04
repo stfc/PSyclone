@@ -48,6 +48,7 @@
    psyir_symbols
    psyir_backends
    parsing
+   module_manager
    APIs
    modules
    dependency

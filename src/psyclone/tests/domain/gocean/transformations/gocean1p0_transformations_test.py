@@ -45,6 +45,7 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
@@ -54,7 +55,7 @@ from psyclone.transformations import ACCKernelsTrans, ACCRoutineTrans, \
     OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.gocean_build import GOceanBuild
-from psyclone.tests.utilities import count_lines, get_invoke
+from psyclone.tests.utilities import count_lines, get_invoke, get_base_path
 
 # The version of the PSyclone API that the tests in this file
 # exercise
@@ -1472,6 +1473,7 @@ def test_acc_kernels_error():
             "GOcean InvokeSchedules" in str(err.value))
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_accroutinetrans_module_use():
     ''' Check that ACCRoutineTrans rejects a kernel if it contains a module
     use statement. '''
@@ -1482,9 +1484,21 @@ def test_accroutinetrans_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("accesses the symbol 'rdt: Symbol<Import(container='model_mod')>' "
-            "which is imported. If this symbol "
+    assert ("accesses the symbol 'rdt: Symbol<Import(container='model_mod')>'"
+            " which is imported. If this symbol "
             "represents data then it must first" in str(err.value))
+    # Tell the ModuleManager where to find the module that is being USED by
+    # the kernel.
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(get_base_path("gocean"))
+    # Now that we can resolve the symbols, we know that `rdt` is a parameter
+    # (and is not a problem) but that `magic` is a variable.
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kernels[0])
+    assert ("accesses the symbol 'magic: DataSymbol<Scalar<REAL, go_wp: "
+            "DataSymbol<Scalar<INTEGER, UNDEFINED>, Unresolved, "
+            "constant=True>>, Import(container='model_mod')>' which is "
+            "imported" in str(err.value))
 
 
 def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):

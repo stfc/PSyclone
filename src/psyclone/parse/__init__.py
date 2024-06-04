@@ -36,11 +36,13 @@
 '''This directory contains classes related to parsing Fortran.
 '''
 
+from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
 from psyclone.parse.module_manager import ModuleManager
 
 # For AutoAPI documentation generation.
 __all__ = [
+        'FileInfo',
         'ModuleInfo',
         'ModuleInfoError',
         'ModuleManager'
