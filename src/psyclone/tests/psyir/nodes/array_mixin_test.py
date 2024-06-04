@@ -53,6 +53,41 @@ _ONE = Literal("1", INTEGER_TYPE)
 _TWO = Literal("2", INTEGER_TYPE)
 
 
+def test_index_of(fortran_reader):
+    ''' Test the 'index_of' method of ArrayMixin '''
+    code = (
+        "subroutine test()\n"
+        "integer :: a(10,10,10)\n"
+        "a(1,1,1) = 1\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    literals = psyir.walk(Literal)
+    array = psyir.walk(ArrayMixin)[0]
+    assert array.index_of(literals[0]) == 0
+    assert array.index_of(literals[1]) == 1
+    assert array.index_of(literals[2]) == 2
+    with pytest.raises(ValueError) as info:
+        array.index_of(literals[3])
+    assert ("Literal[value:'1', Scalar<INTEGER, UNDEFINED>]' is not a children"
+            " of 'ArrayReference[name:'a']" in str(info.value))
+
+    code = (
+        "subroutine test()\n"
+        "  use other\n"
+        "  a%b%c(1,1,1) = 1\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    literals = psyir.walk(Literal)
+    array = psyir.walk(ArrayMixin)[0]
+    assert array.index_of(literals[0]) == 0
+    assert array.index_of(literals[1]) == 1
+    assert array.index_of(literals[2]) == 2
+    with pytest.raises(ValueError) as info:
+        array.index_of(literals[3])
+    assert ("Literal[value:'1', Scalar<INTEGER, UNDEFINED>]' is not a children"
+            " of 'ArrayMember[name:'c']" in str(info.value))
+
+
 # _is_bound_op
 
 def test_is_bound_op():
@@ -296,24 +331,27 @@ def test_is_same_array(fortran_reader):
             a(4) = 3
             a(3) = struct%val(3,3)%array(3)
             struct%val(2,2)%array(3) = struct%val(3,3)%array
-            a = 3
+            a = struct%val2(3,3)%array(3)
         end subroutine
     """)
 
     assignments = psyir.walk(Assignment)
-    # Check the array itself is the same, not the accessed index
+    # Check that the array itself is the same, not the accessed index
     assert assignments[0].lhs.is_same_array(assignments[1].lhs)
-    # Also works when comparion with a plain reference of the array
+    # Also works when comparing with a plain reference of the array
     assert assignments[0].lhs.is_same_array(assignments[3].lhs)
     # Also works with ArrayMembers and plain Members which are an array
     assert assignments[1].rhs.member.member.is_same_array(
                                 assignments[2].rhs.member.member)
-    # But not if along the way to the array they use different indices
+    # Returns false if along the way to the array they use different indices
     assert not assignments[1].rhs.member.member.is_same_array(
                                 assignments[2].lhs.member.member)
-    # Or is a different member of the structure
+    # Or is a different depth of the structure
     assert not assignments[1].rhs.member.member.is_same_array(
                                 assignments[2].rhs.member)
+    # Or is a different component of the structure
+    assert not assignments[1].rhs.member.member.is_same_array(
+                                assignments[3].rhs.member)
     # Also it can compare Arrays against SoA
     assert not assignments[1].lhs.is_same_array(assignments[1].rhs.member)
     assert not assignments[1].rhs.member.is_same_array(assignments[1].lhs)
@@ -381,6 +419,13 @@ def test_get_bound_expression():
     assert ubnd.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     assert ubnd.arguments[0].symbol is dtsym
     assert ubnd.arguments[1] == Literal("2", INTEGER_TYPE)
+
+    # If the symbol its not even a DataSymbol, it will be considered as it
+    # is one with an UnresolvedType
+    dtsym = Symbol("oops")
+    dtref._symbol = dtsym
+    ubnd = dtref._get_bound_expression(1, "upper")
+    assert isinstance(ubnd, IntrinsicCall)
 
 
 @pytest.mark.parametrize("extent", [ArrayType.Extent.DEFERRED,
@@ -773,16 +818,23 @@ def test_same_range(fortran_reader):
     # comparisons should also work symbolically
     code = '''
     subroutine test()
-        real, dimension(1:4, 1:4, 2:5) :: A
+        real, dimension(1:4, 1:4, 2:5) :: A, C
         real, dimension(4,   4,   4) :: B
         A(:,:,:) = B(:,:,:)
+        C(:,:4,:4) = 0
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
     array1, array2 = psyir.walk(Assignment)[0].children
+    array3, _ = psyir.walk(Assignment)[1].children
     assert array1.same_range(0, array2, 0) is True
     assert array1.same_range(1, array2, 1) is True
     assert array1.same_range(2, array2, 2) is False
+    # If the type in known, ranges in different assignments can also be
+    # compared
+    assert array1.same_range(0, array3, 0) is True
+    assert array1.same_range(1, array3, 1) is True
+    assert array1.same_range(2, array3, 2) is False
 
     # If the values are implicit, and the declaration uses ATTRIBUTE or
     # DEFERRED shape, we return the appropriate results
@@ -792,15 +844,19 @@ def test_same_range(fortran_reader):
         real, dimension(:) :: arg2
         real, dimension(:), allocatable :: alloc1
         real, dimension(:), allocatable :: alloc2
+        real, dimension(:) :: known
         arg1(:) = arg2(:)
         alloc1(:) = alloc2(:)
+        known(:) = alloc(:)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
     array1, array2 = psyir.walk(Assignment)[0].children
     array3, array4 = psyir.walk(Assignment)[1].children
+    array5, array6 = psyir.walk(Assignment)[2].children
     assert array1.same_range(0, array2, 0) is True
     assert array3.same_range(0, array4, 0) is False
+    assert array5.same_range(0, array6, 0) is False
 
     # This functionality also works with SoA and SoAoS
     code = '''
@@ -811,14 +867,18 @@ def test_same_range(fortran_reader):
             integer, dimension(4, 1:4, 2:5) :: field2
         end type
         type(mytype) :: mystruct
+        type(mytype) :: mystruct2
 
         mystruct%field(2:4,:,:)%value = mystruct%field(1+1:2+2, :, :)
+        mystruct%field(2:4,:,:)%value = mystruct2%field(1+1:2+2, :, :)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
-    array1, array2 = psyir.walk(ArrayMixin)
+    array1, array2, array3, array4 = psyir.walk(ArrayMixin)
     assert array1.same_range(0, array2, 0) is True
-    # But we can not get the component type shape easily yet, so for now this
+    assert array1.same_range(1, array2, 1) is True
+    assert array1.same_range(2, array2, 2) is True
+    # We can not get the component type shape easily yet, so for now this
     # is more conservative that regular arrays, but could be improved.
-    assert array1.same_range(1, array2, 1) is False
-    assert array1.same_range(2, array2, 2) is False
+    assert array3.same_range(1, array4, 1) is False
+    assert array3.same_range(2, array4, 2) is False

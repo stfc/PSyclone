@@ -94,6 +94,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         because that would use the equality operator, but sibiling indices may
         be equal and provide unexpected results.
 
+        :param node: the node to get the index of
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :returns: the index of the given node in the array.
         :rtype: int
 
@@ -101,7 +103,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         if node.parent is self:
             return node.position
-        raise ValueError("'{child}' is not a children of '{self}'")
+        raise ValueError(f"'{node}' is not a children of '{self}'")
 
     def get_signature_and_indices(self):
         '''
@@ -752,41 +754,36 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # Try to get the ranges start values
         range1_start = None
         range2_start = None
-        if assume_same_length:
-            # If we have a implicit lower bound, e.g. a(:) = b(:)
-            # we need to prove that they have the same lower bound value on the
-            # declaration. For example
-            #   integer, dimension(1:3) :: a
-            #   integer, dimension(3:5) :: b
-            # would make it "not equal".
-            if self.is_lower_bound(index):
-                if not array1_type:
-                    # If we don't have type we can still prove the same range
-                    # if the other also uses a lbound expression
-                    if (self.is_same_array(array2) and
-                            array2.is_lower_bound(index2)):
-                        return True
-                    return False
-                if array1_type.shape[index] == ArrayType.Extent.DEFERRED:
-                    return False
-                if array1_type.shape[index] == ArrayType.Extent.ATTRIBUTE:
-                    range1_start = Literal("1", INTEGER_TYPE)
-                else:
-                    range1_start = array1_type.shape[index].lower
-
-            if array2.is_lower_bound(index2):
-                if not array2_type:
-                    return False
-                if array2_type.shape[index2] == ArrayType.Extent.DEFERRED:
-                    return False
-                if array2_type.shape[index2] == ArrayType.Extent.ATTRIBUTE:
-                    range2_start = Literal("1", INTEGER_TYPE)
-                else:
-                    range2_start = array2_type.shape[index2].lower
-        else:
-            # Otherwise we can only guarantee it if they are both explicit
-            if self.is_lower_bound(index) or array2.is_lower_bound(index2):
+        # If we have a implicit lower bound, e.g. a(:) = b(:)
+        # we need to prove that they have the same lower bound value on the
+        # declaration. For example
+        #   integer, dimension(1:3) :: a
+        #   integer, dimension(3:5) :: b
+        # would make it "not equal".
+        if self.is_lower_bound(index):
+            if not array1_type:
+                # If we don't have type we can still prove the same range
+                # if the other is the same array
+                if (self.is_same_array(array2) and
+                        array2.is_lower_bound(index2)):
+                    return True
                 return False
+            if array1_type.shape[index] == ArrayType.Extent.DEFERRED:
+                return False
+            if array1_type.shape[index] == ArrayType.Extent.ATTRIBUTE:
+                range1_start = Literal("1", INTEGER_TYPE)
+            else:
+                range1_start = array1_type.shape[index].lower
+
+        if array2.is_lower_bound(index2):
+            if not array2_type:
+                return False
+            if array2_type.shape[index2] == ArrayType.Extent.DEFERRED:
+                return False
+            if array2_type.shape[index2] == ArrayType.Extent.ATTRIBUTE:
+                range2_start = Literal("1", INTEGER_TYPE)
+            else:
+                range2_start = array2_type.shape[index2].lower
 
         # If the previous block didn't populate the start value, it's explicit
         if not range1_start:

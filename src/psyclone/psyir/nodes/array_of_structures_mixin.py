@@ -75,7 +75,7 @@ class ArrayOfStructuresMixin(ArrayMixin,  StructureAccessorMixin,
         # All subsequent children must be array-index expressions
         return isinstance(child, (DataNode, Range))
 
-    def index_of(self, child):
+    def index_of(self, node):
         '''
         If the given node is one of the indices expressions of the array,
         it returns the dimension of the array that it belongs to. Note that
@@ -84,14 +84,16 @@ class ArrayOfStructuresMixin(ArrayMixin,  StructureAccessorMixin,
         because that would use the equality operator, but sibiling indices may
         be equal and provide unexpected results.
 
+        :param node: the node to get the index of
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
         :returns: the index of the given node in the array.
         :rtype: int
 
         :raises ValueError: if node is not an index of the array.
         '''
-        if child.parent is self:
-            return child.position - 1  # -1 to account for the member child
-        raise ValueError("'{child}' is not a children of '{self}'")
+        if node.parent is self:
+            return node.position - 1  # -1 to account for the member child
+        raise ValueError(f"'{node}' is not a child of '{self}'")
 
     @property
     def indices(self):
