@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
-'''A transformation script that seeks to apply OpenACC DATA and KERNELS
-directives to NEMO style code. In order to use it you must first install
-PSyclone. See README.md in the top-level directory.
+'''A transformation script that seeks to apply OpenACC KERNELS and optionally,
+OpenACC DATA directives to NEMO style code. In order to use it you must first
+install PSyclone. See README.md in the top-level directory.
 
 Once you have psyclone installed, this may be used by doing:
 
@@ -271,17 +271,6 @@ def valid_acc_kernel(node):
                                     "Loop over levels contains several "
                                     "other loops", enode)
                             return False
-
-    # For now we don't support putting *just* the implicit loop assignment in
-    # things like:
-    #    if(do_this)my_array(:,:) = 1.0
-    # inside a kernels region. Once we generate Fortran instead of modifying
-    # the fparser2 parse tree this will become possible.
-    # if isinstance(node.parent, Schedule) and \
-    #    isinstance(node.parent.parent, IfBlock) and \
-    #    "was_single_stmt" in node.parent.parent.annotations:
-    #     log_msg(routine_name, "Would split single-line If statement", node)
-    #     return False
 
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.

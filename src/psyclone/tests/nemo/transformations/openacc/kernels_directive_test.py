@@ -100,7 +100,7 @@ def test_no_kernels_error(parser):
 
 def test_no_loops(parser):
     ''' Check that the transformation refuses to generate a kernels region
-    if it contains no loops. '''
+    if it contains no loops and that this check may also be disabled. '''
     reader = FortranStringReader("program no_loop\n"
                                  "integer :: jpk\n"
                                  "jpk = 30\n"
@@ -110,9 +110,11 @@ def test_no_loops(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
-        acc_trans.apply(schedule.children[0:1], {"default_present": True})
+        acc_trans.validate(schedule.children[0:1])
     assert ("must enclose at least one loop or array range but none were "
             "found" in str(err.value))
+    # But we can disable this check.
+    acc_trans.validate(schedule[0:1], options={"disable_loop_check": True})
 
 
 def test_implicit_loop(parser):
