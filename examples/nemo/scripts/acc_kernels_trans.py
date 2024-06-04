@@ -63,7 +63,7 @@ from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
-    IfBlock, Schedule, ArrayReference, Assignment, BinaryOperation, Loop,
+    IfBlock, ArrayReference, Assignment, BinaryOperation, Loop,
     Literal, Call, ACCLoopDirective)
 from psyclone.psyir.transformations import (TransformationError, ProfileTrans,
                                             ACCUpdateTrans)
@@ -197,7 +197,7 @@ def valid_acc_kernel(node):
                                                True})
     except TransformationError as err:
         log_msg(routine_name,
-                f"Node '{enode}' rejected by ACCKernelTrans.validate: "
+                f"Node '{node}' rejected by ACCKernelTrans.validate: "
                 f"{err.value}")
         return False
 
@@ -277,11 +277,11 @@ def valid_acc_kernel(node):
     #    if(do_this)my_array(:,:) = 1.0
     # inside a kernels region. Once we generate Fortran instead of modifying
     # the fparser2 parse tree this will become possible.
-    #if isinstance(node.parent, Schedule) and \
-    #   isinstance(node.parent.parent, IfBlock) and \
-    #   "was_single_stmt" in node.parent.parent.annotations:
-    #    log_msg(routine_name, "Would split single-line If statement", node)
-    #    return False
+    # if isinstance(node.parent, Schedule) and \
+    #    isinstance(node.parent.parent, IfBlock) and \
+    #    "was_single_stmt" in node.parent.parent.annotations:
+    #     log_msg(routine_name, "Would split single-line If statement", node)
+    #     return False
 
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.
