@@ -267,8 +267,8 @@ def test_get_routine_recurse_named(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     container = psyir.walk(Container)[1]
     result = container.get_routine_psyir("sub")
-    assert isinstance(result[0], Routine)
-    assert result[0].name == "sub"
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
 
 
 def test_get_routine_recurse_wildcard(fortran_reader):
@@ -299,8 +299,8 @@ def test_get_routine_recurse_wildcard(fortran_reader):
     # Repeat but include wildcard imports.
     result = container.get_routine_psyir(call_node.routine.name,
                                          check_wildcard_imports=True)
-    assert isinstance(result[0], Routine)
-    assert result[0].name == "sub"
+    assert isinstance(result, Routine)
+    assert result.name == "sub"
     # Test when we follow an import chain but ultimately fail to find
     # a Container along the way. In this case, we have no source for
     # module 'inline_mod3'.

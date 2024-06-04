@@ -500,9 +500,11 @@ class Call(Statement, DataNode):
                         except SymbolError:
                             containers_not_found.append(container_symbol.name)
                             continue
-                        routine = container.get_routine_psyir(rsym.name)
-                        if routine:
-                            return routine
+                        routines = []
+                        for name in container.resolve_routine(rsym.name):
+                            routines.append(container.get_routine_psyir(name))
+                        if routines:
+                            return routines
                 current_table = current_table.parent_symbol_table()
             if not wildcard_names:
                 wc_text = "there are no wildcard imports"
@@ -573,8 +575,10 @@ class Call(Statement, DataNode):
                 f"Cannot currently module inline such a routine.")
 
         if isinstance(container, Container):
-            routines = container.get_routine_psyir(
-                rsym.name, allow_private=can_be_private)
+            routines = []
+            for name in container.resolve_routine(rsym.name):
+                routines.append(container.get_routine_psyir(
+                    name, allow_private=can_be_private))
             if routines:
                 return routines
 

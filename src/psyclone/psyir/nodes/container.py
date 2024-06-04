@@ -193,8 +193,10 @@ class Container(ScopingNode, CommentableMixin):
 
         '''
         rname = name.lower()
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.routine import Routine
-        from psyclone.psyir.symbols.symbol import Symbol
+        from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+        # pylint: enable=import-outside-toplevel
         for node in self.children:
             if isinstance(node, Routine) and node.name.lower() == rname:
                 # Check this routine is public
@@ -224,7 +226,7 @@ class Container(ScopingNode, CommentableMixin):
             # Find the definition of the container.
             try:
                 container = child_cntr_sym.container(local_node=self)
-            except FileNotFoundError:
+            except (SymbolError, FileNotFoundError):
                 # TODO #11 log that we didn't find the Container from which
                 # the routine is imported.
                 return None
@@ -239,7 +241,7 @@ class Container(ScopingNode, CommentableMixin):
                 # Find the definition of the container.
                 try:
                     container = child_cntr_sym.container(local_node=self)
-                except FileNotFoundError:
+                except (SymbolError, FileNotFoundError):
                     continue
                 result = container.get_routine_psyir(rname)
                 if result:
