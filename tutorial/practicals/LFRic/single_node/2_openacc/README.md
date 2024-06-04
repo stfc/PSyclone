@@ -31,7 +31,7 @@ around the loops in the psy-layer.
 The acc_parallel.py script is already set up to do this so just run it
 
 ```bash
-    $ psyclone -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
+    $ psyclone -api lfric -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
 ```
 
 In the psy-layer PSyIR that is output to the terminal you should see
@@ -75,7 +75,7 @@ Add the following code after the for loop containing the
 Now rerun psyclone
 
 ```bash
-    $ psyclone -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
+    $ psyclone -api lfric -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
 ```
 
 The PSyIR output to the screen looks the same, but take a look in the
@@ -176,7 +176,7 @@ In case you're having problems, this is what your script should now look like:
 Rerun psyclone
 
 ```bash
-    $ psyclone -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
+    $ psyclone -api lfric -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
 ```
 
 Take a look at the generated psy-layer code and its PSyIR. You should

@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''A transformation script that applies kernel data extraction to a
 stand-alone version of one of the tracer-advection routines from the
@@ -67,9 +68,9 @@ been preprocessed (if required).
 
 '''
 
-from psyclone.nemo import NemoLoop
 from psyclone.transformations import TransformationError
 from psyclone.psyir.transformations import ExtractTrans
+from psyclone.psyir.nodes import Loop
 
 
 def trans(psy):
@@ -93,7 +94,7 @@ def trans(psy):
             continue
 
         for kern in sched.children:
-            if not isinstance(kern, NemoLoop):
+            if not isinstance(kern, Loop):
                 continue
             try:
                 # TODO #2080: once this is fixed, the option can be removed

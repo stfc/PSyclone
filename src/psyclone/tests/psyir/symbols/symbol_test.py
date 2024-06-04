@@ -320,7 +320,7 @@ def test_get_external_symbol(monkeypatch):
 
     def fake_import(name):
         raise SymbolError("Oh dear")
-    monkeypatch.setattr(other_container._interface, "import_container",
+    monkeypatch.setattr(other_container._interface, "get_container",
                         fake_import)
     with pytest.raises(SymbolError) as err:
         bsym.get_external_symbol()

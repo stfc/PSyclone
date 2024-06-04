@@ -68,7 +68,7 @@ compile: transform $(EXEC)
 transform: main_psy.f90
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) $$(nf-config --flibs) $$(nc-config --libs)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf
@@ -90,7 +90,7 @@ testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 main_alg.f90: main_psy.f90
 
 %_psy.f90:	%.x90
-	${PSYCLONE} -opsy $*_psy.f90 -oalg $*_alg.f90 $<
+	${PSYCLONE} -api lfric -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean

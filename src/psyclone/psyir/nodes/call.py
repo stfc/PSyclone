@@ -320,6 +320,8 @@ class Call(Statement, DataNode):
                 # an impure routine in which case any arguments to that Call
                 # will have READWRITE access.)
                 arg.reference_accesses(var_accesses)
+        # Make sure that the next statement will be on the next location
+        var_accesses.next_location()
 
     @property
     def routine(self):

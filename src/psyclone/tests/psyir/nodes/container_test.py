@@ -335,56 +335,53 @@ def test_find_routine_in_container_private_routine_not_found(fortran_reader):
         local_node=call_node)
     result = container.get_routine_psyir(call_node.routine.name)
     assert result is None
+    assert container.get_routine_psyir("doesnotexist") is None
 
 
-def test_find_routine_in_container(fortran_reader):
-    '''Test that the PSyIR of the Routine is returned when it is found
-    in the Container associated with the supplied container symbol.
+def test_container_resolve_routine(fortran_reader):
+    '''
+    Test that the resolve_routine() method works as expected for:
+
+      * an individual routine;
+      * a generic interface;
+      * a name that does not correspond to a routine;
+      * a name that does not exist.
 
     '''
-    code = f"{SUB_IN_MODULE}{CALL_IN_SUB_USE}"
-    psyir = fortran_reader.psyir_from_source(code)
-    call_node = psyir.walk(Call)[0]
-    container = call_node.routine.symbol.interface.container_symbol.container(
-        local_node=call_node)
-    result = container.get_routine_psyir(call_node.routine.name)
-    assert isinstance(result[0], Routine)
-    assert result[0].name == "sub"
-
-
-def test_find_routines_for_interface(fortran_reader):
-    '''
-    Check that get_routine_psyir() returns the PSyIR of all implementations
-    referenced by an interface.
-    '''
-    code = '''
-module my_mod
-  use other_mod, only: sub
+    psyir = fortran_reader.psyir_from_source('''
+module a_mod
+    interface a_facade
+      module procedure :: brick_frontage, porticoed
+      procedure :: wattle_and_daub
+    end interface
+    integer :: not_a_routine
 contains
-    subroutine run_it()
-      real :: a
-      ! 'sub' is actually an interface to 32- and 64-bit versions.
-      call sub(a)
-    end subroutine run_it
-end module my_mod
-module other_mod
-  interface sub
-    module procedure :: sub_r32, sub_r64
-  end interface sub
-contains
-  subroutine sub_r32(a)
-    real :: a
-  end subroutine sub_r32
-  subroutine sub_r64(a)
-    real(kind=kind(1.0d0)) :: a
-  end subroutine sub_r64
-end module other_mod
-'''
-    psyir = fortran_reader.psyir_from_source(code)
-    call_node = psyir.walk(Call)[0]
-    container = call_node.routine.symbol.interface.container_symbol.container(
-        local_node=call_node)
-    result = container.get_routine_psyir(call_node.routine.name)
-    assert len(result) == 2
-    assert all(isinstance(sub, Routine) for sub in result)
-    assert set(sub.name for sub in result) == set(["sub_r32", "sub_r64"])
+    subroutine brick_frontage(brick)
+      integer :: brick
+    end subroutine brick_frontage
+    subroutine porticoed(pillar)
+      real(kind=8) :: pillar
+    end subroutine porticoed
+    subroutine wattle_and_daub(gunk)
+      real(kind=4) :: gunk
+    end subroutine wattle_and_daub
+end module a_mod
+    ''')
+    cntr = psyir.children[0]
+    assert isinstance(cntr, Container)
+    # Individual routine.
+    assert cntr.resolve_routine("wattle_and_daub") == ["wattle_and_daub"]
+    # Generic interface.
+    routines = cntr.resolve_routine("a_facade")
+    assert len(routines) == 3
+    assert set(routines) == set(["brick_frontage",
+                                 "porticoed",
+                                 "wattle_and_daub"])
+    # Something that is a DataSymbol.
+    with pytest.raises(TypeError) as err:
+        cntr.resolve_routine("not_a_routine")
+    assert ("Expected 'not_a_routine' to correspond to either a RoutineSymbol"
+            " or a GenericInterfaceSymbol but found 'DataSymbol'"
+            in str(err.value))
+    # A name not present in the Container.
+    assert cntr.resolve_routine("missing") == []

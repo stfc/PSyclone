@@ -93,6 +93,7 @@ class GOPSy(PSy):
 
     '''
     def __init__(self, invoke_info):
+        Config.get().api = "gocean"
         PSy.__init__(self, invoke_info)
 
         # Add GOcean infrastructure-specific libraries
@@ -697,7 +698,7 @@ class GOLoop(PSyLoop):
         # pylint: disable=too-many-locals
         '''
         Adds a new iteration space to PSyclone. An iteration space in the
-        gocean1.0 API is for a certain offset type and field type. It defines
+        gocean API is for a certain offset type and field type. It defines
         the loop boundaries for the outer and inner loop. The format is a
         ":" separated tuple:
 
@@ -810,7 +811,7 @@ class GOLoop(PSyLoop):
             are not in the GOcean lookup table or the loop type is not \
             `inner` or `outer`.
         '''
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         # Get a field argument from the argument list
         field = None
         invoke = self.ancestor(InvokeSchedule)
@@ -899,7 +900,7 @@ class GOLoop(PSyLoop):
             stop = IntrinsicCall(IntrinsicCall.Intrinsic.SIZE)
             # Use the data property to access the member of the field that
             # contains the actual grid points.
-            api_config = Config.get().api_conf("gocean1.0")
+            api_config = Config.get().api_conf("gocean")
             sref = self._grid_property_psyir_expression(
                 api_config.grid_properties["go_grid_data"].fortran)
             stop.addchild(sref)
@@ -914,7 +915,7 @@ class GOLoop(PSyLoop):
         # 'internal' and 'whole' structures respectively. For other
         # iteration_spaces we look if a custom expression is defined in the
         # lookup table.
-        props = Config.get().api_conf("gocean1.0").grid_properties
+        props = Config.get().api_conf("gocean").grid_properties
         if self.iteration_space.lower() == "go_internal_pts":
             return self._grid_property_psyir_expression(
                 props[f"go_grid_internal_{self._loop_type}_stop"].fortran)
@@ -941,7 +942,7 @@ class GOLoop(PSyLoop):
         # 'internal' and 'whole' structures respectively. For other
         # iteration_spaces we look if a custom expression is defined in the
         # lookup table.
-        props = Config.get().api_conf("gocean1.0").grid_properties
+        props = Config.get().api_conf("gocean").grid_properties
         if self.iteration_space.lower() == "go_internal_pts":
             return self._grid_property_psyir_expression(
                 props[f"go_grid_internal_{self._loop_type}_start"].fortran)
@@ -1360,7 +1361,7 @@ class GOKernelArguments(Arguments):
         # access.
         grid_fld = self.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         # TODO: #676 go_grid_data is actually a field property
         data_fmt = api_config.grid_properties["go_grid_data"].fortran
         arg_list.extend([grid_fld.name, data_fmt.format(grid_fld.name)])
@@ -1579,7 +1580,7 @@ class GOKernelGridArgument(Argument):
         # needs to be separated.
         self._complete_init(None)
 
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         try:
             deref_name = api_config.grid_properties[arg.grid_prop].fortran
         except KeyError as err:
@@ -1636,7 +1637,7 @@ class GOKernelGridArgument(Argument):
             in a dl_esm field (e.g. "subdomain%internal%xstart"). The name
             must contains a "{0}" which is replaced by the field name.
         :rtype: str'''
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         deref_name = api_config.grid_properties[self._property_name].fortran
         return deref_name.format(fld_name)
 
@@ -1654,7 +1655,7 @@ class GOKernelGridArgument(Argument):
         :rtype: str
 
         '''
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         return api_config.grid_properties[self._property_name].intrinsic_type
 
     @property
@@ -1664,7 +1665,7 @@ class GOKernelGridArgument(Argument):
         :rtype: bool
         '''
         # The constructor guarantees that _property_name is a valid key!
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         return api_config.grid_properties[self._property_name].type \
             == "scalar"
 
@@ -1994,7 +1995,7 @@ class GO1p0Descriptor(Descriptor):
 
             self._grid_prop = grid_var
             self._argument_type = "grid_property"
-            api_config = Config.get().api_conf("gocean1.0")
+            api_config = Config.get().api_conf("gocean")
 
             if grid_var.lower() not in api_config.grid_properties:
                 valid_keys = str(api_config.grid_properties.keys())
@@ -2008,7 +2009,7 @@ class GO1p0Descriptor(Descriptor):
                 f"expects 2 or 3 arguments but found '{len(kernel_arg.args)}' "
                 f"in '{kernel_arg.args}'")
 
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         access_mapping = api_config.get_access_mapping()
         try:
             access_type = access_mapping[access]
@@ -2085,7 +2086,7 @@ class GOKernelType1p0(KernelType):
         for idx, init in enumerate(self._inits):
             if init.name != 'go_arg':
                 raise ParseError(f"Each meta_arg value must be of type "
-                                 f"'go_arg' for the gocean1.0 api, but "
+                                 f"'go_arg' for the gocean api, but "
                                  f"found '{init.name}'")
             # Pass in the name of this kernel for the purposes
             # of error reporting

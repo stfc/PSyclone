@@ -43,7 +43,7 @@ Kernel and schedules of those Invokes.
 Use: '$ python <path/to/script/>find_kernel.py'
 
 The user-specified settings can be modified in the first section:
-TEST_API - PSyclone API (the example here "dynamo0.3"),
+TEST_API - PSyclone API (the example here "lfric"),
 ALG_PATH - Relative path to the Algorithm file from the location
            where this script is run,
 ALG_NAME - Algorithm file name to be searched for Kernel calls,
@@ -66,7 +66,7 @@ from psyclone.psyGen import PSyFactory, Kern
 # ============= 1. User-defined settings ==================================== #
 #
 # Specify API
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 # Specify path to the Algorithm file from this script's location
 ALG_PATH = "../code"
 # Specify Algorithm file name
