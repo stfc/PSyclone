@@ -38,8 +38,7 @@
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
-from psyclone.errors import InternalError
-from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.interfaces import SymbolInterface
 from psyclone.configuration import Config
 
@@ -51,20 +50,23 @@ class ContainerSymbol(Symbol):
     when needed.
 
     :param str name: name of the symbol.
-    :param bool wildcard_import: if all public Symbols of the Container are \
+    :param bool wildcard_import: if all public Symbols of the Container are
         imported into the current scope. Defaults to False.
-    :param kwargs: additional keyword arguments provided by \
+    :param bool is_intrinsic: if the module is an intrinsic import. Defauts
+        to False.
+    :param kwargs: additional keyword arguments provided by
         :py:class:`psyclone.psyir.symbols.Symbol`.
     :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, wildcard_import=False, **kwargs):
+    def __init__(self, name, **kwargs):
         super(ContainerSymbol, self).__init__(name)
 
         self._reference = None
         self._has_wildcard_import = False
+        self._is_intrinsic = False
 
-        self._process_arguments(wildcard_import=wildcard_import, **kwargs)
+        self._process_arguments(**kwargs)
 
     def _process_arguments(self, **kwargs):
         ''' Process the arguments for the constructor and the specialise
@@ -72,13 +74,15 @@ class ContainerSymbol(Symbol):
         value for the interface.
 
         :param kwargs: keyword arguments which can be:\n
-            :param bool wildcard_import: if all public Symbols of the \
-                Container are imported into the current scope. Defaults to \
+            :param bool wildcard_import: if all public Symbols of the
+                Container are imported into the current scope. Defaults to
                 False.\n
+            :param bool is_intrinsic: if the module is an intrinsic import.
+            Defaults to False.
             and the arguments in :py:class:`psyclone.psyir.symbols.Symbol`
         :type kwargs: unwrapped dict.
 
-        :raises TypeError: if it is provided with an interface argument other \
+        :raises TypeError: if it is provided with an interface argument other
                 then FortranModuleInterface.
 
         '''
@@ -89,6 +93,9 @@ class ContainerSymbol(Symbol):
             self.wildcard_import = kwargs.pop("wildcard_import")
         elif not hasattr(self, '_has_wildcard_import'):
             self._has_wildcard_import = False
+
+        if "is_intrinsic" in kwargs:
+            self.is_intrinsic = kwargs.pop("is_intrinsic")
 
         # TODO #1298: ContainerSymbol currently defaults to
         # FortranModuleInterface expecting externally defined containers
@@ -115,31 +122,19 @@ class ContainerSymbol(Symbol):
         # Use the generic Symbol copy and add the wildcard import value
         new_symbol = super(ContainerSymbol, self).copy()
         new_symbol.wildcard_import = self.wildcard_import
+        new_symbol.is_intrinsic = self.is_intrinsic
         return new_symbol
 
-    def container(self, local_node=None):
+    @property
+    def container(self):
         ''' Returns the referenced container. If it is not available, use
         the interface to import the container
-
-        :param local_node: optional local PSyIR tree to check first.
-        :type local_node: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: referenced container.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
         '''
         if not self._reference:
-            # First check in the current PSyIR tree (if supplied).
-            if local_node:
-                lowered_name = self.name.lower()
-                from psyclone.psyir.nodes.container import Container
-                from psyclone.psyir.nodes.routine import Routine
-                for local in local_node.root.walk(Container,
-                                                  stop_type=Routine):
-                    if lowered_name == local.name.lower():
-                        self._reference = local
-                        return self._reference
-            # We didn't find it so now attempt to import the container.
-            self._reference = self._interface.import_container(self._name)
+            self._reference = self._interface.get_container(self._name)
         return self._reference
 
     def __str__(self):
@@ -176,12 +171,32 @@ class ContainerSymbol(Symbol):
                             f"'{type(value).__name__}'")
         self._has_wildcard_import = value
 
+    @property
+    def is_intrinsic(self):
+        '''
+        :returns: whether or not this module is an intrinsic module.
+        :rtype: bool
+        '''
+        return self._is_intrinsic
+
+    @is_intrinsic.setter
+    def is_intrinsic(self, value):
+        '''
+        :param bool value: whether or not this is an intrinsic module.
+
+        :raises TypeError: if the supplied `value` is not a bool.
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(f"is_intrinsic must be a bool but got: "
+                            f"'{type(value).__name__}'.")
+        self._is_intrinsic = value
+
 
 class ContainerSymbolInterface(SymbolInterface):
     ''' Abstract implementation of the ContainerSymbol Interface '''
 
     @staticmethod
-    def import_container(name):
+    def get_container(name):
         ''' Abstract method to import an external container, the specific
         implementation depends on the language used.
 
@@ -196,47 +211,37 @@ class FortranModuleInterface(ContainerSymbolInterface):
     ''' Implementation of ContainerSymbolInterface for Fortran modules '''
 
     @staticmethod
-    def import_container(name):
-        ''' Imports a Fortran module as a PSyIR container. The search
-        locations are provided in-order by the Config include_paths
-        attribute ('-I' argument to the 'psyclone' script).
+    def get_container(name):
+        ''' Imports a Fortran module as a PSyIR Container (via the
+        ModuleManager) and returns it.
 
         :param str name: name of the module to be imported.
 
         :returns: container associated with the given name.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-        :raises NotImplementedError: if we can't get a Container because the
-            module has been placed in a CodeBlock (due to unsupported
-            features).
-        :raises InternalError: if a container of the supplied name isn't in
-            the parse tree obtained by the ModuleManager.
+        :raises SymbolError: the given Fortran module is not found on the
+            import path.
 
         '''
-        # pylint: disable=import-outside-toplevel
+        # pylint: disable-next=import-outside-toplevel
         from psyclone.parse import ModuleManager
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-        from psyclone.psyir.nodes.codeblock import CodeBlock
-        from psyclone.psyir.nodes.container import Container
         mod_manager = ModuleManager.get()
+
+        # TODO #2011 - rationalise how this interacts with the kernel search
+        # path set in generate().
         mod_manager.add_search_path(Config.get().include_paths)
-        minfo = mod_manager.get_module_info(name)
-        ptree = minfo.get_parse_tree()
-        # Generate PSyIR from the parse tree. #TODO this could be in
-        # ModuleManager/Info?
-        fp2reader = Fparser2Reader()
-        psyir = fp2reader.generate_psyir(ptree.get_root())
-        for candidate in psyir.walk(Container):
-            if candidate.name.lower() == name.lower():
-                return candidate
-        if isinstance(psyir.children[0], CodeBlock):
-            raise NotImplementedError(
-                f"Cannot find Fortran module '{name}' because the "
-                f"file '{minfo.filename}' is not representable in PSyIR.")
-        raise InternalError(
-            f"Error importing the Fortran module '{name}' into a "
-            f"PSyIR container. The file with filename "
-            f"'{minfo.filename}' does not contain the expected module.")
+
+        minfo = None
+        try:
+            minfo = mod_manager.get_module_info(name)
+        except FileNotFoundError:
+            pass
+        if not minfo:
+            raise SymbolError(
+                f"Module '{name}' not found in any of the include_paths "
+                f"directories {Config.get().include_paths}.")
+        return minfo.get_psyir()
 
 
 # For Sphinx AutoAPI documentation generation
