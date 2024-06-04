@@ -623,6 +623,7 @@ end module some_mod'''
     assert result == [psyir.walk(Routine)[1]]
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_call_get_callees_unresolved(fortran_reader, tmpdir, monkeypatch):
     '''
     Test that get_callees() raises the expected error if the called routine
@@ -656,9 +657,11 @@ end subroutine top'''
             "The module search path is set to []" in str(err.value))
     # Repeat but when some_mod_somewhere *is* resolved but doesn't help us
     # find the routine we're looking for.
+    mod_manager = ModuleManager.get()
+    monkeypatch.setattr(mod_manager, "_instance", None)
     path = str(tmpdir)
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
-    with open(os.path.join(path, "that_file.f90"), "w",
+    with open(os.path.join(path, "some_mod_somewhere.f90"), "w",
               encoding="utf-8") as ofile:
         ofile.write('''\
 module some_mod_somewhere
@@ -847,10 +850,9 @@ end module other_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
-    srcs = call.get_callees()
-    assert len(srcs) == 1
-    assert isinstance(srcs[0], Routine)
-    assert srcs[0].name == "just_do_it"
+    rtine = call.get_callees()
+    assert isinstance(rtine, Routine)
+    assert rtine.name == "just_do_it"
 
 
 def test_call_get_callees_import_local_container(fortran_reader):
@@ -875,10 +877,9 @@ end module other_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
-    srcs = call.get_callees()
-    assert len(srcs) == 1
-    assert isinstance(srcs[0], Routine)
-    assert srcs[0].name == "just_do_it"
+    rtine = call.get_callees()
+    assert isinstance(rtine, Routine)
+    assert rtine.name == "just_do_it"
 
 
 def test_call_get_callees_wildcard_import_container(fortran_reader,
@@ -918,10 +919,9 @@ contains
     write(*,*) "hello"
   end subroutine just_do_it
 end module some_mod''')
-    srcs = call.get_callees()
-    assert len(srcs) == 1
-    assert isinstance(srcs[0], Routine)
-    assert srcs[0].name == "just_do_it"
+    rtine = call.get_callees()
+    assert isinstance(rtine, Routine)
+    assert rtine.name == "just_do_it"
 
 
 def test_fn_call_get_callees(fortran_reader):
@@ -976,6 +976,7 @@ end module some_mod'''
             "'some_mod'" in str(err.value))
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_get_callees_follow_imports(fortran_reader, tmpdir, monkeypatch):
     '''
     Test that get_callees() follows imports to find the definition of the
@@ -1019,10 +1020,11 @@ end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     result = call.get_callees()
-    assert isinstance(result[0], Routine)
-    assert result[0].name == "pack_it"
+    assert isinstance(result, Routine)
+    assert result.name == "pack_it"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_get_callees_import_private_clash(fortran_reader, tmpdir, monkeypatch):
     '''
     Test that get_callees() raises the expected error if a module from which

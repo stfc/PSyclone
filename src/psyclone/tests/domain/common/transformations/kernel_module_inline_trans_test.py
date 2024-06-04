@@ -64,7 +64,7 @@ def test_module_inline_constructor_and_str():
             "call into the Container of the call site.")
 
 
-def test_validate_inline_error_if_not_kernel():
+def test_validate_inline_error_if_not_kernel(fortran_reader):
     ''' Test that the inline transformation fails if the object being
     passed is not a kernel or a Call or if it is an IntrinsicCall.'''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
@@ -766,12 +766,9 @@ def test_psyir_mod_inline_fail_to_get_psyir(fortran_reader):
     call = psyir.walk(Call)[0]
     with pytest.raises(TransformationError) as err:
         intrans.validate(call)
-    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Failed to "
-            "find the source code of the unresolved routine 'my_sub' - looked"
-            " at any routines in the same source file and attempted to "
-            "resolve the wildcard imports from ['my_mod', 'other_mod']. "
-            "However, failed to find the source for ['my_mod', 'other_mod']. "
-            "The module search path is set to []" in str(err.value))
+    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: PSyclone "
+            "SymbolTable error: Module 'my_mod' not found in any of the "
+            "include_paths directories []." in str(err.value))
 
 
 def test_get_psyir_to_inline(monkeypatch):
@@ -796,6 +793,7 @@ def test_get_psyir_to_inline(monkeypatch):
 @pytest.mark.parametrize("mod_use, sub_use",
                          [("use my_mod, only: my_sub, my_other_sub", ""),
                           ("", "use my_mod, only: my_sub, my_other_sub")])
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_psyir_mod_inline(fortran_reader, fortran_writer, tmpdir,
                           monkeypatch, mod_use, sub_use):
     '''

@@ -451,8 +451,8 @@ class Call(Statement, DataNode):
 
         :raises NotImplementedError: if the routine is not local and not found
             in any containers in scope at the call site.
-        '''
 
+        '''
         def _location_txt(node):
             '''
             Utility to generate meaningful location text.
@@ -497,7 +497,7 @@ class Call(Statement, DataNode):
                         try:
                             container = container_symbol.container(
                                 local_node=self)
-                        except FileNotFoundError:
+                        except SymbolError:
                             containers_not_found.append(container_symbol.name)
                             continue
                         routine = container.get_routine_psyir(rsym.name)
@@ -536,7 +536,7 @@ class Call(Statement, DataNode):
                 csym = cursor.interface.container_symbol
                 try:
                     container = csym.container(local_node=self)
-                except FileNotFoundError:
+                except SymbolError:
                     raise NotImplementedError(
                         f"RoutineSymbol '{rsym.name}' is imported from "
                         f"Container '{csym.name}' but the source defining "

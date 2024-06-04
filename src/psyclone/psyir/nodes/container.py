@@ -176,6 +176,10 @@ class Container(ScopingNode, CommentableMixin):
         '''
         Searches the Container for a definition of the named routine.
 
+        NOTE: if the named routine corresponds to a generic interface then this
+        method will return None. You will need to use `resolve_routine` first
+        to find the names of the routines that the interface resolves to.
+
         If it is not found and the routine is named in an import statement
         then the search is continued in the named Container. Failing that,
         all wildcard imports are checked.
@@ -184,9 +188,8 @@ class Container(ScopingNode, CommentableMixin):
         :param bool allow_private: whether the Routine is permitted to have
             a visibility of PRIVATE.
 
-        :returns: the PSyIR of the named Routine (or Routines if it is an
-                  interface) if found, otherwise None.
-        :rtype: list[:py:class:`psyclone.psyir.nodes.Routine`] | NoneType
+        :returns: the PSyIR of the named Routine if found, otherwise None.
+        :rtype: :py:class:`psyclone.psyir.nodes.Routine` | NoneType
 
         '''
         rname = name.lower()
@@ -198,7 +201,7 @@ class Container(ScopingNode, CommentableMixin):
                 routine_sym = self.symbol_table.lookup(node.name)
                 if (allow_private or
                         routine_sym.visibility == Symbol.Visibility.PUBLIC):
-                    return [node]
+                    return node
                 # The Container does not contain the expected Routine or the
                 # Routine is not public.
 
@@ -212,11 +215,9 @@ class Container(ScopingNode, CommentableMixin):
 
         if routine_sym and isinstance(routine_sym, GenericInterfaceSymbol):
             # The routine is actually an interface to one or more routines.
-            rlist = []
-            for iroutine in routine_sym.routines:
-                rlist += self.get_routine_psyir(iroutine.symbol.name,
-                                                allow_private=allow_private)
-            return rlist
+            # This should be handled outside this routine (e.g. by using
+            # `resolve_routine` first).
+            return None
 
         if routine_sym and routine_sym.is_import:
             child_cntr_sym = routine_sym.interface.container_symbol
