@@ -205,15 +205,21 @@ SUB_IN_MODULE = (
 def test_get_routine_psyir_routine_not_found(fortran_reader):
     '''Test that None is returned when the required Routine is not found
     in the Container associated with the supplied container symbol, as
-    it does not exist.
+    it does not exist. Also check that None is returned if the name
+    corresponds to an interface rather than a single routine.
 
     '''
     code = (
         "module inline_mod\n"
+        "  interface my_funky_routine\n"
+        "    procedure :: this_one, that_one\n"
+        "  end interface my_funky_routine\n"
         "end module inline_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
     container = psyir.children[0]
     result = container.get_routine_psyir("missing")
+    assert result is None
+    result = container.get_routine_psyir("my_funky_routine")
     assert result is None
 
 
