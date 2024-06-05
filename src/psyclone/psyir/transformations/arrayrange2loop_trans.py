@@ -57,8 +57,8 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_accessor_mixin import (
     StructureAccessorMixin)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, UnresolvedType, UnsupportedType,
-    SymbolError)
+    DataSymbol, INTEGER_TYPE, ScalarType, UnresolvedType, SymbolError,
+    ArrayType)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
@@ -146,8 +146,6 @@ class ArrayRange2LoopTrans(Transformation):
                         # reference to the iteration index
                         index_expr = Reference(loop_variable_symbol)
                     else:
-                        # import pdb; pdb.set_trace()
-                        # lhs_array.same_range(lhs_index, array, index)
                         # If we can not prove that both ranges iterate over the
                         # exact same bounds we need to provide an offset like:
                         # array2(idx1 + (lbound_array2 - lbound_array1)
@@ -359,9 +357,7 @@ class ArrayRange2LoopTrans(Transformation):
 
             # Otherwise we need the datatype to ensure that it represents a
             # scalar.
-            if not isinstance(reference.symbol, DataSymbol) or \
-                    isinstance(reference.symbol.datatype, (
-                        UnresolvedType, UnsupportedType)):
+            if not isinstance(reference.datatype, (ScalarType, ArrayType)):
                 if isinstance(reference.symbol, DataSymbol):
                     typestr = f"an {reference.symbol.datatype}"
                 else:
