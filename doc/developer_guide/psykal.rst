@@ -50,13 +50,6 @@ Developing PSyKAL DSLs
 Parsing DSL Code (new approach)
 ===============================
 
-The new approach to modifying existing code is to first parse it into
-generic PSyIR and then 'raise' it into domain-specific PSyIR which
-encodes any domain-specific concepts. The domain-specific PSyIR can
-then be modified using transformations. Once any code modification is
-complete the domain-specific PSyIR can then be 'lowered' to generic
-PSyIR and PSyclone's back-ends used to output the resultant code.
-
 The GOcean and LFRic APIs support the concept of algorithm, psy and
 kernel layers.
 
@@ -109,10 +102,10 @@ yet used by the the rest of PSyclone (see `generator.py` for the
 relevant GOcean code and prototype LFRic code).
 
 
-Parsing DSL code (original approach)
+Parsing DSL Code (original approach)
 ====================================
 
-The original way to parse code is to use the PSyclone `parse` module
+The original way to parse DSL code is to use the PSyclone `parse` module
 which is responsible for parsing science (algorithm and kernel) code
 and extracting the required information for the algorithm translation
 and PSy generation phases. The original approach is gradually being
@@ -375,16 +368,16 @@ The PSy-Invokes-Invoke-InvokeSchedule tree
 ==========================================
 
 The PSy-layer of a single algorithm file is represented by the **PSy** class.
-The PSy class has an **Invokes** object which contain one or more
-**Invoke** instances (one for each invoke in the algorithm layer).
-Each **Invoke** has an **InvokeSchedule** object with the PSyIR tree
-that describes the PSy layer invoke subroutine.
+The PSy class has an **Invokes** object which contains one or more
+**Invoke** instances (one for each ``invoke`` in the algorithm layer).
+Each **Invoke** has an **InvokeSchedule** object which is the PSyIR tree
+that describes the corresponding PSy-layer subroutine.
 This subroutine is called by the Algorithm layer and itself calls one or
 more kernels and/or implements any required Built-in operations.
 
-All this classes can be specialised in each PSyclone API to support the
-specific features of the APIs. The class diagram for the above base classes
-is shown below using the dynamo0.3 API as an illustration. This class diagram
+All these classes can be specialised in each PSyclone API to support the
+specific features of a particular API. The class diagram for the above base classes
+is shown below using the LFRic API as an illustration. This class diagram
 was generated from the source code with pyreverse and edited with inkscape.
 
 .. image:: dynamo0p3_topclasses.png
@@ -409,7 +402,8 @@ To add a new built-in operation into an API use the following steps:
  2. Edit this source file to create the class for this new call. It must
     inherit from the API-specific parent class for Built-in operations
     (``LFRicBuiltInKern`` for the LFRic API).
- 3. Implement ``__str__`` and ``gen_code()`` methods for this new class.
+ 3. Implement ``__str__`` and ``lower_to_language_level()`` methods for
+    this new class.
  4. Add the name of the new Built-in operation and its corresponding class
     to the ``BUILTIN_MAP`` dictionary in that source file.
  5. Add metadata describing this call to the appropriate file specified in

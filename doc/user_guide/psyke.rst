@@ -154,10 +154,10 @@ Distributed memory
 ##################
 
 As noted in the :ref:`PSyKAl Introduction <introduction_to_psykal>` section,
-support for distributed memory in PSyclone is currently limited to the PSyKAl
-APIs. Since the PSyKE implementation generates calls to infrastructure (e.g.
-runtime checks for status of field halos), code extraction is not allowed when
-distributed memory is enabled.
+PSyKAl can support distributed memory. However, since the generated PSy-layer
+code with DM enabled contains infrastructure calls (e.g. checks for runtime
+status of field halos, halo exchanges etc.), code extraction is not allowed
+when distributed memory is enabled.
 
 .. _psyke-intro-restrictions-shared:
 

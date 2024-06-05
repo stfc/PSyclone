@@ -52,7 +52,7 @@ By encapsulating the performance-portability aspects (e.g. whether to
 parallelise with OpenMP or OpenACC), these scripts enable a separation of
 concerns between the scientific implementation and the optimisation choices.
 This allows each aspect to be explored and developed largely independently.
-Additionally, PSyclone supports the development of kernel-based Fortran-embedded
+Additionally, PSyclone supports the development of kernel-based, Fortran-embedded
 DSLs following the PSyKAl model developed in the
 `GungHo project <https://www.metoffice.gov.uk/research/foundation/dynamics/next-generation>`_.
 
