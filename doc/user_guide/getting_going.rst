@@ -471,8 +471,9 @@ is on your ``PATH``::
                    filename
    psyclone: error: the following arguments are required: filename
 
-As indicated above, the ``psyclone`` script takes the name of the
-Fortran source file containing the algorithm specification (in terms
+As indicated above, the ``psyclone`` command can be used to process PSyKAl
+DSLs (`-API` flag). In this case the command takes as input the Fortran source
+file containing the algorithm specification (in terms
 of calls to ``invoke()``). It parses this, finds the necessary kernel
 source files and produces two Fortran files. The first contains the
 :ref:`PSy, middle layer <PSy-layer>` and the second a re-write of the
