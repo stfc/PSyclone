@@ -172,7 +172,7 @@ def test_call_tree_get_used_symbols_from_modules():
     psyir = \
         mod_info.get_psyir().get_routine_psyir("testkern_import_symbols_code")
     ctu = CallTreeUtils()
-    non_locals = ctu.get_non_local_symbols(psyir[0])
+    non_locals = ctu.get_non_local_symbols(psyir)
 
     non_locals_without_access = set((i[0], i[1], str(i[2]))
                                     for i in non_locals)

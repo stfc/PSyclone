@@ -766,9 +766,14 @@ def test_psyir_mod_inline_fail_to_get_psyir(fortran_reader):
     call = psyir.walk(Call)[0]
     with pytest.raises(TransformationError) as err:
         intrans.validate(call)
-    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: PSyclone "
-            "SymbolTable error: Module 'my_mod' not found in any of the "
-            "include_paths directories []." in str(err.value))
+    assert ("failed to retrieve PSyIR for routine 'my_sub' due to: Failed to "
+            "find the source code of the unresolved routine 'my_sub' - looked "
+            "at any routines in the same source file and attempted to resolve "
+            "the wildcard imports from ['my_mod', 'other_mod']. However, "
+            "failed to find the source for ['my_mod', 'other_mod']. The module"
+            " search path is set to []. Searching for external routines that "
+            "are only resolved at link time is not supported."
+            in str(err.value))
 
 
 def test_get_psyir_to_inline(monkeypatch):

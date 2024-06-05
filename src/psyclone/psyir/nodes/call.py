@@ -502,7 +502,9 @@ class Call(Statement, DataNode):
                             continue
                         routines = []
                         for name in container.resolve_routine(rsym.name):
-                            routines.append(container.get_routine_psyir(name))
+                            psyir = container.get_routine_psyir(name)
+                            if psyir:
+                                routines.append(psyir)
                         if routines:
                             return routines
                 current_table = current_table.parent_symbol_table()
@@ -577,8 +579,10 @@ class Call(Statement, DataNode):
         if isinstance(container, Container):
             routines = []
             for name in container.resolve_routine(rsym.name):
-                routines.append(container.get_routine_psyir(
-                    name, allow_private=can_be_private))
+                psyir = container.get_routine_psyir(
+                    name, allow_private=can_be_private)
+                if psyir:
+                    routines.append(psyir)
             if routines:
                 return routines
 

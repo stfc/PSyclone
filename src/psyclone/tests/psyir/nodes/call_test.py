@@ -750,9 +750,8 @@ end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     container = psyir.children[0]
-    routines = container.get_routine_psyir("bottom")
-    assert len(routines) == 1
-    rsym = container.symbol_table.lookup(routines[0].name)
+    routine = container.get_routine_psyir("bottom")
+    rsym = container.symbol_table.lookup(routine.name)
     # Ensure the type of this RoutineSymbol is UnsupportedFortranType.
     rsym.datatype = UnsupportedFortranType("integer, pointer :: fval")
     assign = container.walk(Assignment)[0]
@@ -850,9 +849,10 @@ end module other_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
-    rtine = call.get_callees()
-    assert isinstance(rtine, Routine)
-    assert rtine.name == "just_do_it"
+    routines = call.get_callees()
+    assert len(routines) == 1
+    assert isinstance(routines[0], Routine)
+    assert routines[0].name == "just_do_it"
 
 
 def test_call_get_callees_import_local_container(fortran_reader):
@@ -877,11 +877,13 @@ end module other_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
-    rtine = call.get_callees()
-    assert isinstance(rtine, Routine)
-    assert rtine.name == "just_do_it"
+    routines = call.get_callees()
+    assert len(routines) == 1
+    assert isinstance(routines[0], Routine)
+    assert routines[0].name == "just_do_it"
 
 
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_call_get_callees_wildcard_import_container(fortran_reader,
                                                     tmpdir, monkeypatch):
     '''
@@ -919,9 +921,10 @@ contains
     write(*,*) "hello"
   end subroutine just_do_it
 end module some_mod''')
-    rtine = call.get_callees()
-    assert isinstance(rtine, Routine)
-    assert rtine.name == "just_do_it"
+    routines = call.get_callees()
+    assert len(routines) == 1
+    assert isinstance(routines[0], Routine)
+    assert routines[0].name == "just_do_it"
 
 
 def test_fn_call_get_callees(fortran_reader):
@@ -1020,8 +1023,9 @@ end module some_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     call = psyir.walk(Call)[0]
     result = call.get_callees()
-    assert isinstance(result, Routine)
-    assert result.name == "pack_it"
+    assert len(result) == 1
+    assert isinstance(result[0], Routine)
+    assert result[0].name == "pack_it"
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")
