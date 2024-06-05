@@ -103,7 +103,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         if node.parent is self:
             return node.position
-        raise ValueError(f"'{node}' is not a children of '{self}'")
+        raise ValueError(f"'{node}' is not a child of '{self}'")
 
     def get_signature_and_indices(self):
         '''

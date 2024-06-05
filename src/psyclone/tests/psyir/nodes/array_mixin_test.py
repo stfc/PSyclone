@@ -68,13 +68,13 @@ def test_index_of(fortran_reader):
     assert array.index_of(literals[2]) == 2
     with pytest.raises(ValueError) as info:
         array.index_of(literals[3])
-    assert ("Literal[value:'1', Scalar<INTEGER, UNDEFINED>]' is not a children"
+    assert ("Literal[value:'1', Scalar<INTEGER, UNDEFINED>]' is not a child"
             " of 'ArrayReference[name:'a']" in str(info.value))
 
     code = (
         "subroutine test()\n"
         "  use other\n"
-        "  a%b%c(1,1,1) = 1\n"
+        "  a%b%c(1,1,1)%d = 1\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     literals = psyir.walk(Literal)
@@ -84,8 +84,8 @@ def test_index_of(fortran_reader):
     assert array.index_of(literals[2]) == 2
     with pytest.raises(ValueError) as info:
         array.index_of(literals[3])
-    assert ("Literal[value:'1', Scalar<INTEGER, UNDEFINED>]' is not a children"
-            " of 'ArrayMember[name:'c']" in str(info.value))
+    assert ("Literal[value:'1', Scalar<INTEGER, UNDEFINED>]' is not a child"
+            " of 'ArrayOfStructuresMember[name:'c']" in str(info.value))
 
 
 # _is_bound_op
@@ -351,7 +351,7 @@ def test_is_same_array(fortran_reader):
                                 assignments[2].rhs.member)
     # Or is a different component of the structure
     assert not assignments[1].rhs.member.member.is_same_array(
-                                assignments[3].rhs.member)
+                                assignments[3].rhs.member.member)
     # Also it can compare Arrays against SoA
     assert not assignments[1].lhs.is_same_array(assignments[1].rhs.member)
     assert not assignments[1].rhs.member.is_same_array(assignments[1].lhs)
@@ -758,7 +758,7 @@ def test_same_range(fortran_reader):
         ! Same ranges
         A(2-1:3+1,val:,val+1-1:other) = B(1:4,val:4, val:)
         ! Different ranges
-        A(2:5,val:,2:4) = B(1:,val+1:4, ::2)
+        A(2:5,val:,2:4) = B(1:,val+1:4, 2:4:2)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -847,7 +847,7 @@ def test_same_range(fortran_reader):
         real, dimension(:) :: known
         arg1(:) = arg2(:)
         alloc1(:) = alloc2(:)
-        known(:) = alloc(:)
+        known(:) = alloc1(:)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
