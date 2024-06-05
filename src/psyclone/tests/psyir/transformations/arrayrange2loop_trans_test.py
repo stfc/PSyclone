@@ -259,14 +259,14 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
     for assignment in psyir.walk(Assignment):
         trans.apply(assignment)
 
-    # When we don't know the bounds, so we must use L/UBOUND expressions
+    # The bounds are not known, so L/UBOUND expressions are used
     output_test1 = fortran_writer(psyir.walk(Assignment)[0])
     assert ("x1(idx_1,idx) = y1(idx_1 + (LBOUND(y1, dim=1) - LBOUND(x1, "
             "dim=1)),idx + (LBOUND(y1, dim=2) - LBOUND(x1, dim=2)))"
             in output_test1)
 
-    # When we know the bounds and can't see they are different, so we also
-    # need the offsets
+    # When we know the bounds we can see they are different, we also
+    # need the offsets (and can also use L/UBOUND)
     output_test2 = fortran_writer(psyir.walk(Assignment)[1])
     assert ("x2(idx_3,idx_2) = y2(idx_3 + (LBOUND(y2, dim=1) - LBOUND(x2, "
             "dim=1)),idx_2 + (LBOUND(y2, dim=2) - LBOUND(x2, dim=2)))"
@@ -281,7 +281,7 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
       x2(idx_5,idx_4) = y2(idx_5 + (15 - 2),idx_4 + (28 - 4)) + 1.0"""
             in output_test3)
 
-    # SoA and SoAoS bounds are also calculated
+    # SoA and SoAoS bounds are also constructed using L/UBOUNDS expressions
     output_test4 = fortran_writer(psyir.walk(Assignment)[3])
     assert (" struct%values(idx_6 + (LBOUND(struct%values, dim=1) - "
             "LBOUND(x, dim=1))) + struct%array(idx_6 + ("
@@ -345,31 +345,30 @@ def test_validate_no_assignment_with_array_range_on_lhs():
         in str(info.value))
 
 
-@pytest.mark.parametrize(
-        "code, expected", [
-         ("integer, dimension(:,:) :: x, y, z\n"
-          "x(:) = matmul(y, z)",
-          "ArrayRange2LoopTrans does not accept calls which are not "
-          "guaranteed to be elemental, but found:MATMUL")])
-def test_validate_with_log(code, expected, fortran_reader):
-    '''Check that the validate method returns an exception if the rhs of
-    the assignment contains an operator that only returns an array
-    i.e. can't be performed elementwise.
-
-    This errors also logged as a comment.
+def test_validate_different_num_of_ranges(fortran_reader):
+    '''Check that the validate method raises an exception when the number of
+    range dimensions differ in different arrays. This should never
+    happen as it is invalid Fortran, but fparser-psyir accepts it.
 
     '''
-    psyir = fortran_reader.psyir_from_source(f'''
-        subroutine test()
-          integer :: n
-          {code}
-        end subroutine test
+    psyir = fortran_reader.psyir_from_source('''
+        program implicit_mismatch_error
+          implicit none
+          integer, parameter :: jpi=64, jpj=32
+          real, dimension(jpi,jpj) :: umask, vmask
+
+          ! This is invalid Fortran
+          umask(:,:) = vmask(:,jpj) + 1.0
+
+        end program implicit_mismatch_error
     ''')
     assignment = psyir.walk(Assignment)[0]
     trans = ArrayRange2LoopTrans()
-    with pytest.raises(TransformationError) as err:
-        trans.validate(assignment)
-    assert expected in str(err.value)
+    with pytest.raises(TransformationError) as info:
+        trans.apply(assignment)
+    assert ("ArrayRange2LoopTrans does not support array with array accessor "
+            "with a different number of ranges in the expression, but found:"
+            in str(info.value))
 
 
 def test_character_validation(fortran_reader):
@@ -409,11 +408,12 @@ def test_character_validation(fortran_reader):
 
     trans = ArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
-        trans.validate(assign)
-    assert (
-        "ArrayRange2LoopTrans does not expand ranges on character arrays "
-        "by default (use the'allow_string' option to expand them), but found"
-        in str(info.value))
+        trans.validate(assign, options={"verbose": True})
+    errmsg = ("ArrayRange2LoopTrans does not expand ranges on character "
+              "arrays by default (use the'allow_string' option to expand "
+              "them)")
+    assert errmsg in str(info.value)
+    assert errmsg in assign.preceding_comment
 
     # Check it also works for RHS literals
     code = '''subroutine test()
@@ -446,8 +446,10 @@ def test_character_validation(fortran_reader):
     trans.validate(assign)
 
 
-def test_validate_unsupported_structure_of_arrays(fortran_reader):
-    ''' Check that nested structure_of_arrays are not supported. '''
+def test_validate_nested_or_invalid_expressions(fortran_reader):
+    ''' Check that we refuse to up apply the transformation when
+    there is more than one array with ranges in a single term, due to
+    psyir representing invalid Fortran, or indirect mappings.'''
     trans = ArrayRange2LoopTrans()
 
     # Case 1: 2 array accessors in LHS and both have ranges
@@ -455,7 +457,7 @@ def test_validate_unsupported_structure_of_arrays(fortran_reader):
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
         use my_variables
-        mystruct%field2(4)%field(:,:,:) = 0
+        mystruct%field2(4)%field(:) = 0
     end subroutine test
     ''')
     assignment = psyir.walk(Assignment)[0]
@@ -464,7 +466,7 @@ def test_validate_unsupported_structure_of_arrays(fortran_reader):
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment)
     assert ("ArrayRange2LoopTrans does not support array assignments that "
-            "contain nested Range structures, but found"
+            "contain nested Range expressions, but found"
             in str(info.value))
 
     # Case 2: Nested array in another array
@@ -478,22 +480,22 @@ def test_validate_unsupported_structure_of_arrays(fortran_reader):
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment)
     assert ("ArrayRange2LoopTrans does not support array assignments that "
-            "contain nested Range structures, but found"
+            "contain nested Range expressions, but found"
             in str(info.value))
 
     # Case 3: Nested array in another array which also have Ranges
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
         use my_variables
-        umask(:,mystruct%field2%field3(:),:) = &
-            mystruct%field(mystruct%field2%field3(:),:,:)
+        umask(:,mystruct%field2%field3(:)) = &
+            mystruct%field(mystruct%field2%field3(:),:)
     end subroutine test
     ''')
     assignment = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment)
     assert ("ArrayRange2LoopTrans does not support array assignments that "
-            "contain nested Range structures, but found"
+            "contain nested Range expressions, but found"
             in str(info.value))
 
 
@@ -517,10 +519,11 @@ def test_validate_with_codeblock(fortran_reader):
                 CodeBlock([], CodeBlock.Structure.EXPRESSION)))
 
     with pytest.raises(TransformationError) as info:
-        trans.apply(assignment)
-    assert ("ArrayRange2LoopTrans does not support array assignments that "
-            "contain a CodeBlock anywhere in the expression, but found"
-            in str(info.value))
+        trans.apply(assignment, options={"verbose": True})
+    errmsg = ("ArrayRange2LoopTrans does not support array assignments that "
+              "contain a CodeBlock anywhere in the expression")
+    assert errmsg in str(info.value)
+    assert errmsg in assignment.preceding_comment
 
 
 def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
@@ -601,27 +604,20 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     ) in fortran_writer(psyir)
 
 
-def test_validate_different_num_of_ranges(fortran_reader):
-    '''Check that the validate method raises an exception when the number of
-    range dimensions differ in different arrays. This should never
-    happen as it is invalid Fortran, but fparser-psyir accepts it.
-
-    '''
+def test_validate_non_elemental_functions(fortran_reader):
+    '''Check that the validate method returns an exception if the rhs of
+    the assignment contains a call that is not elemental.'''
     psyir = fortran_reader.psyir_from_source('''
-        program implicit_mismatch_error
-          implicit none
-          integer, parameter :: jpi=64, jpj=32
-          real, dimension(jpi,jpj) :: umask, vmask
-
-          ! This is invalid Fortran
-          umask(:,:) = vmask(:,jpj) + 1.0
-
-        end program implicit_mismatch_error
+        subroutine test()
+          integer, dimension(:,:) :: x, y, z
+          x(:) = matmul(y, z)
+        end subroutine test
     ''')
     assignment = psyir.walk(Assignment)[0]
     trans = ArrayRange2LoopTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.apply(assignment)
-    assert ("ArrayRange2LoopTrans does not support array with array accessor "
-            "with a different number ofranges in the expression, but found:"
-            in str(info.value))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment, options={"verbose": True})
+    errormsg = ("ArrayRange2LoopTrans does not accept calls which are not "
+                "guaranteed to be elemental, but found: MATMUL")
+    assert errormsg in assignment.preceding_comment
+    assert errormsg in str(err.value)

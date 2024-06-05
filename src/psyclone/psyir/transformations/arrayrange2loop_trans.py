@@ -248,20 +248,11 @@ class ArrayRange2LoopTrans(Transformation):
                 f"accessor with at least one of its dimensions being a "
                 f"Range, but none were found in '{node.debug_string()}'."))
 
-        # We don't support nested range expressions anywhere in the assignment
-        for range_expr in node.walk(Range):
-            ancestor_array = range_expr.parent.ancestor(ArrayMixin)
-            if ancestor_array and any(index.walk(Range) for index
-                                      in ancestor_array.indices):
-                raise TransformationError(LazyString(
-                    lambda: f"{self.name} does not support array assignments"
-                    f" that contain nested Range structures, but found:"
-                    f"\n{node.debug_string()}"))
-
         # All the ArrayMixins must have the same number of Ranges to expand
         found = None
         for accessor in node.walk(ArrayMixin):
-            num_of_ranges = len(accessor.walk(Range))
+            num_of_ranges = len([x for x in accessor.indices
+                                 if isinstance(x, Range)])
             if num_of_ranges > 0:
                 if not found:
                     # If its the first value we find, we store it
@@ -272,21 +263,23 @@ class ArrayRange2LoopTrans(Transformation):
                         raise TransformationError(LazyString(
                             lambda: f"{self.name} does not support array "
                             f"with array accessor with a different number of"
-                            f"ranges in the expression, but found:"
+                            f" ranges in the expression, but found:"
                             f"\n{node.debug_string()}"))
-
-        # Do not allow to transform expressions with CodeBlocks
-        if node.walk(CodeBlock):
-            raise TransformationError(LazyString(
-                lambda: f"{self.name} does not support array assignments that"
-                f" contain a CodeBlock anywhere in the expression, but found:"
-                f"\n{node.debug_string()}"))
 
         # Add errors below this point will optionally log the resason, which
         # at the moment means adding a comment in the output code
         verbose = options.get("verbose", False)
 
-        # We don't support nested range expressions
+        # Do not allow to transform expressions with CodeBlocks
+        if node.walk(CodeBlock):
+            message = (f"{self.name} does not support array assignments that"
+                       f" contain a CodeBlock anywhere in the expression")
+            if verbose:
+                node.append_preceding_comment(message)
+            raise TransformationError(LazyString(
+                lambda: f"{message}, but found:\n{node.debug_string()}"))
+
+        # We don't support nested range expressions anywhere in the assignment
         for range_expr in node.walk(Range):
             ancestor_array = range_expr.parent.ancestor(ArrayMixin)
             if ancestor_array and any(index.walk(Range) for index
@@ -328,7 +321,7 @@ class ArrayRange2LoopTrans(Transformation):
                 name = call.routine.symbol.name
             if not call.is_elemental:
                 message = (f"{self.name} does not accept calls which are not"
-                           f" guaranteed to be elemental, but found:"
+                           f" guaranteed to be elemental, but found: "
                            f"{name}")
                 if verbose:
                     node.append_preceding_comment(message)
