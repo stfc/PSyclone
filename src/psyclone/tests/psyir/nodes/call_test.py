@@ -135,6 +135,11 @@ def test_call_equality():
     call7 = Call.create(routine, [("new_name", Literal("1.0", REAL_TYPE))])
     assert call4 != call7
 
+    # Check when a Reference (to the same RoutineSymbol) is provided.
+    call8 = Call.create(Reference(routine),
+                        [("new_name", Literal("1.0", REAL_TYPE))])
+    assert call8 == call7
+
 
 @pytest.mark.parametrize("cls", [Call, SpecialCall])
 def test_call_create(cls):

@@ -574,7 +574,7 @@ class Call(Statement, DataNode):
                 f"RoutineSymbol '{rsym.name}' exists in "
                 f"{_location_txt(root_node)} but is of "
                 f"UnsupportedFortranType:\n{rsym.datatype.declaration}\n"
-                f"Cannot currently module inline such a routine.")
+                f"Cannot get the PSyIR of such a routine.")
 
         if isinstance(container, Container):
             routines = []
