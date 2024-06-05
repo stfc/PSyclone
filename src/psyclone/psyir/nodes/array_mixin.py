@@ -761,12 +761,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         #   integer, dimension(3:5) :: b
         # would make it "not equal".
         if self.is_lower_bound(index):
+            if self.is_same_array(array2) and array2.is_lower_bound(index2):
+                return True
             if not array1_type:
-                # If we don't have type we can still prove the same range
-                # if the other is the same array
-                if (self.is_same_array(array2) and
-                        array2.is_lower_bound(index2)):
-                    return True
                 return False
             if array1_type.shape[index] == ArrayType.Extent.DEFERRED:
                 return False
