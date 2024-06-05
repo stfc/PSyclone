@@ -332,7 +332,6 @@ class CallTreeUtils():
                               f"'{kernel.module_name}' - ignored.")
                         continue
                     todo.extend(self.get_non_local_symbols(psyir))
-
         return self._resolve_calls_and_unknowns(todo, read_write_info)
 
     # -------------------------------------------------------------------------
@@ -391,7 +390,6 @@ class CallTreeUtils():
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot find module '{module_name}' - ignored.")
                     continue
-
                 cntr = mod_info.get_psyir()
                 if not cntr:
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
@@ -410,7 +408,6 @@ class CallTreeUtils():
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
                         self.get_non_local_symbols(routine))
-
                 else:
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot resolve routine '{signature[0]}' in module "
