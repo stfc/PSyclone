@@ -136,20 +136,20 @@ the generated PSy code will be output to the terminal screen.
 Choosing the API
 ----------------
 
-In the previous section we relied on PSyclone using the default
-API. The default API, along with the supported APIs can be seen by
-running the ``psyclone`` command with the ``-h`` option.
-
-If you use a particular API frequently and it is not the default then
-you can change the default by creating a copy of the default
-``psyclone.cfg`` file and editing it. See :ref:`configuration` for
-more details.
-
-If your code uses an API that is different to the default then you can
-specify this as an argument to the ``psyclone`` command.
+If your code implements a PSyKAL DSL, you can choose a DSL API with the
+``-api`` flag. For PSyKAl APIs, by default, the ``psyclone`` command will
+generate distributed memory (DM) code (unless otherwise specified in the
+:ref:`configuration` file).
+Alternatively, whether or not to generate DM code can be specified as an
+argument to the ``psyclone`` command using the ``-dm``/``--dist_mem`` or
+``-nodm``/``--no_dist_mem`` flags, respectively.
+For exampe the following command will generate GOcean PSyKAl code with DM.
 ::
 
-    > psyclone -api gocean alg.f90
+    > psyclone -api gocean -dm alg.f90
+
+See :ref:`psyclone usage for PSyKAl <psykal_usage>` section for more information about
+how to use PSyKAl DSLs.
 
 File output
 -----------
@@ -291,19 +291,7 @@ could fail in certain pathological cases. The implementation and
 limitations of line wrapping are discussed in the
 :ref:`line-length-limitations` section.
 
-Distributed memory
-------------------
 
-By default the ``psyclone`` command will generate distributed
-memory (DM) code (i.e. parallelised using MPI). As with the choice of
-API, this default may be configured by editing ``psyclone.cfg`` - see
-:ref:`configuration`.  Alternatively, whether or not to generate DM
-code can be specified as an argument to the ``psyclone`` command using
-the ``-dm``/``--dist_mem`` or ``-nodm``/``--no_dist_mem`` flags,
-respectively.
-
-For details of PSyclone's support for generating DM code see
-:ref:`distributed_memory`.
 
 Automatic Profiling Instrumentation
 -----------------------------------

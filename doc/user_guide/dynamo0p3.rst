@@ -2612,7 +2612,7 @@ values of two fields accessed via their proxies in a loop over DoFs:
      field3_proxy%data(df) = field1_proxy%data(df) + field2_proxy%data(df)
 
 where the precise values of the loop limits depend on the use of
-:ref:`distributed memory <distributed_memory>`,
+:ref:`distributed memory <psykal_usage>`,
 :ref:`annexed DoFs <lfric-annexed_dofs>` or both.
 
 As described in the PSy-layer :ref:`Argument Intents
@@ -3767,8 +3767,7 @@ Annexed DoFs
 ++++++++++++
 
 When a kernel operates on DoFs (rather than cell-columns) for a continuous
-field using distributed memory (see the :ref:`distributed_memory`
-Section), then PSyclone need only ensure that DoFs owned by a
+field using distributed memory, PSyclone need only ensure that DoFs owned by a
 processor are computed. However, for continuous fields, shared DoFs at
 the boundary between processors must be replicated (as different cells
 share the same DoF). Only one processor can own a DoF, therefore
