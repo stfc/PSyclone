@@ -188,7 +188,7 @@ Kernel layer
 In the PSyKAl model, the Kernel code operates on an individual element of
 a field (such as a column of cells). The reason for doing this is that it
 gives the PSy layer flexibility in choosing the iteration order and exploiting
-the spacial domain parallelisation. The Kernel layer is not allowed to include
+the spatial domain parallelisation. The Kernel layer is not allowed to include
 any calls or directives related to parallelisation and works on
 raw Fortran arrays (to allow the compiler to optimise the code).
 Since a Kernel is called over the spatial domain (by the PSy layer) it
@@ -345,7 +345,7 @@ PSy layer
 ---------
 
 In the PSyKAl model, the PSy layer is the bridge between the Algorithm
-full-fields operations and the Kernel/Built-Ins individual element
+full-field operations and the Kernel/Built-Ins individual element
 operations. As such, it is responsible for:
 
 1. calling any Kernel and expanding any Buit-In so that they iterate over
