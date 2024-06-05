@@ -42,7 +42,7 @@ import pytest
 
 from psyclone.psyir.nodes import (
     Literal, BinaryOperation, Range, ArrayReference, Assignment,
-    Node, DataNode, CodeBlock, Schedule)
+    Node, DataNode, CodeBlock, Schedule, Loop)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, UnresolvedType)
 from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
@@ -289,6 +289,26 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
             in output_test4)
 
 
+def test_apply_outside_routine(fortran_reader, fortran_writer):
+    ''' Check that the transformation still succeeds and generates valid
+    code when found in a scope detached from a Routine. '''
+
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+          use other_mod
+          do i = 1, 10
+            A(:) = A(:) + B(:)
+          end do
+        end subroutine test
+    ''')
+    loop = psyir.walk(Loop)[0].detach()
+    assignment = loop.walk(Assignment)[0]
+    trans = ArrayRange2LoopTrans()
+    trans.apply(assignment)
+    result = fortran_writer(loop)
+    assert "a(idx) = a(idx) + b(idx +" in result
+
+
 def test_apply_calls_validate():
     ''' Check that the apply() method calls the validate method.'''
     trans = ArrayRange2LoopTrans()
@@ -478,10 +498,11 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
     ''')
     assignment = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as info:
-        trans.apply(assignment)
-    assert ("ArrayRange2LoopTrans does not support array assignments that "
-            "contain nested Range expressions, but found"
-            in str(info.value))
+        trans.apply(assignment, options={"verbose": True})
+    errmsg = ("ArrayRange2LoopTrans does not support array assignments that "
+              "contain nested Range expressions")
+    assert errmsg in str(info.value)
+    assert errmsg in assignment.preceding_comment
 
     # Case 3: Nested array in another array which also have Ranges
     psyir = fortran_reader.psyir_from_source('''
