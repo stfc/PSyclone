@@ -395,10 +395,8 @@ class LFRicExtractDriverCreator:
             # its type. And since they are not imported, they need to be
             # explicitly declared.
             mod_info = mod_man.get_module_info(module_name)
-            sym_tab = mod_info.get_psyir().symbol_table
-            try:
-                container_symbol = sym_tab.lookup(signature[0])
-            except KeyError:
+            container_symbol = mod_info.get_symbol(signature[0])
+            if not container_symbol:
                 # TODO #2120: This typically indicates a problem with parsing
                 # a module: the psyir does not have the full tree structure.
                 continue
@@ -615,10 +613,8 @@ class LFRicExtractDriverCreator:
             sig_str = self._flatten_signature(signature)
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
-                sym_tab = mod_info.get_psyir().symbol_table
-                try:
-                    orig_sym = sym_tab.lookup(signature[0])
-                except KeyError:
+                orig_sym = mod_info.get_symbol(signature[0])
+                if not orig_sym:
                     # TODO 2120: We likely couldn't parse the module.
                     print(f"Error finding symbol '{sig_str}' in "
                           f"'{module_name}'.")
@@ -671,9 +667,13 @@ class LFRicExtractDriverCreator:
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             if module_name:
-                mod_info = mod_man.get_module_info(module_name)
-                sym_tab = mod_info.get_psyir().symbol_table
-                orig_sym = sym_tab.lookup(signature[0])
+                orig_sym = mod_man.get_module_info(module_name).get_symbol(
+                    signature[0])
+                if not orig_sym:
+                    # TODO 2120: We likely couldn't parse the module.
+                    print(f"Error finding symbol '{signature}' in "
+                          f"'{module_name}'.")
+                    continue
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
             is_input = read_write_info.is_read(signature)

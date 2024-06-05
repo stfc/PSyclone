@@ -36,12 +36,15 @@
 
 '''Module containing tests for the ModuleInfo class.'''
 
+import os
 import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
-from psyclone.psyir.nodes import Container, FileContainer
+from psyclone.errors import InternalError
+from psyclone.parse import FileInfo, ModuleInfo, ModuleInfoError, ModuleManager
+from psyclone.psyir.nodes import Container
+from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.tests.utilities import get_base_path
 
 
@@ -50,27 +53,28 @@ from psyclone.tests.utilities import get_base_path
                          "mod_man_test_setup_directories")
 def test_module_info():
     '''Tests the module info object.'''
-    mod_info = ModuleInfo("a_mod", "file_for_a")
+    mod_info = ModuleInfo("a_mod", FileInfo("file_for_a"))
     assert mod_info.filename == "file_for_a"
-    assert mod_info._source_code is None
+    assert mod_info.name == "a_mod"
 
     with pytest.raises(ModuleInfoError) as err:
-        mod_info.get_source_code()
+        mod_info.get_parse_tree()
     assert ("Could not find file 'file_for_a' when trying to read source "
             "code for module 'a_mod'" in str(err.value))
 
     # Try to read the file a_mod.f90, which is contained in the d1 directory
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
+    assert len(mod_man._visited_files) == 0
 
     mod_info = mod_man.get_module_info("a_mod")
     assert isinstance(mod_info, ModuleInfo)
-    assert mod_info._source_code is None
+    # Check that we've only read one file.
+    assert len(mod_man._visited_files) == 1
+    assert "d1/a_mod.f90" in mod_man._visited_files
     source_code = mod_info.get_source_code()
     assert source_code.startswith("module a_mod")
-    # Make sure the source code is cached:
-    assert mod_info._source_code.startswith("module a_mod")
-    assert "end module a_mod" in mod_info._source_code
+    assert "end module a_mod" in source_code
 
     # Now access the parse tree:
     assert mod_info._parse_tree is None
@@ -80,21 +84,83 @@ def test_module_info():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
-def test_module_info_get_psyir():
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_module_info_get_psyir(tmpdir, monkeypatch, capsys):
     '''Tests that we can get the PSyIR from the module info object:
     '''
+    filepath = os.path.join(tmpdir, "my_mod.f90")
+    with open(filepath, "w", encoding="utf-8") as fout:
+        fout.write('''
+module my_mod
+  contains
+real function myfunc1()
+  myfunc1 = 42.0
+end function myfunc1
+end module my_mod''')
 
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path("d2")
-    mod_info = mod_man.get_module_info("g_mod")
-
-    psyir = mod_info.get_psyir().get_routine_psyir("myfunc1")
-    assert psyir.name == "myfunc1"
+    mod_info = ModuleInfo("my_mod", FileInfo(filepath))
 
     psyir = mod_info.get_psyir()
     assert isinstance(psyir, Container)
+    assert psyir.name == "my_mod"
+
+    # Create a file with some invalid Fortran content. fparser doesn't check
+    # symbol names so it will create a parse tree for it.
+    with open(filepath, "w", encoding="utf-8") as fout:
+        fout.write('''
+module my_mod
+  implicit none
+contains
+  subroutine broken()
+    broken = 1
+  end subroutine broken
+  function broken()
+    broken = 2
+  end function broken
+end module my_mod''')
+    mod_info = ModuleInfo("my_mod", FileInfo(filepath))
+    psyir = mod_info.get_psyir()
+    assert psyir is None
+    out, _ = capsys.readouterr()
+    assert "Error trying to create PSyIR for " in out
+
+    # Check that we handle the case where get_parse_tree() returns None.
+    # The simplest way to do this is to monkeypatch.
+    mod_info._psyir = None
+    monkeypatch.setattr(mod_info, "get_parse_tree", lambda: None)
+    assert mod_info.get_psyir() is None
+
+
+# -----------------------------------------------------------------------------
+def test_mod_info_get_psyir_wrong_file(tmpdir, capsys):
+    '''
+    Test the error handling in the get_psyir() method.
+
+    '''
+    filepath = os.path.join(tmpdir, "my_mod.f90")
+    with open(filepath, "w", encoding="utf-8") as fout:
+        fout.write('''
+module my_mod
+  contains
+real function myfunc1()
+  myfunc1 = 42.0
+end function myfunc1
+end module my_mod''')
+
+    mod_info = ModuleInfo("wrong_name_mod", FileInfo(filepath))
+    with pytest.raises(InternalError) as err:
+        mod_info.get_psyir()
+    assert ("my_mod.f90' does not contain a module named 'wrong_name_mod'"
+            in str(err.value))
+
+    # Break the PSyIR so that, while it is valid, it does not contain the named
+    # module.
+    mod_info = ModuleInfo("my_mod", FileInfo(filepath))
+    mod_info._psyir = Container("other_mod")
+    assert mod_info.get_psyir() is None
+    out, _ = capsys.readouterr()
+    assert ("my_mod.f90' does contain module 'my_mod' but PSyclone is unable "
+            "to create the PSyIR of it." in out)
 
 
 # -----------------------------------------------------------------------------
@@ -179,7 +245,7 @@ def test_mod_info_get_used_symbols_from_modules():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
-def test_mod_info_get_psyir(capsys):
+def test_mod_info_get_psyir(capsys, tmpdir):
     '''This tests the handling of PSyIR representation of the module.
     '''
 
@@ -200,21 +266,18 @@ def test_mod_info_get_psyir(capsys):
 
     # Test that a file that can't be converted to PSyIR returns an
     # empty FileContainer.
-    mod_man.add_search_path(dyn_path, recursive=False)
-    # The file 'broken_builtins_mod.f90' contains invalid Fortran and
-    # cannot be parsed:
-    broken_builtins = mod_man.get_module_info("broken_builtins_mod")
+    with open("broken_mod.f90", "w", encoding="utf-8") as mod_file:
+        mod_file.write('''module broken_mod
+  ERROR
+end module broken_mod''')
+    mod_man.add_search_path(str(tmpdir), recursive=False)
+    broken_builtins = mod_man.get_module_info("broken_mod")
     broken_builtins_psyir = broken_builtins.get_psyir()
-
-    # We should still get an empty Container with a dummy Container:
-    assert isinstance(broken_builtins_psyir, Container)
-    assert broken_builtins_psyir.name == "invalid-module"
-    assert isinstance(broken_builtins_psyir.parent, FileContainer)
-    assert broken_builtins_psyir.parent.name == "broken_builtins_mod.f90"
+    # We should get no PSyIR
+    assert broken_builtins_psyir is None
 
     out, _ = capsys.readouterr()
-    assert "Error trying to parse" in out
-    assert "Expecting name 'aX_plus_bY', got 'blah'" in out
+    assert "Error parsing" in out
 
 
 # -----------------------------------------------------------------------------
@@ -238,69 +301,11 @@ def test_generic_interface():
 
     mod_info = mod_man.get_module_info("g_mod")
 
-    # It should contain all three functions
-    assert mod_info.contains_routine("myfunc")
-    assert mod_info.contains_routine("myfunc1")
-    assert mod_info.contains_routine("myfunc2")
+    # It should contain all two concrete functions
+    contr = mod_info.get_psyir()
 
-    assert "myfunc" in mod_info._generic_interfaces
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
-def test_resolve_routine():
-    '''Test resolve_routine functionality: a simple routine should return
-    its name as the only member of a list, a routine name which is a generic
-    interface should return a list of all possible names. This test relies on
-    the directories and file setup my `mod_man_test_setup_directories`:
-    the module `g_mod` contains:
-    interface myfunc
-        procedure myfunc1
-        procedure myfunc2
-    end interface myfunc
-    Therefore, resolving `myfunc` must return `myfunc1`, and `myfunc2`.
-    TODO #2478: this needs to be rewritten or (re)moved once we have support
-    for interfaces in the PSyIR.
-
-    '''
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path("d2")
-
-    mod_info = mod_man.get_module_info("g_mod")
-
-    # Use set to be independent of ordering
-    all_funcs = mod_info.resolve_routine("myfunc")
-    assert set(all_funcs) == set(["myfunc1", "myfunc2"])
-
-    assert mod_info.resolve_routine("myfunc1") == ["myfunc1"]
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
-def test_module_info_contains_routine():
-    '''Test contains_routine. It relies on the directories and file setup my
-    `mod_man_test_setup_directories`, `d2/g_mod` contains a function
-    `myfunc1`.
-
-    TODO #2422 This needs to be updated when the PSyIR supports generic
-    interfaces.
-
-    '''
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path("d2")
-    mod_info = mod_man.get_module_info("g_mod")
-    assert mod_info.name == "g_mod"
-
-    assert mod_info.contains_routine("myfunc1")
-    assert not mod_info.contains_routine("does-not-exist")
-
-    # Test handling of files that cannot be parsed
-    # --------------------------------------------
-    # TODO #2120: Needs to be updated when error handling is implemented.
-    mod_info = mod_man.get_module_info("error_mod")
-    assert not mod_info.contains_routine("ERROR-CANNOT-BE-PARSED")
+    assert contr.get_routine_psyir("myfunc1")
+    assert contr.get_routine_psyir("myfunc2")
 
 
 # -----------------------------------------------------------------------------
@@ -327,3 +332,26 @@ def test_module_info_extract_import_information_error():
     # trying to parse them again later
     assert mod_info._used_modules == set()
     assert mod_info._used_symbols_from_module == {}
+
+
+# -----------------------------------------------------------------------------
+def test_module_info_get_symbol(tmpdir, monkeypatch):
+    '''Test the get_symbol() method of ModuleInfo.'''
+    filepath = os.path.join(tmpdir, "my_mod.f90")
+    with open(filepath, "w", encoding="utf-8") as fout:
+        fout.write('''
+module my_mod
+  contains
+real function myfunc1()
+  myfunc1 = 42.0
+end function myfunc1
+end module my_mod''')
+
+    minfo = ModuleInfo("my_mod", FileInfo(filepath))
+    assert isinstance(minfo.get_symbol("myfunc1"), RoutineSymbol)
+    # A Symbol that doesn't exist.
+    assert minfo.get_symbol("amos") is None
+    # When no Container has been created. Monkeypatch get_psyir() to simplify
+    # this.
+    monkeypatch.setattr(minfo, "get_psyir", lambda: None)
+    assert minfo.get_symbol("amos") is None
