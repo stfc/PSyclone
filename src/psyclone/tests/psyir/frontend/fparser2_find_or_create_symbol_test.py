@@ -59,7 +59,7 @@ def test_find_or_create_unresolved_symbol():
     not. Also test for an incorrect scope argument.'''
 
     _, invoke = get_invoke("single_invoke_kern_with_global.f90",
-                           api="gocean1.0", idx=0)
+                           api="gocean", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kernel_schedule = kernels[0].get_kernel_schedule()

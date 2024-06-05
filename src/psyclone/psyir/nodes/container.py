@@ -205,6 +205,37 @@ class Container(ScopingNode, CommentableMixin):
                 routines.append(routine)
         return routines
 
+    def resolve_routine(self, name):
+        '''This function returns a list of function names that might be
+        actually called when the routine `name` is called. In most cases
+        this is exactly `name`, but in case of a generic subroutine the
+        name might change. For now (since we cannot compare routine
+        signatures yet), we return the list of all possible functions that
+        might be called.
+
+        :param str name: the name of the routine to resolve
+
+        :returns: the names of those routines that may actually be invoked
+            when the routine `name` is called or an empty list if there is no
+            routine with that name in this container.
+        :rtype: list[str | None]
+
+        :raises TypeError: if the Symbol with the supplied name is not a
+            RoutineSymbol or GenericInterfaceSymbol.
+        '''
+        try:
+            rsym = self.symbol_table.lookup(name)
+        except KeyError:
+            return []
+        if isinstance(rsym, GenericInterfaceSymbol):
+            return [rt[0].name.lower() for rt in rsym.routines]
+        if isinstance(rsym, RoutineSymbol):
+            return [name]
+
+        raise TypeError(
+            f"Expected '{name}' to correspond to either a RoutineSymbol or"
+            f" a GenericInterfaceSymbol but found '{type(rsym).__name__}'")
+
 
 # For AutoAPI documentation generation
 __all__ = ['Container']

@@ -57,7 +57,7 @@ def test_api_specific_name():
     '''Tests api_specific_name(), i.e. conversion to an
     API-specific string. '''
 
-    Config.get().api = "dynamo0.3"
+    Config.get().api = "lfric"
 
     assert AccessType.READ.api_specific_name() == "gh_read"
     assert AccessType.WRITE.api_specific_name() == "gh_write"

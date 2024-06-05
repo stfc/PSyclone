@@ -361,7 +361,7 @@ Example 1: Basic Operation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Basic operation of PSyclone with an ``invoke()`` containing two
-kernels, one :ref:`user-supplied <dynamo0.3-kernel>`, the other a
+kernels, one :ref:`user-supplied <lfric-kernel>`, the other a
 :ref:`Built-in <lfric-built-ins>`. Code is generated both with and
 without distributed-memory support. Also demonstrates the use of the
 ``-d`` flag to specify where to search for user-supplied kernel code
@@ -371,7 +371,7 @@ Example 2: Applying Transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A more complex example showing the use of PSyclone
-:ref:`transformations <dynamo0.3-api-transformations>` to
+:ref:`transformations <lfric-api-transformations>` to
 change the generated PSy-layer code. Provides examples of
 kernel-inlining and loop-fusion transformations.
 

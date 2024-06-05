@@ -82,6 +82,31 @@
 	30) PR #2252 for #1990. Support extraction of kernels that import
 	variables from other modules.
 
+	31) PR #2547 towards #1779. Removes the NemoLoop node and makes
+	the loop_type inference rules part of generic PSyIR.
+
+	32) PR #2590 fpr #2589. Moves to the latest LFRic (split repo)
+	and fixes the LFRic integration tests.
+
+	33) PR #2452 for #2451. Move and rename DynInvokeSchedule to
+	LFRicInvokeSchedule.
+
+	34) PR #2574 for #2196. Add support for use-intrinsic imports.
+
+	35) PR #2566 towards #2156. Bug fixes for routines declared as
+	ELEMENTAL or IMPURE. (Alters the Fortran backend and 
+	Routine.copy().)
+
+	36) PR #2572 for #2195. Improves SymbolTable.__str__ such that
+	Symbols are listed by type and in alpha-order.
+
+	37) PR #2593 for #1779. Removes the 'default' API concept and
+	renames 'dynamo0.3' -> 'lfric' and 'gocean0.1' -> 'gocean'.
+
+	38) PR #2599. Update integration test dependencies.
+
+	39) PR #2564 for $2462. Generalise ModuleManager.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

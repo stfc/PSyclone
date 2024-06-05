@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter and R. W. Ford  STFC Daresbury Lab
+# Modified: A. R. Porter, R. W. Ford and S. Siso, STFC Daresbury Lab
 # Modified: I. Kavcic and L. Turner, Met Office
 
 
@@ -42,7 +42,6 @@ import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone import nemo
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse
@@ -206,7 +205,7 @@ def test_do_loop(parser):
     schedule = psy.invokes.get("test_prog").schedule
 
     do_loop = schedule.children[0]
-    assert isinstance(do_loop, nemo.NemoLoop)
+    assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo(do_loop)
     assert (str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "
                                  "s: WRITE, t: READ")
@@ -229,7 +228,7 @@ def test_nemo_array_range(parser):
     schedule = psy.invokes.get("test_prog").schedule
 
     do_loop = schedule.children[0]
-    assert isinstance(do_loop, nemo.NemoLoop)
+    assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo(do_loop)
     assert (str(var_accesses) == "a: READ, jj: READ+WRITE, n: READ, "
             "s: WRITE, t: READ")
@@ -244,7 +243,7 @@ def test_goloop():
     '''
 
     _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
-                           "gocean1.0", name="invoke_0")
+                           "gocean", name="invoke_0")
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo(do_loop)
@@ -263,7 +262,7 @@ def test_goloop_partially():
     of the gocean variable access handling.
     '''
     _, invoke = get_invoke("single_invoke_two_kernels_scalars.f90",
-                           "gocean1.0", name="invoke_0", dist_mem=False)
+                           "gocean", name="invoke_0", dist_mem=False)
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
 
@@ -289,8 +288,8 @@ def test_lfric():
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+                    api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
@@ -315,8 +314,8 @@ def test_lfric_kern_cma_args():
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "27.access_tests.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+                    api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=False).create(info)
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
     # generation time and therefore we cannot look at dependencies until that
     # is under way. Ultimately this will be replaced by a
@@ -441,7 +440,7 @@ def test_lfric_ref_element():
 
     '''
     psy, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
-                                  "dynamo0.3", idx=0)
+                                  "lfric", idx=0)
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
     # generation time and therefore we cannot look at dependencies until that
     # is under way. Ultimately this will be replaced by a
@@ -459,7 +458,7 @@ def test_lfric_operator():
     handled correctly.
 
     '''
-    psy, invoke_info = get_invoke("6.1_eval_invoke.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("6.1_eval_invoke.f90", "lfric", idx=0)
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
     # generation time and therefore we cannot look at dependencies until that
     # is under way. Ultimately this will be replaced by a
@@ -478,7 +477,7 @@ def test_lfric_cma():
     correctly in the variable usage analysis.
 
     '''
-    psy, invoke_info = get_invoke("20.0_cma_assembly.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("20.0_cma_assembly.f90", "lfric", idx=0)
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
     # generation time and therefore we cannot look at dependencies until that
     # is under way. Ultimately this will be replaced by a
@@ -506,7 +505,7 @@ def test_lfric_cma2():
     correctly in the variable usage analysis.
 
     '''
-    psy, invoke_info = get_invoke("20.1_cma_apply.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("20.1_cma_apply.f90", "lfric", idx=0)
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
     # generation time and therefore we cannot look at dependencies until that
     # is under way. Ultimately this will be replaced by a
@@ -522,7 +521,7 @@ def test_lfric_stencils():
     '''Test that stencil parameters are correctly detected.
 
     '''
-    psy, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("14.4_halo_vector.f90", "lfric", idx=0)
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
     # generation time and therefore we cannot look at dependencies until that
     # is under way. Ultimately this will be replaced by a
@@ -540,7 +539,7 @@ def test_lfric_various_basis():
 
     '''
     psy, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
-                                  "dynamo0.3", idx=0)
+                                  "lfric", idx=0)
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
     # generation time and therefore we cannot look at dependencies until that
     # is under way. Ultimately this will be replaced by a
@@ -563,7 +562,7 @@ def test_lfric_field_bc_kernel():
 
     '''
     psy, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
-                                  "dynamo0.3", idx=0)
+                                  "lfric", idx=0)
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
     # generation time and therefore we cannot look at dependencies until that
     # is under way. Ultimately this will be replaced by a
@@ -580,7 +579,7 @@ def test_lfric_stencil_xory_vector():
 
     '''
     psy, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
-                                  "dynamo0.3", idx=0)
+                                  "lfric", idx=0)
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
     # generation time and therefore we cannot look at dependencies until that
     # is under way. Ultimately this will be replaced by a
@@ -597,7 +596,7 @@ def test_lfric_operator_bc_kernel():
 
     '''
     psy, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
-                                  "dynamo0.3", idx=0)
+                                  "lfric", idx=0)
     # TODO #1010 In the LFRic API, the loop bounds are created at code-
     # generation time and therefore we cannot look at dependencies until that
     # is under way. Ultimately this will be replaced by a
@@ -613,7 +612,7 @@ def test_lfric_stub_args():
     stencils.
 
     '''
-    ast = get_ast("dynamo0.3", "testkern_stencil_multi_mod.f90")
+    ast = get_ast("lfric", "testkern_stencil_multi_mod.f90")
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
@@ -649,7 +648,7 @@ def test_lfric_stub_args2():
     and mesh properties.
 
     '''
-    ast = get_ast("dynamo0.3", "testkern_mesh_prop_face_qr_mod.F90")
+    ast = get_ast("lfric", "testkern_mesh_prop_face_qr_mod.F90")
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
@@ -668,7 +667,7 @@ def test_lfric_stub_args3():
     '''Check variable usage detection for cell position, operator
 
     '''
-    ast = get_ast("dynamo0.3",
+    ast = get_ast("lfric",
                   "testkern_any_discontinuous_space_op_1_mod.f90")
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
@@ -688,7 +687,7 @@ def test_lfric_stub_boundary_dofs():
     '''Check variable usage detection for boundary dofs.
 
     '''
-    ast = get_ast("dynamo0.3", "enforce_bc_kernel_mod.f90")
+    ast = get_ast("lfric", "enforce_bc_kernel_mod.f90")
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
@@ -702,7 +701,7 @@ def test_lfric_stub_field_vector():
     '''Check variable usage detection field vectors.
 
     '''
-    ast = get_ast("dynamo0.3", "testkern_stencil_vector_mod.f90")
+    ast = get_ast("lfric", "testkern_stencil_vector_mod.f90")
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
@@ -723,7 +722,7 @@ def test_lfric_stub_basis():
     '''Check variable usage detection of basis, diff-basis.
 
     '''
-    ast = get_ast("dynamo0.3", "testkern_qr_eval_mod.F90")
+    ast = get_ast("lfric", "testkern_qr_eval_mod.F90")
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
@@ -744,7 +743,7 @@ def test_lfric_stub_cma_operators():
     mesh_ncell2d, cma_operator
 
     '''
-    ast = get_ast("dynamo0.3", "columnwise_op_mul_2scalars_kernel_mod.F90")
+    ast = get_ast("lfric", "columnwise_op_mul_2scalars_kernel_mod.F90")
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
@@ -768,7 +767,7 @@ def test_lfric_stub_banded_dofmap():
     '''Check variable usage detection for banded dofmaps.
 
     '''
-    ast = get_ast("dynamo0.3", "columnwise_op_asm_kernel_mod.F90")
+    ast = get_ast("lfric", "columnwise_op_asm_kernel_mod.F90")
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
@@ -783,7 +782,7 @@ def test_lfric_stub_banded_dofmap():
 def test_lfric_stub_indirection_dofmap():
     '''Check variable usage detection in indirection dofmap.
     '''
-    ast = get_ast("dynamo0.3", "columnwise_op_app_kernel_mod.F90")
+    ast = get_ast("lfric", "columnwise_op_app_kernel_mod.F90")
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
@@ -800,7 +799,7 @@ def test_lfric_stub_boundary_dofmap():
     for operators.
 
     '''
-    ast = get_ast("dynamo0.3", "enforce_operator_bc_kernel_mod.F90")
+    ast = get_ast("lfric", "enforce_operator_bc_kernel_mod.F90")
     metadata = LFRicKernMetadata(ast)
     kernel = LFRicKern()
     kernel.load_meta(metadata)

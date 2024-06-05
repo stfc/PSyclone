@@ -199,12 +199,17 @@ def test_container_get_routine_psyir():
         assert isinstance(psyir[0], Routine)
         assert psyir[0].name == name
 
-    assert container.get_routine_psyir("doesnotexist") == []
+    assert container.get_routine_psyir("doesnotexist") is None
 
 
-def test_container_get_routine_psyir_interface(fortran_reader):
-    '''Test get_routine_psyir() when the requested routine is actually
-    a generic interface.
+def test_container_resolve_routine(fortran_reader):
+    '''
+    Test that the resolve_routine() method works as expected for:
+
+      * an individual routine;
+      * a generic interface;
+      * a name that does not correspond to a routine;
+      * a name that does not exist.
 
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -218,11 +223,9 @@ contains
     subroutine brick_frontage(brick)
       integer :: brick
     end subroutine brick_frontage
-
     subroutine porticoed(pillar)
       real(kind=8) :: pillar
     end subroutine porticoed
-
     subroutine wattle_and_daub(gunk)
       real(kind=4) :: gunk
     end subroutine wattle_and_daub
@@ -230,16 +233,19 @@ end module a_mod
     ''')
     cntr = psyir.children[0]
     assert isinstance(cntr, Container)
-    assert isinstance(cntr.get_routine_psyir("wattle_and_daub")[0], Routine)
-
-    routines = cntr.get_routine_psyir("a_facade")
+    # Individual routine.
+    assert cntr.resolve_routine("wattle_and_daub") == ["wattle_and_daub"]
+    # Generic interface.
+    routines = cntr.resolve_routine("a_facade")
     assert len(routines) == 3
-    assert all(isinstance(rt, Routine) for rt in routines)
-    assert set(rt.name for rt in routines) == set(["brick_frontage",
-                                                   "porticoed",
-                                                   "wattle_and_daub"])
+    assert set(routines) == set(["brick_frontage",
+                                 "porticoed",
+                                 "wattle_and_daub"])
+    # Something that is a DataSymbol.
     with pytest.raises(TypeError) as err:
-        cntr.get_routine_psyir("not_a_routine")
+        cntr.resolve_routine("not_a_routine")
     assert ("Expected 'not_a_routine' to correspond to either a RoutineSymbol"
             " or a GenericInterfaceSymbol but found 'DataSymbol'"
             in str(err.value))
+    # A name not present in the Container.
+    assert cntr.resolve_routine("missing") == []

@@ -49,7 +49,7 @@ transformed and the values they would take.
 
 This script can be applied via the '-s' option when running PSyclone:
 
-$ psyclone -s ./kernel_constants.py \
+$ psyclone -api lfric -s ./kernel_constants.py \
 ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
 -oalg alg.f90 -opsy psy.f90
 
