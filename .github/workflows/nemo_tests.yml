@@ -99,8 +99,8 @@ jobs:
         ./makenemo -r BENCH -m linux_nvidia_O1 -n BENCH_PASSTHROUGH -p passthrough del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" clean -y
         ./makenemo -r BENCH -m linux_nvidia_O1 -n BENCH_PASSTHROUGH -p passthrough del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH/EXP00
-        mpirun -np 1 ./nemo
-        diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca1.1mpi.10steps
+        mpirun -np 4 ./nemo
+        diff run.stat ${PSYCLONE_NEMO_DIR}/KGOs/run.stat.bench.orca2.4mpi.10steps
         export VAR_TIME=$(awk '/ step /{print $3}' timing.output | head -n 1 | sed -e 's/s//')
         echo "Time-stepping duration = " $VAR_TIME
 
