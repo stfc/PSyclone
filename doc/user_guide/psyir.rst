@@ -46,7 +46,7 @@
 .. _psyir-ug:
 
 ==============================================
- PSyIR : The PSyclone Internal Representation
+ PSyIR: the PSyclone Internal Representation
 ==============================================
 
 The PSyIR is at the heart of PSyclone, representing code for existing
