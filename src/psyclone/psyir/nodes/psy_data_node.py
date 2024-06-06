@@ -332,22 +332,33 @@ class PSyDataNode(Statement):
         '''
         # Ensure that we have a container symbol for the API access
         try:
-            csym = symbol_table.lookup_with_tag(self.fortran_module)
+            csym = symbol_table.lookup(self.fortran_module)
         except KeyError:
             # The tag doesn't exist which means that we haven't already added
             # this Container as part of a PSyData transformation.
             csym = ContainerSymbol(self.fortran_module)
             symbol_table.add(csym, tag=self.fortran_module)
 
+        if not isinstance(csym, ContainerSymbol):
+            raise InternalError(
+                f"Cannot add PSyData module '{self.fortran_module}' because "
+                f"another Symbol already exists with that name and is a "
+                f"{type(csym).__name__} rather than a ContainerSymbol.")
+
         # Add the symbols that will be imported from the module. Use the
         # PSyData names as tags to ensure we don't attempt to add them more
         # than once if multiple transformations are applied.
         for sym in self.imported_symbols:
-            symbol_table.find_or_create_tag(sym.name,
-                                            symbol_type=sym.symbol_type,
-                                            interface=ImportInterface(csym),
-                                            datatype=UnresolvedType())
-
+            existing_sym = symbol_table.symbols_dict.get(sym.name, None)
+            if not existing_sym:
+                symbol_table.find_or_create_tag(
+                    sym.name, symbol_type=sym.symbol_type,
+                    interface=ImportInterface(csym),
+                    datatype=UnresolvedType())
+            else:
+                if (not existing_sym.is_import or
+                        existing_sym.interface.container_symbol is not csym):
+                    raise InternalError("hohoho")
         # Store the name of the PSyData variable that is used for this
         # PSyDataNode. This allows the variable name to be shown in str
         # (and also, calling create_name in gen() would result in the name
