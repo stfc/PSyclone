@@ -327,6 +327,14 @@ def test_get_external_symbol(monkeypatch):
     assert ("trying to resolve the properties of symbol 'b' in module "
             "'some_mod': PSyclone SymbolTable error: Oh dear" in
             str(err.value))
+    # Monkeypatch to pretend that we fail to get a Container object.
+    monkeypatch.setattr(other_container, "container", lambda: None)
+    with pytest.raises(SymbolError) as err:
+        bsym.get_external_symbol()
+    assert ("trying to resolve the properties of symbol 'b' in module "
+            "'some_mod': The interface points to module 'some_mod' but could "
+            "not obtain its PSyIR." in str(err.value))
+
     # Now create a Container for the 'some_mod' module and attach this to
     # the ContainerSymbol
     ctable2 = SymbolTable()

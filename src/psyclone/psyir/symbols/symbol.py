@@ -199,10 +199,10 @@ class Symbol():
         Looks-up and returns the Symbol referred to by this Symbol's
         Import Interface.
 
-        :raises SymbolError: if the module pointed to by the symbol interface \
-                             does not contain the symbol (or the symbol is \
+        :raises SymbolError: if the module pointed to by the symbol interface
+                             does not contain the symbol (or the symbol is
                              not public).
-        :raises NotImplementedError: if this symbol does not have an \
+        :raises NotImplementedError: if this symbol does not have an
                                      ImportInterface.
         '''
         if not self.is_import:
@@ -212,8 +212,15 @@ class Symbol():
                 f"not supported.")
 
         module = self.interface.container_symbol
+
         try:
-            return module.container().symbol_table.lookup(
+            container = module.container()
+            if not container:
+                raise SymbolError(
+                    f"Error trying to resolve the properties of symbol "
+                    f"'{self.name}'. The interface points to module "
+                    f"'{module.name}' but could not obtain its PSyIR.")
+            return container.symbol_table.lookup(
                 self.name, visibility=self.Visibility.PUBLIC)
         except KeyError as kerr:
             raise SymbolError(
