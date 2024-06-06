@@ -629,16 +629,63 @@ def test_validate_non_elemental_functions(fortran_reader):
     '''Check that the validate method returns an exception if the rhs of
     the assignment contains a call that is not elemental.'''
     psyir = fortran_reader.psyir_from_source('''
+    module mymod
+        implicit none
+
+        contains
+
+        real function mylocalfunc()
+            mylocalfunc = 3.4
+        end function
+
         subroutine test()
+          use other, only: myfunc
           integer, dimension(:,:) :: x, y, z
           x(:) = matmul(y, z)
+          x(:) = mylocalfunc(y)
+          x(:) = myfunc(y)
+          x(:) = var%myfunc(y)
         end subroutine test
+    end module mymod
     ''')
-    assignment = psyir.walk(Assignment)[0]
     trans = ArrayRange2LoopTrans()
+    assignment1 = psyir.walk(Assignment)[1]
+    assignment2 = psyir.walk(Assignment)[2]
+    assignment3 = psyir.walk(Assignment)[3]
+    assignment4 = psyir.walk(Assignment)[4]
+
     with pytest.raises(TransformationError) as err:
-        trans.validate(assignment, options={"verbose": True})
+        trans.validate(assignment1, options={"verbose": True})
     errormsg = ("ArrayRange2LoopTrans does not accept calls which are not "
                 "guaranteed to be elemental, but found: MATMUL")
-    assert errormsg in assignment.preceding_comment
+    assert errormsg in assignment1.preceding_comment
+    assert errormsg in str(err.value)
+
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment2, options={"verbose": True})
+    errormsg = ("ArrayRange2LoopTrans does not accept calls which are not "
+                "guaranteed to be elemental, but found: mylocalfunc")
+    assert errormsg in assignment2.preceding_comment
+    assert errormsg in str(err.value)
+
+    # Sometimes, like in the two cases below, PSyclone miscategorises function
+    # calls as ArrayReferences, but we still fail with a resonable error msg.
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment3, options={"verbose": True})
+    errormsg = ("ArrayRange2LoopTrans cannot expand expression because it "
+                "contains the variable 'myfunc' which is not a DataSymbol "
+                "and therefore cannot be guaranteed to be ScalarType. "
+                "Resolving the import that brings this variable into scope "
+                "may help.")
+    assert errormsg in assignment3.preceding_comment
+    assert errormsg in str(err.value)
+
+    with pytest.raises(TransformationError) as err:
+        trans.validate(assignment4, options={"verbose": True})
+    errormsg = ("ArrayRange2LoopTrans cannot expand expression because it "
+                "contains the variable 'var' which is an UnresolvedType "
+                "and therefore cannot be guaranteed to be ScalarType. "
+                "Resolving the import that brings this variable into scope "
+                "may help.")
+    assert errormsg in assignment4.preceding_comment
     assert errormsg in str(err.value)

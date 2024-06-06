@@ -732,7 +732,7 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
         "use othermod\n"
         "real :: a(10,10)\n"
         "real :: x\n"
-        "x = maxval(a(:,:undeclared))\n"
+        "x = maxval(a(:,b(:)))\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2LoopTrans()
@@ -740,13 +740,8 @@ def test_range2loop_fails(fortran_reader, fortran_writer):
     code_before = fortran_writer(psyir)
     with pytest.raises(TransformationError) as info:
         trans.apply(node)
-    assert ("ArrayRange2LoopTrans could not convert the expression:\n"
-            "a(:,:undeclared) = a(:,:undeclared)\n\n into a loop because:\n"
-            "Transformation Error: ArrayRange2LoopTrans cannot expand "
-            "expression because it contains the variable 'undeclared' which "
-            "is not a DataSymbol and therefore cannot be guaranteed to be "
-            "ScalarType. Resolving the import that brings this variable into "
-            "scope may help." in str(info.value))
+    assert ("does not support array assignments that contain nested Range "
+            "expressions" in str(info.value))
     # Check that the failed transformation does not modify the code
     code_after = fortran_writer(psyir)
     assert code_before == code_after

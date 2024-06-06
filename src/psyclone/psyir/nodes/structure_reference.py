@@ -298,7 +298,10 @@ class StructureReference(Reference, StructureAccessorMixin):
         # ArrayOfStructuresReference.
         if isinstance(cursor, ArrayMixin):
             # pylint: disable=protected-access
-            shape = cursor._get_effective_shape()
+            try:
+                shape = cursor._get_effective_shape()
+            except NotImplementedError:
+                return UnresolvedType()
         else:
             shape = []
 
@@ -316,7 +319,10 @@ class StructureReference(Reference, StructureAccessorMixin):
                 cursor_type = cursor_type.components[cursor.name].datatype
             if isinstance(cursor, ArrayMixin):
                 # pylint: disable=protected-access
-                shape.extend(cursor._get_effective_shape())
+                try:
+                    shape.extend(cursor._get_effective_shape())
+                except NotImplementedError:
+                    return UnresolvedType()
 
         # We've reached the ultimate member of the structure access.
         if shape:

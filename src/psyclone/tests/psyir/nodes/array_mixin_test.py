@@ -801,15 +801,20 @@ def test_same_range(fortran_reader):
     code = '''
     subroutine test()
         use other_mod
+        integer, dimension(:,:,:) :: known
         ! We don't know
         A(:,:,:) = B(:,:,:)
+        ! We don't know the shape of only one of them
+        known(:,:,:) = A(:,:,:)
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
     array1, array2 = psyir.walk(Assignment)[0].children
+    array3, array4 = psyir.walk(Assignment)[1].children
     assert array1.same_range(0, array2, 0) is False
     assert array1.same_range(1, array2, 1) is False
     assert array1.same_range(2, array2, 2) is False
+    assert array3.same_range(0, array4, 0) is False
 
     # If the values are implicit, but we know the declaration we can also
     # compare them.
