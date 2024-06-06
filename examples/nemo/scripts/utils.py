@@ -144,7 +144,7 @@ def inline_calls(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
     '''
-    excluding = ["ctl_stop", "iom_", "lbc_", "eos"]
+    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "lbc_", "mpi_"]
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
     all_calls = schedule.walk(Call)
@@ -153,7 +153,7 @@ def inline_calls(schedule):
             continue
         rsym = call.routine.symbol
         name = rsym.name.lower()
-        if any(excl_name in name for excl_name in excluding):
+        if any(name.startswith(excl_name) for excl_name in excluding):
             print(f"Inlining of routine '{name}' is disabled.")
             continue
         if rsym.is_import:
