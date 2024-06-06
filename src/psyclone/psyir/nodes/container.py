@@ -42,7 +42,7 @@ from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import (GenericInterfaceSymbol, RoutineSymbol,
-                                    SymbolTable)
+                                    Symbol, SymbolTable)
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
@@ -224,9 +224,12 @@ class Container(ScopingNode, CommentableMixin):
         if routine_sym and routine_sym.is_import:
             child_cntr_sym = routine_sym.interface.container_symbol
             # Find the definition of the container.
+            container = None
             try:
                 container = child_cntr_sym.container(local_node=self)
             except (SymbolError, FileNotFoundError):
+                pass
+            if not container:
                 # TODO #11 log that we didn't find the Container from which
                 # the routine is imported.
                 return None
@@ -257,6 +260,9 @@ class Container(ScopingNode, CommentableMixin):
         signatures yet), we return the list of all possible functions that
         might be called.
 
+        If the symbol with the specified name is a generic Symbol and is
+        imported then it is specialised (in place) to become a RoutineSymbol.
+
         :param str name: the name of the routine to resolve
 
         :returns: the names of those routines that may actually be invoked
@@ -265,7 +271,7 @@ class Container(ScopingNode, CommentableMixin):
         :rtype: list[str | None]
 
         :raises TypeError: if the Symbol with the supplied name is not a
-            RoutineSymbol or GenericInterfaceSymbol.
+            RoutineSymbol, GenericInterfaceSymbol or imported Symbol.
         '''
         try:
             rsym = self.symbol_table.lookup(name)
@@ -274,6 +280,9 @@ class Container(ScopingNode, CommentableMixin):
         if isinstance(rsym, GenericInterfaceSymbol):
             return [rt[0].name.lower() for rt in rsym.routines]
         if isinstance(rsym, RoutineSymbol):
+            return [name]
+        if type(rsym) is Symbol and rsym.is_import:
+            rsym.specialise(RoutineSymbol)
             return [name]
 
         raise TypeError(

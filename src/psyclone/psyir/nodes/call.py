@@ -498,6 +498,9 @@ class Call(Statement, DataNode):
                             container = container_symbol.container(
                                 local_node=self)
                         except SymbolError:
+                            container = None
+                        if not container:
+                            # Failed to find/process this Container.
                             containers_not_found.append(container_symbol.name)
                             continue
                         routines = []
