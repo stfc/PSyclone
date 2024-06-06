@@ -4243,6 +4243,10 @@ class Fparser2Reader():
 
             base_ref = _copy_full_base_reference(array)
             array_ref = array.ancestor(Reference, include_self=True)
+            if not isinstance(array_ref.datatype, ArrayType):
+                raise NotImplementedError(
+                    f"We can not get the shape of symbol "
+                    f"{array_ref.symbol.name}")
             shape = array_ref.datatype.shape
             add_op = BinaryOperation.Operator.ADD
             sub_op = BinaryOperation.Operator.SUB
