@@ -211,27 +211,27 @@ class Symbol():
                 f"the lazy evaluation of '{self.interface}' interfaces is "
                 f"not supported.")
 
-        module = self.interface.container_symbol
+        csym = self.interface.container_symbol
 
         try:
-            container = module.container()
+            container = csym.container()
             if not container:
                 raise SymbolError(
                     f"Error trying to resolve the properties of symbol "
                     f"'{self.name}'. The interface points to module "
-                    f"'{module.name}' but could not obtain its PSyIR.")
+                    f"'{csym.name}' but could not obtain its PSyIR.")
             return container.symbol_table.lookup(
                 self.name, visibility=self.Visibility.PUBLIC)
         except KeyError as kerr:
             raise SymbolError(
                 f"Error trying to resolve the properties of symbol "
                 f"'{self.name}'. The interface points to module "
-                f"'{module.name}' but could not find the definition of "
+                f"'{csym.name}' but could not find the definition of "
                 f"'{self.name}' in that module.") from kerr
         except SymbolError as err:
             raise SymbolError(
               f"Error trying to resolve the properties of symbol "
-              f"'{self.name}' in module '{module.name}': {err.value}") from err
+              f"'{self.name}' in module '{csym.name}': {err.value}") from err
 
     def resolve_type(self):
         '''
@@ -469,16 +469,16 @@ class Symbol():
         set to `i`. If `loop_variable` is specified, `access_information`
         must be specified.
 
-        :param str index_variable: optional loop variable that is used to \
+        :param str index_variable: optional loop variable that is used to
             to determine if an access is an array access using this variable.
         :param access_info: variable access information, optional.
-        :type access_info: \
+        :type access_info:
             :py:class:`psyclone.core.SingleVariableAccessInfo`
 
-        :returns: if the variable is an array.
+        :returns: whether or not the variable is an array.
         :rtype bool:
 
-        :raises InternalError: if a loop_variable is specified, but no \
+        :raises InternalError: if a loop_variable is specified, but no
             access information is given.
 
         '''

@@ -48,12 +48,15 @@ is not tested here.
 
 import pytest
 
+from psyclone.core import Signature, SingleVariableAccessInfo
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
-from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
-    DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface, \
-    INTEGER_SINGLE_TYPE, AutomaticInterface, CommonBlockInterface, \
-    NoType, RoutineSymbol, Symbol, SymbolError, UnknownInterface, \
-    SymbolTable, UnresolvedInterface
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ContainerSymbol,
+    DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface,
+    INTEGER_SINGLE_TYPE, AutomaticInterface, CommonBlockInterface,
+    NoType, RoutineSymbol, Symbol, SymbolError, UnknownInterface,
+    SymbolTable, UnresolvedInterface)
 
 
 def test_symbol_initialisation():
@@ -332,21 +335,33 @@ def test_get_external_symbol(monkeypatch):
     with pytest.raises(SymbolError) as err:
         bsym.get_external_symbol()
     assert ("trying to resolve the properties of symbol 'b' in module "
-            "'some_mod': The interface points to module 'some_mod' but could "
-            "not obtain its PSyIR." in str(err.value))
+            "'some_mod': PSyclone SymbolTable error: Error trying to resolve "
+            "the properties of symbol 'b'. The interface points to module "
+            "'some_mod' but could not obtain its PSyIR." in str(err.value))
 
-    # Now create a Container for the 'some_mod' module and attach this to
+
+def test_get_external_symbol_missing(monkeypatch):
+    '''
+    Test that get_external_symbol() raises the expected error when the
+    requested symbol cannot be found in the Container from which it is
+    imported.
+
+    '''
+    # Create a Container for the 'some_mod' module and attach this to
     # the ContainerSymbol
     ctable2 = SymbolTable()
     some_mod = Container.create("some_mod", ctable2,
                                 [KernelSchedule("dummy2")])
+    other_container = ContainerSymbol("some_mod")
     other_container._reference = some_mod
+    # Create a Symbol that is imported from the "some_mod" Container
+    bsym = Symbol("b", interface=ImportInterface(other_container))
     # Currently the Container does not contain an entry for 'b'
     with pytest.raises(SymbolError) as err:
         bsym.get_external_symbol()
     assert ("trying to resolve the properties of symbol 'b'. The interface "
-            "points to module 'some_mod' but could not find the definition" in
-            str(err.value))
+            "points to module 'some_mod' but could not find the definition of "
+            "'b' in that module." in str(err.value))
     # Add an entry for 'b' to the Container's symbol table
     ctable2.add(DataSymbol("b", INTEGER_SINGLE_TYPE))
     new_sym = bsym.resolve_type()
@@ -415,3 +430,12 @@ def test_symbol_array_handling():
     # A generic symbol (no datatype) without an explicit array access
     # expression is not considered to have array access.
     assert not asym.is_array_access()
+
+    # Specifying an index variable without any access information is an error.
+    with pytest.raises(InternalError) as err:
+        asym.is_array_access("i")
+    assert ("index variable 'i' specified, but no access information given"
+            in str(err.value))
+    # Supply some access information.
+    svinfo = SingleVariableAccessInfo(Signature("a"))
+    assert not asym.is_array_access("i", svinfo)
