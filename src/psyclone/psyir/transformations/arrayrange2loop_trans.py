@@ -73,7 +73,7 @@ class ArrayRange2LoopTrans(Transformation):
     >>> assignment = psyir.walk(Assignment)[0]
     >>> trans = ArrayRange2LoopTrans()
     >>> trans.apply(assignment)
-    >>> psyir.debug_string()
+    >>> print(psyir.debug_string())
     subroutine sub()
       real, dimension(10) :: tmp
       integer :: idx
