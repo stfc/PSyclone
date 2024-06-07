@@ -111,6 +111,7 @@ def add_kernels(children, default_present=True):
                 try_kernels_trans(node_list, default_present)
                 node_list = []
             # It can't so go down a level and try again
+            node_list = []
             add_kernels(child.children)
         else:
             node_list.append(child)
@@ -131,7 +132,6 @@ def try_kernels_trans(nodes, default_present):
 
     '''
     try:
-        import pdb; pdb.set_trace()
         ACCKernelsTrans().apply(nodes, {"default_present": default_present})
     except (TransformationError, InternalError) as err:
         print(f"Failed to transform nodes: {nodes}")

@@ -84,7 +84,7 @@ def trans(psyir):
     for subroutine in psyir.walk(Routine):
         print(f"Transforming subroutine: {subroutine.name}")
 
-        add_kernels(subroutine)
+        add_kernels(subroutine.children)
 
         directives = subroutine.walk(ACCDirective)
         if not directives:

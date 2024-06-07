@@ -69,7 +69,7 @@ transform: kernels managed_mem
 # Need `-l all` to ensure line-lengths in generated code are less than the
 # standard-mandated 132 chars
 kernels:
-	${PSYCLONE} -l all -s ./kernels_trans.py -o psy.f90 ../code/tra_adv.F90
+	psyclone -l all -s ./kernels_trans.py -o psy.f90 ../code/tra_adv.F90
 
 # Example of using the more sophisticated script in ../scripts to
 # transform for OpenACC assuming the use of managed memory.
@@ -79,10 +79,8 @@ kernels:
 # TODO #852 - simplify that script and merge it with the functionality of
 # the scripts in this directory.
 managed_mem:
-	${PSYCLONE} -l all -s ../scripts/acc_kernels_trans.py \
-   ../code/tra_adv.F90
-	PSYCLONE="${PSYCLONE}" ../scripts/process_nemo.py \
-   -s ../scripts/acc_kernels_trans.py ../code/traldf_iso.F90
+	psyclone -l all -s ../scripts/acc_kernels_trans.py ../code/tra_adv.F90
+	psyclone -s ../scripts/acc_kernels_trans.py ../code/traldf_iso.F90
 
 # Compilation uses the 'kernels' transformed code
 psy.f90: kernels

@@ -92,8 +92,7 @@ transform: kernels
 # Need `-l all` to ensure line-lengths in generated code are less than the
 # standard-mandated 132 chars.
 kernels: extract_kernels.py
-	$(PSYCLONE) -l all -api "nemo" -s ./extract_kernels.py -opsy psy.f90 \
-   ../code/tra_adv.F90
+	$(PSYCLONE) -l all -s ./extract_kernels.py -o psy.f90 ../code/tra_adv.F90
 
 $(EXTRACT_DIR)/$(LIB_NAME):
 	make -C $(EXTRACT_DIR)

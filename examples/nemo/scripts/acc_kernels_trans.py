@@ -39,10 +39,9 @@ PSyclone. See README.md in the top-level directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s kernels_trans.py some_source_file.f90
+ $ psyclone -s kernels_trans.py some_source_file.f90
 
-This should produce a lot of output, ending with generated
-Fortran. Note that the Fortran source files provided to PSyclone must
+Note that the Fortran source files provided to PSyclone must
 have already been preprocessed (if required).
 
 The transformation script attempts to insert Kernels directives at the
@@ -60,11 +59,10 @@ Tested with the NVIDIA HPC SDK version 23.7.
 import logging
 from utils import add_profiling
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, Loop, WhileLoop, \
-    Literal, Return, Call, ACCLoopDirective
+    Literal, Return, Call, ACCLoopDirective, Routine
 from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
                                            ACCUpdateTrans
 from psyclone.transformations import ACCEnterDataTrans
@@ -92,6 +90,30 @@ PROFILE_NONACC = True
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
 ACC_EXPLICIT_MEM_MANAGEMENT = False
+
+# Files that PSyclone could process but would reduce the performance.
+NOT_PERFORMANT = [
+    "bdydta.f90", "bdyvol.f90",
+    "fldread.f90",
+    "icbclv.f90", "icbthm.f90", "icbdia.f90", "icbini.f90",
+    "icbstp.f90",
+    "iom.f90", "iom_nf90.f90",
+    "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
+    "obs_types.f90", "obs_read_prof.f90", "obs_write.f90",
+    "tide_mod.f90", "zdfosm.f90",
+]
+
+# Files that we won't touch at all, either because PSyclone actually fails
+# or because it produces incorrect Fortran.
+NOT_WORKING = [
+    # TODO #717 - array accessed inside WHERE does not use array notation
+    "diurnal_bulk.f90",
+    # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
+    "mpp_ini.f90",
+]
+
+# List of all files that psyclone will skip processing
+FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
 
 # If routine names contain these substrings then we do not profile them
 PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
@@ -187,8 +209,8 @@ def valid_acc_kernel(node):
     :rtype: bool
 
     '''
-    # The Fortran routine which our parent Invoke represents
-    routine_name = node.ancestor(NemoInvokeSchedule).invoke.name
+    # The Fortran routine which our parent represents
+    routine_name = node.ancestor(Routine).name
 
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
@@ -392,58 +414,50 @@ def try_kernels_trans(nodes):
         return False
 
 
-def trans(psy):
-    '''A PSyclone-script compliant transformation function. Applies
-    OpenACC 'kernels' directives to NEMO code. Data movement can be
+def trans(psyir):
+    '''Applies OpenACC 'kernels' directives to NEMO code. Data movement can be
     handled manually or through CUDA's managed-memory functionality.
 
-    :param psy: The PSy layer object to apply transformations to.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
+    :param psyir: the PSyIR representing the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
     logging.basicConfig(filename='psyclone.log', filemode='w',
                         level=logging.INFO)
 
-    invoke_list = "\n".join([str(name) for name in psy.invokes.names])
-    print(f"Invokes found:\n{invoke_list}\n")
-
-    for invoke in psy.invokes.invoke_list:
-
-        sched = invoke.schedule
-        if not sched:
-            print(f"Invoke {invoke.name} has no Schedule! Skipping...")
-            continue
+    for subroutine in psyir.walk(Routine):
+        print(f"Transforming subroutine: {subroutine.name}")
 
         # In the lib_fortran file we annotate each routine that does not
         # have a Loop or unsupported Calls with the OpenACC Routine Directive
-        if psy.name == "psy_lib_fortran_psy":
-            if not invoke.schedule.walk(Loop):
-                calls = invoke.schedule.walk(Call)
+        if subroutine.name == "lib_fortran":
+            if not subroutine.walk(Loop):
+                calls = subroutine.walk(Call)
                 if all(call.is_available_on_device() for call in calls):
                     # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
                     # array notation. (TODO #717)
-                    ACC_ROUTINE_TRANS.apply(sched, options={"force": True})
+                    ACC_ROUTINE_TRANS.apply(subroutine,
+                                            options={"force": True})
                     continue
 
         # Attempt to add OpenACC directives unless we are ignoring this routine
-        if invoke.name.lower() not in ACC_IGNORE:
-            print(f"Transforming {invoke.name} with acc kernels")
-            have_kernels = add_kernels(sched.children)
+        if subroutine.name.lower() not in ACC_IGNORE:
+            print(f"Transforming {subroutine.name} with acc kernels")
+            have_kernels = add_kernels(subroutine.children)
             if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
-                print(f"Transforming {invoke.name} with acc enter data")
-                ACC_EDATA_TRANS.apply(sched)
+                print(f"Transforming {subroutine.name} with acc enter data")
+                ACC_EDATA_TRANS.apply(subroutine)
         else:
-            print(f"Addition of OpenACC to routine {invoke.name} disabled!")
+            print(f"Addition of OpenACC to routine {subroutine.name} "
+                  f"disabled!")
 
         # Add required OpenACC update directives to every routine, including to
         # those with no device code and that execute exclusively on the host
         if ACC_EXPLICIT_MEM_MANAGEMENT:
-            print(f"Transforming {invoke.name} with acc update")
-            ACC_UPDATE_TRANS.apply(sched)
+            print(f"Transforming {subroutine.name} with acc update")
+            ACC_UPDATE_TRANS.apply(subroutine)
 
         # Add profiling instrumentation
         if PROFILE_NONACC:
-            print(f"Adding profiling to non-OpenACC regions in {invoke.name}")
-            add_profiling(sched.children)
-
-    return psy
+            print(f"Adding profiling to non-OpenACC regions in "
+                  f"{subroutine.name}")
+            add_profiling(subroutine.children)
