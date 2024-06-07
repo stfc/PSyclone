@@ -45,8 +45,9 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import GenerationError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop, Routine
-from psyclone.psyir.transformations import TransformationError, ProfileTrans
-from psyclone.transformations import ACCKernelsTrans, ACCLoopTrans
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, TransformationError, ProfileTrans)
+from psyclone.transformations import ACCLoopTrans
 
 
 # The PSyclone API under test
