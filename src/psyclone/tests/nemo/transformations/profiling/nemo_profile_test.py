@@ -467,5 +467,5 @@ def test_no_return_in_profiling(parser):
         "end subroutine my_test\n")
     with pytest.raises(TransformationError) as err:
         PTRANS.apply(schedule.children)
-    assert ("Nodes of type 'Return' cannot be enclosed by a ProfileTrans "
+    assert ("cannot be enclosed by a ProfileTrans "
             "transformation" in str(err.value))

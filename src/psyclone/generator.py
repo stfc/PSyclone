@@ -258,59 +258,59 @@ def main(arguments):
                                  recipe_file=args.script,
                                  output_file=args.o,
                                  line_length=args.limit)
-        sys.exit(0)
+    else:
 
-    try:
-        alg, psy = generate(args.filename, api=api,
-                            kernel_paths=args.directory,
-                            script_name=args.script,
-                            line_length=(args.limit == 'all'),
-                            distributed_memory=args.dist_mem,
-                            kern_out_path=kern_out_path,
-                            kern_naming=args.kernel_renaming)
-    except NoInvokesError:
-        _, exc_value, _ = sys.exc_info()
-        print(f"Warning: {exc_value}")
-        # no invoke calls were found in the algorithm file so we do
-        # not need to process it, or generate any psy layer code, so
-        # output the original algorithm file and set the psy file to
-        # be empty
-        with open(args.filename, encoding="utf8") as alg_file:
-            alg = alg_file.read()
-        psy = ""
-    except (OSError, IOError, ParseError, GenerationError,
-            RuntimeError):
-        _, exc_value, _ = sys.exc_info()
-        print(exc_value, file=sys.stderr)
-        sys.exit(1)
-    except Exception:  # pylint: disable=broad-except
-        print("Error, unexpected exception, please report to the authors:",
-              file=sys.stderr)
-        traceback.print_exception(*sys.exc_info(), file=sys.stderr)
-        sys.exit(1)
-    if args.limit != 'off':
-        # Limit the line length of the output Fortran to ensure it conforms
-        # to the 132 characters mandated by the standard.
-        fll = FortLineLength()
-        psy_str = fll.process(str(psy))
-        alg_str = fll.process(str(alg))
-    else:
-        psy_str = str(psy)
-        alg_str = str(alg)
-    if args.oalg is not None:
-        with open(args.oalg, mode='w', encoding="utf8") as alg_file:
-            alg_file.write(alg_str)
-    else:
-        print(f"Transformed algorithm code:\n{alg_str}")
+        try:
+            alg, psy = generate(args.filename, api=api,
+                                kernel_paths=args.directory,
+                                script_name=args.script,
+                                line_length=(args.limit == 'all'),
+                                distributed_memory=args.dist_mem,
+                                kern_out_path=kern_out_path,
+                                kern_naming=args.kernel_renaming)
+        except NoInvokesError:
+            _, exc_value, _ = sys.exc_info()
+            print(f"Warning: {exc_value}")
+            # no invoke calls were found in the algorithm file so we do
+            # not need to process it, or generate any psy layer code, so
+            # output the original algorithm file and set the psy file to
+            # be empty
+            with open(args.filename, encoding="utf8") as alg_file:
+                alg = alg_file.read()
+            psy = ""
+        except (OSError, IOError, ParseError, GenerationError,
+                RuntimeError):
+            _, exc_value, _ = sys.exc_info()
+            print(exc_value, file=sys.stderr)
+            sys.exit(1)
+        except Exception:  # pylint: disable=broad-except
+            print("Error, unexpected exception, please report to the authors:",
+                  file=sys.stderr)
+            traceback.print_exception(*sys.exc_info(), file=sys.stderr)
+            sys.exit(1)
+        if args.limit != 'off':
+            # Limit the line length of the output Fortran to ensure it conforms
+            # to the 132 characters mandated by the standard.
+            fll = FortLineLength()
+            psy_str = fll.process(str(psy))
+            alg_str = fll.process(str(alg))
+        else:
+            psy_str = str(psy)
+            alg_str = str(alg)
+        if args.oalg is not None:
+            with open(args.oalg, mode='w', encoding="utf8") as alg_file:
+                alg_file.write(alg_str)
+        else:
+            print(f"Transformed algorithm code:\n{alg_str}")
 
-    if not psy_str:
-        # empty file so do not output anything
-        pass
-    elif args.opsy is not None:
-        with open(args.opsy, mode='w', encoding="utf8") as psy_file:
-            psy_file.write(psy_str)
-    else:
-        print(f"Generated psy layer code:\n{psy_str}")
+        if not psy_str:
+            # empty file so do not output anything
+            pass
+        elif args.opsy is not None:
+            with open(args.opsy, mode='w', encoding="utf8") as psy_file:
+                psy_file.write(psy_str)
+        else:
+            print(f"Generated psy layer code:\n{psy_str}")
 
 
 def code_transformation_mode(input_file, recipe_file, output_file,
@@ -327,7 +327,7 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         if hasattr(recipe_module, "FILES_TO_SKIP"):
             files_to_skip = recipe_module.FILES_TO_SKIP
         if hasattr(recipe_module, "trans"):
-            recipe_transform = recipe_module.trans 
+            recipe_transform = recipe_module.trans
 
     # Parse file
     psyir = FortranReader().psyir_from_file(input_file)

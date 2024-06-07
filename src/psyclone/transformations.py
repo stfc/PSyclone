@@ -53,7 +53,6 @@ from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
 from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
-from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
                              BuiltIn)
 from psyclone.psyir.nodes import (
@@ -2685,6 +2684,10 @@ class ACCKernelsTrans(RegionTrans):
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)
 
+        if node_list[0].ancestor(GOInvokeSchedule):
+            raise NotImplementedError(
+                "OpenACC kernels regions are not currently supported for "
+                "GOcean InvokeSchedules")
         super().validate(node_list, options)
 
         # Check that we have at least one loop or array range within

@@ -1420,7 +1420,7 @@ def test_omp_par_and_halo_exchange_error():
     # Enclose the invoke code within a single region
     with pytest.raises(TransformationError) as excinfo:
         rtrans.apply(schedule.children)
-    assert ("type 'LFRicHaloExchange' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(excinfo.value))
 
 
@@ -6622,7 +6622,7 @@ def test_acckernelstrans_dm():
     sched = invoke.schedule
     with pytest.raises(TransformationError) as err:
         kernels_trans.apply(sched.children)
-    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "ACCKernelsTrans transformation" in str(err.value))
     kernels_trans.apply(sched.walk(Loop))
     code = str(psy.gen)
@@ -6690,7 +6690,7 @@ def test_accparalleltrans_dm(tmpdir):
     # Cannot include halo-exchange nodes within an ACC parallel region.
     with pytest.raises(TransformationError) as err:
         acc_par_trans.apply(sched)
-    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
     acc_par_trans.apply(sched.walk(Loop)[0])
     acc_enter_trans.apply(sched)

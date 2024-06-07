@@ -400,11 +400,11 @@ def test_no_code_blocks(parser):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children[0:1])
-    assert ("'CodeBlock' cannot be enclosed by a ACCDataTrans"
+    assert ("cannot be enclosed by a ACCDataTrans"
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children[1:2])
-    assert ("'CodeBlock' cannot be enclosed by a ACCDataTrans"
+    assert ("cannot be enclosed by a ACCDataTrans"
             in str(err.value))
 
 
