@@ -45,50 +45,29 @@ from psyclone.transformations import TransformationError
 USE_GPU = True  # Enable for generating OpenMP target directives
 
 
-def trans(psy):
-    ''' Add OpenMP Target and Loop directives to Nemo loops over levels
-    in the provided PSy-layer.
+def trans(psyir):
+    ''' Add OpenMP Target and Loop directives to all loops.
 
-    :param psy: the PSy object which this script will transform.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    :returns: the transformed PSy object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR representing the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
     omp_target_trans = OMPTargetTrans()
     omp_loop_trans = OMPLoopTrans()
     omp_loop_trans.omp_directive = "loop"
 
-    print("Invokes found:")
-    for invoke in psy.invokes.invoke_list:
-        print(invoke.name)
+    # Convert all array implicit loops to explicit loops
+    explicit_loops = NemoAllArrayRange2LoopTrans()
+    for assignment in psyir.walk(Assignment):
+        explicit_loops.apply(assignment)
 
-        # Convert all array implicit loops to explicit loops
-        explicit_loops = NemoAllArrayRange2LoopTrans()
-        for assignment in invoke.schedule.walk(Assignment):
-            explicit_loops.apply(assignment)
+    # Add the OpenMP directives in each outer-level loop
+    for loop in psyir.walk(Loop, stop_type=Loop):
+        try:
+            if USE_GPU:
+                omp_target_trans.apply(loop)
 
-        # Add the OpenMP directives in each loop
-        for loop in invoke.schedule.walk(Loop):
-            if loop.loop_type == "levels":
-                try:
-                    if USE_GPU:
-                        omp_target_trans.apply(loop)
-
-                    omp_loop_trans.apply(loop)
-                except TransformationError:
-                    # This loop can not be transformed, proceed to next loop
-                    continue
-
-                num_nested_loops = 0
-                next_loop = loop
-                while isinstance(next_loop, Loop):
-                    num_nested_loops += 1
-                    if len(next_loop.loop_body.children) > 1:
-                        break
-                    next_loop = next_loop.loop_body.children[0]
-
-                if num_nested_loops > 1:
-                    loop.parent.parent.collapse = num_nested_loops
-
-        return psy
+            omp_loop_trans.apply(loop)
+        except TransformationError:
+            # This loop can not be transformed, proceed to next loop
+            continue
