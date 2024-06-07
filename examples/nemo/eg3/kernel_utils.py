@@ -38,7 +38,11 @@
     workaround the vagaries of the PGI compiler's support for OpenACC.
 '''
 
-from __future__ import print_function
+from fparser.two.utils import walk
+from fparser.two import Fortran2003
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import CodeBlock, IfBlock, Loop
+from psyclone.transformations import TransformationError, ACCKernelsTrans
 
 
 def valid_kernel(node):
@@ -53,9 +57,6 @@ def valid_kernel(node):
     :rtype: bool
 
     '''
-    from psyclone.psyir.nodes import CodeBlock, IfBlock
-    from fparser.two.utils import walk
-    from fparser.two import Fortran2003
     # PGI (18.10) often produces code that fails at run time if a Kernels
     # region includes If constructs.
     excluded_node_types = (CodeBlock, IfBlock)
@@ -81,7 +82,6 @@ def have_loops(nodes):
     :rtype: bool
 
     '''
-    from psyclone.psyir.nodes import Loop
     for node in nodes:
         if node.walk(Loop):
             return True
@@ -130,9 +130,8 @@ def try_kernels_trans(nodes, default_present):
                           DEFAULT(PRESENT) clause to ACC KERNELS directives.
 
     '''
-    from psyclone.errors import InternalError
-    from psyclone.transformations import TransformationError, ACCKernelsTrans
     try:
+        import pdb; pdb.set_trace()
         ACCKernelsTrans().apply(nodes, {"default_present": default_present})
     except (TransformationError, InternalError) as err:
         print(f"Failed to transform nodes: {nodes}")
