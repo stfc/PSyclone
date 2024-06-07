@@ -37,16 +37,19 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
+from utils import (
+    insert_explicit_loop_parallelism, normalise_loops, add_profiling,
+    enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     Loop, Routine, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
 
-from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information, add_profiling
-
 PROFILING_ENABLED = True
+
+# List of all files that psyclone will skip processing
+FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
 
 
 def trans(psyir):

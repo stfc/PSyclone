@@ -37,12 +37,16 @@
 ''' PSyclone transformation script to insert OpenMP for CPU
 directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
-from utils import (insert_explicit_loop_parallelism, normalise_loops,
-                   enhance_tree_information, add_profiling)
+from utils import (
+    insert_explicit_loop_parallelism, normalise_loops, add_profiling,
+    enhance_tree_information, NOT_PERFORMANT, NOT_WORKING)
 from psyclone.psyir.nodes import Routine
 from psyclone.transformations import OMPLoopTrans
 
 PROFILING_ENABLED = False
+
+# List of all files that psyclone will skip processing
+FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
 
 
 def trans(psyir):

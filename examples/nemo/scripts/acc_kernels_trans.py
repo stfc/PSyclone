@@ -57,7 +57,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 '''
 
 import logging
-from utils import add_profiling
+from utils import add_profiling, NOT_PERFORMANT, NOT_WORKING
 from psyclone.errors import InternalError
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
@@ -91,38 +91,8 @@ PROFILE_NONACC = True
 # move data between host and device memory
 ACC_EXPLICIT_MEM_MANAGEMENT = False
 
-# Files that PSyclone could process but would reduce the performance.
-NOT_PERFORMANT = [
-    "bdydta.f90", "bdyvol.f90",
-    "fldread.f90",
-    "icbclv.f90", "icbthm.f90", "icbdia.f90", "icbini.f90",
-    "icbstp.f90",
-    "iom.f90", "iom_nf90.f90",
-    "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
-    "obs_types.f90", "obs_read_prof.f90", "obs_write.f90",
-    "tide_mod.f90", "zdfosm.f90",
-]
-
-# Files that we won't touch at all, either because PSyclone actually fails
-# or because it produces incorrect Fortran.
-NOT_WORKING = [
-    # TODO #717 - array accessed inside WHERE does not use array notation
-    "diurnal_bulk.f90",
-    # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
-    "mpp_ini.f90",
-]
-
 # List of all files that psyclone will skip processing
 FILES_TO_SKIP = NOT_PERFORMANT + NOT_WORKING
-
-# If routine names contain these substrings then we do not profile them
-PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
-                    "macho", "mpp_", "nemo_gcm",
-                    # These are small functions that the addition of profiling
-                    # prevents from being in-lined (and then breaks any attempt
-                    # to create OpenACC regions with calls to them)
-                    "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
-                    "sum", "sign_"]
 
 # Routines we do not attempt to add any OpenACC to (because it breaks with
 # the Nvidia compiler or because it just isn't worth it)
