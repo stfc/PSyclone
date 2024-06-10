@@ -48,10 +48,10 @@ from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop, Routine
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, TransformationError, ProfileTrans)
 from psyclone.transformations import ACCLoopTrans
+from psyclone.tests.utilities import get_invoke
 
-
-# The PSyclone API under test
-API = "nemo"
+# These tests are for PSyclone without a DSL.
+API = ""
 
 EXPLICIT_LOOP = ("program do_loop\n"
                  "use kind_params_mod\n"
@@ -97,6 +97,19 @@ def test_no_kernels_error(parser):
         acc_trans.apply(schedule.children[0:2], {"default_present": True})
     assert ("cannot be enclosed by a ACCKernelsTrans transformation"
             in str(err.value))
+
+
+def test_acc_kernels_gocean_error():
+    ''' Check that we refuse to allow the kernels transformation
+    for the GOcean DSL. '''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
+                           name="invoke_0", dist_mem=False)
+    schedule = invoke.schedule
+    accktrans = ACCKernelsTrans()
+    with pytest.raises(NotImplementedError) as err:
+        accktrans.apply(schedule.children)
+    assert ("kernels regions are not currently supported for "
+            "GOcean InvokeSchedules" in str(err.value))
 
 
 def test_no_loops(parser):
@@ -441,6 +454,8 @@ subroutine ice(assumed_size_char, assumed2)
 
   assumed2(:) = ''
 
+  explicit_size_char = assumed2
+
 end
 '''
     psyir = fortran_reader.psyir_from_source(code)
@@ -467,3 +482,9 @@ end
         acc_trans.validate(sub.children[4], options={})
     assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
             " region but found 'assumed2(:) = ''" in str(err.value))
+    # We don't need there to be a character literal in order to spot a problem.
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[5], options={})
+    assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
+            " region but found 'explicit_size_char = assumed2" in
+            str(err.value))

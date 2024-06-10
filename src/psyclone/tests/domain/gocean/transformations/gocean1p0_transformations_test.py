@@ -49,8 +49,7 @@ from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Loop, Routine
 from psyclone.psyir.transformations import (
-    ACCKernelsTrans, LoopFuseTrans, LoopTrans,
-    TransformationError)
+    LoopFuseTrans, LoopTrans, TransformationError)
 from psyclone.transformations import ACCRoutineTrans, \
     OMPParallelTrans, GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
     OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
@@ -1459,19 +1458,6 @@ def test_acc_loop_seq():
             "      !$acc loop seq\n"
             "      do j = cu_fld%internal%ystart, cu_fld%internal%ystop"
             ", 1\n" in gen)
-
-
-def test_acc_kernels_error():
-    ''' Check that we refuse to allow the kernels transformation
-    for this API. '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
-                           name="invoke_0", dist_mem=False)
-    schedule = invoke.schedule
-    accktrans = ACCKernelsTrans()
-    with pytest.raises(NotImplementedError) as err:
-        accktrans.apply(schedule.children)
-    assert ("kernels regions are not currently supported for "
-            "GOcean InvokeSchedules" in str(err.value))
 
 
 @pytest.mark.usefixtures("clear_module_manager_instance")

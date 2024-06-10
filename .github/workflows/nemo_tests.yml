@@ -82,8 +82,7 @@ jobs:
         cd lib/profiling/nvidia/
         F90=nvfortran make
 
-    # PSyclone passthrough for 5.0-beta of NEMO. Ideally we would build
-    # without MPI ('key_mpi_off' in add_key) but that doesn't currently work.
+    # PSyclone passthrough for 5.0-beta of NEMO.
     - name: NEMO 5.0 beta passthrough without optimisation
       run: |
         . .runner_venv/bin/activate
@@ -95,7 +94,8 @@ jobs:
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load perl/${PERL_VERSION}
-        # We compile at -O1 to permit comparison of the results.
+        # We compile at -O1 to permit comparison of the results. (N.B. this test
+	# passes at -O3 with the Intel ifx compiler.)
         ./makenemo -r BENCH -m linux_nvidia_O1 -n BENCH_PASSTHROUGH -p passthrough del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" clean -y
         ./makenemo -r BENCH -m linux_nvidia_O1 -n BENCH_PASSTHROUGH -p passthrough del_key "key_xios key_iomput key_top" add_key "key_nosignedzero" -j 4
         cd $NEMO_DIR/tests/BENCH_PASSTHROUGH/EXP00

@@ -42,9 +42,9 @@ import re
 
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
-    ACCKernelsDirective, Assignment, CodeBlock, IntrinsicCall, Literal,
-    Loop, PSyDataNode, Reference, Return, Statement, WhileLoop)
-from psyclone.psyir.symbols import ScalarType, UnsupportedFortranType
+    ACCKernelsDirective, Assignment, CodeBlock, IntrinsicCall,
+    Loop, PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
+from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
     TransformationError)
@@ -155,34 +155,32 @@ class ACCKernelsTrans(RegionTrans):
         # of assumed size ('LEN=*' or '*(*)').
         assumed_size = re.compile(r"\(\s*len\s*=\s*\*\s*\)|\*\s*\(\s*\*\s*\)")
 
+        # Construct a list of any symbols that correspond to assumed-size
+        # character strings. These can only be routine arguments.
+        char_syms = []
+        parent_routine = node_list[0].ancestor(Routine)
+        if parent_routine:
+            arg_syms = parent_routine.symbol_table.argument_datasymbols
+            for sym in arg_syms:
+                # Currently the fparser2 frontend does not support any type
+                # of LEN= specification on a character variable so we resort
+                # to a regex to check whether it is assumed-size.
+                if isinstance(sym.datatype, UnsupportedFortranType):
+                    type_txt = sym.datatype.type_text.lower()
+                    if (type_txt.startswith("character") and
+                            assumed_size.search(type_txt)):
+                        char_syms.append(sym)
+
         # Check that there are no assumed-size character variables as these
-        # causes an Internal Compiler Error with NVHPC.
+        # causes an Internal Compiler Error with NVHPC<= 24.5.
         for node in node_list:
-            for lit in node.walk(Literal):
-                if lit.datatype.intrinsic == ScalarType.Intrinsic.CHARACTER:
-                    # We've found a character literal so we go up to the
-                    # ancestor statement and then check the types of all
-                    # symbols that are referenced by it.
-                    stmt = lit.ancestor(Statement)
-                    for ref in stmt.walk(Reference):
-                        if not ref.symbol.is_argument:
-                            # Only arguments can be of assumed length.
-                            continue
-                        # We only need to check the datatype of the underlying
-                        # Symbol.
-                        dtype = ref.symbol.datatype
-                        # Currently the fparser2 frontend does not support any
-                        # type of LEN= specification on a character variable so
-                        # we resort to a regex to check whether it is assumed-
-                        # size.
-                        if isinstance(dtype, UnsupportedFortranType):
-                            type_txt = dtype.type_text.lower()
-                            if (type_txt.startswith("character") and
-                                    assumed_size.search(type_txt)):
-                                raise TransformationError(
-                                    f"Assumed-size character variables cannot "
-                                    f"be enclosed in an OpenACC region but "
-                                    f"found '{stmt.debug_string()}'")
+            for ref in node.walk(Reference):
+                if ref.symbol in char_syms:
+                    stmt = ref.ancestor(Statement)
+                    raise TransformationError(
+                        f"Assumed-size character variables cannot be enclosed "
+                        f"in an OpenACC region but found "
+                        f"'{stmt.debug_string()}'")
             # Check that any Intrinsics are supported on the device.
             for icall in node.walk(IntrinsicCall):
                 if not icall.is_available_on_device():
