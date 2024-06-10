@@ -351,10 +351,18 @@ def test_structure_reference_unresolved_type():
         [("aptr", [two.copy(), two.copy()])])
     assert len(aref2.datatype.shape) == 1
     assert isinstance(aref2.datatype.intrinsic, symbols.UnsupportedFortranType)
+    # An array with the index expression is the result of a function
+    # my_sym(myfunc())%aptr(2,2)
+    array_grid_type = symbols.ArrayType(grid_type_symbol, [four.copy()])
+    array_sym = symbols.DataSymbol("thing", array_grid_type)
+    aref3 = nodes.ArrayOfStructuresReference.create(
+        array_sym, [nodes.Call.create(symbols.RoutineSymbol("myfunc"))],
+        [("aptr", [two.copy(), two.copy()])])
+    assert isinstance(aref3.datatype, symbols.UnresolvedType)
     # An array of arrays - not supported.
     # my_sym(2:4)%aptr
-    aref3 = nodes.ArrayOfStructuresReference.create(
+    aref4 = nodes.ArrayOfStructuresReference.create(
         array_sym, [myrange.copy()], ["aptr"])
     with pytest.raises(NotImplementedError) as err:
-        _ = aref3.datatype
+        _ = aref4.datatype
     assert "Array of arrays not supported: " in str(err.value)

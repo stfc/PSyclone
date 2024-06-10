@@ -294,11 +294,11 @@ class StructureReference(Reference, StructureAccessorMixin):
         cursor = self
         cursor_type = dtype
 
-        # The next four lines are required when this method is called for an
-        # ArrayOfStructuresReference.
+        # If the reference has explicit array syntax, we need to consider it
+        # to calculate the resulting shape.
         if isinstance(cursor, ArrayMixin):
-            # pylint: disable=protected-access
             try:
+                # pylint: disable=protected-access
                 shape = cursor._get_effective_shape()
             except NotImplementedError:
                 return UnresolvedType()

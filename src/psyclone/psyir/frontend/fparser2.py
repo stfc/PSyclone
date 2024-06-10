@@ -4245,8 +4245,8 @@ class Fparser2Reader():
             array_ref = array.ancestor(Reference, include_self=True)
             if not isinstance(array_ref.datatype, ArrayType):
                 raise NotImplementedError(
-                    f"We can not get the shape of symbol "
-                    f"{array_ref.symbol.name}")
+                    f"We can not get the resulting shape of the expression: "
+                    f"{array_ref.debug_string()}")
             shape = array_ref.datatype.shape
             add_op = BinaryOperation.Operator.ADD
             sub_op = BinaryOperation.Operator.SUB
@@ -4443,6 +4443,10 @@ class Fparser2Reader():
                 f"found '{logical_expr}'")
 
         array_ref = first_array.ancestor(Reference, include_self=True)
+        if not isinstance(array_ref.datatype, ArrayType):
+            raise NotImplementedError(
+                f"We can not get the resulting shape of the expression: "
+                f"{array_ref.debug_string()}")
         mask_shape = array_ref.datatype.shape
         # All array sections in a Fortran WHERE must have the same shape so
         # just look at that of the mask.

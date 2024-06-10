@@ -102,6 +102,12 @@ def test_name():
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = MAX(y(idx), z(idx))\n"),
 
+         # Argument of inquiry functions are NOT expanded
+         ("integer, dimension(:) :: x, y\n"
+          "x(:) = y + size(y)\n",
+          "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "    x(idx) = y(idx) + SIZE(y)\n"),
+
          # Mix different array ranks with fixed indices
          ("integer, dimension(:) :: x\n"
           "integer, dimension(:,:) :: y\n"
