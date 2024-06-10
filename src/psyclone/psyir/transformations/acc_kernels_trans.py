@@ -64,7 +64,7 @@ class ACCKernelsTrans(RegionTrans):
     >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import ACCKernelsTrans
+    >>> from psyclone.psyir.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()
     >>>
     >>> schedule = psy.invokes.get('tra_adv').schedule
