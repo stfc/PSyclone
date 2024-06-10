@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,10 +47,15 @@ have already been preprocessed (if required).
 
 '''
 
-from __future__ import print_function
 from psyclone.psyir.nodes import Loop, Assignment
 from psyclone.transformations import ACCKernelsTrans, ACCDataTrans
 
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
 
 # Get the PSyclone transformations we will use
 ACC_DATA_TRANS = ACCDataTrans()

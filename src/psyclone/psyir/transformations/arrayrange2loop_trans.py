@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,19 +33,26 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR Array Range to a
 PSyIR Loop. This could be useful for e.g. performance reasons, to
 allow further transformations e.g. loop fusion or if the back-end does
 not support array ranges.
 
+By default the transformation will reject character arrays,
+though this can be overriden by setting the
+allow_string option to True. Note that PSyclone expresses syntax such
+as `character(LEN=100)` as UnsupportedFortranType, and this
+transformation will convert unknown or unsupported types to loops.
+
 '''
 
-from psyclone.core import SymbolicMaths
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
-    Assignment, Call, IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.nodes import ArrayReference, Assignment, Call, \
+    IntrinsicCall, Loop, Literal, Range, Reference
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, \
+        UnresolvedType, UnsupportedType, ArrayType, NoType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -78,127 +85,6 @@ class ArrayRange2LoopTrans(Transformation):
 
     '''
 
-    @staticmethod
-    def same_range(array1, idx1, array2, idx2):
-        '''This method compares the range node at position 'idx1' in array
-        access 'array1' with the range node at position 'idx2' in
-        array access 'array2'.
-
-        The natural place to test the equivalence of two ranges is in
-        the Range class. However, the test required here is slightly
-        different as it is valid to assume that two array slices are
-        the same even if their actual sizes are not known (as the code
-        would raise a runtime exception if this were not the case).
-
-        :param array1: an array node containing a range node at index idx1.
-        :type array1: py:class:`psyclone.psyir.node.ArrayReference`
-        :param int idx1: an index indicating the location of a range \
-            node in array1 (in its children list).
-        :param array2: an array node containing a range node at index idx2.
-        :type array2: py:class:`psyclone.psyir.node.ArrayReference`
-        :param int idx2: an index indicating the location of a range \
-            node in array2 (in its children list).
-
-        :returns: True if the ranges are the same and False if they \
-            are not the same, or if it is not possible to determine.
-        :rtype: bool
-
-        :raises: TypeError if one or more of the arguments are of the \
-            wrong type.
-
-        '''
-        # pylint: disable=too-many-branches
-        if not isinstance(array1, ArrayReference):
-            raise TypeError(
-                f"The first argument to the same_range() method should be an "
-                f"ArrayReference but found '{type(array1).__name__}'.")
-        if not isinstance(idx1, int):
-            raise TypeError(
-                f"The second argument to the same_range() method should be an "
-                f"int but found '{type(idx1).__name__}'.")
-        if not isinstance(array2, ArrayReference):
-            raise TypeError(
-                f"The third argument to the same_range() method should be an "
-                f"ArrayReference but found '{type(array2).__name__}'.")
-        if not isinstance(idx2, int):
-            raise TypeError(
-                f"The fourth argument to the same_range() method should be an "
-                f"int but found '{type(idx2).__name__}'.")
-        if not idx1 < len(array1.children):
-            raise IndexError(
-                f"The value of the second argument to the same_range() method "
-                f"'{idx1}' should be less than the number of dimensions "
-                f"'{len(array1.children)}' in the associated array 'array1'.")
-        if not idx2 < len(array2.children):
-            raise IndexError(
-                f"The value of the fourth argument to the same_range() method "
-                f"'{idx2}' should be less than the number of dimensions "
-                f"'{len(array2.children)}' in the associated array 'array2'.")
-        if not isinstance(array1.children[idx1], Range):
-            raise TypeError(
-                f"The child of the first array argument at the specified index"
-                f" ({idx1}) should be a Range node, but found "
-                f"'{type(array1.children[idx1]).__name__}'.")
-        if not isinstance(array2.children[idx2], Range):
-            raise TypeError(
-                f"The child of the second array argument at the specified "
-                f"index ({idx2}) should be a Range node, but found "
-                f"'{type(array2.children[idx2]).__name__}'.")
-
-        range1 = array1.children[idx1]
-        range2 = array2.children[idx2]
-
-        sym_maths = SymbolicMaths.get()
-        # compare lower bounds
-        if array1.is_lower_bound(idx1) and array2.is_lower_bound(idx2):
-            # Both array1 and array2 use the lbound() intrinsic to
-            # specify the lower bound of the array dimension. We may
-            # not be able to determine what the lower bounds of these
-            # arrays are statically but at runtime the code will fail
-            # if the ranges do not match so we assume that the lower
-            # bounds are consistent.
-            pass
-        elif array1.is_lower_bound(idx1) or array2.is_lower_bound(idx2):
-            # One and only one of array1 and array2 use the lbound()
-            # intrinsic to specify the lower bound of the array
-            # dimension. In this case assume that the ranges are
-            # different (although they could potentially be the same).
-            return False
-        elif not sym_maths.equal(range1.start, range2.start):
-            # Neither array1 nor array2 use the lbound() intrinsic to
-            # specify the lower bound of the array dimension. Try to
-            # determine if they are the same by matching the
-            # text. Use symbolic maths to do the comparison.
-            return False
-
-        # compare upper bounds
-        if array1.is_upper_bound(idx1) and array2.is_upper_bound(idx2):
-            # Both array1 and array2 use the ubound() intrinsic to
-            # specify the upper bound of the array dimension. We may
-            # not be able to determine what the upper bounds of these
-            # arrays are statically but at runtime the code will fail
-            # if the ranges do not match so we assume that the upper
-            # bounds are consistent.
-            pass
-        elif array1.is_upper_bound(idx1) or array2.is_upper_bound(idx2):
-            # One and only one of array1 and array2 use the ubound()
-            # intrinsic to specify the upper bound of the array
-            # dimension. In this case assume that the ranges are
-            # different (although they could potentially be the same).
-            return False
-        elif not sym_maths.equal(range1.stop, range2.stop):
-            # Neither array1 nor array2 use the ubound() intrinsic to
-            # specify the upper bound of the array dimension. Use
-            # symbolic maths to check if they are equal.
-            return False
-
-        # compare steps
-        if not sym_maths.equal(range1.step, range2.step):
-            return False
-
-        # Everything matches.
-        return True
-
     def apply(self, node, options=None):
         '''Apply the ArrayRange2Loop transformation to the specified node. The
         node must be an assignment. The rightmost range node in each array
@@ -209,9 +95,12 @@ class ArrayRange2LoopTrans(Transformation):
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on a character type array range. Defaults to False.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         parent = node.parent
         symbol_table = node.scope.symbol_table
@@ -254,20 +143,33 @@ class ArrayRange2LoopTrans(Transformation):
         '''Perform various checks to ensure that it is valid to apply the
         ArrayRange2LoopTrans transformation to the supplied PSyIR Node.
 
+        By default the validate function will throw an TransofmrationError
+        on character arrays, though this can be overriden by setting the
+        allow_string option to True. Note that PSyclone expresses syntax such
+        as `character(LEN=100)` as UnsupportedFortranType, and this
+        transformation will convert unknown or unsupported types to loops.
+
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
+        :param options: a dictionary with options for transformations
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on a character type array range. Defaults to False.
 
-        :raises TransformationError: if the node argument is not an \
+        :raises TransformationError: if the node argument is not an
             Assignment.
-        :raises TransformationError: if the node argument is an \
+        :raises TransformationError: if the node argument is an
             Assignment whose left hand side is not an ArrayReference.
-        :raises TransformationError: if the node argument is an \
-            Assignment whose left hand side is an ArrayReference that does \
-            not have Range specifying the access to at least one of its \
+        :raises TransformationError: if the node argument is an
+            Assignment whose left hand side is an ArrayReference that does
+            not have Range specifying the access to at least one of its
             dimensions.
-        :raises TransformationError: if two or more of the loop ranges \
-            in the assignment are different or are not known to be the \
+        :raises TransformationError: if two or more of the loop ranges
+            in the assignment are different or are not known to be the
             same.
+        :raises TransformationError: if node contains a character type
+                                     child and the allow_strings option is
+                                     not set.
 
         '''
         if not isinstance(node, Assignment):
@@ -322,8 +224,7 @@ class ArrayRange2LoopTrans(Transformation):
                     # loop variables where the ranges are
                     # different, or occur in different index
                     # locations.
-                    if not ArrayRange2LoopTrans.same_range(
-                            node.lhs, lhs_index, array, idx):
+                    if not node.lhs.same_range(lhs_index, array, idx):
                         # Ranges are, or may be, different so we
                         # can't safely replace this range with a
                         # loop iterator.
@@ -336,6 +237,34 @@ class ArrayRange2LoopTrans(Transformation):
                             f"different or can't be determined in the "
                             f"assignment '{node}'.")
                     break
+
+        if not options:
+            options = {}
+        allow_string_array = options.get("allow_string", False)
+        # If we allow string arrays then we can skip the check.
+        if not allow_string_array:
+            # ArrayMixin datatype lookup can fail if the indices contain a
+            # Call or Intrinsic Call. We catch this exception and continue
+            # for now - TODO #1799
+            for child in node.walk((Literal, Reference)):
+                try:
+                    # Skip unresolved types
+                    if (isinstance(child.datatype,
+                                   (UnresolvedType, UnsupportedType, NoType))
+                        or (isinstance(child.datatype, ArrayType) and
+                            isinstance(child.datatype.datatype,
+                                       (UnresolvedType, UnsupportedType)))):
+                        continue
+                    if (child.datatype.intrinsic ==
+                            ScalarType.Intrinsic.CHARACTER):
+                        raise TransformationError(
+                            "The ArrayRange2LoopTrans transformation doesn't "
+                            "allow character arrays by default. This can be "
+                            "enabled by passing the allow_string option to "
+                            "the transformation."
+                        )
+                except NotImplementedError:
+                    pass
 
 
 __all__ = [

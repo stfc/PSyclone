@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ def test_gocean_const(monkeypatch):
     monkeypatch.setattr(GOceanConstants, "HAS_BEEN_INITIALISED", False)
     config = Config.get()
 
-    gocean_const = config.api_conf("gocean1.0").get_constants()
+    gocean_const = config.api_conf("gocean").get_constants()
     assert gocean_const.VALID_ARG_TYPE_NAMES == []
     assert gocean_const.VALID_SCALAR_NAMES == ["rscalar", "iscalar"]
 

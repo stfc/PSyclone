@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@ import sys
 import pytest
 
 from fparser import api as fpapi
+from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -508,9 +509,9 @@ def get_base_path(api):
     # Define the mapping of supported APIs to Fortran directories
     # Note that the nemo files are outside of the default tests/test_files
     # directory, they are in tests/nemo/test_files
-    api_2_path = {"dynamo0.3": "dynamo0p3",
+    api_2_path = {"lfric": "dynamo0p3",
                   "nemo": "../nemo/test_files",
-                  "gocean1.0": "gocean1p0"}
+                  "gocean": "gocean1p0"}
     try:
         dir_name = api_2_path[api]
     except KeyError as err:
@@ -550,6 +551,7 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
+    Config.get().api = api
     _, info = parse(os.path.join(get_base_path(api), algfile), api=api)
     psy = PSyFactory(api, distributed_memory=dist_mem).create(info)
     if name:
@@ -572,6 +574,7 @@ def get_ast(api, filename):
     :rtype: :py:class:`fparser.api.BeginSource`
 
     '''
+    Config.get().api = api
     ast = fpapi.parse(os.path.join(get_base_path(api), filename),
                       ignore_comments=False)
     return ast

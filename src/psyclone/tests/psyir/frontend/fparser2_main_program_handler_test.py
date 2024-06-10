@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -110,7 +110,10 @@ def test_main_program_handler_codeblock(fortran_reader, fortran_writer):
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
     out = fortran_writer(psyir)
-    correct = '''PROGRAM TestProgram
+    correct = '''\
+! PSyclone CodeBlock (unsupported code) reason:
+!  - PSyclone doesn't yet support 'Contains' inside a Program
+PROGRAM TestProgram
   CONTAINS
   SUBROUTINE TestSubroutine
   END SUBROUTINE

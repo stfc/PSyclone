@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 
 '''
 Module containing pytest tests for the mesh-property functionality
@@ -43,8 +43,8 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import (DynKernMetadata, LFRicMeshProperties,
-                                MeshProperty)
+from psyclone.domain.lfric import LFRicKernMetadata
+from psyclone.dynamo0p3 import LFRicMeshProperties, MeshProperty
 from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -58,7 +58,7 @@ BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 MESH_PROPS_MDATA = '''
 module testkern_mesh_mod
@@ -87,7 +87,7 @@ def test_mdata_parse():
     code = MESH_PROPS_MDATA
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     assert dkm.mesh.properties == [MeshProperty.ADJACENT_FACE]
 
 
@@ -100,7 +100,7 @@ def test_mdata_invalid_property(property_name):
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert (f"in metadata: '{property_name}'. Supported values are: "
             f"['ADJACENT_FACE'" in str(err.value))
 
@@ -113,7 +113,7 @@ def test_mdata_wrong_arg_count():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("'meta_mesh' metadata, the number of items in the array "
             "constructor (1) does not match the extent of the array (4)"
             in str(err.value))
@@ -126,7 +126,7 @@ def test_mdata_wrong_name():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("No variable named 'meta_mesh' found in the metadata for"
             in str(err.value))
 
@@ -140,7 +140,7 @@ def test_mdata_wrong_type_var():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("'meta_mesh' metadata must consist of an array of "
             "structure constructors, all of type 'mesh_data_type'"
             " but found: ['ref_element_data_type']" in str(err.value))
@@ -157,7 +157,7 @@ def test_mdata_duplicate_var():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
-        DynKernMetadata(ast, name=name)
+        LFRicKernMetadata(ast, name=name)
     assert ("Duplicate mesh property found: "
             "'MeshProperty.ADJACENT_FACE'." in str(err.value))
 

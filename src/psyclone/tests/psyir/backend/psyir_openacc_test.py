@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Assignment, Reference, Loop, Directive,
@@ -172,11 +171,6 @@ def test_nemo_acc_kernels(default_present, expected, parser, fortran_writer):
   !$acc end kernels'''
     assert correct in result
 
-    cvisitor = CWriter()
-    with pytest.raises(VisitorError) as err:
-        _ = cvisitor(nemo_sched[0])
-    assert "Unsupported node 'NemoKern' found" in str(err.value)
-
 
 # ----------------------------------------------------------------------------
 def test_nemo_acc_parallel(parser):
@@ -207,11 +201,6 @@ def test_nemo_acc_parallel(parser):
   enddo
   !$acc end parallel'''
     assert correct in result
-
-    cvisitor = CWriter(check_global_constraints=False)
-    with pytest.raises(VisitorError) as err:
-        _ = cvisitor(nemo_sched[0])
-    assert "Unsupported node 'NemoKern' found" in str(err.value)
 
 
 # ----------------------------------------------------------------------------
@@ -292,7 +281,7 @@ def test_gocean_acc_parallel():
     is created correctly.
 
     '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke.f90", "gocean",
                            idx=0, dist_mem=False)
 
     ptrans = ACCParallelTrans()

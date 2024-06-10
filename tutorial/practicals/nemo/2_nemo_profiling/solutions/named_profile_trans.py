@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,10 @@ have already been preprocessed (if required).
 from __future__ import print_function, absolute_import
 from psyclone.psyir.transformations import ProfileTrans
 from psyclone.psyir.nodes import Loop
+
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
+Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"}})
 
 
 def trans(psy):

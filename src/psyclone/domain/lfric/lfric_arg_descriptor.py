@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ from psyclone.parse.kernel import Descriptor, get_stencil, get_mesh
 from psyclone.parse.utils import ParseError
 
 # API configuration
-API = "dynamo0.3"
+API = "lfric"
 
 
 class LFRicArgDescriptor(Descriptor):

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,9 @@ by the command:
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
                   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                  [--profile {invokes,kernels}] [--config CONFIG] [--version]
+                  [--profile {invokes,routines,kernels}]
+                  [--backend {enable-validation,disable-validation}]
+                  [--config CONFIG] [--version]
                   filename
 
   Run the PSyclone code generator on a particular file
@@ -79,8 +81,8 @@ by the command:
     -opsy OPSY            filename of generated PSy code
     -okern OKERN          directory in which to put transformed kernels,
                           default is the current working directory.
-    -api API              choose a particular api from ['dynamo0.3',
-                          'gocean1.0', 'nemo'], default 'dynamo0.3'.
+    -api API              whether to use a particular api from ['lfric',
+                          'gocean'].
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
@@ -99,9 +101,16 @@ by the command:
     --kernel-renaming {multiple,single}
                           Naming scheme to use when re-naming transformed
                           kernels
-    --profile {invokes,kernels}, -p {invokes,kernels}
-                          Add profiling hooks for either 'kernels' or 'invokes'
-    --config CONFIG       Config file with PSyclone specific options.
+    --profile {invokes,routines,kernels}, -p {invokes,routines,kernels}
+                          Add profiling hooks for either 'kernels' or
+                          'invokes/routines'. The 'kernels' option is not
+                          permitted for the 'nemo' API.
+    --backend {dis,en}able-validation
+                          Options to control the PSyIR backend used for code
+                          generation. Use 'disable-validation' to disable the
+                          validation checks that are performed by default.
+    --config CONFIG, -c CONFIG
+                          Config file with PSyclone specific options.
     --version, -v         Display version information (\ |release|\ )
 
 Basic Use
@@ -127,20 +136,20 @@ the generated PSy code will be output to the terminal screen.
 Choosing the API
 ----------------
 
-In the previous section we relied on PSyclone using the default
-API. The default API, along with the supported APIs can be seen by
-running the ``psyclone`` command with the ``-h`` option.
-
-If you use a particular API frequently and it is not the default then
-you can change the default by creating a copy of the default
-``psyclone.cfg`` file and editing it. See :ref:`configuration` for
-more details.
-
-If your code uses an API that is different to the default then you can
-specify this as an argument to the ``psyclone`` command.
+If your code implements a PSyKAL DSL, you can choose a DSL API with the
+``-api`` flag. For PSyKAl APIs, by default, the ``psyclone`` command will
+generate distributed memory (DM) code (unless otherwise specified in the
+:ref:`configuration` file).
+Alternatively, whether or not to generate DM code can be specified as an
+argument to the ``psyclone`` command using the ``-dm``/``--dist_mem`` or
+``-nodm``/``--no_dist_mem`` flags, respectively.
+For exampe the following command will generate GOcean PSyKAl code with DM.
 ::
 
-    > psyclone -api gocean1.0 alg.f90
+    > psyclone -api gocean -dm alg.f90
+
+See :ref:`psyclone usage for PSyKAl <psykal_usage>` section for more information about
+how to use PSyKAl DSLs.
 
 File output
 -----------
@@ -194,7 +203,7 @@ following code gives an error:
     program no_use
       call invoke(testkern_type(a,b,c,d,e))
     end program no_use
-    > psyclone -api gocean1.0 no_use.f90
+    > psyclone -api gocean no_use.f90
     "Parse Error: kernel call 'testkern_type' must either be named in a use statement or be a recognised built-in (one of '[]' for this API)"
 
 (If the chosen API has any :ref:`built-ins` defined then
@@ -229,11 +238,11 @@ must be only one instance of the specified file within (or below) the
 specified directory:
 
 .. code-block:: bash
-		  
+
     > cd <PSYCLONEHOME>/src/psyclone
     > psyclone -d . use.f90 
     More than one match for kernel file 'testkern.[fF]90' found!
-    > psyclone -d tests/test_files/dynamo0p3 -api dynamo0.3 use.f90 
+    > psyclone -d tests/test_files/dynamo0p3 -api lfric use.f90 
     [code output]
 
 .. note:: The ``-d`` option can be repeated to add as many search
@@ -246,7 +255,7 @@ Transformation script
 
 By default the ``psyclone`` command will generate 'vanilla'
 Algorithm-layer and PSy-layer code with unmodified kernels for the
-gocean1.0 and lfric (dynamo0.3) APIs. For the nemo API, ``psyclone``
+gocean and lfric APIs. For the nemo API, ``psyclone``
 will not perform any transformations on the input code.
 
 The -s option allows a Python script to be specified which can contain
@@ -282,35 +291,25 @@ could fail in certain pathological cases. The implementation and
 limitations of line wrapping are discussed in the
 :ref:`line-length-limitations` section.
 
-Distributed memory
-------------------
 
-By default the ``psyclone`` command will generate distributed
-memory (DM) code (i.e. parallelised using MPI). As with the choice of
-API, this default may be configured by editing ``psyclone.cfg`` - see
-:ref:`configuration`.  Alternatively, whether or not to generate DM
-code can be specified as an argument to the ``psyclone`` command using
-the ``-dm``/``--dist_mem`` or ``-nodm``/``--no_dist_mem`` flags,
-respectively.
-
-For details of PSyclone's support for generating DM code see
-:ref:`distributed_memory`.
 
 Automatic Profiling Instrumentation
 -----------------------------------
 
 The ``--profile`` option allows the user to instruct PSyclone to
 automatically insert profiling calls within the generated PSy
-code. Two options are provided, ``invokes`` and ``kernels``. The first of
-these causes PSyclone to insert profiling-start and -stop calls at the
-beginning and end of every generated invoke routine. The second puts
-profiling calls around every kernel call (including the associated
-loops). The generated code must be linked against the PSyclone
-profiling interface and the profiling tool itself. The application
-that calls the PSyclone-generated code is responsible for initialising
-and finalising the profiling library that is being used.  For full
-details on the use of this profiling functionality please see the
-:ref:`profiling` section.
+code. Two options are provided, ``invokes`` (or ``routines``) and
+``kernels``. The first of these causes PSyclone to insert
+profiling-start and -stop calls at the beginning and end of every
+generated invoke routine (or processed subroutine). The second puts
+profiling calls around every Kernel call, including the associated
+loops. (Since the 'nemo' API does not have the concept of Kernels,
+this option is not valid for that API.) The generated code must be
+linked against the PSyclone profiling interface and the profiling tool
+itself. The application that calls the PSyclone-generated code is
+responsible for initialising and finalising the profiling library that
+is being used (if necessary).  For full details on the use of this
+profiling functionality please see the :ref:`profiling` section.
 
 Outputting of Transformed Kernels
 ---------------------------------
@@ -378,6 +377,30 @@ referenced modules. To do this it searches in the directories specified
 by the ``-I``/``--include`` flags. (Currently this search assumes that a
 module named e.g. "my_mod" will be in a file named "my_mod.*90" - see issue
 #1895.)
+
+.. _backend-options:
+
+Backend Options
+---------------
+
+The final code generated by PSyclone is created by passing the PSyIR
+tree to one of the 'backends' (see :ref:`dev_guide:psyir-backends` in
+the Developer Guide for more details). The ``--backend`` flag permits
+a user to tune the behaviour of this code generation. Currently, the
+only option is ``{en,dis}able-validation`` which turns on/off the
+validation checks performed when doing code generation. By default,
+such validation is enabled as it is only at code-generation time that
+certain constraints can be checked (since PSyclone does not mandate
+the order in which code transformations are applied).  Occasionally,
+these validation checks may raise false positives (due to incomplete
+implementations), at which point it is useful to be able to disable
+them.  The default behaviour may be changed by adding the
+``BACKEND_CHECKS_ENABLED`` entry to the
+:ref:`configuration file <config-default-section>`. Any
+command-line setting always takes precendence though. It is
+recommended that validation only be disabled as a last resort and for
+as few input source files as possible.
+
 
 C Pre-processor #include Files
 ------------------------------

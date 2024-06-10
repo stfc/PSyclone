@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
 from psyclone.transformations import KernelImportsToArguments, \
     TransformationError
 
-API = "gocean1.0"
+API = "gocean"
 
 # Each os.path.dirname() move up in the folder hierarchy
 BASEPATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -59,8 +59,8 @@ def test_kernelimportstoargumentstrans_wrongapi():
     trans = KernelImportsToArguments()
     path = os.path.join(BASEPATH, "dynamo0p3")
     _, invoke_info = parse(os.path.join(path, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric").create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
     with pytest.raises(TransformationError) as err:
@@ -130,11 +130,11 @@ def test_kernelimportstoargumentstrans(monkeypatch):
     notkernel = invoke.schedule.children[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch resolve_deferred to avoid module searching and importing
+    # Monkeypatch resolve_type to avoid module searching and importing
     # in this test. In this case we assume it is a REAL
     def set_to_real(variable):
         variable._datatype = REAL_TYPE
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", set_to_real)
+    monkeypatch.setattr(DataSymbol, "resolve_type", set_to_real)
 
     # Test with invalid node
     with pytest.raises(TransformationError) as err:
@@ -204,7 +204,7 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch resolve_deferred to avoid module searching and importing
+    # Monkeypatch resolve_type to avoid module searching and importing
     # in this test. In this case we assume it is a constant INTEGER
     def create_data_symbol(arg):
         symbol = DataSymbol(arg.name, INTEGER_TYPE,
@@ -213,8 +213,8 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
                             initial_value=Literal("1", INTEGER_TYPE))
         return symbol
 
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", create_data_symbol)
-    monkeypatch.setattr(Symbol, "resolve_deferred", create_data_symbol)
+    monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
+    monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
 
     # Test transforming a single kernel
     trans.apply(kernel)
@@ -222,8 +222,8 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     fwriter = FortranWriter()
     kernel_code = fwriter(kernel.get_kernel_schedule())
 
-    assert "subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)" \
-        in kernel_code
+    assert ("subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
+            "magic)" in kernel_code)
     assert "integer, intent(in) :: rdt" in kernel_code
 
 
@@ -247,7 +247,7 @@ def test_kernelimportstoargumentstrans_unsupported_gocean_scalar(monkeypatch):
         symbol = DataSymbol(arg.name, CHARACTER_TYPE,
                             interface=arg.interface)
         return symbol
-    monkeypatch.setattr(Symbol, "resolve_deferred", create_data_symbol)
+    monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
 
     # Test transforming a single kernel
     with pytest.raises(TypeError) as err:
@@ -278,22 +278,24 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
     # The kernels are checked before the psy.gen, so they don't include the
     # modified suffix.
     expected = [
-        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)",
+        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
+         "magic)",
          "real, intent(inout) :: rdt"],
         ["subroutine kernel_with_use2_code(ji, jj, istep, ssha, tmask, cbfr,"
          " rdt)",
          "real, intent(inout) :: cbfr\n  real, intent(inout) :: rdt"],
-        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt)",
-         "real, intent(inout) :: rdt"]]
+        ["subroutine kernel_with_use_code(ji, jj, istep, ssha, tmask, rdt, "
+         "magic)",
+         "real, intent(inout) :: rdt\n  real, intent(inout) :: magic"]]
 
-    # Monkeypatch the resolve_deferred() methods to avoid searching and
+    # Monkeypatch the resolve_type() methods to avoid searching and
     # importing of module during this test.
     def create_data_symbol(arg):
         symbol = DataSymbol(arg.name, REAL_TYPE,
                             interface=arg.interface)
         return symbol
-    monkeypatch.setattr(Symbol, "resolve_deferred", create_data_symbol)
-    monkeypatch.setattr(DataSymbol, "resolve_deferred", create_data_symbol)
+    monkeypatch.setattr(Symbol, "resolve_type", create_data_symbol)
+    monkeypatch.setattr(DataSymbol, "resolve_type", create_data_symbol)
 
     for num, kernel in enumerate(invoke.schedule.coded_kernels()):
         kschedule = kernel.get_kernel_schedule()
@@ -302,8 +304,8 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
 
         # Check the kernel code is generated as expected
         kernel_code = fwriter(kschedule)
-        assert expected[num][0] in kernel_code
-        assert expected[num][1] in kernel_code
+        for part in expected[num]:
+            assert part in kernel_code
 
     generated_code = str(psy.gen)
 
@@ -318,12 +320,12 @@ def test_kernelimportstoarguments_multiple_kernels(monkeypatch):
             in generated_code)
 
     # Check the kernel calls have the imported symbol passed as last argument
-    assert "CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, " \
-           "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "CALL kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, " \
-           "cu_fld%grid%tmask, rdt)" in generated_code
-    assert "CALL kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, " \
-           "cu_fld%grid%tmask, cbfr, rdt)" in generated_code
+    assert ("CALL kernel_with_use_0_code(i, j, oldu_fld, cu_fld%data, "
+            "cu_fld%grid%tmask, rdt, magic)" in generated_code)
+    assert ("CALL kernel_with_use_1_code(i, j, oldu_fld, cu_fld%data, "
+            "cu_fld%grid%tmask, rdt, magic)" in generated_code)
+    assert ("CALL kernel_with_use2_0_code(i, j, oldu_fld, cu_fld%data, "
+            "cu_fld%grid%tmask, cbfr, rdt)" in generated_code)
 
 
 @pytest.mark.usefixtures("kernel_outputdir")
@@ -363,13 +365,13 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
 
-    # Monkeypatch Symbol.resolve_deferred to avoid module searching and
+    # Monkeypatch Symbol.resolve_type to avoid module searching and
     # importing in this test. In this case we assume the symbol is a
     # DataSymbol of REAL type.
     def create_real(variable):
         return DataSymbol(variable.name, REAL_TYPE,
                           interface=variable.interface)
-    monkeypatch.setattr(Symbol, "resolve_deferred", create_real)
+    monkeypatch.setattr(Symbol, "resolve_type", create_real)
 
     # Add 'rdt' into the symbol table
     kernel.ancestor(InvokeSchedule).symbol_table.add(

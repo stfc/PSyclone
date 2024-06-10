@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,15 +34,16 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
 # Modified by: S. Siso, STFC Daresbury Lab
+# MOdified by: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Routine node implementation.'''
 
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, NoType
-from psyclone.psyir.symbols.symbol_table import SymbolTable
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, NoType
+from psyclone.psyir.symbols.symbol_table import SymbolTable
 
 
 class Routine(Schedule, CommentableMixin):
@@ -97,6 +98,7 @@ class Routine(Schedule, CommentableMixin):
     @classmethod
     def create(cls, name, symbol_table, children, is_program=False,
                return_symbol_name=None):
+        # pylint: disable=too-many-arguments
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
         so that it is able to act as a Factory for subclasses - e.g. it
@@ -210,14 +212,32 @@ class Routine(Schedule, CommentableMixin):
                     f"Can't assign '{new_name}' as the routine name because "
                     f"its symbol table contains a symbol ({existing_symbol}) "
                     f"already tagged as 'own_routine_symbol'.")
+            # If the parent container exists and contains a RoutineSymbol
+            # to this Routine, then we create a copy of that RoutineSymbol
+            # to store as own_routine_symbol. This ensures we copy any
+            # properties of the Routine (such as elemental or impure)
+            # into the RoutineSymbol.
+            # TODO #2592 - this can be improved when we add the _symbol
+            # property to Routine.
+            rsymbol = None
+            if self._parent:
+                try:
+                    rsymbol = self.parent.symbol_table.lookup(new_name).copy()
+                except KeyError:
+                    pass
+            if not rsymbol:
+                rsymbol = RoutineSymbol(new_name, NoType())
 
             self._name = new_name
             # Since the constructor can not mark methods as functions directly
             # the symbol will always start being NoType and must be updated
             # if a return_value type is provided.
-            self.symbol_table.add(RoutineSymbol(new_name, NoType()),
-                                  tag='own_routine_symbol')
+            self.symbol_table.add(rsymbol, tag='own_routine_symbol')
         elif self._name != new_name:
+            # TODO #2592: When we rename the symbol we should also update
+            # the parent container's RoutineSymbol's name to reflect this
+            # change. This will be simplfied when we have Routine._symbol.name
+            # as a single source of truth.
             symbol = self.symbol_table.lookup(self._name)
             self._name = new_name
             self.symbol_table.rename_symbol(symbol, new_name)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,12 +44,12 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
-from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
-                                              TYPE_MAP_FROM_FORTRAN)
+from psyclone.psyir.frontend.fparser2 import (
+    Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
-from psyclone.psyir.symbols import (DataSymbol, DeferredType, NoType,
-                                    RoutineSymbol, ScalarType,
-                                    SymbolError, UnknownFortranType)
+from psyclone.psyir.symbols import (
+    DataSymbol, UnresolvedType, NoType, RoutineSymbol, ScalarType,
+    UnsupportedFortranType)
 
 IN_OUTS = []
 # subroutine no declarations
@@ -282,7 +282,7 @@ def test_function_missing_return_type(fortran_reader):
     Test that we reject a Fortran function without an explicit declaration of
     its return type (i.e. if it's relying on Fortran's implicit typing). We
     can't put such a function in a CodeBlock because we generate code with
-    `implicit none` specified.
+    `implicit none`, so we need to put the whole module in the CodeBlock.
 
     '''
     code = (
@@ -292,11 +292,12 @@ def test_function_missing_return_type(fortran_reader):
         "    my_func = 1.0\n"
         "  end function my_func\n"
         "end module\n")
-    with pytest.raises(SymbolError) as err:
-        _ = fortran_reader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
+    # Check that the whole module is a CodeBlock
+    assert isinstance(psyir.children[0], CodeBlock)
     assert ("No explicit return-type information found for function "
             "'my_func'. PSyclone requires that all symbols be explicitly "
-            "typed." in str(err.value))
+            "typed.") in psyir.children[0].preceding_comment
     # Test where the result is specified in a suffix but there is no actual
     # declaration of the symbol.
     code = (
@@ -306,11 +307,12 @@ def test_function_missing_return_type(fortran_reader):
         "    some_var = 1.0\n"
         "  end function my_func\n"
         "end module\n")
-    with pytest.raises(SymbolError) as err:
-        _ = fortran_reader.psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(code)
+    # Check that the whole module is a CodeBlock
+    assert isinstance(psyir.children[0], CodeBlock)
     assert ("No explicit return-type information found for function "
             "'my_func'. PSyclone requires that all symbols be explicitly "
-            "typed." in str(err.value))
+            "typed.") in psyir.children[0].preceding_comment
 
 
 def test_function_unsupported_type(fortran_reader):
@@ -331,7 +333,8 @@ def test_function_unsupported_type(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     routines = psyir.walk(Routine)
     assert routines[0].return_symbol.name == "my_func"
-    assert isinstance(routines[0].return_symbol.datatype, UnknownFortranType)
+    assert isinstance(routines[0].return_symbol.datatype,
+                      UnsupportedFortranType)
     assert (routines[0].return_symbol.datatype.declaration.lower() ==
             "complex :: my_func")
     # The Agrif_CFixed function ends up as a CodeBlock because of the
@@ -341,7 +344,7 @@ def test_function_unsupported_type(fortran_reader):
     for name in ["my_func", "agrif_cfixed"]:
         sym = table.lookup(name)
         assert isinstance(sym, RoutineSymbol)
-        assert isinstance(sym.datatype, DeferredType)
+        assert isinstance(sym.datatype, UnresolvedType)
 
 
 def test_function_unsupported_derived_type(fortran_reader):
@@ -362,16 +365,16 @@ def test_function_unsupported_derived_type(fortran_reader):
     routine = psyir.children[0].children[0]
     assert isinstance(routine, Routine)
     assert routine.return_symbol.name == "my_func"
-    assert isinstance(routine.return_symbol.datatype, UnknownFortranType)
+    assert isinstance(routine.return_symbol.datatype, UnsupportedFortranType)
     assert (routine.return_symbol.datatype.declaration.lower() ==
             "type(my_type), pointer :: my_func")
     sym = routine.symbol_table.lookup("var1")
-    assert isinstance(sym.datatype, UnknownFortranType)
+    assert isinstance(sym.datatype, UnsupportedFortranType)
     assert sym.datatype.declaration.lower() == "type(my_type), pointer :: var1"
 
 
 @pytest.mark.parametrize("fn_prefix", ["elemental", "pure", "impure",
-                                       "pure elemental"])
+                                       "pure elemental", "impure elemental"])
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
 def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
     '''Check that the frontend correctly handles a routine with the various
@@ -390,7 +393,12 @@ def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
     rsym = routine.parent.scope.symbol_table.lookup("my_func")
     assert isinstance(rsym, RoutineSymbol)
     assert rsym.is_elemental is ("elemental" in fn_prefix)
-    assert rsym.is_pure is fn_prefix.startswith("pure")
+    if fn_prefix.startswith("pure"):
+        assert rsym.is_pure
+    elif "impure" in fn_prefix:
+        assert not rsym.is_pure
+    else:
+        assert rsym.is_pure is None
 
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
@@ -408,13 +416,13 @@ def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
         f"end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
-    # The Symbol for this routine should be of either NoType or DeferredType.
+    # The Symbol for this routine should be of either NoType or UnresolvedType.
     fsym = psyir.children[0].symbol_table.lookup("my_func")
     assert isinstance(fsym, RoutineSymbol)
     if routine_type == "subroutine":
         assert isinstance(fsym.datatype, NoType)
     else:
-        assert isinstance(fsym.datatype, DeferredType)
+        assert isinstance(fsym.datatype, UnresolvedType)
 
 
 def test_unsupported_char_len_function(fortran_reader):
@@ -433,7 +441,7 @@ def test_unsupported_char_len_function(fortran_reader):
     assert "LEN = 2" in str(cblock.get_ast_nodes[0])
     fsym = psyir.children[0].symbol_table.lookup("my_func")
     assert isinstance(fsym, RoutineSymbol)
-    assert isinstance(fsym.datatype, DeferredType)
+    assert isinstance(fsym.datatype, UnresolvedType)
 
 
 def test_unsupported_contains_subroutine(fortran_reader):

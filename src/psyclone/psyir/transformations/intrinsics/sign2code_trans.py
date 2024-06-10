@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -116,7 +116,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
 
         '''
         # pylint: disable=too-many-locals
-        self.validate(node)
+        self.validate(node, options)
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
@@ -136,7 +136,7 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         node.replace_with(Reference(res_var_symbol))
 
         # Extract the operand nodes
-        op1, op2 = node.pop_all_children()
+        _, op1, op2 = node.pop_all_children()
 
         # res_var=ABS(A)
         lhs = Reference(res_var_symbol)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,12 +62,18 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import \
 from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
 from psyclone.domain.lfric.lfric_kern import LFRicKern
+from psyclone.domain.lfric.lfric_loop import LFRicLoop
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
+from psyclone.domain.lfric.lfric_fields import LFRicFields
 from psyclone.domain.lfric.lfric_run_time_checks import LFRicRunTimeChecks
 from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
+from psyclone.domain.lfric.lfric_kern_metadata import LFRicKernMetadata
+from psyclone.domain.lfric.lfric_invoke_schedule import LFRicInvokeSchedule
+from psyclone.domain.lfric.lfric_dofmaps import LFRicDofmaps
+from psyclone.domain.lfric.lfric_stencils import LFRicStencils
 
 
 __all__ = [
@@ -80,12 +86,18 @@ __all__ = [
     'LFRicArgDescriptor',
     'LFRicCollection',
     'LFRicConstants',
+    'LFRicDofmaps',
     'LFRicExtractDriverCreator',
+    'LFRicFields',
     'LFRicInvoke',
     'LFRicInvokes',
+    'LFRicInvokeSchedule',
     'LFRicKern',
     'LFRicKernCallFactory',
+    'LFRicKernMetadata',
+    'LFRicLoop',
     'LFRicLoopBounds',
     'LFRicRunTimeChecks',
     'LFRicScalarArgs',
+    'LFRicStencils',
     'LFRicSymbolTable']

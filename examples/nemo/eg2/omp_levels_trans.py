@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council
+# Copyright (c) 2018-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,16 +45,25 @@ This should produce a lot of output, ending with generated
 Fortran.
 '''
 
-from psyclone.nemo import NemoKern
 from psyclone.psyGen import TransInfo
 from psyclone.transformations import TransformationError
+from psyclone.psyir.nodes import Loop
+
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
 
 
 def trans(psy):
     ''' Transform a specific Schedule by making all loops
     over levels OpenMP parallel.
 
-    :param psy: the object holding all information on the PSy layer \
+    :param psy: the object holding all information on the PSy layer
                 to be modified.
     :type psy: :py:class:`psyclone.psyGen.PSy`
 
@@ -68,10 +77,7 @@ def trans(psy):
     ompt = TransInfo().get_trans_name('OMPParallelLoopTrans')
     # Apply it to each loop over levels containing a kernel
     for loop in sched.loops():
-        # TODO loop.kernel method needs extending to cope with
-        # multiple kernels
-        kernels = loop.walk(NemoKern)
-        if kernels and loop.loop_type == "levels":
+        if loop.loop_type == "levels":
             try:
                 ompt.apply(loop)
             except TransformationError as error:

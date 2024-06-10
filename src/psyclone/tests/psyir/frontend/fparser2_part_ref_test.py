@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,8 @@ from fparser.two.Fortran2003 import Execution_Part
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import KernelSchedule, Routine, Call, ArrayReference
-from psyclone.psyir.symbols import SymbolError, DataSymbol, ScalarType, \
-    INTEGER_TYPE, RoutineSymbol, ArrayType
+from psyclone.psyir.symbols import DataSymbol, ScalarType, INTEGER_TYPE, \
+    RoutineSymbol, ArrayType
 
 
 @pytest.mark.usefixtures("f2008_parser")

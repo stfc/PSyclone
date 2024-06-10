@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -163,7 +163,7 @@ def test_correct_binary(func, output, tmpdir, fortran_writer):
         f"    res_min = tmp_min\n"
         f"  end if\n"
         f"  psyir_tmp = res_min\n\n"
-        f"end subroutine min_example\n") in result
+        f"end subroutine min_example\n") == result
     assert Compile(tmpdir).string_compiles(result)
 
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,13 +62,13 @@ def test_type_convert_intrinsic_create(intrinsic, intr_str, fortran_writer):
     rhs = Reference(wp_sym)
     intr_call = IntrinsicCall.create(intrinsic, [lhs, ("kind", rhs)])
     assert intr_call.intrinsic is intrinsic
-    check_links(intr_call, [lhs, rhs])
+    check_links(intr_call, [intr_call.routine, lhs, rhs])
     result = fortran_writer(intr_call)
     assert intr_str + "(tmp1, kind=wp)" in result.lower()
     # Kind specified with an integer literal
     rhs = Literal("4", INTEGER_SINGLE_TYPE)
     intr_call = IntrinsicCall.create(intrinsic, [lhs.detach(), ("kind", rhs)])
-    check_links(intr_call, [lhs, rhs])
+    check_links(intr_call, [intr_call.routine, lhs, rhs])
     result = fortran_writer(intr_call)
     assert intr_str + "(tmp1, kind=4)" in result.lower()
     # Kind specified as an arithmetic expression
@@ -76,7 +76,7 @@ def test_type_convert_intrinsic_create(intrinsic, intr_str, fortran_writer):
                                  Reference(wp_sym),
                                  Literal("2", INTEGER_SINGLE_TYPE))
     intr_call = IntrinsicCall.create(intrinsic, [lhs.detach(), ("kind", rhs)])
-    check_links(intr_call, [lhs, rhs])
+    check_links(intr_call, [intr_call.routine, lhs, rhs])
     result = fortran_writer(intr_call)
     assert intr_str + "(tmp1, kind=wp + 2)" in result.lower()
 

@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council
+# Copyright (c) 2018-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,18 @@
 ''' PSyclone transformation script showing the introduction of OpenMP
 directives into Nemo code. '''
 
-from __future__ import print_function
 from psyclone.psyGen import TransInfo
-from psyclone.nemo import NemoKern
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.nodes import Loop
+
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
 
 
 def trans(psy):
@@ -58,8 +67,11 @@ def trans(psy):
     for invoke in psy.invokes.invoke_list:
         print(invoke.name)
         for loop in invoke.schedule.loops():
-            kernels = loop.walk(NemoKern)
-            if kernels and loop.loop_type == "levels":
-                omp_trans.apply(loop)
+            if loop.loop_type == "levels":
+                try:
+                    omp_trans.apply(loop)
+                except TransformationError:
+                    # Not all of the loops in the example can be parallelised.
+                    pass
 
     return psy

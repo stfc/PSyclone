@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ def trans(psy):
     schedule = invoke.schedule
 
     config = Config.get()
-    if config.api_conf("dynamo0.3").compute_annexed_dofs and \
+    if config.api_conf("lfric").compute_annexed_dofs and \
        config.distributed_memory:
         # We can't loop fuse as the loop bounds differ so add
         # OpenMP parallel do directives to the loops

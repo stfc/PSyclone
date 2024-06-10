@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. R. Porter, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# Modified J. Remy, Université Grenoble Alpes, Inria
 
 '''PSyIR Fortran backend. Implements a visitor that generates Fortran code
 from a PSyIR tree. '''
@@ -46,13 +47,14 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import (
-    BinaryOperation, Call, CodeBlock, DataNode, IntrinsicCall, Literal,
-    Operation, Range, Routine, Schedule, UnaryOperation)
+    BinaryOperation, Call, Container, CodeBlock, DataNode, IntrinsicCall,
+    Literal, Operation, Range, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, RoutineSymbol, ScalarType, Symbol, IntrinsicSymbol,
-    SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface,
-    StructureType)
+    GenericInterfaceSymbol, IntrinsicSymbol, PreprocessorInterface,
+    RoutineSymbol, ScalarType, StructureType, Symbol, SymbolTable,
+    UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
+    UnsupportedType, )
 
 
 # Mapping from PSyIR types to Fortran data types. Simply reverse the
@@ -227,12 +229,13 @@ def precedence(fortran_operator):
     raise KeyError()
 
 
-def add_accessibility_to_unknown_declaration(symbol):
+def add_accessibility_to_unsupported_declaration(symbol):
     '''
-    Utility that manipulates the unknown Fortran declaration for the supplied
-    Symbol so as to ensure that it has the correct accessibility specifier.
-    (This is required because we capture an 'unknown' Fortran declaration as
-    is and this may or may not include accessibility information.)
+    Utility that manipulates the UnsupportedFortranType declaration for the
+    supplied Symbol so as to ensure that it has the correct accessibility
+    specifier.
+    (This is required because we capture an UnsupportedFortranType declaration
+    as is and this may or may not include accessibility information.)
 
     :param symbol: the symbol for which the declaration is required.
     :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -242,7 +245,7 @@ def add_accessibility_to_unknown_declaration(symbol):
     :rtype: str
 
     :raises TypeError: if the supplied argument is not a Symbol of \
-        UnknownFortranType.
+        UnsupportedFortranType.
     :raises InternalError: if the declaration associated with the Symbol is \
         empty.
     :raises NotImplementedError: if the original declaration does not use \
@@ -255,13 +258,13 @@ def add_accessibility_to_unknown_declaration(symbol):
     if not isinstance(symbol, Symbol):
         raise TypeError(f"Expected a Symbol but got '{type(symbol).__name__}'")
 
-    if not isinstance(symbol.datatype, UnknownFortranType):
-        raise TypeError(f"Expected a Symbol of UnknownFortranType but symbol "
-                        f"'{symbol.name}' has type '{symbol.datatype}'")
+    if not isinstance(symbol.datatype, UnsupportedFortranType):
+        raise TypeError(f"Expected a Symbol of UnsupportedFortranType but "
+                        f"symbol '{symbol.name}' has type '{symbol.datatype}'")
 
     if not symbol.datatype.declaration:
         raise InternalError(
-            f"Symbol '{symbol.name}' is of UnknownFortranType but the "
+            f"Symbol '{symbol.name}' is of UnsupportedFortranType but the "
             f"associated declaration text is empty.")
 
     # The original declaration text is obtained from fparser2 and will
@@ -269,8 +272,8 @@ def add_accessibility_to_unknown_declaration(symbol):
     first_line = symbol.datatype.declaration.split("\n")[0]
     if "::" not in first_line:
         raise NotImplementedError(
-            f"Cannot add accessibility information to an UnknownFortranType "
-            f"that does not have '::' in its original declaration: "
+            f"Cannot add accessibility information to an UnsupportedFortran"
+            f"Type that does not have '::' in its original declaration: "
             f"'{symbol.datatype.declaration}'")
 
     parts = symbol.datatype.declaration.split("::")
@@ -279,17 +282,19 @@ def add_accessibility_to_unknown_declaration(symbol):
         if "public" not in first_part:
             if "private" in first_part:
                 raise InternalError(
-                    f"Symbol '{symbol.name}' of UnknownFortranType has public "
-                    f"visibility but its associated declaration specifies that"
-                    f" it is private: '{symbol.datatype.declaration}'")
+                    f"Symbol '{symbol.name}' of UnsupportedFortranType has "
+                    f"public visibility but its associated declaration "
+                    f"specifies that it is private: "
+                    f"'{symbol.datatype.declaration}'")
             first_part = first_part.rstrip() + ", public "
     else:
         if "private" not in first_part:
             if "public" in first_part:
                 raise InternalError(
-                    f"Symbol '{symbol.name}' of UnknownFortranType has private"
-                    f" visibility but its associated declaration specifies "
-                    f"that it is public: '{symbol.datatype.declaration}'")
+                    f"Symbol '{symbol.name}' of UnsupportedFortranType has "
+                    f"private visibility but its associated declaration "
+                    f"specifies that it is public: "
+                    f"'{symbol.datatype.declaration}'")
             first_part = first_part.rstrip() + ", private "
     return "::".join([first_part]+parts[1:])
 
@@ -330,12 +335,12 @@ class FortranWriter(LanguageWriter):
         self._reverse_map(self._operator_2_str,
                           Fparser2Reader.binary_operators)
 
-        # Create and store a DependencyTools instance for use when ordering
-        # parameter declarations. Have to import it here as DependencyTools
+        # Create and store a CallTreeUtils instance for use when ordering
+        # parameter declarations. Have to import it here as CallTreeUtils
         # also uses this Fortran backend.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools
-        self._dep_tools = DependencyTools()
+        from psyclone.psyir.tools.call_tree_utils import CallTreeUtils
+        self._call_tree_utils = CallTreeUtils()
 
     @staticmethod
     def _reverse_map(reverse_dict, op_map):
@@ -479,32 +484,38 @@ class FortranWriter(LanguageWriter):
                 # This variable is not renamed.
                 only_list.append(dsym.name)
 
+        # Add a space into the returned string if intrinsic is not set anyway.
+        intrinsic_str = " "
+        if symbol.is_intrinsic:
+            intrinsic_str = ", intrinsic :: "
+
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
             # We have a "use xxx, only:" - i.e. an empty only list
-            return f"{self._nindent}use {symbol.name}, only :\n"
+            return f"{self._nindent}use{intrinsic_str}{symbol.name}, only :\n"
         if only_list and not symbol.wildcard_import:
-            return f"{self._nindent}use {symbol.name}, only : " + \
-                    ", ".join(sorted(only_list)) + "\n"
+            return (f"{self._nindent}use{intrinsic_str}{symbol.name}, "
+                    f"only : " +
+                    ", ".join(sorted(only_list)) + "\n")
 
-        return f"{self._nindent}use {symbol.name}\n"
+        return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
 
     def gen_vardecl(self, symbol, include_visibility=False):
         '''Create and return the Fortran variable declaration for this Symbol
         or derived-type member.
 
         :param symbol: the symbol or member instance.
-        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol` or \
+        :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol` or
             :py:class:`psyclone.psyir.nodes.MemberReference`
-        :param bool include_visibility: whether to include the visibility of \
+        :param bool include_visibility: whether to include the visibility of
             the symbol in the generated declaration (default False).
 
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
-        :raises VisitorError: if the symbol is of DeferredType.
-        :raises VisitorError: if the symbol is of UnknownType other than
-            UnknownFortranType.
+        :raises VisitorError: if the symbol is of UnresolvedType.
+        :raises VisitorError: if the symbol is of UnsupportedType other than
+            UnsupportedFortranType.
         :raises VisitorError: if the symbol is of known type but does not
             specify a variable declaration (it is not a local declaration or
             an argument declaration).
@@ -512,27 +523,27 @@ class FortranWriter(LanguageWriter):
             have a StaticInterface.
         :raises InternalError: if the symbol is a ContainerSymbol or an import.
         :raises InternalError: if the symbol is a RoutineSymbol other than
-            UnknownFortranType.
+            UnsupportedFortranType.
         :raises InternalError: if visibility is to be included but is not
             either PUBLIC or PRIVATE.
 
         '''
         # pylint: disable=too-many-branches
-        if isinstance(symbol.datatype, DeferredType):
-            raise VisitorError(f"Symbol '{symbol.name}' has a DeferredType "
+        if isinstance(symbol.datatype, UnresolvedType):
+            raise VisitorError(f"Symbol '{symbol.name}' has a UnresolvedType "
                                f"and we can not generate a declaration for "
-                               f"DeferredTypes.")
+                               f"UnresolvedTypes.")
         if isinstance(symbol, ContainerSymbol) or \
                 isinstance(symbol, Symbol) and symbol.is_import:
             raise InternalError(f"Symbol '{symbol.name}' is brought into scope"
                                 f" from a Fortran USE statement and should be "
                                 f"generated by 'gen_use' instead of "
                                 f"'gen_vardecl'.")
-        if isinstance(symbol, RoutineSymbol) and not \
-                isinstance(symbol.datatype, UnknownFortranType):
+        if (isinstance(symbol, RoutineSymbol) and
+                not isinstance(symbol.datatype, UnsupportedFortranType)):
             raise InternalError(f"Symbol '{symbol.name}' is a RoutineSymbol "
-                                f"which is not imported nor an interface "
-                                f"(UnknownFortranType). This is already "
+                                f"which is not imported or of "
+                                f"UnsupportedFortranType. This is already "
                                 f"implicitly declared by the routine itself "
                                 f"and should not be provided to 'gen_vardecl'."
                                 )
@@ -544,8 +555,8 @@ class FortranWriter(LanguageWriter):
         else:
             array_shape = []
 
-        if isinstance(symbol.datatype, UnknownType):
-            if isinstance(symbol.datatype, UnknownFortranType):
+        if isinstance(symbol.datatype, UnsupportedType):
+            if isinstance(symbol.datatype, UnsupportedFortranType):
 
                 if (include_visibility and
                         not isinstance(symbol, RoutineSymbol) and
@@ -553,12 +564,14 @@ class FortranWriter(LanguageWriter):
                     # We don't attempt to add accessibility to RoutineSymbols
                     # or to those created by PSyclone to handle named common
                     # blocks appearing in SAVE statements.
-                    decln = add_accessibility_to_unknown_declaration(symbol)
+                    decln = add_accessibility_to_unsupported_declaration(
+                                symbol)
                     return f"{self._nindent}{decln}\n"
 
                 decln = symbol.datatype.declaration
                 return f"{self._nindent}{decln}\n"
-            # The Fortran backend only handles unknown *Fortran* declarations.
+            # The Fortran backend only handles UnsupportedFortranType
+            # declarations.
             raise VisitorError(
                 f"{type(symbol).__name__} '{symbol.name}' is of "
                 f"'{type(symbol.datatype).__name__}' type. This is not "
@@ -617,24 +630,62 @@ class FortranWriter(LanguageWriter):
 
         return result + "\n"
 
+    def gen_interfacedecl(self, symbol):
+        '''
+        Generate the declaration for a generic interface.
+
+        Since a GenericInterfaceSymbol is a subclass of RoutineSymbol, any
+        necessary accessibility statement will be generated in
+        gen_access_stmts().
+
+        :param symbol: the GenericInterfaceSymbol to be declared.
+        :type symbol: :py:class:`psyclone.psyir.symbols.GenericInterfaceSymbol`
+
+        :returns: the corresponding Fortran declaration.
+        :rtype: str
+
+        :raises InternalError: if passed something that is not a
+                               GenericInterfaceSymbol.
+
+        '''
+        if not isinstance(symbol, GenericInterfaceSymbol):
+            raise InternalError(
+                f"gen_interfacedecl only supports 'GenericInterfaceSymbol's "
+                f"but got '{type(symbol).__name__}'")
+
+        decln = f"{self._nindent}interface {symbol.name}\n"
+        self._depth += 1
+        # Any module procedures.
+        routines = ", ".join([rsym.name for rsym in symbol.container_routines])
+        if routines:
+            decln += f"{self._nindent}module procedure :: {routines}\n"
+        # Any other (external) procedures.
+        routines = ", ".join([rsym.name for rsym in symbol.external_routines])
+        if routines:
+            decln += f"{self._nindent}procedure :: {routines}\n"
+        self._depth -= 1
+        decln += f"{self._nindent}end interface {symbol.name}\n"
+
+        return decln
+
     def gen_typedecl(self, symbol, include_visibility=True):
         '''
         Creates a derived-type declaration for the supplied DataTypeSymbol.
 
         :param symbol: the derived-type to declare.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-        :param bool include_visibility: whether or not to include visibility \
+        :param bool include_visibility: whether or not to include visibility
             information in the declaration. (Default is True.)
 
         :returns: the Fortran declaration of the derived type.
         :rtype: str
 
         :raises VisitorError: if the supplied symbol is not a DataTypeSymbol.
-        :raises VisitorError: if the datatype of the symbol is of UnknownType \
-            but is not of UnknownFortranType.
-        :raises InternalError: if include_visibility is True and the \
+        :raises VisitorError: if the datatype of the symbol is of
+            UnsupportedType but is not of UnsupportedFortranType.
+        :raises InternalError: if include_visibility is True and the
             visibility of the symbol is not of the correct type.
-        :raises VisitorError: if the supplied symbol is of DeferredType.
+        :raises VisitorError: if the supplied symbol is of UnresolvedType.
 
         '''
         if not isinstance(symbol, DataTypeSymbol):
@@ -642,12 +693,13 @@ class FortranWriter(LanguageWriter):
                 f"gen_typedecl expects a DataTypeSymbol as argument but "
                 f"got: '{type(symbol).__name__}'")
 
-        if isinstance(symbol.datatype, UnknownType):
-            if isinstance(symbol.datatype, UnknownFortranType):
-                # This is a declaration of unknown type. We have to ensure
+        if isinstance(symbol.datatype, UnsupportedType):
+            if isinstance(symbol.datatype, UnsupportedFortranType):
+                # This is a declaration of UnsupportedType. We have to ensure
                 # that its visibility is correctly specified though.
                 if include_visibility:
-                    decln = add_accessibility_to_unknown_declaration(symbol)
+                    decln = add_accessibility_to_unsupported_declaration(
+                                symbol)
                 else:
                     decln = symbol.datatype.declaration
                 return f"{self._nindent}{decln}\n"
@@ -670,9 +722,9 @@ class FortranWriter(LanguageWriter):
                     f"type '{type(symbol.visibility).__name__}'")
         result += f" :: {symbol.name}\n"
 
-        if isinstance(symbol.datatype, DeferredType):
+        if isinstance(symbol.datatype, UnresolvedType):
             raise VisitorError(
-                f"Local Symbol '{symbol.name}' is of DeferredType and "
+                f"Local Symbol '{symbol.name}' is of UnresolvedType and "
                 f"therefore no declaration can be created for it. Should it "
                 f"have an ImportInterface?")
 
@@ -697,8 +749,8 @@ class FortranWriter(LanguageWriter):
         to ensure the correct visibility of symbols that have been imported
         into the current module from another one using a wildcard import
         (i.e. a `use` without an `only` clause) and also for those Symbols
-        that are of UnknownFortranType (because their declaration may or may
-        not include visibility information).
+        that are of UnsupportedFortranType (because their declaration may or
+        may not include visibility information).
 
         :returns: text containing the access statement line.
         :rtype: str
@@ -814,8 +866,8 @@ class FortranWriter(LanguageWriter):
         for symbol in local_constants:
             decln_inputs[symbol.name] = set()
             read_write_info = ReadWriteInfo()
-            self._dep_tools.get_input_parameters(read_write_info,
-                                                 symbol.initial_value)
+            self._call_tree_utils.get_input_parameters(read_write_info,
+                                                       symbol.initial_value)
             # The dependence analysis tools do not include symbols used to
             # define precision so check for those here.
             for lit in symbol.initial_value.walk(Literal):
@@ -902,6 +954,9 @@ class FortranWriter(LanguageWriter):
                     isinstance(sym, RoutineSymbol) and
                     isinstance(sym.interface, UnresolvedInterface)):
                 all_symbols.remove(sym)
+            # We ignore all symbols with a PreprocessorInterface
+            if isinstance(sym.interface, PreprocessorInterface):
+                all_symbols.remove(sym)
 
         # If the symbol table contains any symbols with an
         # UnresolvedInterface interface (they are not explicitly
@@ -920,8 +975,7 @@ class FortranWriter(LanguageWriter):
         except KeyError:
             internal_interface_symbol = None
         if unresolved_symbols and not (
-                symbol_table.has_wildcard_imports() or
-                internal_interface_symbol):
+                symbol_table.wildcard_imports() or internal_interface_symbol):
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(
@@ -933,22 +987,23 @@ class FortranWriter(LanguageWriter):
         # As a convention, we will declare the variables in the following
         # order:
 
-        # 1: Routines (Interfaces)
+        # 1: Routine declarations and interfaces. (Note that accessibility
+        #    statements are generated in gen_access_stmts().)
         for sym in all_symbols[:]:
-            if isinstance(sym, RoutineSymbol):
-                # Interfaces to module procedures are captured by the frontend
-                # as RoutineSymbols of UnknownFortranType. These must therefore
-                # be declared.
-                if isinstance(sym.datatype, UnknownType):
-                    declarations += self.gen_vardecl(
+            if not isinstance(sym, RoutineSymbol):
+                continue
+            # Interfaces can be GenericInterfaceSymbols or RoutineSymbols
+            # of UnsupportedFortranType.
+            if isinstance(sym, GenericInterfaceSymbol):
+                declarations += self.gen_interfacedecl(sym)
+            elif isinstance(sym.datatype, UnsupportedType):
+                declarations += self.gen_vardecl(
                         sym, include_visibility=is_module_scope)
-                elif sym.is_modulevar or sym.is_automatic:
-                    pass
-                else:
-                    raise VisitorError(
-                        f"Routine symbol '{sym.name}' has '{sym.interface}'. "
-                        f"This is not supported by the Fortran back-end.")
-                all_symbols.remove(sym)
+            elif not (sym.is_modulevar or sym.is_automatic):
+                raise VisitorError(
+                    f"Routine symbol '{sym.name}' has '{sym.interface}'. "
+                    f"This is not supported by the Fortran back-end.")
+            all_symbols.remove(sym)
 
         # 2: Constants.
         declarations += self._gen_parameter_decls(symbol_table,
@@ -1109,6 +1164,23 @@ class FortranWriter(LanguageWriter):
             result = f"{self._nindent}program {node.name}\n"
             routine_type = "program"
         else:
+            # Find RoutineSymbol
+            container = node.ancestor(Container)
+            rsym = None
+            if container:
+                rsym = container.symbol_table.get_symbols().get(
+                    node.name, None)
+            prefix = ""
+            if rsym:
+                if rsym.is_elemental:
+                    # elemental => pure unless known to be False
+                    if rsym.is_pure or rsym.is_pure is None:
+                        prefix = "elemental "
+                    else:
+                        prefix = "impure elemental "
+                elif rsym.is_pure:
+                    prefix = "pure "
+
             args = [symbol.name for symbol in node.symbol_table.argument_list]
             suffix = ""
             if node.return_symbol:
@@ -1118,7 +1190,7 @@ class FortranWriter(LanguageWriter):
                     suffix = f" result({node.return_symbol.name})"
             else:
                 routine_type = "subroutine"
-            result = f"{self._nindent}{routine_type} {node.name}("
+            result = f"{self._nindent}{prefix}{routine_type} {node.name}("
             result += ", ".join(args) + f"){suffix}\n"
 
         self._depth += 1
@@ -1138,11 +1210,22 @@ class FortranWriter(LanguageWriter):
             whole_routine_scope = type(node.symbol_table)()
 
             for schedule in node.walk(Schedule):
-                whole_routine_scope.merge(schedule.symbol_table)
-
-            # Replace the symbol table
-            node.symbol_table.detach()
-            whole_routine_scope.attach(node)
+                sched_table = schedule.symbol_table
+                # We can't declare a routine inside itself so make sure we
+                # skip any RoutineSymbol representing this routine.
+                try:
+                    rsym = sched_table.lookup_with_tag("own_routine_symbol")
+                    skip = [rsym] if isinstance(rsym, RoutineSymbol) else []
+                except KeyError:
+                    skip = []
+                whole_routine_scope.merge(sched_table, skip)
+                if schedule is node:
+                    # Replace the Routine's symbol table as soon as we've
+                    # merged it into the new one. This ensures that the new
+                    # table has full information on outer scopes which is
+                    # important when merging.
+                    node.symbol_table.detach()
+                    whole_routine_scope.attach(node)
 
         # Generate module imports
         imports = ""
@@ -1438,13 +1521,32 @@ class FortranWriter(LanguageWriter):
             fort_oper = self.get_operator(node.operator)
             # If the parent node is a UnaryOperation or a BinaryOperation
             # such as '-' or '**' then we need parentheses. This ensures we
-            # don't generate invalid Fortran such as 'a ** -b' or 'a - -b'.
+            # don't generate invalid Fortran such as 'a ** -b', 'a - -b' or
+            # '-a ** b' which is '-(a ** b)' instead of intended '(-a) ** b'.
+            # Also consider the grandparent node to avoid generating invalid
+            # Fortran such as 'a + -b * c' instead of intended 'a + (-b) * c'.
             parent = node.parent
             if isinstance(parent, UnaryOperation):
                 return f"({fort_oper}{content})"
             if isinstance(parent, BinaryOperation):
-                if node is parent.children[1]:
+                parent_fort_oper = self.get_operator(parent.operator)
+                if (node is parent.children[1] or
+                        (parent_fort_oper == "**" and fort_oper == "-")):
                     return f"({fort_oper}{content})"
+                grandparent = parent.parent
+                # Case: 'a op1 (-b) op2 c'
+                # and precedence(op2) > precedence(op1)
+                # implying that '(-b) op2 c' is not parenthesized.
+                if isinstance(grandparent, BinaryOperation):
+                    grandparent_fort_oper = self.get_operator(
+                        grandparent.operator
+                    )
+                    if (parent is grandparent.children[1]
+                        and node is parent.children[0]
+                        and (precedence(parent_fort_oper)
+                             > precedence(grandparent_fort_oper))
+                            and fort_oper == "-"):
+                        return f"({fort_oper}{content})"
             return f"{fort_oper}{content}"
 
         except KeyError as error:
@@ -1482,30 +1584,14 @@ class FortranWriter(LanguageWriter):
             for ast_node in node.get_ast_nodes:
                 # Using tofortran() ensures we get any label associated
                 # with this statement.
-                result += f"{self._nindent}{ast_node.tofortran()}\n"
+                for line in ast_node.tofortran().split("\n"):
+                    result += f"{self._nindent}{line}\n"
         elif node.structure == CodeBlock.Structure.EXPRESSION:
             for ast_node in node.get_ast_nodes:
                 result += str(ast_node)
         else:
             raise VisitorError(
                 f"Unsupported CodeBlock Structure '{node.structure}' found.")
-        return result
-
-    def nemokern_node(self, node):
-        '''NEMO kernels are a group of nodes collected into a schedule
-        so simply call the nodes in the schedule.
-
-        :param node: a NemoKern PSyIR node.
-        :type node: :py:class:`psyclone.nemo.NemoKern`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        '''
-        result = ""
-        schedule = node.get_kernel_schedule()
-        for child in schedule.children:
-            result += self._visit(child)
         return result
 
     def operandclause_node(self, node):
@@ -1630,7 +1716,7 @@ class FortranWriter(LanguageWriter):
 
         # All arguments have been validated, proceed to generate them
         result_list = []
-        for idx, child in enumerate(node.children):
+        for idx, child in enumerate(node.arguments):
             if node.argument_names[idx]:
                 result_list.append(
                     f"{node.argument_names[idx]}={self._visit(child)}")
@@ -1654,10 +1740,10 @@ class FortranWriter(LanguageWriter):
             # An allocate/deallocate doesn't have 'call'.
             return f"{self._nindent}{node.routine.name}({args})\n"
         if not node.parent or isinstance(node.parent, Schedule):
-            return f"{self._nindent}call {node.routine.name}({args})\n"
+            return f"{self._nindent}call {self._visit(node.routine)}({args})\n"
 
         # Otherwise it is inside-expression function call
-        return f"{node.routine.name}({args})"
+        return f"{self._visit(node.routine)}({args})"
 
     def kernelfunctor_node(self, node):
         '''

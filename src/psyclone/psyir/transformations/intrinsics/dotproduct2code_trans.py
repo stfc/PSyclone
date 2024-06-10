@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -202,7 +202,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
                     f"arguments are plain arrays, but found "
                     f"{arg.debug_string()} in {node.debug_string()}.")
 
-        for arg in node.children:
+        for arg in node.arguments:
             # The argument should be a 1D array if the argument does
             # not provide any array slice information (i.e. it is a
             # Reference)
@@ -246,7 +246,7 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
 
         # Both arguments should be real (as other intrinsic datatypes
         # are not supported).
-        for arg in node.children:
+        for arg in node.arguments:
             if arg.symbol.datatype.intrinsic != ScalarType.Intrinsic.REAL:
                 raise TransformationError(
                     f"The DotProduct2CodeTrans transformation only supports "
@@ -267,11 +267,11 @@ class DotProduct2CodeTrans(Intrinsic2CodeTrans):
         :type options: dict of str:str or None
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         assignment = node.ancestor(Assignment)
-        vector1 = node.children[0]
-        vector2 = node.children[1]
+        vector1 = node.arguments[0]
+        vector2 = node.arguments[1]
         symbol_table = node.ancestor(Routine).symbol_table
 
         # Create new i loop iterator.

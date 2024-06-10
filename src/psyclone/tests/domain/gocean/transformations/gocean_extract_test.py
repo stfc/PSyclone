@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council
+# Copyright (c) 2019-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.utilities import get_invoke
 
 # API names
-GOCEAN_API = "gocean1.0"
+GOCEAN_API = "gocean"
 
 
 @pytest.fixture(scope="function", autouse=True)

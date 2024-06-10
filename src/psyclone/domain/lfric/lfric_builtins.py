@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified by I. Kavcic, Met Office
+# Modified by I. Kavcic, L. Turner and O. Brunt, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
@@ -51,7 +51,6 @@ from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
 from psyclone.errors import InternalError
-from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
@@ -108,7 +107,7 @@ class LFRicBuiltInCallFactory():
         :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
         :param parent: the schedule instance to which the built-in call \
                        belongs.
-        :type parent: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`
+        :type parent: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule`
 
         :raises ParseError: if the name of the function being called is \
                             not a recognised built-in.
@@ -128,7 +127,7 @@ class LFRicBuiltInCallFactory():
         # Create the loop over the appropriate entity.
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynLoop
+        from psyclone.domain.lfric import LFRicLoop
 
         if call.ktype.iterates_over == "dof":
             loop_type = "dof"
@@ -137,7 +136,7 @@ class LFRicBuiltInCallFactory():
                 f"An LFRic built-in must iterate over DoFs but kernel "
                 f"'{call.func_name}' iterates over "
                 f"'{call.ktype.iterates_over}'")
-        dofloop = DynLoop(parent=parent, loop_type=loop_type)
+        dofloop = LFRicLoop(parent=parent, loop_type=loop_type)
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
@@ -192,7 +191,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
         :param meta_args: a list of 'meta_args' metadata.
         :type meta_args: List[subclass of \
-            :py:class:`psyclone.domain.lifric.kernel.CommonArgMetadata`]
+            :py:class:`psyclone.domain.lfric.kernel.CommonArgMetadata`]
 
         :returns: LFRic kernel metadata for this built-in.
         :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
@@ -265,7 +264,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
         :param parent: The parent node of the kernel call in the PSyIR \
                        we are constructing. This will be a loop.
-        :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type parent: :py:class:`psyclone.domain.lfric.LFRicLoop`
 
         '''
         # Avoid circular import
@@ -351,7 +350,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f"must be on the same space. However, found spaces "
                 f"{spaces_str} for arguments to '{self.name}'")
 
-        conversion_builtins = ["int_X", "real_X"]
+        conversion_builtins = ["real_to_int_X",
+                               "real_to_real_X",
+                               "int_to_real_X"]
         conversion_builtins_lower = [x.lower() for x in conversion_builtins]
         if len(data_types) != 1 and self.name not in conversion_builtins_lower:
             data_types_str = [str(x) for x in sorted(data_types)]
@@ -360,14 +361,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f"{conversion_builtins} are allowed to have field arguments of"
                 f" different data types. However, found different data types "
                 f"{data_types_str} for field arguments to '{self.name}'.")
-
-    def array_ref(self, fld_name):
-        '''
-        :returns: the array reference for a variable with the supplied name.
-        :rtype: str
-
-        '''
-        return f"{fld_name}({self._idx_name})"
 
     @property
     def undf_name(self):
@@ -403,21 +396,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
         '''
         return None
-
-    def gen_code(self, parent):
-        '''
-        Generates LFRic API specific PSy code (in the form of 'f2pygen' AST
-        nodes) for a call to this built-in. This method must be overridden
-        if a sub-class does not yet implement 'lower_to_language_level()'.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        # TODO #1010 Ultimately this routine will be removed once the LFRic
-        # PSyIR has been fully migrated to use the PSyIR backends.
-        # For now we create an f2pygen node from the PSyIR of this routine.
-        parent.add(PSyIRGen(parent, self))
 
     @property
     def cma_operation(self):
@@ -462,7 +440,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
         '''
         table = self.scope.symbol_table
-        # The symbol representing the loop index is created in the DynLoop
+        # The symbol representing the loop index is created in the LFRicLoop
         # constructor.
         return table.find_or_create_integer_symbol(
             "df", tag="dof_loop_idx")
@@ -499,68 +477,34 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         Finds or creates either a Reference (for a symbol) or PSyIR (for a
         literal expression) for any scalar arguments to this Built-In kernel.
 
-        :returns: a Reference or PSyIR expression for each scalar kernel \
-            argument.
+        :returns: a Reference or PSyIR expression for each scalar kernel
+                  argument.
         :rtype: list of subclasses of `:py:class:`psyclone.psyir.nodes.Node`
 
         '''
         return [arg.psyir_expression() for arg in self._arguments.args
                 if arg.is_scalar]
 
+    def _replace_with_assignment(self, lhs, rhs):
+        '''
+        Creates an assignment from the left- and right-hand-side nodes, then
+        replaces this Builtin with the newly-created Assignment node.
 
-class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
-    '''Abstract class providing functionaliy to convert a field of
-    one type to a field of another type. If [Datatype] (stored in
-    _field_type) is the particular datatype to convert to and
-    [Precision] is the precision of this datatype then the result is
-    `Y = [Datatype](X, [Precision])`. Here `Y` is a field of type
-    [Datatype] and `X` is a field with a different type. The correct
-    [Precision] is picked up from the associated argument.
+        :param lhs: The left-hand side of the assignment to be created.
+        :type lhs: :py:class:`psyclone.psyir.nodes.ArrayReference`
+        :param rhs: The right-hand side of the assignment to be created.
+        :type rhs: :py:class:`psyclone.psyir.nodes.DataNode`
 
-    '''
-    _field_type = None
-
-    def gen_code(self, parent):
-        '''Generates LFRic API specific PSy code for a call to the
-        [datatype]_X built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        :raises InternalError: if the _field_type variable is not set \
-            correctly.
+        :returns: the new Assignment node.
+        :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
         '''
-        # Subclass must set _field_type
-        if not self._field_type:
-            raise InternalError(
-                "Subclasses of LFRicXKern must set the _field_type variable "
-                "to the output datatype.")
-        table = self.scope.symbol_table
-        # Convert all the elements of a field of one type to the
-        # corresponding elements of a field of another type using
-        # the PSyclone configuration for the correct 'kind'.
-        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
-        args = self._arguments.args
-        sym2 = table.lookup_with_tag(
-            f"{args[0].name}:{suffixes[args[0].argument_type]}")
-        field2 = self.array_ref(sym2.name)
-        sym1 = table.lookup_with_tag(
-            f"{args[1].name}:{suffixes[args[1].argument_type]}")
-        field1 = self.array_ref(sym1.name)
-        precision = self._arguments.args[0].precision
-        rhs_expr = f"{self._field_type}({field1}, {precision})"
-        parent.add(AssignGen(parent, lhs=field2, rhs=rhs_expr))
-        # Import the precision variable if it is not already imported
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        # Import node type here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynInvokeSchedule
-        schedule = self.ancestor(DynInvokeSchedule)
-        psy = schedule.invoke.invokes.psy
-        precision_uses = psy.infrastructure_modules[const_mod]
-        precision_uses.add(precision)
+        assign = Assignment.create(lhs, rhs)
+        # Add a preceding comment to the Assignment
+        assign.preceding_comment = str(self)
+        self.replace_with(assign)
+
+        return assign
 
 
 # ******************************************************************* #
@@ -615,12 +559,12 @@ class LFRicXPlusYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) + proxy2%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      arg_refs[1], arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXPlusYKern(LFRicBuiltIn):
@@ -664,10 +608,9 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      lhs.copy(), arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAPlusXKern(LFRicBuiltIn):
@@ -708,12 +651,12 @@ class LFRicAPlusXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar + proxy1%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      scalar_args[0], arg_refs[1])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncAPlusXKern(LFRicBuiltIn):
@@ -756,10 +699,9 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAXPlusYKern(LFRicBuiltIn):
@@ -801,14 +743,14 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * proxy1%data(df) + proxy2%data(df)
+        lhs = arg_refs[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      mult_op, arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncAXPlusYKern(LFRicBuiltIn):
@@ -854,10 +796,9 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
                                          scalar_args[0], lhs.copy())
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      mult_op, arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXPlusBYKern(LFRicBuiltIn):
@@ -903,10 +844,9 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
                                          scalar_args[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      lhs.copy(), mult_op)
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAXPlusBYKern(LFRicBuiltIn):
@@ -950,16 +890,16 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * proxy1%data(df) +
         #                        bscalar  *proxy2%data(df)
+        lhs = arg_refs[0]
         mult_op_a = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[0], arg_refs[1])
         mult_op_b = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[1], arg_refs[2])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      mult_op_a, mult_op_b)
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncAXPlusBYKern(LFRicBuiltIn):
@@ -1009,10 +949,9 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
                                            scalar_args[1], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                      mult_op_a, mult_op_b)
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAXPlusAYKern(LFRicBuiltIn):
@@ -1054,14 +993,14 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * (proxy1%data(df) + proxy2%data(df))
+        lhs = arg_refs[0]
         add_op = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                         arg_refs[1], arg_refs[2])
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      scalar_args[0], add_op)
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -1109,12 +1048,12 @@ class LFRicXMinusYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) - proxy2%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      arg_refs[1], arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXMinusYKern(LFRicBuiltIn):
@@ -1159,10 +1098,9 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      lhs.copy(), arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAMinusXKern(LFRicBuiltIn):
@@ -1203,12 +1141,12 @@ class LFRicAMinusXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar - proxy1%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      scalar_args[0], arg_refs[1])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncAMinusXKern(LFRicBuiltIn):
@@ -1251,10 +1189,9 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicXMinusAKern(LFRicBuiltIn):
@@ -1295,12 +1232,12 @@ class LFRicXMinusAKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) - ascalar
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      arg_refs[1], scalar_args[0])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXMinusAKern(LFRicBuiltIn):
@@ -1343,10 +1280,9 @@ class LFRicIncXMinusAKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      lhs.copy(), scalar_args[0])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAXMinusYKern(LFRicBuiltIn):
@@ -1388,14 +1324,14 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * proxy1%data(df) - proxy2%data(df)
+        lhs = arg_refs[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      mult_op, arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicXMinusBYKern(LFRicBuiltIn):
@@ -1437,14 +1373,14 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) - bscalar * proxy2%data(df)
+        lhs = arg_refs[0]
         mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                          scalar_args[0], arg_refs[2])
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      arg_refs[1], mult_op)
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXMinusBYKern(LFRicBuiltIn):
@@ -1490,10 +1426,9 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
                                          scalar_args[0], arg_refs[1])
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      lhs.copy(), mult_op)
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicAXMinusBYKern(LFRicBuiltIn):
@@ -1537,16 +1472,16 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * proxy1%data(df) -
         #                        bscalar * proxy2%data(df)
+        lhs = arg_refs[0]
         mult_op_a = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[0], arg_refs[1])
         mult_op_b = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                            scalar_args[1], arg_refs[2])
         rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                      mult_op_a, mult_op_b)
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -1594,12 +1529,12 @@ class LFRicXTimesYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) * proxy2%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      arg_refs[1], arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXTimesYKern(LFRicBuiltIn):
@@ -1643,10 +1578,9 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      lhs.copy(), arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncAXTimesYKern(LFRicBuiltIn):
@@ -1692,10 +1626,9 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
                                          scalar_args[0], lhs.copy())
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      mult_op, arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -1745,12 +1678,12 @@ class LFRicATimesXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar * proxy1%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      scalar_args[0], arg_refs[1])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncATimesXKern(LFRicBuiltIn):
@@ -1796,11 +1729,9 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
 
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Dividing real fields =============================== #
@@ -1847,12 +1778,12 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) / proxy2%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      arg_refs[1], arg_refs[2])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXDividebyYKern(LFRicBuiltIn):
@@ -1896,10 +1827,9 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      lhs.copy(), arg_refs[1])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicXDividebyAKern(LFRicBuiltIn):
@@ -1945,12 +1875,12 @@ class LFRicXDividebyAKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df) / ascalar
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      arg_refs[1], scalar_args[0])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXDividebyAKern(LFRicBuiltIn):
@@ -1997,11 +1927,9 @@ class LFRicIncXDividebyAKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      lhs.copy(), scalar_args[0])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
 
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Inverse scaling of real fields ===================== #
@@ -2052,12 +1980,12 @@ class LFRicADividebyXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar / proxy1%data(df)
+        lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      scalar_args[0], arg_refs[1])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncADividebyXKern(LFRicBuiltIn):
@@ -2106,10 +2034,9 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                      scalar_args[0], lhs.copy())
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2160,9 +2087,9 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.POW,
                                      lhs.copy(), scalar_args[0])
-        assign = Assignment.create(lhs, rhs)
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncXPowintNKern(LFRicBuiltIn):
@@ -2208,9 +2135,9 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = BinaryOperation.create(BinaryOperation.Operator.POW,
                                      lhs.copy(), scalar_args[0])
-        assign = Assignment.create(lhs, rhs)
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2259,10 +2186,11 @@ class LFRicSetvalCKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = ascalar
-        assign = Assignment.create(arg_refs[0], scalar_args[0])
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+        lhs = arg_refs[0]
+        rhs = scalar_args[0]
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicSetvalXKern(LFRicBuiltIn):
@@ -2303,10 +2231,11 @@ class LFRicSetvalXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = proxy1%data(df)
-        assign = Assignment.create(arg_refs[0], arg_refs[1])
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+        lhs = arg_refs[0]
+        rhs = arg_refs[1]
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicSetvalRandomKern(LFRicBuiltIn):
@@ -2348,6 +2277,8 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
         #      call random_number(proxy0%data(df))
         call = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
                                     arg_refs)
+        # Add a preceding comment to the Assignment
+        call.preceding_comment = str(self)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(call)
         return call
@@ -2379,31 +2310,28 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        X_innerproduct_Y Built-in.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        table = self.scope.symbol_table
-        # We sum the DoF-wise product of the supplied real-valued fields.
-        # The real scalar variable holding the sum is initialised to zero
-        # in the PSy layer.
-        innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        lhs = self._reduction_reference()
+        # Create the PSyIR for the kernel:
+        #      asum = asum + proxy0%data(df) * proxy1%data(df)
+        mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                         arg_refs[0], arg_refs[1])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     lhs.copy(), mult_op)
 
-        args = self._arguments.args
-        sym1 = table.lookup_with_tag(
-            f"{args[1].name}:{suffixes[args[1].argument_type]}")
-        field1 = self.array_ref(sym1.name)
-        sym2 = table.lookup_with_tag(
-            f"{args[2].name}:{suffixes[args[2].argument_type]}")
-        field2 = self.array_ref(sym2.name)
-        rhs_expr = f"{innprod_name} + {field1}*{field2}"
-        parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicXInnerproductXKern(LFRicBuiltIn):
@@ -2427,27 +2355,28 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
             ScalarArgMetadata(gh_datatype, "gh_sum"),
             FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        X_innerproduct_X Built-in.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        table = self.scope.symbol_table
-        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
-        # We sum the DoF-wise product of the supplied real-valued fields.
-        # The real scalar variable holding the sum is initialised to zero
-        # in the PSy layer.
-        innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        sym = table.lookup_with_tag(
-            f"{self._arguments.args[1].name}:"
-            f"{suffixes[self._arguments.args[1].argument_type]}")
-        field_name = self.array_ref(sym.name)
-        rhs_expr = f"{innprod_name} + {field_name}*{field_name}"
-        parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        lhs = self._reduction_reference()
+        # Create the PSyIR for the kernel:
+        #      asum = asum + proxy0%data(df) * proxy0%data(df)
+        mult_op = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                         arg_refs[0].copy(), arg_refs[0])
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     lhs.copy(), mult_op)
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2479,26 +2408,26 @@ class LFRicSumXKern(LFRicBuiltIn):
         return (f"Built-in: {self._case_name} (sum {a_or_an(self._datatype)} "
                 f"{self._datatype}-valued field)")
 
-    def gen_code(self, parent):
+    def lower_to_language_level(self):
         '''
-        Generates LFRic API specific PSy code for a call to the
-        sum_X Built-in.
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
 
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        table = self.scope.symbol_table
-        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
-        # Sum all the elements of a real-valued field. The real scalar
-        # variable holding the sum is initialised to zero in the PSy layer.
-        sym = table.lookup_with_tag(
-            f"{self._arguments.args[1].name}:"
-            f"{suffixes[self._arguments.args[1].argument_type]}")
-        field_name = self.array_ref(sym.name)
-        sum_name = self._reduction_ref(self._arguments.args[0].name)
-        rhs_expr = f"{sum_name} + {field_name}"
-        parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
+        # Get indexed references for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar reduction argument.
+        lhs = self._reduction_reference()
+        # Create the PSyIR for the kernel:
+        #      asum = asum + proxy0%data(df)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                     lhs.copy(), arg_refs[0])
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2548,12 +2477,12 @@ class LFRicSignXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = SIGN(ascalar, proxy1%data)
+        lhs = arg_refs[0]
         rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.SIGN,
                                    [scalar_args[0], arg_refs[1]])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ------------------------------------------------------------------- #
@@ -2600,12 +2529,12 @@ class LFRicMaxAXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MAX(ascalar, proxy1%data)
+        lhs = arg_refs[0]
         rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
                                    [scalar_args[0], arg_refs[1]])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncMaxAXKern(LFRicBuiltIn):
@@ -2649,11 +2578,9 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
                                    [scalar_args[0], lhs.copy()])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
 
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Minimum of (real scalar, real field elements) ====== #
@@ -2699,12 +2626,12 @@ class LFRicMinAXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MIN(ascalar, proxy1%data)
+        lhs = arg_refs[0]
         rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
                                    [scalar_args[0], arg_refs[1]])
-        assign = Assignment.create(arg_refs[0], rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 class LFRicIncMinAXKern(LFRicBuiltIn):
@@ -2748,29 +2675,25 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
         lhs = arg_refs[0]
         rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
                                    [scalar_args[0], lhs.copy()])
-        assign = Assignment.create(lhs, rhs)
-        # Finally, replace this kernel node with the Assignment
-        self.replace_with(assign)
-        return assign
 
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 # ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntXKern(LFRicXKern):
+class LFRicRealToIntXKern(LFRicBuiltIn):
     ''' Converts real-valued field elements to integer-valued
-    field elements using the Fortran intrinsic `int` function,
-    `Y = int(X, r_def)`. Here `Y` is an int-valued field and `X`
-    is the real-valued field being converted.
+    field elements using the Fortran intrinsic `INT` function,
+    `Y = INT(X, kind=i_<prec>)`. Here `Y` is an integer-valued
+    field of precision `i_<prec>` and `X` is the real-valued
+    field being converted.
 
     '''
-    # '_datatype' is only required to avoid an exception in '__init__',
-    # it is not required by this class.
-    _datatype = "dummy"
-    _field_type = "int"
-    _case_name = "int_X"
+    _datatype = "integer"
+    _case_name = "real_to_int_X"
 
     @classmethod
     def metadata(cls):
@@ -2787,6 +2710,84 @@ class LFRicIntXKern(LFRicXKern):
     def __str__(self):
         return (f"Built-in: {self._case_name} (convert a real-valued to "
                 f"an integer-valued field)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = INT(proxy1%data, kind=i_<prec>)
+        lhs = arg_refs[0]
+        i_precision = arg_refs[0].datatype.precision
+        rhs = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.INT,
+            [arg_refs[1], ("kind", Reference(i_precision))])
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
+
+
+# ------------------------------------------------------------------- #
+# ============== Converting real to real field elements ============= #
+# ------------------------------------------------------------------- #
+
+class LFRicRealToRealXKern(LFRicBuiltIn):
+    ''' Converts real-valued field elements to real-valued field elements
+    of a different precision using the Fortran intrinsic `REAL` function,
+    `Y = REAL(X, kind=r_<prec>)`. Here `Y` is a real-valued field of
+    precision `kind=r_<prec>` and `X` is the real-valued field whose
+    values are to be converted from their defined precision.
+
+    '''
+    _datatype = "real"
+    _case_name = "real_to_real_X"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        return cls._builtin_metadata([
+            FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (convert a real-valued "
+                f"to a real-valued field)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
+        lhs = arg_refs[0]
+        r_precision = arg_refs[0].datatype.precision
+        rhs = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.REAL,
+            [arg_refs[1], ("kind", Reference(r_precision))])
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # ******************************************************************* #
@@ -3081,19 +3082,16 @@ class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
 # ============== Converting integer to real field elements ========== #
 # ------------------------------------------------------------------- #
 
-
-class LFRicRealXKern(LFRicXKern):
+class LFRicIntToRealXKern(LFRicBuiltIn):
     ''' Converts integer-valued field elements to real-valued
-    field elements using the Fortran intrinsic `real` function,
-    `Y = real(X, r_def)`. Here `Y` is a real-valued field and `X`
-    is the integer-valued field being converted.
+    field elements using the Fortran intrinsic `REAL` function,
+    `Y = REAL(X, kind=r_<prec>)`. Here `Y` is a real-valued
+    field of precision `r_<prec>` and `X` is the integer-valued
+    field being converted.
 
     '''
-    # '_datatype' is only required to avoid an exception in '__init__',
-    # it is not required by this class.
-    _datatype = "dummy"
-    _field_type = "real"
-    _case_name = "real_X"
+    _datatype = "real"
+    _case_name = "int_to_real_X"
 
     @classmethod
     def metadata(cls):
@@ -3110,6 +3108,29 @@ class LFRicRealXKern(LFRicXKern):
     def __str__(self):
         return (f"Built-in: {self._case_name} (convert an integer-valued "
                 f"to a real-valued field)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        # proxy0%data(df) = REAL(proxy1%data, kind=r_<prec>)
+        lhs = arg_refs[0]
+        r_precision = arg_refs[0].datatype.precision
+        rhs = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.REAL,
+            [arg_refs[1], ("kind", Reference(r_precision))])
+
+        # Create assignment and replace node
+        return self._replace_with_assignment(lhs, rhs)
 
 
 # The built-in operations that we support for this API. The meta-data
@@ -3178,7 +3199,9 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "min_aX": LFRicMinAXKern,
     "inc_min_aX": LFRicIncMinAXKern,
     # Converting real to integer field elements
-    "int_X": LFRicIntXKern}
+    "real_to_int_X": LFRicRealToIntXKern,
+    # Converting real to real field elements
+    "real_to_real_X": LFRicRealToRealXKern}
 
 # Built-ins for integer-valued fields
 INT_BUILTIN_MAP_CAPITALISED = {
@@ -3213,7 +3236,7 @@ INT_BUILTIN_MAP_CAPITALISED = {
     "int_min_aX": LFRicIntMinAXKern,
     "int_inc_min_aX": LFRicIntIncMinAXKern,
     # Converting integer to real field elements
-    "real_X": LFRicRealXKern}
+    "int_to_real_X": LFRicIntToRealXKern}
 
 # Built-in map dictionary for all built-ins
 BUILTIN_MAP_CAPITALISED = REAL_BUILTIN_MAP_CAPITALISED
@@ -3272,7 +3295,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncMaxAXKern',
            'LFRicMinAXKern',
            'LFRicIncMinAXKern',
-           'LFRicIntXKern',
+           'LFRicRealToIntXKern',
+           'LFRicRealToRealXKern',
            'LFRicIntXPlusYKern',
            'LFRicIntIncXPlusYKern',
            'LFRicIntAPlusXKern',
@@ -3294,4 +3318,4 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntIncMaxAXKern',
            'LFRicIntMinAXKern',
            'LFRicIntIncMinAXKern',
-           'LFRicRealXKern']
+           'LFRicIntToRealXKern']

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 import logging
 from utils import add_profiling
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
+from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
     ArrayReference, Assignment, BinaryOperation, Loop, WhileLoop, \
@@ -68,6 +68,15 @@ from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
 from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
                                            ACCUpdateTrans
 from psyclone.transformations import ACCEnterDataTrans
+
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
@@ -102,7 +111,9 @@ ACC_IGNORE = ["day_mth",  # Just calendar operations
               "copy_obfbdata", "merge_obfbdata",
               "turb_ncar",  # Transforming hurts performance
               "iom_open", "iom_get_123d", "iom_nf90_rp0123d",
-              "trc_bc_ini", "p2z_ini", "p4z_ini"]  # Str handling, init routine
+              "trc_bc_ini", "p2z_ini", "p4z_ini", "sto_par_init",
+              "bdytide_init", "bdy_init", "bdy_segs", "sbc_cpl_init",
+              "asm_inc_init", "dia_obs_init"]  # Str handling, init routine
 
 # Currently fparser has no way of distinguishing array accesses from
 # function calls if the symbol is imported from some other module.
@@ -186,7 +197,7 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (CodeBlock, Return, Call, IfBlock, NemoLoop, WhileLoop)
+    excluded_types = (CodeBlock, Return, Call, IfBlock, Loop, WhileLoop)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
@@ -224,7 +235,7 @@ def valid_acc_kernel(node):
                         "IF references 1D arrays that may be static", enode)
                 return False
 
-        elif isinstance(enode, NemoLoop):
+        elif isinstance(enode, Loop):
             # Heuristic:
             # We don't want to put loops around 3D loops into KERNELS regions
             # and nor do we want to put loops over levels into KERNELS regions
@@ -265,12 +276,6 @@ def valid_acc_kernel(node):
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.
     refs = node.walk(ArrayReference)
-    # Since kernels are leaves in the PSyIR, we need to separately check
-    # their schedules for array references too.
-    kernels = node.walk(NemoKern)
-    for kern in kernels:
-        sched = kern.get_kernel_schedule()
-        refs += sched.walk(ArrayReference)
     for ref in refs:
         # Check if this reference has the name of a known function and if that
         # reference appears outside said known function.

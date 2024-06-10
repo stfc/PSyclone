@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic and A. Coughtrie, Met Office,
+#         I. Kavcic, A. Coughtrie and L. Turner, Met Office,
 #         C. M. Maynard, Met Office/University of Reading,
 #         J. Henrichs, Bureau of Meteorology.
-# Modified by: L. Turner, Met Office
 
 ''' Module containing tests of LFRic stencils through the LFRic API '''
 
@@ -45,9 +44,9 @@ import pytest
 import fparser
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import LFRicKern, LFRicConstants
-from psyclone.dynamo0p3 import (DynKernelArguments,
-                                DynKernMetadata, DynStencils)
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
+                                   LFRicKernMetadata, LFRicStencils)
+from psyclone.dynamo0p3 import DynKernelArguments
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -60,7 +59,7 @@ from psyclone.tests.lfric_build import LFRicBuild
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 STENCIL_CODE = '''
 module stencil_mod
@@ -83,7 +82,7 @@ end module stencil_mod
 def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata. '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
+    metadata = LFRicKernMetadata(ast)
 
     stencil_descriptor_0 = metadata.arg_descriptors[0]
     assert stencil_descriptor_0.stencil is None
@@ -114,7 +113,7 @@ def test_stencil_field_metadata_too_many_arguments():
         "(gh_field, gh_real, gh_read, w2, stencil(cross), w1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert ("each 'meta_arg' entry must have at most 5 arguments" in
             str(excinfo.value))
 
@@ -125,7 +124,7 @@ def test_unsupported_second_argument():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "Kernels with fixed stencil extents are not currently supported" \
         in str(excinfo.value)
 
@@ -137,7 +136,7 @@ def test_valid_stencil_types():
         result = STENCIL_CODE.replace("stencil(cross)",
                                       "stencil(" + stencil_type + ")", 1)
         ast = fpapi.parse(result, ignore_comments=False)
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
 
 
 def test_stencil_read_only():
@@ -148,7 +147,7 @@ def test_stencil_read_only():
                                 "gh_inc, w2, stencil(cross)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name="stencil_type")
+        _ = LFRicKernMetadata(ast, name="stencil_type")
     assert ("In the LFRic API a field with a stencil access must be "
             "read-only ('gh_read'), but found 'gh_inc'" in
             str(excinfo.value))
@@ -166,7 +165,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
 
     # Test 'real'-valued field of 'field_type' with stencil access
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
@@ -181,7 +180,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     code = STENCIL_CODE.replace("gh_field, gh_real",
                                 "gh_field, gh_integer")
     ast = fpapi.parse(code, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
@@ -252,8 +251,8 @@ def test_single_kernel_any_dscnt_space_stencil(dist_mem, tmpdir):
         assert "halo_exchange(depth=extent)" not in result
         assert "loop0_stop = f0_proxy%vspace%get_ncell()" in result
         assert "loop1_stop = f3_proxy%vspace%get_ncell()" in result
-    assert "DO cell=loop0_start,loop0_stop" in result
-    assert "DO cell=loop1_start,loop1_stop" in result
+    assert "DO cell = loop0_start, loop0_stop" in result
+    assert "DO cell = loop1_start, loop1_stop" in result
 
 
 def test_stencil_args_unique_1(dist_mem, tmpdir):
@@ -367,11 +366,11 @@ def test_stencil_args_unique_2(dist_mem, tmpdir):
     assert output5 in result
     if dist_mem:
         assert (
-            "IF (f2_proxy%is_dirty(depth=max(f2_info+1,"
-            "f2_info_2+1))) THEN" in result)
+            "IF (f2_proxy%is_dirty(depth=MAX(f2_info + 1, "
+            "f2_info_2 + 1))) THEN" in result)
         assert (
-            "CALL f2_proxy%halo_exchange(depth=max(f2_info+1,"
-            "f2_info_2+1))" in result)
+            "CALL f2_proxy%halo_exchange(depth=MAX(f2_info + 1, "
+            "f2_info_2 + 1))" in result)
         assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL f3_proxy%halo_exchange(depth=1)" in result
         assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
@@ -405,11 +404,11 @@ def test_stencil_args_unique_3(dist_mem, tmpdir):
         "my_info_f2_info)" in result)
     if dist_mem:
         assert (
-            "IF (f2_proxy%is_dirty(depth=max(my_info_f2_info+1,"
-            "my_info_f2_info_2+1))) THEN" in result)
+            "IF (f2_proxy%is_dirty(depth=MAX(my_info_f2_info + 1, "
+            "my_info_f2_info_2 + 1))) THEN" in result)
         assert (
-            "CALL f2_proxy%halo_exchange(depth=max(my_info_f2_info+1,"
-            "my_info_f2_info_2+1))" in result)
+            "CALL f2_proxy%halo_exchange(depth=MAX(my_info_f2_info + 1, "
+            "my_info_f2_info_2 + 1))" in result)
         assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL f3_proxy%halo_exchange(depth=1)" in result
         assert "IF (f4_proxy%is_dirty(depth=1)) THEN" in result
@@ -515,14 +514,14 @@ def test_invalid_stencil_form_1():
     result = STENCIL_CODE.replace("stencil(cross)", "1", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
     assert "Unrecognised metadata entry" in str(excinfo.value)
     result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
     assert "Expecting format stencil(<type>[,<extent>]) but found stencil" \
@@ -535,7 +534,7 @@ def test_invalid_stencil_form_2():
     result = STENCIL_CODE.replace("stencil(cross)", "stenci(cross)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
 
@@ -546,7 +545,7 @@ def test_invalid_stencil_form_3():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
 
@@ -558,7 +557,7 @@ def test_invalid_stencil_form_4():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil()", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "but found stencil()" in str(excinfo.value)
 
 
@@ -569,7 +568,7 @@ def test_invalid_stencil_form_5():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(,)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "Kernel metadata has an invalid format" \
            in str(excinfo.value)
 
@@ -581,7 +580,7 @@ def test_invalid_stencil_form_6():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(cross,1,1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "entry must be either a valid stencil specification" \
            in str(excinfo.value)
     assert "there must be at most two arguments inside the brackets" \
@@ -594,7 +593,7 @@ def test_invalid_stencil_first_arg_1():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(1)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "not one of the valid types" in str(excinfo.value)
     assert "is a literal" in str(excinfo.value)
 
@@ -605,7 +604,7 @@ def test_invalid_stencil_first_arg_2():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(cros)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "not one of the valid types" in str(excinfo.value)
 
 
@@ -615,7 +614,7 @@ def test_invalid_stencil_first_arg_3():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d(xx))", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "the specified <type>" in str(excinfo.value)
     assert "includes brackets" in str(excinfo.value)
 
@@ -626,7 +625,7 @@ def test_invalid_stencil_second_arg_1():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,x1d)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is not an integer" in str(excinfo.value)
 
@@ -637,7 +636,7 @@ def test_invalid_stencil_second_arg_2():
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,0)", 1)
     ast = fpapi.parse(result, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast)
+        _ = LFRicKernMetadata(ast)
     assert "the specified <extent>" in str(excinfo.value)
     assert "is less than 1" in str(excinfo.value)
 
@@ -839,8 +838,8 @@ def test_stencil_region(dist_mem, tmpdir):
     assert output4 in result
     if dist_mem:
         output5 = (
-            "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+            "      IF (f2_proxy%is_dirty(depth=f2_extent + 1)) THEN\n"
+            "        CALL f2_proxy%halo_exchange(depth=f2_extent + 1)\n"
             "      END IF\n")
         assert output5 in result
     output6 = (
@@ -1093,12 +1092,11 @@ def test_multiple_stencils(dist_mem, tmpdir):
     assert output5 in result
     if dist_mem:
         output6 = (
-            "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+            "      IF (f2_proxy%is_dirty(depth=f2_extent + 1)) THEN\n"
+            "        CALL f2_proxy%halo_exchange(depth=f2_extent + 1)\n"
             "      END IF\n"
-            "      !\n"
-            "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
-            "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
+            "      IF (f3_proxy%is_dirty(depth=f3_extent + 1)) THEN\n"
+            "        CALL f3_proxy%halo_exchange(depth=f3_extent + 1)\n"
             "      END IF\n")
         assert output6 in result
     output7 = (
@@ -1187,11 +1185,9 @@ def test_multiple_stencils_int_field(dist_mem, tmpdir):
     assert output5 in result
     if dist_mem:
         output6 = (
-            "      !\n"
             "      IF (f3_proxy%is_dirty(depth=f3_extent)) THEN\n"
             "        CALL f3_proxy%halo_exchange(depth=f3_extent)\n"
             "      END IF\n"
-            "      !\n"
             "      IF (f4_proxy%is_dirty(depth=2)) THEN\n"
             "        CALL f4_proxy%halo_exchange(depth=2)\n"
             "      END IF\n")
@@ -1766,7 +1762,7 @@ def test_stencil_extent_specified():
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 1
-    stencils = DynStencils(psy.invokes.invoke_list[0])
+    stencils = LFRicStencils(psy.invokes.invoke_list[0])
     with pytest.raises(GenerationError) as err:
         stencils.stencil_unique_str(stencil_arg, "")
     assert ("Found a stencil with an extent specified in the metadata. "
@@ -1960,14 +1956,14 @@ def test_dynkernargs_unexpect_stencil_extent():
     assert "extent metadata not yet supported" in str(err.value)
 
 
-def test_dynstencils_extent_vars_err(monkeypatch):
-    ''' Check that the _unique_extent_vars method of DynStencils raises
+def test_lfricstencils_extent_vars_err(monkeypatch):
+    ''' Check that the _unique_extent_vars method of LFRicStencils raises
     the expected internal error. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    stencils = DynStencils(invoke)
+    stencils = LFRicStencils(invoke)
     # Monkeypatch it to break internal state
     monkeypatch.setattr(stencils, "_invoke", None)
     with pytest.raises(InternalError) as err:
@@ -1976,15 +1972,15 @@ def test_dynstencils_extent_vars_err(monkeypatch):
             in str(err.value))
 
 
-def test_dynstencils_err():
-    ''' Check that DynStencils.initialise and DynStencils._declare_maps_invoke
-    raises the expected InternalError if an unsupported stencil type is
-    encountered. '''
+def test_lfricstencils_err():
+    ''' Check that LFRicStencils.initialise and
+    LFRicStencils._declare_maps_invoke raises the expected
+    InternalError if an unsupported stencil type is encountered. '''
     _, info = parse(os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    stencils = DynStencils(invoke)
+    stencils = LFRicStencils(invoke)
     # Break internal state
     stencils._kern_args[0].descriptor.stencil['type'] = "not-a-type"
     with pytest.raises(GenerationError) as err:

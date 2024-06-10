@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,12 +57,12 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
-from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
+from psyclone.psyir.tools import CallTreeUtils, ReadWriteInfo
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_base_path, get_invoke
 
 # API names
-GOCEAN_API = "gocean1.0"
+GOCEAN_API = "gocean"
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -174,8 +174,8 @@ def test_driver_creation2():
     clb_trans = GOConstLoopBoundsTrans()
     clb_trans.apply(invoke.schedule)
 
-    dep = DependencyTools()
-    read_write_info = dep.get_in_out_parameters(nodes)
+    ctu = CallTreeUtils()
+    read_write_info = ctu.get_in_out_parameters(nodes)
 
     edc = ExtractDriverCreator()
 
@@ -376,7 +376,7 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
 
     # Monkey patch the grid property dictionary to remove the
     # go_grid_lat_u entry, triggering an earlier error:
-    api_config = Config.get().api_conf("gocean1.0")
+    api_config = Config.get().api_conf("gocean")
     grid_properties = api_config.grid_properties
     monkeypatch.delitem(grid_properties, "go_grid_lat_u")
 
@@ -441,7 +441,7 @@ def test_driver_creation_add_all_kernel_symbols_errors():
     # First provide a structured type that is not an r2d_field:
     edc = ExtractDriverCreator()
     ref = schedule_copy.children[0].loop_body.children[0] \
-        .loop_body.children[0].children[2]
+        .loop_body.children[0].arguments[2]
     assert ref.symbol.name == "out_fld"
     assert ref.symbol.datatype.name == "r2d_field"
     ref.symbol.datatype._name = "unknown type"
@@ -480,8 +480,8 @@ def test_driver_creation_same_symbol():
                            idx=3, dist_mem=False)
 
     nodes = [invoke.schedule.children[0]]
-    dep = DependencyTools()
-    read_write_info = dep.get_in_out_parameters(nodes)
+    ctu = CallTreeUtils()
+    read_write_info = ctu.get_in_out_parameters(nodes)
 
     edc = ExtractDriverCreator()
     driver_code = edc.get_driver_as_string(nodes, read_write_info,
@@ -528,7 +528,7 @@ def test_driver_creation_import_modules(fortran_reader):
     assert str(all_symbols["my_module"]) == \
         "my_module: ContainerSymbol<not linked>"
     mod_func = all_symbols["mod_func"]
-    assert str(mod_func) == ("mod_func: RoutineSymbol<DeferredType, "
+    assert str(mod_func) == ("mod_func: RoutineSymbol<UnresolvedType, "
                              "pure=unknown, elemental=unknown>")
 
 
@@ -543,7 +543,7 @@ def test_driver_node_verification():
     # exception, which would result in the driver being created
     # in the current directory.
 
-    api = "gocean1.0"
+    api = "gocean"
     _, info = parse(os.path.join(get_base_path(api), "driver_test.f90"),
                     api=api)
     psy = PSyFactory(api, distributed_memory=False).create(info)

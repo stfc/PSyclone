@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,8 @@ include ../../../../common.mk
 
 transform:
 	# commented out until issue #1015 is addressed
-	# $(PSYCLONE) -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
-	# $(PSYCLONE) -s solutions/acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	# $(PSYCLONE) -api lfric -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	# $(PSYCLONE) -api lfric -s solutions/acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
 
 compile: transform
 	@echo "No compilation supported for tutorial/lfric/single_node/2_openacc"

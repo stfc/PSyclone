@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
     Loop, Literal, ArrayReference, Range, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, UnknownType)
+    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, UnsupportedType)
 from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
     Intrinsic2CodeTrans)
 
@@ -209,11 +209,11 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 "MATMUL operation when it is the sole operation on the rhs "
                 "of an assignment.")
 
-        matrix1 = node.children[0]
-        matrix2 = node.children[1]
+        matrix1 = node.arguments[0]
+        matrix2 = node.arguments[1]
         result = node.parent.lhs
 
-        # The children of matvec should be References
+        # The arguments of matvec should be References
         if not (isinstance(matrix1, Reference) and
                 isinstance(matrix2, Reference) and
                 isinstance(result, Reference)):
@@ -221,8 +221,8 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
                 f"Expected result and operands of MATMUL IntrinsicCall to "
                 f"be references, but found: '{node.parent.debug_string()}'.")
 
-        # The children of matvec should be References to arrays
-        if any(isinstance(var.symbol.datatype, UnknownType) for var
+        # The arguments of matvec should be References to arrays
+        if any(isinstance(var.symbol.datatype, UnsupportedType) for var
                in [matrix1, matrix2, result]):
             raise TransformationError(
                 f"Must have full type information for result and operands of "
@@ -355,9 +355,9 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
-        arg2 = node.children[1]
+        arg2 = node.arguments[1]
         if (len(arg2.children) > 1 and isinstance(arg2.children[1], Range) or
                 not arg2.children and len(arg2.symbol.shape) == 2):
             self._apply_matrix_matrix(node)
@@ -376,8 +376,8 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         '''
         # pylint: disable=too-many-locals
         assignment = node.parent
-        matrix = node.children[0]
-        vector = node.children[1]
+        matrix = node.arguments[0]
+        vector = node.arguments[1]
         result = node.parent.lhs
         result_symbol = result.symbol
 
@@ -443,8 +443,8 @@ class Matmul2CodeTrans(Intrinsic2CodeTrans):
         '''
         # pylint: disable=too-many-locals
         assignment = node.parent
-        matrix1 = node.children[0]
-        matrix2 = node.children[1]
+        matrix1 = node.arguments[0]
+        matrix2 = node.arguments[1]
         result = node.parent.lhs
 
         # Create new i, j and ii loop iterators.

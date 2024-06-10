@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,23 +39,22 @@
 
 ''' Module containing tests for generating monitoring hooks'''
 
-from __future__ import absolute_import
-
 import re
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.generator import GenerationError
+from psyclone.domain.lfric import LFRicKern
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.profiler import Profiler
 from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
                                   Assignment, Return, Reference,
-                                  KernelSchedule, Schedule)
+                                  KernelSchedule, Routine, Schedule)
 from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
-from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.transformations import ProfileTrans
+from psyclone.psyir.transformations import ProfileTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
-from psyclone.gocean1p0 import GOInvokeSchedule
+from psyclone.transformations import (ACCKernelsTrans, GOceanOMPLoopTrans,
+                                      OMPParallelTrans)
 
 
 # -----------------------------------------------------------------------------
@@ -64,16 +63,16 @@ def teardown_function():
     any automatic profiling set. This is necessary in case of a test failure
     to make sure any further tests will not be run with profiling enabled.
     '''
-    Profiler.set_options([])
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
 def test_profile_basic():
     '''Check basic functionality: node names, schedule view.
     '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], api="gocean")
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     assert isinstance(invoke.schedule[0], ProfileNode)
@@ -108,26 +107,30 @@ def test_profile_basic():
     assert invoke.schedule[0].psy_data_body[0].loop_body[0].children[0].\
         children[0] is node
 
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
 def test_profile_errors2():
     '''Test various error handling.'''
 
-    with pytest.raises(GenerationError) as gen_error:
-        Profiler.set_options(["invalid"])
-    assert ("options must be one of 'invokes', 'kernels'"
-            in str(gen_error.value))
+    with pytest.raises(ValueError) as err:
+        Profiler.set_options(["invalid"], "nemo")
+    assert ("Options for automatic profiling must be one of 'invokes', "
+            "'routines', 'kernels'" in str(err))
+    with pytest.raises(ValueError) as err:
+        Profiler.set_options(["kernels"], "nemo")
+    assert ("The 'kernels' automatic profiling option is not compatible with "
+            "the 'nemo' API." in str(err))
 
 
 # -----------------------------------------------------------------------------
 def test_profile_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], "gocean")
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -158,7 +161,7 @@ def test_profile_invokes_gocean1p0():
     assert code == code_again
 
     # Test that two kernels in one invoke get instrumented correctly.
-    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0", 0,
+    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean", 0,
                            dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
@@ -184,7 +187,7 @@ def test_profile_invokes_gocean1p0():
                   "end.*"
                   r"call profile_psy_data%PostEnd")
     assert re.search(correct_re, code, re.I) is not None
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
@@ -192,9 +195,9 @@ def test_unique_region_names():
     '''Test that unique region names are created even when the kernel
     names are identical.'''
 
-    Profiler.set_options([Profiler.KERNELS])
+    Profiler.set_options([Profiler.KERNELS], "gocean")
     _, invoke = get_invoke("single_invoke_two_identical_kernels.f90",
-                           "gocean1.0", 0, dist_mem=False)
+                           "gocean", 0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -236,8 +239,8 @@ def test_unique_region_names():
 def test_profile_kernels_gocean1p0():
     '''Check that all kernels are instrumented correctly
     '''
-    Profiler.set_options([Profiler.KERNELS])
-    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
+    Profiler.set_options([Profiler.KERNELS], "gocean")
+    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean",
                            idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
@@ -278,7 +281,7 @@ def test_profile_kernels_gocean1p0():
     assert groups is not None
     assert groups.group(1) != groups.group(2)
 
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
@@ -288,7 +291,7 @@ def test_profile_named_gocean1p0():
 
     '''
     psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                             "gocean1.0", idx=0)
+                             "gocean", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
@@ -303,10 +306,10 @@ def test_profile_named_gocean1p0():
 def test_profile_invokes_dynamo0p3():
     '''Check that a Dynamo 0.3 invoke is instrumented correctly
     '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], "lfric")
 
     # First test for a single invoke with a single kernel work as expected:
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -326,7 +329,7 @@ def test_profile_invokes_dynamo0p3():
     assert re.search(correct_re, code, re.I) is not None
 
     # Next test two kernels in one invoke:
-    _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0)
+    _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -350,7 +353,7 @@ def test_profile_invokes_dynamo0p3():
     assert re.search(correct_re, code, re.I) is not None
 
     # Lastly, test an invoke whose first kernel is a builtin
-    _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90", "dynamo0.3", idx=0)
+    _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
     code = str(invoke.gen())
     assert "USE profile_psy_data_mod, ONLY: profile_PSyDataType" in code
@@ -360,7 +363,7 @@ def test_profile_invokes_dynamo0p3():
            "\"invoke_0:x_plus_y:r0\", 0, 0)" in code
     assert "CALL profile_psy_data%PostEnd" in code
 
-    Profiler.set_options(None)
+    Profiler._options = []
 
 
 # -----------------------------------------------------------------------------
@@ -368,8 +371,8 @@ def test_profile_kernels_dynamo0p3():
     '''Check that all kernels are instrumented correctly in a
     Dynamo 0.3 invoke.
     '''
-    Profiler.set_options([Profiler.KERNELS])
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    Profiler.set_options([Profiler.KERNELS], "lfric")
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -388,7 +391,7 @@ def test_profile_kernels_dynamo0p3():
                   r"call profile_psy_data%PostEnd")
     assert re.search(correct_re, code, re.I) is not None
 
-    _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0)
+    _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -418,7 +421,82 @@ def test_profile_kernels_dynamo0p3():
     assert groups is not None
     # Check that the variables are different
     assert groups.group(1) != groups.group(2)
-    Profiler.set_options(None)
+
+    Profiler._options = []
+
+
+# -----------------------------------------------------------------------------
+def test_profile_fused_kernels_dynamo0p3():
+    '''Check that kernels are instrumented correctly in an LFRic
+    (Dynamo 0.3) invoke which has had them fused (i.e. there is more than
+    one Kernel inside a loop).
+    '''
+    Profiler.set_options([Profiler.KERNELS], "lfric")
+    _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0,
+                           dist_mem=False)
+
+    fuse_trans = LFRicLoopFuseTrans()
+    loops = invoke.schedule.walk(Loop)
+    fuse_trans.apply(loops[0], loops[1])
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
+    code = str(invoke.gen())
+    expected = '''\
+      CALL profile_psy_data%PreStart("multi_invoke_psy", "invoke_0:r0", 0, 0)
+      DO cell = loop0_start, loop0_stop, 1
+        CALL testkern_code(nlayers, a, f1_data, f2_data, m1_data, m2_data, \
+ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
+undf_w3, map_w3(:,cell))
+        CALL testkern_code(nlayers, a, f1_data, f3_data, m2_data, m1_data, \
+ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, \
+undf_w3, map_w3(:,cell))
+      END DO
+      CALL profile_psy_data%PostEnd
+'''
+    assert expected in code
+
+
+# -----------------------------------------------------------------------------
+def test_profile_kernels_without_loop_dynamo0p3():
+    '''Check that kernels are instrumented correctly in an LFRic
+    (Dynamo 0.3) invoke when there is no parent loop. This is currently
+    impossible so we construct an artificial Schedule to test.
+
+    '''
+    Profiler.set_options([Profiler.KERNELS], "lfric")
+    _, invoke = get_invoke("1.2_multi_invoke.f90", "lfric", idx=0,
+                           dist_mem=False)
+
+    # Create a new Routine and copy over the Kernels from the invoke schedule.
+    new_sched = Routine("test_routine")
+    for kern in invoke.schedule.walk(LFRicKern):
+        new_sched.addchild(kern.copy())
+    # Check that the profiling node is added as expected.
+    Profiler.add_profile_nodes(new_sched, Loop)
+    assert isinstance(new_sched[0], ProfileNode)
+    assert isinstance(new_sched[0].children[0].children[0], LFRicKern)
+    assert isinstance(new_sched[0].children[0].children[1], LFRicKern)
+
+
+# -----------------------------------------------------------------------------
+def test_profile_kernels_in_directive_dynamo0p3():
+    '''
+    Check that a kernel is instrumented correctly if it is within a directive.
+    '''
+    Profiler.set_options([Profiler.KERNELS], "lfric")
+    _, invoke = get_invoke("1_single_invoke_w3.f90", "lfric", idx=0,
+                           dist_mem=False)
+    ktrans = ACCKernelsTrans()
+    loop = invoke.schedule.walk(Loop)[0]
+    ktrans.apply(loop)
+    Profiler.add_profile_nodes(invoke.schedule, Loop)
+    code = str(invoke.gen())
+    expected = '''\
+      CALL profile_psy_data%PreStart("single_invoke_w3_psy", \
+"invoke_0_testkern_w3_type:testkern_w3_code:r0", 0, 0)
+      !$acc kernels
+      DO cell = loop0_start, loop0_stop, 1
+'''
+    assert expected in code
 
 
 # -----------------------------------------------------------------------------
@@ -427,7 +505,7 @@ def test_profile_named_dynamo0p3():
     profile name is supplied by the user.
 
     '''
-    psy, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    psy, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
@@ -441,7 +519,7 @@ def test_profile_named_dynamo0p3():
 def test_transform():
     '''Tests normal behaviour of profile region transformation.'''
 
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean",
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
 
@@ -487,7 +565,7 @@ def test_transform_errors():
 
     # This has been imported and tested before, so we can assume
     # here that this all works as expected/
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean",
                            name="invoke_loop1", dist_mem=False)
 
     schedule = invoke.schedule
@@ -510,7 +588,7 @@ def test_transform_errors():
 
     # Test that we don't add a profile node inside a OMP do loop (which
     # would be invalid syntax):
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean",
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
 
@@ -544,7 +622,7 @@ def test_region():
 
     '''
     _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
-                           "dynamo0.3", name="invoke_0", dist_mem=True)
+                           "lfric", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
     prt = ProfileTrans()
     # Just halo exchanges.
@@ -577,7 +655,7 @@ def test_multi_prefix_profile(monkeypatch):
 
     '''
     _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
-                           "dynamo0.3", name="invoke_0", dist_mem=True)
+                           "lfric", name="invoke_0", dist_mem=True)
     schedule = invoke.schedule
     prt = ProfileTrans()
     config = Config.get()
@@ -607,11 +685,11 @@ def test_multi_prefix_profile(monkeypatch):
     assert ("      CALL tool1_psy_data%PostEnd\n"
             "      CALL profile_psy_data%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r1\", 0, 0)\n"
-            "      DO cell=loop0_start,loop0_stop\n" in result)
+            "      DO cell = loop0_start, loop0_stop, 1\n" in result)
     assert ("      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      CALL profile_psy_data%PostEnd\n"
-            "      DO cell=loop2_start,loop2_stop\n" in result)
+            "      DO cell = loop2_start, loop2_stop, 1\n" in result)
 
 
 # -----------------------------------------------------------------------------
@@ -619,7 +697,7 @@ def test_omp_transform():
     '''Tests that the profiling transform works correctly with OMP
      parallelisation.'''
 
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean",
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
 
@@ -637,8 +715,8 @@ def test_omp_transform():
         "\"invoke_loop1:bc_ssh_code:r0\", 0, 0)\n"
         "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
-        "      DO j=t%internal%ystart,t%internal%ystop\n"
-        "        DO i=t%internal%xstart,t%internal%xstop\n"
+        "      DO j = t%internal%ystart, t%internal%ystop, 1\n"
+        "        DO i = t%internal%xstart, t%internal%xstop, 1\n"
         "          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)\n"
         "        END DO\n"
         "      END DO\n"
@@ -661,8 +739,8 @@ def test_omp_transform():
       CALL profile_psy_data_1%PreStart("psy_test27_loop_swap", ''' + \
         '''"invoke_loop1:bc_ssh_code:r1", 0, 0)
       !$omp do schedule(static)
-      DO j=t%internal%ystart,t%internal%ystop
-        DO i=t%internal%xstart,t%internal%xstop
+      DO j = t%internal%ystart, t%internal%ystop, 1
+        DO i = t%internal%xstart, t%internal%xstop, 1
           CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
         END DO
       END DO
@@ -688,7 +766,7 @@ def test_auto_invoke_return_last_stmt():
     # Double-check that the tree is as we expect
     assert isinstance(kschedule[-1], Return)
 
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], "nemo")
     Profiler.add_profile_nodes(kschedule, Loop)
     # The Return should be a sibling of the ProfileNode rather than a child
     assert isinstance(kschedule[0], ProfileNode)
@@ -700,7 +778,7 @@ def test_auto_invoke_no_return(capsys):
     ''' Check that using the auto-invoke profiling option does not add any
     profiling if the invoke contains a Return anywhere other than as the
     last statement. '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], "nemo")
     symbol_table = SymbolTable()
     arg1 = symbol_table.new_symbol(
         symbol_type=DataSymbol, datatype=REAL_TYPE)
@@ -744,7 +822,7 @@ def test_auto_invoke_no_return(capsys):
 def test_auto_invoke_empty_schedule(capsys):
     ''' Check the auto-invoke profiling option rejects an empty Schedule, i.e
     the routine has no statements. '''
-    Profiler.set_options([Profiler.INVOKES])
+    Profiler.set_options([Profiler.INVOKES], "nemo")
     symbol_table = SymbolTable()
     # Create Schedule with Return at the start.
     kschedule = KernelSchedule.create(

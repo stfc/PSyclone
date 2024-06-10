@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ $(EXEC): $(LFRIC_LIB) $(OBJ)
 compile: transform $(EXEC)
 
 transform:
-	${PSYCLONE} algorithm.x90 -opsy mixed_precision_psy.f90 -oalg alg.f90
+	${PSYCLONE} -api lfric algorithm.x90 -opsy mixed_precision_psy.f90 -oalg alg.f90
 
 alg.f90 mixed_precision_psy.f90: transform
 alg.o: mixed_precision_psy.o

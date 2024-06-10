@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 
 
 '''This module tests the DynamoPSy class, currently located within the
-dynamo0.3.py file.'''
+dynamo0p3.py file.'''
 
 from collections import OrderedDict
 import os
@@ -90,7 +90,7 @@ def test_dynamopsy_kind():
     # 1: no literal kind value gives the default r_def (even though it
     # is not required).
     _, invoke_info = parse(os.path.join(
-        BASE_PATH, "15.12.3_single_pointwise_builtin.f90"), api="dynamo0.3")
+        BASE_PATH, "15.12.3_single_pointwise_builtin.f90"), api="lfric")
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
     assert "USE constants_mod, ONLY: r_def, i_def" in result
@@ -162,7 +162,7 @@ def test_dynamopsy_gen(monkeypatch):
     _, invoke_info = parse(
         os.path.join(
             BASE_PATH, "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="dynamo0.3")
+        api="lfric")
     # Make sure we have distributed memory enabled, otherwise we can
     # get errors in parallel builds if a previous jobs leave this
     # to be false.
@@ -171,8 +171,7 @@ def test_dynamopsy_gen(monkeypatch):
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
     assert (
-        "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
+        "      DO cell = loop0_start, loop0_stop, 1\n"
         "        CALL testkern_code(nlayers, ginger, f1_data, "
         "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -183,6 +182,8 @@ def test_dynamopsy_gen(monkeypatch):
         "      !\n"
         "      CALL f1_proxy%set_dirty()\n"
         "      !\n"
-        "      DO df=loop1_start,loop1_stop\n"
+        "      DO df = loop1_start, loop1_stop, 1\n"
+        "        ! Built-in: setval_c (set a real-valued field to a real "
+        "scalar value)\n"
         "        f1_data(df) = 0.0_r_def\n"
         "      END DO\n" in result)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council
+# Copyright (c) 2019-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,10 +39,10 @@ limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a
 gen() method to generate Fortran.
 
 '''
-from psyclone.nemo import NemoLoop, NemoKern
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
-from psyclone.psyir.nodes import ArrayReference, BinaryOperation, Literal, \
-    Reference, UnaryOperation, IntrinsicCall
+from psyclone.psyir.nodes import (
+    ArrayReference, BinaryOperation, CodeBlock, Literal, Loop,
+    Reference, UnaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import ScalarType
 
 # Mapping from PSyIR data types to SIR types.
@@ -161,48 +161,54 @@ class SIRWriter(PSyIRVisitor):
         result += f"{self._nindent}[ {type(node).__name__} end ]\n"
         return result
 
-    def nemoloop_node(self, loop_node):
-        '''Supported NEMO loops are triply nested with particular indices (not
-        yet checked) and should contain a NemoKern. If this is not the
+    def loop_node(self, loop_node):
+        '''Supported loops are triply nested with particular indices (not
+        yet checked) and should contain only computation. If this is not the
         case then it is not possible to translate so an exception is
         raised.
 
-        :param loop_node: a NemoLoop PSyIR node.
-        :type loop_node: subclass of :py:class:`psyclone.nemo.NemoLoop`
+        :param loop_node: a Loop PSyIR node.
+        :type loop_node: subclass of :py:class:`psyclone.psyir.nodes.Loop`
 
         :returns: the SIR Python code.
         :rtype: str
 
-        :raises VisitorError: if the loop is not triply nested with \
-        computation within the triply nested loop.
+        :raises VisitorError: if the loop is not triply nested with computation
+                              within the triply nested loop.
 
         '''
+        loops = loop_node.walk(Loop)
+        if len(loops) != 3:
+            raise VisitorError("Only triply-nested loops are supported.")
+
         # Check first loop has a single loop as a child.
-        loop_content = loop_node.loop_body.children
+        loop_content = loops[0].loop_body.children
         if not (len(loop_content) == 1 and
-                isinstance(loop_content[0], NemoLoop)):
+                isinstance(loop_content[0], Loop)):
             raise VisitorError("Child of loop should be a single loop.")
 
         # Check second loop has a single loop as a child.
-        loop_content = loop_content[0].loop_body.children
-        if not (len(loop_content) == 1 and
-                isinstance(loop_content[0], NemoLoop)):
+        loop2_content = loops[1].loop_body.children
+        if not (len(loop2_content) == 1 and
+                isinstance(loop2_content[0], Loop)):
             raise VisitorError(
                 "Child of child of loop should be a single loop.")
 
-        # Check third loop has a single NemoKern as a child.
-        loop_content = loop_content[0].loop_body.children
-        if not (len(loop_content) == 1 and
-                isinstance(loop_content[0], NemoKern)):
+        # Check that the innermost loop does not contain any CodeBlocks.
+        loop3 = loops[2]
+        if loop3.walk(CodeBlock):
             raise VisitorError(
-                "Child of child of child of loop should be a NemoKern.")
+                f"A loop nest containing a CodeBlock cannot be translated to "
+                f"SIR:\n"
+                f"{loop3.debug_string()}")
 
         # The interval values are hardcoded for the moment (see #470).
         result = f"{self._nindent}interval = "\
                  f"make_interval(Interval.Start, Interval.End, 0, 0)\n"
         result += f"{self._nindent}body_ast = make_ast([\n"
         self._depth += 1
-        result += self.nemokern_node(loop_content[0])
+        for child in loop3.loop_body:
+            result += self._visit(child)
         self._depth -= 1
         # Remove the trailing comma if there is one as this is the
         # last entry in make_ast.
@@ -214,23 +220,6 @@ class SIRWriter(PSyIRVisitor):
         result += f"{self._nindent}vertical_region_fns.append("\
                   f"make_vertical_region_decl_stmt(body_ast, interval, "\
                   f"VerticalRegion.Forward))\n"
-        return result
-
-    def nemokern_node(self, node):
-        '''NEMO kernels are a group of nodes collected into a schedule
-        so simply visit the nodes in the schedule.
-
-        :param node: a NemoKern PSyIR node.
-        :type node: :py:class:`psyclone.nemo.NemoKern`
-
-        :returns: the SIR Python code.
-        :rtype: str
-
-        '''
-        result = ""
-        schedule = node.get_kernel_schedule()
-        for child in schedule.children:
-            result += self._visit(child)
         return result
 
     def nemoinvokeschedule_node(self, node):
@@ -564,15 +553,15 @@ class SIRWriter(PSyIRVisitor):
             # implementation).
             # [F] SIGN(A,B) == [C] FABS(A)*SIGN(B)
             c_abs_fun = (f"make_fun_call_expr(\"math::fabs\", "
-                         f"[{self._visit(node.children[0]).strip()}])")
+                         f"[{self._visit(node.arguments[0]).strip()}])")
             c_sign_fun = (f"make_fun_call_expr(\"math::sign\", "
-                          f"[{self._visit(node.children[1]).strip()}])")
+                          f"[{self._visit(node.arguments[1]).strip()}])")
             result = (f"make_binary_operator({c_abs_fun}, "
                       f"\"*\", {c_sign_fun})")
         else:
             # Everything else it is a SIR intrinsics
             arg_list = []
-            for child in node.children:
+            for child in node.arguments:
                 arg_list.append(f"[{self._visit(child).strip()}]")
             arg_str = ", ".join(arg_list)
             result = (f"{self._nindent}{self._indent}make_fun_call_expr("

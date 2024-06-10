@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,16 +58,17 @@ Schedules:
 
 '''
 
-from __future__ import print_function
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.backend.fortran import FortranWriter
 
-API = "gocean1.0"
+API = "gocean"
 _, INVOKEINFO = parse("shallow_alg.f90", api=API)
 PSY = PSyFactory(API).create(INVOKEINFO)
 
 # Print the 'vanilla' generated Fortran
-print(PSY.gen)
+writer = FortranWriter()
+print(writer(PSY.container))
 
 # Print a list of all of the invokes found
 print(PSY.invokes.names)

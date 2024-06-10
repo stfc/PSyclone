@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,12 +67,13 @@ class AlgorithmInvokeCall(Call):
     :raises ValueError: if an invalid name is supplied.
 
     '''
-    _children_valid_format = "[KernelFunctor]*"
+    _children_valid_format = "Reference, [KernelFunctor]*"
     _text_name = "AlgorithmInvokeCall"
     _colour = "green"
 
     def __init__(self, invoke_routine_symbol, index, parent=None, name=None):
-        super().__init__(invoke_routine_symbol, parent=parent)
+        super().__init__(parent=parent)
+        self.addchild(Reference(invoke_routine_symbol))
 
         if not isinstance(index, int):
             raise TypeError(
@@ -141,7 +142,7 @@ class AlgorithmInvokeCall(Call):
         else:
             lwr_name = None
         call = cls(routine, index, name=lwr_name)
-        call.children = arguments
+        call.children.extend(arguments)
         return call
 
     @staticmethod
@@ -155,6 +156,8 @@ class AlgorithmInvokeCall(Call):
         :rtype: bool
 
         '''
+        if position == 0:
+            return isinstance(child, Reference)
         return isinstance(child, KernelFunctor)
 
     def node_str(self, colour=True):
@@ -202,9 +205,9 @@ class AlgorithmInvokeCall(Call):
                 routine_root_name = f"invoke_{routine_root_name}"
         else:
             routine_root_name = f"invoke_{self._index}"
-            if len(self.children) == 1:
+            if len(self.arguments) == 1:
                 # Add the name of the kernel if there is only one call
-                routine_root_name += "_" + self.children[0].name
+                routine_root_name += "_" + self.arguments[0].name
         return routine_root_name
 
     def create_psylayer_symbol_root_names(self):

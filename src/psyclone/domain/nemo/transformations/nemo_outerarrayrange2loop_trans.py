@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,12 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk and S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation from an Assignment node
 containing an Array Reference node in its left-hand-side which in turn
 has at least one PSyIR Range node specifying an access to an array
 index (equivalent to an array assignment statement in Fortran) to the
-equivalent loop representation using a NemoLoop node. The outermost
+equivalent loop representation using a Loop node. The outermost
 Range is chosen to be replaced as replacing any other Range node would
 result in a reordering of the array accesses.
 
@@ -54,7 +55,7 @@ from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans import \
 
 class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
     '''Provides a transformation from the outermost PSyIR ArrayReference
-    Range to a PSyIR NemoLoop. For example:
+    Range to a PSyIR Loop. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -87,11 +88,8 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         Range node specifying an access to an array index. If this is
         the case then the outermost Range nodes within array
         references within the assignment are replaced with references
-        to a loop index. A NemoLoop loop (with the same loop index) is
-        also placed around the modified assignment statement. If the
-        array reference on the left-hand-side of the assignment only
-        had one range node as an index (so now has none) then the
-        assignment is also placed within a NemoKern.
+        to a loop index. A loop (with the same loop index) is
+        also placed around the modified assignment statement.
 
         The name of the loop index is taken from the PSyclone
         configuration file if a name exists for the particular array
@@ -99,10 +97,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         loop are taken from the Range node if they are provided. If
         not, the loop bounds are taken from the PSyclone configuration
         file if bounds values are supplied. If not, the LBOUND or
-        UBOUND intrinsics are used as appropriate. The type of the
-        NemoLoop is also taken from the configuration file if it is
-        supplied for that index, otherwise it is specified as being
-        "unknown".
+        UBOUND intrinsics are used as appropriate.
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
@@ -111,19 +106,22 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             transformation. This is an optional argument that defaults \
             to None.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["allow_string"]: whether to allow the
+            transformation on a character type array range. Defaults to False.
 
         '''
-        self.validate(node)
+        self.validate(node, options)
 
         # Get deepest array in LHS (excluding inside Ranges)
-        lhs_array_ref = node.lhs.walk(ArrayMixin, stop_type=Range)[-1]
+        deepest_range = node.lhs.walk(Range, stop_type=Range)[-1]
+        lhs_array_ref = deepest_range.parent
         index = lhs_array_ref.get_outer_range_index()
         nemo_arrayrange2loop = NemoArrayRange2LoopTrans()
-        nemo_arrayrange2loop.apply(lhs_array_ref.children[index])
+        nemo_arrayrange2loop.apply(lhs_array_ref.children[index], options)
 
     def __str__(self):
         return ("Convert a PSyIR assignment to the outermost ArrayReference "
-                "Range into a PSyIR NemoLoop.")
+                "Range into a PSyIR Loop.")
 
     @property
     def name(self):

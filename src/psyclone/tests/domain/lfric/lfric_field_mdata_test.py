@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#         I. Kavcic, A. Coughtrie and L. Turner, Met Office;
+#         I. Kavcic, A. Coughtrie and L. Turner and O. Brunt, Met Office;
 #         C. M. Maynard, Met Office/University of Reading;
 #         J. Henrichs, Bureau of Meteorology.
 
@@ -46,8 +46,8 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicFields
+from psyclone.domain.lfric import (LFRicArgDescriptor, LFRicConstants,
+                                   LFRicFields, LFRicKernMetadata)
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -61,7 +61,7 @@ BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 FIELD_CODE = '''
@@ -102,7 +102,7 @@ def test_ad_fld_type_1st_arg():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     const = LFRicConstants()
     assert (f"the 1st argument of a 'meta_arg' entry should be a valid "
             f"argument type (one of {const.VALID_ARG_TYPE_NAMES}), but found "
@@ -121,7 +121,7 @@ def test_ad_field_invalid_data_type():
         "arg_type(gh_field,  gh_unreal,  gh_inc,     w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     const = LFRicConstants()
     assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
             f"be a valid data type (one of {const.VALID_ARG_DATA_TYPES}), but "
@@ -133,7 +133,7 @@ def test_ad_field_invalid_data_type():
         "arg_type(gh_field,  gh_double,  gh_read,    w3)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("but found 'gh_double' in 'arg_type(gh_field, gh_double, "
             "gh_read, w3)'." in str(excinfo.value))
 
@@ -148,7 +148,7 @@ def test_field_gh_sum_invalid():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("In the LFRic API, allowed accesses for fields on continuous "
             "function spaces that are arguments to kernels that operate on "
             "cell-columns are ['gh_read', 'gh_write', 'gh_inc', 'gh_readinc'],"
@@ -165,7 +165,7 @@ def test_ad_fld_type_too_few_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("each 'meta_arg' entry must have at least 4 arguments if its "
             "first argument is of ['gh_field'] type" in str(excinfo.value))
 
@@ -180,7 +180,7 @@ def test_ad_fld_type_too_many_args():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("each 'meta_arg' entry must have at most 5 arguments if its "
             "first argument is of ['gh_field'] type" in str(excinfo.value))
 
@@ -190,7 +190,7 @@ def test_ad_field_init_wrong_type():
     is passed to the LFRicArgDescriptor._init_field() method. '''
     ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
     name = "testkern_field_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     # Get an argument which is not a field
     wrong_arg = metadata._inits[0]
     with pytest.raises(InternalError) as excinfo:
@@ -206,7 +206,7 @@ def test_ad_field_init_wrong_data_type(monkeypatch):
     is passed to the LFRicArgDescriptor._init_field() method. '''
     ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
     name = "testkern_field_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     # Get a real field argument descriptor and set a wrong data type
     real_field_arg = metadata._inits[1]
     real_field_arg.args[1].name = "gh_double"
@@ -248,7 +248,7 @@ def test_arg_descriptor_invalid_fs():
         "arg_type(gh_field,  gh_real,    gh_inc,     w4)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     const = LFRicConstants()
     assert (f"In the LFRic API argument 4 of a 'meta_arg' field entry must be "
             f"a valid function-space name (one of "
@@ -260,7 +260,7 @@ def test_arg_descriptor_invalid_fs():
         "arg_type(gh_field,  gh_integer, gh_read,    w10)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("if its first argument is of ['gh_field'] type, but found 'w10'"
             in str(excinfo.value))
 
@@ -273,7 +273,7 @@ def test_ad_field_init_wrong_iteration_space():
     '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_field_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_field_type")
     field_arg = metadata._inits[1]
     # Set a wrong iteration space
     with pytest.raises(InternalError) as excinfo:
@@ -296,7 +296,7 @@ def test_fs_discontinuous_inc_error():
             "arg_type(gh_field,  gh_integer, gh_inc, " + fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name="testkern_field_type")
+            _ = LFRicKernMetadata(ast, name="testkern_field_type")
         assert (f"In the LFRic API, allowed accesses for fields on "
                 f"discontinuous function spaces that are arguments to kernels "
                 f"that operate on either cell-columns or the domain are "
@@ -319,7 +319,7 @@ def test_fs_continuous_cells_readwrite_error():
             f"arg_type(gh_field, gh_real, {acc}, {fspace})", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name="testkern_field_type")
+            _ = LFRicKernMetadata(ast, name="testkern_field_type")
         assert (f"In the LFRic API, allowed accesses for fields on "
                 f"continuous function spaces that are arguments to "
                 f"kernels that operate on cell-columns are ['gh_read', "
@@ -342,7 +342,7 @@ def test_fs_anyspace_cells_readwrite_error():
             f"arg_type(gh_field, gh_real, {acc}, {fspace})", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name="testkern_field_type")
+            _ = LFRicKernMetadata(ast, name="testkern_field_type")
         assert (f"In the LFRic API, allowed accesses for fields on "
                 f"continuous function spaces that are arguments to "
                 f"kernels that operate on cell-columns are ['gh_read', "
@@ -369,7 +369,7 @@ def test_fs_anyspace_dofs_inc_error(access):
             f"arg_type(gh_field, gh_real, {access}, {fspace})", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
-            _ = DynKernMetadata(ast, name="testkern_field_type")
+            _ = LFRicKernMetadata(ast, name="testkern_field_type")
         assert (f"In the LFRic API, allowed field accesses for a kernel "
                 f"that operates on DoFs are ['gh_read', 'gh_write', "
                 f"'gh_readwrite'], but found '{access}' for '{fspace}'"
@@ -381,7 +381,7 @@ def test_arg_descriptor_field():
     as expected for a field argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(FIELD_CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_field_type")
+    metadata = LFRicKernMetadata(ast, name="testkern_field_type")
     field_descriptor = metadata.arg_descriptors[2]
 
     # Assert correct string representation from LFRicArgDescriptor
@@ -415,7 +415,7 @@ def test_invalid_vector_operator():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert "must use '*' as the separator" in str(excinfo.value)
 
 
@@ -428,7 +428,7 @@ def test_invalid_vector_value_type():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("the field vector notation must be in the format 'field*n' "
             "where 'n' is an integer, but the following 'n' was found "
             in str(excinfo.value))
@@ -443,7 +443,7 @@ def test_invalid_vector_value_range():
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
     with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
+        _ = LFRicKernMetadata(ast, name=name)
     assert ("the 1st argument of a 'meta_arg' entry may be a field vector "
             "with format 'field*n' where n is an integer > 1. However, "
             "found n = 1" in str(excinfo.value))
@@ -461,7 +461,7 @@ def test_arg_descriptor_field_vector():
                               "(gh_field*3,  gh_real,    gh_inc,    w1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
-    dkm = DynKernMetadata(ast, name=name)
+    dkm = LFRicKernMetadata(ast, name=name)
     field_descriptor = dkm.arg_descriptors[2]
 
     # Assert correct string representation from LFRicArgDescriptor
@@ -600,7 +600,7 @@ def test_multiple_updated_field_args():
                               "arg_type(gh_field, gh_real, gh_inc, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_field_type"
-    metadata = DynKernMetadata(ast, name=name)
+    metadata = LFRicKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
         if descriptor.argument_type == "gh_field" and \

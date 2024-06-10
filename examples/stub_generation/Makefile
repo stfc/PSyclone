@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 include ../common.mk
 
 transform:
-	${KERNEL_STUB_GEN} testkern_stencil_multi_mod.f90
+	${KERNEL_STUB_GEN} -api lfric testkern_stencil_multi_mod.f90
 
 compile:
 	@echo "No compilation supported for stub-generation example"

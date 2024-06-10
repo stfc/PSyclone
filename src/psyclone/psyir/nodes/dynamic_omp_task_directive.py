@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -126,6 +126,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         IntrinsicCall.Intrinsic.ERF,
         IntrinsicCall.Intrinsic.EXP,
         IntrinsicCall.Intrinsic.FLOOR,
+        IntrinsicCall.Intrinsic.INT,
         IntrinsicCall.Intrinsic.LBOUND,
         IntrinsicCall.Intrinsic.LEN,
         IntrinsicCall.Intrinsic.LOG,
@@ -133,9 +134,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         IntrinsicCall.Intrinsic.MAX,
         IntrinsicCall.Intrinsic.MIN,
         IntrinsicCall.Intrinsic.MODULO,
+        IntrinsicCall.Intrinsic.REAL,
         IntrinsicCall.Intrinsic.SIGN,
         IntrinsicCall.Intrinsic.SIN,
         IntrinsicCall.Intrinsic.SINH,
+        IntrinsicCall.Intrinsic.SIZE,
         IntrinsicCall.Intrinsic.SQRT,
         IntrinsicCall.Intrinsic.TAN,
         IntrinsicCall.Intrinsic.TANH,
@@ -1932,11 +1935,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             return
 
         # Otherwise, we loop through the references in the IntrinsicCall
-        # and compute any new dependencies.
-        for ref in node.walk(Reference):
-            self._evaluate_readonly_reference(
-                ref, clause_lists
-            )
+        # arguments and compute any new dependencies.
+        for arg in node.arguments:
+            for ref in arg.walk(Reference):
+                self._evaluate_readonly_reference(
+                    ref, clause_lists
+                )
 
     def _evaluate_node(
         self,

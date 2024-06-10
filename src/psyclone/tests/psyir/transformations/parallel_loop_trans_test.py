@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -139,7 +139,7 @@ def test_paralooptrans_validate_colours(monkeypatch):
     permitted.
 
     '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
                            name="invoke_0", dist_mem=False)
     schedule = invoke.schedule
     child = schedule.walk(Loop)[0]

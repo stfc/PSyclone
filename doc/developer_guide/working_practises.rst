@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -343,7 +343,7 @@ file ``transformation.py`` uses::
         For example:
 
         >>> from psyclone.parse.algorithm import parse
-        >>> api = "gocean1.0"
+        >>> api = "gocean"
         >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
         ...
         >>> dtrans.apply(schedule)
@@ -406,11 +406,11 @@ functions from the LFRic infrastructure is included in
 are requested, the stub files are automatically compiled to create the required
 .mod files. 
 
-For the gocean1.0 domain a complete copy of the dl_esm_inf library is included 
+For the gocean domain a complete copy of the dl_esm_inf library is included 
 as a submodule in ``<PSYCLONEHOME>/external/dl_esm_inf``. Before running tests
 with compilation, make sure this submodule is up-to-date (see
 :ref:`dev-installation`). The test process will compile dl_esm_inf
-automatically, and all PSyclone gocean1.0 compilation tests will reference
+automatically, and all PSyclone gocean compilation tests will reference
 these files.
 
 If you  run the tests in parallel (see :ref:`parallel_execution` section) each
@@ -424,10 +424,7 @@ Occasionally the code that is to be compiled as part of a test may depend
 upon some piece of code that is not a Kernel or part of one of the supported
 infrastructure libraries. In order to support this, the ``code_compiles``
 method of ``psyclone.tests.utilities.Compile`` allows the user to supply a
-list of additional files upon which kernels depend:
-
-.. automethod:: psyclone.tests.utilities.Compile.code_compiles
-
+list of additional files upon which kernels depend.
 These files must be located in the same directory as the kernels.
 
 Continuous Integration
@@ -526,7 +523,7 @@ provides the `\:ref_guide\:` role. (The source for this
 plugin may be found in the ``PSyclone/docs/_ext/apilinks.py`` file.) The format
 to use when adding a link to the Reference Guide is then, e.g.::
 
-  :ref_guide:`anchor text psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnknownType`
+  :ref_guide:`anchor text psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnsupportedType`
 
 The URL to prepend to the supplied target is set via a new Sphinx
 configuration variable named ``ref_guide_base`` in the ``conf.py``
@@ -631,10 +628,9 @@ returns a string and only executes the function if the ``str`` method
 is called for the class. This will not be the case for the above code
 as the exception string is not used.
 
-This approach is currently used in the ``CreateNemoKernelTrans``
-transformation and internally in the ``TransformationError`` exception
-(so that this transformation does not accidentally cause the string to
-be evaluated).
+This approach is currently used internally in the ``TransformationError``
+exception (so that this transformation does not accidentally cause the
+string to be evaluated).
 
 If a transformation is used in the way described above and PSyclone
 subsequently runs more slowly it is recommended that the ``LazyString``

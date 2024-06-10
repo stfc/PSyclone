@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -214,6 +214,8 @@ def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
         "  enddo\n"
         "  d(1,1,1) = 0.0\n"
         "  e(:,:,:) = f(:,:,:)\n"
+        "  ! PSyclone CodeBlock (unsupported code) reason:\n"
+        "  !  - Unsupported statement: Print_Stmt\n"
         "  PRINT *, \"hello\"\n\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)

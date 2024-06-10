@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/nemo
 	READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
 	F90FLAGS += $$(nf-config --fflags)
-	LDFLAGS += $$(nf-config --flibs)
+	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	GENERATED_FILES += tra_adv-r?.nc
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/nemo

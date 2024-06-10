@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,7 @@ it is not designed to be directly run from python.
 
 '''
 from __future__ import print_function
-from psyclone.transformations import DynamoOMPParallelLoopTrans, \
-    DynamoLoopFuseTrans, TransformationError
+from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
 
 
 def trans(psy):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,22 +41,27 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+import os
 from collections import OrderedDict
 import abc
 
-from psyclone.configuration import Config
+from psyclone.configuration import (
+    Config, LFRIC_API_NAMES, GOCEAN_API_NAMES, NO_API_NAMES)
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
-from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
+from psyclone.f2pygen import (AllocateGen, AssignGen, CommentGen,
                               DeclGen, DeallocateGen, DoGen, UseGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Node, Schedule, Loop, Statement, Container,
-                                  Routine, Call, OMPDoDirective)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, RoutineSymbol,
-                                    Symbol, ContainerSymbol, ImportInterface,
-                                    ArgumentInterface, DeferredType)
-from psyclone.psyir.symbols.datatypes import UnknownFortranType
+from psyclone.psyir.nodes import (ArrayReference, Call, Container, Literal,
+                                  Loop, Node, OMPDoDirective, Reference,
+                                  Routine, Schedule, Statement)
+from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
+                                    ContainerSymbol, DataSymbol,
+                                    UnresolvedType,
+                                    ImportInterface, INTEGER_TYPE,
+                                    RoutineSymbol, Symbol)
+from psyclone.psyir.symbols.datatypes import UnsupportedFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -88,25 +93,6 @@ def object_index(alist, item):
         if entry is item:
             return idx
     raise ValueError(f"Item '{item}' not found in list: {alist}")
-
-
-def get_api(api):
-    ''' If no API is specified then return the default. Otherwise, check that
-    the supplied API is valid.
-    :param str api: The PSyclone API to check or an empty string.
-    :returns: The API that is in use.
-    :rtype: str
-    :raises GenerationError: if the specified API is not supported.
-
-    '''
-    if api == "":
-        api = Config.get().default_api
-    else:
-        if api not in Config.get().supported_apis:
-            raise GenerationError(f"get_api: Unsupported API '{api}' "
-                                  f"specified. Supported types are "
-                                  f"{Config.get().supported_apis}.")
-    return api
 
 
 def zero_reduction_variables(red_call_list, parent):
@@ -166,9 +152,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
 
 class PSyFactory():
     '''
-    Creates a specific version of the PSy. If a particular api is not
-    provided then the default api, as specified in the psyclone.cfg
-    file, is chosen.
+    Creates a specific version of the PSy.
 
     :param str api: name of the PSyclone API (domain) for which to create \
         a factory.
@@ -189,8 +173,9 @@ class PSyFactory():
             raise TypeError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
+        Config.get().api = api
         Config.get().distributed_memory = _distributed_memory
-        self._type = get_api(api)
+        self._type = api
 
     def create(self, invoke_info):
         '''
@@ -211,11 +196,11 @@ class PSyFactory():
         # Conditional run-time importing is a part of this factory
         # implementation.
         # pylint: disable=import-outside-toplevel
-        if self._type == "dynamo0.3":
+        if self._type in LFRIC_API_NAMES:
             from psyclone.dynamo0p3 import DynamoPSy as PSyClass
-        elif self._type == "gocean1.0":
+        elif self._type in GOCEAN_API_NAMES:
             from psyclone.gocean1p0 import GOPSy as PSyClass
-        elif self._type == "nemo":
+        elif self._type in NO_API_NAMES:
             from psyclone.nemo import NemoPSy as PSyClass
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed
@@ -787,7 +772,7 @@ class InvokeSchedule(Routine):
             parent.add(UseGen(parent, name=module_name, only=True,
                               funcnames=var_list))
 
-        for entity in self._children:
+        for entity in self.children:
             entity.gen_code(parent)
 
 
@@ -1087,10 +1072,8 @@ class Kern(Statement):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        if self.name:
-            return (self.coloured_name(colour) + " " + self.name +
-                    "(" + self.arguments.names + ")")
-        return self.coloured_name(colour) + "[]"
+        return (self.coloured_name(colour) + " " + self.name +
+                "(" + self.arguments.names + ")")
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The API specific classes
@@ -1107,22 +1090,33 @@ class Kern(Statement):
 
     @property
     def is_reduction(self):
-        '''if this kernel/builtin contains a reduction variable then return
-        True, otherwise return False'''
+        '''
+        :returns: whether this kernel/built-in contains a reduction variable.
+        :rtype: bool
+
+        '''
         return self._reduction
 
     @property
     def reduction_arg(self):
-        ''' if this kernel/builtin contains a reduction variable then return
-        the variable, otherwise return None'''
+        '''
+        :returns: the reduction variable if this kernel/built-in
+                  contains one and `None` otherwise.
+        :rtype: :py:class:`psyclone.psyGen.KernelArgument` or `NoneType`
+
+        '''
         return self._reduction_arg
 
     @property
     def reprod_reduction(self):
-        '''Determine whether this kernel/builtin is enclosed within an OpenMP
-        do loop. If so report whether it has the reproducible flag
-        set. Note, this also catches OMPParallelDo Directives but they
-        have reprod set to False so it is OK.'''
+        '''
+        :returns: whether this kernel/built-in is enclosed within an OpenMP
+                  do loop. If so report whether it has the reproducible flag
+                  set. Note, this also catches OMPParallelDo Directives but
+                  they have reprod set to False so it is OK.
+        :rtype: bool
+
+        '''
         ancestor = self.ancestor(OMPDoDirective)
         if ancestor:
             return ancestor.reprod
@@ -1130,13 +1124,17 @@ class Kern(Statement):
 
     @property
     def local_reduction_name(self):
-        '''Generate a local variable name that is unique for the current
-        reduction argument name. This is used for thread-local
-        reductions with reproducible reductions '''
-        tag = self._reduction_arg.name
-        name = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag(tag, "l_" + tag).name
-        return name
+        '''
+        :returns: a local reduction variable name that is unique for the
+                  current reduction argument name. This is used for
+                  thread-local reductions with reproducible reductions.
+        :rtype: str
+
+        '''
+        # TODO #2381: Revisit symbol creation, now moved to the
+        # Kern._reduction_reference() method, and try to associate it
+        # with the PSy-layer generation or relevant transformation.
+        return "l_" + self.reduction_arg.name
 
     def zero_reduction_variable(self, parent, position=None):
         '''
@@ -1218,7 +1216,13 @@ class Kern(Statement):
         '''
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
-        local_var_ref = self._reduction_ref(var_name)
+        # A non-reproducible reduction requires a single-valued argument
+        local_var_ref = self._reduction_reference().name
+        # A reproducible reduction requires multi-valued argument stored
+        # as a padded array separately for each thread
+        if self.reprod_reduction:
+            local_var_ref = FortranWriter().arrayreference_node(
+                self._reduction_reference())
         reduction_access = self._reduction_arg.access
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
@@ -1239,22 +1243,40 @@ class Kern(Statement):
         parent.add(do_loop)
         parent.add(DeallocateGen(parent, local_var_name))
 
-    def _reduction_ref(self, name):
-        '''Return the name unchanged if OpenMP is set to be unreproducible, as
-        we will be using the OpenMP reduction clause. Otherwise we
-        will be computing the reduction ourselves and therefore need
-        to store values into a (padded) array separately for each
+    def _reduction_reference(self):
+        '''
+        Return the reference to the reduction variable if OpenMP is set to
+        be unreproducible, as we will be using the OpenMP reduction clause.
+        Otherwise we will be computing the reduction ourselves and therefore
+        need to store values into a (padded) array separately for each
         thread.
 
-        :param str name: original name of the variable to be reduced.
+        :returns: reference to the variable to be reduced.
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference` or
+                :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         '''
+        # TODO #2381: Revisit symbol creation, moved from the
+        # Kern.local_reduction_name property, and try to associate it
+        # with the PSy-layer generation or relevant transformation.
         symtab = self.scope.symbol_table
+        reduction_name = self.reduction_arg.name
+        # Return a multi-valued ArrayReference for a reproducible reduction
         if self.reprod_reduction:
-            idx_name = symtab.lookup_with_tag("omp_thread_index").name
-            local_name = symtab.find_or_create_tag(name, "l_" + name).name
-            return local_name + "(1," + idx_name + ")"
-        return name
+            array_dim = [
+                Literal("1", INTEGER_TYPE),
+                Reference(symtab.lookup_with_tag("omp_thread_index"))]
+            reduction_array = ArrayType(
+                symtab.lookup(reduction_name).datatype, array_dim)
+            local_reduction = DataSymbol(
+                self.local_reduction_name, datatype=reduction_array)
+            symtab.find_or_create_tag(
+                tag=self.local_reduction_name,
+                symbol_type=DataSymbol, datatype=reduction_array)
+            return ArrayReference.create(
+                local_reduction, array_dim)
+        # Return a single-valued Reference for a non-reproducible reduction
+        return Reference(symtab.lookup(reduction_name))
 
     @property
     def arg_descriptors(self):
@@ -1490,7 +1512,10 @@ class CodedKern(Kern):
             self.rename_and_write()
             # Then find or create the imported RoutineSymbol
             try:
-                rsymbol = symtab.lookup(self._name)
+                # Limit scope to this Invoke, since a kernel with the same name
+                # may have been inlined from another invoke in the same file,
+                # but we have it here marked as "not module-inlined"
+                rsymbol = symtab.lookup(self._name, scope_limit=symtab.node)
             except KeyError:
                 csymbol = symtab.find_or_create(
                         self._module_name,
@@ -1498,10 +1523,19 @@ class CodedKern(Kern):
                 rsymbol = symtab.new_symbol(
                         self._name,
                         symbol_type=RoutineSymbol,
+                        # And allow shadowing in case it is also inlined with
+                        # the same name by another invoke
+                        shadowing=True,
                         interface=ImportInterface(csymbol))
         else:
             # If its inlined, the symbol must exist
-            rsymbol = self.scope.symbol_table.lookup(self._name)
+            try:
+                rsymbol = self.scope.symbol_table.lookup(self._name)
+            except KeyError as err:
+                raise GenerationError(
+                    f"Cannot generate this kernel call to '{self.name}' "
+                    f"because it is marked as module-inlined but no such "
+                    f"subroutine exists in this module.") from err
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node
@@ -1510,40 +1544,6 @@ class CodedKern(Kern):
         # Swap itself with the appropriate Call node
         self.replace_with(call_node)
         return call_node
-
-    def gen_code(self, parent):
-        '''
-        Generates the f2pygen AST of the Fortran for this kernel call and
-        writes the kernel itself to file if it has been transformed.
-
-        :param parent: The parent of this kernel call in the f2pygen AST.
-        :type parent: :py:class:`psyclone.f2pygen.LoopGen`
-
-        :raises GenerationError: if the call is module-inlined but the \
-            subroutine in not declared in this module.
-        '''
-        # If the kernel has been transformed then we rename it.
-        if not self.module_inline:
-            self.rename_and_write()
-
-        # Add the subroutine call with the necessary arguments
-        arguments = self.arguments.raw_arg_list()
-        parent.add(CallGen(parent, self._name, arguments))
-
-        # Also add the subroutine declaration, this can just be the import
-        # statement, or the whole subroutine inlined into the module.
-        if not self.module_inline:
-            parent.add(UseGen(parent, name=self._module_name, only=True,
-                              funcnames=[self._name]))
-        else:
-            # If its inlined, the symbol must already exist
-            try:
-                self.scope.symbol_table.lookup(self._name)
-            except KeyError as err:
-                raise GenerationError(
-                    f"Cannot generate this kernel call to '{self.name}' "
-                    f"because it is marked as module-inline but no such "
-                    f"subroutine exist in this module.") from err
 
     def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a
@@ -1621,8 +1621,9 @@ class CodedKern(Kern):
                                      is also flagged for module-inlining.
 
         '''
-        import os
         from psyclone.line_length import FortLineLength
+
+        config = Config.get()
 
         # If this kernel has not been transformed we do nothing, also if the
         # kernel has been module-inlined, the routine already exist in the
@@ -1655,12 +1656,12 @@ class CodedKern(Kern):
                 # Atomically attempt to open the new kernel file (in case
                 # this is part of a parallel build)
                 fdesc = os.open(
-                    os.path.join(Config.get().kernel_output_dir, new_name),
+                    os.path.join(config.kernel_output_dir, new_name),
                     os.O_CREAT | os.O_WRONLY | os.O_EXCL)
             except (OSError, IOError):
                 # The os.O_CREATE and os.O_EXCL flags in combination mean
                 # that open() raises an error if the file exists
-                if Config.get().kernel_naming == "single":
+                if config.kernel_naming == "single":
                     # If the kernel-renaming scheme is such that we only ever
                     # create one copy of a transformed kernel then we're done
                     break
@@ -1677,7 +1678,8 @@ class CodedKern(Kern):
         # file using a PSyIR back-end. At the moment there is no way to choose
         # which back-end to use, so simply use the Fortran one (and limit the
         # line length).
-        fortran_writer = FortranWriter()
+        fortran_writer = FortranWriter(
+            check_global_constraints=config.backend_checks_enabled)
         # Start from the root of the schedule as we want to output
         # any module information surrounding the kernel subroutine
         # as well as the subroutine itself.
@@ -1690,7 +1692,7 @@ class CodedKern(Kern):
             # because the file already exists and the kernel-naming scheme
             # ("single") means we're not creating a new one.
             # Check that what we've got is the same as what's in the file
-            with open(os.path.join(Config.get().kernel_output_dir,
+            with open(os.path.join(config.kernel_output_dir,
                                    new_name), "r") as ffile:
                 kern_code = ffile.read()
                 if kern_code != new_kern_code:
@@ -1698,10 +1700,10 @@ class CodedKern(Kern):
                         f"A transformed version of this Kernel "
                         f"'{self._module_name + '''.f90'''}' already exists "
                         f"in the kernel-output directory "
-                        f"({Config.get().kernel_output_dir}) but is not the "
+                        f"({config.kernel_output_dir}) but is not the "
                         f"same as the current, transformed kernel and the "
                         f"kernel-renaming scheme is set to "
-                        f"'{Config.get().kernel_naming}'. (If you wish to"
+                        f"'{config.kernel_naming}'. (If you wish to"
                         f" generate a new, unique kernel for every kernel "
                         f"that is transformed then use "
                         f"'--kernel-renaming multiple'.)")
@@ -1758,11 +1760,11 @@ class CodedKern(Kern):
         # the kernel metadata.
         container_table = container.symbol_table
         for sym in container_table.datatypesymbols:
-            if isinstance(sym.datatype, UnknownFortranType):
+            if isinstance(sym.datatype, UnsupportedFortranType):
                 new_declaration = sym.datatype.declaration.replace(
                     orig_kern_name, new_kern_name)
                 # pylint: disable=protected-access
-                sym._datatype = UnknownFortranType(
+                sym._datatype = UnsupportedFortranType(
                     new_declaration,
                     partial_datatype=sym.datatype.partial_datatype)
                 # pylint: enable=protected-access
@@ -1786,11 +1788,10 @@ class CodedKern(Kern):
 
 
 class InlinedKern(Kern):
-    '''A class representing a kernel that is inlined. This is used by
-    the NEMO API, since the NEMO API has no function to call or parameters.
+    '''A class representing a kernel that is inlined.
     It has one child which stores the Schedule for the child nodes.
 
-    :param psyir_nodes: the list of PSyIR nodes that represent the body \
+    :param psyir_nodes: the list of PSyIR nodes that represent the body
                         of this kernel.
     :type psyir_nodes: list of :py:class:`psyclone.psyir.nodes.Node`
     :param parent: the parent of this node in the PSyIR.
@@ -1828,6 +1829,17 @@ class InlinedKern(Kern):
                   (and must therefore be e.g. threadprivate if doing OpenMP)
         :rtype: list of str
         '''
+
+    def node_str(self, colour=True):
+        ''' Returns the name of this node with (optional) control codes
+        to generate coloured output in a terminal that supports it.
+
+        :param bool colour: whether or not to include colour control codes.
+
+        :returns: description of this node, possibly coloured.
+        :rtype: str
+        '''
+        return self.coloured_name(colour) + "[]"
 
 
 class BuiltIn(Kern):
@@ -1877,24 +1889,13 @@ class Arguments():
     :type parent_call: sub-class of :py:class:`psyclone.psyGen.Kern`
     '''
     def __init__(self, parent_call):
+        # TODO #2503: This reference is not kept updated when copign the
+        # parent
         self._parent_call = parent_call
         # The container object holding information on all arguments
         # (derived from both kernel meta-data and the kernel call
         # in the Algorithm layer).
         self._args = []
-        # The actual list of arguments that must be supplied to a
-        # subroutine call.
-        self._raw_arg_list = []
-
-    def raw_arg_list(self):
-        '''
-        Abstract method to construct the class-specific argument list for a
-        kernel call. Must be overridden in API-specific sub-class.
-
-        :raises NotImplementedError: abstract method.
-        '''
-        raise NotImplementedError("Arguments.raw_arg_list must be "
-                                  "implemented in sub-class")
 
     @abc.abstractmethod
     def psyir_expressions(self):
@@ -2227,13 +2228,13 @@ class Argument():
     def infer_datatype(self):
         ''' Infer the datatype of this argument using the API rules. If no
         specialisation of this method has been provided make the type
-        DeferredType for now (it may be provided later in the execution).
+        UnresolvedType for now (it may be provided later in the execution).
 
         :returns: the datatype of this argument.
         :rtype: :py:class::`psyclone.psyir.symbols.DataType`
 
         '''
-        return DeferredType()
+        return UnresolvedType()
 
     def __str__(self):
         return self._name

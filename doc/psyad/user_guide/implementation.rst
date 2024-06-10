@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -517,14 +517,14 @@ Kernel Metadata
 +++++++++++++++
 
 In the LFRic API, a kernel is described by its associated
-:ref:`user_guide:dynamo0.3-api-kernel-metadata`. When creating the adjoint
+:ref:`user_guide:lfric-api-kernel-metadata`. When creating the adjoint
 of such a kernel, PSyAD must also update the metadata (since only then can
 the adjoint kernel be used with PSyclone in a standard fashion). The changes
 needed are:
 
 1) Update the name of the associated type and procedure to match the name
    of the adjointed kernel subroutine;
-2) Update the :ref:`access mode <user_guide:dynamo0.3-kernel-valid-access>`
+2) Update the :ref:`access mode <user_guide:lfric-kernel-valid-access>`
    of each argument passed to the kernel.
 
 Multiple Subroutines

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ transform: ${SCRIPTS}
 .PHONY: ${SCRIPTS}
 
 ${SCRIPTS}:
-	${PSYCLONE} -s ./$@ ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
+	${PSYCLONE} -api lfric -s ./$@ ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
 
 compile: transform
 	@echo "No compilation supported for lfric/scripts examples"

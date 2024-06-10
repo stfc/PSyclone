@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -138,6 +138,24 @@ def test_apply_with_structures(fortran_reader, fortran_writer):
     assert ("ptab(jf)%pt2d(jpi,idx_1,idx) = "
             "ptab(jf)%pt2d(jpim1,idx_1,idx)" in result)
 
+    # Array index expression includes an array reference.
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        integer, parameter :: jf = 3, jpi = 3, jpim1 = 1
+        ptab(jf)%pt2d(:,map(jf)+1,:) = ptab(jf)%pt2d(:,3,:)
+    end subroutine test
+    ''')
+    assignment = psyir.walk(Assignment)[0]
+    trans.apply(assignment)
+    result = fortran_writer(assignment)
+    assert ("ptab(jf)%pt2d(:,map(jf) + 1,idx) = ptab(jf)%pt2d(:,3,idx)"
+            in result)
+    trans.apply(assignment)
+    result = fortran_writer(assignment)
+    assert ("ptab(jf)%pt2d(idx_1,map(jf) + 1,idx) = ptab(jf)%pt2d(idx_1,3,idx)"
+            in result)
+
 
 def test_apply_calls_validate():
     '''Check that the apply() method calls the validate method.'''
@@ -156,7 +174,7 @@ def test_str():
     '''
     assert (str(NemoOuterArrayRange2LoopTrans()) == "Convert a PSyIR "
             "assignment to the outermost ArrayReference Range into a "
-            "PSyIR NemoLoop.")
+            "PSyIR Loop.")
 
 
 def test_name():

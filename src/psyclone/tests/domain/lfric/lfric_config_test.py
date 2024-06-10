@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,17 +49,15 @@ from psyclone.core.access_type import AccessType
 
 
 # Constants
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 # Valid configuration file content for testing purposes
 _CONFIG_CONTENT = '''\
 [DEFAULT]
-API = dynamo0.3
-DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
-[dynamo0.3]
+[lfric]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
@@ -141,7 +139,7 @@ def test_no_mandatory_option(tmpdir, option):
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
     assert ("Missing mandatory configuration option in the "
-            "\'[dynamo0.3]\' section " in str(err.value))
+            "\'[lfric]\' section " in str(err.value))
     assert ("Valid options are: ['access_mapping', "
             "'compute_annexed_dofs', 'supported_fortran_datatypes', "
             "'default_kind', 'precision_map', 'run_time_checks', "
@@ -183,7 +181,7 @@ def test_entry_not_int(tmpdir, option):
 
 def test_invalid_default_kind(tmpdir):
     ''' Check that we raise an error if we supply an invalid datatype or kind
-    (precision) in the 'default_kind' list in the '[dynamo0.3]' section of
+    (precision) in the 'default_kind' list in the '[lfric]' section of
     the configuration file.
 
     '''
@@ -199,7 +197,7 @@ def test_invalid_default_kind(tmpdir):
 
     test_str = str(err.value)
     assert ("Fortran datatypes in the 'default_kind' mapping in the "
-            "\'[dynamo0.3]\' section " in test_str)
+            "\'[lfric]\' section " in test_str)
     assert ("do not match the supported Fortran datatypes [\'real\', "
             "\'integer\', \'logical\']." in test_str)
 
@@ -211,7 +209,7 @@ def test_invalid_default_kind(tmpdir):
 
     test_str = str(err.value)
     assert ("Supplied kind parameters [\'l_def\', \'r_def\'] in "
-            "the \'[dynamo0.3]\' section" in test_str)
+            "the \'[lfric]\' section" in test_str)
     assert ("do not define the default kind for one or more supported "
             "datatypes [\'real\', \'integer\', \'logical\']." in test_str)
 
@@ -234,7 +232,7 @@ def test_invalid_precision_map(tmpdir):
 
     assert ("Wrong type supplied to mapping: '-8' is not a positive"
             " integer or contains special characters." in str(err.value))
-    
+
     # Test invalid datatype: letter string
     content = re.sub(r"r_double: 8,", "r_double: number 5,",
                      _CONFIG_CONTENT,
@@ -245,7 +243,7 @@ def test_invalid_precision_map(tmpdir):
 
     assert ("Wrong type supplied to mapping: 'number 5' is not a positive"
             " integer or contains special characters." in str(err.value))
-        
+
     # Test invalid datatype: float
     content = re.sub(r"r_double: 8,", "r_double: 8.5,",
                      _CONFIG_CONTENT,
@@ -267,7 +265,7 @@ def test_invalid_precision_map(tmpdir):
 
     assert ("Wrong type supplied to mapping: '\u00b2' is not a positive"
             " integer or contains special characters." in str(err.value))
-    
+
 
 def test_invalid_num_any_anyd_spaces(tmpdir):
     ''' Check that we raise an error if we supply an invalid number
@@ -286,7 +284,7 @@ def test_invalid_num_any_anyd_spaces(tmpdir):
         config(config_file, content)
 
     assert ("The supplied number of ANY_SPACE function spaces in "
-            "the \'[dynamo0.3]\' section " in str(err.value))
+            "the \'[lfric]\' section " in str(err.value))
     assert ("must be greater than 0 but found 0."
             in str(err.value))
 
@@ -300,7 +298,7 @@ def test_invalid_num_any_anyd_spaces(tmpdir):
         config(config_file, content)
 
     assert ("The supplied number of ANY_DISCONTINUOUS_SPACE function "
-            "spaces in the \'[dynamo0.3]\' section " in str(err.value))
+            "spaces in the \'[lfric]\' section " in str(err.value))
     assert ("must be greater than 0 but found -10."
             in str(err.value))
 
@@ -336,11 +334,11 @@ def test_default_kind():
     assert api_config.default_kind["real"] == "r_def"
     assert api_config.default_kind["integer"] == "i_def"
     assert api_config.default_kind["logical"] == "l_def"
-    
+
 
 def test_precision_map():
     '''Check that we load correct precision values for all
-    datatypes. 
+    datatypes.
 
     '''
     api_config = Config().get().api_conf(TEST_API)

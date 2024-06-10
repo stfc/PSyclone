@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council
+# Copyright (c) 2021-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -120,7 +120,7 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
 
         '''
         # pylint: disable=too-many-locals
-        self.validate(node)
+        self.validate(node, options)
 
         symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
@@ -146,11 +146,11 @@ class MinOrMax2CodeTrans(Intrinsic2CodeTrans):
 
         # res_var=A (child[0] of node)
         lhs = Reference(res_var_symbol)
-        new_assignment = Assignment.create(lhs, node.children[0].detach())
+        new_assignment = Assignment.create(lhs, node.arguments[0].detach())
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # For each of the remaining arguments (B,C...)
-        for expression in node.pop_all_children():
+        for expression in node.pop_all_children()[1:]:
 
             # tmp_var=(B or C or ...)
             lhs = Reference(tmp_var_symbol)

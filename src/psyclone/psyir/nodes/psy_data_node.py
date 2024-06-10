@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.codeblock import CodeBlock
@@ -56,8 +57,8 @@ from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import (SymbolTable, DataTypeSymbol, DataSymbol,
-                                    ContainerSymbol, DeferredType, Symbol,
-                                    UnknownFortranType, ImportInterface)
+                                    ContainerSymbol, UnresolvedType, Symbol,
+                                    UnsupportedFortranType, ImportInterface)
 
 
 # =============================================================================
@@ -80,17 +81,17 @@ class PSyDataNode(Statement):
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node. These \
         will be made children of the child Schedule of this PSyDataNode.
-    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
+    :type children: list[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
-    :type options: Optional[Dict[str, Any]]
+    :type options: Optional[dict[str, Any]]
     :param str options["prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType \
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
         It defaults to "", which means the module name used will just be \
         ``psy_data_mod``, and the data type ``PSyDataType``.
-    :param Tuple[str,str] options["region_name"]: an optional name to \
+    :param tuple[str,str] options["region_name"]: an optional name to \
         use for this PSyDataNode, provided as a 2-tuple containing a \
         module name followed by a local name. The pair of strings should \
         uniquely identify a region unless aggregate information is required \
@@ -217,7 +218,7 @@ class PSyDataNode(Statement):
     @property
     def options(self):
         ''':returns: the option dictionary of this class.
-        :rtype: Dict[str,Any]
+        :rtype: dict[str,Any]
 
         '''
         return self._options
@@ -272,7 +273,7 @@ class PSyDataNode(Statement):
 
         :param children: the PSyIR nodes that will become children of the \
             new PSyData node.
-        :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :type children: list[:py:class:`psyclone.psyir.nodes.Node`]
         :param symbol_table: the associated SymbolTable to which symbols \
             must be added.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -280,13 +281,13 @@ class PSyDataNode(Statement):
             instrumented with PSyData calls.
         :type ast: :py:class:`fparser.two.Fortran2003.Base`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :type options: Optional[dict[str, Any]]
         :param str options[prefix"]: a prefix to use for the PSyData module \
             name (``prefix_psy_data_mod``) and the PSyDataType \
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
             It defaults to "", which means the module name used will just be \
             ``psy_data_mod``, and the data type ``PSyDataType``.
-        :param Tuple[str,str] options["region_name"]: an optional name to use \
+        :param tuple[str,str] options["region_name"]: an optional name to use \
             for this PSyDataNode, provided as a 2-tuple containing a module \
             name followed by a local name. The pair of strings should \
             uniquely identify a region unless aggregate information is \
@@ -345,7 +346,7 @@ class PSyDataNode(Statement):
             symbol_table.find_or_create_tag(sym.name,
                                             symbol_type=sym.symbol_type,
                                             interface=ImportInterface(csym),
-                                            datatype=DeferredType())
+                                            datatype=UnresolvedType())
 
         # Store the name of the PSyData variable that is used for this
         # PSyDataNode. This allows the variable name to be shown in str
@@ -354,7 +355,7 @@ class PSyDataNode(Statement):
         if not self._var_name:
             self._var_name = symbol_table.next_available_name(
                 self._psy_data_symbol_with_prefix)
-            psydata_type = UnknownFortranType(
+            psydata_type = UnsupportedFortranType(
                 f"type({self.type_name}), save, target :: {self._var_name}")
             symbol_table.new_symbol(self._var_name, symbol_type=DataSymbol,
                                     datatype=psydata_type,
@@ -393,7 +394,7 @@ class PSyDataNode(Statement):
     def region_identifier(self):
         ''':returns: the unique region identifier, which is a tuple \
             consisting of the module name and region name.
-        :rtype: Tuple[str, str]
+        :rtype: tuple[str, str]
 
         '''
         return self._region_identifier
@@ -467,14 +468,49 @@ class PSyDataNode(Statement):
         :param parent: parent node into which to insert the calls.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param arguments: optional arguments for the method call.
-        :type arguments: Optional[List[str]]
+        :type arguments: Optional[list[str]]
         '''
         call = CallGen(parent, f"{self._var_name}%{name}", arguments)
         parent.add(call)
 
     # -------------------------------------------------------------------------
+    def _create_unique_names(self, var_list, symbol_table):
+        '''This function takes a list of (module_name, signature) tuple, and
+        for any name that is already in the symbol table (i.e. creating a
+        name clash), creates a new, unique symbol and adds it to the symbol
+        table with a tag "symbol@module". It returns a list of three-element
+        entries: module name, original_signature, unique_signature. The unique
+        signature and original signature are identical if the original name
+        was not in the symbol table.
+
+        :param var_list: the variable information list.
+        :type var_list: list[tuple[str, :py:class:`psyclone.core.Signature`]]
+        :param symbol_table: the symbol table used to create unique names in
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :returns: a new list which has a unique signature name added.
+        :rtype: list[tuple[str, :py:class:`psyclone.core.Signature`,
+            :py:class:`psyclone.core.Signature`]]
+
+        '''
+        out_list = []
+        for (module_name, signature) in var_list:
+            if module_name:
+                var_symbol = \
+                    symbol_table.find_or_create_tag(tag=f"{signature[0]}"
+                                                        f"@{module_name}",
+                                                    root_name=signature[0])
+                unique_sig = Signature(var_symbol.name, signature[1:])
+            else:
+                # This is a local variable anyway, no need to rename:
+                unique_sig = signature
+            out_list.append((module_name, signature, unique_sig))
+        return out_list
+
+    # -------------------------------------------------------------------------
     def gen_code(self, parent, options=None):
         # pylint: disable=arguments-differ, too-many-branches
+        # pylint: disable=too-many-statements
         '''Creates the PSyData code before and after the children
         of this node.
 
@@ -485,17 +521,17 @@ class PSyDataNode(Statement):
         :param parent: the parent of this node in the f2pygen AST.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param options: a dictionary with options for transformations.
-        :type options: Optional[Dict[str, Any]]
+        :type options: Optional[dict[str, Any]]
         :param options["pre_var_list"]: container name and variable name to \
             be supplied before the first child. The container name is \
             supported to be able to handle variables that are imported from \
             a different container (module in Fortran).
-        :type options["pre_var_list"]: List[Tuple[str, str]]
+        :type options["pre_var_list"]: list[tuple[str, str]]
         :param options["post_var_list"]: container name and variable name to \
             be supplied after the last child. The container name is \
             supported to be able to handle variables that are imported from \
             a different container (module in Fortran).
-        :type options["post_var_list"]: List[Tuple[str, str]]
+        :type options["post_var_list"]: list[tuple[str, str]]
         :param str options["pre_var_postfix"]: an optional postfix that will \
             be added to each variable name in the pre_var_list.
         :param str options["post_var_postfix"]: an optional postfix that will \
@@ -505,14 +541,13 @@ class PSyDataNode(Statement):
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Kern, InvokeSchedule
-        # TODO: #415 Support different classes of PSyData calls.
         invoke = self.ancestor(InvokeSchedule).invoke
-        module_name = self._module_name
-        if module_name is None:
+        global_module_name = self._module_name
+        if global_module_name is None:
             # The user has not supplied a module (location) name so
             # return the psy-layer module name as this will be unique
             # for each PSyclone algorithm file.
-            module_name = invoke.invokes.psy.name
+            global_module_name = invoke.invokes.psy.name
 
         region_name = self._region_name
         if region_name is None:
@@ -540,10 +575,33 @@ class PSyDataNode(Statement):
         if not options:
             options = {}
 
-        pre_variable_list = options.get("pre_var_list", [])
-        post_variable_list = options.get("post_var_list", [])
+        # Get the list of variables, and handle name clashes: a now newly
+        # imported symbol (from a module that is used directly or indirectly
+        # from a kernel) might clash with a local variable. Convert the lists
+        # of 2-tuples (module_name, signature) to a list of 3-tuples
+        # (module_name, signature, unique_signature):
+
+        symbol_table = self.scope.symbol_table
+        pre_variable_list = \
+            self._create_unique_names(options.get("pre_var_list", []),
+                                      symbol_table)
+        post_variable_list = \
+            self._create_unique_names(options.get("post_var_list", []),
+                                      symbol_table)
+
         pre_suffix = options.get("pre_var_postfix", "")
         post_suffix = options.get("post_var_postfix", "")
+        for module_name, signature, unique_signature in (pre_variable_list +
+                                                         post_variable_list):
+            if module_name:
+                if unique_signature != signature:
+                    rename = f"{unique_signature[0]}=>{signature[0]}"
+                    use = UseGen(parent, module_name, only=True,
+                                 funcnames=[rename])
+                else:
+                    use = UseGen(parent, module_name, only=True,
+                                 funcnames=[unique_signature[0]])
+                parent.add(use)
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
@@ -560,11 +618,11 @@ class PSyDataNode(Statement):
         parent.add(var_decl)
 
         self._add_call("PreStart", parent,
-                       [f"\"{module_name}\"",
+                       [f"\"{global_module_name}\"",
                         f"\"{region_name}\"",
                         len(pre_variable_list),
                         len(post_variable_list)])
-        self.set_region_identifier(module_name, region_name)
+        self.set_region_identifier(global_module_name, region_name)
         has_var = pre_variable_list or post_variable_list
 
         # Each variable name can be given a suffix. The reason for
@@ -581,18 +639,27 @@ class PSyDataNode(Statement):
         # values of a variable "A" as "A" in the pre-variable list,
         # and store the modified value of "A" later as "A_post".
         if has_var:
-            for _, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{var_name}{pre_suffix}\"", var_name])
-            for _, var_name in post_variable_list:
+                               [f"\"{sig}{module_name}{pre_suffix}\"",
+                                unique_sig])
+            for module_name, sig, unique_sig in post_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{var_name}{post_suffix}\"", var_name])
+                               [f"\"{sig}{post_suffix}{module_name}\"",
+                                unique_sig])
 
             self._add_call("PreEndDeclaration", parent)
 
-            for _, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 self._add_call("ProvideVariable", parent,
-                               [f"\"{var_name}{pre_suffix}\"", var_name])
+                               [f"\"{sig}{module_name}{pre_suffix}\"",
+                                unique_sig])
 
             self._add_call("PreEnd", parent)
 
@@ -602,13 +669,17 @@ class PSyDataNode(Statement):
         if has_var:
             # Only add PostStart() if there is at least one variable.
             self._add_call("PostStart", parent)
-            for _, var_name in post_variable_list:
+            for module_name, sig, unique_sig in post_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 self._add_call("ProvideVariable", parent,
-                               [f"\"{var_name}{post_suffix}\"", var_name])
+                               [f"\"{sig}{post_suffix}{module_name}\"",
+                                unique_sig])
 
         self._add_call("PostEnd", parent)
 
     def lower_to_language_level(self, options=None):
+        # pylint: disable=arguments-differ
         # pylint: disable=too-many-branches, too-many-statements
         '''
         Lowers this node (and all children) to language-level PSyIR. The
@@ -620,17 +691,17 @@ class PSyDataNode(Statement):
         PSyDataNode.
 
         :param options: dictionary of the PSyData generation options.
-        :type options: Optional[Dict[str, Any]]
+        :type options: Optional[dict[str, Any]]
         :param options["pre_var_list"]: container- and variable-names to be \
             supplied before the first child. The container names are \
             supported to be able to handle variables that are imported from \
             a different container (module in Fortran).
-        :type options["pre_var_list"]: List[Tuple[str, str]]
+        :type options["pre_var_list"]: list[tuple[str, str]]
         :param options["post_var_list"]: container- and variable-names to be \
             supplied after the last child. The container names are \
             supported to be able to handle variables that are imported from \
             a different container (module in Fortran).
-        :type options["post_var_list"]: List[Tuple[str, str]]
+        :type options["post_var_list"]: list[tuple[str, str]]
         :param str options["pre_var_postfix"]: an optional postfix that will \
             be added to each variable name in the pre_var_list.
         :param str options["post_var_postfix"]: an optional postfix that will \
@@ -651,10 +722,10 @@ class PSyDataNode(Statement):
             :param str typename: the name of the base type.
             :param str methodname: the name of the method to be called.
             :param argument_list: the list of arguments in the method call.
-            :type argument_list: List[str]
+            :type argument_list: list[str]
             :param annotations: the list of node annotations to add to the \
                                 generated CodeBlock.
-            :type annotations: List[str]
+            :type annotations: list[str]
 
             :returns: a CodeBlock representing the type bound call.
             :rtype: :py:class:`psyclone.psyir.nodes.CodeBlock`
@@ -708,8 +779,14 @@ class PSyDataNode(Statement):
         if not options:
             options = {}
 
-        pre_variable_list = options.get("pre_var_list", [])
-        post_variable_list = options.get("post_var_list", [])
+        symbol_table = self.scope.symbol_table
+        pre_variable_list = \
+            self._create_unique_names(options.get("pre_var_list", []),
+                                      symbol_table)
+        post_variable_list = \
+            self._create_unique_names(options.get("post_var_list", []),
+                                      symbol_table)
+
         pre_suffix = options.get("pre_var_postfix", "")
         post_suffix = options.get("post_var_postfix", "")
 
@@ -741,25 +818,31 @@ class PSyDataNode(Statement):
         # values of a variable "A" as "A" in the pre-variable list,
         # and store the modified value of "A" later as "A_post".
         if has_var:
-            for _, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{var_name}{pre_suffix}\"", var_name])
+                    [f"\"{sig}{module_name}{pre_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
-            for _, var_name in post_variable_list:
+            for module_name, sig, unique_sig in post_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{var_name}{post_suffix}\"", var_name])
+                    [f"\"{sig}{module_name}{post_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEndDeclaration")
             self.parent.children.insert(self.position, call)
 
-            for _, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{var_name}{pre_suffix}\"", var_name])
+                    [f"\"{sig}{module_name}{pre_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEnd")
@@ -774,10 +857,12 @@ class PSyDataNode(Statement):
             # Only add PostStart() if there is at least one variable.
             call = gen_type_bound_call(self._var_name, "PostStart")
             self.parent.children.insert(self.position, call)
-            for _, var_name in post_variable_list:
+            for module_name, sig, unique_sig in post_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{var_name}{post_suffix}\"", var_name])
+                    [f"\"{sig}{module_name}{post_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
         # PSyData end call

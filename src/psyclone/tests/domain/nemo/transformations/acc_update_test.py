@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -300,12 +300,12 @@ end SUBROUTINE tra_ldf_iso
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n"
             "  do ji = start, jpi, step\n") in code
-    assert ("    !$acc update if_present host(zftv)\n"
+    assert ("    !$acc update if_present host(ji,zftv)\n"
             "    call") in code
-    assert ("    !$acc update if_present host(zftv,zftw)\n"
+    assert ("    !$acc update if_present host(ji,zftv,zftw)\n"
             "    zftv(ji,:,:) = 1.0d0\n"
             "    zftw(ji,:,:) = -1.0d0\n"
-            "    !$acc update if_present device(zftv,zftw)\n") in code
+            "    !$acc update if_present device(ji,zftv,zftw)\n") in code
     # TODO #1872: All of these variables are actually local to the subroutine
     # so should not be copied back to the device.
     assert ("  !$acc update if_present host(jpi,tmask,zftu)\n"
@@ -337,6 +337,9 @@ end subroutine lbc_update
     assert isinstance(schedule[1], CodeBlock)
     code = fortran_writer(schedule)
     assert ('''  !$acc update if_present host(jpi,jpj,jpk,tmask)\n'''
+            '''  ! PSyclone CodeBlock (unsupported code) reason:\n'''
+            '''  !  - Unsupported statement: Open_Stmt\n'''
+            '''  !  - Unsupported statement: Read_Stmt\n'''
             '''  OPEN(UNIT = 32, FILE = "some_forcing.dat")''' in code)
     assert ("  READ(32, *) tmask\n"
             "  !$acc update if_present device(tmask)" in code)
@@ -394,9 +397,9 @@ end SUBROUTINE tra_ldf_iso
     code = fortran_writer(schedule)
     # Loop variable should not be copied to device
     assert "device(ji)" not in code
-    assert ("  !$acc update if_present host(jpi,start,step,zftv)\n"
+    assert ("  !$acc update if_present host(ji,jpi,start,step,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
-            "  !$acc enter data copyin(zftw)\n"
+            "  !$acc enter data copyin(ji,zftw)\n"
             "  do ji = start, jpi, step\n"
             "    !$acc update if_present host(zftw)\n"
             "    zftv(ji,:,:) = zftw(ji,:,:)\n"

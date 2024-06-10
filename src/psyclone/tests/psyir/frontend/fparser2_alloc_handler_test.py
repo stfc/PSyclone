@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,11 +56,11 @@ end program test_alloc
     calls = psyir.walk(IntrinsicCall)
     assert len(calls) == 1
     call = calls[0]
-    assert len(call.children) == 1
-    assert isinstance(call.children[0], ArrayReference)
-    assert isinstance(call.children[0].children[0], Range)
-    assert isinstance(call.children[0].children[0].stop, Literal)
-    assert isinstance(call.children[0].children[1].stop, Reference)
+    assert len(call.children) == 2
+    assert isinstance(call.arguments[0], ArrayReference)
+    assert isinstance(call.arguments[0].children[0], Range)
+    assert isinstance(call.arguments[0].children[0].stop, Literal)
+    assert isinstance(call.arguments[0].children[1].stop, Reference)
 
 
 def test_alloc_with_bounds(fortran_reader):
@@ -80,7 +80,7 @@ end program test_alloc
     psyir = fortran_reader.psyir_from_source(code)
     calls = psyir.walk(IntrinsicCall)
     assert len(calls) == 1
-    aref = calls[0].children[0]
+    aref = calls[0].arguments[0]
     assert isinstance(aref, ArrayReference)
     assert aref.indices[0].start.value == "2"
     assert aref.indices[0].stop.value == "10"
@@ -103,8 +103,8 @@ end program test_alloc
     assert len(calls) == 1
     # The call should have a named argument.
     assert calls[0].argument_names == [None, "STAT"]
-    assert isinstance(calls[0].children[1], Reference)
-    assert calls[0].children[1].symbol.name == "ierr"
+    assert isinstance(calls[0].arguments[1], Reference)
+    assert calls[0].arguments[1].symbol.name == "ierr"
 
 
 def test_alloc_with_mold_or_source(fortran_reader):
@@ -127,12 +127,12 @@ end program test_alloc
     # The call should have two named arguments.
     assert call.argument_names == [None, "MOLD", "STAT"]
     assert isinstance(call.children[1], Reference)
-    assert call.children[1].symbol.name == "mask"
-    assert call.children[2].symbol.name == "ierr"
+    assert call.arguments[1].symbol.name == "mask"
+    assert call.arguments[2].symbol.name == "ierr"
     call = calls[1]
     # This one should have a single named argument.
     assert call.argument_names == [None, "SOURCE"]
-    assert call.children[1].symbol.name == "var1"
+    assert call.arguments[1].symbol.name == "var1"
 
 
 def test_alloc_with_errmsg(fortran_reader):
@@ -172,15 +172,15 @@ end program test_alloc
     calls = psyir.walk(IntrinsicCall)
     assert len(calls) == 2
     call = calls[0]
-    assert isinstance(call.children[0], StructureReference)
-    assert call.children[0].member.indices[0].stop.symbol.name == "ndof"
-    assert isinstance(call.children[1], StructureReference)
-    assert call.children[1].member.member.indices[0].start.value == "2"
-    assert call.children[1].member.member.indices[0].stop.value == "6"
+    assert isinstance(call.arguments[0], StructureReference)
+    assert call.arguments[0].member.indices[0].stop.symbol.name == "ndof"
+    assert isinstance(call.arguments[1], StructureReference)
+    assert call.arguments[1].member.member.indices[0].start.value == "2"
+    assert call.arguments[1].member.member.indices[0].stop.value == "6"
     call = calls[1]
-    assert isinstance(call.children[0], StructureReference)
+    assert isinstance(call.arguments[0], StructureReference)
     assert call.argument_names == [None, "MOLD"]
-    assert isinstance(call.children[1], StructureReference)
+    assert isinstance(call.arguments[1], StructureReference)
 
 
 def test_alloc_with_typespec(fortran_reader, fortran_writer):

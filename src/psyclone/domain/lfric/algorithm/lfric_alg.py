@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,8 +52,9 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Container, Literal,
                                   Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (
-    DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
-    ImportInterface, ContainerSymbol, RoutineSymbol, ArgumentInterface)
+    UnresolvedType, UnsupportedFortranType, DataTypeSymbol, DataSymbol,
+    ArrayType, ImportInterface, ContainerSymbol, RoutineSymbol,
+    ArgumentInterface)
 
 
 class LFRicAlg:
@@ -113,7 +114,7 @@ class LFRicAlg:
         kernel_routine = table.new_symbol(
             kernel_name,
             symbol_type=DataTypeSymbol,
-            datatype=DeferredType(),
+            datatype=UnresolvedType(),
             interface=ImportInterface(kernel_mod))
 
         kern = self.kernel_from_metadata(parse_tree, kernel_name)
@@ -198,31 +199,31 @@ class LFRicAlg:
             csym = table.new_symbol(root + "_mod", symbol_type=ContainerSymbol)
 
             table.new_symbol(root + "_type", symbol_type=DataTypeSymbol,
-                             datatype=DeferredType(),
+                             datatype=UnresolvedType(),
                              interface=ImportInterface(csym))
 
         fsc_mod = table.new_symbol("function_space_collection_mod",
                                    symbol_type=ContainerSymbol)
         table.new_symbol("function_space_collection",
                          symbol_type=DataSymbol,
-                         datatype=DeferredType(),
+                         datatype=UnresolvedType(),
                          interface=ImportInterface(fsc_mod))
 
         # Declare the three arguments to the subroutine. All of them have to be
-        # of UnknownFortranType - the mesh because it is a pointer and chi and
-        # panel_id because they are optional.
-        mesh_ptr_type = UnknownFortranType(
+        # of UnsupportedFortranType - the mesh because it is a pointer and chi
+        # and panel_id because they are optional.
+        mesh_ptr_type = UnsupportedFortranType(
             "type(mesh_type), pointer, intent(in) :: mesh")
         mesh_ptr = DataSymbol("mesh", mesh_ptr_type,
                               interface=ArgumentInterface())
         table.add(mesh_ptr)
 
-        chi_type = UnknownFortranType(
+        chi_type = UnsupportedFortranType(
             "type(field_type), dimension(3), intent(in), optional :: chi")
         chi = DataSymbol("chi", chi_type, interface=ArgumentInterface())
         table.add(chi, tag="coord_field")
 
-        pid_type = UnknownFortranType(
+        pid_type = UnsupportedFortranType(
             "type(field_type), intent(in), optional :: panel_id")
         pid = DataSymbol("panel_id", pid_type, interface=ArgumentInterface())
         table.add(pid, tag="panel_id_field")
@@ -260,7 +261,7 @@ class LFRicAlg:
             "finite_element_config_mod", symbol_type=ContainerSymbol)
         order = table.new_symbol(
             "element_order", tag="element_order",
-            symbol_type=DataSymbol, datatype=DeferredType(),
+            symbol_type=DataSymbol, datatype=UnresolvedType(),
             interface=ImportInterface(fe_config_mod))
 
         fs_cont_mod = table.new_symbol("fs_continuity_mod",
@@ -278,13 +279,13 @@ class LFRicAlg:
 
             table.new_symbol(f"{space}", tag=f"{space}",
                              symbol_type=DataSymbol,
-                             datatype=DeferredType(),
+                             datatype=UnresolvedType(),
                              interface=ImportInterface(fs_cont_mod))
 
             vsym_ptr = table.new_symbol(
                 f"vector_space_{space}_ptr", symbol_type=DataSymbol,
                 tag=f"{space}_ptr",
-                datatype=UnknownFortranType(
+                datatype=UnsupportedFortranType(
                     f"TYPE(function_space_type), POINTER :: "
                     f"vector_space_{space}_ptr"))
 
@@ -386,7 +387,7 @@ class LFRicAlg:
                 "quadrature_rule_gaussian_mod", symbol_type=ContainerSymbol)
             qr_gaussian_type = table.new_symbol(
                 "quadrature_rule_gaussian_type", symbol_type=DataTypeSymbol,
-                datatype=DeferredType(),
+                datatype=UnresolvedType(),
                 interface=ImportInterface(qr_gaussian_mod))
             qr_rule_sym = table.new_symbol("quadrature_rule",
                                            symbol_type=DataSymbol,
@@ -421,8 +422,8 @@ class LFRicAlg:
                             be found in the supplied parse tree.
         '''
         try:
-            ktype = KernelTypeFactory(api="dynamo0.3").create(parse_tree,
-                                                              name=kernel_name)
+            ktype = KernelTypeFactory(api="lfric").create(parse_tree,
+                                                          name=kernel_name)
         except ParseError as err:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "

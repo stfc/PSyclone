@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -133,7 +133,7 @@ $(NAME).%: $(INF_LIB) $(WRAPPER_DIR)/lib$(WRAPPER_NAME).a $(KERNELS) psy.o alg.o
 		   $(PROFILE_LINK) $(INF_LIB)
 
 alg.f90 psy.f90: test.x90
-	${PSYCLONE} --profile invokes -api "gocean1.0" \
+	${PSYCLONE} --profile invokes -api "gocean" \
 		     -opsy psy.f90 -oalg alg.f90 test.x90
 
 # Make sure the infrastructure library is compiled, so the mods are found

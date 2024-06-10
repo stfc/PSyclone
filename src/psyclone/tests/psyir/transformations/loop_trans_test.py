@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: L. Turner, Met Office
 
 ''' Module containing tests for the LoopTrans class. Since it is abstract we
 have to test it using various sub-classes. '''
@@ -62,7 +63,7 @@ def test_loop_trans_validate(monkeypatch):
     transformation. '''
     # We have to use sub-class of LoopTrans as it itself is abstract.
     trans = OMPParallelLoopTrans()
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     with pytest.raises(TransformationError) as err:
         trans.validate(invoke.schedule)
@@ -90,7 +91,7 @@ def test_loop_trans_validate(monkeypatch):
 def test_loop_trans_validate_options(monkeypatch):
     ''' Test the options argument to the validate method. '''
     trans = OMPParallelLoopTrans()
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     loop = invoke.schedule.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
@@ -111,14 +112,14 @@ def test_loop_trans_validate_options(monkeypatch):
 def test_all_loop_trans_base_validate(monkeypatch):
     ''' Check that all transformations that sub-class LoopTrans call the
     base validate() method. '''
-    # First get a valid GOLoop and DynLoop objects that we can pass in,
+    # First get a valid GOLoop and LFRicLoop objects that we can pass in,
     # as appropriate.
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     goloop = invoke.schedule.walk(Loop)[0]
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0,
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0,
                            dist_mem=False)
-    dynloop = invoke.schedule.walk(Loop)[0]
+    lfricloop = invoke.schedule.walk(Loop)[0]
 
     # Find all PSyIR transformations. There are currently two locations for
     # these. Eventually all general transformations will be in
@@ -142,8 +143,8 @@ def test_all_loop_trans_base_validate(monkeypatch):
                 "Error" not in name):
             trans = cls_type()
             if isinstance(trans, LoopTrans):
-                # Ensure we use a DynLoop for Dyn (LFRic) transformations.
-                target = dynloop if name.beginswith("Dyn") else goloop
+                # Ensure we use an LFRicLoop for LFRic transformations.
+                target = lfricloop if name.beginswith("LFRic") else goloop
                 with pytest.raises(NotImplementedError) as err:
                     if isinstance(trans, LoopFuseTrans):
                         trans.validate(target, target)

@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,11 +37,12 @@
 ''' PSyclone transformation script showing the introduction of OpenACC loop
 directives into Nemo code. '''
 
-from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information, add_profiling
-from psyclone.psyir.nodes import Call, Loop
-from psyclone.transformations import ACCParallelTrans, ACCLoopTrans
-from psyclone.transformations import ACCRoutineTrans
+from utils import (
+    insert_explicit_loop_parallelism, normalise_loops,
+    enhance_tree_information, add_profiling)
+from psyclone.psyir.nodes import Loop
+from psyclone.transformations import (
+    ACCParallelTrans, ACCLoopTrans, ACCRoutineTrans, TransformationError)
 
 PROFILING_ENABLED = True
 
@@ -73,6 +74,13 @@ def trans(psy):
             print("Skipping", invoke.name)
             continue
 
+        # S-0074-Illegal number or type of arguments to ubound [and lbound]
+        # - keyword argument array; and  NVFORTRAN-S-0082-Illegal substring
+        # expression for variable filtide
+        if invoke.name in ("bdytide_init", "sbc_cpl_init"):
+            print("Skipping", invoke.name)
+            continue
+
         # TODO #1841: These files have a bug in the array-range-to-loop
         # transformation. One leads to the following compiler error
         # NVFORTRAN-S-0083-Vector expression used where scalar expression
@@ -83,7 +91,7 @@ def trans(psy):
 
         # This are functions with scalar bodies, we don't want to parallelise
         # them, but we could:
-        # - Inine them
+        # - Inline them
         # - Annotate them with 'omp declare target' and allow to call from gpus
         if invoke.name in ("q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m",
                            "psi_h", "psi_m"):
@@ -95,7 +103,7 @@ def trans(psy):
         # Could not find allocated-variable index for symbol - xxx
         # This all happen on characters arrays, e.g. cd_nat
         if invoke.name in ("lbc_nfd_2d_ptr", "lbc_nfd_3d_ptr",
-                           "lbc_nfd_4d_ptr", "bdy_dyn"):
+                           "lbc_nfd_4d_ptr", "bdy_dyn", "dia_obs_init"):
             print("Skipping", invoke.name)
             continue
 
@@ -112,13 +120,14 @@ def trans(psy):
         # For performance in lib_fortran, mark serial routines as GPU-enabled
         if psy.name == "psy_lib_fortran_psy":
             if not invoke.schedule.walk(Loop):
-                calls = invoke.schedule.walk(Call)
-                if all(call.is_available_on_device() for call in calls):
+                try:
+                    # We need the 'force' option.
                     # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
                     # array notation. (TODO #717)
                     ACCRoutineTrans().apply(invoke.schedule,
                                             options={"force": True})
-                    continue
+                except TransformationError as err:
+                    print(err)
 
         insert_explicit_loop_parallelism(
             invoke.schedule,

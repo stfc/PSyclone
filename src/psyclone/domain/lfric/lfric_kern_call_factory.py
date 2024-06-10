@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,8 @@
 '''
 
 # Imports
-from psyclone.domain.lfric import LFRicKern
+from psyclone.domain.lfric import LFRicKern, LFRicLoop
+
 
 class LFRicKernCallFactory():
     ''' Create the necessary framework for an LFRic kernel call.
@@ -72,10 +73,7 @@ class LFRicKernCallFactory():
         else:
             # Loop over cells, indicated by an empty string.
             loop_type = ""
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynLoop
-        cloop = DynLoop(parent=parent, loop_type=loop_type)
+        cloop = LFRicLoop(parent=parent, loop_type=loop_type)
 
         # The kernel itself
         kern = LFRicKern()

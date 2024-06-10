@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,10 +51,14 @@ on:
   push
 
 env:
-  CUDA_VERSION: 12.3.0
-  GFORTRAN_VERSION: 13.2.0
-  NVFORTRAN_VERSION: 23.9
-  PYTHON_VERSION: 3.12.0
+  CUDA_VERSION: 12.5.0
+  GFORTRAN_VERSION: 14.1.0
+  HDF5_VERSION: 1.14.4.3
+  NETCDF_C_VERSION: 4.9.2
+  NETCDF_FORTRAN_VERSION: 4.6.1
+  NVFORTRAN_VERSION: 24.5
+  OPENMPI_VERSION: 5.0.3
+  PYTHON_VERSION: 3.12.3
 
 jobs:
   run_if_on_mirror:
@@ -80,43 +84,51 @@ jobs:
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip
-        pip install external/fparser
+        # Uncomment the below to use the submodule version of fparser rather
+        # than the latest release from pypi.
+        # pip install external/fparser
         pip install .[test,psydata]
     - name: Unit tests with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
-        module load gcc/${GFORTRAN_VERSION} openmpi netcdf_fortran
+        module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         pytest -n 4 --f90=gfortran --f90flags="-ffree-line-length-none" --compile --compileopencl src/psyclone/tests
     - name: Unit tests with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         pytest -n 4 --f90=nvfortran --compile --compileopencl src/psyclone/tests
     - name: Examples with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
         make -C examples allclean
         # Although we're using gfortran, we link with CUDA's OpenCL library
-        module load gcc/${GFORTRAN_VERSION} openmpi netcdf_fortran
+        module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         module load cuda/${CUDA_VERSION}
         F90=gfortran make -C examples compile
     - name: Tutorials with compilation - gfortran
       run: |
         . .runner_venv/bin/activate
         make -C tutorial/practicals allclean
-        module load gcc/${GFORTRAN_VERSION} openmpi netcdf_fortran
+        module load gcc/${GFORTRAN_VERSION} openmpi/${OPENMPI_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         make -C tutorial/practicals compile
     - name: Examples with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
         make -C examples allclean
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C examples compile
     - name: Tutorials with compilation - nvfortran
       run: |
         . .runner_venv/bin/activate
         make -C tutorial/practicals allclean
-        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION}
+        module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         # TODO #2251. Cannot build the LFRic practicals with nvfortran 23.5-23.9
         # because the compilation of nan_test.f90 gives an ICE.
         F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/nemo compile

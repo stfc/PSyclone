@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ include ../../common.mk
 transform: vanilla
 
 vanilla:
-	${PSYCLONE} -d ./ -d ../code advection_alg_mod.x90
+	${PSYCLONE} -api lfric -d ./ -d ../code advection_alg_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg18"

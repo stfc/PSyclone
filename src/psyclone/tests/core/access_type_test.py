@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ def test_api_specific_name():
     '''Tests api_specific_name(), i.e. conversion to an
     API-specific string. '''
 
-    Config.get().api = "dynamo0.3"
+    Config.get().api = "lfric"
 
     assert AccessType.READ.api_specific_name() == "gh_read"
     assert AccessType.WRITE.api_specific_name() == "gh_write"

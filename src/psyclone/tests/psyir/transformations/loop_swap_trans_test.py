@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ def test_loop_swap_apply(tmpdir):
     last invokes to make sure the inserting of the inner loop happens at
     the right place.'''
 
-    psy, _ = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=0,
+    psy, _ = get_invoke("test27_loop_swap.f90", "gocean", idx=0,
                         dist_mem=False)
     invoke = psy.invokes.get("invoke_loop1")
     schedule = invoke.schedule
@@ -132,7 +132,7 @@ def test_loop_swap_apply(tmpdir):
 def test_loop_swap_validate():
     ''' Test loop swapping transform with incorrect parameters. '''
 
-    psy, invoke_loop1 = get_invoke("test27_loop_swap.f90", "gocean1.0",
+    psy, invoke_loop1 = get_invoke("test27_loop_swap.f90", "gocean",
                                    idx=1, dist_mem=False)
 
     schedule = invoke_loop1.schedule
@@ -187,7 +187,7 @@ def test_loop_swap_validate_loop_type():
     '''
     swap = LoopSwapTrans()
     _, invoke = get_invoke("1.0.1_single_named_invoke.f90",
-                           "dynamo0.3", idx=0, dist_mem=True)
+                           "lfric", idx=0, dist_mem=True)
     with pytest.raises(TransformationError) as error:
         swap.apply(invoke.schedule.children[4])
 
@@ -278,7 +278,7 @@ def test_loop_swap_schedule_is_kept():
     contain annotations).
     '''
 
-    psy, _ = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=0,
+    psy, _ = get_invoke("test27_loop_swap.f90", "gocean", idx=0,
                         dist_mem=False)
     invoke = psy.invokes.get("invoke_loop1")
     schedule = invoke.schedule
@@ -320,7 +320,7 @@ def test_loop_swap_abort_if_symbols():
     either the inner or outer loop contains a non-empty symbol table.
     '''
 
-    psy, _ = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=0,
+    psy, _ = get_invoke("test27_loop_swap.f90", "gocean", idx=0,
                         dist_mem=False)
     invoke = psy.invokes.get("invoke_loop1")
     schedule = invoke.schedule

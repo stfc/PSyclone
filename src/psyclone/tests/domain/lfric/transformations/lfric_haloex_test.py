@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2023, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified: O. Brunt, Met Office
+# Modified: O. Brunt and L. Turner, Met Office
 
 '''This module tests the LFRic API-specific halo exchange
    implementation. '''
@@ -42,29 +42,28 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.dynamo0p3 import (
-    DynLoop, LFRicHaloExchange, HaloDepth, _create_depth_list)
+from psyclone.domain.lfric import LFRicLoop
+from psyclone.dynamo0p3 import (LFRicHaloExchange, HaloDepth,
+                                _create_depth_list)
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import (
-    Dynamo0p3RedundantComputationTrans, Dynamo0p3AsyncHaloExchangeTrans)
+from psyclone.transformations import (Dynamo0p3RedundantComputationTrans,
+                                      Dynamo0p3AsyncHaloExchangeTrans)
 
 
 # constants
-API = "dynamo0.3"
+API = "lfric"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          os.pardir, os.pardir, os.pardir,
                          "test_files", "dynamo0p3")
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 def test_gh_inc_nohex_1(tmpdir, monkeypatch):
@@ -91,19 +90,19 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
         loop). In paricular there should be no halo exchange for the
         write-to-gh_inc dependence.
 
-        :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
+        :param schedule: a lfric API schedule object
+        :type schedule: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule`.
 
         '''
         assert len(schedule.children) == 3
         loop1 = schedule.children[0]
         haloex = schedule.children[1]
         loop2 = schedule.children[2]
-        assert isinstance(loop1, DynLoop)
+        assert isinstance(loop1, LFRicLoop)
         assert isinstance(haloex, LFRicHaloExchange)
         assert haloex.field.name == "f2"
         assert haloex.required() == (True, False)
-        assert isinstance(loop2, DynLoop)
+        assert isinstance(loop2, LFRicLoop)
 
     # 1st loop should iterate over dofs to nannexed. Check output
     assert schedule.children[0].upper_bound_name == "nannexed"
@@ -153,7 +152,7 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     haloex2 = schedule.children[2]
     loop2 = schedule.children[3]
     assert len(schedule.children) == 4
-    assert isinstance(loop1, DynLoop)
+    assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "ndofs"
     assert isinstance(haloex1, LFRicHaloExchange)
     assert haloex1.field.name == "f1"
@@ -161,7 +160,7 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     assert isinstance(haloex2, LFRicHaloExchange)
     assert haloex2.field.name == "f2"
     assert haloex2.required() == (True, False)
-    assert isinstance(loop2, DynLoop)
+    assert isinstance(loop2, LFRicLoop)
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
@@ -175,13 +174,13 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     haloex = schedule.children[1]
     loop2 = schedule.children[2]
     assert len(schedule.children) == 3
-    assert isinstance(loop1, DynLoop)
+    assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "dof_halo"
     assert loop1.upper_bound_halo_depth == 1
     assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
-    assert isinstance(loop2, DynLoop)
+    assert isinstance(loop2, LFRicLoop)
 
     # make 1st loop iterate over dofs to the maximum halo depth and
     # check output
@@ -190,13 +189,13 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     haloex = schedule.children[1]
     loop2 = schedule.children[2]
     assert len(schedule.children) == 3
-    assert isinstance(loop1, DynLoop)
+    assert isinstance(loop1, LFRicLoop)
     assert loop1.upper_bound_name == "dof_halo"
     assert not loop1.upper_bound_halo_depth
     assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
-    assert isinstance(loop2, DynLoop)
+    assert isinstance(loop2, LFRicLoop)
 
 
 def test_gh_inc_nohex_3(tmpdir, monkeypatch):
@@ -232,8 +231,8 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
     assert haloex._compute_halo_depth() == "1"
-    assert isinstance(loop1, DynLoop)
-    assert isinstance(loop2, DynLoop)
+    assert isinstance(loop1, LFRicLoop)
+    assert isinstance(loop2, LFRicLoop)
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
@@ -248,8 +247,8 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
         particular, check that the depth of the halo exchange for
         field 'f1' is what we are expecting
 
-        :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
+        :param schedule: a lfric API schedule object
+        :type schedule: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule`.
         :param int f1depth: The expected depth of the halo exchange \
         associated with field f1
         :param int f2depth: The expected depth of the halo exchange \
@@ -269,8 +268,8 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
         assert haloex2.field.name == "f1"
         assert haloex2._compute_halo_depth() == f1depth
         assert haloex2.required() == (True, False)
-        assert isinstance(loop1, DynLoop)
-        assert isinstance(loop2, DynLoop)
+        assert isinstance(loop1, LFRicLoop)
+        assert isinstance(loop2, LFRicLoop)
 
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth 1 and "f2" to depth 2
@@ -314,8 +313,8 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
         particular, check that the depth of the halo exchange for
         field 'f1' is what we are expecting
 
-        :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
+        :param schedule: a lfric API schedule object
+        :type schedule: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule`.
         :param int f1depth: The expected depth of the halo exchange \
         associated with field f1
         :param int f2depth: The expected depth of the halo exchange \
@@ -335,8 +334,8 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
         assert haloex2.field.name == "f2"
         assert haloex2._compute_halo_depth() == f2depth
         assert haloex2.required() == (True, False)
-        assert isinstance(loop1, DynLoop)
-        assert isinstance(loop2, DynLoop)
+        assert isinstance(loop1, LFRicLoop)
+        assert isinstance(loop2, LFRicLoop)
 
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth 1 and "f2" to depth 1
@@ -385,7 +384,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     def check(haloex, depth):
         '''check the halo exchange has the expected properties
 
-        :param haloex: a dynamo0.3 API halo-exchange object
+        :param haloex: a lfric API halo-exchange object
         :type haloex: :py:class:`psyclone.dynamo0p3.LFRicHaloExchange`.
         :param int depth: The expected depth of the halo exchange \
         passed in as the first argument
@@ -464,7 +463,7 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     first_invoke = psy.invokes.invoke_list[0]
     # Since (redundant) computation over annexed dofs is enabled, there
     # should be no halo exchange before the first (builtin) kernel call
-    assert isinstance(first_invoke.schedule[0], DynLoop)
+    assert isinstance(first_invoke.schedule[0], LFRicLoop)
     # There should be a halo exchange for field f1 before the second
     # kernel call
     assert isinstance(first_invoke.schedule[1], LFRicHaloExchange)
@@ -477,7 +476,7 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     # (builtin) kernel call
     assert isinstance(first_invoke.schedule[0], LFRicHaloExchange)
     assert first_invoke.schedule[0].field.name == "f1"
-    assert isinstance(first_invoke.schedule[1], DynLoop)
+    assert isinstance(first_invoke.schedule[1], LFRicLoop)
     # There should only be one halo exchange for field f1
     assert len([node for node in first_invoke.schedule.walk(LFRicHaloExchange)
                 if node.field.name == "f1"]) == 1
@@ -555,10 +554,10 @@ def test_compute_halo_read_info_async(monkeypatch):
             in str(info.value))
 
 
-# Tests for DynLoop
-# Tests for _add_field_component_halo_exchange() within DynLoop
+# Tests for LFRicLoop
+# Tests for _add_field_component_halo_exchange() within LFRicLoop
 def test_add_halo_exchange_code_nreader(monkeypatch):
-    '''Check that _add_field_component_halo_exchange() in DynLoop raises
+    '''Check that _add_field_component_halo_exchange() in LFRicLoop raises
     the expected exception when there is more than one read dependence
     associated with a halo exchange in the read dependence list.
 

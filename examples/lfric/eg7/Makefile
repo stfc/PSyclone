@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 include ../../common.mk
 
 transform:
-	${PSYCLONE} alg.x90
+	${PSYCLONE} -api lfric alg.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg7"

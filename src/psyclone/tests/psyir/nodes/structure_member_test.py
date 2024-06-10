@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,8 @@ def create_structure_symbol(table):
     region_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
         ("ny", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
-        ("domain", symbols.DataTypeSymbol("dom_type", symbols.DeferredType()),
+        ("domain", symbols.DataTypeSymbol("dom_type",
+                                          symbols.UnresolvedType()),
          symbols.Symbol.Visibility.PUBLIC, None)])
     region_type_sym = symbols.DataTypeSymbol("grid_type", region_type)
     region_array_type = symbols.ArrayType(region_type_sym, [2, 2])

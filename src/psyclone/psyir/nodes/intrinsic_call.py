@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 ''' This module contains the IntrinsicCall node implementation.'''
 
 from collections import namedtuple
+from collections.abc import Iterable
 from enum import Enum
 
 from psyclone.psyir.nodes.call import Call
@@ -70,12 +71,12 @@ class IntrinsicCall(Call):
     subroutine). This can be found as a standalone statement
     or an expression.
 
-    :param routine: the type of Intrinsic being created.
-    :type routine: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
+    :param intrinsic: the type of Intrinsic being created.
+    :type intrinsic: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
-    :raises TypeError: if the routine argument is not an Intrinsic type.
+    :raises TypeError: if the 'intrinsic' argument is not an Intrinsic type.
 
     '''
     # Textual description of the node.
@@ -741,21 +742,22 @@ class IntrinsicCall(Call):
         def __hash__(self):
             return hash(self.name)
 
-    def __init__(self, routine, **kwargs):
-        if not isinstance(routine, Enum) or routine not in self.Intrinsic:
+    def __init__(self, intrinsic, **kwargs):
+        if not isinstance(intrinsic, Enum) or intrinsic not in self.Intrinsic:
             raise TypeError(
-                f"IntrinsicCall 'routine' argument should be an "
+                f"IntrinsicCall 'intrinsic' argument should be an "
                 f"instance of IntrinsicCall.Intrinsic, but found "
-                f"'{type(routine).__name__}'.")
+                f"'{type(intrinsic).__name__}'.")
 
-        # A Call expects a symbol, so give it an intrinsic symbol.
-        super().__init__(
-            IntrinsicSymbol(
-                routine.name,
-                is_elemental=routine.is_elemental,
-                is_pure=routine.is_pure),
-            **kwargs)
-        self._intrinsic = routine
+        # A Call expects a Reference to a Symbol, so give it a Reference
+        # to an Intrinsicsymbol of the given intrinsic.
+        super().__init__(**kwargs)
+        self.addchild(Reference(IntrinsicSymbol(
+            intrinsic.name,
+            intrinsic,
+            is_elemental=intrinsic.is_elemental,
+            is_pure=intrinsic.is_pure
+        )))
 
     @property
     def intrinsic(self):
@@ -765,7 +767,7 @@ class IntrinsicCall(Call):
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
 
         '''
-        return self._intrinsic
+        return self.routine.symbol.intrinsic
 
     # This is not part of the intrinsic enum, because its ValueError could
     # change for different devices, and in the future we may want to pass
@@ -796,44 +798,40 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
             IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
             # The one below are not documented on nvidia compiler
+            IntrinsicCall.Intrinsic.PRODUCT,
             IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
             IntrinsicCall.Intrinsic.UBOUND)
 
     @classmethod
-    def create(cls, routine, arguments):
-        '''Create an instance of this class given the type of routine and a
+    def create(cls, intrinsic, arguments=()):
+        '''Create an instance of this class given the type of intrinsic and a
         list of nodes (or name-and-node tuples) for its arguments. Any
         named arguments *must* come after any required arguments.
 
-        :param routine: the Intrinsic being called.
-        :type routine: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
-        :param arguments: the arguments to this routine, and/or \
-            2-tuples containing an argument name and the \
-            argument. Arguments are added as child nodes.
-        :type arguments: List[ \
-            Union[:py:class:`psyclone.psyir.nodes.DataNode`, \
-                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]
+        :param intrinsic: the Intrinsic being called.
+        :type intrinsic: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
+        :param arguments: list of arguments for this intrinsic, these
+            can be PSyIR nodes or tuples of string,Node for named arguments.
+        :type arguments: Optional[Iterable[\
+            Union[:py:class:`psyclone.psyir.nodes.DataNode`,\
+                  Tuple[str, :py:class:`psyclone.psyir.nodes.DataNode`]]]]
 
         :returns: an instance of this class.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :raises TypeError: if any of the arguments are of the wrong type.
-        :raises ValueError: if any optional arguments have incorrect names \
+        :raises ValueError: if any optional arguments have incorrect names
             or if a positional argument is listed *after* a named argument.
-        :raises ValueError: if the number of supplied arguments is not valid \
-            for the specified intrinsic routine.
+        :raises ValueError: if the number of supplied arguments is not valid
+            for the specified intrinsic.
 
         '''
-        if not isinstance(routine, Enum) or routine not in cls.Intrinsic:
-            raise TypeError(
-                f"IntrinsicCall create() 'routine' argument should be an "
-                f"instance of IntrinsicCall.Intrinsic but found "
-                f"'{type(routine).__name__}'.")
+        call = IntrinsicCall(intrinsic)
 
-        if not isinstance(arguments, list):
+        if not isinstance(arguments, Iterable):
             raise TypeError(
-                f"IntrinsicCall.create() 'arguments' argument should be a "
-                f"list but found '{type(arguments).__name__}'")
+                f"IntrinsicCall.create() 'arguments' argument should be an "
+                f"Iterable but found '{type(arguments).__name__}'")
 
         # Validate the supplied arguments.
         last_named_arg = None
@@ -853,20 +851,20 @@ class IntrinsicCall(Call):
                 # sufficient information to validate them.
                 # if not optional_arg_names:
                 #     raise ValueError(
-                #         f"The '{routine.name}' intrinsic does not support "
+                #         f"The '{intrinsic.name}' intrinsic does not support "
                 #         f"any optional arguments but got '{name}'.")
                 # if name not in optional_arg_names:
                 #     raise ValueError(
-                #         f"The '{routine.name}' intrinsic supports the "
+                #         f"The '{intrinsic.name}' intrinsic supports the "
                 #         f"optional arguments {optional_arg_names} but got "
                 #         f"'{name}'")
-                if name in routine.optional_args:
-                    if not isinstance(arg[1], routine.optional_args[name]):
+                if name in intrinsic.optional_args:
+                    if not isinstance(arg[1], intrinsic.optional_args[name]):
                         raise TypeError(
                             f"The optional argument '{name}' to intrinsic "
-                            f"'{routine.name}' must be of type "
-                            f"'{routine.optional_args[name].__name__}' but got"
-                            f" '{type(arg[1]).__name__}'")
+                            f"'{intrinsic.name}' must be of type "
+                            f"'{intrinsic.optional_args[name].__name__}' but "
+                            f"got '{type(arg[1]).__name__}'")
                 else:
                     # If it not in the optional_args list it must be positional
                     pos_arg_count += 1
@@ -875,35 +873,33 @@ class IntrinsicCall(Call):
                     raise ValueError(
                         f"Found a positional argument *after* a named "
                         f"argument ('{last_named_arg}'). This is invalid.'")
-                if not isinstance(arg, routine.required_args.types):
+                if not isinstance(arg, intrinsic.required_args.types):
                     raise TypeError(
-                        f"The '{routine.name}' intrinsic requires that "
+                        f"The '{intrinsic.name}' intrinsic requires that "
                         f"positional arguments be of type "
-                        f"'{routine.required_args.types}' "
+                        f"'{intrinsic.required_args.types}' "
                         f"but got a '{type(arg).__name__}'")
                 pos_arg_count += 1
 
-        if ((routine.required_args.max_count is not None and
-             pos_arg_count > routine.required_args.max_count)
-                or pos_arg_count < routine.required_args.min_count):
-            msg = f"The '{routine.name}' intrinsic requires "
-            if (routine.required_args.max_count is not None and
-                    routine.required_args.max_count > 0):
-                msg += (f"between {routine.required_args.min_count} and "
-                        f"{routine.required_args.max_count} ")
+        if ((intrinsic.required_args.max_count is not None and
+             pos_arg_count > intrinsic.required_args.max_count)
+                or pos_arg_count < intrinsic.required_args.min_count):
+            msg = f"The '{intrinsic.name}' intrinsic requires "
+            if (intrinsic.required_args.max_count is not None and
+                    intrinsic.required_args.max_count > 0):
+                msg += (f"between {intrinsic.required_args.min_count} and "
+                        f"{intrinsic.required_args.max_count} ")
             else:
-                msg += f"at least {routine.required_args.min_count} "
+                msg += f"at least {intrinsic.required_args.min_count} "
             msg += f"arguments but got {len(arguments)}."
             raise ValueError(msg)
 
         # Create an intrinsic call and add the arguments
         # afterwards. We can't call the parent create method as it
-        # assumes the routine argument is a symbol and therefore tries
+        # assumes the intrinsic argument is a symbol and therefore tries
         # to create an intrinsic call with this symbol, rather than
         # the intrinsic enum.
-        call = IntrinsicCall(routine)
         call._add_args(call, arguments)
-        call._intrinsic = routine
 
         return call
 
@@ -923,10 +919,10 @@ class IntrinsicCall(Call):
             # If this is an inquiry access (which doesn't actually access the
             # value) and we haven't explicitly requested them, ignore the
             # inquired variables, which are always the first argument.
-            for child in self._children[1:]:
+            for child in self.arguments[1:]:
                 child.reference_accesses(var_accesses)
         else:
-            for child in self._children:
+            for child in self.arguments:
                 child.reference_accesses(var_accesses)
 
     # TODO #2102: Maybe the three properties below can be removed if intrinsic

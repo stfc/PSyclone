@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,9 @@
 '''
 
 from psyclone.transformations import Transformation, TransformationError
-from psyclone.psyir.nodes import Routine, Loop, Node
+from psyclone.psyir.nodes import Routine, Node
 from psyclone.domain.nemo.transformations import \
-    CreateNemoInvokeScheduleTrans, \
-    CreateNemoKernelTrans, CreateNemoLoopTrans
+    CreateNemoInvokeScheduleTrans
 
 
 class CreateNemoPSyTrans(Transformation):
@@ -69,25 +68,21 @@ class CreateNemoPSyTrans(Transformation):
     >>> print(psyir.view(colour=False, indent="   "))
     FileContainer[]
        NemoInvokeSchedule[invoke='sub']
-          0: Loop[type='lon', field_space='None', it_space='None']
+          0: Loop[variable='ji']
              Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
              Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
              Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
              Schedule[]
-                0: InlinedKern[]
-                   Schedule[]
-                      0: Assignment[]
-                         ArrayReference[name:'tmp']
-                            Reference[name:'ji']
-                         BinaryOperation[operator:'MUL']
-                            Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-                            Reference[name:'ji']
+                0: Assignment[]
+                   ArrayReference[name:'tmp']
+                      Reference[name:'ji']
+                   BinaryOperation[operator:'MUL']
+                      Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                      Reference[name:'ji']
     <BLANKLINE>
 
     The result of this transformation is that the root `Routine` has
-    been converted into a `NemoInvokeSchedule`, the `Loop` is now a
-    `NemoLoop` (with type 'lon' [for longitude]) and the body of the loop
-    is now an `InlinedKern`.
+    been converted into a `NemoInvokeSchedule`.
 
     """
     @property
@@ -143,32 +138,8 @@ class CreateNemoPSyTrans(Transformation):
         self.validate(psyir, options=options)
 
         invoke_trans = CreateNemoInvokeScheduleTrans()
-        kern_trans = CreateNemoKernelTrans()
-        loop_trans = CreateNemoLoopTrans()
 
-        # Since the transformations replace nodes in the tree, we apply
-        # them 'depth first':
-
-        # First, transform suitable Loop bodies into Kernels
-        loops = psyir.walk(Loop)
-        # Reverse the list so that we transform the deepest loop bodies first
-        # so as to try to reduce repeated walking of the tree.
-        loops.reverse()
-
-        for loop in loops:
-            try:
-                kern_trans.apply(loop.loop_body)
-            except TransformationError:
-                # Not all loop bodies are valid kernels (e.g. if they do IO)
-                pass
-
-        # Second, transform generic Loops into NemoLoops
-        for loop in loops:
-            loop_trans.apply(loop)
-
-        # Third, transform any Routines into NemoInvokeSchedules. Have to
-        # allow for the supplied top-level node being a Routine and therefore
-        # being replaced.
+        # Transform any Routines into NemoInvokeSchedules.
         for routine in psyir.walk(Routine):
             invoke_trans.apply(routine)
 

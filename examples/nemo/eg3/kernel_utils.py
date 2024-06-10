@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Authors: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' Module containing various utilities to aid in the application of
     OpenACC KERNELS directives to NEMO source. Mainly required to
@@ -81,9 +81,9 @@ def have_loops(nodes):
     :rtype: bool
 
     '''
-    from psyclone.nemo import NemoLoop
+    from psyclone.psyir.nodes import Loop
     for node in nodes:
-        if node.walk(NemoLoop):
+        if node.walk(Loop):
             return True
     return False
 

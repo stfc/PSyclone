@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ from psyclone.psyir.frontend.fparser2 import (
 from psyclone.psyir.nodes import (
     Schedule, Assignment, Reference, IntrinsicCall, Literal, CodeBlock)
 from psyclone.psyir.symbols import (
-    REAL_TYPE, DataSymbol, UnknownFortranType, INTEGER_TYPE, SymbolTable,
+    REAL_TYPE, DataSymbol, UnsupportedFortranType, INTEGER_TYPE, SymbolTable,
     ArrayType, RoutineSymbol, AutomaticInterface)
 
 
@@ -197,7 +197,7 @@ end subroutine
     assert isinstance(intrinsic_call, IntrinsicCall)
     result = fortran_writer(intrinsic_call)
     assert result == f"{intrinsic_name}(a, dim=d, mask=m)"
-    routine_symbol = intrinsic_call.routine
+    routine_symbol = intrinsic_call.routine.symbol
 
     assert isinstance(routine_symbol, RoutineSymbol)
     assert intrinsic_call.routine.name == intrinsic_name
@@ -231,7 +231,7 @@ end subroutine
     assert isinstance(intrinsic_call, IntrinsicCall)
     result = fortran_writer(intrinsic_call)
     assert result == f"{intrinsic_name}(a)"
-    routine_symbol = intrinsic_call.routine
+    routine_symbol = intrinsic_call.routine.symbol
     assert isinstance(routine_symbol, RoutineSymbol)
     assert intrinsic_call.routine.name == intrinsic_name
     assert isinstance(routine_symbol.interface, AutomaticInterface)
@@ -286,9 +286,9 @@ def test_handling_intrinsics(code, expected_intrinsic, symbol_table):
     assert isinstance(assign, Assignment)
     assert isinstance(assign.rhs, IntrinsicCall), \
         "Fails when parsing '" + code + "'"
-    assert assign.rhs._intrinsic == expected_intrinsic, \
+    assert assign.rhs.routine.symbol.intrinsic == expected_intrinsic, \
         "Fails when parsing '" + code + "'"
-    assert len(assign.rhs.children) == len(assign.rhs.argument_names)
+    assert len(assign.rhs.arguments) == len(assign.rhs.argument_names)
     for named_arg in assign.rhs.argument_names:
         assert named_arg is None
 
@@ -347,10 +347,10 @@ def test_handling_intrinsics_named_args(
     assert isinstance(assign, Assignment)
     assert isinstance(assign.rhs, IntrinsicCall), \
         "Fails when parsing '" + code + "'"
-    assert assign.rhs._intrinsic == expected_intrinsic, \
+    assert assign.rhs.routine.symbol.intrinsic == expected_intrinsic, \
         "Fails when parsing '" + code + "'"
-    assert len(assign.rhs.children) == len(assign.rhs._argument_names)
-    for idx, child in enumerate(assign.rhs.children):
+    assert len(assign.rhs.arguments) == len(assign.rhs._argument_names)
+    for idx, child in enumerate(assign.rhs.arguments):
         assert (assign.rhs._argument_names[idx] ==
                 (id(child), expected_names[idx]))
     assert assign.rhs.argument_names == expected_names
@@ -367,7 +367,7 @@ def test_intrinsic_no_args(symbol_table):
     assign = fake_parent.children[0]
     assert isinstance(assign.rhs, IntrinsicCall)
     assert assign.rhs.intrinsic == IntrinsicCall.Intrinsic.NULL
-    assert len(assign.rhs.children) == 0
+    assert len(assign.rhs.arguments) == 0
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -387,11 +387,13 @@ def test_handling_nested_intrinsic():
     symtab.add(DataSymbol("zbbb", REAL_TYPE))
     symtab.add(DataSymbol("zccc", REAL_TYPE))
     symtab.add(DataSymbol("ztmelts", REAL_TYPE))
-    symtab.add(DataSymbol("e1t", UnknownFortranType("blah :: e1t")))
-    symtab.add(DataSymbol("e2t", UnknownFortranType("blah :: e2t")))
-    symtab.add(DataSymbol("zav_tide", UnknownFortranType("blah :: zav_tide")))
-    symtab.add(DataSymbol("tmask_i", UnknownFortranType("blah :: tmask_i")))
-    symtab.add(DataSymbol("wmask", UnknownFortranType("blah :: wmask")))
+    symtab.add(DataSymbol("e1t", UnsupportedFortranType("blah :: e1t")))
+    symtab.add(DataSymbol("e2t", UnsupportedFortranType("blah :: e2t")))
+    symtab.add(DataSymbol(
+                   "zav_tide", UnsupportedFortranType("blah :: zav_tide")))
+    symtab.add(DataSymbol(
+                   "tmask_i", UnsupportedFortranType("blah :: tmask_i")))
+    symtab.add(DataSymbol("wmask", UnsupportedFortranType("blah :: wmask")))
     reader = FortranStringReader(
         "ze_z = SUM( e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk) * "
         "tmask_i(:,:) ) &\n"

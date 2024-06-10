@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,9 +48,9 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference, Routine,
                                   StructureReference)
-from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
+from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE, IntrinsicSymbol,
                                     ContainerSymbol, DataSymbol,
-                                    DataTypeSymbol, DeferredType,
+                                    DataTypeSymbol, UnresolvedType,
                                     ImportInterface, INTEGER_TYPE,
                                     REAL8_TYPE, RoutineSymbol, ScalarType)
 from psyclone.psyir.transformations import ExtractTrans
@@ -113,7 +113,7 @@ class ExtractDriverCreator:
 
         '''
         fortran_expression = writer(reference)
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         grid_properties = api_config.grid_properties
 
         for prop_name in grid_properties:
@@ -237,6 +237,8 @@ class ExtractDriverCreator:
         # the flattened name can be ensured not to clash with a variable name
         # used in the program.
         for reference in all_references:
+            if isinstance(reference.symbol, (RoutineSymbol, IntrinsicSymbol)):
+                continue
             # For now ignore structure names, which require flattening
             if isinstance(reference, StructureReference):
                 continue
@@ -280,6 +282,8 @@ class ExtractDriverCreator:
         # name does not clash with a variable declared by the user. We use
         # the structured name (with '%') as tag to handle this.
         for reference in all_references:
+            if isinstance(reference.symbol, (RoutineSymbol, IntrinsicSymbol)):
+                continue
             if not isinstance(reference, StructureReference):
                 continue
             old_symbol = reference.symbol
@@ -446,7 +450,7 @@ class ExtractDriverCreator:
         '''
         symbol_table = program.scope.symbol_table
         for call in sched.walk(Call):
-            routine = call.routine
+            routine = call.routine.symbol
             if not isinstance(routine.interface, ImportInterface):
                 continue
             if routine.name in symbol_table:
@@ -457,7 +461,7 @@ class ExtractDriverCreator:
             # statement).
             module = ContainerSymbol(routine.interface.container_symbol.name)
             symbol_table.add(module)
-            new_routine_sym = RoutineSymbol(routine.name, DeferredType(),
+            new_routine_sym = RoutineSymbol(routine.name, UnresolvedType(),
                                             interface=ImportInterface(module))
             symbol_table.add(new_routine_sym)
 
@@ -560,7 +564,7 @@ class ExtractDriverCreator:
 
         psy_data_mod = ContainerSymbol("read_kernel_data_mod")
         program_symbol_table.add(psy_data_mod)
-        psy_data_type = DataTypeSymbol("ReadKernelDataType", DeferredType(),
+        psy_data_type = DataTypeSymbol("ReadKernelDataType", UnresolvedType(),
                                        interface=ImportInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
 

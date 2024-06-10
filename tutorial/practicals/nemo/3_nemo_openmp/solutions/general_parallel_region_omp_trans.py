@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,6 +54,15 @@ from psyclone.transformations import OMPParallelLoopTrans, OMPLoopTrans, \
 OMP_TRANS = OMPParallelLoopTrans()
 OMP_LOOP_TRANS = OMPLoopTrans()
 OMP_PARALLEL_TRANS = OMPParallelTrans()
+
+# Set up some loop_type inference rules in order to reference useful domain
+# loop constructs by name
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
 
 
 def trans(psy):

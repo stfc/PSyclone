@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -107,10 +107,7 @@ class KernelInterface(ArgOrdering):
         # ArgOrdering constructor defaults to). This is so that we can
         # specify the correct interface for those symbols passed
         # as arguments.
-        # TODO #1934 - we should not keep a reference to a SymbolTable here.
-        # We should just be using the one associated with the kernel routine
-        # but currently a Kern is not a Call to a Routine.
-        self._symtab = LFRicSymbolTable()
+        self._forced_symtab = LFRicSymbolTable()
 
     def generate(self, var_accesses=None):
         '''Call the generate base class then add the argument list as it can't
@@ -586,20 +583,54 @@ class KernelInterface(ArgOrdering):
                            basis_name_func, first_dim_value_func)
 
     def field_bcs_kernel(self, function_space, var_accesses=None):
-        '''Not implemented.
+        '''Create the boundary-dofs mask argument required for the
+        enforce_bc_code kernel. Adds it to the symbol table and the argument
+        list.
 
         :param function_space: the function space for this boundary condition.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: an unused optional argument that stores \
+        :param var_accesses: an unused optional argument that stores
             information about variable accesses.
-        :type var_accesses: :\
-            py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
-        :raises NotImplementedError: as this method is not implemented.
+        :raises InternalError: if the kernel does not have a single field as
+                               argument.
+        :raises InternalError: if the field argument is not on the
+                               'ANY_SPACE_1' function space.
 
         '''
-        raise NotImplementedError(
-            "TODO #928: field_bcs_kernel not implemented")
+        # Sanity check - expect the enforce_bc_code to have a single argument
+        # that is a field.
+        if (len(self._kern.arguments.args) != 1 or
+                not self._kern.arguments.args[0].is_field):
+            const = LFRicConstants()
+            raise InternalError(
+                f"Kernel '{self._kern.name}' applies boundary conditions to a "
+                f"field and therefore should have a single, field argument "
+                f"(one of {const.VALID_FIELD_NAMES}) but got "
+                f"{[arg.argument_type for arg in self._kern.arguments.args]}")
+        farg = self._kern.arguments.args[0]
+        fspace = farg.function_space
+        # Sanity check - expect the field argument to the enforce_bc_code
+        # kernel to be on the ANY_SPACE_1 space.
+        if fspace.orig_name != "any_space_1":
+            raise InternalError(
+                f"Kernel '{self._kern.name}' applies boundary conditions to a "
+                f"field but the supplied argument, '{farg.name}', is on "
+                f"'{fspace.orig_name}' rather than the expected 'ANY_SPACE_1'")
+
+        ndf_symbol = self._symtab.find_or_create_tag(
+            f"ndf_{fspace.orig_name}", fs=fspace.orig_name,
+            symbol_type=LFRicTypes("NumberOfDofsDataSymbol"),
+            interface=self._read_access)
+
+        # Add the boundary-dofs array argument.
+        sym = self._symtab.find_or_create_tag(
+            f"boundary_dofs_{farg.name}",
+            interface=self._read_access,
+            symbol_type=LFRicTypes("VerticalBoundaryDofMaskDataSymbol"),
+            dims=[Reference(ndf_symbol), 2])
+        self._arglist.append(sym)
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
         '''Not implemented.

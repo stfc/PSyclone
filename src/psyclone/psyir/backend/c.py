@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council
+# Copyright (c) 2019-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -447,7 +447,7 @@ class CWriter(LanguageWriter):
                 f"The C backend does not support the '{node.intrinsic.name}' "
                 f"intrinsic.") from err
 
-        return formatter(opstring, [self._visit(ch) for ch in node.children])
+        return formatter(opstring, [self._visit(ch) for ch in node.arguments])
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in

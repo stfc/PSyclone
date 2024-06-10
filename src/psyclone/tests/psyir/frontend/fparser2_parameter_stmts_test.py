@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -152,7 +152,7 @@ def test_parameter_statements_with_unsupported_symbols():
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
-    # Test with a UnknownType declaration
+    # Test with a UnsupportedType declaration
     reader = FortranStringReader('''
         character*5 :: var1
         parameter (var1='hello')''')
@@ -160,8 +160,8 @@ def test_parameter_statements_with_unsupported_symbols():
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not parse 'PARAMETER(var1 = 'hello')' because 'var1' has "
-            "an UnknownType." in str(error.value))
+    assert ("Could not process 'PARAMETER(var1 = 'hello')' because 'var1' has "
+            "an UnsupportedType." in str(error.value))
 
     # Test with a symbol which is not a DataSymbol
     symtab.add(Symbol("var2"))
@@ -171,8 +171,8 @@ def test_parameter_statements_with_unsupported_symbols():
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not parse 'PARAMETER(var2 = 'hello')' because 'var2' is not"
-            " a DataSymbol." in str(error.value))
+    assert ("Could not process 'PARAMETER(var2 = 'hello')' because 'var2' is "
+            "not a DataSymbol." in str(error.value))
 
     # Test with a symbol which is not a DataSymbol
     reader = FortranStringReader('''
@@ -181,7 +181,7 @@ def test_parameter_statements_with_unsupported_symbols():
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not parse 'PARAMETER(var3 = 3)' because: \"Could not "
+    assert ("Could not process 'PARAMETER(var3 = 3)' because: \"Could not "
             "find 'var3' in the Symbol Table.\"" in str(error.value))
 
 
@@ -221,6 +221,9 @@ def test_unsupported_parameter_statements_produce_codeblocks(fortran_reader,
     # statements
     code = fortran_writer(psyir)
     assert code == '''\
+! PSyclone CodeBlock (unsupported code) reason:
+!  - Could not process 'PARAMETER(var1 = 'hello')' because 'var1' has an \
+UnsupportedType.
 MODULE my_mod
   CHARACTER*5 :: var1
   PARAMETER(var1 = 'hello')

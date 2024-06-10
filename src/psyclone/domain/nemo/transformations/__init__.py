@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,28 +33,19 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, STFC Daresbury Lab
 #          A. R. Porter, STFC Daresbury Lab
+#          S. Siso, STFC Daresbury Lab
 
 '''Transformations module for NEMO.
 '''
 
 from psyclone.domain.nemo.transformations.create_nemo_invoke_schedule_trans \
     import CreateNemoInvokeScheduleTrans
-from psyclone.domain.nemo.transformations.create_nemo_kernel_trans \
-    import CreateNemoKernelTrans
-from psyclone.domain.nemo.transformations.create_nemo_loop_trans \
-    import CreateNemoLoopTrans
 from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
     import CreateNemoPSyTrans
-from psyclone.domain.nemo.transformations.nemo_arrayaccess2loop_trans \
-    import NemoArrayAccess2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
     import NemoArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.nemo_allarrayaccess2loop_trans \
-    import NemoAllArrayAccess2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
     import NemoAllArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.nemo_loop_fuse \
-    import NemoLoopFuseTrans
 from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
     import NemoOuterArrayRange2LoopTrans
 
@@ -63,12 +54,7 @@ from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
 # from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 
 __all__ = ['CreateNemoInvokeScheduleTrans',
-           'CreateNemoKernelTrans',
-           'CreateNemoLoopTrans',
            'CreateNemoPSyTrans',
            'NemoAllArrayRange2LoopTrans',
            'NemoArrayRange2LoopTrans',
-           'NemoLoopFuseTrans',
-           'NemoOuterArrayRange2LoopTrans',
-           'NemoArrayAccess2LoopTrans',
-           'NemoAllArrayAccess2LoopTrans']
+           'NemoOuterArrayRange2LoopTrans']

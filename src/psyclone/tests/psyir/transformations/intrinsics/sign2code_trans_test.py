@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -187,7 +187,7 @@ def test_correct_expr(tmpdir):
         "    res_sign = res_sign * -1.0\n"
         "  end if\n"
         "  psyir_tmp = 1.0 + res_sign + 2.0\n\n"
-        "end subroutine sign_example\n") in result
+        "end subroutine sign_example\n") == result
     assert Compile(tmpdir).string_compiles(result)
 
 

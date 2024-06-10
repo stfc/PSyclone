@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -219,7 +219,7 @@ support Python 2.7 was version 2.1.0.)
 PSyclone immediately relies on four external Python packages; ``configparser``,
 ``fparser``, ``sympy``, and ``pyparsing``. The easiest way to satisfy the
 Python dependencies is to use the
-`PyPI installation <https://packaging.python.org/installing>`_
+`PyPI installation <https://packaging.python.org/tutorials/installing-packages/>`_
 and ``pip``.
 
 If everything is working correctly then using ``pip`` to install PSyclone::
@@ -260,7 +260,7 @@ parser originally developed as a part of the `f2py project
 
 ``fparser`` is available from the Python Package
 Index and thus may be installed using ``pip``
-(https://packaging.python.org/installing/#requirements-for-installing-packages):
+(https://packaging.python.org/tutorials/installing-packages/#requirements-for-installing-packages):
 ::
 
    > pip install fparser
@@ -471,8 +471,9 @@ is on your ``PATH``::
                    filename
    psyclone: error: the following arguments are required: filename
 
-As indicated above, the ``psyclone`` script takes the name of the
-Fortran source file containing the algorithm specification (in terms
+As indicated above, the ``psyclone`` command can be used to process PSyKAl
+DSLs (`-API` flag). In this case the command takes as input the Fortran source
+file containing the algorithm specification (in terms
 of calls to ``invoke()``). It parses this, finds the necessary kernel
 source files and produces two Fortran files. The first contains the
 :ref:`PSy, middle layer <PSy-layer>` and the second a re-write of the
@@ -497,11 +498,11 @@ configuration file (see :ref:`getting-going-configuration`).
 There are seven subdirectories, three of which (``lfric``, ``gocean``
 and ``nemo``) correspond to the different APIs/domains that are
 supported by PSyclone. (Note, that we are currently in the process of
-renaming the ``dynamo0.3`` API to ``lfric``.)  In this case we are
+renaming the ``lfric`` API to ``lfric``.)  In this case we are
 going to use one of the LFRic examples::
 
    > cd <EGS_HOME>/examples/lfric/eg1
-   > psyclone -api dynamo0.3 -d ../code -nodm -oalg alg.f90 \
+   > psyclone -api lfric -d ../code -nodm -oalg alg.f90 \
        -opsy psy.f90 ./single_invoke.x90
 
 
@@ -516,11 +517,11 @@ Representation (:ref:`PSyIR <psyir-ug>`). Accessing this is demonstrated
 by the ``print_psyir_trans.py`` script in the second LFRic example::
 
   > cd <EGS_HOME>/examples/lfric/eg2
-  > psyclone -api dynamo0.3 -d ../code -s ./print_psyir_trans.py \
+  > psyclone -api lfric -d ../code -s ./print_psyir_trans.py \
       -opsy psy.f90 -oalg alg.f90 ./multi_invoke_mod.x90
 
 Take a look at the ``print_psyir_trans.py`` script for more information. *Hint*;
 you can insert a single line in that script in order to break into the Python
 interpreter during execution: ``import pdb; pdb.set_trace()``. This then enables
 interactive exploration of the PSyIR if you are interested. Alternatively,
-you can play with some interactive examples on `Binder <https://github.com/stfc/PSyclone#user-content-try-it-on-binder>`_.
+you can play with some interactive examples on `Binder <https://github.com/stfc/PSyclone#try-it-on-binder>`_.

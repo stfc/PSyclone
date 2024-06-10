@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council
+# Copyright (c) 2019-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,13 @@
 '''This directory contains classes related to parsing Fortran.
 '''
 
+from psyclone.parse.file_info import FileInfo
 from psyclone.parse.module_info import ModuleInfo, ModuleInfoError
 from psyclone.parse.module_manager import ModuleManager
 
 # For AutoAPI documentation generation.
 __all__ = [
+        'FileInfo',
         'ModuleInfo',
         'ModuleInfoError',
         'ModuleManager'

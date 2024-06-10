@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import DTCode
 from psyclone.tests.utilities import get_invoke
 
-API = "gocean1.0"
+API = "gocean"
 
 
 def test_goloop_no_parent():

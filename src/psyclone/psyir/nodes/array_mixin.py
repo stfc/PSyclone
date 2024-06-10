@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
 from psyclone.psyir.symbols.datatypes import (
-    ScalarType, ArrayType, DeferredType, UnknownType, INTEGER_TYPE)
+    ScalarType, ArrayType, UnresolvedType, UnsupportedType, INTEGER_TYPE)
 
 
 class ArrayMixin(metaclass=abc.ABCMeta):
@@ -133,8 +133,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :type expr: :py:class:`psyclone.psyir.nodes.Node`
         :param bound_operator: the particular bound operation.
         :type bound_operator:
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.LBOUND |
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.UBOUND
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.LBOUND` |
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.UBOUND`
         :param int index: the bounds index.
 
         :returns: True if the expr is in the expected form and False otherwise.
@@ -144,12 +144,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if (isinstance(expr, IntrinsicCall) and
                 expr.intrinsic == bound_operator):
             # This is the expected bound
-            if self.is_same_array(expr.children[0]):
+            if self.is_same_array(expr.arguments[0]):
                 # The arrays match
-                if (isinstance(expr.children[1], Literal) and
-                        expr.children[1].datatype.intrinsic ==
+                if (isinstance(expr.arguments[1], Literal) and
+                        expr.arguments[1].datatype.intrinsic ==
                         ScalarType.Intrinsic.INTEGER
-                        and expr.children[1].value == str(index+1)):
+                        and expr.arguments[1].value == str(index+1)):
                     # This is the correct index
                     return True
         return False
@@ -207,12 +207,12 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             else:
                 cnames.append(cursor.name.lower())
             # Continue to resolve datatype unless we hit an
-            # UnknownType or DeferredType.
+            # UnsupportedType or UnresolvedType.
             if isinstance(cursor_type, ArrayType):
                 cursor_type = cursor_type.intrinsic
             if isinstance(cursor_type, DataTypeSymbol):
                 cursor_type = cursor_type.datatype
-            if isinstance(cursor_type, (UnknownType, DeferredType)):
+            if isinstance(cursor_type, (UnsupportedType, UnresolvedType)):
                 continue
             cursor_type = cursor_type.components[cursor.name.lower()].datatype
 
@@ -363,6 +363,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             else:
                 intrinsic = IntrinsicCall.Intrinsic.LBOUND
                 access_bound = access_shape.start
+
             # Is this array access in the form of {UL}BOUND(array, index)?
             if self._is_bound_op(access_bound, intrinsic, index):
                 return True
@@ -389,7 +390,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         datatype = symbol.datatype
 
         if not isinstance(datatype, ArrayType):
-            # The declaration datatype could be of UnknownFortranType
+            # The declaration datatype could be of UnsupportedFortranType
             # if the symbol is of e.g. character type.
             return False
 
@@ -516,48 +517,70 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     f"expression but found '{type(child).__name__}'")
         return self.children
 
+    def _extent(self, idx):
+        '''
+        Create PSyIR for the number of elements in dimension `idx` of this
+        array access. It is given by (stop - start)/step + 1 or, if it is for
+        the full range, by the SIZE intrinsic.
+
+        :param int idx: the array index for which to compute the number of
+                        elements.
+
+        :returns: the PSyIR expression for the number of elements in the
+                  specified array index.
+        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation` |
+                :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        '''
+        expr = self.indices[idx]
+        one = Literal("1", INTEGER_TYPE)
+
+        if isinstance(expr, Range):
+            start = expr.start
+            stop = expr.stop
+            step = expr.step
+        else:
+            # No range so just a single element is accessed.
+            return one
+
+        if (isinstance(start, IntrinsicCall) and
+                isinstance(stop, IntrinsicCall) and self.is_full_range(idx)):
+            # Access is to full range and start and stop are expressed in terms
+            # of LBOUND and UBOUND. Therefore, it's simpler to use SIZE.
+            return IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.SIZE,
+                [start.arguments[0].copy(),
+                 ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+
+        if start == one and step == one:
+            # The range starts at 1 and the step is 1 so the extent is just
+            # the upper bound.
+            return stop.copy()
+
+        extent = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                        stop.copy(), start.copy())
+        if step != one:
+            # Step is not unity so have to divide range by it.
+            result = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                            extent, step.copy())
+        else:
+            result = extent
+        # Extent is currently 'stop-start' or '(stop-start)/step' so we have
+        # to add a '+ 1'
+        return BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                      result, one.copy())
+
     def _get_effective_shape(self):
         '''
         :returns: the shape of the array access represented by this node.
-        :rtype: List[:py:class:`psyclone.psyir.nodes.DataNode`]
+        :rtype: list[:py:class:`psyclone.psyir.nodes.DataNode`]
 
         :raises NotImplementedError: if any of the array-indices involve a
                                      function call or an expression.
         '''
-        def _num_elements(expr):
-            '''
-            Create PSyIR for the number of elements in this range. It
-            is given by (stop - start)/step + 1.
-
-            :param expr: the range for which to compute the number of elements.
-            :type expr: :py:class:`psyclone.psyir.nodes.Range` or \
-                :py:class:`psyclone.psyir.symbols.ArrayType.ArrayBounds`
-
-            :returns: the PSyIR expression for the number of elements in the \
-                      supplied range.
-            :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
-
-            '''
-            if isinstance(expr, Range):
-                start = expr.start
-                stop = expr.stop
-                step = expr.step
-            elif isinstance(expr, ArrayType.ArrayBounds):
-                start = expr.lower
-                stop = expr.upper
-                step = Literal("1", INTEGER_TYPE)
-            minus = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                           stop.copy(), start.copy())
-            div = BinaryOperation.create(BinaryOperation.Operator.DIV,
-                                         minus, step.copy())
-            plus = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                          div, Literal("1", INTEGER_TYPE))
-            return plus
-
         shape = []
-        for idx_expr in self.indices:
+        for idx, idx_expr in enumerate(self.indices):
             if isinstance(idx_expr, Range):
-                shape.append(_num_elements(idx_expr))
+                shape.append(self._extent(idx))
 
             elif isinstance(idx_expr, Reference):
                 dtype = idx_expr.datatype
@@ -571,7 +594,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                             f"another array must be 1D but '{idx_expr.name}' "
                             f"used to index into '{self.name}' has "
                             f"{len(indirect_array_shape)} dimensions.")
-                    shape.append(_num_elements(dtype.shape[0]))
+                    # pylint: disable=protected-access
+                    shape.append(idx_expr._extent(idx))
+
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function
                 # call or Operation - TODO #1799.
@@ -597,6 +622,126 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             if isinstance(child, Range):
                 return child.position
         raise IndexError
+
+    def same_range(self, index: int, array2, index2: int) -> bool:
+        ''' This method compares the range of this array node at a given index
+        with the range of a second array at a second index. This is useful to
+        verify if array operations are valid, e.g.: A(3,:,5) + B(:,2,2).
+
+        Note that this check supports symbolic comparisons, e.g.:
+        A(3:4) has the same range as B(2+1:5-1),
+        and will consider compile-time unknown dimensions as equal, e.g.:
+        A(:) has the same range as B(:).
+
+        TODO #2485. This method has false negatives: cases when the range
+        is the same but it can not be proved, so we return False.
+
+        TODO #2004. This method currently compares exact ranges, not just the
+        length of them, which could be done with "(upper-lower)/step" symbolic
+        comparisons. This is because arrayrange2loop does not account for
+        arrays declared with different lbounds, but this could be improved.
+
+        :param index: the index indicating the location of a range node in
+            this array.
+        :param array2: the array accessor that we want to compare it to.
+        :param index2: the index indicating the location of a range node in
+            array2.
+
+        :returns: True if the ranges are the same and False if they are not
+            the same, or if it is not possible to determine.
+
+        :raises: TypeError if any of the arguments are of the wrong type.
+
+        '''
+        # pylint: disable=too-many-branches
+        if not isinstance(index, int):
+            raise TypeError(
+                f"The 'index' argument of the same_range() method should be an"
+                f" int but found '{type(index).__name__}'.")
+        if not isinstance(array2, ArrayMixin):
+            raise TypeError(
+                f"The 'array2' argument of the same_range() method should be "
+                f"an ArrayMixin but found '{type(array2).__name__}'.")
+        if not isinstance(index2, int):
+            raise TypeError(
+                f"The 'index2' argument of the same_range() method should be "
+                f"an int but found '{type(index2).__name__}'.")
+        if not index < len(self.children):
+            raise IndexError(
+                f"The value of the 'index' argument of the same_range() method"
+                f" is '{index}', but it should be less than the number of "
+                f"dimensions in the associated array, which is "
+                f"'{len(self.children)}'.")
+        if not index2 < len(array2.children):
+            raise IndexError(
+                f"The value of the 'index2' argument of the same_range() "
+                f"method is '{index2}', but it should be less than the number"
+                f" of dimensions in the associated array 'array2', which is "
+                f"'{len(array2.children)}'.")
+        if not isinstance(self.children[index], Range):
+            raise TypeError(
+                f"The child of the first array argument at the specified index"
+                f" '{index}' should be a Range node, but found "
+                f"'{type(self.children[index]).__name__}'.")
+        if not isinstance(array2.children[index2], Range):
+            raise TypeError(
+                f"The child of the second array argument at the specified "
+                f"index '{index2}' should be a Range node, but found "
+                f"'{type(array2.children[index2]).__name__}'.")
+
+        range1 = self.children[index]
+        range2 = array2.children[index2]
+
+        sym_maths = SymbolicMaths.get()
+        # compare lower bounds
+        if self.is_lower_bound(index) and array2.is_lower_bound(index2):
+            # Both self and array2 use the lbound() intrinsic to
+            # specify the lower bound of the array dimension. We may
+            # not be able to determine what the lower bounds of these
+            # arrays are statically but at runtime the code will fail
+            # if the ranges do not match so we assume that the lower
+            # bounds are consistent.
+            pass
+        elif self.is_lower_bound(index) or array2.is_lower_bound(index2):
+            # One and only one of self and array2 use the lbound()
+            # intrinsic to specify the lower bound of the array
+            # dimension. In this case assume that the ranges are
+            # different (although they could potentially be the same).
+            return False
+        elif not sym_maths.equal(range1.start, range2.start):
+            # Neither self nor array2 use the lbound() intrinsic to
+            # specify the lower bound of the array dimension. Try to
+            # determine if they are the same by matching the
+            # text. Use symbolic maths to do the comparison.
+            return False
+
+        # compare upper bounds
+        if self.is_upper_bound(index) and array2.is_upper_bound(index2):
+            # Both self and array2 use the ubound() intrinsic to
+            # specify the upper bound of the array dimension. We may
+            # not be able to determine what the upper bounds of these
+            # arrays are statically but at runtime the code will fail
+            # if the ranges do not match so we assume that the upper
+            # bounds are consistent.
+            pass
+        elif self.is_upper_bound(index) or array2.is_upper_bound(index2):
+            # One and only one of self and array2 use the ubound()
+            # intrinsic to specify the upper bound of the array
+            # dimension. In this case assume that the ranges are
+            # different (although they could potentially be the same).
+            return False
+        elif not sym_maths.equal(range1.stop, range2.stop):
+            # Neither self nor array2 use the ubound() intrinsic to
+            # specify the upper bound of the array dimension. Use
+            # symbolic maths to check if they are equal.
+            return False
+
+        # compare steps
+        if not sym_maths.equal(range1.step, range2.step):
+            return False
+
+        # Everything matches.
+        return True
 
 
 # For AutoAPI documentation generation

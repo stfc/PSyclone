@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@ class LFRicConstants():
                                 "config file is loaded")
 
         LFRicConstants.HAS_BEEN_INITIALISED = True
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # ---------- Evaluators: quadrature -----------------------------------
         LFRicConstants.VALID_QUADRATURE_SHAPES = \

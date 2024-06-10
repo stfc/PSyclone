@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -81,9 +81,11 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
     nodes and symbols. This is currently limited to the specialisation
     of kernel metadata.
 
+    >>> from psyclone.configuration import Config
     >>> from psyclone.domain.lfric.transformations import \
             RaisePSyIR2LFRicKernTrans
     >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> config = Config.get().api_conf("lfric")
     >>> CODE = ("""
     ... MODULE example
     ... TYPE, EXTENDS(kernel_type) :: compute_cu

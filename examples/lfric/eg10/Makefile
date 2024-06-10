@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ F90FLAGS += -I$(LFRIC_DIR)
 .PHONY: transform compile run kernels
 
 transform:
-	${PSYCLONE} intergrid_3levels.x90
+	${PSYCLONE} -api lfric intergrid_3levels.x90
 
 # TODO #1203 compilation of this example is not yet working. The Algorithm
 # (and possibly infrastructure) needs updating.

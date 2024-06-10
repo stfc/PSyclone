@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2020-2023, Science and Technology Facilities Council.
+   Copyright (c) 2020-2024, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -61,13 +61,61 @@ used with ``RoutineSymbols`` when the corresponding routine has no
 return type (such as Fortran subroutines).
 
 There are two other types that are used in situations where the full
-type information is not currently available: ``UnknownType`` means
+type information is not currently available: ``UnsupportedType`` means
 that the type-declaration is not supported by the PSyIR (or the PSyIR
-frontend) and ``DeferredType`` means that the type of a particular
-symbol has not yet been resolved. Since ``UnknownType`` captures the
+frontend) and ``UnresolvedType`` means that the type of a particular
+symbol has not yet been resolved. Since ``UnsupportedType`` captures the
 original, unsupported symbol declaration, it is subclassed for each
 language for which a PSyIR frontend exists. Currently therefore this
-is limited to ``UnknownFortranType``.
+is limited to ``UnsupportedFortranType``.
+
+The support for Fortran declaration constructs in the ``fparser2``
+frontend is summarised in the following table (any attributes not
+explicitly listed may be assumed to be unsupported):
+
+.. tabularcolumns:: |l|L|L|
+
++----------------------+--------------------+--------------------+
+|                      |Supported           |Unsupported         |
++======================+====================+====================+
+|Variables             |ALLOCATABLE         |CLASS               |
++----------------------+--------------------+--------------------+
+|                      |CHARACTER, DOUBLE   |COMPLEX, CHARACTER  |
+|                      |PRECISION, INTEGER, |with LEN or KIND    |
+|                      |LOGICAL, REAL       |                    |
++----------------------+--------------------+--------------------+
+|                      |Derived Types       |'extends',          |
+|                      |                    |'abstract' or with  |
+|                      |                    |CONTAINS; Operator  |
+|                      |                    |overloading         |
++----------------------+--------------------+--------------------+
+|                      |DIMENSION           |Array extents       |
+|                      |                    |specified using     |
+|                      |                    |expressions;        |
+|                      |                    |Assumed-size arrays |
++----------------------+--------------------+--------------------+
+|                      |Initialisation      |                    |
+|                      |expressions         |                    |
++----------------------+--------------------+--------------------+
+|                      |INTENT, PARAMETER,  |VOLATILE, VALUE,    |
+|                      |SAVE                |POINTER             |
++----------------------+--------------------+--------------------+
+|                      |KIND=param, REAL*8  |                    |
+|                      |etc.                |                    |
++----------------------+--------------------+--------------------+
+|                      |PUBLIC, PRIVATE     |                    |
++----------------------+--------------------+--------------------+
+|Imports/globals       |USE with ONLY and   |User-defined        |
+|                      |renaming            |operators           |
+|                      |                    |                    |
++----------------------+--------------------+--------------------+
+|                      |Common blocks       |                    |
+|                      |(limited)           |                    |
++----------------------+--------------------+--------------------+
+|Routine Interfaces    |PURE, IMPURE,       |CONTAINS            |
+|                      |ELEMENTAL, PUBLIC,  |                    |
+|                      |PRIVATE             |                    |
++----------------------+--------------------+--------------------+
 
 .. warning:: Checking for equality between Type objects is currently
 	     only implemented for ``ScalarType``. This will be
@@ -175,7 +223,7 @@ optional argument. This would probably require a separate `setter` and
 Specialising Symbols
 ====================
 
-When code is translated into PSyIR there may be symbols with unknown
+When code is translated into PSyIR there may be symbols with unresolved
 types, perhaps due to symbols being declared in different files. For
 example, in the following declaration it is not possible to know the
 type of symbol `fred` without knowing the contents of the `my_module`
@@ -268,23 +316,25 @@ INTERFACE` where `generic-spec` is either (`R1207`) a `generic-name`
 or one of `OPERATOR`, `ASSIGNMENT` or `dtio-spec` (see
 ``https://wg5-fortran.org/N1601-N1650/N1601.pdf``).
 
-The PSyIR captures all forms of Fortran interface but is not able to
-reason about the content of the interface as the text for this is
-stored as an `UnknownFortranType`.
+Interfaces with a `generic-name` used to overload a procedure, e.g.
 
-If the interface has a generic name and `generic-name` is not already
-declared as a PSyIR symbol then the interface is captured as a
-`RoutineSymbol` named as `generic-name`. The `generic-name` may
-already be declared as a PSyIR symbol if it references a type
-declaration or the interface may not have a name. In these two cases
-the interface is still captured as a `RoutineSymbol`, but the root
-name of the `RoutineSymbol` is `_psyclone_internal_<generic-name>`, or
+.. code-block:: fortran
+
+    interface dot_prod
+      module procedure :: dot_prod_r4, dot_prod_r8
+    end interface dot_prod
+
+are captured in the PSyIR as symbols of `GenericInterfaceSymbol` type (a
+sub-class of `RoutineSymbol`), provided that `generic-name` is not already
+declared as a PSyIR symbol (as can happen for a constructor of a derived type).
+If `generic-name` is not present or is already declared then the interface is
+captured instead as a `RoutineSymbol`, but the root
+name of this symbol is `_psyclone_internal_<generic-name>`, or
 `_psyclone_internal_interface` respectively, i.e. it is given an
 internal PSyclone name. The root name should not clash with any other
 symbol names as names should not start with `_`, but providing a root
 name ensures that unique names are used in any case.
-
-As interfaces are captured as text in an `UnknownFortranType` the
-`RoutineSymbol` name is not used in the Fortran backend, the text
-stored in `UnknownFortranType` is simply output.
+As such interfaces are captured as text in an `UnsupportedFortranType` the
+`RoutineSymbol` name is not used in the Fortran backend; the text
+stored in the `UnsupportedFortranType` is simply output.
 

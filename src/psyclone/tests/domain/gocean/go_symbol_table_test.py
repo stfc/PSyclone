@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOSymbolTable
 from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, REAL_TYPE, DeferredType,
+    DataSymbol, INTEGER_TYPE, REAL_TYPE, UnresolvedType,
     ArgumentInterface, SymbolTable, Symbol)
 
 
@@ -61,11 +61,11 @@ def test_gosymboltable_conformity_check():
     symbol_table.specify_argument_list([i_var, j_var])
     # Set the datatype of the first datasymbol to have an invalid type
     # in order to raise the required exception.
-    symbol_table._argument_list[0].datatype = DeferredType()
+    symbol_table._argument_list[0].datatype = UnresolvedType()
     with pytest.raises(GenerationError) as excinfo:
         symbol_table._check_gocean_conformity()
     assert ("GOcean API kernels first argument should be a scalar integer "
-            "but got 'DeferredType'." in str(excinfo.value))
+            "but got 'UnresolvedType'." in str(excinfo.value))
 
 
 def test_gosymboltable_properties():
