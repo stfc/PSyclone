@@ -2605,7 +2605,8 @@ class ACCDataTrans(RegionTrans):
     >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import ACCKernelsTrans, ACCDataTrans
+    >>> from psyclone.transformations import ACCDataTrans
+    >>> from psyclone.psyir.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()
     >>> dtrans = ACCDataTrans()
     >>>
@@ -2893,7 +2894,6 @@ class KernelImportsToArguments(Transformation):
 __all__ = [
    "ACCEnterDataTrans",
    "ACCDataTrans",
-   "ACCKernelsTrans",
    "ACCLoopTrans",
    "ACCParallelTrans",
    "ACCRoutineTrans",
