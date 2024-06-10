@@ -2542,10 +2542,15 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         in the supplied Routine.
 
         :param node: the kernel call or routine implementation to transform.
-        :type node: :py:class:`psyclone.psyGen.Kern` or \
+        :type node: :py:class:`psyclone.psyGen.Kern` |
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether to allow routines with
+            CodeBlocks to run on the GPU.
+        :param str options["parallelism"]: the level of parallelism that the
+            target routine (or a callee) exposes. One of "seq" (the default),
+            "vector", "worker" or "gang".
 
         '''
         # Check that we can safely apply this transformation
@@ -2564,7 +2569,10 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         for child in routine.children:
             if isinstance(child, ACCRoutineDirective):
                 return  # The routine is already marked with ACCRoutine
-        routine.children.insert(0, ACCRoutineDirective())
+
+        para = options.get("parallelism", None) if options else None
+
+        routine.children.insert(0, ACCRoutineDirective(parallelism=para))
 
     def validate(self, node, options=None):
         '''
@@ -2582,15 +2590,26 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
         :raises TransformationError: if it is a kernel but without an
-                                     associated PSyIR.
+            associated PSyIR.
         :raises TransformationError: if any of the symbols in the kernel are
-                                     accessed via a module use statement.
+            accessed via a module use statement.
         :raises TransformationError: if the kernel contains any calls to other
-                                     routines.
+            routines.
+        :raises TransformationError: if the 'parallelism' option is supplied
+            but is not a recognised level of parallelism.
+
         '''
         super().validate(node, options)
 
         self.validate_it_can_run_on_gpu(node, options)
+
+        if options and "parallelism" in options:
+            para = options["parallelism"]
+            if para not in ACCRoutineDirective.SUPPORTED_PARALLELISM:
+                raise TransformationError(
+                    f"{self.__name__}: '{para}' is not a supported level of "
+                    f"parallelism. Should be one of "
+                    f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
 
 
 class ACCKernelsTrans(RegionTrans):

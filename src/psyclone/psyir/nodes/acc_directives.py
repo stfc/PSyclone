@@ -151,7 +151,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         "gang", "worker", "vector", "seq". Defaults to "seq".
 
     '''
-    _PARALLELISM_LEVELS = ["seq", "vector", "worker", "gang"]
+    SUPPORTED_PARALLELISM = ["seq", "vector", "worker", "gang"]
 
     def __init__(self, parallelism=None, **kwargs):
         self.parallelism = parallelism
@@ -178,10 +178,10 @@ class ACCRoutineDirective(ACCStandaloneDirective):
             raise TypeError(
                 f"Expected a str to specify the level of parallelism but got "
                 f"'{type(value).__name__}'")
-        if value.lower() not in self._PARALLELISM_LEVELS:
+        if value.lower() not in self.SUPPORTED_PARALLELISM:
             raise ValueError(
-                f"Expected one of {self._PARALLELISM_LEVELS} for the level of "
-                f"parallelism but got '{value}'")
+                f"Expected one of {self.SUPPORTED_PARALLELISM} for the level "
+                f"of parallelism but got '{value}'")
         self._parallelism = value.lower()
 
     def gen_code(self, parent):
