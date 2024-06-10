@@ -41,7 +41,6 @@
 import re
 
 from psyclone import psyGen
-from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.psyir.nodes import (
     ACCKernelsDirective, Assignment, CodeBlock, IntrinsicCall, Literal,
     Loop, PSyDataNode, Reference, Return, Statement, WhileLoop)
@@ -144,6 +143,8 @@ class ACCKernelsTrans(RegionTrans):
         node_list = self.get_node_list(nodes)
 
         # Check that the front-end is valid
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.gocean1p0 import GOInvokeSchedule
         if node_list[0].ancestor(GOInvokeSchedule):
             raise NotImplementedError(
                 "OpenACC kernels regions are not currently supported for "

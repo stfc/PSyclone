@@ -65,8 +65,8 @@ from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
     IfBlock, ArrayReference, Assignment, BinaryOperation, Loop,
     Literal, Call, ACCLoopDirective)
-from psyclone.psyir.transformations import (TransformationError, ProfileTrans,
-                                            ACCUpdateTrans)
+from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
+                                            TransformationError, ProfileTrans)
 from psyclone.transformations import ACCEnterDataTrans
 
 # Set up some loop_type inference rules in order to reference useful domain
@@ -79,7 +79,7 @@ Loop.set_loop_type_inference_rules({
 })
 
 # Get the PSyclone transformations we will use
-ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
+ACC_KERN_TRANS = ACCKernelsTrans()
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
 ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
 ACC_EDATA_TRANS = ACCEnterDataTrans()
