@@ -38,7 +38,7 @@ def some_function(filename, kernel_path, node=None):
     For example:
 
     >>> from psyclone.generator import generate
-    >>> API="gocean1.0"
+    >>> API="gocean"
     >>> alg, psy = generate(SOURCE_FILE, api=API)
     >>> alg, psy = generate(SOURCE_FILE, api=API, kernel_paths=[KERNEL_PATH])
 

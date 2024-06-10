@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2024, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,49 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
+# Authors: S. Siso, STFC Daresbury Lab
 
-'''
-This module provides a class with all GOcean related constants.
-'''
+'''Provides fixtures for the adjoint tests.'''
 
-# Imports
-from __future__ import print_function, absolute_import
-
+import pytest
 from psyclone.configuration import Config
+from psyclone.domain.lfric import LFRicConstants
 
 
-# pylint: disable=too-few-public-methods
-class NemoConstants():
-    '''This class stores all Nemo constants.
-    It stores all values in class variables (to avoid re-evaluating them).
-    At this stage it only contains the variables that might be used in
-    psyGen.
-    # TODO #1223 - Add more constants into this object (if required).
-    '''
-
-    HAS_BEEN_INITIALISED = False
-
-    def __init__(self):
-        if NemoConstants.HAS_BEEN_INITIALISED:
-            return
-
-        NemoConstants.HAS_BEEN_INITIALISED = True
-
-        # Valid intrinsic types of kernel argument data, used in psyGen.
-        NemoConstants.VALID_INTRINSIC_TYPES = []
-
-        # psyGen argument types
-        NemoConstants.VALID_ARG_TYPE_NAMES = []
-
-        # psyGen names of internal scalar argument types.
-        NemoConstants.VALID_SCALAR_NAMES = ["rscalar", "iscalar"]
-
-        config = Config.get().api_conf("nemo")
-        NemoConstants.VALID_LOOP_TYPES = config.get_valid_loop_types()
+@pytest.fixture(name="type_map", scope="module")
+def lfric_consts_fixture():
+    '''pytest fixture that returns the DATA_TYPE_MAP from LFRicConstants.'''
+    return LFRicConstants().DATA_TYPE_MAP
 
 
-# =============================================================================
-# Documentation utils: The list of module members that we wish AutoAPI to
-# generate documentation for (see https://psyclone-ref.readthedocs.io).
-__all__ = ['NemoConstants']
+@pytest.fixture(scope="function", autouse=True)
+def fixture_lfric_config():
+    '''All tests here should use the lfric API config.'''
+    Config.get().api = "lfric"

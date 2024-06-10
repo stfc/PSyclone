@@ -63,8 +63,8 @@ def setup():
     the tests.'''
 
     Config._instance = None
-    filepath = get_base_path("gocean1.0")
-    Config.get().api = "gocean1.0"
+    filepath = get_base_path("gocean")
+    Config.get().api = "gocean"
     Config.get()._include_paths = [filepath]
     yield
     # At the end of every tests make sure that we wipe the Config object
@@ -74,7 +74,7 @@ def setup():
 
 
 # PSyclone API under test
-API = "gocean1.0"
+API = "gocean"
 
 
 # ----------------------------------------------------------------------------
@@ -114,7 +114,7 @@ def test_validate_unsupported_api():
     # instance to None we force it to be re-initialised with the API specified
     # in the call to get_invoke().
     Config._instance = None
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric",
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
     trans = GOOpenCLTrans()
@@ -160,7 +160,7 @@ def test_invoke_use_stmts_and_decls(kernel_outputdir, monkeypatch, debug_mode,
                                     fortran_writer):
     ''' Test that generating code for OpenCL results in the correct
     module use statements and declarations. '''
-    api_config = Config.get().api_conf("gocean1.0")
+    api_config = Config.get().api_conf("gocean")
     monkeypatch.setattr(api_config, "_debug_mode", debug_mode)
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -679,7 +679,7 @@ def test_psy_init_with_options(kernel_outputdir):
 def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
     ''' Check that the Invoke OpenCL produce the expected kernel enqueue
     statement to launch OpenCL kernels. '''
-    api_config = Config.get().api_conf("gocean1.0")
+    api_config = Config.get().api_conf("gocean")
     monkeypatch.setattr(api_config, "_debug_mode", debug_mode)
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -1289,5 +1289,5 @@ def test_opencl_kernel_with_use():
     with pytest.raises(TransformationError) as err:
         otrans.apply(sched)
     assert ("'kernel_with_use_code' contains the following symbols with "
-            "'global' scope: ['rdt']. An OpenCL kernel cannot call other "
-            "kernels and all of the data" in str(err.value))
+            "'global' scope: ['rdt', 'magic']. An OpenCL kernel cannot call "
+            "other kernels and all of the data" in str(err.value))

@@ -63,7 +63,7 @@ performance but are not yet supported as transformations in PSyclone.
 
 This script can be applied via the '-s' option when running PSyclone:
 
-$ psyclone -s ./matvec_opt.py \
+$ psyclone -api lfric -s ./matvec_opt.py \
 ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
 -oalg /dev/null -opsy /dev/null
 

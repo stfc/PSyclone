@@ -39,10 +39,9 @@
 from __future__ import print_function, absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone import nemo
 from psyclone.errors import GenerationError
 from psyclone.psyGen import TransInfo, PSyFactory
-from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective
+from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, Loop
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans
@@ -52,11 +51,16 @@ API = "nemo"
 
 
 def test_omp_explicit_gen():
-    ''' Check code generation for a single explicit loop containing
-    a kernel. '''
+    ''' Check code generation for a single explicit loop referenced by
+    loop type as it may be done for the NEMO application. '''
     psy, invoke_info = get_invoke("explicit_do.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     omp_trans = TransInfo().get_trans_name('OMPParallelLoopTrans')
+    Loop.set_loop_type_inference_rules({
+            "lon": {"variable": "ji"},
+            "lat": {"variable": "jj"},
+            "levels": {"variable": "jk"}
+    })
 
     for loop in schedule.loops():
         if loop.loop_type == "levels":
@@ -224,7 +228,7 @@ def test_omp_do_within_if():
     psy, invoke_info = get_invoke("imperfect_nest.f90", api=API, idx=0)
     schedule = invoke_info.schedule
     loop = schedule[0].loop_body[1].else_body[0].else_body[0]
-    assert isinstance(loop, nemo.NemoLoop)
+    assert isinstance(loop, Loop)
     # Apply the transformation to a loop within an else clause
     otrans.apply(loop)
     gen = str(psy.gen).lower()

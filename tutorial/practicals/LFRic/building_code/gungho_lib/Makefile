@@ -53,7 +53,7 @@ PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
 GHLIB_SRC = $(wildcard *.F90) $(wildcard *.f90)
 
 # PSyclone command-line options
-PSYCLONE_CMD = -nodm -l all
+PSYCLONE_CMD = -api lfric -nodm -l all
 
 # Object rules
 ALGORITHM_OBJ = $(filter %.o,$(ALGORITHM_SRC:.f90=.o))

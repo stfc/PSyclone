@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import (
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def check_psyir_results(create_arg_list, fortran_writer, valid_classes=None):

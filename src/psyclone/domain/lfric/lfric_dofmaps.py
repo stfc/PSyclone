@@ -205,7 +205,7 @@ class LFRicDofmaps(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # Function space dofmaps
         decl_map_names = \
@@ -240,7 +240,7 @@ class LFRicDofmaps(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
