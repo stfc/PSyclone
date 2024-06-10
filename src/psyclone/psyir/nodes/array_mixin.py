@@ -87,19 +87,22 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
     def index_of(self, node):
         '''
-        If the given node is one of the indices expressions of the array,
-        it returns the dimension of the array that it belongs to. Note that
-        this is different to `node.position` because ArraysOfStructures have
-        a member children, and it is different from `array.indices.index(node)`
-        because that would use the equality operator, but sibiling indices may
-        be equal and provide unexpected results.
+        If the given node is one of the index expressions of the array, it
+        returns the zero-indexed dimension of the array that it belongs to.
+        Note that this is different to `node.position` because
+        ArraysOfStructures have a Member child, and it is different from
+        `array.indices.index(node)` because that would use the equality
+        operator, but sibling indices may be equal and provide unexpected
+        results.
 
-        :param node: the node to get the index of
+        :param node: the node to get the index of.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
+
         :returns: the index of the given node in the array.
         :rtype: int
 
         :raises ValueError: if node is not an index of the array.
+
         '''
         if node.parent is self:
             return node.position
@@ -728,7 +731,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # and therefore, we assume the length of the equivalent ranges in the
         # same statement matches:
         # e.g. a(3, :) and b(4:, 4)
-        # a dim 2 and b dim 1 must have the same length, but not necessarely
+        # a dim 2 and b dim 1 must have the same length, but not necessarily
         # the same range (lower and upper bounds)
         n_range1 = len([x for x in self.children[:index]
                         if isinstance(x, Range)])

@@ -45,21 +45,21 @@ from psyclone.errors import InternalError
 class StructureAccessorMixin(metaclass=abc.ABCMeta):
     '''
     Abstract class used to add functionality common to Nodes that represent
-    Structure accesses. This all have a "member" child at position 0.
+    Structure accesses. These all have a "member" child at position 0.
 
     '''
     @property
     def member(self):
         '''
-        :returns: the member of the structure that this reference is to.
+        :returns: the PSyIR child representing the accessor component.
         :rtype: :py:class:`psyclone.psyir.nodes.Member`
 
-        :raises InternalError: if the first child of this node is not an \
+        :raises InternalError: if the first child of this node is not an
                                instance of Member.
         '''
         if not self.children or not isinstance(self.children[0], Member):
             raise InternalError(
                 f"{type(self).__name__} malformed or incomplete. It must have "
-                f"a single child that must be a (sub-class of) Member, but "
+                f"a first child that must be a (sub-class of) Member, but "
                 f"found: {self.children}")
         return self.children[0]

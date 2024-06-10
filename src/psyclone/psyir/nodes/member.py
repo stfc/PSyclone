@@ -129,19 +129,19 @@ class Member(Node):
     def get_signature_and_indices(self):
         '''
         :returns: the Signature of this member access, and a list of list of
-        the indices used for each component, which is empty in this case since
-        it is not an array access.
+            the indices used for each component, which is empty in this case
+            since it is not an array access.
         :rtype: tuple[:py:class:`psyclone.core.Signature`, List[List[int]]]
         '''
         return (Signature(self.name), [[]])
 
     def get_base_and_depth(self):
         '''
-        :returns: the base Reference that starts the tree where this Member
-        belongs to, and the depth where this member is found.
-        :rtype: tuple[Optional[ \
-                        :py:class:`psyclone.psyir.node.StructureReference`], \
-                      int]
+        :returns: the base Reference that contains this member and the depth
+            where this member is found.
+        :rtype: tuple[\
+            Optional[:py:class:`psyclone.psyir.node.StructureReference`], \
+            int]
         '''
         depth = 1
         current = self

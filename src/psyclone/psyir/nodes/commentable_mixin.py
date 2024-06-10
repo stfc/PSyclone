@@ -72,7 +72,7 @@ class CommentableMixin:
     def append_preceding_comment(self, comment):
         '''
         :param str comment: comment to append after an newline in this
-            statement preceding comment.
+            statement-preceding comment.
         '''
         if not isinstance(comment, str):
             raise TypeError(f"The preceding_comment must be a string but"

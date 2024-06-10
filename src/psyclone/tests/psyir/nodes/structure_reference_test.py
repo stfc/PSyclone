@@ -224,7 +224,7 @@ def test_struc_ref_semantic_nav():
     with pytest.raises(InternalError) as err:
         _ = sref.member
     assert ("StructureReference malformed or incomplete. It must have a "
-            "single child that must be a (sub-class of) Member, but "
+            "first child that must be a (sub-class of) Member, but "
             "found: ['broken']" in str(err.value))
 
 

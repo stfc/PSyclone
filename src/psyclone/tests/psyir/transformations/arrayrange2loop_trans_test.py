@@ -467,9 +467,9 @@ def test_character_validation(fortran_reader):
 
 
 def test_validate_nested_or_invalid_expressions(fortran_reader):
-    ''' Check that we refuse to up apply the transformation when
-    there is more than one array with ranges in a single term, due to
-    psyir representing invalid Fortran, or indirect mappings.'''
+    ''' Check that we refuse to apply the transformation when there is more
+    than one array with ranges in a single term, due to psyir representing
+    invalid Fortran, or indirect mappings.'''
     trans = ArrayRange2LoopTrans()
 
     # Case 1: 2 array accessors in LHS and both have ranges
@@ -549,8 +549,8 @@ def test_validate_with_codeblock(fortran_reader):
 
 def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
     ''' If the RHS has a plain symbol reference, we need to know its type
-    because if its scalar, the value can be re-used for each iteration of
-    the loop, but if its an array, it has to be accessed properly. Therefore
+    because if it's scalar, the value can be re-used for each iteration of
+    the loop, but if it's an array, it has to be accessed properly. Therefore
     we can not transform loops with Unresolved or Unsupported types.
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -604,7 +604,6 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
             in str(info.value))
 
     # The end result should look like:
-    print(fortran_writer(psyir))
     assert (
         "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
         "    x(idx) = scalar\n"

@@ -345,34 +345,36 @@ class ArrayType(DataType):
     specified as a DataTypeSymbol (see #1031).
 
     :param datatype: the datatype of the array elements.
-    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` or \
-        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-    :param list shape: shape of the symbol in column-major order (leftmost \
-        index is contiguous in memory). Each entry represents an array \
-        dimension. If it is ArrayType.Extent.ATTRIBUTE the extent of that \
-        dimension is unknown but can be obtained by querying the run-time \
-        system (e.g. using the SIZE intrinsic in Fortran). If it is \
-        ArrayType.Extent.DEFERRED then the extent is also unknown and may or \
-        may not be defined at run-time (e.g. the array is ALLOCATABLE in \
-        Fortran). Otherwise it can be an int or a DataNode (that returns an \
-        int) or a 2-tuple of such quantities. If only a single value is \
-        provided then that is taken to be the upper bound and the lower bound \
-        defaults to 1. If a 2-tuple is provided then the two members specify \
-        the lower and upper bounds, respectively, of the current dimension. \
-        Note that providing an int is supported as a convenience, the provided\
+    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` |\
+                    :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+    :param list shape: shape of the symbol in column-major order (leftmost
+        index is contiguous in memory). Each entry represents an array
+        dimension. If it is ArrayType.Extent.ATTRIBUTE the extent of that
+        dimension is unknown but the lower bound is 1 and the extent can be
+        obtained by querying the appropriate intrinsic (e.g. using the SIZE
+        intrinsic in Fortran). If it is ArrayType.Extent.DEFERRED then the
+        extent and bounds are all unknown and may or may not be possible to
+        query them using intrinsics (e.g. the array is ALLOCATABLE in Fortran).
+        Otherwise it can be an int or a DataNode (that returns an
+        int) or a 2-tuple of such quantities. If only a single value is
+        provided then that is taken to be the upper bound and the lower bound
+        defaults to 1. If a 2-tuple is provided then the two members specify
+        the lower and upper bounds, respectively, of the current dimension.
+        Note that providing an int is supported as a convenience, the provided
         value will be stored internally as a Literal node.
 
     :raises TypeError: if the arguments are of the wrong type.
-    :raises NotImplementedError: if a structure type does not have a \
+    :raises NotImplementedError: if a structure type does not have a
                                  DataTypeSymbol as its type.
     '''
     class Extent(Enum):
         '''
         Enumeration of array shape extents that are unspecified at compile
-        time. When the extent must exist and is accessible via the run-time
-        system it is an 'ATTRIBUTE'. When it may or may not be defined in the
-        current scope (e.g. the array may need to be allocated/malloc'd) it
-        is 'DEFERRED'.
+        time. An 'ATTRIBUTE' extent means that the lower bound is 1, but the
+        extent is unknown but can be retrived with appropriate run-time
+        intrinsics. A 'DEFERRED' extent means that we don't know anything
+        about the bounds, and run-times intrinsics may or may not be able
+        to retrieve them (e.g. the array may need to be allocated/malloc'd).
 
         '''
         DEFERRED = 1
@@ -479,7 +481,7 @@ class ArrayType(DataType):
     def intrinsic(self):
         '''
         :returns: the intrinsic type of each element in the array.
-        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` or \
+        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` |\
                 :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._intrinsic
@@ -504,11 +506,11 @@ class ArrayType(DataType):
             system (e.g. using the SIZE intrinsic in Fortran). If it is
             ArrayType.Extent.DEFERRED then the extent is also unknown and may
             or may not be defined at run-time (e.g. the array is ALLOCATABLE
-            in Fortran). Otherwise an entry is an ArrayBounds namedtupe with
+            in Fortran). Otherwise an entry is an ArrayBounds namedtuple with
             lower and upper components.
 
-        :rtype: list[ArrayType.Extent.ATTRIBUTE | \
-                     ArrayType.Extent.DEFERRED | \
+        :rtype: list[ArrayType.Extent.ATTRIBUTE |
+                     ArrayType.Extent.DEFERRED |
                      :py:class:`psyclone.psyir.nodes.ArrayType.ArrayBounds`].
 
         '''
