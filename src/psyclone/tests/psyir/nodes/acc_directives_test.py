@@ -424,25 +424,32 @@ def test_acc_routine_directive_constructor_and_strings():
     target.gen_code(temporary_module)
     assert "!$acc routine seq\n" in str(temporary_module.root)
 
-    target2 = ACCRoutineDirective(vector=True)
-    assert target2._parallelism_clause == "vector"
+    target2 = ACCRoutineDirective("VECTOR")
+    assert target2.parallelism == "vector"
     assert target2.begin_string() == "acc routine vector"
-    target3 = ACCRoutineDirective(gang=True)
-    assert target3._parallelism_clause == "gang"
-    target4 = ACCRoutineDirective(worker=True)
-    assert target4._parallelism_clause == "worker"
+    target3 = ACCRoutineDirective("GANG")
+    assert target3.parallelism == "gang"
+    target4 = ACCRoutineDirective("WORKER")
+    assert target4.parallelism == "worker"
 
-    with pytest.raises(ValueError) as err:
-        ACCRoutineDirective(vector=True, gang=True)
-    assert ("ACCRoutineDirective: only one of 'gang', 'worker' or 'vector' "
-            "may be specified" in str(err.value))
-    with pytest.raises(ValueError) as err:
-        ACCRoutineDirective(worker=True, gang=True)
-    assert ("ACCRoutineDirective: only one of 'gang', 'worker' or 'vector' "
-            "may be specified" in str(err.value))
 
+def test_acc_routine_parallelism():
+    ''' Test the ACCRoutineDirective parallelism property. '''
+    target = ACCRoutineDirective()
+    assert target.parallelism == "seq"
+    target.parallelism = "vector"
+    assert target.parallelism == "vector"
+    with pytest.raises(TypeError) as err:
+        target.parallelism = 1
+    assert ("Expected a str to specify the level of parallelism but got 'int'"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        target.parallelism = "sequential"
+    assert ("Expected one of ['seq', 'vector', 'worker', 'gang'] for the level"
+            " of parallelism but got 'sequential'" in str(err.value))
 
 # Class ACCUpdateDirective
+
 
 def test_accupdatedirective_init():
     ''' Test the constructor of ACCUpdateDirective node. '''

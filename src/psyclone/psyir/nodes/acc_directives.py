@@ -147,42 +147,42 @@ class ACCRoutineDirective(ACCStandaloneDirective):
     '''
     Class representing an "ACC routine" OpenACC directive in PSyIR.
 
-    :param bool gang: whether the routine contains a gang-parallel loop (or
-                      calls another routine that does).
-    :param bool worker: whether the routine contains a worker-parallel loop (or
-                        calls another routine that does).
-    :param bool vector: whether the routine contains a vector-parallel loop (or
-                        calls another routine that does).
+    :param str parallelism: the level of parallelism in the routine, one of
+        "gang", "worker", "vector", "seq". Defaults to "seq".
 
-    :raises ValueError: if more than one of `gang`, `vector` or `worker` are
-                        specified as True.
     '''
+    _PARALLELISM_LEVELS = ["seq", "vector", "worker", "gang"]
 
-    def __init__(self, gang=False, worker=False, vector=False, **kwargs):
-        self._gang = gang
-        self._worker = worker
-        self._vector = vector
-        if any([gang and worker, gang and vector, vector and worker]):
-            raise ValueError("ACCRoutineDirective: only one of 'gang', "
-                             "'worker' or 'vector' may be specified.")
+    def __init__(self, parallelism=None, **kwargs):
+        self.parallelism = parallelism
+
         super().__init__(self, **kwargs)
 
     @property
-    def _parallelism_clause(self):
+    def parallelism(self):
         '''
         :returns: the clause describing the level of parallelism within this
                   routine (or a called one).
         :rtype: str
+
         '''
-        if self._gang:
-            suffix = "gang"
-        elif self._worker:
-            suffix = "worker"
-        elif self._vector:
-            suffix = "vector"
-        else:
-            suffix = "seq"
-        return suffix
+        return self._parallelism
+
+    @parallelism.setter
+    def parallelism(self, value):
+        if value is None:
+            # Default to sequential.
+            self._parallelism = "seq"
+            return
+        if not isinstance(value, str):
+            raise TypeError(
+                f"Expected a str to specify the level of parallelism but got "
+                f"'{type(value).__name__}'")
+        if value.lower() not in self._PARALLELISM_LEVELS:
+            raise ValueError(
+                f"Expected one of {self._PARALLELISM_LEVELS} for the level of "
+                f"parallelism but got '{value}'")
+        self._parallelism = value.lower()
 
     def gen_code(self, parent):
         '''Generate the Fortran ACC Routine Directive and any associated code.
@@ -196,7 +196,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
 
         # Generate the code for this Directive
         parent.add(DirectiveGen(parent, "acc", "begin", "routine",
-                                f"{self._parallelism_clause}"))
+                                f"{self.parallelism}"))
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -207,7 +207,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        return f"acc routine {self._parallelism_clause}"
+        return f"acc routine {self.parallelism}"
 
 
 class ACCEnterDataDirective(ACCStandaloneDirective):
