@@ -47,7 +47,7 @@ from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, UnresolvedType)
 from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
     TransformationError
-# from psyclone.tests.utilities import Compile
+from psyclone.tests.utilities import Compile
 
 
 def test_str():
@@ -59,31 +59,23 @@ def test_str():
             "array Range into a PSyIR Loop.")
 
 
-def test_name():
-    '''Check that the name property of the ArrayRange2LoopTrans class
-    returns the expected value.
-
-    '''
-    assert ArrayRange2LoopTrans().name == "ArrayRange2LoopTrans"
-
-
 @pytest.mark.parametrize(
         "code, expected",
 
         # Scalar RHS
-        [("integer, dimension(:) :: x\n"
+        [("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = 0.0",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = 0.0\n"),
 
          # Array LHS and RHS
-         ("integer, dimension(:) :: x, y\n"
+         ("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = y(:)\n",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = y(idx)\n"),
 
          # Multi-dimensional array LHS and RHS
-         ("integer, dimension(:,:,:) :: x, y\n"
+         ("integer, dimension(:,:,:) :: x, y, z, t\n"
           "x(:,:,:) = y(:,:,:)\n",
           "  do idx = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
           "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
@@ -97,31 +89,31 @@ def test_name():
           "    x(idx) = y(idx) + z(idx) * t(idx)\n"),
 
          # Argument of elemental functions are expanded
-         ("integer, dimension(:) :: x, y, z\n"
+         ("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = max(y(:), z(:))\n",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = MAX(y(idx), z(idx))\n"),
 
          # Argument of inquiry functions are NOT expanded
-         ("integer, dimension(:) :: x, y\n"
+         ("integer, dimension(:) :: x, y, z, t\n"
           "x(:) = y + size(y)\n",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = y(idx) + SIZE(y)\n"),
 
          # Mix different array ranks with fixed indices
-         ("integer, dimension(:) :: x\n"
+         ("integer, dimension(:) :: x, z, t\n"
           "integer, dimension(:,:) :: y\n"
           "x(:) = y(n,:)\n",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = y(n,idx)\n"),
 
-         ("integer, dimension(:,:) :: x\n"
+         ("integer, dimension(:,:) :: x, z, t\n"
           "integer, dimension(:) :: y\n"
           "x(n,:) = y(:)\n",
           "  do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
           "    x(n,idx) = y(idx)\n"),
 
-         ("integer, dimension(:,:) :: x\n"
+         ("integer, dimension(:,:) :: x, z, t\n"
           "integer, dimension(:,:,:) :: y\n"
           "x(:,:)=y(:,n,:)\n",
           "  do idx = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
@@ -130,33 +122,33 @@ def test_name():
 
          # Same rank but different range locations
          ("integer, parameter :: jpi=2, jpj=4, jpk=6, jpt=9, ndim=10\n"
-          "real, dimension(jpi,jpj,jpk,jpt,ndim) :: umask, vmask\n"
-          "umask(:,jpj,:,ndim,:) = vmask(jpi,:,:,:,ndim) + 1.0\n",
-          "  do idx = LBOUND(umask, dim=5), UBOUND(umask, dim=5), 1\n"
-          "    do idx_1 = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
-          "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
-          "        umask(idx_2,jpj,idx_1,ndim,idx) = vmask(jpi,idx_2,idx_1,"
+          "real, dimension(jpi,jpj,jpk,jpt,ndim) :: x, y, z, t\n"
+          "x(:,jpj,:,ndim,:) = y(jpi,:,:,:,ndim) + 1.0\n",
+          "  do idx = LBOUND(x, dim=5), UBOUND(x, dim=5), 1\n"
+          "    do idx_1 = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
+          "        x(idx_2,jpj,idx_1,ndim,idx) = y(jpi,idx_2,idx_1,"
           "idx,ndim) + 1.0\n"
           "      enddo\n"
           "    enddo\n"
           "  enddo"),
 
          # Explicit slice values
-         ("integer, dimension(:) :: x\n"
+         ("integer, dimension(:) :: x, y, z, t\n"
           "x(2:4) = 0",
           "  do idx = 2, 4, 1\n"
           "    x(idx) = 0\n"),
-         ("integer, dimension(:) :: x\n"
+         ("integer, dimension(:) :: x, y, z, t\n"
           "x(1:1) = 0",
           "  do idx = 1, 1, 1\n"
           "    x(idx) = 0\n"),
-         ("integer, dimension(:) :: x\n"
+         ("integer, dimension(:) :: x, y, z, t\n"
           "x(2:8:4) = 0",
           "  do idx = 2, 8, 4\n"
           "    x(idx) = 0\n"),
 
          # Explicitly declared dimension values (L/UBOUND are correct)
-         ("integer, dimension(2:4) :: x\n"
+         ("integer, dimension(2:4) :: x, y, z, t\n"
           "x(:) = 0",
           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           "    x(idx) = 0\n"),
@@ -169,55 +161,60 @@ def test_name():
           "    x(n,idx) = y(idx) * z(1,idx) + t(1)"),
 
          # SoA in LHS
-         ("mystruct%field2%field(:,:,:) = 0.0d0",
-          "  do idx = LBOUND(mystruct%field2%field, dim=3), "
-          "UBOUND(mystruct%field2%field, dim=3), 1\n"
-          "    do idx_1 = LBOUND(mystruct%field2%field, dim=2), "
-          "UBOUND(mystruct%field2%field, dim=2), 1\n"
-          "      do idx_2 = LBOUND(mystruct%field2%field, dim=1), "
-          "UBOUND(mystruct%field2%field, dim=1), 1\n"
-          "        mystruct%field2%field(idx_2,idx_1,idx) = 0.0d0\n"),
+         ("integer :: x, y, z, t\n"
+          "mystruct%soa%array(:,:,:) = 0.0d0",
+          "  do idx = LBOUND(mystruct%soa%array, dim=3), "
+          "UBOUND(mystruct%soa%array, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%soa%array, dim=2), "
+          "UBOUND(mystruct%soa%array, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%soa%array, dim=1), "
+          "UBOUND(mystruct%soa%array, dim=1), 1\n"
+          "        mystruct%soa%array(idx_2,idx_1,idx) = 0.0d0\n"),
 
          # Array in LHS and SoA in RHS
-         ("umask(:,:,:) = 3 + struct%field2%field(:,:,:)",
-          "  do idx = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
-          "    do idx_1 = LBOUND(umask, dim=2), UBOUND(umask, dim=2), 1\n"
-          "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
+         ("integer, dimension(:,:,:) :: x, y, z, t\n"
+          "x(:,:,:) = 3 + mystruct%soa%array(:,:,:)",
+          "  do idx = LBOUND(x, dim=3), UBOUND(x, dim=3), 1\n"
+          "    do idx_1 = LBOUND(x, dim=2), UBOUND(x, dim=2), 1\n"
+          "      do idx_2 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
           # Ignore offset for this test, it is tested below
-          "        umask(idx_2,idx_1,idx) = 3 + struct%field2%field(idx_2 + "),
+          "        x(idx_2,idx_1,idx) = 3 + mystruct%soa%array(idx_2 + "),
 
          # SoAoS on LHS
-         ("mystruct%field3(:,:,:)%field4 = 0.0d0",
-          "  do idx = LBOUND(mystruct%field3, dim=3), "
-          "UBOUND(mystruct%field3, dim=3), 1\n"
-          "    do idx_1 = LBOUND(mystruct%field3, dim=2), "
-          "UBOUND(mystruct%field3, dim=2), 1\n"
-          "      do idx_2 = LBOUND(mystruct%field3, dim=1), "
-          "UBOUND(mystruct%field3, dim=1), 1\n"
-          "        mystruct%field3(idx_2,idx_1,idx)%field4 = 0.0d0\n"),
+         ("integer :: x, y, z, t\n"
+          "mystruct%aos(:,:,:)%value = 0.0d0",
+          "  do idx = LBOUND(mystruct%aos, dim=3), "
+          "UBOUND(mystruct%aos, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%aos, dim=2), "
+          "UBOUND(mystruct%aos, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%aos, dim=1), "
+          "UBOUND(mystruct%aos, dim=1), 1\n"
+          "        mystruct%aos(idx_2,idx_1,idx)%value = 0.0d0\n"),
 
          # SoAoS in the LHS and SoA in the RHS
-         ("mystruct%field3(:,4,:)%field4 = mystruct%field2%field(3,:,:)",
-          "  do idx = LBOUND(mystruct%field3, dim=3), "
-          "UBOUND(mystruct%field3, dim=3), 1\n"
-          "    do idx_1 = LBOUND(mystruct%field3, dim=1), "
-          "UBOUND(mystruct%field3, dim=1), 1\n"
+         ("integer :: x, y, z, t\n"
+          "mystruct%aos(:,4,:)%value = mystruct%soa%array(3,:,:)",
+          "  do idx = LBOUND(mystruct%aos, dim=3), "
+          "UBOUND(mystruct%aos, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%aos, dim=1), "
+          "UBOUND(mystruct%aos, dim=1), 1\n"
           # Ignore offset for this test, it is tested below
-          "      mystruct%field3(idx_1,4,idx)%field4 = "
-          "mystruct%field2%field(3,idx_1 + "),
+          "      mystruct%aos(idx_1,4,idx)%value = "
+          "mystruct%soa%array(3,idx_1 + "),
 
          # 2 array accessors in each expression but only one has ranges
-         ("mystruct%field2(4, 3)%field(:,:,:) = "
-          "mystruct%field2(5, 8)%field(:,:,:)",
-          "  do idx = LBOUND(mystruct%field2(4,3)%field, dim=3), "
-          "UBOUND(mystruct%field2(4,3)%field, dim=3), 1\n"
-          "    do idx_1 = LBOUND(mystruct%field2(4,3)%field, dim=2), "
-          "UBOUND(mystruct%field2(4,3)%field, dim=2), 1\n"
-          "      do idx_2 = LBOUND(mystruct%field2(4,3)%field, dim=1), "
-          "UBOUND(mystruct%field2(4,3)%field, dim=1), 1\n"
+         ("integer :: x, y, z, t\n"
+          "mystruct%aoa(4, 3)%array(:,:,:) = "
+          "mystruct%aoa(5, 8)%array(:,:,:)",
+          "  do idx = LBOUND(mystruct%aoa(4,3)%array, dim=3), "
+          "UBOUND(mystruct%aoa(4,3)%array, dim=3), 1\n"
+          "    do idx_1 = LBOUND(mystruct%aoa(4,3)%array, dim=2), "
+          "UBOUND(mystruct%aoa(4,3)%array, dim=2), 1\n"
+          "      do idx_2 = LBOUND(mystruct%aoa(4,3)%array, dim=1), "
+          "UBOUND(mystruct%aoa(4,3)%array, dim=1), 1\n"
           # Ignore offset for this test, it is tested below
-          "        mystruct%field2(4,3)%field(idx_2,idx_1,idx) = "
-          "mystruct%field2(5,8)%field(idx_2 +")])
+          "        mystruct%aoa(4,3)%array(idx_2,idx_1,idx) = "
+          "mystruct%aoa(5,8)%array(idx_2 +")])
 def test_apply(code, expected, tmpdir, fortran_reader, fortran_writer):
     '''Check that the PSyIR is transformed as expected for various types
     of ranges in an array. The resultant Fortran code is used to
@@ -225,8 +222,19 @@ def test_apply(code, expected, tmpdir, fortran_reader, fortran_writer):
 
     '''
     psyir = fortran_reader.psyir_from_source(f'''
-        subroutine test()
-          use other_mod
+        subroutine test(x, y, z, t)
+          type aos_type
+             integer :: value
+          end type
+          type soa_type
+             integer, dimension(10,10,10) :: array
+          end type
+          type mytype
+              type(aos_type), dimension(10,10,10) :: aos
+              type(soa_type) :: soa
+              type(soa_type), dimension(10,10) :: aoa
+          end type
+          type(mytype) :: mystruct
           integer :: n
           {code}
         end subroutine test
@@ -236,7 +244,7 @@ def test_apply(code, expected, tmpdir, fortran_reader, fortran_writer):
     trans.apply(assignment)
     result = fortran_writer(psyir)
     assert expected in result, f"\nExpected:\n{expected}\nBut got:\n{result}"
-#     assert Compile(tmpdir).string_compiles(result)
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
@@ -254,7 +262,7 @@ def test_apply_to_arrays_with_different_bounds(fortran_reader, fortran_writer):
           ! Test 2: We know the bounds and they are not equal
           x2(:,:) = y2(:,:)
 
-          ! Test 3: We know the bounds and we have implicit bounds accesses
+          ! Test 3: We know the bounds and we have explicit bounds accesses
           x2(2:4,4:6) = y2(15:17,28:30) + 1.0
 
           ! Test 4: SoA and SoAoS
@@ -392,9 +400,9 @@ def test_validate_different_num_of_ranges(fortran_reader):
     trans = ArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment)
-    assert ("ArrayRange2LoopTrans does not support array with array accessor "
-            "with a different number of ranges in the expression, but found:"
-            in str(info.value))
+    assert ("ArrayRange2LoopTrans does not support statements containing array"
+            " accesses that have varying numbers of ranges in their accessors,"
+            " but found:" in str(info.value))
 
 
 def test_character_validation(fortran_reader):
@@ -457,9 +465,8 @@ def test_character_validation(fortran_reader):
         "by default (use the'allow_string' option to expand them), but found"
         in str(info.value))
 
-    # Check we accept when we find character(LEN=x) syntax as this is an
-    # UnsupportedFortranType
-    # TODO #2441
+    # TODO #2612: We can not identify cases with 'character(LEN=x)' syntax as
+    # this is currently an UnsupportedFortranType
     code = '''subroutine test()
         character(LEN=100) :: a
         character(LEN=100) :: b

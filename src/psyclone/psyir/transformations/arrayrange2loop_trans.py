@@ -92,12 +92,10 @@ class ArrayRange2LoopTrans(Transformation):
     unsupported types to loops.
     '''
     def apply(self, node, options=None):
-        '''Apply the ArrayRange2Loop transformation to the specified node. The
-        node must be an assignment. The rightmost range node in each array
-        within the assignment is replaced with a loop index and the
-        assignment is placed within a loop iterating over that
-        index. The bounds of the loop are determined from the bounds
-        of the array range on the left hand side of the assignment.
+        '''Apply the ArrayRange2Loop transformation to the specified array
+        assignment node. Each range node within the assignment is replaced
+        with an explicit loop. The bounds of the loop are determined from the
+        bounds of the array range on the left hand side of the assignment.
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
@@ -137,6 +135,8 @@ class ArrayRange2LoopTrans(Transformation):
             # Replace one range for each top-level array expression in the
             # assignment
             for expr in reversed(node.walk(ArrayMixin, stop_type=ArrayMixin)):
+                # We use a "for" to capture the value of the last range or
+                # continue if there is none, but we don't iterate all Ranges
                 for range_to_replace in reversed(expr.walk(Range)):
                     array = range_to_replace.parent
                     index = array.index_of(range_to_replace)
@@ -168,15 +168,6 @@ class ArrayRange2LoopTrans(Transformation):
     def __str__(self):
         return ("Convert a PSyIR assignment to an array Range into a "
                 "PSyIR Loop.")
-
-    @property
-    def name(self):
-        '''
-        :returns: the name of the transformation as a string.
-        :rtype: str
-
-        '''
-        return type(self).__name__
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
@@ -252,18 +243,18 @@ class ArrayRange2LoopTrans(Transformation):
                                  if isinstance(x, Range)])
             if num_of_ranges > 0:
                 if not found:
-                    # If its the first value we find, we store it
+                    # If it's the first value we find, we store it
                     found = num_of_ranges
                 else:
-                    # Otherwise we compare it agains the previous found value
+                    # Otherwise we compare it against the previous found value
                     if found != num_of_ranges:
                         raise TransformationError(LazyString(
-                            lambda: f"{self.name} does not support array "
-                            f"with array accessor with a different number of"
-                            f" ranges in the expression, but found:"
+                            lambda: f"{self.name} does not support statements"
+                            f" containing array accesses that have varying "
+                            f"numbers of ranges in their accessors, but found:"
                             f"\n{node.debug_string()}"))
 
-        # Add errors below this point will optionally log the resason, which
+        # Any errors below this point will optionally log the resason, which
         # at the moment means adding a comment in the output code
         verbose = options.get("verbose", False)
 
@@ -326,9 +317,11 @@ class ArrayRange2LoopTrans(Transformation):
                 raise TransformationError(LazyString(
                     lambda: f"{message} in:\n{node.debug_string()}."))
 
+        # For each top-level reference (because we don't support nesting), the
+        # apply will have to be able to decide if its an Array (and access it
+        # with the index) or an Scalar (and leave it as it is). We can not
+        # transform references where this is unclear.
         for reference in node.walk(Reference, stop_type=Reference):
-            # if reference.symbol.name == "myfunc":
-            #     import pdb; pdb.set_trace()
             if isinstance(reference.parent, Call):
                 # The call routine references are fine
                 if reference.parent.routine is reference:
@@ -345,7 +338,7 @@ class ArrayRange2LoopTrans(Transformation):
             # C can not be further expanded into an array because
             # e.g. A%B(:)%C(:) is not valid Fortran
             # Also, if we find explicit array syntax in the inner element,
-            # e.g. A%B%C(3), C doesn't have more dimentions otherwise it would
+            # e.g. A%B%C(3), C doesn't have more dimensions because it would
             # cause a rank mismatch
             if reference.walk(Range):
                 continue
