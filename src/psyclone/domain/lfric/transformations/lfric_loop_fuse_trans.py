@@ -46,14 +46,14 @@ from psyclone.transformations import check_intergrid
 
 
 class LFRicLoopFuseTrans(LoopFuseTrans):
-    ''' Dynamo0.3 API specialisation of the
+    ''' LFRic API specialisation of the
     :py:class:`base class <LoopFuseTrans>` in order to fuse two Dynamo
     loops after performing validity checks. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>>
-    >>> API = "dynamo0.3"
+    >>> API = "lfric"
     >>> FILENAME = "alg.x90"
     >>> ast, invokeInfo = parse(FILENAME, api=API)
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)

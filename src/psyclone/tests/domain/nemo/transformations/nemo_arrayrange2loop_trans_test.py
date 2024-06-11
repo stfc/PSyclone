@@ -41,11 +41,10 @@ import pytest
 
 from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.errors import InternalError
-from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, CodeBlock, BinaryOperation, \
-    Call, Range, Literal
+    Call, Range, Literal, Loop
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ArrayType, \
     UnsupportedType, RoutineSymbol
 from psyclone.psyir.transformations import TransformationError
@@ -92,7 +91,7 @@ def test_apply_bounds(tmpdir):
         "  enddo\n" in result)
     assigns = schedule[0].walk(Assignment)
     assert len(assigns) == 1
-    assert isinstance(assigns[0].parent.parent, NemoLoop)
+    assert isinstance(assigns[0].parent.parent, Loop)
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -494,7 +493,7 @@ def test_str():
 
     '''
     assert (str(NemoArrayRange2LoopTrans()) == "Convert the PSyIR assignment "
-            "for a specified ArrayReference Range into a PSyIR NemoLoop.")
+            "for a specified ArrayReference Range into a PSyIR Loop.")
 
 
 def test_name():

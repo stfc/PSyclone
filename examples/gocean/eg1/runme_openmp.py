@@ -71,7 +71,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 from psyclone.psyir.backend.fortran import FortranWriter
 
-API = "gocean1.0"
+API = "gocean"
 _, INVOKEINFO = parse("shallow_alg.f90", api=API)
 PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
 fwriter = FortranWriter()

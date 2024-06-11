@@ -65,7 +65,7 @@ ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/nemo
 	READ_DIR ?= $(PSYROOT)/lib/extract/netcdf
 	F90FLAGS += $$(nf-config --fflags)
-	LDFLAGS += $$(nf-config --flibs)
+	LDFLAGS += $$(nf-config --flibs) $$(nc-config --libs)
 	GENERATED_FILES += tra_adv-r?.nc
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/nemo

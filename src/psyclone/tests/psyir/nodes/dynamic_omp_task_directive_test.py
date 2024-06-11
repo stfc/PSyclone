@@ -3473,8 +3473,8 @@ def test_lowering_containing_kern_error():
     ''' Test that lowering throws an error when the task region
     contains a Kern child.'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loops = schedule.walk(Loop)

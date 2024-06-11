@@ -71,7 +71,7 @@ class LFRicRunTimeChecks(LFRicCollection):
         :rtype: int
 
         '''
-        if Config.get().api_conf("dynamo0.3").run_time_checks:
+        if Config.get().api_conf("lfric").run_time_checks:
             # Only add if run-time checks are requested
             const = LFRicConstants()
             symtab = self._invoke.schedule.symbol_table
@@ -298,7 +298,7 @@ class LFRicRunTimeChecks(LFRicCollection):
         :rtype: int
 
         '''
-        if not Config.get().api_conf("dynamo0.3").run_time_checks:
+        if not Config.get().api_conf("lfric").run_time_checks:
             # Run-time checks are not requested.
             return cursor
 

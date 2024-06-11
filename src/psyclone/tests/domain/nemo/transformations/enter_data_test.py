@@ -83,10 +83,10 @@ def test_apply_to_explicit_loop(parser, fortran_writer):
     acc_trans.apply(schedule)
     code = fortran_writer(schedule)
     # Check the enter data directive captures all variables read and written in
-    # the loop except for the NEMO loop iterator variables.
+    # the loop.
     assert ("  real, dimension(jpi,jpj,jpk) :: umask\n"
             "\n"
-            "  !$acc enter data copyin(jpi,jpj,jpk,r,umask)\n"
+            "  !$acc enter data copyin(ji,jj,jk,jpi,jpj,jpk,r,umask)\n"
             "  !$acc kernels\n"
             "  do jk = 1, jpk") in code
 

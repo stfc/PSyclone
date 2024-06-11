@@ -126,7 +126,7 @@ def test_gocean_omp_parallel():
     '''Test that an OMP PARALLEL directive in a 'classical' API (gocean here)
     is created correctly.
     '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke.f90", "gocean",
                            idx=0, dist_mem=False)
 
     omp = OMPParallelTrans()
@@ -217,7 +217,7 @@ def test_gocean_omp_do():
     is created correctly.
 
     '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke.f90", "gocean",
                            idx=0, dist_mem=False)
     omp = OMPLoopTrans()
     omp.apply(invoke.schedule[0])
@@ -253,7 +253,7 @@ a = b
 def test_gocean_omp_taskloop():
     '''Test that an OMP Taskloop and OMP Taskwait directives in a 'classical'
     API (gocean here) is created correctly.'''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke.f90", "gocean",
                            idx=0, dist_mem=False)
     omp = OMPTaskloopTrans()
     wait_dir = OMPTaskwaitDirective()

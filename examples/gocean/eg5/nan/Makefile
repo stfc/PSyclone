@@ -70,7 +70,7 @@ compile: transform $(NAME)
 alg.f90 psy.f90: transform
 
 transform: test.x90 test_nan_transform.py
-	${PSYCLONE} -nodm -api "gocean1.0" -s ./test_nan_transform.py \
+	${PSYCLONE} -nodm -api "gocean" -s ./test_nan_transform.py \
 				-opsy psy.f90 -oalg alg.f90 test.x90
 
 run: compile

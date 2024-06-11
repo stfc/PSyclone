@@ -579,6 +579,11 @@ IntrinsicCalls, like Calls, have properties to inform if the call is to a
 pure, elemental, inquiry (does not touch the first argument data) function
 or is available on a GPU device.
 
+`SUM`, `PRODUCT`, `LBOUND`, and `UBOUND` are not documented as having
+support on GPUs according to the current Nvidia documentation, however we
+have confirmed them experimentally and so PSyclone treats them as
+available on GPU devices.
+
 CodeBlock Node
 --------------
 
@@ -911,7 +916,7 @@ PSy-layer concepts
   sub-classed in all of the domains supported by PSyclone. This then allows
   the class to be configured with a list of valid loop 'types'. For instance,
   the GOcean sub-class, `GOLoop`, has "inner" and "outer" while the LFRic
-  (dynamo0.3) sub-class, `LFRicLoop`, has "dofs", "colours", "colour", ""
+  sub-class, `LFRicLoop`, has "dofs", "colours", "colour", ""
   and "null". The default loop type (iterating over cells) is here
   indicated by the empty string. The concept of a "null" loop type is
   currently required because the dependency analysis that determines the

@@ -60,7 +60,7 @@ $(EXEC): $(LFRIC_LIB) $(OBJ)
 compile: transform $(EXEC)
 
 transform:
-	${PSYCLONE} algorithm.x90 -opsy mixed_precision_psy.f90 -oalg alg.f90
+	${PSYCLONE} -api lfric algorithm.x90 -opsy mixed_precision_psy.f90 -oalg alg.f90
 
 alg.f90 mixed_precision_psy.f90: transform
 alg.o: mixed_precision_psy.o

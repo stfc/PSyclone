@@ -48,10 +48,9 @@ import abc
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import (KernCallArgList, LFRicConstants, LFRicKern,
-                                   LFRicLoop)
-from psyclone.dynamo0p3 import (LFRicHaloExchangeEnd, LFRicHaloExchangeStart,
-                                DynInvokeSchedule)
+from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
+                                   LFRicInvokeSchedule, LFRicKern, LFRicLoop)
+from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
@@ -125,7 +124,7 @@ class OMPTaskloopTrans(ParallelLoopTrans):
 
     >>> from pysclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -426,7 +425,7 @@ class MarkRoutineForGPUMixin:
                 # resolve_type does nothing if the Symbol type is known.
                 try:
                     ref.symbol.resolve_type()
-                except SymbolError:
+                except (SymbolError, FileNotFoundError):
                     # TODO #11 - log that we failed to resolve this Symbol.
                     pass
                 if (isinstance(ref.symbol, DataSymbol) and
@@ -576,7 +575,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -688,7 +687,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
         >>> from psyclone.parse.algorithm import parse
         >>> from psyclone.psyGen import PSyFactory
         >>> ast, invokeInfo = parse("dynamo.F90")
-        >>> psy = PSyFactory("dynamo0.3").create(invokeInfo)
+        >>> psy = PSyFactory("lfric").create(invokeInfo)
         >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> # Uncomment the following line to see a text view of the schedule
         >>> # print(schedule.view())
@@ -1049,7 +1048,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
     >>> import os
     >>> import pytest
     >>>
-    >>> TEST_API = "dynamo0.3"
+    >>> TEST_API = "lfric"
     >>> _,info=parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
     >>>              "tests", "test_files", "dynamo0p3",
     >>>              "4.6_multikernel_invokes.f90"),
@@ -1089,7 +1088,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         return "Split a Dynamo 0.3 loop over cells into colours"
 
     def apply(self, node, options=None):
-        '''Performs Dynamo0.3-specific error checking and then uses the parent
+        '''Performs LFRic-specific error checking and then uses the parent
         class to convert the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
@@ -1289,7 +1288,7 @@ class OMPSingleTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1421,7 +1420,7 @@ class OMPMasterTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1474,7 +1473,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
     >>> from psyclone.errors import GenerationError
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -1670,7 +1669,7 @@ class MoveTrans(Transformation):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> ast,invokeInfo=parse("dynamo.F90")
-    >>> psy=PSyFactory("dynamo0.3").create(invokeInfo)
+    >>> psy=PSyFactory("lfric").create(invokeInfo)
     >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
@@ -1806,7 +1805,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             :py:class:`psyclone.psyir.nodes.Directive`.
         :raises TransformationError: if the parent of the loop is not a\
             :py:class:`psyclone.psyir.nodes.Loop` or a\
-            :py:class:`psyclone.psyGen.DynInvokeSchedule`.
+            :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the original loop does\
             not iterate over 'colour'.
@@ -1815,7 +1814,7 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
             iterate over 'colours'.
         :raises TransformationError: if the parent of the loop is a\
             :py:class:`psyclone.psyir.nodes.Loop` but the parent's parent is\
-            not a :py:class:`psyclone.psyGen.DynInvokeSchedule`.
+            not a :py:class:`psyclone.psyGen.LFRicInvokeSchedule`.
         :raises TransformationError: if this transformation is applied\
             when distributed memory is not switched on.
         :raises TransformationError: if the loop does not iterate over\
@@ -1860,12 +1859,13 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                 f"method the supplied loop is sits beneath a directive of "
                 f"type {type(dir_node)}. Redundant computation must be applied"
                 f" before directives are added.")
-        if not (isinstance(node.parent, DynInvokeSchedule) or
+        if not (isinstance(node.parent, LFRicInvokeSchedule) or
                 isinstance(node.parent.parent, Loop)):
             raise TransformationError(
                 f"In the Dynamo0p3RedundantComputation transformation "
                 f"apply method the parent of the supplied loop must be the "
-                f"DynInvokeSchedule, or a Loop, but found {type(node.parent)}")
+                f"LFRicInvokeSchedule, or a Loop, but found "
+                f"{type(node.parent)}")
         if isinstance(node.parent.parent, Loop):
             if node.loop_type != "colour":
                 raise TransformationError(
@@ -1879,12 +1879,12 @@ class Dynamo0p3RedundantComputationTrans(LoopTrans):
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the parent must iterate over "
                     f"'colours', but found '{node.parent.parent.loop_type}'")
-            if not isinstance(node.parent.parent.parent, DynInvokeSchedule):
+            if not isinstance(node.parent.parent.parent, LFRicInvokeSchedule):
                 raise TransformationError(
                     f"In the Dynamo0p3RedundantComputation transformation "
                     f"apply method, if the parent of the supplied Loop is "
                     f"also a Loop then the parent's parent must be the "
-                    f"DynInvokeSchedule, but found {type(node.parent)}")
+                    f"LFRicInvokeSchedule, but found {type(node.parent)}")
         if not Config.get().distributed_memory:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
@@ -1994,7 +1994,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "dynamo0.3"
+    >>> api = "lfric"
     >>> ast, invokeInfo = parse("file.f90", api=api)
     >>> psy=PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
@@ -2080,7 +2080,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "dynamo0.3"
+    >>> api = "lfric"
     >>> ast, invokeInfo = parse("file.f90", api=api)
     >>> psy=PSyFactory(api).create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
@@ -2393,7 +2393,7 @@ class ACCEnterDataTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -2449,20 +2449,15 @@ class ACCEnterDataTrans(Transformation):
         self.validate(sched, options)
 
         # pylint: disable=import-outside-toplevel
-        if isinstance(sched, DynInvokeSchedule):
+        if isinstance(sched, LFRicInvokeSchedule):
             from psyclone.dynamo0p3 import DynACCEnterDataDirective as \
                 AccEnterDataDir
         elif isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
                 AccEnterDataDir
-        elif isinstance(sched, NemoInvokeSchedule):
-            from psyclone.nemo import NemoACCEnterDataDirective as \
-                AccEnterDataDir
         else:
-            # Should not get here provided that validate() has done its job
-            raise InternalError(
-                f"ACCEnterDataTrans.validate() has not rejected an "
-                f"(unsupported) schedule of type {type(sched)}")
+            from psyclone.psyir.nodes import ACCEnterDataDirective as \
+                AccEnterDataDir
 
         # Find the position of the first child statement of the current
         # schedule which contains an OpenACC compute construct.
@@ -2517,7 +2512,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -2691,11 +2686,12 @@ class ACCKernelsTrans(RegionTrans):
         node_list = self.get_node_list(nodes)
 
         # Check that the front-end is valid
-        sched = node_list[0].ancestor((NemoInvokeSchedule, DynInvokeSchedule))
+        sched = node_list[0].ancestor((NemoInvokeSchedule,
+                                       LFRicInvokeSchedule))
         if not sched:
             raise NotImplementedError(
                 "OpenACC kernels regions are currently only supported for the "
-                "nemo and dynamo0.3 front-ends")
+                "Nemo and LFRic InvokeSchedules")
         super().validate(node_list, options)
 
         # Check that we have at least one loop or array range within

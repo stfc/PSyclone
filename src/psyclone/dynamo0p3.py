@@ -52,14 +52,11 @@ from typing import Any
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
-                                                  LFRicBuiltIn)
+from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   KernCallArgList,
-                                   LFRicCollection, LFRicConstants,
-                                   LFRicSymbolTable, LFRicKernCallFactory,
-                                   LFRicKern, LFRicInvokes, LFRicTypes,
-                                   LFRicLoop)
+                                   KernCallArgList, LFRicCollection,
+                                   LFRicConstants, LFRicSymbolTable, LFRicKern,
+                                   LFRicInvokes, LFRicTypes, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen,
@@ -156,11 +153,11 @@ class DynFuncDescriptor03():
         self._func_type = func_type
         if func_type.name != 'func_type':
             raise ParseError(
-                f"In the dynamo0.3 API each meta_func entry must be of type "
+                f"In the lfric API each meta_func entry must be of type "
                 f"'func_type' but found '{func_type.name}'")
         if len(func_type.args) < 2:
             raise ParseError(
-                f"In the dynamo0.3 API each meta_func entry must have at "
+                f"In the lfric API each meta_func entry must have at "
                 f"least 2 args, but found {len(func_type.args)}")
         self._operator_names = []
         const = LFRicConstants()
@@ -176,13 +173,13 @@ class DynFuncDescriptor03():
             else:  # subsequent func_type args
                 if arg.name not in const.VALID_METAFUNC_NAMES:
                     raise ParseError(
-                        f"In the dynamo0.3 API, the 2nd argument and all "
+                        f"In the lfric API, the 2nd argument and all "
                         f"subsequent arguments of a meta_func entry should "
                         f"be one of {const.VALID_METAFUNC_NAMES}, but found "
                         f"'{arg.name}' in '{func_type}'")
                 if arg.name in self._operator_names:
                     raise ParseError(
-                        f"In the dynamo0.3 API, it is an error to specify an "
+                        f"In the lfric API, it is an error to specify an "
                         f"operator name more than once in a meta_func entry, "
                         f"but '{arg.name}' is replicated in '{func_type}'")
                 self._operator_names.append(arg.name)
@@ -387,6 +384,7 @@ class DynamoPSy(PSy):
         # Make sure the scoping node creates LFRicSymbolTables
         # TODO #1954: Remove the protected access using a factory
         ScopingNode._symbol_table_class = LFRicSymbolTable
+        Config.get().api = "lfric"
         PSy.__init__(self, invoke_info)
         self._invokes = LFRicInvokes(invoke_info.calls, self)
         # Initialise the dictionary that holds the names of the required
@@ -410,7 +408,7 @@ class DynamoPSy(PSy):
 
         # The infrastructure declares integer types with default
         # precision so always add this.
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         kind_names.add(api_config.default_kind["integer"])
 
         # Datatypes declare precision information themselves. However,
@@ -460,7 +458,7 @@ class DynamoPSy(PSy):
     @property
     def gen(self):
         '''
-        Generate PSy code for the LFRic (Dynamo0.3) API.
+        Generate PSy code for the LFRic API.
 
         :returns: root node of generated Fortran AST.
         :rtype: :py:class:`psyir.nodes.Node`
@@ -678,7 +676,7 @@ class LFRicMeshProperties(LFRicCollection):
         :raises InternalError: if an unsupported mesh property is found.
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         if not self._invoke:
             raise InternalError(
@@ -730,7 +728,7 @@ class LFRicMeshProperties(LFRicCollection):
         :raises InternalError: if an unsupported mesh property is encountered.
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         if not self._kernel:
             raise InternalError(
@@ -1058,7 +1056,7 @@ class DynReferenceElement(LFRicCollection):
             # No reference-element properties required
             return cursor
 
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         const = LFRicConstants()
 
         refelem_type = const.REFELEMENT_TYPE_MAP["refelement"]["type"]
@@ -1102,7 +1100,7 @@ class DynReferenceElement(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         if not (self._properties or self._nfaces_h_required):
             return cursor
@@ -1262,7 +1260,7 @@ class DynFunctionSpaces(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # if self._var_list:
             # Declare ndf and undf for all function spaces
@@ -1288,7 +1286,7 @@ class DynFunctionSpaces(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         for var in self._var_list:
             self._invoke.schedule.symbol_table.new_symbol(
@@ -1825,7 +1823,7 @@ class DynCellIterators(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # We only need the number of layers in the mesh if we are calling
         # one or more kernels that operate on cell-columns.
@@ -1846,7 +1844,7 @@ class DynCellIterators(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
             # Already declared
@@ -1906,7 +1904,7 @@ class DynLMAOperators(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         lma_args = psyGen.args_filter(
             self._kernel.arguments.args, arg_types=["gh_operator"])
@@ -2165,7 +2163,7 @@ class DynCMAOperators(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -2232,7 +2230,7 @@ class DynCMAOperators(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
@@ -2507,7 +2505,7 @@ class DynMeshes():
 
         '''
         # pylint: disable=too-many-locals, too-many-statements
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         const = LFRicConstants()
 
         # Since we're now generating code, any transformations must
@@ -2909,10 +2907,10 @@ class DynBasisFunctions(LFRicCollection):
     functions required by an invoke or kernel call. This covers both those
     required for quadrature and for evaluators.
 
-    :param node: either the schedule of an Invoke or a single Kernel object \
-                 for which to extract information on all required \
+    :param node: either the schedule of an Invoke or a single Kernel object
+                 for which to extract information on all required
                  basis/diff-basis functions.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicInvokeSchedule` or
                 :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises InternalError: if a call has an unrecognised evaluator shape.
@@ -3159,7 +3157,7 @@ class DynBasisFunctions(LFRicCollection):
         :raises InternalError: if an unsupported quadrature shape is found.
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         if not self._qr_vars and not self._eval_targets:
             return
@@ -3394,7 +3392,7 @@ class DynBasisFunctions(LFRicCollection):
         '''
         # pylint: disable=too-many-branches, too-many-locals
         symtab = self._invoke.schedule.symbol_table
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         const = LFRicConstants()
         basis_declarations = []
 
@@ -3722,7 +3720,7 @@ class DynBasisFunctions(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         symtab = self._invoke.schedule.symbol_table
         const = LFRicConstants()
 
@@ -3849,7 +3847,7 @@ class DynBasisFunctions(LFRicCollection):
         if quadrature_name not in self._qr_vars:
             return cursor
 
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         symbol_table = self._symbol_table
 
         for qr_arg_name in self._qr_vars[quadrature_name]:
@@ -3944,7 +3942,7 @@ class DynBasisFunctions(LFRicCollection):
         '''
         # pylint: disable=too-many-locals
         const = LFRicConstants()
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         symtab = self._invoke.schedule.symbol_table
 
         loop_var_list = set()
@@ -4209,7 +4207,7 @@ class DynBoundaryConditions(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
@@ -4237,7 +4235,7 @@ class DynBoundaryConditions(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         for dofs in self._boundary_dofs:
             name = "boundary_dofs_" + dofs.argument.name
@@ -4277,41 +4275,6 @@ class DynBoundaryConditions(LFRicCollection):
             #                   dofs.argument.ref_name(dofs.function_space),
             #                   "get_boundary_dofs()"])))
         return cursor
-
-
-class DynInvokeSchedule(InvokeSchedule):
-    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
-    specific factories for creating kernel and infrastructure calls
-    to the base class so it creates the ones we require.
-
-    :param str name: name of the Invoke.
-    :param arg: list of KernelCalls parsed from the algorithm layer.
-    :type arg: list of :py:class:`psyclone.parse.algorithm.KernelCall`
-    :param reserved_names: optional list of names that are not allowed in the \
-                           new InvokeSchedule SymbolTable.
-    :type reserved_names: list of str
-    :param parent: the parent of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-
-    def __init__(self, name, arg, reserved_names=None, parent=None):
-        super().__init__(name, LFRicKernCallFactory,
-                         LFRicBuiltInCallFactory, arg, reserved_names,
-                         parent=parent, symbol_table=LFRicSymbolTable())
-
-    def node_str(self, colour=True):
-        ''' Creates a text summary of this node.
-
-        :param bool colour: whether or not to include control codes for colour.
-
-        :returns: text summary of this node, optionally with control codes \
-                  for colour highlighting.
-        :rtype: str
-
-        '''
-        return (self.coloured_name(colour) + "[invoke='" + self.invoke.name +
-                "', dm=" + str(Config.get().distributed_memory)+"]")
 
 
 class DynGlobalSum(GlobalSum):
@@ -4737,7 +4700,7 @@ class LFRicHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
-        if Config.get().api_conf("dynamo0.3").compute_annexed_dofs and \
+        if Config.get().api_conf("lfric").compute_annexed_dofs and \
            len(required_clean_info) == 1 and \
            required_clean_info[0].annexed_only:
             # We definitely don't need the halo exchange as we
@@ -5984,7 +5947,7 @@ class DynKernelArguments(Arguments):
 
         # it is an error if we get to here
         raise GenerationError(
-            "iteration_space_arg(). The dynamo0.3 api must have a modified "
+            "iteration_space_arg(). The lfric api must have a modified "
             "field, a modified operator, or an unmodified field (in the case "
             "of a modified scalar). None of these were found.")
 
@@ -6933,7 +6896,6 @@ __all__ = [
     'DynInterGrid',
     'DynBasisFunctions',
     'DynBoundaryConditions',
-    'DynInvokeSchedule',
     'DynGlobalSum',
     'LFRicHaloExchange',
     'LFRicHaloExchangeStart',
