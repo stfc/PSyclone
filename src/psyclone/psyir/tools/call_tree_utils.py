@@ -458,8 +458,7 @@ class CallTreeUtils():
                         if sym.is_constant:
                             continue
                     except KeyError:
-                        print(f"Unable to check if signature '{signature}' "
-                              f"is constant.")
+                        print(f"Cannot find symbol '{signature}'.")
                 # Otherwise fall through to the code that adds a reference:
 
             # Now it must be a reference, so add it to the list of input-

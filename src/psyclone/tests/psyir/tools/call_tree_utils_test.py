@@ -404,14 +404,16 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     assert ("Cannot find routine 'module_subroutine' in module "
             "'module_with_var_mod' - ignored" in out)
 
+    # Note that module_subroutine has been removed from the PSyIR,
+    # so it cannot be found:
     rsym = cntr.symbol_table.lookup("module_subroutine")
     cntr.symbol_table.remove(rsym)
     todo = [('unknown', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
     ctu._resolve_calls_and_unknowns(todo, rw_info)
     out, _ = capsys.readouterr()
-    assert ("Cannot find a routine 'module_subroutine' in module "
-            "'module_with_var_mod'" in out)
+    assert "Cannot find symbol 'module_subroutine'." in out
+
     todo = [('routine', 'module_with_var_mod',
              Signature("module_subroutine"), info)]
     ctu._resolve_calls_and_unknowns(todo, rw_info)
@@ -601,7 +603,7 @@ def test_call_tree_error_var_not_found(capsys):
                                     read_write_info)
     out, _ = capsys.readouterr()
 
-    assert "Unable to check if signature 'does_not_exist' is constant" in out
+    assert "Cannot find symbol 'does_not_exist'." in out
 
 
 # -----------------------------------------------------------------------------
