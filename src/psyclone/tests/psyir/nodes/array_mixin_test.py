@@ -132,6 +132,11 @@ def test_is_bound_op():
         IntrinsicCall.Intrinsic.UBOUND,
         [array_ref.copy(), ("dim", Literal("2", INTEGER_TYPE))])
     assert not array_ref._is_bound_op(oper, IntrinsicCall.Intrinsic.UBOUND, 0)
+    # Missing 2nd argument to UBOUND (in which case it returns an array).
+    oper = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [array_ref.copy()])
+    assert not array_ref._is_bound_op(oper, IntrinsicCall.Intrinsic.UBOUND, 0)
     # OK
     oper = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.UBOUND,

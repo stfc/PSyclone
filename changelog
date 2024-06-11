@@ -118,6 +118,9 @@
 	43) PR #2587 for #1989. Improves the statistics produced by the
 	generated PSyKE driver code.
 
+	44) #PR #2602 for #1596. Exclude assumed-size variable references from
+	the ACCKernels regions.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

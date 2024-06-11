@@ -166,7 +166,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ACCKernelsTrans
+.. autoclass:: psyclone.psyir.transformations.ACCKernelsTrans
     :noindex:
     :members: apply
 
