@@ -57,13 +57,13 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 
 
-class ArrayRange2LoopTrans(Transformation):
+class ArrayAssignment2LoopsTans(Transformation):
     '''Provides a transformation from a PSyIR Array Range to a PSyIR
     Loop. For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Assignment
-    >>> from psyclone.psyir.transformations import ArrayRange2LoopTrans
+    >>> from psyclone.psyir.transformations import ArrayAssignment2LoopsTans
     >>> code = """
     ... subroutine sub()
     ...   real :: tmp(10)
@@ -71,7 +71,7 @@ class ArrayRange2LoopTrans(Transformation):
     ... end subroutine sub"""
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> assignment = psyir.walk(Assignment)[0]
-    >>> trans = ArrayRange2LoopTrans()
+    >>> trans = ArrayAssignment2LoopsTans()
     >>> trans.apply(assignment)
     >>> print(psyir.debug_string())
     subroutine sub()
@@ -92,10 +92,10 @@ class ArrayRange2LoopTrans(Transformation):
     unsupported types to loops.
     '''
     def apply(self, node, options=None):
-        '''Apply the ArrayRange2Loop transformation to the specified array
-        assignment node. Each range node within the assignment is replaced
-        with an explicit loop. The bounds of the loop are determined from the
-        bounds of the array range on the left hand side of the assignment.
+        '''Apply the transformation to the specified array assignment node.
+        Each range node within the assignment is replaced with an explicit
+        loop. The bounds of the loop are determined from the bounds of the
+        array range on the left hand side of the assignment.
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
@@ -171,7 +171,7 @@ class ArrayRange2LoopTrans(Transformation):
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
-        ArrayRange2LoopTrans transformation to the supplied PSyIR Node.
+        ArrayAssignment2LoopsTans transformation to the supplied PSyIR Node.
 
         By default the validate function will throw an TransofmrationError
         on character arrays, though this can be overriden by setting the
@@ -367,4 +367,4 @@ class ArrayRange2LoopTrans(Transformation):
 
 
 __all__ = [
-    'ArrayRange2LoopTrans']
+    'ArrayAssignment2LoopsTans']

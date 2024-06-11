@@ -50,8 +50,8 @@ from psyclone.psyir.transformations.allarrayaccess2loop_trans import \
     AllArrayAccess2LoopTrans
 from psyclone.psyir.transformations.arrayaccess2loop_trans import \
     ArrayAccess2LoopTrans
-from psyclone.psyir.transformations.arrayrange2loop_trans import \
-    ArrayRange2LoopTrans
+from psyclone.psyir.transformations.arrayassignment2loops_trans import \
+    ArrayAssignment2LoopsTans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
 from psyclone.psyir.transformations.extract_trans import ExtractTrans
 from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
@@ -109,7 +109,7 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import \
 __all__ = ['ACCUpdateTrans',
            'AllArrayAccess2LoopTrans',
            'ArrayAccess2LoopTrans',
-           'ArrayRange2LoopTrans',
+           'ArrayAssignment2LoopsTans',
            'ChunkLoopTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',

@@ -263,7 +263,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         array_refs = rhs.walk(ArrayReference)
         # The lhs of the created expression needs to be an array
         # reference from the expression itself because the
-        # ArrayRange2Loop transformation uses it to obtain the loop
+        # ArrayAssignment2Loops transformation uses it to obtain the loop
         # bounds.
         lhs = array_refs[0].copy()
 
@@ -273,7 +273,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         orig_assignment = node.ancestor(Assignment)
         orig_assignment.replace_with(assignment)
 
-        # Step 3 call nemoarrayrange2loop_trans to create loop bounds
+        # Step 3 call ArrayAssignment2Loops to create loop bounds
         # and array indexing from the array ranges created in step 2
         # (keeping track of where the new loop nest is created). Also
         # extract the mask if it exists. For example:
@@ -295,11 +295,11 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         assignment_position = assignment.position
         # Must be placed here to avoid circular imports
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.transformations import ArrayRange2LoopTrans
+        from psyclone.psyir.transformations import ArrayAssignment2LoopsTans
         try:
-            ArrayRange2LoopTrans().apply(assignment)
+            ArrayAssignment2LoopsTans().apply(assignment)
         except TransformationError as err:
-            # The ArrayRange2LoopTrans could fail to convert the ranges,
+            # The ArrayAssignment2LoopsTans could fail to convert the ranges,
             # unfortunately this can not be tested before modifications to the
             # tree (e.g. in the validate), so the best we can do is reverting
             # to the orginal statement (with maybe some leftover tmp variable)
@@ -307,7 +307,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             assignment.replace_with(orig_assignment)
             # pylint: disable=raise-missing-from
             raise TransformationError(
-                f"ArrayRange2LoopTrans could not convert the expression:\n"
+                f"ArrayAssignment2LoopsTans could not convert the expression:\n"
                 f"{assignment.debug_string()}\n into a loop because:\n"
                 f"{err.value}")
         outer_loop = assignment_parent.children[assignment_position]

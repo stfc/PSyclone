@@ -323,10 +323,10 @@ transfer using a single command queue which can bottleneck the OpenCL
 performance if there are many I/O operations.
 
 
-ArrayRange2LoopTrans
-====================
+ArrayAssignment2LoopsTans
+=========================
 
-The ArrayRange2LoopTrans transformation has the following known
+The ArrayAssignment2LoopsTans transformation has the following known
 issues:
 
 1) code in the NEMO API remains unchanged after this transformation is

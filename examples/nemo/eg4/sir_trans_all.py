@@ -54,7 +54,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import IntrinsicCall, Assignment, Loop
 from psyclone.psyir.transformations import (
     Abs2CodeTrans, Sign2CodeTrans, Min2CodeTrans, Max2CodeTrans, HoistTrans,
-    AllArrayAccess2LoopTrans, ArrayRange2LoopTrans, TransformationError)
+    AllArrayAccess2LoopTrans, ArrayAssignment2LoopsTans, TransformationError)
 
 
 def trans(psy):
@@ -73,7 +73,7 @@ def trans(psy):
     sign_trans = Sign2CodeTrans()
     min_trans = Min2CodeTrans()
     max_trans = Max2CodeTrans()
-    array_range_trans = ArrayRange2LoopTrans()
+    array_range_trans = ArrayAssignment2LoopsTans()
     array_access_trans = AllArrayAccess2LoopTrans()
     hoist_trans = HoistTrans()
 

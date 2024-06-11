@@ -196,7 +196,7 @@ can be found in the API-specific sections).
   
 ####
 
-.. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
+.. autoclass:: psyclone.psyir.transformations.ArrayAssignment2LoopsTans
     :members: apply
     :noindex:
   
