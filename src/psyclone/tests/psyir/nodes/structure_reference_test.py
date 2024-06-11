@@ -351,7 +351,7 @@ def test_structure_reference_unresolved_type():
         [("aptr", [two.copy(), two.copy()])])
     assert len(aref2.datatype.shape) == 1
     assert isinstance(aref2.datatype.intrinsic, symbols.UnsupportedFortranType)
-    # An array with the index expression is the result of a function
+    # An array where the index expression is the result of a function
     # my_sym(myfunc())%aptr(2,2)
     array_grid_type = symbols.ArrayType(grid_type_symbol, [four.copy()])
     array_sym = symbols.DataSymbol("thing", array_grid_type)

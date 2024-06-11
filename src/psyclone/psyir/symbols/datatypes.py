@@ -345,7 +345,7 @@ class ArrayType(DataType):
     specified as a DataTypeSymbol (see #1031).
 
     :param datatype: the datatype of the array elements.
-    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` |\
+    :type datatype: :py:class:`psyclone.psyir.datatypes.DataType` |
                     :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
     :param list shape: shape of the symbol in column-major order (leftmost
         index is contiguous in memory). Each entry represents an array
@@ -370,10 +370,10 @@ class ArrayType(DataType):
     class Extent(Enum):
         '''
         Enumeration of array shape extents that are unspecified at compile
-        time. An 'ATTRIBUTE' extent means that the lower bound is 1, but the
-        extent is unknown but can be retrived with appropriate run-time
-        intrinsics. A 'DEFERRED' extent means that we don't know anything
-        about the bounds, and run-times intrinsics may or may not be able
+        time. An 'ATTRIBUTE' extent means that the lower bound is 1 with an
+        unknown extent (which can be retrieved with appropriate run-time
+        intrinsics). A 'DEFERRED' extent means that we don't know anything
+        about the bounds, and run-time intrinsics may or may not be able
         to retrieve them (e.g. the array may need to be allocated/malloc'd).
 
         '''
@@ -481,7 +481,7 @@ class ArrayType(DataType):
     def intrinsic(self):
         '''
         :returns: the intrinsic type of each element in the array.
-        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` |\
+        :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` |
                 :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._intrinsic
