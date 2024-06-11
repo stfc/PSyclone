@@ -38,7 +38,6 @@
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
-from os import listdir, path
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.interfaces import SymbolInterface
 from psyclone.configuration import Config
@@ -135,7 +134,7 @@ class ContainerSymbol(Symbol):
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
         '''
         if not self._reference:
-            self._reference = self._interface.import_container(self._name)
+            self._reference = self._interface.get_container(self._name)
         return self._reference
 
     def __str__(self):
@@ -197,7 +196,7 @@ class ContainerSymbolInterface(SymbolInterface):
     ''' Abstract implementation of the ContainerSymbol Interface '''
 
     @staticmethod
-    def import_container(name):
+    def get_container(name):
         ''' Abstract method to import an external container, the specific
         implementation depends on the language used.
 
@@ -212,44 +211,37 @@ class FortranModuleInterface(ContainerSymbolInterface):
     ''' Implementation of ContainerSymbolInterface for Fortran modules '''
 
     @staticmethod
-    def import_container(name):
-        ''' Imports a Fortran module as a PSyIR container. The module is
-        expected to be found in a Fortran source file with the same name
-        as the module plus the '.[f|F]90' extension. The search
-        locations are provided in-order by the Config include_paths
-        attribute ('-I' in the psyclone script).
+    def get_container(name):
+        ''' Imports a Fortran module as a PSyIR Container (via the
+        ModuleManager) and returns it.
 
         :param str name: name of the module to be imported.
 
         :returns: container associated with the given name.
         :rtype: :py:class:`psyclone.psyir.nodes.Container`
 
-        :raises SymbolError: the given Fortran module is not found on the \
+        :raises SymbolError: the given Fortran module is not found on the
             import path.
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.frontend.fortran import FortranReader
-        for directory in Config.get().include_paths:
-            for filename in [name+'.f90', name+'.F90']:
-                if filename in listdir(directory):
-                    # Parse the module source code
-                    abspath = path.join(directory, filename)
-                    fortran_reader = FortranReader()
-                    file_container = fortran_reader.psyir_from_file(abspath)
-                    # Check the expected container is in this file
-                    for candidate in file_container.children:
-                        if candidate.name.lower() == name.lower():
-                            return candidate
-                    raise ValueError(
-                        f"Error importing the Fortran module '{name}' into a "
-                        f"PSyIR container. The file with filename "
-                        f"'{filename}' does not contain the expected module.")
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.parse import ModuleManager
+        mod_manager = ModuleManager.get()
 
-        raise SymbolError(
-            f"Module '{name}' (expected to be found in '{name}.[f|F]90') not "
-            f"found in any of the include_paths directories "
-            f"{Config.get().include_paths}.")
+        # TODO #2011 - rationalise how this interacts with the kernel search
+        # path set in generate().
+        mod_manager.add_search_path(Config.get().include_paths)
+
+        minfo = None
+        try:
+            minfo = mod_manager.get_module_info(name)
+        except FileNotFoundError:
+            pass
+        if not minfo:
+            raise SymbolError(
+                f"Module '{name}' not found in any of the include_paths "
+                f"directories {Config.get().include_paths}.")
+        return minfo.get_psyir()
 
 
 # For Sphinx AutoAPI documentation generation

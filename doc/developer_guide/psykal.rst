@@ -1,7 +1,8 @@
+
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,8 +32,13 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by I. Kavcic and L. Turner, Met Office
+
+.. _develop_psykal_dsl:
+
+Developing PSyKAL DSLs
+######################
 
 .. testsetup::
 
@@ -41,15 +47,8 @@
         "gocean1p0/test11_different_iterates_over_one_invoke.f90")
 
 
-Parsing Code (new approach)
-###########################
-
-The new approach to modifying existing code is to first parse it into
-generic PSyIR and then 'raise' it into domain-specific PSyIR which
-encodes any domain-specific concepts. The domain-specific PSyIR can
-then be modified using transformations. Once any code modification is
-complete the domain-specific PSyIR can then be 'lowered' to generic
-PSyIR and PSyclone's back-ends used to output the resultant code.
+Parsing DSL Code (new approach)
+===============================
 
 The GOcean and LFRic APIs support the concept of algorithm, psy and
 kernel layers.
@@ -103,10 +102,10 @@ yet used by the the rest of PSyclone (see `generator.py` for the
 relevant GOcean code and prototype LFRic code).
 
 
-Parsing Code (original approach)
-################################
+Parsing DSL Code (original approach)
+====================================
 
-The original way to parse code is to use the PSyclone `parse` module
+The original way to parse DSL code is to use the PSyclone `parse` module
 which is responsible for parsing science (algorithm and kernel) code
 and extracting the required information for the algorithm translation
 and PSy generation phases. The original approach is gradually being
@@ -119,7 +118,7 @@ module (`utils.py`) for common functionality. This implementation is
 discussed further in the following sections.
 
 Parsing Algorithm Code
-======================
+++++++++++++++++++++++
 
 The first thing PSyclone typically does is parse an input file. This
 input file is expected to contain Fortran source code conforming to
@@ -211,7 +210,7 @@ create the appropriate `Arg` instance. Previously we relied on the
           invoke call.
 
 Mixed Precision
-===============
++++++++++++++++
 
 Support for mixed precision kernels has been added to PSyclone. The
 approach being taken is for the user to provide kernels with a generic
@@ -334,7 +333,7 @@ it may be possible to support 3).
 
 	  
 Parsing Kernel Code (Metadata)
-==============================
+++++++++++++++++++++++++++++++
 
 An `algorithm.BuiltInCall` instance is created by being passed a
 `kernel.BuiltinKernelType` instance for the particular API via the
@@ -364,3 +363,77 @@ instance has been created (by passing it an `fparser1` parse tree) it can
 return information about the metadata contained therein. Moving from
 `fparser1` to `fparser2` would required changing the parse code logic
 in each of the API-specific classes.
+
+The PSy-Invokes-Invoke-InvokeSchedule tree
+==========================================
+
+The PSy-layer of a single algorithm file is represented by the **PSy** class.
+The PSy class has an **Invokes** object which contains one or more
+**Invoke** instances (one for each ``invoke`` in the algorithm layer).
+Each **Invoke** has an **InvokeSchedule** object which is the PSyIR tree
+that describes the corresponding PSy-layer subroutine.
+This subroutine is called by the Algorithm layer and itself calls one or
+more kernels and/or implements any required Built-in operations.
+
+All these classes can be specialised in each PSyclone API to support the
+specific features of a particular API. The class diagram for the above base classes
+is shown below using the LFRic API as an illustration. This class diagram
+was generated from the source code with pyreverse and edited with inkscape.
+
+.. image:: dynamo0p3_topclasses.png
+    :width: 80%
+    :align: center
+
+The InvokeSchedule can currently contain nodes of type: **Loop**,
+**Kernel**, **Built-in** (see the :ref:`built-ins` section),
+**Directive** (of various types), **HaloExchange**, or
+**GlobalSum** (the latter two are only used if distributed memory is
+supported and is switched on; see the :ref:`distributed_memory`
+section). The order of the tree (depth first) indicates the order of
+the associated Fortran code.
+
+Adding new Built-in operations to an API
+========================================
+
+To add a new built-in operation into an API use the following steps:
+
+ 1. Identify the PSyclone source file for the API to be extended. *e.g.* for
+    the LFRic API it is ``src/psyclone/domain/lfric/lfric_builtins.py``.
+ 2. Edit this source file to create the class for this new call. It must
+    inherit from the API-specific parent class for Built-in operations
+    (``LFRicBuiltInKern`` for the LFRic API).
+ 3. Implement ``__str__`` and ``lower_to_language_level()`` methods for
+    this new class.
+ 4. Add the name of the new Built-in operation and its corresponding class
+    to the ``BUILTIN_MAP`` dictionary in that source file.
+ 5. Add metadata describing this call to the appropriate file specified in
+    the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For the LFRic API
+    this is ``src/psyclone/parse/lfric_builtins_mod.f90``.
+ 6. Add relevant tests to the PSyclone test files for the API to be extended.
+    *e.g.* for the LFRic API they are
+    * ``src/psyclone/tests/domain/lfric/lfric_builtins_test.py``,
+    * ``src/psyclone/tests/domain/lfric/lfric_integer_builtins_test.py``.
+    The tests rely on ``single_invoke`` Fortran examples in the relevant
+    ``src/psyclone/tests/test_files/`` subdirectory.
+ 7. Add an appropriate Fortran ``single_invoke`` example for the new
+    Built-in in the relevant ``src/psyclone/tests/test_files/`` subdirectory.
+    *e.g.* for the LFRic API it is
+    ``src/psyclone/tests/test_files/dynamo0p3/``.
+    Names of examples follow the template
+    ``<category.number>.<subcategory.number>_<built-in_name>.f90``.
+    *e.g.* for the LFRic API ``<category.number>`` is 15 and
+    ``<built-in_name>`` follows the :ref:`LFRic API Built-in naming
+    scheme <lfric-built-ins-names>`.
+ 8. Document the new Built-in in the documentation of the
+    relevant API (*e.g.* ``doc/dynamo0p3.rst`` for LFRic (Dynamo0.3) API).
+
+
+If the API being extended does not currently support any Built-ins
+then the ``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` module
+variables must be added to the source file for the API.  A Fortran
+module file must be created in the PSyclone ``src/parse`` directory
+(with the name specified in ``BUILTIN_DEFINITIONS_FILE``) containing
+metadata describing the Built-in operations. Finally,
+``parse.get_builtin_defs()`` must be extended to import
+``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` for this API.
+
