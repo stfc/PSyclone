@@ -153,6 +153,8 @@ class ACCKernelsTrans(RegionTrans):
 
         # The regex we use to determine whether a character declaration is
         # of assumed size ('LEN=*' or '*(*)').
+        # TODO #2612 - improve the fparser2 frontend support for character
+        # declarations.
         assumed_size = re.compile(r"\(\s*len\s*=\s*\*\s*\)|\*\s*\(\s*\*\s*\)")
 
         # Construct a list of any symbols that correspond to assumed-size
@@ -173,7 +175,7 @@ class ACCKernelsTrans(RegionTrans):
 
         for node in node_list:
             # Check that there are no assumed-size character variables as these
-            # causes an Internal Compiler Error with NVHPC <= 24.5.
+            # cause an Internal Compiler Error with (at least) NVHPC <= 24.5.
             for ref in node.walk(Reference):
                 if ref.symbol in char_syms:
                     stmt = ref.ancestor(Statement)
