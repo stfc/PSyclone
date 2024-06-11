@@ -2601,7 +2601,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             para = options["parallelism"]
             if para not in ACCRoutineDirective.SUPPORTED_PARALLELISM:
                 raise TransformationError(
-                    f"{self.__name__}: '{para}' is not a supported level of "
+                    f"{self.name}: '{para}' is not a supported level of "
                     f"parallelism. Should be one of "
                     f"{ACCRoutineDirective.SUPPORTED_PARALLELISM}")
 
