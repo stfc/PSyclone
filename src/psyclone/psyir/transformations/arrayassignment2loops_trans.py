@@ -57,13 +57,13 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 
 
-class ArrayAssignment2LoopsTans(Transformation):
+class ArrayAssignment2LoopsTrans(Transformation):
     '''Provides a transformation from a PSyIR Array Range to a PSyIR
     Loop. For example:
 
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.nodes import Assignment
-    >>> from psyclone.psyir.transformations import ArrayAssignment2LoopsTans
+    >>> from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
     >>> code = """
     ... subroutine sub()
     ...   real :: tmp(10)
@@ -71,7 +71,7 @@ class ArrayAssignment2LoopsTans(Transformation):
     ... end subroutine sub"""
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> assignment = psyir.walk(Assignment)[0]
-    >>> trans = ArrayAssignment2LoopsTans()
+    >>> trans = ArrayAssignment2LoopsTrans()
     >>> trans.apply(assignment)
     >>> print(psyir.debug_string())
     subroutine sub()
@@ -171,7 +171,7 @@ class ArrayAssignment2LoopsTans(Transformation):
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
-        ArrayAssignment2LoopsTans transformation to the supplied PSyIR Node.
+        ArrayAssignment2LoopsTrans transformation to the supplied PSyIR Node.
 
         By default the validate function will throw an TransofmrationError
         on character arrays, though this can be overriden by setting the
@@ -367,4 +367,4 @@ class ArrayAssignment2LoopsTans(Transformation):
 
 
 __all__ = [
-    'ArrayAssignment2LoopsTans']
+    'ArrayAssignment2LoopsTrans']

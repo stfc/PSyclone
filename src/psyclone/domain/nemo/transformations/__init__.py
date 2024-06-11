@@ -43,8 +43,5 @@ from psyclone.domain.nemo.transformations.create_nemo_invoke_schedule_trans \
 from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
     import CreateNemoPSyTrans
 
-# The entities in the __all__ list are made available to import directly from
-# this package
-
 __all__ = ['CreateNemoInvokeScheduleTrans',
            'CreateNemoPSyTrans']

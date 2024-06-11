@@ -44,7 +44,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import (
     HoistLoopBoundExprTrans, HoistTrans, ProfileTrans, HoistLocalArraysTrans,
     Maxval2LoopTrans, Reference2ArrayRangeTrans)
-from psyclone.psyir.transformations import ArrayAssignment2LoopsTans
+from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
 from psyclone.transformations import TransformationError
 
 
@@ -184,7 +184,7 @@ def normalise_loops(
 
     if convert_range_loops:
         # Convert all array implicit loops to explicit loops
-        explicit_loops = ArrayAssignment2LoopsTans()
+        explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in schedule.walk(Assignment):
             try:
                 explicit_loops.apply(assignment)

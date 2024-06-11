@@ -295,11 +295,11 @@ class ArrayReductionBaseTrans(Transformation, ABC):
         assignment_position = assignment.position
         # Must be placed here to avoid circular imports
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.transformations import ArrayAssignment2LoopsTans
+        from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
         try:
-            ArrayAssignment2LoopsTans().apply(assignment)
+            ArrayAssignment2LoopsTrans().apply(assignment)
         except TransformationError as err:
-            # The ArrayAssignment2LoopsTans could fail to convert the ranges,
+            # The ArrayAssignment2LoopsTrans could fail to convert the ranges,
             # unfortunately this can not be tested before modifications to the
             # tree (e.g. in the validate), so the best we can do is reverting
             # to the orginal statement (with maybe some leftover tmp variable)
@@ -307,7 +307,7 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             assignment.replace_with(orig_assignment)
             # pylint: disable=raise-missing-from
             raise TransformationError(
-                f"ArrayAssignment2LoopsTans could not convert the "
+                f"ArrayAssignment2LoopsTrans could not convert the "
                 f"expression:\n{assignment.debug_string()}\n into a loop "
                 f"because:\n{err.value}")
         outer_loop = assignment_parent.children[assignment_position]
