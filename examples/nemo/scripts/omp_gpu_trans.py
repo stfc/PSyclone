@@ -39,7 +39,7 @@ directives into Nemo code. '''
 
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import (
-    Loop, Routine, Directive, Assignment, OMPAtomicDirective)
+    Loop, Directive, Assignment, OMPAtomicDirective)
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans, TransformationError
 
@@ -49,59 +49,62 @@ from utils import insert_explicit_loop_parallelism, normalise_loops, \
 PROFILING_ENABLED = True
 
 
-def trans(psyir):
+def trans(psy):
     ''' Add OpenMP Target and Loop directives to all loops, including the
     implicit ones, to parallelise the code and execute it in an acceleration
     device.
 
-    :param psyir: the PSyIR representing the provided file.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
     omp_target_trans = OMPTargetTrans()
     omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
     omp_loop_trans.omp_directive = "loop"
 
-    # TODO #2317: Has structure accesses that can not be offloaded and has
-    # a problematic range to loop expansion of (1:1)
-    if psyir.name.startswith("obs_"):
-        print("Skipping file", psyir.name)
-        return
-
-    for subroutine in psyir.walk(Routine):
+    print(f"Invokes found in {psy.name}:")
+    for invoke in psy.invokes.invoke_list:
+        print(invoke.name)
 
         if PROFILING_ENABLED:
-            add_profiling(subroutine.children)
+            add_profiling(invoke.schedule.children)
+
+        # TODO #2317: Has structure accesses that can not be offloaded and has
+        # a problematic range to loop expansion of (1:1)
+        if psy.name.startswith("psy_obs_"):
+            print("Skipping", invoke.name)
+            continue
 
         # TODO #1841: These files have a bug in the array-range-to-loop
         # transformation. One leads to the following compiler error
         # NVFORTRAN-S-0083-Vector expression used where scalar expression
         # required, the other to an incorrect result.
-        if subroutine.name in ("trc_oce_rgb", ):
-            print("Skipping", subroutine.name)
+        if invoke.name in ("trc_oce_rgb", ):
+            print("Skipping", invoke.name)
             continue
 
         # The nvidia compiler does not compile a loop over a string in
         # this subroutine:
-        if subroutine.name in ("bdytide_init", "sbc_cpl_init"):
-            print("Skipping", subroutine.name)
+        if invoke.name in ("bdytide_init", "sbc_cpl_init"):
+            print("Skipping", invoke.name)
             continue
 
         # This are functions with scalar bodies, we don't want to parallelise
         # them, but we could:
         # - Inine them
         # - Annotate them with 'omp declare target' and allow to call from gpus
-        if subroutine.name in ("q_sat", "sbc_dcy", "gamma_moist",
-                               "cd_neutral_10m","psi_h", "psi_m"):
-            print("Skipping", subroutine.name)
+        if invoke.name in ("q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m",
+                           "psi_h", "psi_m"):
+
+            print("Skipping", invoke.name)
             continue
 
-        print(f"Transforming subroutine: {subroutine.name}")
-
-        enhance_tree_information(subroutine)
+        enhance_tree_information(invoke.schedule)
 
         normalise_loops(
-                subroutine,
+                invoke.schedule,
                 hoist_local_arrays=True,
                 convert_array_notation=True,
                 loopify_array_intrinsics=True,
@@ -110,13 +113,13 @@ def trans(psyir):
         )
 
         # For performance in lib_fortran, mark serial routines as GPU-enabled
-        if psyir.name == "lib_fortran":
-            if not subroutine.walk(Loop):
+        if psy.name == "psy_lib_fortran_psy":
+            if not invoke.schedule.walk(Loop):
                 try:
                     # We need the 'force' option.
                     # SIGN_ARRAY_1D has a CodeBlock because of a WHERE without
                     # array notation. (TODO #717)
-                    OMPDeclareTargetTrans().apply(subroutine,
+                    OMPDeclareTargetTrans().apply(invoke.schedule,
                                                   options={"force": True})
                 except TransformationError as err:
                     print(err)
@@ -126,8 +129,8 @@ def trans(psyir):
         # TODO #2446: This needs to be generalised and probably be done
         # from inside the loop transformation when the race condition data
         # dependency is found.
-        if psyir.name == "stpctl":
-            for loop in subroutine.walk(Loop):
+        if psy.name == "psy_stpctl_psy":
+            for loop in invoke.schedule.walk(Loop):
                 # Skip if an outer loop is already parallelised
                 if loop.ancestor(Directive):
                     continue
@@ -144,9 +147,11 @@ def trans(psyir):
             continue
 
         insert_explicit_loop_parallelism(
-                subroutine,
+                invoke.schedule,
                 region_directive_trans=omp_target_trans,
                 loop_directive_trans=omp_loop_trans,
                 # Collapse is necessary to give GPUs enough parallel items
                 collapse=True
         )
+
+    return psy

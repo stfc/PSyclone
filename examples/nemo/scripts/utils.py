@@ -239,7 +239,7 @@ def insert_explicit_loop_parallelism(
 
         opts = {}
 
-        routine_name = loop.ancestor(Routine).name
+        routine_name = loop.ancestor(Routine).invoke.name
 
         if ('dyn_spg' in routine_name and len(loop.walk(Loop)) > 2):
             print("Loop not parallelised because its in 'dyn_spg' and "
@@ -395,7 +395,7 @@ def add_profile_region(nodes):
     '''
     if nodes:
         # Check whether we should be adding profiling inside this routine
-        routine_name = nodes[0].ancestor(Routine).name.lower()
+        routine_name = nodes[0].ancestor(Routine).invoke.name.lower()
         if any(ignore in routine_name for ignore in PROFILING_IGNORE):
             return
         if len(nodes) == 1:

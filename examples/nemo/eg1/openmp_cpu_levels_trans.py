@@ -51,19 +51,27 @@ Loop.set_loop_type_inference_rules({
 })
 
 
-def trans(psyir):
-    ''' Add OpenMP Parallel Loop directives to Nemo loops over levels.
+def trans(psy):
+    ''' Add OpenMP Parallel Loop directives to Nemo loops over levels
+    in the provided PSy-layer.
 
-    :param psyir: the PSyIR representing the provided file.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
     omp_trans = TransInfo().get_trans_name('OMPParallelLoopTrans')
 
-    for loop in psyir.walk(Loop):
-        if loop.loop_type == "levels":
-            try:
-                omp_trans.apply(loop)
-            except TransformationError:
-                # Not all of the loops in the example can be parallelised.
-                pass
+    print("Invokes found:")
+    for invoke in psy.invokes.invoke_list:
+        print(invoke.name)
+        for loop in invoke.schedule.loops():
+            if loop.loop_type == "levels":
+                try:
+                    omp_trans.apply(loop)
+                except TransformationError:
+                    # Not all of the loops in the example can be parallelised.
+                    pass
+
+    return psy

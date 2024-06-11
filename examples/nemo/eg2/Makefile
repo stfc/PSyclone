@@ -42,9 +42,9 @@ transform: omp_levels
 
 
 omp_levels:
-	${PSYCLONE} -s ./omp_levels_trans.py ../code/traldf_iso.F90
-	${PSYCLONE} -s ../scripts/omp_cpu_trans.py ../code/traldf_iso.F90
-	${PSYCLONE} -s ../scripts/omp_gpu_trans.py ../code/traldf_iso.F90
+	${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py ../code/traldf_iso.F90
+	${PSYCLONE} -api nemo -s ../scripts/omp_cpu_trans.py ../code/traldf_iso.F90
+	${PSYCLONE} -api nemo -s ../scripts/omp_gpu_trans.py ../code/traldf_iso.F90
 
 
 compile: transform

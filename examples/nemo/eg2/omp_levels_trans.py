@@ -39,7 +39,7 @@ top-level psyclone directory.
 
 Once you have PSyclone installed, this script may be used by doing:
 
- >>> psyclone -s ./omp_levels_trans.py traldf_iso.F90
+ >>> psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
 
 This should produce a lot of output, ending with generated
 Fortran.
@@ -59,21 +59,30 @@ Loop.set_loop_type_inference_rules({
 })
 
 
-def trans(psyir):
+def trans(psy):
     ''' Transform a specific Schedule by making all loops
     over levels OpenMP parallel.
 
-    :param psyir: the PSyIR representing the provided file.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    :param psy: the object holding all information on the PSy layer
+                to be modified.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+
+    :returns: the transformed PSy object
+    :rtype:  :py:class:`psyclone.psyGen.PSy`
 
     '''
+    # Get the Schedule of the target routine
+    sched = psy.invokes.get('tra_ldf_iso').schedule
     # Get the transformation we will apply
     ompt = TransInfo().get_trans_name('OMPParallelLoopTrans')
     # Apply it to each loop over levels containing a kernel
-    for loop in psyir.walk(Loop):
+    for loop in sched.loops():
         if loop.loop_type == "levels":
             try:
                 ompt.apply(loop)
             except TransformationError as error:
                 print(str(error))
                 continue
+
+    # Return the modified psy object
+    return psy

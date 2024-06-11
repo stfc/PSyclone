@@ -2685,6 +2685,13 @@ class ACCKernelsTrans(RegionTrans):
         # one was supplied via the `nodes` argument.
         node_list = self.get_node_list(nodes)
 
+        # Check that the front-end is valid
+        sched = node_list[0].ancestor((NemoInvokeSchedule,
+                                       LFRicInvokeSchedule))
+        if not sched:
+            raise NotImplementedError(
+                "OpenACC kernels regions are currently only supported for the "
+                "Nemo and LFRic InvokeSchedules")
         super().validate(node_list, options)
 
         # Check that we have at least one loop or array range within
