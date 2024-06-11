@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Data_Component_Def_Stmt, Component_Decl
 # pylint: enable=no-name-in-module
 
-from psyclone.configuration import Config, LFRIC_API_NAMES, NO_API_NAMES
+from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import BuiltInKernelTypeFactory, get_kernel_ast, \
     KernelTypeFactory
@@ -193,11 +193,6 @@ class Parser():
             # Make sure the code conforms to the line length limit.
             check_line_length(alg_filename)
         alg_parse_tree = parse_fp2(alg_filename)
-
-        if self._api in NO_API_NAMES:
-            # For this API we just parse the NEMO code and return the resulting
-            # fparser2 AST with None for the Algorithm AST.
-            return None, alg_parse_tree
 
         return alg_parse_tree, self.invoke_info(alg_parse_tree)
 

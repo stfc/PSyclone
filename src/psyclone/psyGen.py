@@ -45,8 +45,7 @@ import os
 from collections import OrderedDict
 import abc
 
-from psyclone.configuration import (
-    Config, LFRIC_API_NAMES, GOCEAN_API_NAMES, NO_API_NAMES)
+from psyclone.configuration import Config, LFRIC_API_NAMES, GOCEAN_API_NAMES
 from psyclone.core import AccessType
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CommentGen,
@@ -181,16 +180,16 @@ class PSyFactory():
         '''
         Create the API-specific PSy instance.
 
-        :param invoke_info: information on the invoke()s found by parsing \
-                            the Algorithm layer or (for NEMO) the fparser2 \
+        :param invoke_info: information on the invoke()s found by parsing
+                            the Algorithm layer or (for NEMO) the fparser2
                             parse tree of the source file.
-        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo` or \
+        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo` |
                            :py:class:`fparser.two.Fortran2003.Program`
 
         :returns: an instance of the API-specific sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
 
-        :raises InternalError: if this factory is found to have an \
+        :raises InternalError: if this factory is found to have an
                                unsupported type (API).
         '''
         # Conditional run-time importing is a part of this factory
@@ -200,10 +199,6 @@ class PSyFactory():
             from psyclone.dynamo0p3 import DynamoPSy as PSyClass
         elif self._type in GOCEAN_API_NAMES:
             from psyclone.gocean1p0 import GOPSy as PSyClass
-        elif self._type in NO_API_NAMES:
-            from psyclone.nemo import NemoPSy as PSyClass
-            # For this API, the 'invoke_info' is actually the fparser2 AST
-            # of the Fortran file being processed
         else:
             raise InternalError(
                 f"PSyFactory: Unsupported API type '{self._type}' found. "

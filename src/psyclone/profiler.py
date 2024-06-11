@@ -86,10 +86,11 @@ class Profiler():
                                  f"must be one of {allowed_options} but "
                                  f"found '{option}' at {index}")
 
-        if api == "nemo" and Profiler.KERNELS in options:
+        if not api and (Profiler.KERNELS in options or
+                        Profiler.INVOKES in options):
             raise ValueError(
-                f"The '{Profiler.KERNELS}' automatic profiling option is not "
-                f"compatible with the '{api}' API.")
+                f"The profiling '{Profiler.KERNELS}' and '{Profiler.INVOKES}'"
+                f" options are only available when using PSyKAl DSLs.")
 
         # Store options so they can be queried later
         Profiler._options = options

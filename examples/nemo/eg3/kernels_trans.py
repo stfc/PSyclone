@@ -65,9 +65,8 @@ PSyclone. Issue #309 will tackle this limitation.
 '''
 
 from kernel_utils import add_kernels
-from psyclone.psyir.nodes import ACCDirective
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Routine, ACCDirective
 
 
 # Get the PSyclone transformations we will use

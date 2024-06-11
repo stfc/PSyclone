@@ -56,7 +56,7 @@ from fparser.two import Fortran2003
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import (
     Config, ConfigurationError, VALID_KERNEL_NAMING_SCHEMES,
-    LFRIC_API_NAMES, GOCEAN_API_NAMES, NO_API_NAMES)
+    LFRIC_API_NAMES, GOCEAN_API_NAMES)
 from psyclone.domain.common.algorithm.psyir import (
     AlgorithmInvokeCall, KernelFunctor)
 from psyclone.domain.common.transformations import AlgTrans
@@ -526,7 +526,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                              kernel_paths=kernel_paths,
                              line_length=line_length)
 
-    if api in NO_API_NAMES or (api in LFRIC_API_NAMES and not LFRIC_TESTING):
+    if api in LFRIC_API_NAMES and not LFRIC_TESTING:
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:

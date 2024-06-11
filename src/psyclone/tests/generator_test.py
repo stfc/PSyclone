@@ -235,7 +235,7 @@ def test_non_existent_filename():
 
     '''
     with pytest.raises(IOError):
-        generate("non_existent_file.f90")
+        generate("non_existent_file.f90", api="lfric")
 
 
 def test_invalid_api():
@@ -498,16 +498,6 @@ def test_script_trans_dynamo0p3():
     assert str(generated_code_1) == str(generated_code_2)
 
 
-def test_api_no_alg():
-    ''' Checks that generate works OK for an API (NEMO) which doesn't have
-    an Algorithm layer '''
-    alg, psy = generate(os.path.join(NEMO_BASE_PATH, "explicit_do.f90"),
-                        api="nemo")
-    assert alg is None
-    assert isinstance(psy, str)
-    assert psy.startswith("program")
-
-
 def test_alg_lines_too_long_tested():
     '''Test that the generate function causes an exception if the
     line_length argument is set to True and the algorithm file has
@@ -628,13 +618,13 @@ def test_main_profile(capsys):
 
     assert re.search(correct_re, outerr) is not None
 
-    # Check that 'kernels' is rejected for the 'nemo' API.
+    # Check 'kernels' and 'invokes' are rejected when not using a PSyKAl DSL
     Profiler._options = []
     with pytest.raises(SystemExit):
-        main(["-api", "nemo", "--profile", "kernels", filename])
+        main(["--profile", "kernels", filename])
     _, outerr = capsys.readouterr()
-    assert ("The 'kernels' automatic profiling option is not compatible with "
-            "the 'nemo' API." in outerr)
+    assert ("Invalid profiling option: The profiling 'kernels' and 'invokes' "
+            "options are only available when using PSyKAl DSLs." in outerr)
 
     # Reset profile flags to avoid further failures in other tests
     Profiler._options = []
@@ -666,10 +656,6 @@ def test_main_api():
 
     # By default we don't use an API
     main([filename])
-    assert Config.get().api == ""
-
-    # We accept nemo for backward compatibility, but it acts as no API
-    main([filename, "-api", "nemo"])
     assert Config.get().api == ""
 
     filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
@@ -908,13 +894,8 @@ def test_main_fort_line_length_output_only(capsys):
 
     '''
     alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
-    # If line-length checking is enabled then we should abort
-    with pytest.raises(SystemExit):
-        main([alg_filename, '-api', 'nemo', '-l', 'all'])
-    _, error = capsys.readouterr()
-    assert "does not conform to the specified 132 line length limit" in error
     # If we only mandate that the output be limited then we should be fine
-    main([alg_filename, '-api', 'nemo', '-l', 'output'])
+    main([alg_filename, '-l', 'output'])
     output, _ = capsys.readouterr()
     for line in output.split('\n'):
         assert len(line) <= 132
@@ -1084,7 +1065,7 @@ def test_main_include_invalid(capsys, tmpdir):
                              "nemo", "test_files", "include_stmt.f90"))
     fake_path = tmpdir.join('does_not_exist')
     with pytest.raises(SystemExit) as err:
-        main([alg_file, '-api', 'nemo', '-I', fake_path.strpath])
+        main([alg_file, '-I', fake_path.strpath])
     assert str(err.value) == "1"
     capout = capsys.readouterr()
     assert "does_not_exist' does not exist" in capout.err
@@ -1101,19 +1082,17 @@ def test_main_include_path(capsys):
                              "nemo", "test_files", "include_stmt.f90"))
     # First try without specifying where to find the include file. This
     # is not supported and should raise an error.
-    with pytest.raises(SystemExit):
-        main([alg_file, '-api', 'nemo'])
-    _, err = capsys.readouterr()
+    with pytest.raises(GenerationError) as err:
+        main([alg_file])
     assert ("Found an unresolved Fortran INCLUDE file 'local_mpi.h' while"
-            in err)
+            in str(err.value))
     # Now specify two locations to search with only the second containing
     # the necessary header file
     inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files")
     inc_path2 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "nemo", "test_files", "include_files")
-    main([alg_file, '-api', 'nemo', '-I', str(inc_path1),
-          '-I', str(inc_path2)])
+    main([alg_file, '-I', str(inc_path1), '-I', str(inc_path2)])
     stdout, _ = capsys.readouterr()
     assert "some_fake_mpi_handle" in stdout
     # Check that the Config object contains the provided include paths
@@ -1136,10 +1115,10 @@ def test_utf_char(tmpdir):
         alg = afile.read().lower()
         assert "max reachable coeff" in alg
         assert "call invoke_0_kernel_utf" in alg
-    # Check for NEMO API when processing existing Fortran
+    # Check without PSyKAl DSLs
     test_file = os.path.join(NEMO_BASE_PATH, "utf_char.f90")
     tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
-    main(["-api", "nemo", "-opsy", tmp_file, test_file])
+    main(["-o", tmp_file, test_file])
     assert os.path.isfile(tmp_file)
 
 
