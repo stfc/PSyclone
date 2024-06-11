@@ -117,6 +117,11 @@ class OMPRegionDirective(OMPDirective, RegionDirective, metaclass=abc.ABCMeta):
 
         '''
         result = []
+
+        # TODO #514: not yet working with generic PSyIR, so skip for now
+        if Config.get().api not in ('gocean', 'lfric'):
+            return result
+
         const = Config.get().api_conf().get_constants()
         for call in self.kernels():
             for arg in call.arguments.args:

@@ -45,12 +45,6 @@ from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.tests.utilities import get_invoke
 
 
-@pytest.fixture(scope="function", autouse=True)
-def clear_config_instance():
-    '''The tests in this file all assume that the Nemo API is used.'''
-    Config.get().api = "nemo"
-
-
 # -----------------------------------------------------------------------------
 def test_messages():
     '''Tests the messaging system of the dependency tools.'''
@@ -92,21 +86,15 @@ def test_messages():
 def test_dep_tool_constructor_errors():
     '''Test that invalid loop types raise an error in the constructor.
     '''
-    with pytest.raises(TypeError) as err:
-        _ = DependencyTools(loop_types_to_parallelise=["lon", "invalid"])
-    assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
-            "values for API 'nemo' are ['lat', 'levels', 'lon', 'tracers', "
-            "'unknown']." in str(err.value))
-
     # Test that a a change to the API works as expected, i.e. does
     # not raise an exception with a valid loop type, but still raises
     # one with an invalid loop type
-    Config.get().api = "dynamo0.3"
+    Config.get().api = "lfric"
     _ = DependencyTools(loop_types_to_parallelise=["dof", "colours"])
     with pytest.raises(TypeError) as err:
         _ = DependencyTools(loop_types_to_parallelise=["invalid"])
     assert ("Invalid loop type 'invalid' specified in DependencyTools. Valid "
-            "values for API 'dynamo0.3' are ['dof', 'colours', 'colour', '', "
+            "values for API 'lfric' are ['dof', 'colours', 'colour', '', "
             "'null']." in str(err.value))
 
 
@@ -729,7 +717,7 @@ def test_gocean_parallel():
 
     # TODO #2531: this kernel should not be accepted in the first place.
     _, invoke = get_invoke("test31_stencil_not_parallel.f90",
-                           api="gocean1.0", idx=0, dist_mem=False)
+                           api="gocean", idx=0, dist_mem=False)
 
     loop = invoke.schedule.children[0]
     dep_tools = DependencyTools()

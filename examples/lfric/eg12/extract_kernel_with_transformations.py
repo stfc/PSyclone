@@ -43,7 +43,7 @@ via another transformation script which is imported as a Python module.
 
 This script can be applied via the '-s' option when running PSyclone:
 
-$ psyclone -nodm -s extract_kernel_with_transformations.py \
+$ psyclone -api lfric -nodm -s extract_kernel_with_transformations.py \
     gw_mixed_schur_preconditioner_alg_mod.x90
 
 Please note that distributed memory is not supported for code extraction

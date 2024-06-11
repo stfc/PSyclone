@@ -58,7 +58,7 @@ from psyclone.tests.utilities import print_diffs
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
-API = "dynamo0.3"
+API = "lfric"
 
 CODE = '''
 module testkern_eval
@@ -84,12 +84,10 @@ end module testkern_eval
 '''
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-    yield
-    Config._instance = None
+    '''Make sure that all tests here use lfric as API.'''
+    Config.get().api = "lfric"
 
 
 def test_eval_mdata():

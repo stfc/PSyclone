@@ -52,9 +52,10 @@ import traceback
 from fparser.api import get_reader
 from fparser.two import Fortran2003
 
-from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
-from psyclone.configuration import Config, ConfigurationError
+from psyclone.configuration import (
+    Config, ConfigurationError, VALID_KERNEL_NAMING_SCHEMES,
+    LFRIC_API_NAMES, GOCEAN_API_NAMES, NO_API_NAMES)
 from psyclone.domain.common.algorithm.psyir import (
     AlgorithmInvokeCall, KernelFunctor)
 from psyclone.domain.common.transformations import AlgTrans
@@ -79,9 +80,6 @@ from psyclone.psyir.nodes import Loop, Container, Routine
 from psyclone.psyir.symbols import UnresolvedInterface
 from psyclone.psyir.transformations import TransformationError
 from psyclone.version import __VERSION__
-
-# Those APIs that do not have a separate Algorithm layer
-API_WITHOUT_ALGORITHM = ["nemo"]
 
 # TODO issue #1618 remove temporary LFRIC_TESTING flag, associated
 # logic and Alg class plus tests (and ast variable).
@@ -239,13 +237,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     if distributed_memory is None:
         distributed_memory = Config.get().distributed_memory
 
-    if api == "":
-        api = Config.get().default_api
-    else:
-        if api not in Config.get().supported_apis:
-            raise GenerationError(
-                f"generate: Unsupported API '{api}' specified. Supported "
-                f"types are {Config.get().supported_apis}.")
+    if api not in Config.get().supported_apis:
+        raise GenerationError(
+            f"generate: Unsupported API '{api}' specified. Supported "
+            f"types are {Config.get().curated_api_list}.")
 
     # Store Kernel-output options in our Configuration object
     Config.get().kernel_output_dir = kern_out_path
@@ -270,18 +265,17 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                              kernel_paths=kernel_paths,
                              line_length=line_length)
 
-    if api in API_WITHOUT_ALGORITHM or \
-       (api == "dynamo0.3" and not LFRIC_TESTING):
+    if api in NO_API_NAMES or (api in LFRIC_API_NAMES and not LFRIC_TESTING):
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy, "trans")
         alg_gen = None
 
-    elif api == "gocean1.0" or (api == "dynamo0.3" and LFRIC_TESTING):
+    elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
         # Create language-level PSyIR from the Algorithm file
         reader = FortranReader()
-        if api == "dynamo0.3":
+        if api in LFRIC_API_NAMES:
             # avoid undeclared builtin errors in PSyIR by adding a
             # wildcard use statement.
             fp2_tree = parse_fp2(filename)
@@ -297,9 +291,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             psyir = reader.psyir_from_file(filename)
 
         # Raise to Algorithm PSyIR
-        if api == "gocean1.0":
+        if api in GOCEAN_API_NAMES:
             alg_trans = AlgTrans()
-        else:  # api == "dynamo0.3"
+        else:  # api in LFRIC_API_NAMES
             alg_trans = LFRicAlgTrans()
         try:
             alg_trans.apply(psyir)
@@ -339,7 +333,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                         f"'{kern.ancestor(Routine).name}' from algorithm file "
                         f"'{filename}' must be named in a use statement "
                         f"(found {container_symbols})")
-                    if api == "dynamo0.3":
+                    if api in LFRIC_API_NAMES:
                         message += (
                             f" or be a recognised built-in (one of "
                             f"{list(BUILTIN_MAP.keys())})")
@@ -360,10 +354,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                     sys.exit(1)
 
                 # Raise to Kernel PSyIR
-                if api == "gocean1.0":
+                if api in GOCEAN_API_NAMES:
                     kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
                     kern_trans.apply(kernel_psyir)
-                else:  # api == "dynamo0.3"
+                else:  # api in LFRIC_API_NAMES
                     kern_trans = RaisePSyIR2LFRicKernTrans()
                     kern_trans.apply(
                         kernel_psyir,
@@ -372,14 +366,14 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                 kernels[id(invoke)][id(kern)] = kernel_psyir
 
         # Transform 'invoke' calls into calls to PSy-layer subroutines
-        if api == "gocean1.0":
+        if api in GOCEAN_API_NAMES:
             invoke_trans = GOceanAlgInvoke2PSyCallTrans()
-        else:  # api == "dynamo0.3"
+        else:  # api in LFRIC_API_NAMES
             invoke_trans = LFRicAlgInvoke2PSyCallTrans()
         for invoke in psyir.walk(AlgorithmInvokeCall):
             invoke_trans.apply(
                 invoke, options={"kernels": kernels[id(invoke)]})
-        if api == "dynamo0.3":
+        if api in LFRIC_API_NAMES:
             # Remove any use statements that were temporarily added to
             # avoid the PSyIR complaining about undeclared builtin
             # names.
@@ -403,7 +397,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             handle_script(script_name, psy, "trans")
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
-    if api == "dynamo0.3" and not LFRIC_TESTING:
+    if api in LFRIC_API_NAMES and not LFRIC_TESTING:
         alg_gen = Alg(ast, psy).gen
 
     # Add profiling nodes to schedule if automatic profiling has
@@ -441,9 +435,8 @@ def main(args):
                         help='directory in which to put transformed kernels, '
                         'default is the current working directory.')
     parser.add_argument('-api',
-                        help=f'choose a particular api from '
-                        f'{str(Config.get().supported_apis)}, '
-                        f'default \'{Config.get().default_api}\'.')
+                        help=f'whether to use particular PSyKAl DSL API from '
+                        f'{Config.get().curated_api_list}.')
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -471,7 +464,7 @@ def main(args):
         help='do not generate distributed memory code')
     parser.add_argument(
         '--kernel-renaming', default="multiple",
-        choices=configuration.VALID_KERNEL_NAMING_SCHEMES,
+        choices=VALID_KERNEL_NAMING_SCHEMES,
         help="Naming scheme to use when re-naming transformed kernels")
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
@@ -514,21 +507,18 @@ def main(args):
     # and config will load the default config file.
     Config.get().load(args.config)
 
-    # Check API, if none is specified, take the setting from the config file
+    # Check whether a PSyKAl API has been specified.
     if args.api is None:
-        # No command line option, use the one specified in Config - which
-        # is either based on a parameter in the config file, or otherwise
-        # the default:
-        api = Config.get().api
+        api = ""
     elif args.api not in Config.get().supported_apis:
         print(f"Unsupported API '{args.api}' specified. Supported APIs are "
-              f"{Config.get().supported_apis}.", file=sys.stderr)
+              f"{Config.get().curated_api_list}.", file=sys.stderr)
         sys.exit(1)
     else:
         # There is a valid API specified on the command line. Set it
         # as API in the config object as well.
         api = args.api
-        Config.get().api = api
+    Config.get().api = api
 
     # Record any profiling options.
     if args.profile:

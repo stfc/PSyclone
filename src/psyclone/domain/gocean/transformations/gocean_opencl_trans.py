@@ -65,7 +65,7 @@ class GOOpenCLTrans(Transformation):
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> API = "gocean1.0"
+    >>> API = "gocean"
     >>> FILENAME = "shallow_alg.f90" # examples/gocean/eg1
     >>> ast, invoke_info = parse(FILENAME, api=API)
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -243,7 +243,7 @@ class GOOpenCLTrans(Transformation):
             options = {}
 
         self.validate(node, options)
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
 
         # Update class attributes
         if 'enable_profiling' in options:
@@ -852,7 +852,7 @@ class GOOpenCLTrans(Transformation):
                 f"the GOMoveIterationBoundariesInsideKernelTrans before "
                 f"attempting the OpenCL code generation.") from err
 
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         # Prepare the argument list for the set_args routine
         arguments = [Reference(kernelsym)]
         for arg in kernel.arguments.args:
@@ -1134,7 +1134,7 @@ class GOOpenCLTrans(Transformation):
                                             tag="ocl_init_grid_buffers").name
 
         # Get the GOcean API property names used in this routine
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         props = api_config.grid_properties
         num_x = props["go_grid_nx"].fortran.format("field")
         num_y = props["go_grid_ny"].fortran.format("field")
@@ -1228,7 +1228,7 @@ class GOOpenCLTrans(Transformation):
                                             tag="ocl_write_grid_buffers").name
 
         # Get the GOcean API property names used in this routine
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         props = api_config.grid_properties
         num_x = props["go_grid_nx"].fortran.format("field")
         num_y = props["go_grid_ny"].fortran.format("field")
@@ -1496,7 +1496,7 @@ class GOOpenCLTrans(Transformation):
                                             tag="ocl_init_buffer_func").name
 
         # Get the GOcean API property names used in this routine
-        api_config = Config.get().api_conf("gocean1.0")
+        api_config = Config.get().api_conf("gocean")
         host_buff = \
             api_config.grid_properties["go_grid_data"].fortran.format("field")
         props = api_config.grid_properties

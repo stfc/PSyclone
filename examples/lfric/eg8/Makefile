@@ -41,10 +41,10 @@ include ../../common.mk
 transform: vanilla redundant
 
 vanilla:
-	${PSYCLONE} helmholtz_solver_alg_mod.x90
+	${PSYCLONE} -api lfric helmholtz_solver_alg_mod.x90
 
 redundant:
-	${PSYCLONE} -s ./redundant_script.py helmholtz_solver_alg_mod.x90
+	${PSYCLONE} -api lfric -s ./redundant_script.py helmholtz_solver_alg_mod.x90
 
 compile: transform
 	@echo "No compilation supported for lfric/eg8"

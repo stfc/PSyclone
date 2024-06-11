@@ -93,7 +93,7 @@ tangent-linear kernel file and the names of the active variables
 within the kernel file
 ::
 
-    > psyad -api dynamo0.3 -a var1 var2 -- tl_kern.f90
+    > psyad -api lfric -a var1 var2 -- tl_kern.f90
 
 If the kernel file or active variables are invalid for some reason,
 the command should return with an appropriate error.
@@ -194,7 +194,7 @@ flags which allow the user to specify that a particular kernel argument
 corresponds to either the field of panel IDs or mesh coordinates, respectively.
 Each of these flags must be followed by the position (indexed from 1) of the
 corresponding argument in the list of ``meta_args`` in the kernel
-:ref:`metadata <user_guide:dynamo0.3-api-kernel-metadata>`.
+:ref:`metadata <user_guide:lfric-api-kernel-metadata>`.
 
 PSyAD will return an error if the specified kernel argument is not consistent
 with the particular geometry field that it is supposed to represent.

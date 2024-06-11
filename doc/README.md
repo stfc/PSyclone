@@ -34,10 +34,3 @@ of the repository:
 In both cases ``latexmk`` is also required to be installed on
 the system in order to generate the
 [pdf documentation](../psyclone.pdf).
-
-The Big Picture
-===============
-
-The "thebigpicture.mm" file contains a 'mind-map' view of the PSyclone
-project, used when determining development priorities. To view/edit
-this you will need freemind v.1.0.1.

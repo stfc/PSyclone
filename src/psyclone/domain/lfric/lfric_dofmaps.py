@@ -228,7 +228,7 @@ class LFRicDofmaps(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # Function space dofmaps
         # decl_map_names = \
@@ -273,7 +273,7 @@ class LFRicDofmaps(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):

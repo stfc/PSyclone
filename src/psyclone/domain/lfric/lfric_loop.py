@@ -195,7 +195,7 @@ class LFRicLoop(PSyLoop):
 
     def node_str(self, colour=True):
         ''' Creates a text summary of this loop node. We override this
-        method from the Loop class because, in Dynamo0.3, the function
+        method from the Loop class because, in LFRic, the function
         space is now an object and we need to call orig_name on it. We
         also include the upper loop bound as this can now be modified.
 
@@ -252,7 +252,7 @@ class LFRicLoop(PSyLoop):
         if isinstance(kern, LFRicBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \
+            if Config.get().api_conf("lfric").compute_annexed_dofs \
                and Config.get().distributed_memory \
                and not kern.is_reduction:
                 self.set_upper_bound("nannexed")
@@ -740,7 +740,7 @@ class LFRicLoop(PSyLoop):
                     # Annexed dofs may be accessed. Return False if we
                     # always compute annexed dofs and True if we don't
                     # (as annexed dofs are part of the level 1 halo).
-                    return not Config.get().api_conf("dynamo0.3").\
+                    return not Config.get().api_conf("lfric").\
                         compute_annexed_dofs
                 # The halo is not accessed.
                 return False
@@ -968,7 +968,7 @@ class LFRicLoop(PSyLoop):
             if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
                 if self._upper_bound_halo_depth:
                     # TODO: #696 Add kind (precision) once the
-                    # DynInvokeSchedule constructor has been extended to
+                    # LFRicInvokeSchedule constructor has been extended to
                     # create the necessary symbols.
                     halo_depth = Literal(str(self._upper_bound_halo_depth),
                                          INTEGER_TYPE)

@@ -289,7 +289,7 @@ class LFRicStencils(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         if self._unique_max_branch_length_vars():
             parent.add(DeclGen(
@@ -353,7 +353,7 @@ class LFRicStencils(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         table = self._symbol_table
 
         if self._unique_extent_vars:
@@ -412,7 +412,7 @@ class LFRicStencils(LFRicCollection):
         :rtype: int
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         if self._unique_direction_vars:
             parent.add(DeclGen(parent, datatype="integer",
@@ -481,7 +481,7 @@ class LFRicStencils(LFRicCollection):
         # parent.add(CommentGen(parent, ""))
         # parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
         # parent.add(CommentGen(parent, ""))
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         stencil_map_names = []
         const = LFRicConstants()
         init_cursor = cursor
@@ -598,7 +598,7 @@ class LFRicStencils(LFRicCollection):
         :raises GenerationError: if an unsupported stencil type is encountered.
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         if not self._kern_args:
             return cursor
@@ -701,7 +701,7 @@ class LFRicStencils(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
 
         symtab = self._symbol_table
         for arg in self._kern_args:

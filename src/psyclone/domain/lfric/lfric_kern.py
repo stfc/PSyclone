@@ -115,7 +115,7 @@ class LFRicKern(CodedKern):
         self._mesh_properties = None
         # Initialise kinds (precisions) of all kernel arguments (start
         # with 'real' and 'integer' kinds)
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         self._argument_kinds = {api_config.default_kind["real"],
                                 api_config.default_kind["integer"]}
 
@@ -799,7 +799,7 @@ class LFRicKern(CodedKern):
         # 2: precision. An LFRic kernel is only permitted to have a precision
         #    specified by a recognised type parameter or a no. of bytes.
         actual_precision = kern_code_arg.datatype.precision
-        api_config = Config.get().api_conf("dynamo0.3")
+        api_config = Config.get().api_conf("lfric")
         if isinstance(actual_precision, DataSymbol):
             # Convert precision into number of bytes to support
             # mixed-precision kernels.

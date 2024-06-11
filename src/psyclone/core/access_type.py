@@ -69,7 +69,7 @@ class AccessType(Enum):
 
     def api_specific_name(self):
         '''This convenience function returns the name of the type in the
-        current API. E.g. in a dynamo0.3 API, WRITE --> "gh_write"
+        current API. E.g. in a lfric API, WRITE --> "gh_write"
         :returns: The API specific name.
         :rtype: str
         '''
