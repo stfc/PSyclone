@@ -57,8 +57,8 @@ class BaseDriverCreator:
     def add_call(program, name, args):
         '''This function creates a call to the subroutine of the given name,
         providing the arguments. The call will be added to the program and
-        the supplied program and the corresponding RoutineSymbol to its
-        symbol table (if not already present).
+        the corresponding RoutineSymbol to its symbol table (if not already
+        present).
 
         :param program: the PSyIR Routine to which any code must
             be added. It also contains the symbol table to be used.
