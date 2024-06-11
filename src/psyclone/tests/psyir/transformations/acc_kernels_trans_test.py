@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
-'''Module containing py.test tests for the transformation of the PSy
-   representation of NEMO code using the OpenACC 'kernels' directive.
+'''Module containing py.test tests for the transformation of the PSyIR
+   of generic code using the OpenACC 'kernels' directive.
 
 '''
 
@@ -44,13 +44,14 @@ from fparser.common.readfortran import FortranStringReader
 
 from psyclone.errors import GenerationError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop
-from psyclone.psyir.transformations import TransformationError, ProfileTrans
-from psyclone.transformations import ACCKernelsTrans, ACCLoopTrans
+from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop, Routine
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, TransformationError, ProfileTrans)
+from psyclone.transformations import ACCLoopTrans
+from psyclone.tests.utilities import get_invoke
 
-
-# The PSyclone API under test
-API = "nemo"
+# These tests are for PSyclone without a DSL.
+API = ""
 
 EXPLICIT_LOOP = ("program do_loop\n"
                  "use kind_params_mod\n"
@@ -98,9 +99,22 @@ def test_no_kernels_error(parser):
             in str(err.value))
 
 
+def test_acc_kernels_gocean_error():
+    ''' Check that we refuse to allow the kernels transformation
+    for the GOcean DSL. '''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean",
+                           name="invoke_0", dist_mem=False)
+    schedule = invoke.schedule
+    accktrans = ACCKernelsTrans()
+    with pytest.raises(NotImplementedError) as err:
+        accktrans.apply(schedule.children)
+    assert ("kernels regions are not currently supported for "
+            "GOcean InvokeSchedules" in str(err.value))
+
+
 def test_no_loops(parser):
     ''' Check that the transformation refuses to generate a kernels region
-    if it contains no loops. '''
+    if it contains no loops and that this check may also be disabled. '''
     reader = FortranStringReader("program no_loop\n"
                                  "integer :: jpk\n"
                                  "jpk = 30\n"
@@ -110,9 +124,11 @@ def test_no_loops(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
-        acc_trans.apply(schedule.children[0:1], {"default_present": True})
+        acc_trans.validate(schedule.children[0:1])
     assert ("must enclose at least one loop or array range but none were "
             "found" in str(err.value))
+    # But we can disable this check.
+    acc_trans.validate(schedule[0:1], options={"disable_loop_check": True})
 
 
 def test_implicit_loop(parser):
@@ -407,3 +423,68 @@ def test_no_psydata_in_kernels(parser, monkeypatch):
         _ = psy.gen
     assert ("Cannot include CodeBlocks or calls to PSyData routines within "
             "OpenACC regions but found [" in str(err.value))
+
+
+def test_no_assumed_size_char_in_kernels(fortran_reader):
+    '''
+    Check that the transformation rejects any assumed-size character variables
+    or intrinsics that aren't available on GPU.
+
+    '''
+    code = '''\
+subroutine ice(assumed_size_char, assumed2)
+  implicit none
+  character(len = *), intent(in) :: assumed_size_char
+  character*(*) :: assumed2
+  character(len=10) :: explicit_size_char
+  real, dimension(10,10) :: my_var
+
+  if (assumed_size_char == 'literal') then
+    my_var(:UBOUND(my_var)) = 0.0
+    explicit_size_char = 'hello'
+  end if
+
+  assumed_size_char(:LEN(explicit_size_char)) = ' '
+
+  explicit_size_char(:) = achar(9)
+
+  if(explicit_size_char == 'literal') then
+    my_var(:) = 0.0
+  end if
+
+  assumed2(:) = ''
+
+  explicit_size_char = assumed2
+
+end
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    sub = psyir.walk(Routine)[0]
+    acc_trans = ACCKernelsTrans()
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[0], options={})
+    assert ("Assumed-size character variables cannot be enclosed in an "
+            "OpenACC region but found 'if (assumed_size_char == 'literal')"
+            in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[1], options={})
+    assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
+            " region but found 'assumed_size_char(:LEN(explicit_size_char)) = "
+            in str(err.value))
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[2], options={})
+    assert ("Cannot include 'ACHAR(9)' in an OpenACC region because "
+            "it is not available on GPU" in str(err.value))
+    # String with explicit length is fine.
+    acc_trans.validate(sub.children[3], options={})
+    # CHARACTER*(*) notation is also rejected.
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[4], options={})
+    assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
+            " region but found 'assumed2(:) = ''" in str(err.value))
+    # We don't need there to be a character literal in order to spot a problem.
+    with pytest.raises(TransformationError) as err:
+        acc_trans.validate(sub.children[5], options={})
+    assert ("Assumed-size character variables cannot be enclosed in an OpenACC"
+            " region but found 'explicit_size_char = assumed2" in
+            str(err.value))

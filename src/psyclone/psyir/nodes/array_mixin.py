@@ -146,7 +146,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # This is the expected bound
             if self.is_same_array(expr.arguments[0]):
                 # The arrays match
-                if (isinstance(expr.arguments[1], Literal) and
+                if (len(expr.arguments) > 1 and
+                        isinstance(expr.arguments[1], Literal) and
                         expr.arguments[1].datatype.intrinsic ==
                         ScalarType.Intrinsic.INTEGER
                         and expr.arguments[1].value == str(index+1)):

@@ -45,6 +45,7 @@ transformations and base classes.
 # produces an ImportError due to cyclic dependencies
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
+from psyclone.psyir.transformations.acc_kernels_trans import ACCKernelsTrans
 from psyclone.psyir.transformations.acc_update_trans import ACCUpdateTrans
 from psyclone.psyir.transformations.allarrayaccess2loop_trans import \
     AllArrayAccess2LoopTrans
@@ -106,7 +107,8 @@ from psyclone.psyir.transformations.reference2arrayrange_trans import \
 
 
 # For AutoAPI documentation generation
-__all__ = ['ACCUpdateTrans',
+__all__ = ['ACCKernelsTrans',
+           'ACCUpdateTrans',
            'AllArrayAccess2LoopTrans',
            'ArrayAccess2LoopTrans',
            'ArrayRange2LoopTrans',
