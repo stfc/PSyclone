@@ -34,12 +34,43 @@
 # Author: J. Henrichs, Australian Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
 
-# This Makefile just creates the Fortran base class for the PSyData library
-# from the jinja template psy_data_base.jinja. The compile functionality it
-# offers is only meant for testing, each library should compile its own version
-# of the base class (with therefore consistent compiler settings).
+# This Makefile just creates the Fortran base class for the compare_variables_mod
+# from the jinja template `compare_variables_mod.jinja`. The compile functionality
+# it offers is only meant for testing, each domain=specific library should compile
+# its own version (with therefore consistent preprocessing and compiler settings).
 
-.PHONY: all
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?=
+# Path to the PSyclone wrapper libraries. It defaults to the relative path to
+# the top-level 'lib' directory. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./..
+
+# These arguments are responsible for creating the Fortran
+# `compare_variables_mod` file based on the jinja template. It will support
+# the listed data types and scalar and 2-dimensional arrays. Note that
+# domain-specific implementation will create their own version with different
+# number of dimensions if required.
+PROCESS_ARGS = -types=char,int,long,logical,real,double -dims=2
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
+
+.PHONY: all compare
 	
-all:
+compare: compare_variables_mod.o
+
+%.o: %.F90
+	$(F90) -c $(F90FLAGS) $<
+
+# ------------------------------------------------
+compare_variables_mod.F90:      compare_variables_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > compare_variables_mod.F90
+
+# Handy shortcut to trigger compilation of all libraries
+all: compare
 	$(MAKE) -C netcdf all
+	$(MAKE) -C standalone all
+
+clean:
+	rm -f compare_variables_mod.mod compare_variables_mod.o \
+		  compare_variables_mod.F90
