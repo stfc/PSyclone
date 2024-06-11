@@ -67,7 +67,7 @@ and then re-generating it and writing it to stdout:
 
 Note that there is no algorithm code because the input code does not
 follow the PSyKAl separation of concerns (see the [User
-Guide](https://psyclone.readthedocs.io/en/stable/introduction.html#introduction)
+Guide](https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html)
 for a description of PSyKAl). Instead, PSyclone treats each subroutine
 (or program) as though it is a manually-written PSy layer. (An
 unfortunate consequence of PSyclone's initial PSyKAl-focused development
