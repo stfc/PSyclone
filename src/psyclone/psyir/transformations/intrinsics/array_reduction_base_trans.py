@@ -307,9 +307,9 @@ class ArrayReductionBaseTrans(Transformation, ABC):
             assignment.replace_with(orig_assignment)
             # pylint: disable=raise-missing-from
             raise TransformationError(
-                f"ArrayAssignment2LoopsTans could not convert the expression:\n"
-                f"{assignment.debug_string()}\n into a loop because:\n"
-                f"{err.value}")
+                f"ArrayAssignment2LoopsTans could not convert the "
+                f"expression:\n{assignment.debug_string()}\n into a loop "
+                f"because:\n{err.value}")
         outer_loop = assignment_parent.children[assignment_position]
         if mask_ref:
             # remove mask from the rhs of the assignment

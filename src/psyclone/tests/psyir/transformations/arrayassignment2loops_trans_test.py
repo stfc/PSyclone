@@ -55,8 +55,8 @@ def test_str():
     returns the expected value.
 
     '''
-    assert (str(ArrayAssignment2LoopsTans()) == "Convert a PSyIR assignment to an "
-            "array Range into a PSyIR Loop.")
+    assert (str(ArrayAssignment2LoopsTans()) == "Convert a PSyIR assignment "
+            "with array Ranges into explicit PSyIR Loops.")
 
 
 @pytest.mark.parametrize(
@@ -328,8 +328,8 @@ def test_apply_calls_validate():
     trans = ArrayAssignment2LoopsTans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert ("Error in ArrayAssignment2LoopsTans transformation. The supplied node "
-            "should be a PSyIR Assignment, but found 'NoneType'."
+    assert ("Error in ArrayAssignment2LoopsTans transformation. The supplied "
+            "node should be a PSyIR Assignment, but found 'NoneType'."
             in str(info.value))
 
 
@@ -351,8 +351,8 @@ def test_validate_no_assignment_with_array_range_on_lhs():
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
     assert (
-        " Error in ArrayAssignment2LoopsTans transformation. The assignment should"
-        " be in a scope to create the necessary new symbols, but"
+        " Error in ArrayAssignment2LoopsTans transformation. The assignment "
+        "should be in a scope to create the necessary new symbols, but"
         in str(info.value))
 
     scope = Schedule(children=[assignment])
@@ -373,10 +373,10 @@ def test_validate_no_assignment_with_array_range_on_lhs():
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
     assert (
-        "Error in ArrayAssignment2LoopsTans transformation. The LHS of the supplied"
-        " Assignment node should contain an array accessor with at least one "
-        "of its dimensions being a Range, but none were found in 'x(1,1) ="
-        in str(info.value))
+        "Error in ArrayAssignment2LoopsTans transformation. The LHS of the "
+        "supplied Assignment node should contain an array accessor with at "
+        "least one of its dimensions being a Range, but none were found in "
+        "'x(1,1) =" in str(info.value))
 
 
 def test_validate_different_num_of_ranges(fortran_reader):
@@ -400,9 +400,9 @@ def test_validate_different_num_of_ranges(fortran_reader):
     trans = ArrayAssignment2LoopsTans()
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment)
-    assert ("ArrayAssignment2LoopsTans does not support statements containing array"
-            " accesses that have varying numbers of ranges in their accessors,"
-            " but found:" in str(info.value))
+    assert ("ArrayAssignment2LoopsTans does not support statements containing "
+            "array accesses that have varying numbers of ranges in their "
+            "accessors, but found:" in str(info.value))
 
 
 def test_character_validation(fortran_reader):
@@ -498,8 +498,8 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
         Literal("1", INTEGER_TYPE), Literal("10", INTEGER_TYPE)))
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment)
-    assert ("ArrayAssignment2LoopsTans does not support array assignments that "
-            "contain nested Range expressions, but found"
+    assert ("ArrayAssignment2LoopsTans does not support array assignments "
+            "that contain nested Range expressions, but found"
             in str(info.value))
 
     # Case 2: Nested array in another array
@@ -512,8 +512,8 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
     assignment = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment, options={"verbose": True})
-    errmsg = ("ArrayAssignment2LoopsTans does not support array assignments that "
-              "contain nested Range expressions")
+    errmsg = ("ArrayAssignment2LoopsTans does not support array assignments "
+              "that contain nested Range expressions")
     assert errmsg in str(info.value)
     assert errmsg in assignment.preceding_comment
 
@@ -528,8 +528,8 @@ def test_validate_nested_or_invalid_expressions(fortran_reader):
     assignment = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment)
-    assert ("ArrayAssignment2LoopsTans does not support array assignments that "
-            "contain nested Range expressions, but found"
+    assert ("ArrayAssignment2LoopsTans does not support array assignments "
+            "that contain nested Range expressions, but found"
             in str(info.value))
 
 
@@ -554,8 +554,8 @@ def test_validate_with_codeblock(fortran_reader):
 
     with pytest.raises(TransformationError) as info:
         trans.apply(assignment, options={"verbose": True})
-    errmsg = ("ArrayAssignment2LoopsTans does not support array assignments that "
-              "contain a CodeBlock anywhere in the expression")
+    errmsg = ("ArrayAssignment2LoopsTans does not support array assignments "
+              "that contain a CodeBlock anywhere in the expression")
     assert errmsg in str(info.value)
     assert errmsg in assignment.preceding_comment
 
@@ -624,14 +624,14 @@ def test_validate_rhs_plain_references(fortran_reader, fortran_writer):
         "  do idx_1 = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
         "    x(idx_1) = array(idx_1)\n"
         "  enddo\n"
-        "  ! ArrayAssignment2LoopsTans cannot expand expression because it contains"
-        " the variable 'unresolved' which is not a DataSymbol and therefore "
-        "cannot be guaranteed to be ScalarType. Resolving the import that "
-        "brings this variable into scope may help.\n"
+        "  ! ArrayAssignment2LoopsTans cannot expand expression because it "
+        "contains the variable 'unresolved' which is not a DataSymbol and "
+        "therefore cannot be guaranteed to be ScalarType. Resolving the import"
+        " that brings this variable into scope may help.\n"
         "  x(:) = unresolved\n"
-        "  ! ArrayAssignment2LoopsTans cannot expand expression because it contains"
-        " the variable 'unsupported' which is an UnsupportedFortranType("
-        "'INTEGER, DIMENSION(:), OPTIONAL :: unsupported') and therefore "
+        "  ! ArrayAssignment2LoopsTans cannot expand expression because it "
+        "contains the variable 'unsupported' which is an UnsupportedFortran"
+        "Type('INTEGER, DIMENSION(:), OPTIONAL :: unsupported') and therefore "
         "cannot be guaranteed to be ScalarType.\n"
         "  x(:) = unsupported\n"
     ) in fortran_writer(psyir)
@@ -668,15 +668,15 @@ def test_validate_non_elemental_functions(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment1, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTans does not accept calls which are not "
-                "guaranteed to be elemental, but found: MATMUL")
+    errormsg = ("ArrayAssignment2LoopsTans does not accept calls which are not"
+                " guaranteed to be elemental, but found: MATMUL")
     assert errormsg in assignment1.preceding_comment
     assert errormsg in str(err.value)
 
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment2, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTans does not accept calls which are not "
-                "guaranteed to be elemental, but found: mylocalfunc")
+    errormsg = ("ArrayAssignment2LoopsTans does not accept calls which are not"
+                " guaranteed to be elemental, but found: mylocalfunc")
     assert errormsg in assignment2.preceding_comment
     assert errormsg in str(err.value)
 
@@ -684,8 +684,8 @@ def test_validate_non_elemental_functions(fortran_reader):
     # calls as ArrayReferences, but we still fail with a resonable error msg.
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment3, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTans cannot expand expression because it "
-                "contains the variable 'myfunc' which is not a DataSymbol "
+    errormsg = ("ArrayAssignment2LoopsTans cannot expand expression because it"
+                " contains the variable 'myfunc' which is not a DataSymbol "
                 "and therefore cannot be guaranteed to be ScalarType. "
                 "Resolving the import that brings this variable into scope "
                 "may help.")
@@ -694,8 +694,8 @@ def test_validate_non_elemental_functions(fortran_reader):
 
     with pytest.raises(TransformationError) as err:
         trans.validate(assignment4, options={"verbose": True})
-    errormsg = ("ArrayAssignment2LoopsTans cannot expand expression because it "
-                "contains the variable 'var' which is an UnresolvedType "
+    errormsg = ("ArrayAssignment2LoopsTans cannot expand expression because it"
+                " contains the variable 'var' which is an UnresolvedType "
                 "and therefore cannot be guaranteed to be ScalarType. "
                 "Resolving the import that brings this variable into scope "
                 "may help.")

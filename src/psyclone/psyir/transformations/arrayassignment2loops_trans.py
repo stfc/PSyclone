@@ -166,8 +166,8 @@ class ArrayAssignment2LoopsTans(Transformation):
             loop.loop_body.addchild(node)
 
     def __str__(self):
-        return ("Convert a PSyIR assignment to an array Range into a "
-                "PSyIR Loop.")
+        return ("Convert a PSyIR assignment with array Ranges into explicit "
+                "PSyIR Loops.")
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
