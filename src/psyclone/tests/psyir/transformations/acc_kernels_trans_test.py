@@ -473,7 +473,7 @@ end
             in str(err.value))
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(sub.children[2], options={})
-    assert ("Cannot include intrinsic 'ACHAR(9)' in an OpenACC region because "
+    assert ("Cannot include 'ACHAR(9)' in an OpenACC region because "
             "it is not available on GPU" in str(err.value))
     # String with explicit length is fine.
     acc_trans.validate(sub.children[3], options={})

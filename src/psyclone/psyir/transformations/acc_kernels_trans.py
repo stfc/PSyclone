@@ -42,8 +42,8 @@ import re
 
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
-    ACCKernelsDirective, Assignment, CodeBlock, IntrinsicCall,
-    Loop, PSyDataNode, Reference, Return, Routine, Statement, WhileLoop)
+    ACCKernelsDirective, Assignment, Call, CodeBlock, Loop, PSyDataNode,
+    Reference, Return, Routine, Statement, WhileLoop)
 from psyclone.psyir.symbols import UnsupportedFortranType
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.transformation_error import (
@@ -133,7 +133,7 @@ class ACCKernelsTrans(RegionTrans):
         :raises TransformationError: if there is an access to an assumed-size
             character variable within the region.
         :raises TransformationError: if the proposed region contains a call to
-            an intrinsic that is not available on the accelerator.
+            a routine that is not available on the accelerator.
         :raises TransformationError: if there are no Loops within the
             proposed region and options["disable_loop_check"] is not True.
 
@@ -171,9 +171,9 @@ class ACCKernelsTrans(RegionTrans):
                             assumed_size.search(type_txt)):
                         char_syms.append(sym)
 
-        # Check that there are no assumed-size character variables as these
-        # causes an Internal Compiler Error with NVHPC<= 24.5.
         for node in node_list:
+            # Check that there are no assumed-size character variables as these
+            # causes an Internal Compiler Error with NVHPC <= 24.5.
             for ref in node.walk(Reference):
                 if ref.symbol in char_syms:
                     stmt = ref.ancestor(Statement)
@@ -181,13 +181,12 @@ class ACCKernelsTrans(RegionTrans):
                         f"Assumed-size character variables cannot be enclosed "
                         f"in an OpenACC region but found "
                         f"'{stmt.debug_string()}'")
-            # Check that any Intrinsics are supported on the device.
-            for icall in node.walk(IntrinsicCall):
+            # Check that any called routines are supported on the device.
+            for icall in node.walk(Call):
                 if not icall.is_available_on_device():
                     raise TransformationError(
-                        f"Cannot include intrinsic '{icall.debug_string()}' in"
-                        f" an OpenACC region because it is not available on "
-                        f"GPU.")
+                        f"Cannot include '{icall.debug_string()}' in an "
+                        f"OpenACC region because it is not available on GPU.")
 
         # Check that we have at least one loop or array range within
         # the proposed region unless this has been disabled.

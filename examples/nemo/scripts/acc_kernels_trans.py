@@ -208,16 +208,10 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (Call, IfBlock, Loop)
+    excluded_types = (IfBlock, Loop)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
-        if isinstance(enode, Call):
-            if enode.is_available_on_device():
-                continue
-            log_msg(routine_name,
-                    f"region contains {type(enode).__name__}", enode)
-            return False
 
         if isinstance(enode, IfBlock):
             # We permit IF blocks originating from WHERE constructs and
