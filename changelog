@@ -112,6 +112,9 @@
 
 	41) PR #2611. Update Integration tests nvhpc mpi library path. 
 
+	42) PR #2614 towards #2604. Fixes broken links to the docs in the
+	various tutorial READMEs.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
