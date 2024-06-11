@@ -224,7 +224,7 @@ indexed in the following way.
 	   :width: 120
 
 When the distributed memory option is switched on in the LFRic API
-(see the :ref:`distributed_memory` Section) the cells in the model are
+(see the :ref:`psykal_usage` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. In this
 case the LFRic infrastructure maintains the global cell index and
@@ -275,7 +275,7 @@ index 2 and the cell above that contains dof index 3 etc.
 
 As discussed in the previous section, when the distributed memory
 option is switched on in the LFRic API (see the
-:ref:`distributed_memory` Section) the cells in the model are
+:ref:`psykal_usage` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. This
 results in the dofs being replicated in the halo cells, leading to a
@@ -308,7 +308,7 @@ that contains dof index 3 etc.
 	   :width: 140
 
 As already explained, when the distributed memory option is switched
-on in the LFRic API (see the :ref:`distributed_memory` Section)
+on in the LFRic API (see the :ref:`psykal_usage` Section)
 the cells in the model are partitioned amongst processors and halo
 cells are added at the boundaries.
 
