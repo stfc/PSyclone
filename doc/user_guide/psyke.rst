@@ -153,12 +153,11 @@ are used or not.
 Distributed memory
 ##################
 
-As noted in the :ref:`distributed_memory` section, support for distributed
-memory in PSyclone is currently limited to the
-:ref:`LFRic API <lfric-api>`. Since the implementation
-generates calls to LFRic infrastructure (e.g. runtime checks for status
-of field halos), code extraction is not allowed when distributed memory
-is enabled.
+As noted in the :ref:`PSyKAl Introduction <introduction_to_psykal>` section,
+PSyKAl can support distributed memory. However, since the generated PSy-layer
+code with DM enabled contains infrastructure calls (e.g. checks for runtime
+status of field halos, halo exchanges etc.), code extraction is not allowed
+when distributed memory is enabled.
 
 .. _psyke-intro-restrictions-shared:
 
@@ -506,13 +505,16 @@ line.
 Therefore, compilation for a created driver, e.g. the one created in
 ``examples/lfric/eg17/full_example_extract``, is simple:
 
-.. code-block:: bash
+.. code-block:: output
 
    $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
    $ ./driver-main-update
-   cell correct
-   field1 correct
+       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
+           cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+    field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
+     dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
 
+(see :ref:`driver_summary_statistics` for details about the statistics`).
 Note that the Makefile in the example will actually provide additional include
 paths (infrastructure files and extraction library) for the compiler, but
 these flags are actually only required for compiling the example program, not
@@ -552,3 +554,65 @@ is used here.
 
   Driver creation in NEMO is not yet supported, and is
   tracked in issue #2058.
+
+.. _driver_summary_statistics:
+
+Driver Summary Statistics
+-------------------------
+When a driver is executed, it will print summary statistics at the end
+for each variable that was modified, indicating the difference between the
+`original` values from when the data file was created, and the `new` ones
+computed when executing the kernel. These differences can be caused
+by changing the compilation options, or compiler version. Example output:
+
+.. code-block:: output
+
+       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
+           cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+    field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
+     dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+
+The columns from left to right are:
+
+..
+  In order to avoid a dependency to dvipng (which depends on latex)
+  by default do not use maths mode for html (instead represent the math
+  formulas textually). But if latex is being used, or the tag
+  `has_dvipng` is defined (by the build environment using `-t has_dvipng`)
+  still use the math support.
+  We also have to duplicate the whole bullet list, sphinx `only`
+  directive cannot be applied to a single bullet line only.
+
+.. only:: latex or has_dvipng
+
+  * The variable name.
+  * The maximum absolute error of all elements.
+  * The maximum relative error of all elements. If an element has the value
+    0, the relative error for this element is considered to be 1.0.
+  * The L2 difference: :math:`\sqrt{\sum{(original-new)^2}}`.
+  * The cosine of the angle between the two vectors: :math:`\frac{\sum{original*new}}{\sqrt{\sum{original*original}}*\sqrt{\sum{new*new}}}`.
+  * How many values are identical.
+  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical.
+  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
+
+.. only:: html and not has_dvipng
+
+  * The variable name.
+  * The maximum absolute error of all elements.
+  * The maximum relative error of all elements. If an element has the value
+    0, the relative error for this element is considered to be 1.0.
+  * The L2 difference: `sqrt(sum((original-new)`\ :sup:`2` `))`.
+  * The cosine of the angle between the two vectors: `sum(original*new)/(sqrt(sum(original*original))*sqrt(sum(new*new)))`.
+  * How many values are identical.
+  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical.
+  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
+
+.. note:: The usefulness of the columns printed is still being evaluated. Early
+    indications are that the cosine of the angle between the two vectors,
+    which is commonly used in AI, might not be sensitive enough to give
+    a good indication of the differences.
+
+
+

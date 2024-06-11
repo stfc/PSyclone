@@ -47,7 +47,7 @@ from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.tools import CallTreeUtils
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
@@ -82,6 +82,45 @@ def init_module_manager():
 
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_create_read_in_code_missing_symbol(capsys, monkeypatch):
+    '''
+    Test that _create_read_in_code() handles the case where a symbol
+    cannot be found.
+    '''
+    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                           "symbols.f90",
+                           API,
+                           dist_mem=False, idx=0)
+    ctu = CallTreeUtils()
+    rw_info = ctu.get_in_out_parameters([invoke.schedule[0]],
+                                        collect_non_local_symbols=True)
+    new_routine = Routine("driver_test")
+    for mod_name, sig in rw_info.set_of_all_used_vars:
+        if not mod_name:
+            new_routine.symbol_table.find_or_create_tag(
+                str(sig), symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    ledc = LFRicExtractDriverCreator()
+    # To limit the scope of the test we monkeypatch _create_output_var_code
+    # so that it doesn't do anything.
+    monkeypatch.setattr(ledc, "_create_output_var_code",
+                        lambda _1, _2, _3, _4, _5, index=None,
+                        module_name="": None)
+    mod_man = ModuleManager.get()
+    minfo = mod_man.get_module_info("module_with_var_mod")
+    cntr = minfo.get_psyir()
+    # We can't use 'remove()' with a DataSymbol.
+    cntr.symbol_table._symbols.pop("module_var_b")
+    ledc._create_read_in_code(new_routine,
+                              DataSymbol("psy1", INTEGER_TYPE),
+                              invoke.schedule.symbol_table,
+                              rw_info, "my_postfix")
+    out, _ = capsys.readouterr()
+    assert ("Error finding symbol 'module_var_b' in 'module_with_var_mod'"
+            in out)
 
 
 # ----------------------------------------------------------------------------
@@ -144,15 +183,15 @@ def test_lfric_driver_add_call(fortran_writer):
     program.symbol_table.find_or_create_tag("test")
     driver_creator = LFRicExtractDriverCreator()
     with pytest.raises(TypeError) as err:
-        driver_creator._add_call(program, "test", [])
-    assert ("Routine 'test' is a symbol of type 'Symbol', not a "
-            "'RoutineSymbol'" in str(err.value))
+        driver_creator.add_call(program, "test", [])
+    assert ("Error creating call to 'test' - existing symbol is of type "
+            "'Symbol', not a 'RoutineSymbol'" in str(err.value))
     # Clean up previous invalid test symbol
     del program.symbol_table._symbols['test']
     del program.symbol_table._tags['test']
 
-    driver_creator._add_call(program, "my_sub", [])
-    driver_creator._add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])
+    driver_creator.add_call(program, "my_sub", [])
+    driver_creator.add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])
     out = fortran_writer(program)
     assert "call my_sub()" in out
     assert "call my_sub_2(1)" in out
@@ -425,7 +464,7 @@ def test_lfric_driver_removing_structure_data():
             in driver)
     assert "ALLOCATE(f2_data, mold=f2_data_post)" in driver
     assert "f2_data(df) = a + f1_data(df)" in driver
-    assert "if (ALL(f2_data - f2_data_post == 0.0)) then" in driver
+    assert "compare('f2_data', f2_data, f2_data_post" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod"]:
         assert f"module {mod}" in driver
@@ -512,7 +551,8 @@ def test_lfric_driver_field_array_write():
     for i in range(1, 4):
         assert (f"ReadVariable('coord_post%{i}', coord_{i}_data_post)"
                 in driver)
-        assert f"ALL(coord_{i}_data - coord_{i}_data_post == 0.0))" in driver
+        assert (f"compare('coord_{i}_data', coord_{i}_data, "
+                f"coord_{i}_data_post)" in driver)
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -597,7 +637,8 @@ def test_lfric_driver_external_symbols():
 
     assert ("call extract_psy_data%ReadVariable('module_var_a_post@"
             "module_with_var_mod', module_var_a_post)" in driver)
-    assert "if (module_var_a == module_var_a_post)" in driver
+    assert ("call compare('module_var_a', module_var_a, module_var_a_post)"
+            in driver)
 
     # While the actual code is LFRic, the driver is stand-alone, and as such
     # does not need any of the infrastructure files
@@ -682,10 +723,10 @@ def test_lfric_driver_external_symbols_error(capsys):
     # First check output of extraction, which will detect the problems of
     # finding variables and functions:
     out, _ = capsys.readouterr()
-    assert ("Cannot find symbol 'non_existent_func' in module "
-            "'module_with_error_mod' - ignored." in out)
-    assert ("Error finding symbol 'non_existent_var' in "
-            "'module_with_error_mod'." in out)
+    assert ("Cannot get PSyIR for module 'module_with_error_mod' - ignoring "
+            "unknown symbol 'non_existent_func'" in out)
+    assert ("Cannot get PSyIR for module 'module_with_error_mod' - ignoring "
+            "unknown symbol 'non_existent_var'" in out)
 
     # This error comes from the driver creation: a variable is in the list
     # of variables to be processed, but its type cannot be found.

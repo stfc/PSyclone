@@ -50,6 +50,7 @@ from psyclone.psyir.nodes import Container, Routine, ScopingNode
 from psyclone.psyir.symbols import (
     ContainerSymbol, DataSymbol, UnresolvedType, DataTypeSymbol,
     ImportInterface, ArrayType, ScalarType, INTEGER_TYPE)
+
 # Constants
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -64,7 +65,7 @@ def setup():
 
 
 @pytest.fixture(name="prog", scope="function")
-def create_prog_fixture():
+def create_prog_fixture(parser):
     '''
     :returns: a PSyIR Routine node representing a program.
     :rtype: :py:class:`psyclone.psyir.nodes.Routine`

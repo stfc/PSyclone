@@ -46,13 +46,13 @@ the output data contained in the input file.
 
 from psyclone.configuration import Config
 from psyclone.core import Signature
+from psyclone.domain.common import BaseDriverCreator
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
                                   IntrinsicCall, Literal, Reference,
                                   Routine, StructureReference)
@@ -64,7 +64,7 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
 from psyclone.psyir.transformations import ExtractTrans
 
 
-class LFRicExtractDriverCreator:
+class LFRicExtractDriverCreator(BaseDriverCreator):
     '''This class provides the functionality to create a driver that
     reads in extracted data produced by using the PSyData kernel-extraction
     functionality.
@@ -165,16 +165,19 @@ class LFRicExtractDriverCreator:
        example, a variable ``f`` which was modified in the kernel call(s),
        will then be compared with ``f_post``.
 
-    :param precision: a mapping of the various precisions used in LFRic to \
+    :param precision: a mapping of the various precisions used in LFRic to
         the actual Fortran data type to be used in a stand-alone driver.
     :type precision: Optional[Dict[str, str]]
 
-    :raises InternalError: if the precision argument is specified but \
+    :raises InternalError: if the precision argument is specified but
         is not a dictionary.
 
     '''
     def __init__(self):
+        super().__init__()
         # TODO #2069: check if this list can be taken from LFRicConstants
+        # TODO #2018: once r_field is defined in the LFRic infrastructure,
+        #             it should be added to this list.
         self._all_field_types = ["integer_field_type", "field_type",
                                  "r_bl_field", "r_solver_field_type",
                                  "r_tran_field_type"]
@@ -187,7 +190,7 @@ class LFRicExtractDriverCreator:
 
         :param str name: a proposed unit name.
 
-        :returns: a valid program or routine  name with special characters \
+        :returns: a valid program or routine  name with special characters
             removed and restricted to a length of 63 characters.
         :rtype: str
 
@@ -245,16 +248,16 @@ class LFRicExtractDriverCreator:
         driver.
 
         :param old_reference: a reference to a structure member.
-        :type old_reference: \
+        :type old_reference:
             :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param symbol_table: the symbol table to which to add the newly \
+        :param symbol_table: the symbol table to which to add the newly
             defined flattened symbol.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param proxy_name_mapping: a mapping of proxy names to the original \
+        :param proxy_name_mapping: a mapping of proxy names to the original
             names.
         :type proxy_name_mapping: Dict[str,str]
 
-        :raises InternalError: if the old_reference is not a \
+        :raises InternalError: if the old_reference is not a
             :py:class:`psyclone.psyir.nodes.StructureReference`
         :raises GenerationError: if an array of structures is used
 
@@ -305,10 +308,10 @@ class LFRicExtractDriverCreator:
 
         :param sched: the schedule that will be called by this driver program.
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
-        :param symbol_table: the symbol table to which to add all found \
+        :param symbol_table: the symbol table to which to add all found
             symbols.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param proxy_name_mapping: a mapping of proxy names to the original \
+        :param proxy_name_mapping: a mapping of proxy names to the original
             names.
         :type proxy_name_mapping: Dict[str,str]
         :param read_write_info: information about all input and output
@@ -316,7 +319,7 @@ class LFRicExtractDriverCreator:
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
-        # pylint: disable=too-many-locals
+        # pylint: disable=too-many-locals, too-many-branches
         all_references = sched.walk(Reference)
 
         # First we add all non-structure names to the symbol table. This way
@@ -395,10 +398,8 @@ class LFRicExtractDriverCreator:
             # its type. And since they are not imported, they need to be
             # explicitly declared.
             mod_info = mod_man.get_module_info(module_name)
-            sym_tab = mod_info.get_psyir().symbol_table
-            try:
-                container_symbol = sym_tab.lookup(signature[0])
-            except KeyError:
+            container_symbol = mod_info.get_symbol(signature[0])
+            if not container_symbol:
                 # TODO #2120: This typically indicates a problem with parsing
                 # a module: the psyir does not have the full tree structure.
                 continue
@@ -416,36 +417,6 @@ class LFRicExtractDriverCreator:
                 tag=f"{signature[0]}@{module_name}", root_name=signature[0],
                 symbol_type=DataSymbol, interface=interface,
                 datatype=container_symbol.datatype)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _add_call(program, name, args):
-        '''This function creates a call to the subroutine of the given name,
-        providing the arguments. The call will be added to the program and
-        to the symbol table.
-
-        :param program: the PSyIR Routine to which any code must \
-            be added. It also contains the symbol table to be used.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param str name: name of the subroutine to call.
-        :param args: all arguments for the call.
-        :type args: List[:py:class:`psyclone.psyir.nodes.Node`]
-
-        :raises TypeError: if there is a symbol with the \
-            specified name defined that is not a RoutineSymbol.
-        '''
-        if name in program.symbol_table:
-            routine_symbol = program.symbol_table.lookup(name)
-            if not isinstance(routine_symbol, RoutineSymbol):
-                raise TypeError(
-                    f"Error when adding call: Routine '{name}' is "
-                    f"a symbol of type '{type(routine_symbol).__name__}', "
-                    f"not a 'RoutineSymbol'.")
-        else:
-            routine_symbol = RoutineSymbol(name)
-            program.symbol_table.add(routine_symbol)
-        call = Call.create(routine_symbol, args)
-        program.addchild(call)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -521,9 +492,8 @@ class LFRicExtractDriverCreator:
                 # If it is not indexed then `name` will already end in "_data"
                 post_tag = f"{name}{postfix}"
         name_lit = Literal(post_tag, CHARACTER_TYPE)
-        LFRicExtractDriverCreator._add_call(program, read_var,
-                                            [name_lit,
-                                             Reference(post_sym)])
+        BaseDriverCreator.add_call(program, read_var,
+                                   [name_lit, Reference(post_sym)])
 
         # Now if a variable is written to, but not read, the variable
         # is not allocated. So we need to allocate it and set it to 0.
@@ -615,10 +585,8 @@ class LFRicExtractDriverCreator:
             sig_str = self._flatten_signature(signature)
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
-                sym_tab = mod_info.get_psyir().symbol_table
-                try:
-                    orig_sym = sym_tab.lookup(signature[0])
-                except KeyError:
+                orig_sym = mod_info.get_symbol(signature[0])
+                if not orig_sym:
                     # TODO 2120: We likely couldn't parse the module.
                     print(f"Error finding symbol '{sig_str}' in "
                           f"'{module_name}'.")
@@ -631,8 +599,8 @@ class LFRicExtractDriverCreator:
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}_data")
                     name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
-                    self._add_call(program, read_var, [name_lit,
-                                                       Reference(sym)])
+                    self.add_call(program, read_var,
+                                  [name_lit, Reference(sym)])
                 continue
 
             if module_name:
@@ -651,7 +619,8 @@ class LFRicExtractDriverCreator:
             else:
                 sym = symbol_table.lookup_with_tag(str(signature))
                 name_lit = Literal(str(signature), CHARACTER_TYPE)
-            self._add_call(program, read_var, [name_lit, Reference(sym)])
+            self.add_call(program, read_var,
+                          [name_lit, Reference(sym)])
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
@@ -671,9 +640,13 @@ class LFRicExtractDriverCreator:
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             if module_name:
-                mod_info = mod_man.get_module_info(module_name)
-                sym_tab = mod_info.get_psyir().symbol_table
-                orig_sym = sym_tab.lookup(signature[0])
+                orig_sym = mod_man.get_module_info(module_name).get_symbol(
+                    signature[0])
+                if not orig_sym:
+                    # TODO 2120: We likely couldn't parse the module.
+                    print(f"Error finding symbol '{signature}' in "
+                          f"'{module_name}'.")
+                    continue
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
             is_input = read_write_info.is_read(signature)
@@ -737,7 +710,7 @@ class LFRicExtractDriverCreator:
         '''This function adds an import of the various precision
         symbols used by LFRic from the constants_mod module.
 
-        :param symbol_table: the symbol table to which the precision symbols \
+        :param symbol_table: the symbol table to which the precision symbols
             must be added.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
@@ -761,55 +734,6 @@ class LFRicExtractDriverCreator:
                                     interface=ImportInterface(constant_mod))
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def _add_result_tests(program, output_symbols):
-        '''Adds tests to check that all output variables have the expected
-        value.
-
-        :param program: the program to which the tests should be added.
-        :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param output_symbols: a list containing all output variables of \
-            the executed code. Each entry in the list is a 2-tuple, \
-            containing first the symbol that was computed when executing \
-            the kernels, and then the symbol containing the expected \
-            values that have been read in from a file.
-        :type output_symbols: \
-            List[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`
-                       :py:class:`psyclone.psyir.symbols.Symbol`]]
-
-        '''
-        # TODO #2083: check if this can be combined with psyad result
-        # comparison.
-        for (sym_computed, sym_read) in output_symbols:
-            if (isinstance(sym_computed.datatype, ArrayType) or
-                    (isinstance(sym_computed.datatype, UnsupportedFortranType)
-                     and isinstance(sym_computed.datatype.partial_datatype,
-                                    ArrayType))):
-                cond = f"all({sym_computed.name} - {sym_read.name} == 0.0)"
-            else:
-                cond = f"{sym_computed.name} == {sym_read.name}"
-            # The PSyIR has no support for output functions, so we parse
-            # Fortran code to create a code block which stores the output
-            # statements.
-            code = f'''
-                subroutine tmp()
-                  integer :: {sym_computed.name}, {sym_read.name}
-                  if ({cond}) then
-                     print *,"{sym_computed.name} correct"
-                  else
-                     print *,"{sym_computed.name} incorrect. Values are:"
-                     print *,{sym_computed.name}
-                     print *,"{sym_computed.name} values should be:"
-                     print *,{sym_read.name}
-                  endif
-                end subroutine tmp'''
-
-            fortran_reader = FortranReader()
-            container = fortran_reader.psyir_from_source(code)
-            if_block = container.children[0].children[0]
-            program.addchild(if_block.detach())
-
-    # -------------------------------------------------------------------------
     def create(self, nodes, read_write_info, prefix, postfix, region_name):
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
@@ -821,20 +745,20 @@ class LFRicExtractDriverCreator:
 
         :param nodes: a list of nodes.
         :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output \
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
+        :param str prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols ``extract_psydata``.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
+        :param str postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param Tuple[str,str] region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
+        :param Tuple[str,str] region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
             should uniquely identify a region.
 
         :returns: the program PSyIR for a stand-alone driver.
@@ -931,8 +855,8 @@ class LFRicExtractDriverCreator:
         # will reconstruct the name of the data file to read.
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
-        self._add_call(program, f"{psy_data.name}%OpenRead",
-                       [module_str, region_str])
+        self.add_call(program, f"{psy_data.name}%OpenRead",
+                      [module_str, region_str])
 
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
@@ -943,7 +867,7 @@ class LFRicExtractDriverCreator:
         for child in all_children:
             program.addchild(child)
 
-        self._add_result_tests(program, output_symbols)
+        BaseDriverCreator.add_result_tests(program, output_symbols)
 
         return file_container
 
@@ -954,12 +878,12 @@ class LFRicExtractDriverCreator:
         It returns a dictionary, with the keys being all the (directly or
         indirectly) used modules.
 
-        :param file_container: the FileContainer for which to collect all \
+        :param file_container: the FileContainer for which to collect all
             used modules.
-        :type file_container: \
+        :type file_container:
             :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
 
-        :returns: a dictionary, with the required module names as key, and \
+        :returns: a dictionary, with the required module names as key, and
             as value a set of all modules required by the key module.
         :rtype: Dict[str, Set[str]]
 
@@ -1051,25 +975,25 @@ class LFRicExtractDriverCreator:
         :param nodes: a list of nodes containing the body of the driver
             routine.
         :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param read_write_info: information about all input and output \
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str prefix: the prefix to use for each PSyData symbol, \
+        :param str prefix: the prefix to use for each PSyData symbol,
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
-        :param str postfix: a postfix that is appended to an output variable \
-            to create the corresponding variable that stores the output \
-            value from the kernel data file. The caller must guarantee that \
-            no name clashes are created when adding the postfix to a variable \
-            and that the postfix is consistent between extract code and \
+        :param str postfix: a postfix that is appended to an output variable
+            to create the corresponding variable that stores the output
+            value from the kernel data file. The caller must guarantee that
+            no name clashes are created when adding the postfix to a variable
+            and that the postfix is consistent between extract code and
             driver code (see 'ExtractTrans.determine_postfix()').
-        :param Tuple[str,str] region_name: an optional name to \
-            use for this PSyData area, provided as a 2-tuple containing a \
-            location name followed by a local name. The pair of strings \
+        :param Tuple[str,str] region_name: an optional name to
+            use for this PSyData area, provided as a 2-tuple containing a
+            location name followed by a local name. The pair of strings
             should uniquely identify a region.
-        :param writer: a backend visitor to convert PSyIR \
-            representation to the selected language. It defaults to \
+        :param writer: a backend visitor to convert PSyIR
+            representation to the selected language. It defaults to
             the FortranWriter.
-        :type writer: \
+        :type writer:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''
