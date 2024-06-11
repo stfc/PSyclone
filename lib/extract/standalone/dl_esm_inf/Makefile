@@ -62,7 +62,7 @@ PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
 OBJS = psy_data_base.o kernel_data_standalone.o extract_standalone_base.o \
-		read_kernel_data_mod.o
+	   compare_variables_mod.o read_kernel_data_mod.o
 
 default: $(PSYDATA_LIB)
 
@@ -83,11 +83,17 @@ read_kernel_data_mod.f90: $(LIB_TMPLT_DIR)/read_kernel_data_mod.jinja Makefile
 extract_standalone_base.f90: $(LIB_TMPLT_DIR)/extract_standalone_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_base.f90
 
+compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > compare_variables_mod.F90
+
 # The dl_esm_inf library
 $(INF_LIB):
 	$(MAKE) -C $(GOCEAN_INF_DIR)
 
 %.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
