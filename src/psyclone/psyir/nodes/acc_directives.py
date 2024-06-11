@@ -170,6 +170,14 @@ class ACCRoutineDirective(ACCStandaloneDirective):
 
     @parallelism.setter
     def parallelism(self, value):
+        '''
+        :param str value: the new value for the level-of-parallelism within
+                          this routine (or a called one).
+
+        :raises TypeError: if `value` is not a str.
+        :raises ValueError: if `value` is not a recognised level of
+                            parallelism.
+        '''
         if value is None:
             # Default to sequential.
             self._parallelism = "seq"
