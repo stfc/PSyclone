@@ -49,8 +49,9 @@ from psyclone.psyir.nodes import (
     ACCKernelsDirective, CodeBlock, Routine, Schedule, Call, IntrinsicCall,
     Reference, Node)
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, REAL_TYPE
-from psyclone.psyir.transformations import TransformationError, ACCUpdateTrans
-from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, TransformationError, ACCUpdateTrans)
+from psyclone.transformations import ACCEnterDataTrans
 
 # Constants
 API = "nemo"
