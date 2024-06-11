@@ -396,6 +396,9 @@ class CallTreeUtils():
                           f"Cannot get PSyIR for module '{module_name}' - "
                           f"ignoring unknown symbol '{signature[0]}'.")
                     continue
+                # Check that we find at least one valid routine (several
+                # could be found in case of a generic interface):
+                at_least_one_routine_found = False
                 for routine_name in cntr.resolve_routine(signature[0]):
                     routine = cntr.get_routine_psyir(routine_name)
                     if not routine:
@@ -408,7 +411,9 @@ class CallTreeUtils():
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
                         self.get_non_local_symbols(routine))
-                else:
+                    at_least_one_routine_found = True
+
+                if not at_least_one_routine_found:
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot resolve routine '{signature[0]}' in module "
                           f"'{module_name}' - ignored.")

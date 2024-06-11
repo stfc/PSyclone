@@ -360,6 +360,16 @@ def test_call_tree_utils_resolve_calls_unknowns(capsys):
     assert rw_info.read_list == []
     assert rw_info.write_list == []
 
+    # Now query for a routine that exists, and make sure we do not
+    # get a warning printed for this (which we did in the past):
+    todo = [('routine', 'module_with_var_mod', Signature("module_subroutine"),
+             None)]
+    ctu._resolve_calls_and_unknowns(todo, rw_info)
+    out, _ = capsys.readouterr()
+    assert ("Cannot resolve routine 'module_subroutine' in module "
+            "'module_with_var_mod' - ignored." not in out)
+
+    rw_info = ReadWriteInfo()
     # Now try to find a routine that does not exist in an existing module:
     todo = [('routine', 'module_with_var_mod', Signature("does-not-exist"),
              None)]
