@@ -380,7 +380,9 @@ class MarkRoutineForGPUMixin:
         :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
         :raises TransformationError: if any of the symbols in the kernel are
-                                     accessed via a module use statement.
+                                     accessed via a module use statement (and
+                                     are not compile-time constants).
+        :raises TransformationError: if the routine contains any CodeBlocks.
         :raises TransformationError: if the kernel contains any calls to other
                                      routines.
         '''
@@ -2527,14 +2529,6 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
     >>> rtrans.apply(kern)
 
     '''
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation class.
-        :rtype: str
-        '''
-        return "ACCRoutineTrans"
-
     def apply(self, node, options=None):
         '''
         Add the '!$acc routine' OpenACC directive into the code of the
