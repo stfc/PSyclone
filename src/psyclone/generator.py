@@ -408,15 +408,15 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     return alg_gen, psy.gen
 
 
-def main(arguments):
+def main(args):
     '''
     Parses and checks the command line arguments, calls the generate
     function if all is well, catches any errors and outputs the
     results.
 
-    :param arguments: the list of command-line arguments that PSyclone has
+    :param args: the list of command-line arguments that PSyclone has \
         been invoked with.
-    :type arguments: List[str]
+    :type args: List[str]
 
     '''
     # pylint: disable=too-many-statements,too-many-branches
@@ -427,18 +427,25 @@ def main(arguments):
     Config.get(do_not_load_file=True)
 
     parser = argparse.ArgumentParser(
-        description='Transform a file using the PSyclone source-to-source '
-                    'Fortran compiler')
-    # Common options
-    parser.add_argument('filename', help='input source code')
+        description='Run the PSyclone code generator on a particular file')
+    parser.add_argument('-oalg', help='filename of transformed algorithm code')
     parser.add_argument(
-        '--version', '-v', action='version',
-        version=f'PSyclone version: {__VERSION__}',
-        help='display version information')
-    parser.add_argument("--config", "-c", help="config file with "
-                        "PSyclone specific options.")
+        '-opsy', help='filename of generated PSy code')
+    parser.add_argument('-okern',
+                        help='directory in which to put transformed kernels, '
+                        'default is the current working directory.')
+    parser.add_argument('-api',
+                        help=f'whether to use particular PSyKAl DSL API from '
+                        f'{Config.get().curated_api_list}.')
+    parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
-                        ' optimisation recipe')
+                        ' optimisation script')
+    parser.add_argument(
+        '-d', '--directory', default=[], action="append", help='path to a '
+        'root directory structure containing kernel source code. Multiple '
+        'roots can be specified by using multiple -d arguments.')
+    # Make the default an empty list so that we can check whether the
+    # user has supplied a value(s) later
     parser.add_argument(
         '-I', '--include', default=[], action="append",
         help='path to Fortran INCLUDE or module files')
@@ -450,65 +457,51 @@ def main(arguments):
         'output Fortran. Use \'output\' to apply line-length limit to output '
         'Fortran only.')
     parser.add_argument(
-        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
-        help="add profiling hooks for 'kernels', 'invokes' or 'routines'.")
-    parser.add_argument(
-        '--backend', dest='backend',
-        choices=['enable-validation', 'disable-validation'],
-        help=("options to control the PSyIR backend used for code generation. "
-              "Use 'disable-validation' to disable the validation checks that "
-              "are performed by default."))
-
-    # Code-transformation mode flags
-    parser.add_argument('-o', metavar='OUTPUT_FILE',
-                        help='(code-transformation mode) output file')
-
-    # PSyKAl mode flags
-    parser.add_argument('-api',
-                        help=f'whether to use particular PSyKAl DSL API from '
-                        f'{Config.get().curated_api_list}.')
-    parser.add_argument('-oalg', metavar='OUTPUT_ALGORITHM_FILE',
-                        help='(psykal mode) filename of transformed '
-                        'algorithm code')
-    parser.add_argument('-opsy', metavar='OUTPUT_PSY_FILE',
-                        help='(psykal mode) filename of generated '
-                        'PSy-layer code')
-    parser.add_argument('-okern', metavar='OUTPUT_KERNEL_PATH',
-                        help='(psykal mode) directory in which to put '
-                        'transformed kernels, default is the current working'
-                        ' directory.')
-    parser.add_argument(
-        '-d', '--directory', default=[], action="append", help='(psykal mode) '
-        'path to a root directory structure containing kernel source code. '
-        'Multiple roots can be specified by using multiple -d arguments.')
-    parser.add_argument(
         '-dm', '--dist_mem', dest='dist_mem', action='store_true',
-        help='(psykal mode) generate distributed memory code')
+        help='generate distributed memory code')
     parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
-        help='(psykal mode) do not generate distributed memory code')
+        help='do not generate distributed memory code')
     parser.add_argument(
         '--kernel-renaming', default="multiple",
         choices=VALID_KERNEL_NAMING_SCHEMES,
-        help='(psykal mode) naming scheme to use when re-naming transformed'
-             ' kernels')
+        help="Naming scheme to use when re-naming transformed kernels")
+    parser.add_argument(
+        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
+        help=("Add profiling hooks for either 'kernels' or 'invokes/routines'."
+              " The 'kernels' option is not permitted for the 'nemo' API."))
+    parser.add_argument(
+        '--backend', dest='backend',
+        choices=['enable-validation', 'disable-validation'],
+        help=("Options to control the PSyIR backend used for code generation. "
+              "Use 'disable-validation' to disable the validation checks that "
+              "are performed by default."))
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
-    args = parser.parse_args(arguments)
+    parser.add_argument("--config", "-c", help="Config file with "
+                        "PSyclone specific options.")
+    parser.add_argument(
+        '--version', '-v', action='version',
+        version=f'PSyclone version: {__VERSION__}',
+        help=f'Display version information ({__VERSION__})')
 
-    # Validate that the given arguments are for the right operation mode
-    if not args.api:
-        if (args.oalg or args.opsy or args.okern or args.directory):
-            print(f"When using the code-transformation mode (with the -api "
-                  f"flag), the psykal mode arguments must not be present "
-                  f"in the command, but found {arguments}")
-            sys.exit(-1)
+    args = parser.parse_args(args)
+
+    # If an output directory has been specified for transformed kernels
+    # then check that it is valid
+    if args.okern:
+        if not os.path.exists(args.okern):
+            print(f"Specified kernel output directory ({args.okern}) does "
+                  f"not exist.", file=sys.stderr)
+            sys.exit(1)
+        if not os.access(args.okern, os.W_OK):
+            print(f"Cannot write to specified kernel output directory "
+                  f"({args.okern}).", file=sys.stderr)
+            sys.exit(1)
+        kern_out_path = args.okern
     else:
-        if args.o:
-            print("The '-o' flag is not valid when using the psykal mode "
-                  "(-api flag), use the -oalg, -opsy, -okern to specify the "
-                  "output filenames of each psykal layer.")
-            sys.exit(-1)
+        # We write any transformed kernels to the current working directory
+        kern_out_path = os.getcwd()
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
@@ -552,22 +545,6 @@ def main(arguments):
     except ConfigurationError as err:
         print(str(err), file=sys.stderr)
         sys.exit(1)
-
-    # If an output directory has been specified for transformed kernels
-    # then check that it is valid
-    if args.okern:
-        if not os.path.exists(args.okern):
-            print(f"Specified kernel output directory ({args.okern}) does "
-                  f"not exist.", file=sys.stderr)
-            sys.exit(1)
-        if not os.access(args.okern, os.W_OK):
-            print(f"Cannot write to specified kernel output directory "
-                  f"({args.okern}).", file=sys.stderr)
-            sys.exit(1)
-        kern_out_path = args.okern
-    else:
-        # We write any transformed kernels to the current working directory
-        kern_out_path = os.getcwd()
 
     try:
         alg, psy = generate(args.filename, api=api,

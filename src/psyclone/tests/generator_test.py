@@ -576,7 +576,7 @@ def test_main_version(capsys):
         with pytest.raises(SystemExit):
             main([arg])
         output, _ = capsys.readouterr()
-        assert "display version information" in output
+        assert f"Display version information ({__VERSION__})" in output
 
     for arg in ["-v", "--version"]:
         with pytest.raises(SystemExit) as _:
