@@ -445,10 +445,7 @@ class CallTreeUtils():
                         outstanding_nonlocals.append(("routine", module_name,
                                                       signature, access_info))
                         continue
-                    else:
-                        print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                              f"Cannot find a routine '{signature}' in module "
-                              f"'{module_name}' - ignored.")
+
                     # Check whether it is a constant (the symbol should always
                     # be found, but if a module cannot be parsed then the
                     # symbol table won't have been populated)
