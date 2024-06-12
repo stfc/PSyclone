@@ -21,8 +21,8 @@ Make then you may need to edit the Makefile and replace the occurrences of
 
 ## 1. Automatic Profiling ##
 
-To begin, we will make use of PSyclone's support for the automatic
-addition of profiling instrumentation
+To begin, we will make use of PSyclone's support for the
+[automatic addition of profiling instrumentation]
 (https://psyclone.readthedocs.io/en/stable/profiling.html). For
 demonstration purposes we will be using the 'simple-timing' library
 distributed with PSyclone since that has no dependencies. (PSyclone
@@ -32,18 +32,18 @@ currently provides wrapper libraries for profiling tools such as
 nvtx. You may wish to investigate these if you have time at the end of
 this session.)
 
-1. Use the supplied Makefile to generate a version of the mini-app with
-   profiling calipers inserted at the beginning and end of each routine:
+1. Use `psyclone` to generate a version of the mini-app with profiling
+   calipers inserted at the beginning and end of each routine:
 
-       $ make transform
+       $ psyclone tra_adv_mod.F90 -o output_1.f90 --profile routines
 
-   When examining the generated Fortran code (in `psy_1.f90`), you
+   When examining the generated Fortran code (in `output_1.f90`), you
    should see that PSyclone has added `USE profile_psy_data_mod, ONLY:
    profile_PSyDataType` as well as calls to
    `profile_psy_data0%PreStart` and `profile_psy_data0%PostEnd`.
    Since the code now depends upon the PSyData API, the location of a
    suitable wrapper library must be provided when compiling the
-   mini-app.  The supplied Makefile will build the 'simple_timing'
+   mini-app. The supplied Makefile will build the 'simple_timing'
    implementation of this library and link our mini-app against it:
 
        $ make allclean
@@ -83,26 +83,16 @@ this session.)
    Timings are only reported for a single region because our mini-app consists
    of a single subroutine.
 
-   If you examine the Makefile, you will see that PSyclone has been run with
-   the `--profile routines` option and it is this that causes the subroutine
-   to be instrumented for profiling:
-
-   ```make
-   psy.f90: tra_adv_mod.F90
-   	$(PSYCLONE) --profile routines -o psy.f90 -l output tra_adv_mod.F90
-   ```
-
 ## 2. User-specified Profiling ##
 
 Profiling is a good way to get used to using PSyclone transformation scripts
 so we will now use a script to achieve the same result as the first step
 in this tutorial.
 
-1. Alter the Makefile so that the `psyclone` command that creates `psy.f90`
+1. Alter the Makefile so that the `psyclone` command that creates `output.f90`
    uses the provided `profile_trans.py` script instead of the `--profile`
-   option (or run psyclone separately on the command line). If you look at the
-   script, you will see that it encloses all child nodes of the
-   Schedule within a single profiling region.
+   option. If you look at the script, you will see that it encloses all
+   children nodes of the Routine within a single profiling region.
 
    Compiling and executing the generated code should then produce the
    same timing output as we obtained in step 1:
@@ -117,14 +107,15 @@ in this tutorial.
    now has a `Profile` node at its root:
 
    ```bash
-    Routine[name='tra_adv']
-        0: Profile[]
-            Schedule[]
-                0: Call[name='get_environment_variable']
-                    Literal[value:'JPI', Scalar<CHARACTER, UNDEFINED>]
-                    Reference[name:'env']
-                1: CodeBlock[[<class 'fparser.two.Fortran2003.Read_Stmt'>]]
-                ...
+    FileContainer[]
+        Container[tra_adv_mod]
+            Routine[name:'tra_adv']
+                0: Profile[]
+                    Schedule[]
+                        0: Call[name='get_environment_variable']
+                            Reference[name:'get_environment_variable']
+                            Literal[value:'JPI', Scalar<CHARACTER, UNDEFINED>]
+                            Reference[name:'env']
    ```
 
 ## 3. Improving the Profiling ##
@@ -136,7 +127,7 @@ transformation script to perform finer-grained profiling.
 1. Modify the provided transformation script (`profile_trans.py`) so that
    it uses `walk` to find all Loop nodes:
    ```python
-   loops = sched.walk(Loop)
+   loops = payir.walk(Loop)
    ```
    Next, identify those loops that are over vertical `levels`. These are
    loops that use the 'jk' loop variable as required in the NEMO Code

@@ -43,10 +43,6 @@ Once you have psyclone installed, this may be used by doing:
 
  $ psyclone -s ./profile_trans.py some_source_file.f90
 
-This should produce a lot of output, ending with generated
-Fortran. Note that the Fortran source files provided to PSyclone must
-have already been preprocessed (if required).
-
 '''
 
 from psyclone.psyir.transformations import ProfileTrans
@@ -54,8 +50,7 @@ from psyclone.psyir.nodes import Routine
 
 
 def trans(psyir):
-    '''A PSyclone-script compliant transformation function. Adds
-    profiling to an invoke.
+    ''' Adds profiling to each Routine.
 
     :param psyir: the PSyIR representing the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
@@ -64,4 +59,7 @@ def trans(psyir):
     p_trans = ProfileTrans()
 
     for subroutine in psyir.walk(Routine):
-        p_trans.apply(subroutine.children)
+        p_trans.apply(subroutine)
+
+    # Display PSyIR tree
+    print(psyir.view())

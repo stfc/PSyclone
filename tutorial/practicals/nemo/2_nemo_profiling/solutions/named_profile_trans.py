@@ -44,10 +44,6 @@ Once you have psyclone installed, this may be used by doing:
 
  $ psyclone -s ./profile_trans.py some_source_file.f90
 
-This should produce a lot of output, ending with generated
-Fortran. Note that the Fortran source files provided to PSyclone must
-have already been preprocessed (if required).
-
 '''
 
 from psyclone.psyir.transformations import ProfileTrans

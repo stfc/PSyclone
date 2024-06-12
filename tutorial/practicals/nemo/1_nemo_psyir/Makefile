@@ -40,7 +40,7 @@ include ../../../common.mk
 .PHONY: transform
 
 transform:
-	$(PSYCLONE) -s ./schedule_view_trans.py -o /dev/null tra_adv.F90
+	$(PSYCLONE) -s ./view_trans.py -o /dev/null tra_adv.F90
 
 compile: transform
 	@echo "No compilation targets for example tutorial/1_nemo_psyir"

@@ -316,7 +316,7 @@ def main(arguments):
 def code_transformation_mode(input_file, recipe_file, output_file,
                              line_length=False):
     files_to_skip = []
-    recipe_transform = None
+    transformation_recipe = None
 
     # Load recipe file
     if recipe_file:
@@ -327,7 +327,7 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         if hasattr(recipe_module, "FILES_TO_SKIP"):
             files_to_skip = recipe_module.FILES_TO_SKIP
         if hasattr(recipe_module, "trans"):
-            recipe_transform = recipe_module.trans
+            transformation_recipe = recipe_module.trans
 
     # Parse file
     psyir = FortranReader().psyir_from_file(input_file)
@@ -335,10 +335,14 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     # Modify file
     filepath, filename = os.path.split(input_file)
     if filename not in files_to_skip:
-        if recipe_transform:
-            recipe_transform(psyir)
+        if transformation_recipe:
+            transformation_recipe(psyir)
     else:
         sys.exit(0)
+
+    # Add profiling if automatic profiling has been requested
+    for routine in psyir.walk(Routine):
+        Profiler.add_profile_nodes(routine, Loop)
 
     # Generate Fortran
     output = FortranWriter()(psyir)
