@@ -1,11 +1,12 @@
-# Transforming existing code with PSyclone
-
+# PSyclone for code-transformation of existing code
+ 
 The tutorial on the use of PSyclone to transform existing code is
 broken into four parts:
 
-1. The [PSyclone Internal Representation](1_nemo_psyir/README.md) of
+1. The [PSyclone Intermediate Representation](1_nemo_psyir/README.md) of
    existing Fortran code;
-2. Use of PSyclone to add [profiling calipers](2_nemo_profiling/README.md), both automatically and through user-supplied transformations;
+2. Use of PSyclone to add [profiling calipers](2_nemo_profiling/README.md),
+   both automatically and through user-supplied transformations;
 3. Use of PSyclone to add loop-based [OpenMP parallelisation](3_nemo_openmp/README.md);
 4. Use of PSyclone to add [OpenACC parallelisation](4_nemo_openacc/README.md).
 

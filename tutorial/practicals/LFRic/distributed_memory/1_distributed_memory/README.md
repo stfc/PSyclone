@@ -41,7 +41,7 @@ call that we are interested in.
 From this directory run:
 
 ```bash
-    $ psyclone -api lfric -nodm -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone -psykal-dsl lfric -nodm -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 Notice the schedule.py script requires a path (`./` in this case). The
@@ -52,7 +52,7 @@ need to add the `-nodm` flag to request sequential code. We are not
 interested in looking at the algorithm code so we just send that to
 `/dev/null`. We store the generated psy layer in a file called
 `psy.f90` and use a script `schedule.py` to take a look at the PSyIR
-(PSyclone Internal Representation), which the script outputs to the
+(PSyclone Intermediate Representation), which the script outputs to the
 terminal.
 
 If the terminal output is not coloured you might like to install
@@ -136,7 +136,7 @@ PSyclone code generation could be changed to do this at some point.
 Run the same command as before but with the `-nodm` option removed.
 
 ```bash
-    $ psyclone -api lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone -psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 The schedule should look the same as before except that there are now

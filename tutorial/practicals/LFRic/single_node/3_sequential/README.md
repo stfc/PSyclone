@@ -23,7 +23,7 @@ one. This script is clearly specialised for this particular example.
 Lets try running it:
 
 ```bash
-    $ psyclone -api lfric -s ./loop_fuse.py example_alg.x90 -oalg /dev/null -opsy psy.f90
+    $ psyclone -psykal-dsl lfric -s ./loop_fuse.py example_alg.x90 -oalg /dev/null -opsy psy.f90
 ```
 
 You should see that the loops have not been fused and there should be
@@ -58,7 +58,7 @@ configuration (same resolution, etc).
 Run psyclone with the kernel_constants.py script:
 
 ```bash
-    $ psyclone -api lfric -s ./kernel_constants.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
+    $ psyclone -psykal-dsl lfric -s ./kernel_constants.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
 ```
 
 On the screen you should see a summary of kernel arguments that have
@@ -98,7 +98,7 @@ matrix-multiply contained within it.
 Run psyclone with the `matvec_opt.py` script
 
 ```bash
-    $ psyclone -api lfric -s ./matvec_opt.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
+    $ psyclone -psykal-dsl lfric -s ./matvec_opt.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy psy.f90
 ```
 
 Now take a look at the transformed

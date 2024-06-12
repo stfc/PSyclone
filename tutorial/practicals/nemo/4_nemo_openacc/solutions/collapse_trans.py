@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''A transformation script that adds a KERNELS region plus LOOP COLLAPSE
 directives to the tracer-advection mini-app.  In order to use it you
@@ -41,7 +42,7 @@ directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s ./kernels_trans.py some_source_file.f90
+ $ psyclone -s ./kernels_trans.py some_source_file.f90
 
 This should produce a lot of output, ending with generated
 Fortran. Note that the Fortran source files provided to PSyclone must
@@ -49,7 +50,7 @@ have already been preprocessed (if required).
 
 '''
 
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.transformations import (ACCKernelsTrans, ACCDataTrans,
                                       ACCLoopTrans, TransformationError)
 
@@ -66,26 +67,20 @@ ACC_KERNELS_TRANS = ACCKernelsTrans()
 ACC_LOOP_TRANS = ACCLoopTrans()
 
 
-def trans(psy):
+def trans(psyir):
     '''A PSyclone-script compliant transformation function that is
     bespoke for the tracer-advection mini-app. It encloses the
     body of the iteration loop within a KERNELS region and then
     applies COLLAPSE(2) to every latitude-longitude loop nest
     within that.
 
-    :param psy: The PSy layer object to apply transformations to.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy layer object.
-    :rtype: :py:class:`psyclone.psyGen.PSy`
-
+    :param psyir: the PSyIR representing the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
-    # Get the Schedule of the target routine
-    sched = psy.invokes.get('tra_adv').schedule
 
     # Find the outer, 'iteration' loop
     tloop = None
-    for node in sched.children:
+    for node in psyir.walk(Routine):
         if isinstance(node, Loop) and node.loop_type == "tracers":
             tloop = node
             break
@@ -103,4 +98,4 @@ def trans(psy):
     # a data region
     ACC_DATA_TRANS.apply(tloop)
 
-    print(sched.view())
+    print(psyir.view())

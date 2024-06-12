@@ -16,7 +16,7 @@ subsequent commands in this file assume that you are in the same
 directory as this `README.md` file):
 
 ```bash
-    $ psyclone -api lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone -psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 When we apply the annexed dofs optimisation, it will remove at least
@@ -76,7 +76,7 @@ modified. Let's also save the generated psy-layer code to a different
 file.
 
 ```bash
-    $ psyclone -api lfric -oalg /dev/null -opsy psy_annexed.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
+    $ psyclone -psykal-dsl lfric -oalg /dev/null -opsy psy_annexed.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
 ```
 
 ## Differences ##

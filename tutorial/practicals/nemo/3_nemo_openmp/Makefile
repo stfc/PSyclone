@@ -32,9 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-
-# Makefile for the PSyclone NEMO OpenMP tutorial.
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 include ../../../common.mk
 
@@ -52,7 +51,7 @@ TRANS_SCRIPT ?= ./omp_trans.py
 F90 ?= gfortran
 F90FLAGS ?= -fopenmp -O2
 
-MY_PSYCLONE = $(PSYCLONE) -api nemo -l output
+MY_PSYCLONE = $(PSYCLONE) -l output
 
 # The solutions scripts that the 'transform' target will execute
 SOLUTION_SCRIPTS = $(wildcard solutions/*.py)
@@ -64,7 +63,7 @@ $(NAME): $(KERNELS) psy.o runner.o
 
 # Target that uses PSyclone to generate 'psy.f90'
 psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
-	${MY_PSYCLONE} -s ${TRANS_SCRIPT} -opsy psy.f90 tra_adv_mod.F90
+	${MY_PSYCLONE} -s ${TRANS_SCRIPT} -o psy.f90 tra_adv_mod.F90
 
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
@@ -100,5 +99,5 @@ run: compile
 ${SOLUTION_SCRIPTS}:
 	# We need to use different output names to support testing in parallel
 	# and not interfering with the compile task (which uses psy.f90)
-	${MY_PSYCLONE} -s $@ -opsy psy_1.f90 tra_adv_mod.F90
-	${MY_PSYCLONE} -s $@ -opsy psy_2.f90 --profile routines tra_adv_mod.F90
+	${MY_PSYCLONE} -s $@ -o psy_1.f90 tra_adv_mod.F90
+	${MY_PSYCLONE} -s $@ -o psy_2.f90 --profile routines tra_adv_mod.F90

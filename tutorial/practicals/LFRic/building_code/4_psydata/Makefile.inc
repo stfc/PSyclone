@@ -50,7 +50,7 @@ PSY_SRC = $(addsuffix _psy.f90,$(basename $(PSY)))
 PSY_OBJ = $(PSY_SRC:.f90=.o)
 
 # PSyclone command-line options
-PSYCLONE_CMD = -api lfric -nodm -l all --config $(PSYCLONE_RELPATH)/config/psyclone.cfg
+PSYCLONE_CMD = -psykal-dsl lfric -nodm -l all --config $(PSYCLONE_RELPATH)/config/psyclone.cfg
 
 # Executable
 EXEC = time_evolution

@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 include ../../../common.mk
 
@@ -53,10 +54,7 @@ $(NAME): $(KERNELS) psy.o runner.o
 	$(F90) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
 psy.f90: tra_adv_mod.F90
-	$(PSYCLONE) --profile routines -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
-#	$(PSYCLONE) -s ./profile_trans.py -api nemo \
-#                     -opsy psy.f90 -l output tra_adv_mod.F90
+	$(PSYCLONE) --profile routines -o psy.f90 -l output tra_adv_mod.F90
 
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
@@ -80,12 +78,10 @@ allclean: clean
 transform:
 	# Use different output filenames so this doesn't interfere
 	# with building the binary (which uses psy.f90)
-	$(PSYCLONE) --profile invokes -api nemo \
-                     -opsy psy_1.f90 -l output tra_adv_mod.F90
-	$(PSYCLONE) -s ./profile_trans.py -api nemo \
-                     -opsy psy_2.f90 -l output tra_adv_mod.F90
-	$(PSYCLONE) -s ./solutions/named_profile_trans.py -api nemo \
-                     -opsy psy_3.f90 -l output tra_adv_mod.F90
+	$(PSYCLONE) --profile routines -o psy_1.f90 -l output tra_adv_mod.F90
+	$(PSYCLONE) -s ./profile_trans.py -o psy_2.f90 -l output tra_adv_mod.F90
+	$(PSYCLONE) -s ./solutions/named_profile_trans.py \
+                     -o psy_3.f90 -l output tra_adv_mod.F90
 
 compile: transform $(KERNELS) psy.o solutions/runner.o
 	$(F90) $(KERNELS) psy.o solutions/runner.o -o $(NAME) \

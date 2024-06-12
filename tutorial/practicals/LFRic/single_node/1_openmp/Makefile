@@ -36,11 +36,11 @@
 include ../../../../common.mk
 
 transform:
-	$(PSYCLONE) -api lfric -oalg /dev/null -opsy /dev/null -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90
-	psyclone    -api lfric -oalg /dev/null -opsy /dev/null -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
-	$(PSYCLONE) -api lfric -oalg /dev/null -opsy /dev/null -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
-	$(PSYCLONE) -api lfric -oalg /dev/null -opsy /dev/null -s solutions/omp_script.py ../code/helmholtz_solver_alg_mod.x90
-	$(PSYCLONE) -api lfric -oalg /dev/null -opsy /dev/null -s solutions/omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
+	$(PSYCLONE) -psykal-dsl lfric -oalg /dev/null -opsy /dev/null -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90
+	psyclone    -psykal-dsl lfric -oalg /dev/null -opsy /dev/null -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
+	$(PSYCLONE) -psykal-dsl lfric -oalg /dev/null -opsy /dev/null -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
+	$(PSYCLONE) -psykal-dsl lfric -oalg /dev/null -opsy /dev/null -s solutions/omp_script.py ../code/helmholtz_solver_alg_mod.x90
+	$(PSYCLONE) -psykal-dsl lfric -oalg /dev/null -opsy /dev/null -s solutions/omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
 
 compile: transform
 	@echo "No compilation supported for tutorial/lfric/single_node/1_openmp"

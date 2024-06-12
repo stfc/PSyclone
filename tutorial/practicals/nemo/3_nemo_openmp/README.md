@@ -56,14 +56,6 @@ tutorial:
  * the script uses the `OMPParallelLoopTrans` transformation which
    decorates the target loop with an `OMP PARALLEL DO` directive.
 
- * the script is written specifically to work on the 'tra_adv' routine:
-   ```python
-        sched = psy.invokes.get('tra_adv').schedule
-   ```
-   this is just a choice. Normally a script will be written to be as
-   general as possible but occasionally, something tailored to a
-   particular routine may be required.
-
  * it blindly applies a transformation to each loop over vertical levels
    that is an immediate child of the Schedule. As we did when inserting
    profiling, we can identify loops over `levels` by the fact that they use
@@ -97,7 +89,7 @@ the number of MPI processes and resulting inter-process communication.)
    transform the mini-app. You can use the Makefile or just run
    PSyclone directly:
    ```bash
-   $ psyclone -s ./omp_trans.py -api nemo -opsy psy.f90 -l output tra_adv_mod.F90
+   $ psyclone -s ./omp_trans.py -o psy.f90 -l output tra_adv_mod.F90
    ```
    This will produce an error message. Can you see what causes this?
 

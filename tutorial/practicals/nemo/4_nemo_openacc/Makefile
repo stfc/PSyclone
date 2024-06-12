@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 # Makefile for the PSyclone NEMO OpenACC tutorial.
 
@@ -64,8 +65,7 @@ $(NAME): $(KERNELS) psy_openacc.o runner.o
 # to create psy_openacc.f90 here, but also to create psy_1 as
 # default target.
 psy%.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
-	$(PSYCLONE) -s ${TRANS_SCRIPT} -api nemo \
-                     -opsy $@ -l output tra_adv_mod.F90
+	$(PSYCLONE) -s ${TRANS_SCRIPT} -o $@ -l output tra_adv_mod.F90
 
 .precious: psy_openacc.f90
 

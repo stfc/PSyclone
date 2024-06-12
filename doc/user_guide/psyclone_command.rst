@@ -365,7 +365,7 @@ preserve) INCLUDE statements in algorithm-layer code. However, INCLUDE
 statements in kernels will, in general, cause the kernel parsing to fail
 unless the file(s) referenced in such statements are in the same directory
 as the kernel file. Once kernel parsing has been re-implemented to use
-fparser2 (issue #239) and the PSyclone Internal Representation then the
+fparser2 (issue #239) and the PSyclone Intermediate Representation then the
 behaviour will be the same as for the NEMO API.
 
 Since PSyclone does not attempt to be a full compiler, it does not require

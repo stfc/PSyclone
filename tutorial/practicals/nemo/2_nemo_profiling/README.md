@@ -89,8 +89,7 @@ this session.)
 
    ```make
    psy.f90: tra_adv_mod.F90
-   	$(PSYCLONE) --profile routines -api nemo \
-                     -opsy psy.f90 -l output tra_adv_mod.F90
+   	$(PSYCLONE) --profile routines -o psy.f90 -l output tra_adv_mod.F90
    ```
 
 ## 2. User-specified Profiling ##
@@ -118,7 +117,7 @@ in this tutorial.
    now has a `Profile` node at its root:
 
    ```bash
-    NemoInvokeSchedule[invoke='tra_adv']
+    Routine[name='tra_adv']
         0: Profile[]
             Schedule[]
                 0: Call[name='get_environment_variable']

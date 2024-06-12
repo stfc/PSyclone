@@ -302,7 +302,7 @@ termcolor
 ^^^^^^^^^
 
 By default, the ``view()`` method available on any PSyIR (PSyclone
-Internal Representation) object prints a plain-text representation
+Intermediate Representation) object prints a plain-text representation
 to standard-out. However, if the ``termcolor`` package is available
 then PSyclone uses this to add colour highlighting to the output text.
 

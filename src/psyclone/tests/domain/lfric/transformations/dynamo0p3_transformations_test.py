@@ -3938,7 +3938,7 @@ def test_list_multiple_reductions(dist_mem):
     ''' Test that we produce correct reduction lists when there is more
     than one reduction in a OpenMP parallel directive. As only one
     reduction per OpenMP parallel region is currently supported we
-    need to modify the internal representation after the
+    need to modify the intermediate representation after the
     transformations have been performed to enable this test.
 
     '''

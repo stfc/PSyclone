@@ -32,9 +32,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
-'''A transformation script that simply prints the PSyIR of each invoke
+'''A transformation script that simply prints the PSyIR of the input file
 to stdout. No actual transformations are performed.
 
 In order to use this script you must first install PSyclone. See
@@ -42,37 +42,15 @@ README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s ./schedule_view_trans.py some_source_file.f90
-
-This should produce a lot of output, ending with generated
-Fortran. Note that the Fortran source files provided to PSyclone must
-have already been preprocessed (if required).
+ $ psyclone -s ./view_trans.py some_source_file.f90 -o /dev/null
 
 '''
 
-from __future__ import print_function, absolute_import
 
+def trans(psyir):
+    ''' Prints the PSyIR of the input file to stdout.
 
-def trans(psy):
-    '''A PSyclone-script compliant transformation function. Prints
-    the PSyIR of each invoke to stdout.
-
-    :param psy: The PSy layer object to apply transformations to.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR representing the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
-    # Since "Backslashes may not appear inside the expression
-    # portions of f-strings" via PEP 498, use chr(10) for '\n'
-    print(f"Invokes found:\n"
-          f"{chr(10).join([str(name) for name in psy.invokes.names])}\n")
-
-    for invoke in psy.invokes.invoke_list:
-
-        sched = invoke.schedule
-
-        if not sched:
-            # In NEMO, the pre-processing step can result in some
-            # subroutines that have no executable statements and
-            # therefore no Schedule.
-            print(f"Invoke {invoke.name} has no Schedule! Skipping...")
-            continue
-        print(sched.view())
+    print(psyir.view())
