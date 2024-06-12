@@ -101,6 +101,259 @@ the PSyclone source are immediately reflected in the installed
 package.  (For alternatives to using pip please see the
 :ref:`user_guide:getting-going` section.)
 
+.. warning::
+
+   When installing in 'editable' mode (``-e`` flag to ``pip``), ``pip``
+   does *not* install the configuration file. Use the instructions in
+   :ref:`user_guide:getting-going-configuration` to point to a valid
+   configuration file.
+
+Dependencies
+------------
+
+PSyclone is written in Python so needs Python 3 to be installed on the
+target machine. PSyclone is regularly tested with Python 3.7, 3.8 and 3.12
+but should work with any version >= 3.6. (The last PSyclone release to
+support Python 2.7 was version 2.1.0.)
+
+PSyclone immediately relies on four external Python packages; ``configparser``,
+``fparser``, ``sympy``, and ``pyparsing``. The easiest way to satisfy the
+Python dependencies is to use the
+`PyPI installation <https://packaging.python.org/tutorials/installing-packages/>`_
+and ``pip``.
+
+If everything is working correctly then using ``pip`` to install PSyclone::
+
+   > pip install psyclone
+
+will automatically install the Python dependencies.
+
+.. warning:: Starting with the release 1.6.1, PSyclone will install a
+             specific release of ``fparser`` (version specified in the
+             ``setup.py`` script).
+
+In addition to the mandatory dependencies just described, PSyclone
+also has optional dependencies on both ``graphviz`` and ``termcolor``.
+PSyclone can use ``graphviz`` to produce a visualisation of a schedule's
+dependency graph. If this is desired then the Python package
+``graphviz`` (for the Python bindings) as well as the ``graphviz`` package
+itself must be installed. If the ``graphviz`` package is not available
+then the associated PSyclone routines will return silently and no
+visualisations will be produced. The Python package ``termcolor`` is
+used for pretty-printing a schedule in terminals that support coloured
+text. If the package is not available then the schedule is simply
+printed in plain text without colour highlighting.
+
+
+System-specific set-up
+^^^^^^^^^^^^^^^^^^^^^^
+
+:ref:`system_specific_setup` instructions are available for Ubuntu 14.04.2 and
+OpenSUSE 42.2.
+
+fparser
+^^^^^^^
+
+The ``fparser`` package (https://github.com/stfc/fparser) is a Fortran
+parser originally developed as a part of the `f2py project
+<http://www.f2py.com/>`_.
+
+``fparser`` is available from the Python Package
+Index and thus may be installed using ``pip``
+(https://packaging.python.org/tutorials/installing-packages/#requirements-for-installing-packages):
+::
+
+   > pip install fparser
+
+If you do not have sufficient permissions to perform a system-wide install
+then you can instruct ``pip`` to do a user-local install:
+::
+
+   > pip install --user fparser
+
+Should you wish to remove ``fparser`` then simply do:
+::
+
+   > pip uninstall fparser
+
+If you have already installed ``fparser`` and want to upgrade to the
+latest version simply do:
+::
+
+   > pip install fparser --upgrade
+
+
+.. warning:: Due to the above-mentioned reliance of PSyclone on a specific
+             ``fparser`` release, it is not advisable to install ``fparser``
+             independently unless it is not to be used with PSyclone. An
+             exception is installation of PSyclone from source for
+             development purposes, see :ref:`dev-installation` in the
+             `Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
+
+pyparsing
+^^^^^^^^^
+
+PSyclone requires ``pyparsing``, a library designed to allow parsers to
+be built in Python. PSyclone uses ``pyparsing`` to parse Fortran regular
+expressions as ``fparser`` does not fully parse these (see
+`here <https://github.com/pyparsing>`__ for more information).
+
+PSyclone has been tested with ``pyparsing`` versions 1.5.2, 2.0.1 and 2.2.0.
+
+You can test whether ``pyparsing`` is already installed on your machine by
+typing ``import pyparsing`` from the Python command line. If ``pyparsing``
+is installed, this command will complete successfully. If ``pyparsing`` is
+installed you can check its version by typing
+``pyparsing.__version__`` after successfully importing it.
+
+If ``pyparsing`` is not installed on your system then it may be installed
+from the Python Package Index using ``pip``:
+::
+
+   > pip install pyparsing
+
+Should you wish to, uninstalling is simply performed by doing:
+::
+
+   > pip uninstall pyparsing
+
+If you do not have sufficient privileges for a system-wide install then
+you can instruct ``pip`` to do a user-local install:
+::
+
+   > pip install --user pyparsing
+
+Alternatively, you could follow `these instructions
+<https://github.com/pyparsing/pyparsing>`_.
+
+
+SymPy
+^^^^^
+
+PSyclone requires ``sympy``, a library for symbolic mathematics. PSyclone
+uses ``sympy`` to reason about expression being equal or not, e.g. ``i+j``
+and ``j+i``. PSyclone has been tested with ``sympy`` versions 1.7.1.
+
+You can test whether ``sympy`` is already installed on your machine by
+typing ``import sympy`` from the Python command line. If ``sympy``
+is installed, this command will complete successfully. If ``sympy`` is
+installed you can check its version by typing
+``sympy.__version__`` after successfully importing it.
+
+If ``sympy`` is not installed on your system then it may be installed
+from the Python Package Index using ``pip``:
+::
+
+   > pip install sympy
+
+Should you wish to, uninstalling is simply performed by doing:
+::
+
+   > pip uninstall sympy
+
+If you do not have sufficient privileges for a system-wide install then
+you can instruct ``pip`` to do a user-local install:
+::
+
+   > pip install --user sympy
+
+Alternatively, you could follow the instructions on the `SymPy web page
+<https://docs.sympy.org/latest/install.html>`_.
+
+Graphviz
+^^^^^^^^
+
+The data dependencies of a PSyIR schedule determine the validity of
+changes to this schedule.
+PSyclone supports the visualisation of these dependencies as
+a graph using ``graphviz``. This visualisation is not needed to use
+PSyclone.
+
+If the Python bindings to ``graphviz`` are not installed on your system
+then it may be installed from the Python Package Index using ``pip``:
+::
+
+   > sudo pip install graphviz
+
+Should you wish to, uninstalling is simply performed by doing:
+::
+
+   > sudo pip uninstall graphviz
+
+If you do not have sufficient privileges for a system-wide install then
+you can instruct ``pip`` to do a user-local install:
+::
+
+   > pip install --user graphviz
+
+If ``graphviz`` itself is not installed on your system and your system
+supports the ``apt`` package manager then see below, otherwise please
+refer to the download and install instructions which are available
+`here <https://graphviz.org/download/>`__.
+
+If your system supports the ``apt`` package manager then it can be
+installed and removed in the following way:
+::
+
+   > sudo apt install graphviz
+   > sudo apt remove graphviz
+
+termcolor
+^^^^^^^^^
+
+By default, the ``view()`` method available on any PSyIR (PSyclone
+Internal Representation) object prints a plain-text representation
+to standard-out. However, if the ``termcolor`` package is available
+then PSyclone uses this to add colour highlighting to the output text.
+
+Installation (and uninstallation) of this package can be done via
+``pip`` in exactly the same way as for ``graphviz``, as described above.
+
+
+Location and structure of PSyclone installation
+-----------------------------------------------
+
+Location of installed Pyclone scripts, modules and other accompanying
+resources is similar to other Python packages:
+
+* The ``psyclone`` :ref:`script <psyclone_command>` is located
+  in ``<python-base-prefix>/bin`` directory (depending on your Linux
+  distribution, you may need to add this location to your ``$PATH``).
+
+* The PSyclone Python modules are located in
+  ``<python-base-prefix>/lib/pythonX.Y/site-packages`` directory (where
+  ``X.Y`` is the version of Python that you are using).
+
+* The :ref:`configuration file <getting-going-configuration>`,
+  :ref:`examples <examples>`, :ref:`tutorial <tutorial>` and
+  :ref:`libraries <libraries>` are installed in
+  ``<python-base-prefix>/share/psyclone`` directory.
+
+For a system-wide installation on Linux, ``<python-base-prefix>`` will
+likely be ``/usr`` and if a user-local installation is performed
+it will likely be ``~/.local``.
+
+For an installation to a specific location, ``<python-base-prefix>``
+is simply the path given to the
+``--install-option="--prefix=/my/install/path"``. Note that if using
+this method, it will be necessary to take further action to ensure
+PSyclone can find the :ref:`configuration file <getting-going-configuration>`
+installed as a part of this process.
+
+Windows environment
+-------------------
+
+PSyclone can also be installed in `Python Windows environment
+<https://www.python.org/downloads/windows/>`_ using ``pip`` as described
+above. There are some differences in directory structure from Linux,
+for instance the script directory is usually called ``Scripts`` instead
+of ``bin`` and the modules directory ``Lib`` instead of ``lib``.
+
+Installation in an `Anaconda Python
+<https://www.anaconda.com/products/distribution>`_ environment on
+Windows also needs to be done using ``pip`` as ``conda install`` for
+PSyclone is currently not supported.
+
 .. _test_suite:
 
 Test Suite

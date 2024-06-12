@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+.. Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
 .. _getting-going:
@@ -39,440 +39,140 @@
 Getting Going
 =============
 
-.. _getting-going-download:
+.. _getting-going-install:
 
-Download
---------
+Installing PSyclone
+-------------------
 
-The following instructions are intended for a PSyclone user who wants
-to work with a released version of the code. If you are a developer or
-wish to test a specific branch of PSyclone from the GitHub repository
-please see :ref:`dev-installation` in the
+The following instructions are intended for PSyclone users who want to work
+with a released version of PSyclone. If you are a developer or wish to test
+a specific branch from the GitHub repository please see the
+:ref:`dev_guide:dev-installation` section in the
 `Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
 
-PSyclone is available on the Python Package Index
-`(PyPI) <https://pypi.org/>`_ and is hosted on GitHub:
+We recommend installing the latest release of psyclone from
+`PyPI <https://pypi.org/project/PSyclone/>`_ by using:
 
-``https://github.com/stfc/PSyclone``
+.. code-block:: console
 
-The latest release is |release| and the latest stable version is on
-the master branch.
+    pip install psyclone
+   
+You can also install a previous release from PyPI with:
 
-There are two ways to install PSyclone. The first one is directly from
-PyPI using ``pip install``, see :ref:`getting-going-env-pypi` for
-more detailed information.
+.. code-block:: console
 
-Alternatively, PSyclone can be downloaded from GitHub - either see |release|
-in the ``Tags`` `tab <https://github.com/stfc/PSyclone/tags>`_
-on the PSyclone page or download and extract the latest release of
-PSyclone directly, e.g.
-
-.. parsed-literal::
-   > wget \https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
-   > tar zxf \ |release|\ .tar.gz
-   > ls
-   PSyclone-\ |release|\
-
-After the source package is downloaded and unpacked, it can be installed
-using ``pip install``, albeit in a slightly different way to the PyPI
-installation, see :ref:`getting-going-env-src` for more detailed
-information.
-
-Hereon the location where you download or clone PSyclone (including the
-PSyclone directory itself) will be referred to as ``<PSYCLONEHOME>``.
-
-.. _getting-going-env:
-
-Environment
------------
-
-In order to use PSyclone (including running the test suite and
-building documentation) you will need to install it. Before starting
-the installation process, please refer to the
-:ref:`Dependencies <getting-going-depend>` section below.
-
-.. _getting-going-env-pypi:
-
-Installation from PyPI
-^^^^^^^^^^^^^^^^^^^^^^
-
-The simplest, and recommended, installation process is from
-`PyPI <https://pypi.org/project/PSyclone/>`_ using ``pip``::
-
-   > pip install psyclone
-
-for the latest available release, or::
-
-   > pip install psyclone==X.Y.Z
+   pip install psyclone==X.Y.Z
 
 where ``X.Y.Z`` is the specific PSyclone release version (e.g. |release|).
 
-By default, ``pip`` will attempt a system-wide install. If you wish
-to do a user-local install instead then supply the ``--user`` flag::
+Or if you want an isolated installation in a `python virtual
+environment <https://docs.python.org/3/library/venv.html>`_, you can do:
 
-   > pip install --user psyclone
+.. code-block:: console
 
-PSyclone can also be installed to a specific location using ``--install-option``
-(see ``pip`` `documentation <https://pip.pypa.io/en/stable/cli/pip_install/>`_
-for more detailed information)::
-
-   > pip install --install-option="--prefix=/my/install/path" psyclone==X.Y.Z
-
-Depending on the installation option (e.g. system-wide, user), PSyclone
-will be installed in different :ref:`locations <getting-going-env-loc>`.
-
-.. _getting-going-env-src:
-
-Installation from source
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-PSyclone can also be installed from a
-:ref:`downloaded <getting-going-download>` release or repository clone. The
-simplest way to do this is to use ``pip`` with the supplied ``setup.py``::
-
-   > cd <PSYCLONEHOME>
-   > pip install .
-
-As above, this attempts a system-wide install. For a user-local install use::
-
-   > pip install --user .
-
-and for a specific location use::
-
-   > pip install --install-option="--prefix=/my/install/path" .
-
-If for some reason you would rather not use ``pip`` then you can run the
-setup manually::
-
-   > python setup.py install
-
-or, if you do not have root access::
-
-   > python setup.py install --user
-
-or::
-
-   > python setup.py install --install-option="--prefix=/my/install/path"
-
-As for the :ref:`PyPI installation <getting-going-env-pypi>`, different
-installation options lead to different
-:ref:`locations <getting-going-env-loc>` of PSyclone installation.
-
-.. _getting-going-env-loc:
-
-Location and structure of PSyclone installation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Location of installed Pyclone scripts, modules and other accompanying
-resources is similar to other Python packages:
-
-* The ``psyclone`` :ref:`script <psyclone_command>` is located
-  in ``<python-base-prefix>/bin`` directory (depending on your Linux
-  distribution, you may need to add this location to your ``$PATH``).
-
-* The PSyclone Python modules are located in
-  ``<python-base-prefix>/lib/pythonX.Y/site-packages`` directory (where
-  ``X.Y`` is the version of Python that you are using).
-
-* The :ref:`configuration file <getting-going-configuration>`,
-  :ref:`examples <examples>`, :ref:`tutorial <tutorial>` and
-  :ref:`libraries <libraries>` are installed in
-  ``<python-base-prefix>/share/psyclone`` directory.
-
-For a system-wide installation on Linux, ``<python-base-prefix>`` will
-likely be ``/usr`` and if a user-local installation is performed
-it will likely be ``~/.local``.
-
-For an installation to a specific location, ``<python-base-prefix>``
-is simply the path given to the
-``--install-option="--prefix=/my/install/path"``. Note that if using
-this method, it will be necessary to take further action to ensure
-PSyclone can find the :ref:`configuration file <getting-going-configuration>`
-installed as a part of this process.
-
-.. _getting-going-env-win:
-
-Windows environment
-^^^^^^^^^^^^^^^^^^^
-
-PSyclone can also be installed in `Python Windows environment
-<https://www.python.org/downloads/windows/>`_ using ``pip`` as described
-above. There are some differences in directory structure from Linux,
-for instance the script directory is usually called ``Scripts`` instead
-of ``bin`` and the modules directory ``Lib`` instead of ``lib``.
-
-Installation in an `Anaconda Python
-<https://www.anaconda.com/products/distribution>`_ environment on
-Windows also needs to be done using ``pip`` as ``conda install`` for
-PSyclone is currently not supported.
-
-.. _getting-going-depend:
-
-Dependencies
-------------
-
-PSyclone is written in Python so needs Python 3 to be installed on the
-target machine. PSyclone is regularly tested with Python 3.7, 3.8 and 3.12
-but should work with any version >= 3.6. (The last PSyclone release to
-support Python 2.7 was version 2.1.0.)
-
-PSyclone immediately relies on four external Python packages; ``configparser``,
-``fparser``, ``sympy``, and ``pyparsing``. The easiest way to satisfy the
-Python dependencies is to use the
-`PyPI installation <https://packaging.python.org/tutorials/installing-packages/>`_
-and ``pip``.
-
-If everything is working correctly then using ``pip`` to install PSyclone::
-
-   > pip install psyclone
-
-will automatically install the Python dependencies.
-
-.. warning:: Starting with the release 1.6.1, PSyclone will install a
-             specific release of ``fparser`` (version specified in the
-             ``setup.py`` script).
-
-In addition to the mandatory dependencies just described, PSyclone
-also has optional dependencies on both ``graphviz`` and ``termcolor``.
-PSyclone can use ``graphviz`` to produce a visualisation of a schedule's
-dependency graph. If this is desired then the Python package
-``graphviz`` (for the Python bindings) as well as the ``graphviz`` package
-itself must be installed. If the ``graphviz`` package is not available
-then the associated PSyclone routines will return silently and no
-visualisations will be produced. The Python package ``termcolor`` is
-used for pretty-printing a schedule in terminals that support coloured
-text. If the package is not available then the schedule is simply
-printed in plain text without colour highlighting.
-
-
-System-specific set-up
-^^^^^^^^^^^^^^^^^^^^^^
-
-:ref:`system_specific_setup` instructions are available for Ubuntu 14.04.2 and
-OpenSUSE 42.2.
-
-fparser
-^^^^^^^
-
-The ``fparser`` package (https://github.com/stfc/fparser) is a Fortran
-parser originally developed as a part of the `f2py project
-<http://www.f2py.com/>`_.
-
-``fparser`` is available from the Python Package
-Index and thus may be installed using ``pip``
-(https://packaging.python.org/tutorials/installing-packages/#requirements-for-installing-packages):
-::
-
-   > pip install fparser
-
-If you do not have sufficient permissions to perform a system-wide install
-then you can instruct ``pip`` to do a user-local install:
-::
-
-   > pip install --user fparser
-
-Should you wish to remove ``fparser`` then simply do:
-::
-
-   > pip uninstall fparser
-
-If you have already installed ``fparser`` and want to upgrade to the
-latest version simply do:
-::
-
-   > pip install fparser --upgrade
-
-
-.. warning:: Due to the above-mentioned reliance of PSyclone on a specific
-             ``fparser`` release, it is not advisable to install ``fparser``
-             independently unless it is not to be used with PSyclone. An
-             exception is installation of PSyclone from source for
-             development purposes, see :ref:`dev-installation` in the
-             `Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
-
-pyparsing
-^^^^^^^^^
-
-PSyclone requires ``pyparsing``, a library designed to allow parsers to
-be built in Python. PSyclone uses ``pyparsing`` to parse Fortran regular
-expressions as ``fparser`` does not fully parse these (see
-`here <https://github.com/pyparsing>`__ for more information).
-
-PSyclone has been tested with ``pyparsing`` versions 1.5.2, 2.0.1 and 2.2.0.
-
-You can test whether ``pyparsing`` is already installed on your machine by
-typing ``import pyparsing`` from the Python command line. If ``pyparsing``
-is installed, this command will complete successfully. If ``pyparsing`` is
-installed you can check its version by typing
-``pyparsing.__version__`` after successfully importing it.
-
-If ``pyparsing`` is not installed on your system then it may be installed
-from the Python Package Index using ``pip``:
-::
-
-   > pip install pyparsing
-
-Should you wish to, uninstalling is simply performed by doing:
-::
-
-   > pip uninstall pyparsing
-
-If you do not have sufficient privileges for a system-wide install then
-you can instruct ``pip`` to do a user-local install:
-::
-
-   > pip install --user pyparsing
-
-Alternatively, you could follow `these instructions
-<https://github.com/pyparsing/pyparsing>`_.
-
-
-SymPy
-^^^^^
-
-PSyclone requires ``sympy``, a library for symbolic mathematics. PSyclone
-uses ``sympy`` to reason about expression being equal or not, e.g. ``i+j``
-and ``j+i``. PSyclone has been tested with ``sympy`` versions 1.7.1.
-
-You can test whether ``sympy`` is already installed on your machine by
-typing ``import sympy`` from the Python command line. If ``sympy``
-is installed, this command will complete successfully. If ``sympy`` is
-installed you can check its version by typing
-``sympy.__version__`` after successfully importing it.
-
-If ``sympy`` is not installed on your system then it may be installed
-from the Python Package Index using ``pip``:
-::
-
-   > pip install sympy
-
-Should you wish to, uninstalling is simply performed by doing:
-::
-
-   > pip uninstall sympy
-
-If you do not have sufficient privileges for a system-wide install then
-you can instruct ``pip`` to do a user-local install:
-::
-
-   > pip install --user sympy
-
-Alternatively, you could follow the instructions on the `SymPy web page
-<https://docs.sympy.org/latest/install.html>`_.
-
-Graphviz
-^^^^^^^^
-
-The data dependencies of a PSyIR schedule determine the validity of
-changes to this schedule.
-PSyclone supports the visualisation of these dependencies as
-a graph using ``graphviz``. This visualisation is not needed to use
-PSyclone.
-
-If the Python bindings to ``graphviz`` are not installed on your system
-then it may be installed from the Python Package Index using ``pip``:
-::
-
-   > sudo pip install graphviz
-
-Should you wish to, uninstalling is simply performed by doing:
-::
-
-   > sudo pip uninstall graphviz
-
-If you do not have sufficient privileges for a system-wide install then
-you can instruct ``pip`` to do a user-local install:
-::
-
-   > pip install --user graphviz
-
-If ``graphviz`` itself is not installed on your system and your system
-supports the ``apt`` package manager then see below, otherwise please
-refer to the download and install instructions which are available
-`here <https://graphviz.org/download/>`__.
-
-If your system supports the ``apt`` package manager then it can be
-installed and removed in the following way:
-::
-
-   > sudo apt install graphviz
-   > sudo apt remove graphviz
-
-termcolor
-^^^^^^^^^
-
-By default, the ``view()`` method available on any PSyIR (PSyclone
-Internal Representation) object prints a plain-text representation
-to standard-out. However, if the ``termcolor`` package is available
-then PSyclone uses this to add colour highlighting to the output text.
-
-Installation (and uninstallation) of this package can be done via
-``pip`` in exactly the same way as for ``graphviz``, as described above.
+    python -m venv <virtual_env_name>
+    source <virtual_env_name>/bin/activate
+    pip install psyclone
 
 .. _getting-going-configuration:
 
 Configuration
 -------------
 
-Various aspects of PSyclone are configured through a configuration
-file, ``psyclone.cfg``. The default version of this file is installed
-to ``<python-base-prefix>/shared/psyclone/`` during the installation
-process. Similar to what is described :ref:`above
-<getting-going-env-loc>`, if a system-wide installation is being
-performed then this will likely be ``/usr/share/psyclone/``.
-If a user-local installation is performed (``--user`` flag to
-``pip install``) then the location will be something like
-``~/.local/share/psyclone/``.
+Various aspects of PSyclone are configured through a configuration file,
+``psyclone.cfg``. The default version of this file is located in the installation
+directory ``<prefix>/shared/psyclone/``. See :ref:`configuration` for details of
+the settings contained within the config file.
 
 .. warning::
 
-   If PSyclone is installed to a non-standard location (e.g. by specifying
-   the ``--install-option="--prefix=...`` option to ``pip install``) then
-   PSyclone will not be able to find the configuration file at execution
-   time. There are two solutions to this: 1. copy the configuration file to
-   a location where PSyclone will find it (see :ref:`configuration`) or
-   2. set the ``PSYCLONE_CONFIG`` environment variable to the full-path to
-   the configuration file, e.g.::
+   If PSyclone is installed to a non-standard location the configuration file
+   will not be found when executing PSyclone. There are two solutions to this:
+   1. copy the configuration file to a location where PSyclone will find it (see
+   :ref:`configuration`) or 2. set the ``PSYCLONE_CONFIG`` environment variable
+   to the full-path to the configuration file, e.g.:
 
-   > export PSYCLONE_CONFIG=/some/path/PSyclone/config/psyclone.cfg
+   .. code-block:: console
 
-.. warning::
+       export PSYCLONE_CONFIG=/some/path/PSyclone/config/psyclone.cfg
 
-   When installing in 'editable' mode (``-e`` flag to ``pip``), ``pip``
-   does *not* install the configuration file. You will have to take one
-   of the two actions described above.
-
-See :ref:`configuration` for details of the settings contained within
-the config file.
-
-Test
-----
-
-PSyclone contains an extensive test suite, but this test suite is not
-part of a standard installation. If you want to run the full test 
-suite, you need to install PSyclone from source, see :ref:`above
-<getting-going-env-src>` or  :ref:`dev-installation` in the
-`Developer Guide <https://psyclone-dev.readthedocs.io/>`_.
 
 .. _getting-going-run:
 
-Run
----
+Running PSyclone
+----------------
 
-You are now ready to try running PSyclone on the :ref:`examples <examples>`.
-One way of doing this is to use the ``psyclone`` driver script. Assuming it
-is on your ``PATH``::
+You are now ready to run PSyclone. One way of doing this is to use the ``psyclone``
+command. To list the available options run: `psyclone -h`, it should output::
 
-   > psyclone
-   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
-                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
-                   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                   [--profile {invokes,kernels}] [--config CONFIG] [--version]
+   usage: psyclone [-h] [--version] [--config CONFIG] [-s SCRIPT] [-I INCLUDE]
+                   [-l {off,all,output}] [--profile {invokes,routines,kernels}]
+				   [--backend {enable-validation,disable-validation}] [-o OUTPUT_FILE]
+				   [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
+                   [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
+                   [--kernel-renaming {multiple,single}]
                    filename
-   psyclone: error: the following arguments are required: filename
 
-As indicated above, the ``psyclone`` command can be used to process PSyKAl
-DSLs (`-API` flag). In this case the command takes as input the Fortran source
+   Transform a file using the PSyclone source-to-source Fortran compiler
+
+   positional arguments:
+     filename              input source code
+
+   options:
+     -h, --help            show this help message and exit
+     --version, -v         display version information
+     --config CONFIG, -c CONFIG
+                           config file with PSyclone specific options.
+     -s SCRIPT, --script SCRIPT
+                           filename of a PSyclone optimisation recipe
+     -I INCLUDE, --include INCLUDE
+                           path to Fortran INCLUDE or module files
+     -l {off,all,output}, --limit {off,all,output}
+                           limit the Fortran line length to 132 characters (default 'off').
+                           Use 'all' to apply limit to both input and output Fortran. Use
+                           'output' to apply line-length limit to output Fortran only.
+     --profile {invokes,routines,kernels}, -p {invokes,routines,kernels}
+                           add profiling hooks for 'kernels', 'invokes' or 'routines'.
+     --backend {enable-validation,disable-validation}
+                           options to control the PSyIR backend used for code generation.
+                           Use 'disable-validation' to disable the validation checks that
+                           are performed by default.
+     -o OUTPUT_FILE        (code-transformation mode) output file
+     -api DSL, -psykal-dsl DSL
+                           whether to use particular PSyKAl DSL API from ['lfric', 'gocean'].
+     -oalg OUTPUT_ALGORITHM_FILE
+                           (psykal mode) filename of transformed algorithm code
+     -opsy OUTPUT_PSY_FILE
+                           (psykal mode) filename of generated PSy-layer code
+     -okern OUTPUT_KERNEL_PATH
+                           (psykal mode) directory in which to put transformed kernels, default
+                           is the current working directory.
+     -d DIRECTORY, --directory DIRECTORY
+                           (psykal mode) path to a root directory structure containing kernel
+                           source code. Multiple roots can be specified by using multiple -d
+                           arguments.
+     -dm, --dist_mem       (psykal mode) generate distributed memory code
+     -nodm, --no_dist_mem  (psykal mode) do not generate distributed memory code
+     --kernel-renaming {multiple,single}
+                           (psykal mode) naming scheme to use when re-naming transformed kernels
+
+There is more detailed information about each flag in the :ref:`psyclone_command`, but the main
+parameters are the input source file that we aim to transform, and a transformation recipe that
+is provided with the `-s` flag.
+In addition to these, note that ``psyclone`` can be used in two disctinct modes:
+the code-transformation mode (when no `-api` or `-psykal-dsl` flags are provided) or the
+PSyKAl DSL mode (when `-api` or `-psykal-dsl` are provided). The following sections provide
+a brief introduction to each mode.
+
+PSyclone for code-transformations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+PSyclone for PSyKAl DSLs
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+In this case the command takes as input the Fortran source
 file containing the algorithm specification (in terms
 of calls to ``invoke()``). It parses this, finds the necessary kernel
 source files and produces two Fortran files. The first contains the

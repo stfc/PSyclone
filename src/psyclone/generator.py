@@ -148,7 +148,7 @@ def main(arguments):
                         help='(code-transformation mode) output file')
 
     # PSyKAl mode flags
-    parser.add_argument('-api',
+    parser.add_argument('-api', '-psykal-dsl', metavar='DSL',
                         help=f'whether to use particular PSyKAl DSL API from '
                         f'{Config.get().curated_api_list}.')
     parser.add_argument('-oalg', metavar='OUTPUT_ALGORITHM_FILE',
