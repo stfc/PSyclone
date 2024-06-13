@@ -144,7 +144,7 @@ def inline_calls(schedule):
     :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
 
     '''
-    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "lbc_", "mpi_"]
+    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_"]
     mod_inline_trans = KernelModuleInlineTrans()
     inline_trans = InlineTrans()
     all_calls = schedule.walk(Call)

@@ -87,7 +87,8 @@ ACC_UPDATE_TRANS = ACCUpdateTrans()
 PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
-PROFILE_NONACC = True
+# N.B. this can inhibit PSyclone's ability to inline!
+PROFILE_NONACC = False
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
