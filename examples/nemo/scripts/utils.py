@@ -36,7 +36,6 @@
 ''' Utilities file to parallelise Nemo code. '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 from psyclone.psyir.nodes import (
     Loop, Assignment, Directive, Container, Reference, CodeBlock, Call,
     Return, IfBlock, Routine, IntrinsicCall)
@@ -44,9 +43,9 @@ from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
     RoutineSymbol, ImportInterface)
 from psyclone.psyir.transformations import (
-    HoistLoopBoundExprTrans, HoistTrans, ProfileTrans, HoistLocalArraysTrans,
-    InlineTrans, Maxval2LoopTrans, Reference2ArrayRangeTrans)
-from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
+    ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
+    HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
+    Reference2ArrayRangeTrans)
 from psyclone.transformations import TransformationError
 
 
