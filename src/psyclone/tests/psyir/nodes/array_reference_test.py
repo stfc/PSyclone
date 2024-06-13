@@ -484,23 +484,6 @@ def test_array_indices():
             "has none" in str(err.value))
 
 
-def test_array_same_array():
-    ''' Test the is_same_array() method for an ArrayReference. '''
-    one = Literal("1", INTEGER_TYPE)
-    two = Literal("2", INTEGER_TYPE)
-    test_sym = DataSymbol("test",
-                          ArrayType(REAL_TYPE, [10]))
-    array = ArrayReference.create(test_sym, [one])
-    # Something other than a Reference won't match
-    assert array.is_same_array(one) is False
-    # An ArrayReference should match
-    array2 = ArrayReference.create(test_sym, [two])
-    assert array.is_same_array(array2) is True
-    # A Reference to the array symbol should also match
-    bare_array = Reference(test_sym)
-    assert array.is_same_array(bare_array) is True
-
-
 def test_array_datatype():
     '''Test the datatype() method for an ArrayReference.'''
     test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10]))

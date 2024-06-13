@@ -155,29 +155,6 @@ Internal Representation of it::
                 Loop[type='lon',field_space='None',it_space='None']
                     CodedKern[]
 
-Transformations
----------------
-
-The following transformations are specific to the NEMO API.
-
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoArrayRange2LoopTrans
-    :noindex:
-    :members: apply, validate
-
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoOuterArrayRange2LoopTrans
-    :noindex:
-    :members: apply, validate
-
-####
-
-.. autoclass:: psyclone.domain.nemo.transformations.NemoAllArrayRange2LoopTrans
-    :noindex:
-    :members: apply, validate
-
 .. _limitations:
 
 Limitations

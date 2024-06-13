@@ -33,9 +33,9 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
-'''A transformation script that seeks to apply OpenACC DATA and KERNELS
-directives to NEMO style code. In order to use it you must first install
-PSyclone. See README.md in the top-level directory.
+'''A transformation script that seeks to apply OpenACC KERNELS and optionally,
+OpenACC DATA directives to NEMO style code. In order to use it you must first
+install PSyclone. See README.md in the top-level directory.
 
 Once you have psyclone installed, this may be used by doing:
 
@@ -62,11 +62,11 @@ from utils import add_profiling, inline_calls
 from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
-    ArrayReference, Assignment, BinaryOperation, Loop, WhileLoop, \
-    Literal, Return, Call, ACCLoopDirective
-from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
-                                           ACCUpdateTrans
+from psyclone.psyir.nodes import (
+    IfBlock, ArrayReference, Assignment, BinaryOperation, Loop,
+    Literal, Call, ACCLoopDirective)
+from psyclone.psyir.transformations import (ACCKernelsTrans, ACCUpdateTrans,
+                                            TransformationError, ProfileTrans)
 from psyclone.transformations import ACCEnterDataTrans
 
 # Set up some loop_type inference rules in order to reference useful domain
@@ -79,7 +79,7 @@ Loop.set_loop_type_inference_rules({
 })
 
 # Get the PSyclone transformations we will use
-ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
+ACC_KERN_TRANS = ACCKernelsTrans()
 ACC_LOOP_TRANS = TransInfo().get_trans_name('ACCLoopTrans')
 ACC_ROUTINE_TRANS = TransInfo().get_trans_name('ACCRoutineTrans')
 ACC_EDATA_TRANS = ACCEnterDataTrans()
@@ -190,6 +190,17 @@ def valid_acc_kernel(node):
     # The Fortran routine which our parent Invoke represents
     routine_name = node.ancestor(NemoInvokeSchedule).invoke.name
 
+    try:
+        # Since we do this check on a node-by-node basis, we disable the
+        # check that the 'region' contains a loop.
+        ACC_KERN_TRANS.validate(node, options={"disable_loop_check":
+                                               True})
+    except TransformationError as err:
+        log_msg(routine_name,
+                f"Node rejected by ACCKernelTrans.validate: "
+                f"{err.value}", node)
+        return False
+
     # Allow for per-routine setting of what to exclude from within KERNELS
     # regions. This is because sometimes things work in one context but not
     # in another (with the Nvidia compiler).
@@ -197,17 +208,10 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_types = (CodeBlock, Return, Call, IfBlock, Loop, WhileLoop)
+    excluded_types = (IfBlock, Loop)
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
-        if isinstance(enode, Call) and enode.is_available_on_device():
-            continue
-
-        if isinstance(enode, (CodeBlock, Return, Call, WhileLoop)):
-            log_msg(routine_name,
-                    f"region contains {type(enode).__name__}", enode)
-            return False
 
         if isinstance(enode, IfBlock):
             # We permit IF blocks originating from WHERE constructs and
@@ -261,17 +265,6 @@ def valid_acc_kernel(node):
                                     "Loop over levels contains several "
                                     "other loops", enode)
                             return False
-
-    # For now we don't support putting *just* the implicit loop assignment in
-    # things like:
-    #    if(do_this)my_array(:,:) = 1.0
-    # inside a kernels region. Once we generate Fortran instead of modifying
-    # the fparser2 parse tree this will become possible.
-    if isinstance(node.parent, Schedule) and \
-       isinstance(node.parent.parent, IfBlock) and \
-       "was_single_stmt" in node.parent.parent.annotations:
-        log_msg(routine_name, "Would split single-line If statement", node)
-        return False
 
     # Finally, check that we haven't got any 'array accesses' that are in
     # fact function calls.

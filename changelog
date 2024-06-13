@@ -110,6 +110,21 @@
 	40) PR #2598 towards #2543. Refresh the PSyKAl-related documentation
 	in both the User and Developer Guides.
 
+	41) PR #2611. Update Integration tests nvhpc mpi library path. 
+
+	42) PR #2614 towards #2604. Fixes broken links to the docs in the
+	various tutorial READMEs.
+
+	43) PR #2587 for #1989. Improves the statistics produced by the
+	generated PSyKE driver code.
+
+	44) #PR #2602 for #1596. Exclude assumed-size variable references from
+	the ACCKernels regions.
+
+	45) PR #2603 for #1841. Refactors the ArrayRange2Loop transformation
+	(merging in functionality from the NEMO-specific version). Renames it
+	to ArrayAssignment2LoopsTrans.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
