@@ -41,28 +41,23 @@ Once you have PSyclone installed, this script may be used by doing:
 
  >>> psyclone -s ./omp_trans.py my_file.F90
 
-This should produce a lot of output, ending with generated
-Fortran.
-
 '''
 from psyclone.psyir.nodes import Loop
-from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 
 # Get the transformation we will apply
 OMP_TRANS = OMPParallelLoopTrans()
 
+Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"}})
 
 def trans(psyir):
-    ''' Transform a specific Schedule by making all loops
-    over vertical levels OpenMP parallel.
+    ''' Parallelise the provided file by making all loops over vertical (jk)
+    levels OpenMP parallel.
 
     :param psyir: the PSyIR representing the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
     for loop in psyir.walk(Loop):
-        if loop.variable.name == "jk":
+        if loop.loop_type == "levels":
             OMP_TRANS.apply(loop)
-
-    # Display the transformed PSyIR
-    print(psyir.view())

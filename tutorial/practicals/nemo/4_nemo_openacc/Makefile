@@ -40,7 +40,7 @@
 include ../../../common.mk
 
 # By default we only generate the transformed code
-.DEFAULT_GOAL := psy_1.f90
+.DEFAULT_GOAL := output_1.f90
 
 # The PSyclone transformation script to use
 TRANS_SCRIPT ?= ./kernels_trans.py
@@ -58,29 +58,29 @@ NAME = ./tra_adv.exe
 
 .PHONY: clean allclean transform
 
-$(NAME): $(KERNELS) psy_openacc.o runner.o
+$(NAME): $(KERNELS) output_openacc.o runner.o
 	$(F90) $(F90FLAGS) $^ -o $@
 
 # Target that uses PSyclone to generate 'psy%.f90' - it is used
-# to create psy_openacc.f90 here, but also to create psy_1 as
+# to create output_openacc.f90 here, but also to create output_1 as
 # default target.
-psy%.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
+output%.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
 	$(PSYCLONE) -s ${TRANS_SCRIPT} -o $@ -l output tra_adv_mod.F90
 
-.precious: psy_openacc.f90
+.precious: output_openacc.f90
 
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
 
 # Dependencies - runner needs tra_adv.mod, which is in the psyclone
-# processed file psy_openacc.c.
-runner.o: psy_openacc.o
+# processed file output_openacc.o
+runner.o: output_openacc.o
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f psy.f90 psy_*.f90 *.o *.mod $(NAME) output.dat
+	rm -f output.f90 output_*.f90 *.o *.mod $(NAME) output.dat
 
 allclean: clean
 

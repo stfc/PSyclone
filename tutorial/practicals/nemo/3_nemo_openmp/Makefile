@@ -58,18 +58,18 @@ SOLUTION_SCRIPTS = $(wildcard solutions/*.py)
 
 .PHONY: ${SOLUTION_SCRIPTS}
 
-$(NAME): $(KERNELS) psy.o runner.o
+$(NAME): $(KERNELS) output.o runner.o
 	$(F90) $(F90FLAGS) $^ -o $@ -L$(PROFILE_DIR) $(PROFILE_LINK)
 
-# Target that uses PSyclone to generate 'psy.f90'
-psy.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
-	${MY_PSYCLONE} -s ${TRANS_SCRIPT} -o psy.f90 tra_adv_mod.F90
+# Target that uses PSyclone to generate 'output.f90'
+output.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}
+	${MY_PSYCLONE} -s ${TRANS_SCRIPT} -o output.f90 tra_adv_mod.F90
 
 # Make sure the infrastructure library is compiled, so the mods are found
 $(KERNELS): $(INF_LIB)
 
-# Creating psy.o and runner.o requires that the profiling lib be compiled
-runner.o psy.o: ${PROFILE_LIB} tra_adv_mod.o
+# Creating output.o and runner.o requires that the profiling lib be compiled
+runner.o output.o: ${PROFILE_LIB} tra_adv_mod.o
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I $(PROFILE_DIR) -c $<
@@ -81,7 +81,7 @@ ${PROFILE_LIB}:
 	${MAKE} -C ${PROFILE_DIR}
 
 clean:
-	rm -f psy.f90 psy_*.f90 *.o *.mod $(NAME) output.dat
+	rm -f output.f90 output_*.f90 *.o *.mod $(NAME) output.dat
 
 allclean: clean
 	${MAKE} -C ${PROFILE_DIR}  clean
@@ -98,6 +98,6 @@ run: compile
 
 ${SOLUTION_SCRIPTS}:
 	# We need to use different output names to support testing in parallel
-	# and not interfering with the compile task (which uses psy.f90)
-	${MY_PSYCLONE} -s $@ -o psy_1.f90 tra_adv_mod.F90
-	${MY_PSYCLONE} -s $@ -o psy_2.f90 --profile routines tra_adv_mod.F90
+	# and not interfering with the compile task (which uses output.f90)
+	${MY_PSYCLONE} -s $@ -o output_1.f90 tra_adv_mod.F90
+	${MY_PSYCLONE} -s $@ -o output_2.f90 --profile routines tra_adv_mod.F90

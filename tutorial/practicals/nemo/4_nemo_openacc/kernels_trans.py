@@ -66,7 +66,7 @@ def trans(psyir):
 
     # Find the outer, 'iteration' loop
     tloop = None
-    for node in psyir.walk(Loop):
+    for node in psyir.walk(Loop, stop_type=Loop):
         if node.loop_type == "tracers":
             tloop = node
             break

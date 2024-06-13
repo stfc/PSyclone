@@ -77,10 +77,11 @@ def trans(psyir):
     :param psyir: the PSyIR representing the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
+    subroutine = psyir.children[0].children[0]
 
     # Find the outer, 'iteration' loop
     tloop = None
-    for node in psyir.walk(Routine):
+    for node in subroutine.children:
         if isinstance(node, Loop) and node.loop_type == "tracers":
             tloop = node
             break

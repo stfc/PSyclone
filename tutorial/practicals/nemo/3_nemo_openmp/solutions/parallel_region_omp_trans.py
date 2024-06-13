@@ -73,18 +73,19 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
-    for child in psyir.walk(Routine):
-        if isinstance(child, Loop) and child.loop_type == "levels":
+    for loop in psyir.walk(Loop, stop_type=Loop):
+        if loop.loop_type == "levels":
             try:
-                OMP_TRANS.apply(child)
-            except TransformationError:
-                pass
+                OMP_TRANS.apply(loop)
+            except TransformationError as err:
+                print(f"Could not parallelise:\n{loop.debug_string()}"
+                      f"because:\n{err.value}")
 
     # Find body of the iteration loop (identified as a 'tracer' loop)
     it_loop_body = None
-    for child in psyir.walk(Routine):
-        if isinstance(child, Loop) and child.loop_type == "tracers":
-            it_loop_body = child.loop_body
+    for loop in psyir.walk(Loop):
+        if loop.loop_type == "tracers":
+            it_loop_body = loop.loop_body
             break
 
     # Put an OMP parallel do around all suitable loops except 6-9
@@ -98,6 +99,3 @@ def trans(psyir):
 
     # Enclose loops 6-9 within a single OMP parallel region
     OMP_PARALLEL_TRANS.apply(it_loop_body.children[6:10])
-
-    # Display the transformed PSyIR
-    print(psyir.view())
