@@ -41,7 +41,6 @@
 
 from collections import OrderedDict
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
     FortranWriter, precedence
@@ -60,7 +59,6 @@ from psyclone.psyir.symbols import (
     UnsupportedType, UnsupportedFortranType, DataTypeSymbol, StructureType)
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
-from psyclone.psyGen import PSyFactory
 
 
 def test_gen_intent():

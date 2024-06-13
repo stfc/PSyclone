@@ -50,7 +50,6 @@ from fparser.two.Fortran2003 import (
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, _is_array_range_literal, _is_bound_full_extent,
     _check_args, default_precision,

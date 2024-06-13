@@ -41,8 +41,7 @@ of the fparser2 frontend. '''
 
 import os
 import pytest
-from fparser.common.readfortran import FortranFileReader
-from psyclone.psyGen import PSyFactory, Kern
+from psyclone.psyGen import Kern
 from psyclone.psyir.frontend.fparser2 import _find_or_create_unresolved_symbol
 from psyclone.psyir.nodes import (
     Reference, Container, Assignment, Literal, KernelSchedule,

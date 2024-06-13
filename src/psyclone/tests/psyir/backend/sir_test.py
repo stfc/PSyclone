@@ -43,7 +43,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (
-    Assignment, BinaryOperation, IfBlock, Literal, Loop, Routine,
+    Assignment, BinaryOperation, IfBlock, Literal, Routine,
     Node, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import INTEGER_TYPE
 
@@ -148,7 +148,7 @@ def test_gen_stencil_1():
                            ("i+1,j-2,k+3,l-4", "[1, -2, 3, -4]"),
                            ("i+(1), j-(2)", "[1, -2]")]:
         code = CODE.replace("a(i,j,k)", f"a({form})")
-        lhs = get_lhs( code)
+        lhs = get_lhs(code)
         result = gen_stencil(lhs)
         assert result == expected
 
