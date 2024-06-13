@@ -189,20 +189,17 @@ def test_find_or_create_unresolved_scope_limit():
     assert kernel.symbol_table.lookup("x_1") == xsymbol
 
 
-def test_nemo_find_container_symbol(parser):
+def test_find_container_symbol(fortran_reader):
     '''Check that find_or_create_symbol() works for the NEMO API when the
     searched-for symbol is declared in the parent module.
 
     '''
-    reader = FortranFileReader(
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))),
-            "test_files", "gocean1p0", "kernel_with_global_mod.f90"))
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    # Get a node from the schedule
-    bops = psy._invokes.invoke_list[0].schedule.walk(BinaryOperation)
+    filename = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))), "test_files", "gocean1p0",
+                "kernel_with_global_mod.f90")
+    psyir = fortran_reader.psyir_from_file(filename)
+    # Get a node from the PSyIR
+    bops = psyir.walk(BinaryOperation)
     # Use it as the starting point for the search
     symbol = _find_or_create_unresolved_symbol(bops[0], "alpha")
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
