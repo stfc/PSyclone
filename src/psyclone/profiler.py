@@ -64,7 +64,7 @@ class Profiler():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def set_options(options, api):
+    def set_options(options, api=""):
         '''Sets the option the user required.
 
         :param options: options selected by the user, or None to
