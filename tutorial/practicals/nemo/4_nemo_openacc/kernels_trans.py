@@ -48,8 +48,8 @@ have already been preprocessed (if required).
 '''
 
 from psyclone.psyir.nodes import Loop, Assignment
-from psyclone.transformations import (TransformationError, ACCKernelsTrans,
-                                      ACCDataTrans)
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import TransformationError, ACCDataTrans
 
 
 # Get the PSyclone transformations we will use

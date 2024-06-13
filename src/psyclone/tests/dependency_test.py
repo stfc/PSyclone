@@ -41,7 +41,6 @@
 import os
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernStubArgList, LFRicKern, LFRicKernMetadata
 from psyclone.parse.algorithm import parse

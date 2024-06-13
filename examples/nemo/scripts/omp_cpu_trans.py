@@ -81,16 +81,6 @@ def trans(psyir):
             # specification part.
             print("Skipping normalisation for ", subroutine.name)
 
-        elif subroutine.name in (
-                "trc_oce_rgb",   # Produces incorrect results
-                "removepoints",  # Compiler error: The shapes of the array
-                                 # expressions do not conform
-                "bdytide_init"   # An array-valued argument is required ...
-                                 # (string argument)
-                ):
-            # TODO #1841: These subroutines have a bug in the
-            # array-range-to-loop transformation.
-            print("Skipping normalisation for ", subroutine.name)
         else:
             normalise_loops(
                     subroutine,

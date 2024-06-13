@@ -62,8 +62,9 @@ from psyclone.psyir.nodes import (ACCKernelsDirective,
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
-    ACCDataTrans, ACCEnterDataTrans, ACCKernelsTrans, ACCLoopTrans,
+    ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
     ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(

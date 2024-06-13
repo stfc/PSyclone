@@ -42,19 +42,6 @@ from psyclone.domain.nemo.transformations.create_nemo_invoke_schedule_trans \
     import CreateNemoInvokeScheduleTrans
 from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
     import CreateNemoPSyTrans
-from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans \
-    import NemoArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.nemo_allarrayrange2loop_trans \
-    import NemoAllArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations.nemo_outerarrayrange2loop_trans \
-    import NemoOuterArrayRange2LoopTrans
-
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 
 __all__ = ['CreateNemoInvokeScheduleTrans',
-           'CreateNemoPSyTrans',
-           'NemoAllArrayRange2LoopTrans',
-           'NemoArrayRange2LoopTrans',
-           'NemoOuterArrayRange2LoopTrans']
+           'CreateNemoPSyTrans']

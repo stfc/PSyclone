@@ -41,7 +41,7 @@
 
 import abc
 
-from psyclone.psyGen import Kern, Transformation
+from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.nodes import Schedule, Node

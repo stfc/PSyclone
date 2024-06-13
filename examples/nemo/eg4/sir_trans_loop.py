@@ -40,20 +40,22 @@ PSyIR to the Stencil intermediate representation (SIR).
 from psyclone.psyir.backend.sir import SIRWriter
 
 from psyclone.psyir.nodes import Assignment, Loop, Routine
-from psyclone.psyir.transformations import HoistTrans, AllArrayAccess2LoopTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+from psyclone.psyir.transformations import (
+    HoistTrans, AllArrayAccess2LoopTrans, ArrayAssignment2LoopsTrans,
+    TransformationError)
 
 
 def trans(psyir):
     '''Transformation routine for use with PSyclone. Applies the
-    NemoAllArrayRange2LoopTrans, AllArrayAccess2LoopTrans and
-    HoistTrans transformations to the supplied invokes.
+    ArrayAssignment2LoopsTrans, AllArrayAccess2LoopTrans and
+    HoistTrans transformations and then produces the SIR representation
+    of the given code.
 
     :param psyir: the PSyIR representing the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-    
+
     '''
-    array_range_trans = NemoAllArrayRange2LoopTrans()
+    array_range_trans = ArrayAssignment2LoopsTrans()
     array_access_trans = AllArrayAccess2LoopTrans()
     hoist_trans = HoistTrans()
 
@@ -67,7 +69,10 @@ def trans(psyir):
 
         # Transform any array assignments (Fortran ':' notation) into loops.
         for assignment in subroutine.walk(Assignment):
-            array_range_trans.apply(assignment)
+            try:
+                array_range_trans.apply(assignment)
+            except TransformationError:
+                pass
 
         # Remove any loop invariant assignments inside k-loops to make
         # them perfectly nested. At the moment this transformation

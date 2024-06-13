@@ -45,7 +45,7 @@ This should produce a lot of output, ending with generated
 Fortran.
 
 '''
-from psyclone.psyir.nodes import Loop, Routine
+from psyclone.psyir.nodes import Loop
 from psyclone.transformations import OMPParallelLoopTrans, OMPLoopTrans, \
     OMPParallelTrans, TransformationError
 

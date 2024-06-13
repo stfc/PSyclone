@@ -42,7 +42,8 @@ from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import CodeBlock, IfBlock, Loop
-from psyclone.transformations import TransformationError, ACCKernelsTrans
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import TransformationError
 
 
 def valid_kernel(node):

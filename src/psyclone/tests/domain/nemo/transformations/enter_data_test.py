@@ -42,7 +42,8 @@ import os
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory
-from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import ACCEnterDataTrans
 
 
 # Constants

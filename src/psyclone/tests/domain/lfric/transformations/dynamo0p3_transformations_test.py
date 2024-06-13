@@ -56,8 +56,8 @@ from psyclone.psyir.nodes import (colored, Loop, Schedule, Literal, Directive,
                                   OMPDoDirective, ACCEnterDataDirective)
 from psyclone.psyir.symbols import (AutomaticInterface, ScalarType, ArrayType,
                                     REAL_TYPE, INTEGER_TYPE)
-from psyclone.psyir.transformations import (LoopFuseTrans, LoopTrans,
-                                            TransformationError)
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, LoopFuseTrans, LoopTrans, TransformationError)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPParallelTrans, \
@@ -68,7 +68,7 @@ from psyclone.transformations import OMPParallelTrans, \
     Dynamo0p3RedundantComputationTrans, \
     Dynamo0p3AsyncHaloExchangeTrans, \
     Dynamo0p3KernelConstTrans, \
-    ACCLoopTrans, ACCParallelTrans, ACCKernelsTrans, ACCEnterDataTrans
+    ACCLoopTrans, ACCParallelTrans, ACCEnterDataTrans
 
 
 # The version of the API that the tests in this file

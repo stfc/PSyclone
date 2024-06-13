@@ -47,9 +47,9 @@ have the concept of implicit loops.
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import IntrinsicCall, Assignment, Loop, Routine
-from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
-    Min2CodeTrans, Max2CodeTrans, HoistTrans, AllArrayAccess2LoopTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+from psyclone.psyir.transformations import (
+    Abs2CodeTrans, Sign2CodeTrans, Min2CodeTrans, Max2CodeTrans, HoistTrans,
+    AllArrayAccess2LoopTrans, ArrayAssignment2LoopsTrans, TransformationError)
 
 
 def trans(psyir):
@@ -66,7 +66,7 @@ def trans(psyir):
     sign_trans = Sign2CodeTrans()
     min_trans = Min2CodeTrans()
     max_trans = Max2CodeTrans()
-    array_range_trans = NemoAllArrayRange2LoopTrans()
+    array_range_trans = ArrayAssignment2LoopsTrans()
     array_access_trans = AllArrayAccess2LoopTrans()
     hoist_trans = HoistTrans()
 
@@ -81,7 +81,10 @@ def trans(psyir):
 
         # Transform any array assignments (Fortran ':' notation) into loops.
         for assignment in subroutine.walk(Assignment):
-            array_range_trans.apply(assignment)
+            try:
+                array_range_trans.apply(assignment)
+            except TransformationError:
+                pass
 
         for icall in subroutine.walk(IntrinsicCall):
             if icall.intrinsic == IntrinsicCall.Intrinsic.ABS:

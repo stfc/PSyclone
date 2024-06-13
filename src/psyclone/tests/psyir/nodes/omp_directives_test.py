@@ -40,7 +40,6 @@
 
 import os
 import pytest
-from psyclone.configuration import Config
 from psyclone.errors import UnresolvedDependencyError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -70,7 +69,6 @@ from psyclone.transformations import (
     Dynamo0p3OMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
-from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")

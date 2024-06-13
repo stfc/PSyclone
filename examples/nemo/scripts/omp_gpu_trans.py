@@ -76,26 +76,12 @@ def trans(psyir):
         if PROFILING_ENABLED:
             add_profiling(subroutine.children)
 
-        # TODO #1841: These files have a bug in the array-range-to-loop
-        # transformation. One leads to the following compiler error
-        # NVFORTRAN-S-0083-Vector expression used where scalar expression
-        # required, the other to an incorrect result.
-        if subroutine.name in ("trc_oce_rgb", ):
-            print("Skipping", subroutine.name)
-            continue
-
-        # The nvidia compiler does not compile a loop over a string in
-        # this subroutine:
-        if subroutine.name in ("bdytide_init", "sbc_cpl_init"):
-            print("Skipping", subroutine.name)
-            continue
-
         # This are functions with scalar bodies, we don't want to parallelise
         # them, but we could:
         # - Inine them
         # - Annotate them with 'omp declare target' and allow to call from gpus
         if subroutine.name in ("q_sat", "sbc_dcy", "gamma_moist",
-                               "cd_neutral_10m","psi_h", "psi_m"):
+                               "cd_neutral_10m", "psi_h", "psi_m"):
             print("Skipping", subroutine.name)
             continue
 
