@@ -40,8 +40,8 @@ from psyclone.psyir.nodes import (
     Routine, OMPDoDirective, OMPLoopDirective, OMPParallelDoDirective,
     OMPTeamsDistributeParallelDoDirective, OMPScheduleClause)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.psyir.transformations.parallel_loop_trans import \
-    ParallelLoopTrans
+from psyclone.psyir.transformations.omp_canonical_loop_trans import \
+    OMPCanonicalLoopTrans
 
 MAP_STR_TO_LOOP_DIRECTIVES = {
     "do": OMPDoDirective,
@@ -52,7 +52,7 @@ MAP_STR_TO_LOOP_DIRECTIVES = {
 VALID_OMP_DIRECTIVES = list(MAP_STR_TO_LOOP_DIRECTIVES.keys())
 
 
-class OMPLoopTrans(ParallelLoopTrans):
+class OMPLoopTrans(OMPCanonicalLoopTrans):
     '''
     Adds an OpenMP directive to parallelise this loop. It can insert different
     directives such as "omp do/for", "omp parallel do/for", "omp teams
