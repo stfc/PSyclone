@@ -73,7 +73,17 @@ from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
+from psyclone.psyir.symbols import (
+    INTEGER_TYPE,
+    ContainerSymbol,
+    DataSymbol,
+    DataTypeSymbol,
+    ImportInterface,
+    ScalarType,
+    StructureType,
+    RoutineSymbol,
+    UnsupportedFortranType
+)
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -1065,15 +1075,94 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             loc = taskwait_loc.position
             node_parent.addchild(OMPTaskwaitDirective(), loc)
 
+    def _add_otter_profiling(self):
+        '''
+        Docs TODO
+        '''
+        # We add a taskwait at the end of the region if that last child is not
+        # already a taskwait. This allows us to tell otter than final
+        # synchronization point, which is otherwise difficult.
+        if not isinstance(self.dir_body.children[-1], OMPTaskwaitDirective):
+            self.dir_body.addchild(OMPTaskwaitDirective())
+
+        taskwaits = self.walk(OMPTaskwaitDirective)
+
+        # Get the otter module and symbols from the symbol table.
+        routine_table = self.ancestor(Routine).symbol_table
+        iso_c_binding = routine_table.find_or_create_tag(
+                "iso_c_binding", root_name="iso_c_binding",
+                symbol_type=ContainerSymbol
+        )
+        c_ptr_type = routine_table.find_or_create_tag(
+                "iso_c_ptr_type", root_name="c_ptr",
+                symbol_type=DataTypeSymbol,
+                datatype=StructureType(),
+                interface=ImportInterface(iso_c_binding)
+                )
+        c_null_ptr = routine_table.find_or_create_tag(
+                "iso_c_null_ptr", root_name="c_null_ptr",
+                symbol_type=DataSymbol,
+                datatype=c_ptr_type,
+                interface=ImportInterface(iso_c_binding)
+        )
+        module_symbol = routine_table.find_or_create_tag(
+                "otter_module", root_name="otter_task_graph",
+                symbol_type=ContainerSymbol
+        )
+        task_synchronise = routine_table.find_or_create_tag(
+                "fortran_otterSynchroniseTasks",
+                root_name="fortran_otterSynchroniseTasks",
+                symbol_type=RoutineSymbol,
+                interface=ImportInterface(module_symbol)
+        )
+        otter_endpoint_enter = routine_table.find_or_create_tag(
+                "otter_endpoint_enter",
+                root_name="otter_endpoint_enter",
+                symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(""),  # Imported only.
+                interface=ImportInterface(module_symbol)
+        )
+        otter_endpoint_leave = routine_table.find_or_create_tag(
+                "otter_endpoint_leave",
+                root_name="otter_endpoint_leave",
+                symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(""),  # Imported only.
+                interface=ImportInterface(module_symbol)
+        )
+
+        for taskwait in taskwaits:
+            sync_enter_call = Call.create(task_synchronise,
+                                          [Reference(c_null_ptr),
+                                           Literal("1", INTEGER_TYPE),
+                                           Reference(otter_endpoint_enter)]
+                                          )
+            sync_leave_call = Call.create(task_synchronise,
+                                          [Reference(c_null_ptr),
+                                           Literal("1", INTEGER_TYPE),
+                                           Reference(otter_endpoint_leave)]
+                                          )
+            pos = taskwait.position
+            taskwait.parent.addchild(sync_leave_call, pos+1)
+            taskwait.parent.addchild(sync_enter_call, pos)
+
     def lower_to_language_level(self):
         '''
         Checks that any task dependencies inside this node are valid.
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
         # Perform parent ops
         super().lower_to_language_level()
 
         # Validate any task dependencies in this OMPSerialRegion.
         self._validate_task_dependencies()
+
+        # Check if any of the tasks have otter profiling enabled.
+        otter_profiling = False
+        for task in self.walk(OMPTaskDirective):
+            otter_profiling = otter_profiling or task.otter_enabled
+        if otter_profiling:
+            self._add_otter_profiling()
 
     def validate_global_constraints(self):
         '''

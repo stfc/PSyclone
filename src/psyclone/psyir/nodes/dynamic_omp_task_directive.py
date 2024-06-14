@@ -40,6 +40,7 @@ import itertools
 import math
 from collections import namedtuple
 
+from fparser.two import Fortran2003
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
     ArrayMember,
@@ -47,9 +48,11 @@ from psyclone.psyir.nodes import (
     ArrayReference,
     Assignment,
     Call,
+    CodeBlock,
     IfBlock,
     IntrinsicCall,
     Reference,
+    Routine,
     StructureReference,
 )
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -72,7 +75,20 @@ from psyclone.psyir.nodes.omp_directives import (
 from psyclone.psyir.nodes.omp_task_directive import (
     OMPTaskDirective
 )
-from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
+from psyclone.psyir.symbols import (
+    CHARACTER_TYPE,
+    INTEGER_TYPE,
+    ContainerSymbol,
+    DataSymbol,
+    DataTypeSymbol,
+    ImportInterface,
+    PreprocessorInterface,
+    RoutineSymbol,
+    ScalarType,
+    StructureType,
+    UnresolvedType,
+    UnsupportedFortranType,
+)
 
 
 class DynamicOMPTaskDirective(OMPTaskDirective):
@@ -82,6 +98,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
     :param list children: list of Nodes that are children of this Node.
     :param parent: the Node in the AST that has this directive as a child
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param bool enable_otter: whether the node should add otter profiling
+                              calls into the code.
     """
 
     _children_valid_format = (
@@ -145,9 +163,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         IntrinsicCall.Intrinsic.UBOUND,
     ]
 
-    def __init__(self, children=None, parent=None):
+    def __init__(self, children=None, parent=None, enable_otter=False):
         super().__init__(
-            children=children, parent=parent
+            children=children, parent=parent, enable_otter=enable_otter
         )
         # We don't know if we have a parent OMPParallelClause at initialisation
         # so we can only create dummy clauses for now.
@@ -2155,9 +2173,211 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         self.addchild(out_clause)
         super().lower_to_language_level()
 
+        # If otter is enabled we need to add the relevant calls
+        # into the code.
+        # We need a otter create task before the task directive.
+        # We need a otter start and end task inside the task directive.
+        # The otter module needs to be in the routine's symbol table,
+        # with only the required imports as part of it.
+        if self.otter_enabled:
+            self._add_otter_profiling()
+
         # Replace this node with an OMPTaskDirective
         childs = self.dir_body.pop_all_children()
         clauses = self.clauses[:]
         self.pop_all_children()
-        replacement = OMPTaskDirective(children=childs, clauses=clauses)
+        replacement = OMPTaskDirective(children=childs, clauses=clauses,
+                                       enable_otter=self.otter_enabled)
         self.replace_with(replacement)
+
+    def _add_otter_profiling(self):
+        '''
+        Docs #TODO
+        '''
+
+        # Find the containing routine table and add or find
+        # all of the required symbols for otter profiling.
+        routine_table = self.ancestor(Routine).symbol_table
+        iso_c_binding = routine_table.find_or_create_tag(
+                "iso_c_binding", root_name="iso_c_binding",
+                symbol_type=ContainerSymbol
+        )
+        # We need a type PSyclone will output as Type(c_ptr)
+        # despite it not really being a structure.
+        c_ptr_type = routine_table.find_or_create_tag(
+                "iso_c_ptr_type", root_name="c_ptr",
+                symbol_type=DataTypeSymbol,
+                datatype=StructureType(),
+                interface=ImportInterface(iso_c_binding)
+        )
+
+        c_bool_precision = routine_table.find_or_create_tag(
+                "iso_c_bool_precision", root_name="c_bool",
+                symbol_type=DataSymbol,
+                datatype=INTEGER_TYPE,
+                interface=ImportInterface(iso_c_binding)
+        )
+        c_null_ptr = routine_table.find_or_create_tag(
+                "iso_c_null_ptr", root_name="c_null_ptr",
+                symbol_type=DataSymbol,
+                datatype=c_ptr_type,
+                interface=ImportInterface(iso_c_binding)
+        )
+
+        module_symbol = routine_table.find_or_create_tag(
+                "otter_module", root_name="otter_task_graph",
+                symbol_type=ContainerSymbol
+        )
+        task_initialise = routine_table.find_or_create_tag(
+                "otter_initialise_task",
+                root_name="fortran_otterTaskInitialise",
+                symbol_type=RoutineSymbol,
+                datatype=c_ptr_type,
+                interface=ImportInterface(module_symbol)
+        )
+        task_start = routine_table.find_or_create_tag(
+                "otter_start_task",
+                root_name="fortran_otterTaskStart",
+                symbol_type=RoutineSymbol,
+                datatype=c_ptr_type,
+                interface=ImportInterface(module_symbol)
+        )
+        task_end = routine_table.find_or_create_tag(
+                "otter_end_task",
+                root_name="fortran_otterTaskEnd",
+                symbol_type=RoutineSymbol,
+                interface=ImportInterface(module_symbol)
+        )
+        otter_add_to_pool = routine_table.find_or_create_tag(
+                "otter_add_to_pool",
+                root_name="otter_add_to_pool",
+                symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(""),  # Imported only.
+                interface=ImportInterface(module_symbol)
+        )
+
+        # Create the other variables we will need to have defined.
+        otter_task_obj = routine_table.find_or_create_tag(
+                "otter_task_obj",
+                root_name="otter_task",
+                symbol_type=DataSymbol,
+                datatype=c_ptr_type
+        )
+        # Make a character(len=30) for the task id in otter.
+        otter_task_id = routine_table.find_or_create_tag(
+                "otter_task_id",
+                root_name="otter_task_id",
+                symbol_type=DataSymbol,
+                datatype=UnsupportedFortranType(
+                    "CHARACTER(LEN=150) :: otter_task_id"
+                )
+        )
+
+        # Need a "true" of type c_bool for some otter calls.
+        otter_c_true = routine_table.find_or_create_tag(
+                "otter_c_true",
+                root_name="c_true",
+                symbol_type=DataSymbol,
+                datatype=ScalarType(ScalarType.Intrinsic.BOOLEAN,
+                                    c_bool_precision),
+                is_constant=True,
+                initial_value=True
+        )
+
+        # Some preprocessor macros
+        __FILE__ = routine_table.find_or_create_tag(
+                "__FILE__",
+                root_name="__FILE__",
+                symbol_type=DataSymbol,
+                datatype=UnresolvedType(),
+                interface=PreprocessorInterface()
+        )
+
+        __LINE__ = routine_table.find_or_create_tag(
+                "__LINE__",
+                root_name="__LINE__",
+                symbol_type=DataSymbol,
+                datatype=UnresolvedType(),
+                interface=PreprocessorInterface()
+        )
+
+        # Now we have the symbols we need, we need to work out the loop name
+        # for the otter_task_id character object.
+        routine_name = self.ancestor(Routine).name
+        # Since we need to "write" to a string, we have to create codeblocks
+        # to do this, since PSyclone doesn't support write statements.
+        if not isinstance(self.parent.parent, Loop):
+            # No parent loop, we just call this {routinename}_task_{position}
+            rname_task = f"{routine_name}_task_"
+            rname_task_len = len(rname_task)
+            format_stmt = f"(A{rname_task_len}, I0.5)"
+            ptree = Fortran2003.Write_Stmt(
+                    f"write(otter_task_id, \"{format_stmt}\") \"{rname_task}\""
+                    f", {self.position}")
+            cblock = CodeBlock([ptree], CodeBlock.Structure.STATEMENT)
+        else:
+            # Find the parent loop index, call this
+            # {routinename}_task_{position}_{parent_loop_variable_value}
+            # The latter one is a runtime value
+            var_name = self.parent.parent.variable.name
+            rname_task = f"{routine_name}_task_"
+            rname_task_len = len(rname_task)
+            format_stmt = f"(A{rname_task_len}, I0.5, A1, I0.8)"
+            ptree = Fortran2003.Write_Stmt(
+                    f"write(otter_task_id, \"{format_stmt}\") \"{rname_task}\""
+                    f", {self.position}, \"_\", {var_name}")
+            cblock = CodeBlock([ptree], CodeBlock.Structure.STATEMENT)
+
+        # Add the codeblock before this task
+        position = self.position
+        self.parent.addchild(cblock, position)
+
+        # Now we have the write statement added,
+        # we should do the Initialise call.
+        initialise_call = Assignment.create(
+                Reference(otter_task_obj),
+                Call.create(task_initialise,
+                            [Reference(c_null_ptr),
+                             Literal("-1", INTEGER_TYPE),
+                             Reference(otter_add_to_pool),
+                             Reference(otter_c_true),
+                             Reference(__FILE__),
+                             Literal(f"{routine_name}_{self.position}",
+                                     CHARACTER_TYPE
+                                     ),
+                             Reference(__LINE__),
+                             Reference(otter_task_id)
+                             ]
+                            )
+        )
+
+        # Add the initialise call before this task
+        position = self.position
+        self.parent.addchild(initialise_call, position)
+
+        # We added the calls before the node, now we need to add the
+        # start and end calls inside the task.
+        start_call = Assignment.create(
+                Reference(otter_task_obj),
+                Call.create(task_start,
+                            [Reference(otter_task_obj),
+                             Reference(__FILE__),
+                             Reference(otter_task_id),
+                             Reference(__LINE__)]
+                            )
+        )
+
+        end_call = Call.create(task_end,
+                               [Reference(otter_task_obj),
+                                Reference(__FILE__),
+                                Reference(otter_task_id),
+                                Reference(__LINE__)]
+                               )
+
+        self.children[0].addchild(end_call)
+        self.children[0].addchild(start_call, 0)
+
+        # We need to add otter_task_obj and otter_task_id to firstprivate
+        # clause
+        self.firstprivate_clause.addchild(Reference(otter_task_obj))
+        self.firstprivate_clause.addchild(Reference(otter_task_id))

@@ -73,12 +73,30 @@ class OMPTaskDirective(OMPRegionDirective):
         "OMPDependClause, OMPDependClause"
     )
 
-    def __init__(self, children=None, parent=None, clauses=None):
+    def __init__(self, children=None, parent=None, clauses=None,
+                 enable_otter=False):
         super().__init__(children=children, parent=parent)
         if clauses:
             for child in clauses:
                 child.detach()
                 self.addchild(child)
+
+        self._otter_enabled = enable_otter
+
+    @property
+    def otter_enabled(self):
+        '''
+        :returns: whether this node is adding otter profiling calls.
+        '''
+        return self._otter_enabled
+
+    @otter_enabled.setter
+    def otter_enabled(self, otter_enabled):
+        '''
+        :param bool otter_enabled: whether to enable otter profiling for this
+                                   task region.
+        '''
+        self._otter_enabled = otter_enabled
 
     @staticmethod
     def _validate_child(position, child):
@@ -110,6 +128,14 @@ class OMPTaskDirective(OMPRegionDirective):
         if position in (4, 5):
             return isinstance(child, OMPDependClause)
         return False
+
+    @property
+    def firstprivate_clause(self):
+        """
+        :returns: the OMPFirstPrivateClause child of this node.
+        :rtype: :py:class:`psyclones.psyir.nodes.OMPFirstPrivateClause`
+        """
+        return self.children[2]
 
     @property
     def input_depend_clause(self):
