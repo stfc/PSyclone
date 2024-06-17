@@ -64,7 +64,7 @@ $(TARGETS): % : $(addprefix psycloned-%/, $(notdir $(SRC_FILES)))
 # We perform a 'passthrough' test by simply not providing a transformation
 # script.
 psycloned-passthrough/%.f90: ${ROOT_SRC}%.f90 psycloned-passthrough
-	psyclone -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
+	psyclone -s passthrough.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 
 psycloned-openmp_cpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_cpu
 	psyclone -s omp_cpu_trans.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<

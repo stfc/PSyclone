@@ -255,7 +255,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             .create(invoke_info)
         if script_name is not None:
             recipe, _ = load_script(script_name)
-            psy = recipe(psy)
+            recipe(psy)
         alg_gen = None
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
@@ -296,7 +296,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # Call the optimisation script for algorithm optimisations
             recipe, _ = load_script(script_name, "trans_alg", is_optional=True)
             if recipe:
-                psyir = recipe(psyir)
+                recipe(psyir)
 
         # For each kernel called from the algorithm layer
         kernels = {}
@@ -383,7 +383,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
             recipe, _ = load_script(script_name)
-            psy = recipe(psy)
+            recipe(psy)
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
