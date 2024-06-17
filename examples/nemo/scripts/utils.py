@@ -35,6 +35,7 @@
 
 ''' Utilities file to parallelise Nemo code. '''
 
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyir.nodes import (
     Loop, Assignment, Directive, Container, Reference, CodeBlock, Call,
     Return, IfBlock, Routine, IntrinsicCall)
@@ -42,9 +43,9 @@ from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, ScalarType,
     RoutineSymbol, ImportInterface)
 from psyclone.psyir.transformations import (
-    HoistLoopBoundExprTrans, HoistTrans, ProfileTrans, HoistLocalArraysTrans,
-    Maxval2LoopTrans, Reference2ArrayRangeTrans)
-from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
+    ArrayAssignment2LoopsTrans, HoistLoopBoundExprTrans, HoistLocalArraysTrans,
+    HoistTrans, InlineTrans, Maxval2LoopTrans, ProfileTrans,
+    Reference2ArrayRangeTrans)
 from psyclone.transformations import TransformationError
 
 
@@ -127,6 +128,45 @@ def enhance_tree_information(schedule):
             for child in reference.children:
                 call.addchild(child.detach())
             reference.replace_with(call)
+
+
+def inline_calls(schedule):
+    '''
+    Looks for all Calls within the supplied Schedule and attempts to:
+
+      1. Find the source of the routine being called.
+      2. Insert that source into the same Container as the call site.
+      3. Replace the call to the routine with the body of the routine.
+
+    where each step is dependent upon the success of the previous one.
+
+    :param schedule: the schedule in which to search for Calls.
+    :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
+
+    '''
+    excluding = ["ctl_stop", "ctl_warn", "eos", "iom_", "hist", "mpi_"]
+    mod_inline_trans = KernelModuleInlineTrans()
+    inline_trans = InlineTrans()
+    all_calls = schedule.walk(Call)
+    for call in all_calls:
+        if isinstance(call, IntrinsicCall):
+            continue
+        rsym = call.routine.symbol
+        name = rsym.name.lower()
+        if any(name.startswith(excl_name) for excl_name in excluding):
+            print(f"Inlining of routine '{name}' is disabled.")
+            continue
+        if rsym.is_import:
+            try:
+                mod_inline_trans.apply(call)
+            except TransformationError as err:
+                print(f"Module inline of '{name}' failed:\n{err}")
+                continue
+        try:
+            inline_trans.apply(call)
+        except TransformationError as err:
+            print(f"Inlining of '{name}' failed:\n{err}")
+            continue
 
 
 def normalise_loops(

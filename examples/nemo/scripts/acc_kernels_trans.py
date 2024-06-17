@@ -58,7 +58,7 @@ Tested with the NVIDIA HPC SDK version 23.7.
 '''
 
 import logging
-from utils import add_profiling
+from utils import add_profiling, inline_calls
 from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import TransInfo
@@ -87,7 +87,8 @@ ACC_UPDATE_TRANS = ACCUpdateTrans()
 PROFILE_TRANS = ProfileTrans()
 
 # Whether or not to add profiling calls around unaccelerated regions
-PROFILE_NONACC = True
+# N.B. this can inhibit PSyclone's ability to inline!
+PROFILE_NONACC = False
 
 # Whether or not to add OpenACC enter data and update directives to explicitly
 # move data between host and device memory
@@ -366,12 +367,12 @@ def try_kernels_trans(nodes):
                 # We put a COLLAPSE(2) clause on any perfectly-nested lat-lon
                 # loops that have a Literal value for their step. The latter
                 # condition is necessary to avoid compiler errors.
-                if loop.loop_type == "lat" and \
-                   isinstance(loop.step_expr, Literal) and \
-                   isinstance(loop.loop_body[0], Loop) and \
-                   loop.loop_body[0].loop_type == "lon" and \
-                   isinstance(loop.loop_body[0].step_expr, Literal) and \
-                   len(loop.loop_body.children) == 1:
+                if (loop.variable.name == "jj" and
+                        isinstance(loop.step_expr, Literal) and
+                        isinstance(loop.loop_body[0], Loop) and
+                        loop.loop_body[0].variable.name == "ji" and
+                        isinstance(loop.loop_body[0].step_expr, Literal) and
+                        len(loop.loop_body.children) == 1):
                     try:
                         ACC_LOOP_TRANS.apply(loop, {"collapse": 2})
                     except (TransformationError) as err:
@@ -421,6 +422,7 @@ def trans(psy):
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if invoke.name.lower() not in ACC_IGNORE:
             print(f"Transforming {invoke.name} with acc kernels")
+            inline_calls(sched)
             have_kernels = add_kernels(sched.children)
             if have_kernels and ACC_EXPLICIT_MEM_MANAGEMENT:
                 print(f"Transforming {invoke.name} with acc enter data")

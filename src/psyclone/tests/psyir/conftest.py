@@ -39,6 +39,7 @@
 
 import pytest
 
+from psyclone.parse import ModuleManager
 import psyclone.psyir.frontend.fparser2 as fp2
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
@@ -56,3 +57,12 @@ def disable_declaration_check(monkeypatch):
         fp2, "_find_or_create_unresolved_symbol",
         lambda _1, name, _2=None: DataSymbol(name,
                                              INTEGER_TYPE))
+
+
+@pytest.fixture(name="clear_module_manager", scope="function", autouse=True)
+def modmanager_fixture(monkeypatch, request):
+    '''
+    A fixture that ensures every test gets a fresh ModuleManager instance as
+    otherwise changes to search paths or file creation/removal is not detected.
+    '''
+    monkeypatch.setattr(ModuleManager, '_instance', None)
