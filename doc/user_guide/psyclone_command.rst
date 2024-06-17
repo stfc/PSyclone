@@ -170,16 +170,13 @@ source file currently being parsed is searched by default. If the
 specified INCLUDE file is not found then PSyclone will abort with
 an appropriate error.
 
-Attempting to specify ``-I``/``--include`` for any API other than NEMO
-will be rejected by PSyclone.
-
 Currently, the PSyKAl-based APIs (LFRic and GOcean - see below) will ignore
 (but preserve) INCLUDE statements in algorithm-layer code. However, INCLUDE
 statements in kernels will, in general, cause the kernel parsing to fail
 unless the file(s) referenced in such statements are in the same directory
 as the kernel file. Once kernel parsing has been re-implemented to use
 fparser2 (issue #239) and the PSyclone Intermediate Representation then the
-behaviour will be the same as for the NEMO API.
+behaviour will be the same as for generic code-transformations.
 
 Since PSyclone does not attempt to be a full compiler, it does not require
 that the code be available for any Fortran modules referred to by ``use``
@@ -272,16 +269,16 @@ profiling functionality please see the :ref:`profiling` section.
 Using PSyclone for PSyKAL DSLs
 ------------------------------
 
-By default PSyclone processed the provided Fortran input file, however,
-``psyclone`` can also be used to process Fortran that implements a PSyKAL
-DSL (see :ref:`introduction_to_psykal`). To do this you can choose a DSL API
+In addition to the default code-transformation mode, ``psyclone`` can also
+be used to process Fortranfiles that implements PSyKAL DSLs (see
+:ref:`introduction_to_psykal`). To do this you can choose a DSL API
 with the ``-api`` or ``-psykal-dsl`` flag.
 
 The main difference is that instead of poviding a file to process, in this
 case PSyclone expects an algorithm-layer file that describes the high-level
-view of the algorithm. PSyclone will use this algorithm file and its associated
-kernel implementations to generate the PSy-layer code that bridges them. In
-this mode of operation the transformation recipe is applied to the PSy-layer.
+view of an algorithm. PSyclone will use this algorithm file and its associated
+kernels metadata to generate a PSy(Parallel System)-layer code that connects them.
+In this mode of operation the transformation recipe is applied to the PSy-layer.
 
 By default, the ``psyclone`` command for PSyKAl APIs will generate distributed
 memory (DM) code (unless otherwise specified in the :ref:`configuration` file).

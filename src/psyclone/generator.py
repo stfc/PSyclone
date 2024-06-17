@@ -684,7 +684,22 @@ def add_builtins_use(fp2_tree, name):
 
 def code_transformation_mode(input_file, recipe_file, output_file,
                              line_length=False):
+    ''' Process the input_file with the recipe_file instructions and
+    store it in the output_file.
 
+    Note: there is some duplicated logic in the PSyKAl path, we could attempt
+    to merge them when adopting the LFRIC_TESTING PATH and removing the
+    previous way.
+
+    :param input_file: the given input file.
+    :type input_file: str | os.PathLike
+    :param recipe_file: the given transformation recipe file.
+    :type input_file: Optional[str | os.PathLike]
+    :param output_file: the output file where to store the resulting code.
+    :type output_file: Optional[str | os.PathLike]
+    :param line_length: whether to break the output into lines of 123 chars.
+
+    '''
     # Load recipe file
     if recipe_file:
         transformation_recipe, files_to_skip = load_script(recipe_file)
