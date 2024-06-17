@@ -706,14 +706,13 @@ def code_transformation_mode(input_file, recipe_file, output_file,
 
         # Generate Fortran
         output = FortranWriter()(psyir)
+        # Fix line_length is requested
+        if line_length:
+            output = FortLineLength().process(output)
     else:
         # Skip parsing and transformation and copy contents of file directly
         with open(input_file, mode='r', encoding="utf8") as ifile:
             output = ifile.read()
-
-    # Fix line_length is requested
-    if line_length:
-        output = FortLineLength().process(output)
 
     if output_file:
         with open(output_file, mode='w', encoding="utf8") as ofile:

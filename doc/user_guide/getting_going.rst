@@ -532,7 +532,7 @@ input source file is required:
     psyclone input_file.f90
 
 
-However, we usually what to redirect the output to a file where we can later
+However, we usually want to redirect the output to a file that we can later
 compile, we can do this with the `-o` flag:
 
 .. code-block:: console
