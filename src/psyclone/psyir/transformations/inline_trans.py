@@ -131,7 +131,8 @@ class InlineTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-
+        :param bool options["force"]: whether or not to permit the inlining
+            of Routines containing CodeBlocks. Default is False.
         '''
         self.validate(node, options)
         # The table associated with the scoping region holding the Call.
@@ -609,34 +610,40 @@ class InlineTrans(Transformation):
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
+        :param bool options["force"]: whether or not to ignore any CodeBlocks
+            in the candidate routine. Default is False.
 
-        :raises TransformationError: if the supplied node is not a Call or is \
+        :raises TransformationError: if the supplied node is not a Call or is
             an IntrinsicCall.
         :raises TransformationError: if the routine has a return value.
-        :raises TransformationError: if the routine body contains a Return \
+        :raises TransformationError: if the routine body contains a Return
             that is not the first or last statement.
-        :raises TransformationError: if the routine body contains a CodeBlock.
-        :raises TransformationError: if the called routine has a named \
+        :raises TransformationError: if the routine body contains a CodeBlock
+            and the 'force' option is not True.
+        :raises TransformationError: if the called routine has a named
             argument.
-        :raises TransformationError: if any of the variables declared within \
+        :raises TransformationError: if any of the variables declared within
             the called routine are of UnknownInterface.
-        :raises TransformationError: if any of the variables declared within \
+        :raises TransformationError: if any of the variables declared within
             the called routine have a StaticInterface.
-        :raises TransformationError: if any of the subroutine arguments is of \
+        :raises TransformationError: if any of the subroutine arguments is of
             UnsupportedType.
-        :raises TransformationError: if a symbol of a given name is imported \
+        :raises TransformationError: if a symbol of a given name is imported
             from different containers at the call site and within the routine.
-        :raises TransformationError: if the routine accesses an un-resolved \
+        :raises TransformationError: if the routine accesses an un-resolved
             symbol.
-        :raises TransformationError: if the number of arguments in the call \
+        :raises TransformationError: if the number of arguments in the call
             does not match the number of formal arguments of the routine.
-        :raises TransformationError: if a symbol declared in the parent \
+        :raises TransformationError: if a symbol declared in the parent
             container is accessed in the target routine.
-        :raises TransformationError: if the shape of an array formal argument \
+        :raises TransformationError: if the shape of an array formal argument
             does not match that of the corresponding actual argument.
 
         '''
         super().validate(node, options=options)
+
+        options = {} if options is None else options
+        forced = options.get("force", False)
 
         # The node should be a Call.
         if not isinstance(node, Call):
@@ -665,10 +672,14 @@ class InlineTrans(Transformation):
                     f"Routine '{name}' contains one or more "
                     f"Return statements and therefore cannot be inlined.")
 
-        if routine.walk(CodeBlock):
+        if routine.walk(CodeBlock) and not forced:
+            # N.B. we permit the user to specify the "force" option to allow
+            # CodeBlocks to be included.
             raise TransformationError(
-                f"Routine '{name}' contains one or more "
-                f"CodeBlocks and therefore cannot be inlined.")
+                f"Routine '{name}' contains one or more CodeBlocks and "
+                "therefore cannot be inlined. (If you are confident that "
+                "the code may safely be inlined despite this then use "
+                "`options={'force': True}` to override.)")
 
         # Support for routines with named arguments is not yet implemented.
         # TODO #924.
