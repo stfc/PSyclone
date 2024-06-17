@@ -814,6 +814,32 @@ def trans(psyir):
     assert new_code == code
 
 
+def test_code_transformation_trans(tmpdir):
+    ''' Test that applying recipes that have a trans, and are not listed
+    in the FILES_TO_SKIP, executes the recipe transformations. '''
+    code = '''
+       ! This is a Fortran file with a funny syntax
+       MoDUle             MYmod
+       enD    Module      MYmod
+    '''
+    recipe = '''
+def trans(psyir):
+    psyir.children[0].name = "newname"
+    '''
+    inputfile = str(tmpdir.join("funny_syntax.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    recipefile = str(tmpdir.join("change_name.py"))
+    with open(recipefile, "w", encoding='utf-8') as my_file:
+        my_file.write(recipe)
+    outputfile = str(tmpdir.join("output.f90"))
+    main([inputfile, "-s", recipefile, "-o", outputfile])
+    # We will get the normalise syntax and the recipe code change
+    with open(outputfile, "r", encoding='utf-8') as my_file:
+        new_code = my_file.read()
+    assert "module newname\n" in new_code
+
+
 def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     '''Test that a TransformationError exception in the generate function
     is caught and output as expected by the main function.  The

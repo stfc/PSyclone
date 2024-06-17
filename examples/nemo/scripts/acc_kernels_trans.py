@@ -392,7 +392,7 @@ def trans(psyir):
 
         # In the lib_fortran file we annotate each routine that does not
         # have a Loop or unsupported Calls with the OpenACC Routine Directive
-        if subroutine.name == "lib_fortran":
+        if psyir.name == "lib_fortran.f90":
             if not subroutine.walk(Loop):
                 calls = subroutine.walk(Call)
                 if all(call.is_available_on_device() for call in calls):
