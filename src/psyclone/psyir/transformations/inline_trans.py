@@ -449,12 +449,18 @@ class InlineTrans(Transformation):
                     # The formal argument declaration has a shape.
                     local_shape = local_decln_shape[local_idx_posn]
                     local_decln_start = local_shape.lower
+                    if isinstance(local_decln_start, Node):
+                        # Ensure any references to formal arguments within
+                        # the declared array lower bound are updated.
+                        local_decln_start = self._replace_formal_arg(
+                            local_decln_start, call_node, formal_args)
                 elif (local_decln_shape[local_idx_posn] ==
                       ArrayType.Extent.DEFERRED):
                     # The formal argument is declared to be allocatable and
                     # therefore has the same bounds as the actual argument.
                     local_shape = None
                     local_decln_start = actual_start
+
             if not local_decln_start:
                 local_shape = None
                 local_decln_start = _ONE

@@ -617,6 +617,38 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_array_limits_are_formal_args(fortran_reader, fortran_writer):
+    '''
+    Check that apply() correctly handles the case where the start/stop
+    values of an array formal argument are given in terms of other formal
+    arguments.
+
+    '''
+    code = '''
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    integer :: a_var
+    real, dimension(20) :: this_one
+    call sub(this_one, a_var, 4)
+  end subroutine caller
+  subroutine sub(var, start, ldim)
+    integer, intent(in) :: ldim
+    integer, intent(in) :: start
+    real, dimension(ldim:) :: var
+    var(start+1) = 5.0
+  end subroutine
+end module test_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    acall = psyir.walk(Call, stop_type=Call)[0]
+    inline_trans.apply(acall)
+    output = fortran_writer(psyir)
+    assert "this_one(a_var + 1 - 4 + 1) = 5.0" in output
+
+
 def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
     '''
     Check that apply() works correctly when a formal argument is given the
