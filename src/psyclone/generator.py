@@ -491,13 +491,13 @@ def main(arguments):
             print(f"When using the code-transformation mode (with no -api or "
                   f"-psykal-dsl flags), the psykal mode arguments must not be "
                   f"present in the command, but found {arguments}")
-            sys.exit(-1)
+            sys.exit(1)
     else:
         if args.o:
             print("The '-o' flag is not valid when using the psykal mode "
                   "(-api/-psykal-dsl flag), use the -oalg, -opsy, -okern to "
                   "specify the output filenames of each psykal layer.")
-            sys.exit(-1)
+            sys.exit(1)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
@@ -691,24 +691,27 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     else:
         transformation_recipe, files_to_skip = (None, [])
 
-    # Parse file
-    psyir = FortranReader().psyir_from_file(input_file)
-
-    # Modify file
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:
+        # Parse file
+        psyir = FortranReader().psyir_from_file(input_file)
+
+        # Modify file
         if transformation_recipe:
             transformation_recipe(psyir)
+
+        # Add profiling if automatic profiling has been requested
+        for routine in psyir.walk(Routine):
+            Profiler.add_profile_nodes(routine, Loop)
+
+        # Generate Fortran
+        output = FortranWriter()(psyir)
     else:
-        # FIXME: Copy file
-        sys.exit(0)
+        # Skip parsing and transformation and copy contents of file directly
+        with open(input_file, mode='r', encoding="utf8") as ifile:
+            output = ifile.read()
 
-    # Add profiling if automatic profiling has been requested
-    for routine in psyir.walk(Routine):
-        Profiler.add_profile_nodes(routine, Loop)
-
-    # Generate Fortran
-    output = FortranWriter()(psyir)
+    # Fix line_length is requested
     if line_length:
         output = FortLineLength().process(output)
 

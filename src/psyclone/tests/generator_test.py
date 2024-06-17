@@ -782,6 +782,38 @@ def test_main_expected_fatal_error(capsys):
     assert output == expected_output
 
 
+def test_code_transformation_skip_files_error(tmpdir):
+    ''' Test that applying recipes in the code-transformation mode skips the
+    files marked as FILES_TO_SKIP '''
+    code = '''
+       ! This is a Fortran file with a funny syntax
+       MoDUle             MYmod
+       enD    Module      MYmod
+    '''
+    recipe = '''
+FILES_TO_SKIP = ["funny_syntax.f90"]
+
+def trans(psyir):
+    assert False
+    '''
+    inputfile = str(tmpdir.join("funny_syntax.f90"))
+    with open(inputfile, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    recipefile = str(tmpdir.join("recipe.py"))
+    with open(recipefile, "w", encoding='utf-8') as my_file:
+        my_file.write(recipe)
+
+    # Execute the recipe with FILES_TO_SKIP (it should not call the
+    # recipe assert because the file is skipped)
+    outputfile = str(tmpdir.join("output.f90"))
+    main([inputfile, "-s", recipefile, "-o", outputfile])
+
+    # We can also check that the output syntax has not been normalised
+    with open(outputfile, "r", encoding='utf-8') as my_file:
+        new_code = my_file.read()
+    assert new_code == code
+
+
 def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     '''Test that a TransformationError exception in the generate function
     is caught and output as expected by the main function.  The

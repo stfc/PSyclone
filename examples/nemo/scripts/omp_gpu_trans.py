@@ -99,7 +99,7 @@ def trans(psyir):
         )
 
         # For performance in lib_fortran, mark serial routines as GPU-enabled
-        if psyir.name == "lib_fortran":
+        if psyir.name == "lib_fortran.f90":
             if not subroutine.walk(Loop):
                 try:
                     # We need the 'force' option.
@@ -115,7 +115,7 @@ def trans(psyir):
         # TODO #2446: This needs to be generalised and probably be done
         # from inside the loop transformation when the race condition data
         # dependency is found.
-        if psyir.name == "stpctl":
+        if psyir.name == "stpctl.f90":
             for loop in subroutine.walk(Loop):
                 # Skip if an outer loop is already parallelised
                 if loop.ancestor(Directive):
