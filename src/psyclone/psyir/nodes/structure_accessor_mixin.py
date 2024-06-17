@@ -1,7 +1,8 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,17 +32,34 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, STFC Daresbury Lab
-#          A. R. Porter, STFC Daresbury Lab
-#          S. Siso, STFC Daresbury Lab
+# Author: S. Siso STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''Transformations module for NEMO.
-'''
+''' This module contains the implementation of the StructureAccessor Mixin. '''
 
-from psyclone.domain.nemo.transformations.create_nemo_invoke_schedule_trans \
-    import CreateNemoInvokeScheduleTrans
-from psyclone.domain.nemo.transformations.create_nemo_psy_trans \
-    import CreateNemoPSyTrans
+import abc
+from psyclone.psyir.nodes.member import Member
+from psyclone.errors import InternalError
 
-__all__ = ['CreateNemoInvokeScheduleTrans',
-           'CreateNemoPSyTrans']
+
+class StructureAccessorMixin(metaclass=abc.ABCMeta):
+    '''
+    Abstract class used to add functionality common to Nodes that represent
+    Structure accesses. These all have a "member" child at position 0.
+
+    '''
+    @property
+    def member(self):
+        '''
+        :returns: the PSyIR child representing the accessor component.
+        :rtype: :py:class:`psyclone.psyir.nodes.Member`
+
+        :raises InternalError: if the first child of this node is not an
+                               instance of Member.
+        '''
+        if not self.children or not isinstance(self.children[0], Member):
+            raise InternalError(
+                f"{type(self).__name__} malformed or incomplete. It must have "
+                f"a first child that must be a (sub-class of) Member, but "
+                f"found: {self.children}")
+        return self.children[0]
