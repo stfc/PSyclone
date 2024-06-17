@@ -92,28 +92,20 @@ from psyclone.version import __VERSION__
 LFRIC_TESTING = False
 
 
-def handle_script(script_name, info, function_name, is_optional=False):
-    '''Loads and applies the specified script to the given algorithm or
-    psy layer. The relevant script function (in 'function_name') is
-    called with 'info' as the argument.
+def load_script(script_name, function_name="trans", is_optional=False):
+    ''' Loads the specified script containing a psyclone recipe.
 
     :param str script_name: name of the script to load.
-    :param info: PSyclone representation of the algorithm or psy layer \
-        to which the script is applied.
-    :type info: :py:class:`psyclone.psyGen.PSy` | \
-        :py:class:`psyclone.psyir.nodes.Node`
-    :param str function_name: the name of the function to call in the \
-        script.
-    :param bool is_optional: whether the function is optional or \
+    :param str function_name: the name of the function to call in the script.
+    :param bool is_optional: whether the function is optional or
         not. Defaults to False.
+    :returns: callable recipe and list of files to skip.
+    :rtype: Tuple[Callable, List[str]]
 
     :raises IOError: if the file is not found.
-    :raises GenerationError: if the file does not have .py extension \
-        or can not be imported.
-    :raises GenerationError: if the script function can not be called.
-
-    :raises GenerationError: if any exception is raised when the \
-        script function is called.
+    :raises GenerationError: if the file does not have .py extension.
+    :raises GenerationError: if the function 'trans' does not exist or can not
+        be called.
 
     '''
     # pylint: disable=too-many-locals
@@ -140,32 +132,24 @@ def handle_script(script_name, info, function_name, is_optional=False):
         # already exist elsewhere in the system path
         sys_path_prepended = True
         sys.path.insert(0, filepath)
-        try:
-            transmod = __import__(module_name)
-        except Exception as error:
-            raise GenerationError(
-                f"generator: attempted to import specified PSyclone "
-                f"transformation module '{module_name}' but a problem was "
-                f"found: {error}") from error
-        if callable(getattr(transmod, function_name, None)):
-            try:
-                func_call = getattr(transmod, function_name)
-                info = func_call(info)
-            except Exception:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                lines = traceback.format_exception(exc_type, exc_value,
-                                                   exc_traceback)
-                e_str = '{\n' + ''.join('    ' + ln for ln in lines[2:]) + '}'
-                # pylint: disable=raise-missing-from
-                raise GenerationError(
-                    f"generator: specified PSyclone transformation module "
-                    f"'{module_name}'\nraised the following exception during "
-                    f"execution...\n{e_str}\nplease check your script")
-        elif not is_optional:
-            raise GenerationError(
-                f"generator: attempted to use specified PSyclone "
-                f"transformation module '{module_name}' but it does not "
-                f"contain a '{function_name}' function")
+        recipe_module = importlib.import_module(module_name)
+
+        if hasattr(recipe_module, "FILES_TO_SKIP"):
+            files_to_skip = recipe_module.FILES_TO_SKIP
+        else:
+            files_to_skip = []
+
+        if hasattr(recipe_module, function_name):
+            transformation_recipe = getattr(recipe_module, function_name)
+            if callable(transformation_recipe):
+                # Everything is good, return recipe and files_to_skip
+                return transformation_recipe, files_to_skip
+        elif is_optional:
+            return None, files_to_skip
+        raise GenerationError(
+            f"generator: attempted to use specified PSyclone "
+            f"transformation module '{module_name}' but it does not "
+            f"contain a callable '{function_name}' function")
     finally:
         if sys_path_prepended:
             sys.path.pop(0)
@@ -270,7 +254,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
-            handle_script(script_name, psy, "trans")
+            recipe, _ = load_script(script_name)
+            psy = recipe(psy)
         alg_gen = None
 
     elif api in GOCEAN_API_NAMES or (api in LFRIC_API_NAMES and LFRIC_TESTING):
@@ -309,7 +294,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            handle_script(script_name, psyir, "trans_alg", is_optional=True)
+            recipe, _ = load_script(script_name, "trans_alg", is_optional=True)
+            if recipe:
+                psyir = recipe(psyir)
 
         # For each kernel called from the algorithm layer
         kernels = {}
@@ -395,7 +382,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
-            handle_script(script_name, psy, "trans")
+            recipe, _ = load_script(script_name)
+            psy = recipe(psy)
 
     # TODO issue #1618 remove Alg class and tests from PSyclone
     if api in LFRIC_API_NAMES and not LFRIC_TESTING:
@@ -500,15 +488,15 @@ def main(arguments):
     # Validate that the given arguments are for the right operation mode
     if not args.api:
         if (args.oalg or args.opsy or args.okern or args.directory):
-            print(f"When using the code-transformation mode (with the -api "
-                  f"flag), the psykal mode arguments must not be present "
-                  f"in the command, but found {arguments}")
+            print(f"When using the code-transformation mode (with no -api or "
+                  f"-psykal-dsl flags), the psykal mode arguments must not be "
+                  f"present in the command, but found {arguments}")
             sys.exit(-1)
     else:
         if args.o:
             print("The '-o' flag is not valid when using the psykal mode "
-                  "(-api flag), use the -oalg, -opsy, -okern to specify the "
-                  "output filenames of each psykal layer.")
+                  "(-api/-psykal-dsl flag), use the -oalg, -opsy, -okern to "
+                  "specify the output filenames of each psykal layer.")
             sys.exit(-1)
 
     # If no config file name is specified, args.config is none
@@ -554,28 +542,29 @@ def main(arguments):
         print(str(err), file=sys.stderr)
         sys.exit(1)
 
-    # If an output directory has been specified for transformed kernels
-    # then check that it is valid
-    if args.okern:
-        if not os.path.exists(args.okern):
-            print(f"Specified kernel output directory ({args.okern}) does "
-                  f"not exist.", file=sys.stderr)
-            sys.exit(1)
-        if not os.access(args.okern, os.W_OK):
-            print(f"Cannot write to specified kernel output directory "
-                  f"({args.okern}).", file=sys.stderr)
-            sys.exit(1)
-        kern_out_path = args.okern
-    else:
-        # We write any transformed kernels to the current working directory
-        kern_out_path = os.getcwd()
-
     if not args.api:
         code_transformation_mode(input_file=args.filename,
                                  recipe_file=args.script,
                                  output_file=args.o,
                                  line_length=args.limit)
     else:
+        # PSyKAl-DSL mode
+
+        # If an output directory has been specified for transformed kernels
+        # then check that it is valid
+        if args.okern:
+            if not os.path.exists(args.okern):
+                print(f"Specified kernel output directory ({args.okern}) does "
+                      f"not exist.", file=sys.stderr)
+                sys.exit(1)
+            if not os.access(args.okern, os.W_OK):
+                print(f"Cannot write to specified kernel output directory "
+                      f"({args.okern}).", file=sys.stderr)
+                sys.exit(1)
+            kern_out_path = args.okern
+        else:
+            # We write any transformed kernels to the current working directory
+            kern_out_path = os.getcwd()
 
         try:
             alg, psy = generate(args.filename, api=api,
@@ -695,29 +684,23 @@ def add_builtins_use(fp2_tree, name):
 
 def code_transformation_mode(input_file, recipe_file, output_file,
                              line_length=False):
-    files_to_skip = []
-    transformation_recipe = None
 
     # Load recipe file
     if recipe_file:
-        filepath, filename = os.path.split(recipe_file)
-        module_name, fileext = os.path.splitext(filename)
-        sys.path.insert(0, filepath)
-        recipe_module = importlib.import_module(module_name)
-        if hasattr(recipe_module, "FILES_TO_SKIP"):
-            files_to_skip = recipe_module.FILES_TO_SKIP
-        if hasattr(recipe_module, "trans"):
-            transformation_recipe = recipe_module.trans
+        transformation_recipe, files_to_skip = load_script(recipe_file)
+    else:
+        transformation_recipe, files_to_skip = (None, [])
 
     # Parse file
     psyir = FortranReader().psyir_from_file(input_file)
 
     # Modify file
-    filepath, filename = os.path.split(input_file)
+    _, filename = os.path.split(input_file)
     if filename not in files_to_skip:
         if transformation_recipe:
             transformation_recipe(psyir)
     else:
+        # FIXME: Copy file
         sys.exit(0)
 
     # Add profiling if automatic profiling has been requested

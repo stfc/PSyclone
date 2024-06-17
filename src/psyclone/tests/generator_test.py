@@ -94,12 +94,10 @@ def delete_module(modname):
             pass
 
 
-# handle_script() tests
-
 def test_script_file_not_found():
-    '''Checks that handle_script() in generator.py raises the expected
+    '''Checks that load_script() in generator.py raises the expected
     exception when a script file is supplied that does not exist. This test
-    uses the generate() function to call handle_script as this is a simple way
+    uses the generate() function to call load_script as this is a simple way
     to create its required arguments.
 
     '''
@@ -111,9 +109,9 @@ def test_script_file_not_found():
 
 
 def test_script_file_no_extension():
-    '''Checks that handle_script() in generator.py raises the expected
+    '''Checks that load_script() in generator.py raises the expected
     exception when a script file does not have an extension. This test
-    uses the generate() function to call handle_script as this is a
+    uses the generate() function to call load_script as this is a
     simple way to create its required arguments.
 
     '''
@@ -128,9 +126,9 @@ def test_script_file_no_extension():
 
 
 def test_script_file_wrong_extension():
-    '''Checks that handle_script() in generator.py raises the expected
+    '''Checks that load_script() in generator.py raises the expected
     exception when a script file does not have the '.py' extension. This test
-    uses the generate() function to call handle_script as this is a simple way
+    uses the generate() function to call load_script as this is a simple way
     to create its required arguments.
 
     '''
@@ -145,59 +143,50 @@ def test_script_file_wrong_extension():
 
 
 def test_script_invalid_content():
-    '''Checks that handle_script() in generator.py raises the expected
+    '''Checks that load_script() in generator.py raises the expected
     exception when a script file does not contain valid python. This
-    test uses the generate() function to call handle_script as this is
+    test uses the generate() function to call load_script as this is
     a simple way to create its required arguments.
 
     '''
-    with pytest.raises(GenerationError) as error_syntax:
+    with pytest.raises(Exception) as error_syntax:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
             api="lfric", script_name=os.path.join(BASE_PATH, "dynamo0p3",
                                                   "error_syntax.py"))
-    assert ("attempted to import specified PSyclone transformation module "
-            "'error_syntax' but a problem was found: "
+    assert ("invalid syntax (error_syntax.py, line 5)"
             in str(error_syntax.value))
 
-    with pytest.raises(GenerationError) as error_import:
+    with pytest.raises(Exception) as error_import:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
             api="lfric", script_name=os.path.join(BASE_PATH, "dynamo0p3",
                                                   "error_import.py"))
-    assert ("attempted to import specified PSyclone transformation module "
-            "'error_import' but a problem was found: "
-            in str(error_import.value))
+    assert "No module named 'non_existent'" in str(error_import.value)
 
 
 def test_script_invalid_content_runtime():
-    '''Checks that handle_script() function in generator.py raises the
+    '''Checks that load_script() function in generator.py raises the
     expected exception when a script file contains valid python
     syntactically but produces a runtime exception. This test uses the
-    generate() function to call handle_script as this is a simple way
+    generate() function to call load_script as this is a simple way
     to create its required arguments.
 
     '''
-    with pytest.raises(GenerationError) as error:
+    with pytest.raises(Exception) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
             api="lfric",
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "runtime_error.py"))
-    assert ("raised the following exception during execution..."
-            in str(error.value))
-    assert ("line 3, in trans\n"
-            "    psy = b\n" in str(error.value))
-    assert ("    NameError: name 'b' is not defined\n"
-            "}\n"
-            "please check your script" in str(error.value))
+    assert "name 'b' is not defined" in str(error.value)
 
 
 def test_script_no_trans():
-    '''Checks that handle_script() function in generator.py raises the
+    '''Checks that load_script() function in generator.py raises the
     expected exception when a script file does not contain a trans()
     function. This test uses the generate() function to call
-    handle_script as this is a simple way to create its required
+    load_script as this is a simple way to create its required
     arguments.
 
     '''
@@ -208,16 +197,16 @@ def test_script_no_trans():
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "no_trans.py"))
     assert ("attempted to use specified PSyclone transformation module "
-            "'no_trans' but it does not contain a 'trans' function"
+            "'no_trans' but it does not contain a callable 'trans' function"
             in str(error.value))
 
 
 def test_script_no_trans_alg():
-    '''Checks that handle_script() function in generator.py does not raise
+    '''Checks that load_script() function in generator.py does not raise
     an exception when a script file does not contain a trans_alg()
     function as these are optional. At the moment this function is
     only supported in the gocean API. This test uses the generate()
-    function to call handle_script as this is a simple way to create
+    function to call load_script as this is a simple way to create
     its required arguments.
 
     '''
@@ -408,7 +397,7 @@ def test_script_attr_error():
     not containing a trans() function.
 
     '''
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(Exception) as excinfo:
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
                         api="lfric",
@@ -575,6 +564,30 @@ def test_main_version(capsys):
         assert f"PSyclone version: {__VERSION__}" in output
 
 
+def test_wrong_flags_for_mode(capsys):
+    '''Tests that -o is not accepted for psykal and psykal-specific flags
+    are not accepted in code-transformation mode.'''
+
+    # Code-transformation mode
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    for flag in ["-okern", "-opsy", "-oalg", "-d"]:
+        with pytest.raises(SystemExit):
+            main([filename, flag, "FILE"])
+        output, _ = capsys.readouterr()
+        assert ("When using the code-transformation mode (with no -api or"
+                " -psykal-dsl flags), the psykal mode arguments must not "
+                "be present in the command, but found" in output)
+
+    # PSyKAl-DSL mode
+    filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
+    with pytest.raises(SystemExit):
+        main([filename, "-psykal-dsl", "gocean", "-o", "FILE"])
+    output, _ = capsys.readouterr()
+    assert ("The '-o' flag is not valid when using the psykal mode (-api/"
+            "-psykal-dsl flag), use the -oalg, -opsy, -okern to specify the "
+            "output filenames of each psykal layer." in output)
+
+
 def test_main_profile(capsys):
     '''Tests that the profiling command line flags are working as
     expected.
@@ -661,6 +674,11 @@ def test_main_api():
     filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
     # Check that a command line option sets the API value
     main([filename, "-api", "gocean"])
+    assert Config.get().api == "gocean"
+
+    # Reset api and try with "-psykal-dsl" flag
+    Config.get().api = ""
+    main([filename, "-psykal-dsl", "gocean"])
     assert Config.get().api == "gocean"
 
     main([filename, "-api", "gocean1.0"])
