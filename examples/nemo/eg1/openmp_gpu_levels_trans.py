@@ -38,7 +38,7 @@
 directives into Nemo code. '''
 
 from psyclone.psyir.nodes import Loop, Assignment
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+from psyclone.psyir.transformations import ArrayAssignment2LoopsTrans
 from psyclone.psyir.transformations import OMPTargetTrans, OMPLoopTrans
 from psyclone.transformations import TransformationError
 
@@ -64,9 +64,12 @@ def trans(psy):
         print(invoke.name)
 
         # Convert all array implicit loops to explicit loops
-        explicit_loops = NemoAllArrayRange2LoopTrans()
+        explicit_loops = ArrayAssignment2LoopsTrans()
         for assignment in invoke.schedule.walk(Assignment):
-            explicit_loops.apply(assignment)
+            try:
+                explicit_loops.apply(assignment)
+            except TransformationError:
+                pass
 
         # Add the OpenMP directives in each loop
         for loop in invoke.schedule.walk(Loop):

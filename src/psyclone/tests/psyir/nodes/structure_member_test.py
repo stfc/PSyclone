@@ -143,5 +143,6 @@ def test_sm_member_property():
     smem_ref._children = ["wrong"]
     with pytest.raises(InternalError) as err:
         _ = smem_ref.member
-    assert ("StructureMember malformed or incomplete. The first child must "
-            "be an instance of Member, but found 'str'" in str(err.value))
+    assert ("StructureMember malformed or incomplete. It must have a first "
+            "child that must be a (sub-class of) Member, but found:"
+            in str(err.value))

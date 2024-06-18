@@ -123,6 +123,33 @@ def test_where_broken_tree():
 
 
 @pytest.mark.usefixtures("parser")
+def test_where_unknown_selector_type():
+    ''' Check that we create the expected CodeBlock if we can't resolve the
+    resulting shape of an array expression.
+
+    '''
+    fake_parent, fparser2spec = process_where(
+        "WHERE (ptsu(myfunc(), :, :) /= 0._wp)\n"
+        "  z1_st(myfunc(), :, :) = 1._wp / ptsu(myfunc(), :, :)\n"
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2spec])
+    assert isinstance(fake_parent.children[0], CodeBlock)
+    assert ("We can not get the resulting shape of the expression: "
+            "ptsu(myfunc(),:,:)" in fake_parent.children[0].preceding_comment)
+
+    fake_parent, fparser2spec = process_where(
+        "WHERE (ptsu(:, :, :) /= 0._wp)\n"
+        "  z1_st(myfunc(), :, :) = 1._wp / ptsu(myfunc(), :, :)\n"
+        "END WHERE\n", Fortran2003.Where_Construct, ["ptsu", "z1_st"])
+    processor = Fparser2Reader()
+    processor.process_nodes(fake_parent, [fparser2spec])
+    assert isinstance(fake_parent.children[0], CodeBlock)
+    assert ("We can not get the resulting shape of the expression: "
+            "z1_st(myfunc(),:,:)" in fake_parent.children[0].preceding_comment)
+
+
+@pytest.mark.usefixtures("parser")
 def test_elsewhere_broken_tree():
     ''' Check that we raise the expected exceptions if the fparser2 parse
     tree containing an ELSEWHERE does not have the correct structure.
@@ -212,7 +239,7 @@ def test_where_array_notation_rank():
     array_type = ArrayType(REAL_TYPE, [10])
     my_array = ArrayReference.create(
         DataSymbol("my_array", array_type),
-        [Range.create(Literal("1", INTEGER_TYPE),
+        [Range.create(Literal("2", INTEGER_TYPE),
                       Literal("10", INTEGER_TYPE))])
     with pytest.raises(NotImplementedError) as err:
         processor._array_notation_rank(my_array)
