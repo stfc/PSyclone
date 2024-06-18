@@ -62,7 +62,7 @@ from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_base_path, get_invoke
 
 # API names
-GOCEAN_API = "gocean1.0"
+GOCEAN_API = "gocean"
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -137,22 +137,12 @@ def test_driver_creation1():
       '''in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo
-  if (i == i_post) then
-    PRINT *, "i correct"
-  else
-    PRINT *, "i incorrect. Values are:"
-    PRINT *, i
-    PRINT *, "i values should be:"
-    PRINT *, i_post
-  end if
-  if (ALL(in_out_fld - in_out_fld_post == 0.0)) then
-    PRINT *, "in_out_fld correct"
-  else
-    PRINT *, "in_out_fld incorrect. Values are:"
-    PRINT *, in_out_fld
-    PRINT *, "in_out_fld values should be:"
-    PRINT *, in_out_fld_post
-  end if'''
+  call compare_init(4)
+  call compare('i', i, i_post)
+  call compare('in_out_fld', in_out_fld, in_out_fld_post)
+  call compare('j', j, j_post)
+  call compare('out_fld', out_fld, out_fld_post)
+  call compare_summary()'''
     expected_lines = expected.split("\n")
     for line in expected_lines:
         assert line in driver_code
@@ -219,22 +209,12 @@ def test_driver_creation2():
       '''in_fld_grid_dx, in_fld_grid_gphiu)
     enddo
   enddo
-  if (i == i_post) then
-    PRINT *, "i correct"
-  else
-    PRINT *, "i incorrect. Values are:"
-    PRINT *, i
-    PRINT *, "i values should be:"
-    PRINT *, i_post
-  end if
-  if (ALL(in_out_fld - in_out_fld_post == 0.0)) then
-    PRINT *, "in_out_fld correct"
-  else
-    PRINT *, "in_out_fld incorrect. Values are:"
-    PRINT *, in_out_fld
-    PRINT *, "in_out_fld values should be:"
-    PRINT *, in_out_fld_post
-  end if'''
+  call compare_init(4)
+  call compare('i', i, i_post)
+  call compare('in_out_fld', in_out_fld, in_out_fld_post)
+  call compare('j', j, j_post)
+  call compare('out_fld', out_fld, out_fld_post)
+  call compare_summary()'''
     expected_lines = expected.split("\n")
     for line in expected_lines:
         assert line in driver_code
@@ -376,7 +356,7 @@ def test_driver_creation_create_flattened_symbol_errors(monkeypatch):
 
     # Monkey patch the grid property dictionary to remove the
     # go_grid_lat_u entry, triggering an earlier error:
-    api_config = Config.get().api_conf("gocean1.0")
+    api_config = Config.get().api_conf("gocean")
     grid_properties = api_config.grid_properties
     monkeypatch.delitem(grid_properties, "go_grid_lat_u")
 
@@ -420,8 +400,8 @@ def test_errors_add_call():
     # Then try to add a call to 'psy_data_mod':
     with pytest.raises(TypeError) as err:
         edc.add_call(program, "psy_data_mod", [])
-    assert ("Error when adding call: Routine 'psy_data_mod' is a "
-            "symbol of type 'ContainerSymbol', not a 'RoutineSymbol'."
+    assert ("Error creating call to 'psy_data_mod' - existing symbol is "
+            "of type 'ContainerSymbol', not a 'RoutineSymbol'."
             in str(err.value))
 
 
@@ -543,7 +523,7 @@ def test_driver_node_verification():
     # exception, which would result in the driver being created
     # in the current directory.
 
-    api = "gocean1.0"
+    api = "gocean"
     _, info = parse(os.path.join(get_base_path(api), "driver_test.f90"),
                     api=api)
     psy = PSyFactory(api, distributed_memory=False).create(info)

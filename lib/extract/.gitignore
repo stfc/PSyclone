@@ -1,0 +1,2 @@
+# The leading / means only ignore the file in this directory
+/compare_variables_mod.F90

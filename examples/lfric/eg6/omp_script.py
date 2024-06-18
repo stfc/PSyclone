@@ -55,7 +55,7 @@ def trans(psy):
     schedule = invoke.schedule
 
     config = Config.get()
-    if config.api_conf("dynamo0.3").compute_annexed_dofs and \
+    if config.api_conf("lfric").compute_annexed_dofs and \
        config.distributed_memory:
         # We can't loop fuse as the loop bounds differ so add
         # OpenMP parallel do directives to the loops

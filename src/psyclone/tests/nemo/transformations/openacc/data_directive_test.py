@@ -46,7 +46,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory, TransInfo
 from psyclone.psyir.nodes import ACCDataDirective, Schedule, Routine
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import TransformationError, ACCKernelsTrans
 from psyclone.tests.utilities import get_invoke, Compile
 
 
@@ -131,7 +131,7 @@ def test_explicit_directive(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule.children, {"default_present": True})
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
@@ -423,7 +423,7 @@ def test_kernels_in_data_region(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_dtrans = TransInfo().get_trans_name('ACCDataTrans')
-    acc_ktrans = TransInfo().get_trans_name('ACCKernelsTrans')
+    acc_ktrans = ACCKernelsTrans()
     acc_ktrans.apply(schedule.children[:], {"default_present": True})
     acc_dtrans.apply(schedule.children[:])
     new_code = str(psy.gen).lower()

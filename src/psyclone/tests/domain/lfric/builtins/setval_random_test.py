@@ -56,7 +56,7 @@ BASE_PATH = os.path.join(
     "test_files", "dynamo0p3")
 
 # The PSyclone API under test
-API = "dynamo0.3"
+API = "lfric"
 
 
 def test_setval_random(tmpdir):

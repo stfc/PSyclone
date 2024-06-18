@@ -44,13 +44,14 @@ the original code is translated.
 from psyclone.psyir.backend.sir import SIRWriter
 
 from psyclone.psyir.nodes import Assignment, Loop
-from psyclone.psyir.transformations import HoistTrans, AllArrayAccess2LoopTrans
-from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+from psyclone.psyir.transformations import (
+    HoistTrans, AllArrayAccess2LoopTrans, ArrayAssignment2LoopsTrans,
+    TransformationError)
 
 
 def trans(psy):
     '''Transformation routine for use with PSyclone. Applies the
-    NemoAllArrayRange2LoopTrans, AllArrayAccess2LoopTrans and
+    ArrayAssignment2LoopsTrans, AllArrayAccess2LoopTrans and
     HoistTrans transformations to the supplied invokes. This
     transformation routine is limited to the NEMO API.
 
@@ -61,7 +62,7 @@ def trans(psy):
 
     '''
 
-    array_range_trans = NemoAllArrayRange2LoopTrans()
+    array_range_trans = ArrayAssignment2LoopsTrans()
     array_access_trans = AllArrayAccess2LoopTrans()
     hoist_trans = HoistTrans()
 
@@ -79,7 +80,10 @@ def trans(psy):
 
         # Transform any array assignments (Fortran ':' notation) into loops.
         for assignment in schedule.walk(Assignment):
-            array_range_trans.apply(assignment)
+            try:
+                array_range_trans.apply(assignment)
+            except TransformationError:
+                pass
 
         # Remove any loop invariant assignments inside k-loops to make
         # them perfectly nested. At the moment this transformation

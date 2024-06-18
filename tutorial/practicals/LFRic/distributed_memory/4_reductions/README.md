@@ -56,14 +56,14 @@ be able to find the kernel files. Try running this and see what
 happens:
 
 ```bash
-    $ psyclone -oalg /dev/null -opsy psy.f90 -s ./schedule.py helmholtz_solver_alg_mod.x90
+    $ psyclone -api lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py helmholtz_solver_alg_mod.x90
 ```
 
 You can specify a directory in which to look for kernel files on the
 command line. Try the following which makes use of the `-d` option:
 
 ```bash
-    $ psyclone -oalg /dev/null -opsy psy.f90 -s ./schedule.py -d ../code helmholtz_solver_alg_mod.x90
+    $ psyclone -api lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py -d ../code helmholtz_solver_alg_mod.x90
 ```
 
 In the PSyIR you should see a global sum node appearing after the loop

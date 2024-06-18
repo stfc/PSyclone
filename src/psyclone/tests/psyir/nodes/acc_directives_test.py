@@ -42,7 +42,6 @@
 import os
 import pytest
 
-from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.f2pygen import ModuleGen
@@ -63,20 +62,13 @@ from psyclone.psyir.nodes import (ACCKernelsDirective,
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
-    ACCDataTrans, ACCEnterDataTrans, ACCKernelsTrans, ACCLoopTrans,
+    ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
     ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use a new Config instance.'''
-    Config._instance = None
-    yield
-    Config._instance = None
 
 
 # Class ACCRegionDirective
@@ -128,12 +120,13 @@ def test_accenterdatadirective_gencode_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, raises the expected exception as there is no
     following OpenACC Parallel or OpenACC Kernels directive as at
-    least one is required. This test uses the dynamo0.3 API.
+    least one is required. This test uses the lfric API.
 
     '''
+    API = "lfric"
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     acc_enter_trans.apply(sched)
     with pytest.raises(GenerationError) as excinfo:
@@ -157,12 +150,13 @@ def test_accenterdatadirective_gencode_2():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with multiple loops, raises the expected exception, as there is no
     following OpenACC Parallel or OpenACCKernels directive and at
-    least one is required. This test uses the dynamo0.3 API.
+    least one is required. This test uses the lfric API.
 
     '''
+    API = "lfric"
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
     acc_enter_trans.apply(sched)
     with pytest.raises(GenerationError) as excinfo:
@@ -178,13 +172,14 @@ def test_accenterdatadirective_gencode_3(trans):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, produces the expected code (there should be
     "copy in" data as there is a following OpenACC parallel or kernels
-    directive). This test uses the dynamo0.3 API.
+    directive). This test uses the lfric API.
 
     '''
+    API = "lfric"
     acc_trans = trans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     acc_trans.apply(sched.children)
     acc_enter_trans.apply(sched)
@@ -206,14 +201,15 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     with multiple loops and multiple OpenACC parallel and/or Kernel
     directives, produces the expected code (when the same argument is
     used in multiple loops there should only be one entry). This test
-    uses the dynamo0.3 API.
+    uses the lfric API.
 
     '''
+    API = "lfric"
     acc_trans1 = trans1()
     acc_trans2 = trans2()
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
     acc_trans1.apply([sched.children[1]])
     acc_trans2.apply([sched.children[0]])
@@ -376,11 +372,12 @@ def test_acckernelsdirective_init():
 @pytest.mark.parametrize("default_present", [False, True])
 def test_acckernelsdirective_gencode(default_present):
     '''Check that the gen_code method in the ACCKernelsDirective class
-    generates the expected code. Use the dynamo0.3 API.
+    generates the expected code. Use the lfric API.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    API = "lfric"
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
 
     trans = ACCKernelsTrans()

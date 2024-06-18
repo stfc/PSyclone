@@ -222,8 +222,8 @@ def test_loop_gen_code():
         os.path.abspath(__file__)))), "test_files", "dynamo0p3")
     _, invoke_info = parse(os.path.join(base_path,
                                         "1.0.1_single_named_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+                           api="lfric")
+    psy = PSyFactory("lfric", distributed_memory=True).create(invoke_info)
 
     # By default LFRicLoop has step = 1 and it is not printed in the Fortran DO
     gen = str(psy.gen)

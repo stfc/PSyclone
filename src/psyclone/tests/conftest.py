@@ -236,6 +236,20 @@ def fixture_fortran_writer():
     return FortranWriter()
 
 
+@pytest.fixture(scope="function", name="lfric_config")
+def fixture_lfric_config():
+    '''Test should use the lfric API config.'''
+    Config.get().api = "lfric"
+
+
+@pytest.fixture(scope="function", autouse=True)
+def fixture_tear_down_config():
+    ''' Whatever API we use (by using the previous fixtures or by the test
+    itself setting a certain API/Configuration), clean it up.'''
+    yield
+    Config._instance = None
+
+
 @pytest.fixture(scope='function')
 def clear_module_manager_instance():
     '''For tests that assume that there is no pre-existing ModuleManager
