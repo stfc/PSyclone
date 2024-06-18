@@ -746,9 +746,6 @@ class PSyDataNode(Statement):
             return CodeBlock([fp2_node], CodeBlock.Structure.STATEMENT,
                              annotations=annotations)
 
-        for child in self.children:
-            child.lower_to_language_level()
-
         routine_schedule = self.ancestor(Routine)
         if routine_schedule is None:
             raise GenerationError(
@@ -757,24 +754,47 @@ class PSyDataNode(Statement):
 
         self.generate_symbols(routine_schedule.symbol_table)
 
+        # We use PSy and Kernel names if this is part of a PSy-layer
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyGen import Kern, InvokeSchedule
+        kerns = self.walk(Kern)
+
         module_name = self._module_name
         if module_name is None:
-            module_name = routine_schedule.name
+            if isinstance(routine_schedule, InvokeSchedule):
+                module_name = routine_schedule._invoke.invokes.psy.name
+            else:
+                module_name = routine_schedule.name
 
         if self._region_name:
             region_name = self._region_name
         else:
-            # Create a name for this region by finding where this PSyDataNode
-            # is in the list of PSyDataNodes in this Invoke. We allow for any
-            # previously lowered PSyDataNodes by checking for CodeBlocks with
-            # the "psy-data-start" annotation.
+            # If it has Kern (in PSyKAL) we use it for the region names
+            if kerns:
+                region_name = routine_schedule.name
+                if len(kerns) == 1:
+                    # This PSyData region only has one kernel within it,
+                    # so append the kernel name.
+                    region_name += f":{kerns[0].name}"
+                region_name += ":"
+            else:
+                region_name = ""
+            # Create a name for this region by finding where this
+            # PSyDataNode is in the list of PSyDataNodes in this
+            # Routine. We allow for any previously lowered PSyDataNodes
+            # by checking for CodeBlocks with the "psy-data-start"
+            # annotation.
             pnodes = routine_schedule.walk((PSyDataNode, CodeBlock))
             region_idx = 0
             for node in pnodes[0:pnodes.index(self)]:
                 if (isinstance(node, PSyDataNode) or
                         "psy-data-start" in node.annotations):
                     region_idx += 1
-            region_name = f"r{region_idx}"
+            region_name += f"r{region_idx}"
+
+        for child in self.children:
+            child.lower_to_language_level()
 
         if not options:
             options = {}

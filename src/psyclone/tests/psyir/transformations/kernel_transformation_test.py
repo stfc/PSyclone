@@ -422,8 +422,8 @@ def test_1kern_trans(kernel_outputdir):
     code = str(psy.gen).lower()
     tag = re.search('use testkern(.+?)_mod', code).group(1)
     # We should have a USE for the original kernel and a USE for the new one
-    assert f"use testkern{tag}_mod, only: testkern{tag}_code" in code
-    assert "use testkern_mod, only: testkern_code" in code
+    assert f"use testkern{tag}_mod, only : testkern{tag}_code" in code
+    assert "use testkern_mod, only : testkern_code" in code
     # Similarly, we should have calls to both the original and new kernels
     assert "call testkern_code(" in code
     assert f"call testkern{tag}_code(" in code
@@ -449,7 +449,7 @@ def test_2kern_trans(kernel_outputdir):
     # Find the tags added to the kernel/module names
     for match in re.finditer('use testkern_any_space_2(.+?)_mod', code):
         tag = match.group(1)
-        assert (f"use testkern_any_space_2{tag}_mod, only: "
+        assert (f"use testkern_any_space_2{tag}_mod, only : "
                 f"testkern_any_space_2{tag}_code" in code)
         assert f"call testkern_any_space_2{tag}_code(" in code
         filepath = os.path.join(str(kernel_outputdir),

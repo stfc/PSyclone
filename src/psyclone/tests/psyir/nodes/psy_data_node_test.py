@@ -296,7 +296,7 @@ def test_psy_data_node_incorrect_container():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_node_invokes_gocean1p0():
+def test_psy_data_node_invokes_gocean1p0(fortran_writer):
     '''Check that an invoke is instrumented correctly
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
@@ -308,7 +308,7 @@ def test_psy_data_node_invokes_gocean1p0():
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
-    code = str(invoke.gen()).replace("\n", "")
+    code = fortran_writer(invoke.schedule).replace("\n", "")
     # First a simple test that the nesting is correct - the
     # PSyData regions include both loops. Note that indeed
     # the function 'compute_cv_code' is in the module file
@@ -316,9 +316,9 @@ def test_psy_data_node_invokes_gocean1p0():
     # Since this is only PSyData, which by default does not supply
     # variable information, the parameters to PreStart are both 0.
     correct_re = ("subroutine invoke.*"
-                  "use psy_data_mod, only: PSyDataType.*"
-                  r"TYPE\(PSyDataType\), target, save :: psy_data.*"
-                  r"call psy_data%PreStart\(\"psy_single_invoke_different"
+                  "use psy_data_mod, only : PSyDataType.*"
+                  r"type\(PSyDataType\), save, target :: psy_data.*"
+                  r"CALL psy_data % PreStart\(\"psy_single_invoke_different"
                   r"_iterates_over\", \"invoke_0:compute_cv_code:r0\","
                   r" 0, 0\).*"
                   "do j.*"
@@ -326,13 +326,13 @@ def test_psy_data_node_invokes_gocean1p0():
                   "call.*"
                   "end.*"
                   "end.*"
-                  r"call psy_data%PostEnd")
+                  r"call psy_data % PostEnd")
 
     assert re.search(correct_re, code, re.I) is not None
 
     # Check that if gen() is called more than once the same PSyDataNode
     # variables and region names are created:
-    code_again = str(invoke.gen()).replace("\n", "")
+    code_again = fortran_writer(invoke.schedule).replace("\n", "")
     assert code == code_again
 
 
@@ -481,7 +481,8 @@ def test_psy_data_node_lower_to_language_level_with_options():
                                                "post_var_list": [("", "b")]})
 
     codeblocks = schedule.walk(CodeBlock)
-    expected = ['CALL psy_data % PreStart("invoke_0", "r0", 1, 1)',
+    expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
+                'iterates_over", "invoke_0:compute_cv_code:r0", 1, 1)',
                 'CALL psy_data % PreDeclareVariable("a", a)',
                 'CALL psy_data % PreDeclareVariable("b", b)',
                 'CALL psy_data % PreEndDeclaration',
@@ -509,7 +510,8 @@ def test_psy_data_node_lower_to_language_level_with_options():
                                                "post_var_postfix": "_post"})
 
     codeblocks = schedule.walk(CodeBlock)
-    expected = ['CALL psy_data % PreStart("invoke_0", "r0", 1, 1)',
+    expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
+                'iterates_over", "invoke_0:compute_cv_code:r0", 1, 1)',
                 'CALL psy_data % PreDeclareVariable("a_pre", a)',
                 'CALL psy_data % PreDeclareVariable("b_post", b)',
                 'CALL psy_data % PreEndDeclaration',
@@ -551,28 +553,6 @@ def test_psy_data_node_name_clash(fortran_writer):
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
 
-    # First test, use the old-style gen_code way:
-    # -------------------------------------------
-    code = str(invoke.gen())
-
-    # Make sure the imported, clashing symbols 'f1' and 'f2' are renamed:
-    assert "USE module_with_name_clash_mod, ONLY: f1_data_1=>f1_data" in code
-    assert "USE module_with_name_clash_mod, ONLY: f2_data_1=>f2_data" in code
-    assert ('CALL extract_psy_data%PreDeclareVariable("f1_data@'
-            'module_with_name_clash_mod", f1_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f1_data@'
-            'module_with_name_clash_mod", f1_data_1)' in code)
-    assert ('CALL extract_psy_data%PreDeclareVariable("f2_data@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data%PreDeclareVariable("f2_data_post@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f2_data@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f2_data_post@'
-            'module_with_name_clash_mod", f2_data_1)' in code)
-
-    # Second test, use lower_to_language_level:
-    # -----------------------------------------
     invoke.schedule.children[0].lower_to_language_level()
 
     # Note that atm we cannot fortran_writer() the schedule, LFRic does not

@@ -54,6 +54,7 @@ from psyclone.psyir.nodes import (ACCKernelsDirective,
                                   ACCRoutineDirective,
                                   ACCUpdateDirective,
                                   ACCAtomicDirective,
+                                  ACCDirective,
                                   Assignment,
                                   Literal,
                                   Reference,
@@ -136,9 +137,9 @@ def test_accenterdatadirective_gencode_1():
 
     # Test that the same error is produced by the begin_string() which is used
     # by the PSyIR backend
-    sched[0].lower_to_language_level()
+    directive = sched.walk(ACCDirective)[0].lower_to_language_level()
     with pytest.raises(GenerationError) as excinfo:
-        sched[0].begin_string()
+        directive.begin_string()
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
             "region?" in str(excinfo.value))
@@ -184,7 +185,7 @@ def test_accenterdatadirective_gencode_3(trans):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
+        "    !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
         "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n" in code)
 
@@ -215,7 +216,7 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(f1_data,f2_data,f3_data,m1_data,"
+        "    !$acc enter data copyin(f1_data,f2_data,f3_data,m1_data,"
         "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
         "nlayers,undf_w1,undf_w2,undf_w3)\n" in code)
 
@@ -387,11 +388,11 @@ def test_acckernelsdirective_gencode(default_present):
     if default_present:
         string = " default(present)"
     assert (
-        f"      !$acc kernels{string}\n"
-        f"      DO cell = loop0_start, loop0_stop, 1\n" in code)
+        f"    !$acc kernels{string}\n"
+        f"    do cell = loop0_start, loop0_stop, 1\n" in code)
     assert (
-        "      END DO\n"
-        "      !$acc end kernels\n" in code)
+        "    enddo\n"
+        "    !$acc end kernels\n" in code)
 
 
 def test_acckerneldirective_equality():

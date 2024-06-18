@@ -320,6 +320,7 @@ class LFRicInvoke(Invoke):
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
 
         '''
+        assert False # Use fortran_writer(invoke.schedule) instead
         # Create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names +
