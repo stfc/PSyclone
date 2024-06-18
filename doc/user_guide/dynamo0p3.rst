@@ -119,10 +119,10 @@ a particular data structure. These data structures are represented by the
 six LFRic API argument types: :ref:`scalar <lfric-scalar>`, :ref:`array
 <lfric-array>`, :ref:`field <lfric-field>`, :ref:`field vector
 <lfric-field-vector>`, :ref:`operator <lfric-operator>` and :ref:`column-wise
-operator <lfric-cma-operator>`. All of them except the field vector are 
+operator <lfric-cma-operator>`. All of them except the field vector are
 represented in the above example. ``qr`` represents a quadrature object which
 provides information required by a kernel to operate on fields (see section
-:ref:`dynamo0.3-quadrature` for more details).
+:ref:`lfric-quadrature` for more details).
 
 .. _lfric-scalar:
 
@@ -1099,7 +1099,7 @@ details).
 
 As an example, the following ``meta_args`` metadata describes 5
 entries, the first is a scalar, the second is an array, the next two
-are fields and the fifth is an operator. The third entry is a field vector
+are fields and the fifth is an operator. The fourth entry is a field vector
 of size 3.
 
 ::
@@ -1210,15 +1210,14 @@ For example::
           does not yet support ``integer`` and ``logical`` reductions.
 
 For a scalar, the argument metadata contains only these three entries.
-However, arrays, fields and operators require further entries specifying
-function-space information.
-The meaning of these further entries differs depending on whether an array, a
-field or an operator is being described.
+However, arrays, fields and operators require further entries. The meaning of
+these further entries differs depending on whether an array, a field or an
+operator is being described.
 
-In the case of an operator, the fourth and fifth arguments describe the ``to``
-and ``from`` function spaces respectively. In the case of a field the fourth
-argument specifies the function space that the field lives on. In the case of
-an array, the fourth argument specifies the number of dimensions the array has.
+In the case of an array, the fourth argument specifies the number of dimensions
+the array has. In the case of an operator, the fourth and fifth arguments
+describe the ``to`` and ``from`` function spaces respectively. In the case of a
+field the fourth argument specifies the function space that the field lives on.
 More details about the supported function spaces are in subsection
 :ref:`lfric-function-space`.
 
@@ -1415,7 +1414,7 @@ accesses are found then PSyclone aborts.
 Array sizes
 ^^^^^^^^^^^
 
-The size of a :ref:`scalar array <lfric-array>` is described by ``NRANKS*<n>``,
+The size of a :ref:`scalar array <lfric-array>` is described by ``<n>``,
 where *n > 0* is the number of Fortran ranks representing the dimension of the
 array.
 
