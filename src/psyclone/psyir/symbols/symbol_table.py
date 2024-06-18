@@ -51,6 +51,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
+from psyclone.psyir.symbols.datatypes import ArrayType
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -301,6 +302,21 @@ class SymbolTable():
                 new_routines.append((new_st.lookup(routine.symbol.name),
                                      routine.from_container))
             symbol.routines = new_routines
+
+        # Ensure any symbols referenced in array shapes are also updated
+        from psyclone.psyir.nodes import Node, Reference
+        for symbol in new_st.symbols:
+            if not symbol.is_array:
+                continue
+            for dim in symbol.datatype.shape:
+                if isinstance(dim, ArrayType.ArrayBounds):
+                    exprns = [dim.lower, dim.upper]
+                else:
+                    exprns = [dim]
+                for bnd in exprns:
+                    if isinstance(bnd, Node):
+                        for ref in bnd.walk(Reference):
+                            ref.symbol = new_st.lookup(ref.symbol.name)
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility

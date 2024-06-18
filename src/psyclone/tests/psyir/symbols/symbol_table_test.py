@@ -1936,10 +1936,14 @@ def test_deep_copy():
         "symbol2",
         interface=symbols.ImportInterface(mod, orig_name="altsym2"))
     sym3 = symbols.DataSymbol("symbol3", symbols.INTEGER_TYPE)
+    sym4 = symbols.DataSymbol("symbol4",
+                              symbols.ArrayType(symbols.REAL_TYPE,
+                                                [Reference(sym1)]))
     symtab.add(mod)
     symtab.add(sym1)
     symtab.add(sym2, tag="tag1")
     symtab.add(sym3)
+    symtab.add(sym4)
     symtab.specify_argument_list([sym1])
     rsym = symbols.RoutineSymbol("my_sub")
     gisym = symbols.GenericInterfaceSymbol("generic_sub", [(rsym, False)])
@@ -1982,6 +1986,11 @@ def test_deep_copy():
     assert gisym2.routines[0].symbol is rsym2
     assert (gisym2.routines[0].from_container ==
             gisym.routines[0].from_container)
+
+    # Check that the dimensioning symbol has been updated.
+    newsym4 = symtab2.lookup("symbol4")
+    assert newsym4.datatype.shape[0].upper.symbol.name == "symbol1"
+    assert newsym4.datatype.shape[0].upper.symbol is not sym1
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
