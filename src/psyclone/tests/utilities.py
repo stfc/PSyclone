@@ -480,7 +480,8 @@ class Compile():
             # easily be inspected in case of errors.
             filename = f"generated-{hash(self)}.F90"
             with open(filename, 'w', encoding="utf-8") as test_file:
-                test_file.write(code)
+                fll = FortLineLength()
+                test_file.write(fll.process(code))
 
             success = True
             try:

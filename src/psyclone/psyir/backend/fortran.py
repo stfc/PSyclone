@@ -1325,7 +1325,7 @@ class FortranWriter(LanguageWriter):
 
         '''
         if node.parent and node.parent.is_lower_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range starts for the first element in this
             # dimension. This is the default in Fortran so no need to
             # output anything.
@@ -1334,7 +1334,7 @@ class FortranWriter(LanguageWriter):
             start = self._visit(node.start)
 
         if node.parent and node.parent.is_upper_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range ends with the last element in this
             # dimension. This is the default in Fortran so no need to
             # output anything.

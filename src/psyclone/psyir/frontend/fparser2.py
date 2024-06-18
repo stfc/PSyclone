@@ -570,44 +570,6 @@ def _is_array_range_literal(array, dim, index, value):
     return False
 
 
-def _is_range_full_extent(my_range):
-    '''Utility function to check whether a Range object is equivalent to a
-    ":" in Fortran array notation. The PSyIR representation of "a(:)"
-    is "a(lbound(a,1):ubound(a,1):1). Therefore, for array a index 1,
-    the lower bound is compared with "lbound(a,1)", the upper bound is
-    compared with "ubound(a,1)" and the step is compared with 1.
-
-    If everything is OK then this routine silently returns, otherwise
-    an exception is raised by one of the functions
-    (_check_bound_is_full_extent or _check_array_range_literal) called by this
-    function.
-
-    This routine is only in fparser2.py until #717 is complete as it
-    is used to check that array syntax in a where statement is for the
-    full extent of the dimension. Once #717 is complete this routine
-    can be removed.
-
-    :param my_range: the Range node to check.
-    :type my_range: :py:class:`psyclone.psyir.node.Range`
-
-    '''
-
-    array = my_range.parent
-    # The array index of this range is determined by its position in
-    # the array list (+1 as the index starts from 0 but Fortran
-    # dimensions start from 1).
-    dim = array.children.index(my_range) + 1
-    # Check lower bound
-    is_lower = _is_bound_full_extent(
-        array, dim, IntrinsicCall.Intrinsic.LBOUND)
-    # Check upper bound
-    is_upper = _is_bound_full_extent(
-        array, dim, IntrinsicCall.Intrinsic.UBOUND)
-    # Check step (index 2 is the step index for the range function)
-    is_step = _is_array_range_literal(array, dim, 2, 1)
-    return is_lower and is_upper and is_step
-
-
 def _copy_full_base_reference(node):
     '''
     Given the supplied node, creates a new node with the same access
@@ -4218,7 +4180,7 @@ class Fparser2Reader():
             if isinstance(idx_node, Range):
                 # Found array syntax notation. Check that it is the
                 # simple ":" format.
-                if not _is_range_full_extent(idx_node):
+                if not array.is_full_range(array.index_of(idx_node)):
                     raise NotImplementedError(
                         "Only array notation of the form my_array(:, :, ...) "
                         "is supported.")
@@ -4281,6 +4243,10 @@ class Fparser2Reader():
 
             base_ref = _copy_full_base_reference(array)
             array_ref = array.ancestor(Reference, include_self=True)
+            if not isinstance(array_ref.datatype, ArrayType):
+                raise NotImplementedError(
+                    f"We can not get the resulting shape of the expression: "
+                    f"{array_ref.debug_string()}")
             shape = array_ref.datatype.shape
             add_op = BinaryOperation.Operator.ADD
             sub_op = BinaryOperation.Operator.SUB
@@ -4477,6 +4443,10 @@ class Fparser2Reader():
                 f"found '{logical_expr}'")
 
         array_ref = first_array.ancestor(Reference, include_self=True)
+        if not isinstance(array_ref.datatype, ArrayType):
+            raise NotImplementedError(
+                f"We can not get the resulting shape of the expression: "
+                f"{array_ref.debug_string()}")
         mask_shape = array_ref.datatype.shape
         # All array sections in a Fortran WHERE must have the same shape so
         # just look at that of the mask.
