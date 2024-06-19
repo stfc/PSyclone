@@ -2198,7 +2198,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         OMPDoDirective.__init__(self, **kwargs)
         self.addchild(OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED))
-        
+
     @staticmethod
     def create(children=None, **kwargs):
         '''
