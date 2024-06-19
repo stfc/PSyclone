@@ -137,6 +137,64 @@ class OMPStandaloneDirective(OMPDirective, StandaloneDirective,
     ''' Base class for all OpenMP-related standalone directives. '''
 
 
+class OMPBarrierDirective(OMPStandaloneDirective):
+    '''
+    Class representing an OpenMP BARRIER directive in the PSyIR.
+
+    '''
+    def gen_code(self, parent):
+        '''Generate the fortran OMP Barrier Directive and any associated
+        code.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # Check the constraints are correct
+        self.validate_global_constraints()
+
+        # Generate the Barrier Directive
+        parent.add(DirectiveGen(parent, "omp", "barrier", ""))
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "omp barrier". The visitor is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the opening statement of this directive.
+        :rtype: str
+        '''
+        return "omp barrier"
+
+    def validate_global_constraints(self):
+        '''
+        Perform validation checks that can only be done at code-generation
+        time.
+
+        :raises GenerationError: if this directive is not enclosed within \
+                            some OpenMP parallel region.
+
+        '''
+        # As a Standalone directive, we must have an OMPParallelDirective as
+        # an ancestor somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=OMPParallelDoDirective):
+            raise GenerationError(
+                "OMPBarrierDirective must be inside an OMP parallel region "
+                "but could not find an ancestor OMPParallelDirective node")
+
+        # Barrier directives need to be encountered by all threads in the team
+        # so we exlude serial directives (single, master) as ancestors.
+        omp_serial_directive_ancestor = self.ancestor(OMPSerialDirective)
+        if omp_serial_directive_ancestor is not None:
+            raise GenerationError(
+                f"OMPBarrierDirective must not be inside an OMP serial "
+                f"(single or master) directive but found an ancestor of type "
+                f"'{type(omp_serial_directive_ancestor).__name__}'.")
+
+        super().validate_global_constraints()
+
+
 class OMPDeclareTargetDirective(OMPStandaloneDirective):
     '''
     Class representing an OpenMP Declare Target directive in the PSyIR.
