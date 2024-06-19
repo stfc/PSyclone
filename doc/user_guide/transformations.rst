@@ -166,7 +166,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ACCKernelsTrans
+.. autoclass:: psyclone.psyir.transformations.ACCKernelsTrans
     :noindex:
     :members: apply
 
@@ -196,7 +196,7 @@ can be found in the API-specific sections).
   
 ####
 
-.. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
+.. autoclass:: psyclone.psyir.transformations.ArrayAssignment2LoopsTrans
     :members: apply
     :noindex:
   
