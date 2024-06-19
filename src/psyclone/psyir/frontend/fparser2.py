@@ -1108,6 +1108,7 @@ class Fparser2Reader():
             Fortran2003.Where_Construct: self._where_construct_handler,
             Fortran2003.Where_Stmt: self._where_construct_handler,
             Fortran2003.Call_Stmt: self._call_handler,
+            Fortran2003.Function_Reference: self._call_handler,
             Fortran2003.Subroutine_Subprogram: self._subroutine_handler,
             Fortran2003.Module: self._module_handler,
             Fortran2003.Main_Program: self._main_program_handler,
