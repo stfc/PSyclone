@@ -525,6 +525,23 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
             in str(err.value))
 
 
+def test_omp_parallel_do_create():
+    ''' Test the OMPParallelDoDirective create method. '''
+    loop = Loop.create(DataSymbol("i", INTEGER_SINGLE_TYPE),
+                       Literal("1", INTEGER_SINGLE_TYPE),
+                       Literal("10", INTEGER_SINGLE_TYPE),
+                       Literal("1", INTEGER_SINGLE_TYPE),
+                       [])
+    children = [loop]
+    directive = OMPParallelDoDirective.create(children=children, collapse=2)
+    assert directive.collapse == 2
+    assert directive.omp_schedule == "none"
+    assert str(directive) == "OMPParallelDoDirective[collapse=2]"
+    assert directive.dir_body.children[0] is loop
+    assert (directive.default_clause.clause_type
+            == OMPDefaultClause.DefaultClauseTypes.SHARED)
+
+
 def test_omp_pdo_validate_child():
     ''' Test the _validate_child method for OMPParallelDoDirective'''
     sched = Schedule()
