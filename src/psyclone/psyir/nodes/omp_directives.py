@@ -2198,6 +2198,22 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         OMPDoDirective.__init__(self, **kwargs)
         self.addchild(OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED))
+        
+    @staticmethod
+    def create(children=None, **kwargs):
+        '''
+        Create an OMPParallelDoDirective.
+
+        :param children: The child nodes of the new directive.
+        :type children: List of :py:class:`psyclone.psyir.nodes.Node`
+        :param kwargs: additional keyword arguments provided to the PSyIR node.
+        :type kwargs: unwrapped dict.
+
+        :returns: A new OMPParallelDoDirective.
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPParallelDoDirective`
+        '''
+
+        return OMPParallelDoDirective(children=children, **kwargs)
 
     @staticmethod
     def _validate_child(position, child):
