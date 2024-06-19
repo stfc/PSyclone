@@ -140,8 +140,11 @@ class OMPStandaloneDirective(OMPDirective, StandaloneDirective,
 class OMPBarrierDirective(OMPStandaloneDirective):
     '''
     Class representing an OpenMP BARRIER directive in the PSyIR.
-
     '''
+
+    # Textual description of the node
+    _text_name = "OMPBarrierDirective"
+
     def gen_code(self, parent):
         '''Generate the fortran OMP Barrier Directive and any associated
         code.
@@ -154,7 +157,7 @@ class OMPBarrierDirective(OMPStandaloneDirective):
         self.validate_global_constraints()
 
         # Generate the Barrier Directive
-        parent.add(DirectiveGen(parent, "omp", "barrier", ""))
+        parent.add(DirectiveGen(parent, "omp", "begin", "barrier", ""))
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -177,18 +180,17 @@ class OMPBarrierDirective(OMPStandaloneDirective):
         '''
         # As a Standalone directive, we must have an OMPParallelDirective as
         # an ancestor somewhere back up the tree.
-        if not self.ancestor(OMPParallelDirective,
-                             excluding=OMPParallelDoDirective):
+        if self.parent and not self.ancestor(OMPParallelDirective):
             raise GenerationError(
-                "OMPBarrierDirective must be inside an OMP parallel region "
-                "but could not find an ancestor OMPParallelDirective node")
+                "An OMPBarrierDirective must be inside an OMP parallel region "
+                "but could not find an ancestor OMPParallelDirective node.")
 
         # Barrier directives need to be encountered by all threads in the team
         # so we exlude serial directives (single, master) as ancestors.
         omp_serial_directive_ancestor = self.ancestor(OMPSerialDirective)
         if omp_serial_directive_ancestor is not None:
             raise GenerationError(
-                f"OMPBarrierDirective must not be inside an OMP serial "
+                f"An OMPBarrierDirective must not be inside an OMP serial "
                 f"(single or master) directive but found an ancestor of type "
                 f"'{type(omp_serial_directive_ancestor).__name__}'.")
 
@@ -2729,4 +2731,4 @@ __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
            "OMPLoopDirective", "OMPDeclareTargetDirective",
-           "OMPAtomicDirective", "OMPSimdDirective"]
+           "OMPAtomicDirective", "OMPSimdDirective", "OMPBarrierDirective"]

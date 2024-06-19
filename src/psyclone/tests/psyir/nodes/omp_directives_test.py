@@ -59,7 +59,7 @@ from psyclone.psyir.nodes import (
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
     OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
-    StructureReference, IfBlock)
+    StructureReference, IfBlock, OMPBarrierDirective)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
@@ -1416,6 +1416,88 @@ def test_omp_taskloop_validate_global_constraints():
         taskloop.validate_global_constraints()
     assert ("OMPTaskloopDirective has two Nogroup clauses as "
             "children which is not allowed." in str(excinfo.value))
+
+# Test OMPBarrierDirective
+
+
+def test_omp_barrier_directive_constructor_and_string(monkeypatch):
+    '''Test the OMPBarrierDirective constructor and its output strings.'''
+    barrier = OMPBarrierDirective()
+    assert barrier.begin_string() == "omp barrier"
+    assert str(barrier) == "OMPBarrierDirective[]"
+
+    monkeypatch.setattr(barrier, "validate_global_constraints", lambda: None)
+    temporary_module = ModuleGen("test")
+    barrier.gen_code(temporary_module)
+    assert "!$omp barrier\n" in str(temporary_module.root)
+
+
+def test_omp_barrier_directive_validate_global_constraints():
+    '''Test the OMPBarrierDirective is only valid:
+    - inside of an OMPParralelDirective,
+    - outside of an OMPSerialDirective (i.e. single or master)
+    '''
+    barrier = OMPBarrierDirective()
+
+    # If the directive is detached it passes the validation
+    barrier.validate_global_constraints()
+
+    # If it is a child of an OMPParallelDirective it passes the validation
+    parallel = OMPParallelDirective()
+    parallel.dir_body.addchild(barrier)
+    barrier.validate_global_constraints()
+
+    # If it is a child of a node inside an OMPParallelDirective it passes the
+    # validation
+    barrier_2 = OMPBarrierDirective()
+    loop = Loop.create(DataSymbol('i', INTEGER_TYPE),
+                       Literal('1', INTEGER_TYPE),
+                       Literal('10', INTEGER_TYPE),
+                       Literal('1', INTEGER_TYPE),
+                       [barrier_2])
+    parallel_2 = OMPParallelDirective()
+    parallel_2.dir_body.addchild(loop)
+    barrier_2.validate_global_constraints()
+
+    # If it is attached but does not have an OMPParallelDirective as an
+    # ancestor it fails the validation
+    barrier_3 = OMPBarrierDirective()
+    Loop.create(DataSymbol('i', INTEGER_TYPE),
+                Literal('1', INTEGER_TYPE),
+                Literal('10', INTEGER_TYPE),
+                Literal('1', INTEGER_TYPE),
+                [barrier_3])
+    with pytest.raises(GenerationError) as err:
+        barrier_3.validate_global_constraints()
+    assert ("An OMPBarrierDirective must be inside an OMP parallel region "
+            "but could not find an ancestor OMPParallelDirective node."
+            in str(err.value))
+
+    # If it is within an OMPSingleDirective it fails the validation
+    barrier_4 = OMPBarrierDirective()
+    parallel_3 = OMPParallelDirective()
+    single = OMPSingleDirective()
+    single.dir_body.addchild(barrier_4)
+    parallel_3.dir_body.addchild(single)
+    with pytest.raises(GenerationError) as err:
+        barrier_4.validate_global_constraints()
+    assert ("An OMPBarrierDirective must not be inside an OMP serial "
+            "(single or master) directive but found an ancestor of type "
+            "'OMPSingleDirective'."
+            in str(err.value))
+
+    # If it is within an OMPMasterDirective it fails the validation
+    barrier_5 = OMPBarrierDirective()
+    parallel_4 = OMPParallelDirective()
+    master = OMPMasterDirective()
+    master.dir_body.addchild(barrier_5)
+    parallel_4.dir_body.addchild(master)
+    with pytest.raises(GenerationError) as err:
+        barrier_5.validate_global_constraints()
+    assert ("An OMPBarrierDirective must not be inside an OMP serial "
+            "(single or master) directive but found an ancestor of type "
+            "'OMPMasterDirective'."
+            in str(err.value))
 
 
 # Test OMPTargetDirective
