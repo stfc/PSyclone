@@ -322,12 +322,14 @@ class BaseDriverCreator:
             # its type. And since they are not imported, they need to be
             # explicitly declared.
             mod_info = mod_man.get_module_info(module_name)
-            sym_tab = mod_info.get_psyir().symbol_table
             try:
+                sym_tab = mod_info.get_psyir().symbol_table
                 container_symbol = sym_tab.lookup(signature[0])
-            except KeyError:
+            except (AttributeError, KeyError):
                 # TODO #2120: This typically indicates a problem with parsing
                 # a module: the psyir does not have the full tree structure.
+                # AttributeErrors happen when we can't get a PSyIR at all,
+                # KeyError when a symbol is missing (likely due to a CodeBlock)
                 continue
 
             # It is possible that external symbol name (signature[0]) already
