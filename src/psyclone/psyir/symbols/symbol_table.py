@@ -1224,6 +1224,80 @@ class SymbolTable():
             raise InternalError(str(err.args)) from err
         return self._argument_list
 
+    def insert_argument(self, index, argument):
+        '''
+        Insets a new argument in the argument list.
+
+        :param index: the position in the argument list where the new \
+            argument should be inserted.
+        :type index: int
+        :param argument: the new argument to add to the list.
+        :type argument: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises InternalError: if the entries of the SymbolTable are not \
+                               self-consistent.
+        :raises TypeError: if the supplied index is not an integer.
+        :raises TypeError: if the supplied argument is not a DataSymbol.
+        :raises ValueError: if the supplied argument is not marked as a \
+                            kernel argument.
+        '''
+        if not isinstance(index, int):
+            raise TypeError(
+                f"Expected an integer index but found "
+                f"'{type(index).__name__}'.")
+        if not isinstance(argument, DataSymbol):
+            raise TypeError(
+                f"Expected a DataSymbol but found "
+                f"'{type(argument).__name__}'.")
+        if not argument.is_argument:
+            raise ValueError(
+                f"DataSymbol '{argument.name}' is not marked as a kernel "
+                "argument.")
+
+        self._argument_list.insert(index, argument)
+        self.add(argument)
+
+        try:
+            self._validate_arg_list(self._argument_list)
+            self._validate_non_args()
+        except ValueError as err:
+            # If the SymbolTable is inconsistent at this point then
+            # we have an InternalError.
+            raise InternalError(str(err.args)) from err
+
+    def append_argument(self, argument):
+        '''
+        Appends a new argument to the argument list.
+
+        :param argument: the new argument to add to the list.
+        :type argument: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises InternalError: if the entries of the SymbolTable are not \
+                               self-consistent.
+        :raises TypeError: if the supplied argument is not a DataSymbol.
+        :raises ValueError: if the supplied argument is not marked as a \
+                            kernel argument.
+        '''
+        if not isinstance(argument, DataSymbol):
+            raise TypeError(
+                f"Expected a DataSymbol but found "
+                f"'{type(argument).__name__}'.")
+        if not argument.is_argument:
+            raise ValueError(
+                f"DataSymbol '{argument.name}' is not marked as a kernel "
+                "argument.")
+
+        self._argument_list.append(argument)
+        self.add(argument)
+
+        try:
+            self._validate_arg_list(self._argument_list)
+            self._validate_non_args()
+        except ValueError as err:
+            # If the SymbolTable is inconsistent at this point then
+            # we have an InternalError.
+            raise InternalError(str(err.args)) from err
+
     @staticmethod
     def _validate_arg_list(arg_list):
         '''

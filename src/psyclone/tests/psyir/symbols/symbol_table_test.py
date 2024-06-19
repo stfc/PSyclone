@@ -1582,6 +1582,86 @@ def test_argument_list_errors():
         in str(err.value)
 
 
+def test_insert_argument():
+    ''' Checks for the insertion of a symbol into the argument list. '''
+    sym_table = symbols.SymbolTable()
+    var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
+    sym_table.add(var1)
+
+    arg1 = symbols.DataSymbol("var2", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.insert_argument(0, arg1)
+    assert var1 not in sym_table.argument_list
+    assert arg1 in sym_table.argument_list
+    assert sym_table.argument_list[0] is arg1
+    assert arg1 in sym_table.argument_datasymbols
+
+    arg2 = symbols.DataSymbol("var3", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.insert_argument(0, arg2)
+    assert arg2 in sym_table.argument_list
+    assert sym_table.argument_list[0] is arg2
+    assert sym_table.argument_list[1] is arg1
+    assert arg2 in sym_table.argument_datasymbols
+
+    with pytest.raises(TypeError) as err:
+        arg = symbols.DataSymbol("var4", symbols.REAL_TYPE,
+                                 interface=symbols.ArgumentInterface())
+        sym_table.insert_argument('Not an int', arg)
+    assert "Expected an integer index but found 'str'." in str(err.value)
+
+    with pytest.raises(TypeError) as err:
+        sym_table.insert_argument(0, "Not a symbol")
+    assert "Expected a DataSymbol but found 'str'." in str(err.value)
+
+    with pytest.raises(TypeError) as err:
+        sym_table.insert_argument(0, symbols.Symbol("Not a DataSymbol"))
+    assert "Expected a DataSymbol but found 'Symbol'." in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        sym_table.insert_argument(0, symbols.DataSymbol("var5",
+                                                        symbols.REAL_TYPE))
+    assert ("DataSymbol 'var5' is not marked as a kernel argument."
+            in str(err.value))
+
+
+def test_append_argument():
+    ''' Checks for the appending of a symbol into the argument list. '''
+    sym_table = symbols.SymbolTable()
+    var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
+    sym_table.add(var1)
+
+    arg1 = symbols.DataSymbol("var2", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.append_argument(arg1)
+    assert var1 not in sym_table.argument_list
+    assert arg1 in sym_table.argument_list
+    assert sym_table.argument_list[-1] is arg1
+    assert arg1 in sym_table.argument_datasymbols
+
+    arg2 = symbols.DataSymbol("var3", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.append_argument(arg2)
+    assert arg2 in sym_table.argument_list
+    assert sym_table.argument_list[-1] is arg2
+    assert sym_table.argument_list[-2] is arg1
+    assert arg2 in sym_table.argument_datasymbols
+
+    with pytest.raises(TypeError) as err:
+        sym_table.append_argument("Not a symbol")
+    assert "Expected a DataSymbol but found 'str'." in str(err.value)
+
+    with pytest.raises(TypeError) as err:
+        sym_table.append_argument(symbols.Symbol("Not a DataSymbol"))
+    assert "Expected a DataSymbol but found 'Symbol'." in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        sym_table.append_argument(symbols.DataSymbol("var4",
+                                                     symbols.REAL_TYPE))
+    assert ("DataSymbol 'var4' is not marked as a kernel argument." in
+            str(err.value))
+
+
 def test_validate_non_args():
     ''' Checks for the validation of non-argument entries in the
     SymbolTable. '''
