@@ -276,7 +276,7 @@ def test_omp_paralleldo_clauses_gen_code(monkeypatch):
         code = str(psy.gen).lower()
     assert ("OMPParallelDoDirective.gen_code() does not support symbols that "
             "need synchronisation, but found: ['a']" in str(err.value))
-    
+
 
 @pytest.mark.parametrize("nowait", [False, True])
 def test_omp_parallel_nowait(nowait):
