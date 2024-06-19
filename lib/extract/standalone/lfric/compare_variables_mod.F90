@@ -180,8 +180,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 1D array of character(*)
-    !! to the file.
     !> @brief This subroutine compares the value of a 1D array of
     !! character(*) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -251,8 +249,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 2D array of character(*)
-    !! to the file.
     !> @brief This subroutine compares the value of a 2D array of
     !! character(*) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -322,8 +318,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 3D array of character(*)
-    !! to the file.
     !> @brief This subroutine compares the value of a 3D array of
     !! character(*) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -393,8 +387,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 4D array of character(*)
-    !! to the file.
     !> @brief This subroutine compares the value of a 4D array of
     !! character(*) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -508,8 +500,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 1D array of integer(kind=int32)
-    !! to the file.
     !> @brief This subroutine compares the value of a 1D array of
     !! integer(kind=int32) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -575,8 +565,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 2D array of integer(kind=int32)
-    !! to the file.
     !> @brief This subroutine compares the value of a 2D array of
     !! integer(kind=int32) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -642,8 +630,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 3D array of integer(kind=int32)
-    !! to the file.
     !> @brief This subroutine compares the value of a 3D array of
     !! integer(kind=int32) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -709,8 +695,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 4D array of integer(kind=int32)
-    !! to the file.
     !> @brief This subroutine compares the value of a 4D array of
     !! integer(kind=int32) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -811,8 +795,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 1D array of Logical(kind=4)
-    !! to the file.
     !> @brief This subroutine compares the value of a 1D array of
     !! Logical(kind=4) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -880,8 +862,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 2D array of Logical(kind=4)
-    !! to the file.
     !> @brief This subroutine compares the value of a 2D array of
     !! Logical(kind=4) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -949,8 +929,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 3D array of Logical(kind=4)
-    !! to the file.
     !> @brief This subroutine compares the value of a 3D array of
     !! Logical(kind=4) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -1018,8 +996,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 4D array of Logical(kind=4)
-    !! to the file.
     !> @brief This subroutine compares the value of a 4D array of
     !! Logical(kind=4) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -1130,8 +1106,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 1D array of real(kind=real32)
-    !! to the file.
     !> @brief This subroutine compares the value of a 1D array of
     !! real(kind=real32) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -1197,8 +1171,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 2D array of real(kind=real32)
-    !! to the file.
     !> @brief This subroutine compares the value of a 2D array of
     !! real(kind=real32) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -1264,8 +1236,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 3D array of real(kind=real32)
-    !! to the file.
     !> @brief This subroutine compares the value of a 3D array of
     !! real(kind=real32) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -1331,8 +1301,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 4D array of real(kind=real32)
-    !! to the file.
     !> @brief This subroutine compares the value of a 4D array of
     !! real(kind=real32) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -1441,8 +1409,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 1D array of real(kind=real64)
-    !! to the file.
     !> @brief This subroutine compares the value of a 1D array of
     !! real(kind=real64) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -1508,8 +1474,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 2D array of real(kind=real64)
-    !! to the file.
     !> @brief This subroutine compares the value of a 2D array of
     !! real(kind=real64) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -1575,8 +1539,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 3D array of real(kind=real64)
-    !! to the file.
     !> @brief This subroutine compares the value of a 3D array of
     !! real(kind=real64) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The
@@ -1642,8 +1604,6 @@ contains
 
 
     ! -------------------------------------------------------------------------
-    !> @brief This subroutine writes a 4D array of real(kind=real64)
-    !! to the file.
     !> @brief This subroutine compares the value of a 4D array of
     !! real(kind=real64) variable with the expected correct value and adds statistics
     !! about this comparison to the global field all_result fields. The

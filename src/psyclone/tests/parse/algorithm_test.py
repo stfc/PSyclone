@@ -48,7 +48,7 @@ from fparser.two.Fortran2003 import Part_Ref, Structure_Constructor, \
 from fparser.two.parser import ParserFactory
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg, \
-    parse, FileInfo
+    parse, AlgFileInfo
 from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.errors import InternalError
 
@@ -145,9 +145,8 @@ def test_parser_parse_nemo():
 
 def test_parser_parse():
     '''Check that the parse() method in the Parser() class returns the
-    expected results (fparser2 ast and a FileInfo instance) when using
-    an API other than the NEMO API. Also test that the filename is
-    stored in _alg_filename.
+    expected results (fparser2 ast and a AlgFileInfo instance) when using
+    a PSyKAl API. Also test that the filename is stored in _alg_filename.
 
     '''
     parser = Parser(api="lfric")
@@ -157,7 +156,7 @@ def test_parser_parse():
     assert "1_single_invoke.f90" in parser._alg_filename
     assert isinstance(res1, Program)
     assert "PROGRAM single_invoke" in str(res1)
-    assert isinstance(res2, FileInfo)
+    assert isinstance(res2, AlgFileInfo)
     assert res2.name == "single_invoke"
 
 # Parser.invoke_info() method tests
@@ -196,7 +195,7 @@ def test_parser_invokeinfo_first(tmpdir):
             "end subroutine second\n")
     alg_parse_tree = parse_fp2(alg_filename)
     res = parser.invoke_info(alg_parse_tree)
-    assert isinstance(res, FileInfo)
+    assert isinstance(res, AlgFileInfo)
     assert res.name == "first"
 
 
@@ -216,7 +215,7 @@ def test_parser_invokeinfo_containers(tmpdir, code, name):
         ffile.write(code)
     alg_parse_tree = parse_fp2(alg_filename)
     res = parser.invoke_info(alg_parse_tree)
-    assert isinstance(res, FileInfo)
+    assert isinstance(res, AlgFileInfo)
     assert res.name == name
 
 

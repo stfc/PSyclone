@@ -51,9 +51,10 @@ from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
                                   Assignment, Return, Reference,
                                   KernelSchedule, Routine, Schedule)
 from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
-from psyclone.psyir.transformations import ProfileTrans, TransformationError
+from psyclone.psyir.transformations import (ACCKernelsTrans, ProfileTrans,
+                                            TransformationError)
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (ACCKernelsTrans, GOceanOMPLoopTrans,
+from psyclone.transformations import (GOceanOMPLoopTrans,
                                       OMPParallelTrans)
 
 
