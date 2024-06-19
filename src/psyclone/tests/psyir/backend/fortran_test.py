@@ -2016,7 +2016,7 @@ def test_componenttype_initialisation(fortran_reader, fortran_writer):
         "  end type my_type\n" in result)
 
 
-def test_named_interface_no_routine_symbol(fortran_reader, fortran_writer):
+def test_pointer_assignments(fortran_reader, fortran_writer):
     ''' That assignments are produced by the Fortran backend, respecting the
     is_pointer attribute.
     '''
@@ -2027,14 +2027,14 @@ def test_named_interface_no_routine_symbol(fortran_reader, fortran_writer):
         integer, pointer :: b => null()
 
         a = 4
-        c => a
+        b => a
         field(3,c)%pointer => b
     end subroutine
     '''
     file_container = fortran_reader.psyir_from_source(test_module)
     code = fortran_writer(file_container)
-    print(code)
     assert len(file_container.walk(CodeBlock)) == 0
+    assert len(file_container.walk(Assignment)) == 3
     assert "a = 4" in code
-    assert "c => a" in code
+    assert "b => a" in code
     assert "field(3,c)%pointer => b" in code

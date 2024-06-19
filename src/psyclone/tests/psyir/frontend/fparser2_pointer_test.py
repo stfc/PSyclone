@@ -43,8 +43,9 @@ from psyclone.psyir.nodes import CodeBlock, Assignment
 
 def test_pointer_assignments(fortran_reader):
     '''
-    Test that an interface is handled correctly if it refers to symbols
-    for which we don't have type information (because they are imported).
+    Test that pointer assignments are parsed as Assignment with the is_pointer
+    attributes set to True. Also when accessing derived types no CodeBlocks
+    must be produced.
     '''
     test_module = '''
     subroutine mysub()
@@ -52,7 +53,7 @@ def test_pointer_assignments(fortran_reader):
         integer, target :: a = 1
         integer, pointer :: b => null()
 
-        c => a
+        b => a
         field(3,c)%pointer => b
     end subroutine
     '''

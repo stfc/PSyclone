@@ -4627,7 +4627,7 @@ class Fparser2Reader():
         Transforms an fparser2 Assignment_Stmt to the PSyIR representation.
 
         :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt` | \
+        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt` |
                     :py:class:`fparser.two.Fortran2003.Pointer_Assignment_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -4644,9 +4644,10 @@ class Fparser2Reader():
 
     def _structure_accessor_handler(self, node, parent):
         '''
-        Create the PSyIR for structure accessors found in fparser2 Data_Ref and
+        Create the PSyIR for structure accessors found in fparser2 Data_Ref,
         Procedure_Designator (representing an access to a derived type data and
-        methods respectively).
+        methods respectively), and Data_Pointer_Object (representing an access
+        to a derived type pointer object).
 
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Data_Ref` |
@@ -4669,12 +4670,16 @@ class Fparser2Reader():
         #                         or data-ref % binding-name
         # and R611 says that:
         #    data-ref             is part-ref [% part-ref]
-        # R1035 says that:
+        # and R1035 says that:
         #    data-pointer-object is variable-name
         #                        or scalar-variable % \
         #                           data-pointer-component-name
-        # but fparser2 misclassifies variable-names and scalar-variable is not
-        # always scalar, so we can also use the same structure handler
+        # Note that fparser2 misclassifies variable-names, so it always is the
+        # second variant of this rule. (variable-name are Name, so it correctly
+        # ends up as a PSyIR reference)
+        # Alse note that fparser2 scalar-variable is not always scalar, so it
+        # needs to be handled as a data-ref (which actually makes this
+        # implementation easier because its the same as procedure-designator)
         if isinstance(node, (Fortran2003.Procedure_Designator,
                              Fortran2003.Data_Pointer_Object)):
             # If it is a Procedure_Designator split it in its components.
