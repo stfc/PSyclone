@@ -1328,18 +1328,31 @@ class OMPMasterDirective(OMPSerialDirective):
 
 class OMPParallelDirective(OMPRegionDirective):
     ''' Class representing an OpenMP Parallel directive.
+    :param nowait: whether this directive has a nowait clause.
+    :type nowait: bool
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
     '''
 
     _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
-                              "OMPFirstprivate, [OMPReductionClause]*")
+                              "OMPFirstprivate, [OMPReductionClause]*, "
+                              "[OMPNowaitClause]")
+
+    def __init__(self, nowait=False, **kwargs):
+        super().__init__(**kwargs)
+        self._nowait = nowait
+        if self.nowait:
+            self.addchild(OMPNowaitClause())
 
     @staticmethod
-    def create(children=None):
+    def create(children=None, nowait=False):
         '''
         Create an OMPParallelDirective.
 
         :param children: The child nodes of the new directive.
         :type children: List of :py:class:`psyclone.psyir.nodes.Node`
+        :param nowait: whether this directive has a nowait clause.
+        :type nowait: bool
 
         :returns: A new OMPParallelDirective.
         :rtype: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
@@ -1356,7 +1369,19 @@ class OMPParallelDirective(OMPRegionDirective):
         instance.addchild(OMPPrivateClause())
         instance.addchild(OMPFirstprivateClause())
 
+        instance._nowait = nowait
+        if nowait:
+            instance.addchild(OMPNowaitClause())
+
         return instance
+
+    @property
+    def nowait(self):
+        '''
+        :returns: whether the nowait clause is specified.
+        :rtype: bool
+        '''
+        return self._nowait
 
     @staticmethod
     def _validate_child(position, child):
@@ -1378,6 +1403,8 @@ class OMPParallelDirective(OMPRegionDirective):
         if position == 3 and isinstance(child, OMPFirstprivateClause):
             return True
         if position >= 4 and isinstance(child, OMPReductionClause):
+            return True
+        if position >= 1 and isinstance(child, OMPNowaitClause):
             return True
         return False
 
@@ -1490,7 +1517,12 @@ class OMPParallelDirective(OMPRegionDirective):
                                           "different types")
             child.gen_code(parent)
 
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel", ""))
+        nowait_string = ""
+        if self.nowait:
+            nowait_string = "nowait"
+
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel",
+                                nowait_string))
 
         if reprod_red_call_list:
             parent.add(CommentGen(parent, ""))
@@ -1583,7 +1615,10 @@ class OMPParallelDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        return "omp end parallel"
+        nowait_string = ""
+        if self.nowait:
+            nowait_string = " nowait"
+        return f"omp end parallel{nowait_string}"
 
     def infer_sharing_attributes(self):
         '''
@@ -2251,13 +2286,21 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
                               "OMPFirstprivateClause, OMPScheduleClause, "
-                              "[OMPReductionClause]*")
+                              "[OMPReductionClause]*, [OMPNowaitClause]")
     _directive_string = "parallel do"
 
-    def __init__(self, **kwargs):
+    def __init__(self, nowait=False, **kwargs):
         OMPDoDirective.__init__(self, **kwargs)
         self.addchild(OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED))
+
+        self._nowait = nowait
+        if nowait:
+            self.addchild(OMPNowaitClause())
+
+    @staticmethod
+    def create(children=None, nowait=False):
+        return OMPParallelDoDirective(children=children, nowait=nowait)
 
     @staticmethod
     def _validate_child(position, child):
@@ -2281,6 +2324,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         if position == 4 and isinstance(child, OMPScheduleClause):
             return True
         if position >= 5 and isinstance(child, OMPReductionClause):
+            return True
+        if position >= 1 and isinstance(child, OMPNowaitClause):
             return True
         return False
 
@@ -2396,7 +2441,10 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         :rtype: str
 
         '''
-        return f"omp end {self._directive_string}"
+        nowait_string = ""
+        if self.nowait:
+            nowait_string = " nowait"
+        return f"omp end {self._directive_string}{nowait_string}"
 
     def validate_global_constraints(self):
         '''

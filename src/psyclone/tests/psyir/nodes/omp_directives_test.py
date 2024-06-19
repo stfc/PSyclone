@@ -276,6 +276,24 @@ def test_omp_paralleldo_clauses_gen_code(monkeypatch):
         code = str(psy.gen).lower()
     assert ("OMPParallelDoDirective.gen_code() does not support symbols that "
             "need synchronisation, but found: ['a']" in str(err.value))
+    
+
+@pytest.mark.parametrize("nowait", [False, True])
+def test_omp_parallel_nowait(nowait):
+    ''' Check that the OMPParallel region nowait attribute is set and
+    generates the appropriate code. '''
+    pdir = OMPParallelDirective(nowait=nowait)
+    assert pdir.nowait == nowait
+    assert ("nowait" in pdir.end_string()) == nowait
+
+
+@pytest.mark.parametrize("nowait", [False, True])
+def test_omp_pdo_nowait(nowait):
+    ''' Check that the OMPParallelDo region nowait attribute is set and
+    generates the appropriate code. '''
+    pdo = OMPParallelDoDirective(nowait=nowait)
+    assert pdo.nowait == nowait
+    assert ("nowait" in pdo.end_string()) == nowait
 
 
 def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
@@ -533,6 +551,7 @@ def test_omp_pdo_validate_child():
     fprclause = OMPFirstprivateClause()
     scclause = OMPScheduleClause()
     reclause = OMPReductionClause()
+    nwclause = OMPNowaitClause()
 
     assert OMPParallelDoDirective._validate_child(0, sched) is True
     assert OMPParallelDoDirective._validate_child(1, declause) is True
@@ -541,6 +560,8 @@ def test_omp_pdo_validate_child():
     assert OMPParallelDoDirective._validate_child(4, scclause) is True
     assert OMPParallelDoDirective._validate_child(5, reclause) is True
     assert OMPParallelDoDirective._validate_child(6, reclause) is True
+    assert OMPParallelDoDirective._validate_child(1, nwclause) is True
+    assert OMPParallelDoDirective._validate_child(6, nwclause) is True
 
     assert OMPParallelDoDirective._validate_child(0, "abc") is False
     assert OMPParallelDoDirective._validate_child(1, "abc") is False
@@ -1037,6 +1058,8 @@ def test_omp_parallel_validate_child():
         is True
     assert OMPParallelDirective._validate_child(5, OMPReductionClause())\
         is True
+    assert OMPParallelDirective._validate_child(1, OMPNowaitClause()) is True
+    assert OMPParallelDirective._validate_child(5, OMPNowaitClause()) is True
     assert OMPParallelDirective._validate_child(0, OMPDefaultClause()) is False
     assert OMPParallelDirective._validate_child(6, "test") is False
 
