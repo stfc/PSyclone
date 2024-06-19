@@ -42,7 +42,7 @@
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import TransformationError, ACCKernelsTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.errors import GenerationError
 
@@ -155,7 +155,7 @@ def test_seq_loop(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     # An ACC Loop must be within a KERNELS or PARALLEL region
-    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    kernels_trans = ACCKernelsTrans()
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
     acc_trans.apply(loops[0], {"sequential": True})
@@ -177,7 +177,7 @@ def test_loop_clauses(parser, clause):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     # An ACC Loop must be within a KERNELS or PARALLEL region
-    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    kernels_trans = ACCKernelsTrans()
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
     acc_trans.apply(loops[0], {clause: True})
@@ -198,7 +198,7 @@ def test_collapse(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     # An ACC Loop must be within a KERNELS or PARALLEL region
-    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    kernels_trans = ACCKernelsTrans()
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
     acc_trans.apply(loops[0], {"collapse": 2})

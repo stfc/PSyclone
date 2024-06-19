@@ -39,9 +39,9 @@ be applied via the -s option in the psyclone command, it is not
 designed to be directly run from python.
 
 '''
-from __future__ import print_function
-from psyclone.transformations import ACCEnterDataTrans, \
-    ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans, ACCKernelsTrans
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import (
+    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
 from psyclone.domain.lfric.function_space import FunctionSpace
 
 
@@ -50,7 +50,7 @@ def trans(psy):
     OpenACC Kernels directives to all loops generically. It also
     outputs a textual representation of the transformated PSyIR.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
+    :param psy: a PSyclone PSy object which captures the algorithm and
         kernel information required by PSyclone.
     :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
 

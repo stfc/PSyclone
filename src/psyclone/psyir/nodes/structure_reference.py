@@ -44,14 +44,15 @@ from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import (
     ArrayOfStructuresMember)
+from psyclone.psyir.nodes.structure_accessor_mixin import (
+    StructureAccessorMixin)
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
                                     DataTypeSymbol, UnresolvedType, ScalarType,
                                     StructureType, UnsupportedType)
-from psyclone.errors import InternalError
 
 
-class StructureReference(Reference):
+class StructureReference(Reference, StructureAccessorMixin):
     '''
     Node representing a reference to a component of a structure. As such
     it must have a single child representing the component being accessed.
@@ -238,22 +239,6 @@ class StructureReference(Reference):
             result += "\n" + str(entity)
         return result
 
-    @property
-    def member(self):
-        '''
-        :returns: the member of the structure that this reference is to.
-        :rtype: :py:class:`psyclone.psyir.nodes.Member`
-
-        :raises InternalError: if the first child of this node is not an \
-                               instance of Member.
-        '''
-        if not self.children or not isinstance(self.children[0], Member):
-            raise InternalError(
-                f"{type(self).__name__} malformed or incomplete. It must have "
-                f"a single child that must be a (sub-class of) Member, but "
-                f"found: {self.children}")
-        return self.children[0]
-
     def get_signature_and_indices(self):
         ''':returns: the Signature of this structure reference, and \
             a list of the indices used for each component (empty list \
@@ -309,11 +294,14 @@ class StructureReference(Reference):
         cursor = self
         cursor_type = dtype
 
-        # The next four lines are required when this method is called for an
-        # ArrayOfStructuresReference.
+        # If the reference has explicit array syntax, we need to consider it
+        # to calculate the resulting shape.
         if isinstance(cursor, ArrayMixin):
-            # pylint: disable=protected-access
-            shape = cursor._get_effective_shape()
+            try:
+                # pylint: disable=protected-access
+                shape = cursor._get_effective_shape()
+            except NotImplementedError:
+                return UnresolvedType()
         else:
             shape = []
 
@@ -331,7 +319,10 @@ class StructureReference(Reference):
                 cursor_type = cursor_type.components[cursor.name].datatype
             if isinstance(cursor, ArrayMixin):
                 # pylint: disable=protected-access
-                shape.extend(cursor._get_effective_shape())
+                try:
+                    shape.extend(cursor._get_effective_shape())
+                except NotImplementedError:
+                    return UnresolvedType()
 
         # We've reached the ultimate member of the structure access.
         if shape:
