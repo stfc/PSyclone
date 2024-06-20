@@ -1624,6 +1624,31 @@ def test_insert_argument():
     assert ("DataSymbol 'var5' is not marked as a kernel argument."
             in str(err.value))
 
+    arg3 = symbols.DataSymbol("var6", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.add(arg3)
+    arg4 = symbols.DataSymbol("var7", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    with pytest.raises(InternalError) as err:
+        sym_table.insert_argument(0, arg4)
+        assert ("var6" in str(err.value)
+                and " is not listed as a kernel argument"
+               " and yet has an ArgumentInterface interface." 
+               in str(err.value))
+
+    sym_table = symbols.SymbolTable()
+    var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
+    sym_table._argument_list.append(var1)
+    arg1 = symbols.DataSymbol("var2", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    with pytest.raises(InternalError) as err:
+        sym_table.insert_argument(0, arg1)
+        assert ("var1" in str(err.value)
+                and " is listed as a kernel argument "
+                    "but has an interface of type 'AutomaticInterface' "
+                    "rather than ArgumentInterface" 
+               in str(err.value))
+
 
 def test_append_argument():
     ''' Checks for the appending of a symbol into the argument list. '''
@@ -1660,6 +1685,31 @@ def test_append_argument():
                                                      symbols.REAL_TYPE))
     assert ("DataSymbol 'var4' is not marked as a kernel argument." in
             str(err.value))
+
+    arg3 = symbols.DataSymbol("var6", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    sym_table.add(arg3)
+    arg4 = symbols.DataSymbol("var7", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    with pytest.raises(InternalError) as err:
+        sym_table.append_argument(arg4)
+        assert ("var6" in str(err.value)
+                and " is not listed as a kernel argument"
+               " and yet has an ArgumentInterface interface." 
+               in str(err.value))
+
+    sym_table = symbols.SymbolTable()
+    var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
+    sym_table._argument_list.append(var1)
+    arg1 = symbols.DataSymbol("var2", symbols.REAL_TYPE,
+                              interface=symbols.ArgumentInterface())
+    with pytest.raises(InternalError) as err:
+        sym_table.append_argument(arg1)
+        assert ("var1" in str(err.value)
+                and " is listed as a kernel argument "
+                    "but has an interface of type 'AutomaticInterface' "
+                    "rather than ArgumentInterface" 
+               in str(err.value))
 
 
 def test_validate_non_args():
