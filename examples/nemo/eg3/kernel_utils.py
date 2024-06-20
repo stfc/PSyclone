@@ -131,7 +131,8 @@ def try_kernels_trans(nodes, default_present):
 
     '''
     from psyclone.errors import InternalError
-    from psyclone.transformations import TransformationError, ACCKernelsTrans
+    from psyclone.psyir.transformations import ACCKernelsTrans
+    from psyclone.transformations import TransformationError
     try:
         ACCKernelsTrans().apply(nodes, {"default_present": default_present})
     except (TransformationError, InternalError) as err:

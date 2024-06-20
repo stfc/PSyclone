@@ -1273,7 +1273,7 @@ def test_fw_range(fortran_writer):
     assert result == "a(:,:b + c:3)"
 
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
-    symbol = DataSymbol("a", array_type)
+    symbol.datatype = array_type
     array = ArrayReference.create(
         symbol,
         [Range.create(dim1_bound_start, dim1_bound_stop.copy()),

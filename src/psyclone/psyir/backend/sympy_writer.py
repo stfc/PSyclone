@@ -687,7 +687,7 @@ class SymPyWriter(FortranWriter):
 
         '''
         if node.parent and node.parent.is_lower_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range starts for the first element in this
             # dimension, so use the generic name for lower bound:
             start = self.lower_bound
@@ -695,7 +695,7 @@ class SymPyWriter(FortranWriter):
             start = self._visit(node.start)
 
         if node.parent and node.parent.is_upper_bound(
-                node.parent.indices.index(node)):
+                node.parent.index_of(node)):
             # The range ends with the last element in this
             # dimension, so use the generic name for the upper bound:
             stop = self.upper_bound

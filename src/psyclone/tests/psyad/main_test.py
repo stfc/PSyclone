@@ -437,7 +437,7 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
 def test_main_geom_args_api(tmpdir, geom_arg, capsys, caplog):
     '''
     Test that the main() function rejects attempts to specify any geometry
-    arguments if the API != dynamo0.3 (LFRic).
+    arguments if the API != lfric.
 
     '''
     filename_in = str(tmpdir.join("tl.f90"))
@@ -455,8 +455,8 @@ def test_main_geom_args_api(tmpdir, geom_arg, capsys, caplog):
     if not caplog.text:
         pytest.xfail("issue #1235: caplog returns an empty string in "
                      "github actions.")
-    assert (f"The '{geom_arg}' argument is only applicable to the LFRic "
-            f"('dynamo0.3') API" in caplog.text)
+    assert (f"The '{geom_arg}' argument is only applicable to the 'lfric' "
+            f"API" in caplog.text)
 
 
 # -v output

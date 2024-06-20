@@ -47,8 +47,8 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Assignment, Reference, Loop, Directive,
                                   Schedule)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-from psyclone.transformations import (ACCKernelsTrans, ACCDataTrans,
-                                      ACCParallelTrans)
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import (ACCDataTrans, ACCParallelTrans)
 from psyclone.tests.utilities import get_invoke
 
 
@@ -212,7 +212,7 @@ def test_acc_loop(parser, fortran_writer):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     # An ACC Loop must be within a KERNELS or PARALLEL region
-    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    kernels_trans = ACCKernelsTrans()
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
     acc_trans.apply(loops[0], {"sequential": True})
@@ -281,7 +281,7 @@ def test_gocean_acc_parallel():
     is created correctly.
 
     '''
-    _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
+    _, invoke = get_invoke("single_invoke.f90", "gocean",
                            idx=0, dist_mem=False)
 
     ptrans = ACCParallelTrans()

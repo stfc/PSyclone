@@ -79,7 +79,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_naming", "multiple")
-    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
     rtrans = ACCRoutineTrans()
@@ -115,7 +115,7 @@ def test_new_kernel_file(kernel_outputdir, monkeypatch, fortran_reader):
 def test_new_kernel_dir(kernel_outputdir):
     ''' Check that we write out the transformed kernel to a specified
     directory. '''
-    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean", idx=0)
     sched = invoke.schedule
     kern = sched.coded_kernels()[0]
     rtrans = ACCRoutineTrans()
@@ -133,7 +133,7 @@ def test_new_kern_no_clobber(kernel_outputdir, monkeypatch):
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_naming", "multiple")
-    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    psy, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
@@ -167,7 +167,7 @@ def test_kernel_module_name(kernel_outputdir, mod_name, sub_name, monkeypatch):
     # Argument kernel_outputdir is needed to capture the files created by
     # the rename_and_write() call
     # pylint: disable=unused-argument
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.coded_kernels()
     kern = kernels[0]
@@ -196,7 +196,7 @@ def test_kern_case_insensitive(mod_name, sub_name, kernel_outputdir,
     insensitive.
 
     '''
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
@@ -216,7 +216,7 @@ def test_new_kern_single_error(kernel_outputdir, monkeypatch):
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_naming", "single")
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.coded_kernels()
     kern = kernels[0]
@@ -248,7 +248,7 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_naming", "single")
     rtrans = ACCRoutineTrans()
-    _, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
+    _, invoke = get_invoke("4_multikernel_invokes.f90", api="lfric",
                            idx=0)
     sched = invoke.schedule
     # Apply the same transformation to both kernels. This should produce
@@ -289,7 +289,7 @@ def test_accroutine_validate_no_schedule(monkeypatch):
     generated when attempting to get the PSyIR of a kernel.
 
     '''
-    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     kern = kernels[0]
@@ -381,7 +381,7 @@ def test_accroutinetrans_validate_no_call():
     another routine.
 
     '''
-    psy, invoke = get_invoke("1.15_invoke_kern_with_call.f90", api="dynamo0.3",
+    psy, invoke = get_invoke("1.15_invoke_kern_with_call.f90", api="lfric",
                              idx=0)
     sched = invoke.schedule
     kernel = sched.coded_kernels()[0]
@@ -410,7 +410,7 @@ def test_accroutinetrans_validate_no_call():
 def test_1kern_trans(kernel_outputdir):
     ''' Check that we generate the correct code when an invoke contains
     the same kernel more than once but only one of them is transformed. '''
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
+    psy, invoke = get_invoke("4_multikernel_invokes.f90", api="lfric",
                              idx=0)
     sched = invoke.schedule
     kernels = sched.coded_kernels()
@@ -436,7 +436,7 @@ def test_1kern_trans(kernel_outputdir):
 def test_2kern_trans(kernel_outputdir):
     ''' Check that we generate correct code when we transform two kernels
     within a single invoke. '''
-    psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
+    psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="lfric",
                              idx=0)
     sched = invoke.schedule
     kernels = sched.walk(Kern)
@@ -465,7 +465,7 @@ def test_2kern_trans(kernel_outputdir):
 def test_builtin_no_trans():
     ''' Check that we reject attempts to transform built-in kernels. '''
     _, invoke = get_invoke("15.1.1_X_plus_Y_builtin.f90",
-                           api="dynamo0.3", idx=0)
+                           api="lfric", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(LFRicBuiltIn)
     rtrans = ACCRoutineTrans()

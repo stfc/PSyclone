@@ -48,7 +48,8 @@ have already been preprocessed (if required).
 '''
 
 from psyclone.psyir.nodes import Loop, Assignment
-from psyclone.transformations import ACCKernelsTrans, ACCDataTrans
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import ACCDataTrans
 
 Loop.set_loop_type_inference_rules({
         "lon": {"variable": "ji"},

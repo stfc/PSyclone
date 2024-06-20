@@ -115,6 +115,7 @@ class NemoPSy(PSy):
     '''
     def __init__(self, ast):
         # pylint: disable=super-init-not-called
+        Config.get().api = ""
         names = walk(ast.content, Fortran2003.Name)
         # The name of the program unit will be the first in the list
         if not names:

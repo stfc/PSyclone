@@ -115,7 +115,7 @@ def test_get_node_list():
 def test_validate_errors():
     '''Tests error handling of the region transformation.'''
 
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean",
                            name="invoke_loop1", dist_mem=False)
 
     schedule = invoke.schedule
@@ -177,7 +177,7 @@ def test_validate_errors():
 def test_validate_ok():
     '''Test parameters that validate should accept.'''
 
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean",
                            name="invoke_loop1")
     schedule = invoke.schedule
     my_rt = MyRegionTrans()

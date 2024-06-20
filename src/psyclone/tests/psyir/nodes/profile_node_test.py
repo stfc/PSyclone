@@ -178,8 +178,8 @@ def test_lower_to_lang_level_multi_node():
 
     '''
     # We use a GOcean example containing multiple kernel calls
-    Profiler.set_options([Profiler.KERNELS], api="gocean1.0")
-    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
+    Profiler.set_options([Profiler.KERNELS], api="gocean")
+    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean",
                            idx=0)
     sched = invoke.schedule
     table = sched.symbol_table
