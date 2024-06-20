@@ -1633,8 +1633,8 @@ def test_insert_argument():
         sym_table.insert_argument(0, arg4)
         assert ("var6" in str(err.value)
                 and " is not listed as a kernel argument"
-               " and yet has an ArgumentInterface interface." 
-               in str(err.value))
+               " and yet has an ArgumentInterface interface."
+                in str(err.value))
 
     sym_table = symbols.SymbolTable()
     var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
@@ -1646,7 +1646,7 @@ def test_insert_argument():
         assert ("var1" in str(err.value)
                 and " is listed as a kernel argument "
                     "but has an interface of type 'AutomaticInterface' "
-                    "rather than ArgumentInterface" 
+                    "rather than ArgumentInterface"
                in str(err.value))
 
 
@@ -1695,8 +1695,8 @@ def test_append_argument():
         sym_table.append_argument(arg4)
         assert ("var6" in str(err.value)
                 and " is not listed as a kernel argument"
-               " and yet has an ArgumentInterface interface." 
-               in str(err.value))
+               " and yet has an ArgumentInterface interface."
+                in str(err.value))
 
     sym_table = symbols.SymbolTable()
     var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
@@ -1708,7 +1708,7 @@ def test_append_argument():
         assert ("var1" in str(err.value)
                 and " is listed as a kernel argument "
                     "but has an interface of type 'AutomaticInterface' "
-                    "rather than ArgumentInterface" 
+                    "rather than ArgumentInterface"
                in str(err.value))
 
 
