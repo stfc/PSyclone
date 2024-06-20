@@ -1078,7 +1078,9 @@ class Fparser2Reader():
             Fortran2003.Allocate_Stmt: self._allocate_handler,
             Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Data_Pointer_Object: self._structure_accessor_handler,
             Fortran2003.Data_Ref: self._structure_accessor_handler,
+            Fortran2003.Pointer_Assignment_Stmt: self._assignment_handler,
             Fortran2003.Procedure_Designator: self._structure_accessor_handler,
             Fortran2003.Deallocate_Stmt: self._deallocate_handler,
             Fortran2003.Function_Subprogram: self._subroutine_handler,
@@ -4626,14 +4628,16 @@ class Fparser2Reader():
         Transforms an fparser2 Assignment_Stmt to the PSyIR representation.
 
         :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt` |
+                    :py:class:`fparser.two.Fortran2003.Pointer_Assignment_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
         '''
-        assignment = Assignment(node, parent=parent)
+        is_poitner = isinstance(node, Fortran2003.Pointer_Assignment_Stmt)
+        assignment = Assignment(is_pointer=is_poitner, ast=node, parent=parent)
         self.process_nodes(parent=assignment, nodes=[node.items[0]])
         self.process_nodes(parent=assignment, nodes=[node.items[2]])
 
@@ -4641,13 +4645,15 @@ class Fparser2Reader():
 
     def _structure_accessor_handler(self, node, parent):
         '''
-        Create the PSyIR for structure accessors found in fparser2 Data_Ref and
+        Create the PSyIR for structure accessors found in fparser2 Data_Ref,
         Procedure_Designator (representing an access to a derived type data and
-        methods respectively).
+        methods respectively), and Data_Pointer_Object (representing an access
+        to a derived type pointer object).
 
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Data_Ref` |
-                    :py:class:`fparser.two.Fortran2003.Process_Designator`
+                    :py:class:`fparser.two.Fortran2003.Process_Designator` |
+                    :py:class:`fparser.two.Fortran2003.Data_Pointer_Object`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -4665,7 +4671,18 @@ class Fparser2Reader():
         #                         or data-ref % binding-name
         # and R611 says that:
         #    data-ref             is part-ref [% part-ref]
-        if isinstance(node, Fortran2003.Procedure_Designator):
+        # and R1035 says that:
+        #    data-pointer-object is variable-name
+        #                        or scalar-variable % \
+        #                           data-pointer-component-name
+        # Note that fparser2 misclassifies variable-names, so it always is the
+        # second variant of this rule. (variable-name are Name, so it correctly
+        # ends up as a PSyIR reference)
+        # Alse note that fparser2 scalar-variable is not always scalar, so it
+        # needs to be handled as a data-ref (which actually makes this
+        # implementation easier because its the same as procedure-designator)
+        if isinstance(node, (Fortran2003.Procedure_Designator,
+                             Fortran2003.Data_Pointer_Object)):
             # If it is a Procedure_Designator split it in its components.
             # Note that this won't fail for procedure-name and proc-component
             # -ref, the binding_name will just become None, if we have a
