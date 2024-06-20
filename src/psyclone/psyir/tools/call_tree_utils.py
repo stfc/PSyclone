@@ -396,6 +396,9 @@ class CallTreeUtils():
                           f"Cannot get PSyIR for module '{module_name}' - "
                           f"ignoring unknown symbol '{signature[0]}'.")
                     continue
+                # Check that we find at least one valid routine (several
+                # could be found in case of a generic interface):
+                at_least_one_routine_found = False
                 for routine_name in cntr.resolve_routine(signature[0]):
                     routine = cntr.get_routine_psyir(routine_name)
                     if not routine:
@@ -408,7 +411,9 @@ class CallTreeUtils():
                     # Add the list of non-locals to our todo list:
                     outstanding_nonlocals.extend(
                         self.get_non_local_symbols(routine))
-                else:
+                    at_least_one_routine_found = True
+
+                if not at_least_one_routine_found:
                     print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
                           f"Cannot resolve routine '{signature[0]}' in module "
                           f"'{module_name}' - ignored.")
@@ -440,10 +445,7 @@ class CallTreeUtils():
                         outstanding_nonlocals.append(("routine", module_name,
                                                       signature, access_info))
                         continue
-                    else:
-                        print(f"[CallTreeUtils._resolve_calls_and_unknowns] "
-                              f"Cannot find a routine '{signature}' in module "
-                              f"'{module_name}' - ignored.")
+
                     # Check whether it is a constant (the symbol should always
                     # be found, but if a module cannot be parsed then the
                     # symbol table won't have been populated)
@@ -453,8 +455,7 @@ class CallTreeUtils():
                         if sym.is_constant:
                             continue
                     except KeyError:
-                        print(f"Unable to check if signature '{signature}' "
-                              f"is constant.")
+                        print(f"Cannot find symbol '{signature}'.")
                 # Otherwise fall through to the code that adds a reference:
 
             # Now it must be a reference, so add it to the list of input-
