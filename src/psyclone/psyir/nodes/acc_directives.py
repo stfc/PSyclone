@@ -148,12 +148,12 @@ class ACCRoutineDirective(ACCStandaloneDirective):
     Class representing an "ACC routine" OpenACC directive in PSyIR.
 
     :param str parallelism: the level of parallelism in the routine, one of
-        "gang", "worker", "vector", "seq". Defaults to "seq".
+        "gang", "worker", "vector", "seq".
 
     '''
     SUPPORTED_PARALLELISM = ["seq", "vector", "worker", "gang"]
 
-    def __init__(self, parallelism=None, **kwargs):
+    def __init__(self, parallelism="seq", **kwargs):
         self.parallelism = parallelism
 
         super().__init__(self, **kwargs)
@@ -178,10 +178,6 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         :raises ValueError: if `value` is not a recognised level of
                             parallelism.
         '''
-        if value is None:
-            # Default to sequential.
-            self._parallelism = "seq"
-            return
         if not isinstance(value, str):
             raise TypeError(
                 f"Expected a str to specify the level of parallelism but got "

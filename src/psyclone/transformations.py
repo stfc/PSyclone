@@ -2563,7 +2563,7 @@ class ACCRoutineTrans(Transformation, MarkRoutineForGPUMixin):
             if isinstance(child, ACCRoutineDirective):
                 return  # The routine is already marked with ACCRoutine
 
-        para = options.get("parallelism", None) if options else None
+        para = options.get("parallelism", "seq") if options else "seq"
 
         routine.children.insert(0, ACCRoutineDirective(parallelism=para))
 
