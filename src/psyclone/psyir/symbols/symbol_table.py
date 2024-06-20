@@ -145,14 +145,12 @@ class SymbolTable():
         '''If this symbol table is enclosed in another scope, return the
         symbol table of the next outer scope. Otherwise return None.
 
-        :param scope_limit: optional Node which limits the symbol \
-            search space to the symbol tables of the nodes within the \
-            given scope. If it is None (the default), the whole \
-            scope (all symbol tables in ancestor nodes) is searched \
-            otherwise ancestors of the scope_limit node are not \
-            searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
+        :param scope_limit: optional Node which limits the symbol search
+            space to the symbol tables of the nodes within the given scope.
+            If it is None (the default), the whole scope (all symbol tables
+            in ancestor nodes) is searched otherwise ancestors of the
+            scope_limit node are not searched.
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
                   the one that encloses this one in the PSyIR hierarchy).
@@ -304,9 +302,11 @@ class SymbolTable():
             symbol.routines = new_routines
 
         # Ensure any symbols referenced in array shapes are also updated
+        # pylint: disable-next=import-outside-toplevel
         from psyclone.psyir.nodes import Node, Reference
         for symbol in new_st.symbols:
-            if not symbol.is_array:
+            if not symbol.is_array or not isinstance(symbol.datatype,
+                                                     ArrayType):
                 continue
             for dim in symbol.datatype.shape:
                 if isinstance(dim, ArrayType.ArrayBounds):
@@ -316,8 +316,12 @@ class SymbolTable():
                 for bnd in exprns:
                     if isinstance(bnd, Node):
                         for ref in bnd.walk(Reference):
-                            ref.symbol = new_st.lookup(ref.symbol.name)
-
+                            try:
+                                ref.symbol = new_st.lookup(ref.symbol.name)
+                            except KeyError:
+                                # This dimensioning symbol isn't in the table
+                                # we are copying.
+                                pass
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
 
