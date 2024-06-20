@@ -322,6 +322,18 @@ class SymbolTable():
                                 # This dimensioning symbol isn't in the table
                                 # we are copying.
                                 pass
+
+        # Ensure any Symbols referenced in initial values are updated.
+        for symbol in new_st.symbols:
+            if not isinstance(symbol, DataSymbol):
+                continue
+            if symbol.initial_value:
+                for ref in symbol.initial_value.walk(Reference):
+                    try:
+                        ref.symbol = new_st.lookup(ref.symbol.name)
+                    except KeyError:
+                        pass
+
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
 
