@@ -974,6 +974,11 @@ class SymbolTable():
             raise TypeError(
                 f"Expected the name argument to the lookup() method to be "
                 f"a str but found '{type(name).__name__}'.")
+        if not isinstance(error_if_not_found, bool):
+            raise TypeError(
+                f"Expected the error_if_not_found argument to the lookup() "
+                f"method to be a bool but found "
+                f"'{type(error_if_not_found).__name__}'.")
 
         try:
             symbol = self.get_symbols(scope_limit)[self._normalize(name)]

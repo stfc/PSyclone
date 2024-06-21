@@ -1203,7 +1203,9 @@ def test_swap_symbol_properties():
 
 def test_lookup_1():
     '''Test that the lookup method retrieves symbols from the current
-    symbol table if the name exists, otherwise it raises an error.
+    symbol table if the name exists, otherwise it raises an error if
+    its error_if_not_found argument is either unprovided or True, or returns
+    None if this argument is False.
 
     '''
     sym_table = symbols.SymbolTable()
@@ -1225,6 +1227,11 @@ def test_lookup_1():
 
     with pytest.raises(KeyError) as error:
         sym_table.lookup("notdeclared")
+    assert "Could not find 'notdeclared' in the Symbol Table." in \
+        str(error.value)
+
+    with pytest.raises(KeyError) as error:
+        sym_table.lookup("notdeclared", error_if_not_found=True)
     assert "Could not find 'notdeclared' in the Symbol Table." in \
         str(error.value)
 
@@ -1314,6 +1321,19 @@ def test_lookup_4():
             container_symbol_table.lookup(symbol1.name, **arg)
         assert ("Could not find 'symbol1' in the Symbol Table."
                 in str(info.value))
+
+
+def test_lookup_5():
+    '''Check that lookup() in the SymbolTable class raises the expected
+    exception if the error_if_not_found argument has the wrong type.
+
+    '''
+    sym_table = symbols.SymbolTable()
+    with pytest.raises(TypeError) as info:
+        _ = sym_table.lookup("var1",
+                             error_if_not_found="not a bool")
+    assert ("Expected the error_if_not_found argument to the lookup() method "
+            "to be a bool but found 'str'." in str(info.value))
 
 
 def test_lookup_with_tag_1():
