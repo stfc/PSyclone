@@ -1228,6 +1228,8 @@ def test_lookup_1():
     assert "Could not find 'notdeclared' in the Symbol Table." in \
         str(error.value)
 
+    assert sym_table.lookup("notdeclared", error_if_not_found=False) is None
+
 
 def test_lookup_2():
     '''Test the visibility argument filtering functionality of the

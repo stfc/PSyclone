@@ -932,10 +932,13 @@ class SymbolTable():
         self._validate_arg_list(argument_symbols)
         self._argument_list = argument_symbols[:]
 
-    def lookup(self, name, visibility=None, scope_limit=None):
-        '''Look up a symbol in the symbol table. The lookup can be limited
-        by visibility (e.g. just show public methods) or by scope_limit (e.g.
+    def lookup(self, name, visibility=None, scope_limit=None,
+               error_if_not_found=True):
+        '''Look up a symbol in the symbol table. The lookup can be limited \
+        by visibility (e.g. just show public methods) or by scope_limit (e.g. \
         just show symbols up to a certain scope).
+        Returns None if error_if_not_found is True and no symbol with this \
+        name exists in the symbol table.
 
         :param str name: name of the symbol.
         :param visibilty: the visibility or list of visibilities that the \
@@ -949,15 +952,22 @@ class SymbolTable():
             searched.
         :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
             `NoneType`
+        :param error_if_not_found: whether to raise an error if a symbol \
+                                   with this name cannot be found. \
+                                   Defaults to True.
+        :type error_if_not_found: Optional[bool]
 
-        :returns: the symbol with the given name and, if specified, visibility.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        :returns: the symbol with the given name and, if specified, \
+                  visibility, or None if the symbol cannot be found and \
+                  error_if_not_found is True.
+        :rtype: Union[:py:class:`psyclone.psyir.symbols.Symbol`, None]
 
         :raises TypeError: if the name argument is not a string.
         :raises SymbolError: if the name exists in the Symbol Table but does \
                              not have the specified visibility.
         :raises TypeError: if the visibility argument has the wrong type.
-        :raises KeyError: if the given name is not in the Symbol Table.
+        :raises KeyError: if the given name is not in the Symbol Table and \
+                          error_if_not_found is True.
 
         '''
         if not isinstance(name, str):
@@ -991,8 +1001,11 @@ class SymbolTable():
                         f" match with the requested visibility: {vis_names}")
             return symbol
         except KeyError as err:
-            raise KeyError(f"Could not find '{name}' in the Symbol Table.") \
-                from err
+            if error_if_not_found:
+                raise KeyError(f"Could not find '{name}' in the Symbol "
+                               f"Table.") from err
+
+            return None
 
     def lookup_with_tag(self, tag, scope_limit=None):
         '''Look up a symbol by its tag. The lookup can be limited by
