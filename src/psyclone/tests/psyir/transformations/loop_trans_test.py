@@ -63,7 +63,7 @@ def test_loop_trans_validate(monkeypatch):
     transformation. '''
     # We have to use sub-class of LoopTrans as it itself is abstract.
     trans = OMPParallelLoopTrans()
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     with pytest.raises(TransformationError) as err:
         trans.validate(invoke.schedule)
@@ -91,7 +91,7 @@ def test_loop_trans_validate(monkeypatch):
 def test_loop_trans_validate_options(monkeypatch):
     ''' Test the options argument to the validate method. '''
     trans = OMPParallelLoopTrans()
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     loop = invoke.schedule.walk(Loop)[0]
     with pytest.raises(TransformationError) as err:
@@ -114,10 +114,10 @@ def test_all_loop_trans_base_validate(monkeypatch):
     base validate() method. '''
     # First get a valid GOLoop and LFRicLoop objects that we can pass in,
     # as appropriate.
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", idx=1,
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean", idx=1,
                            dist_mem=False)
     goloop = invoke.schedule.walk(Loop)[0]
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0,
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0,
                            dist_mem=False)
     lfricloop = invoke.schedule.walk(Loop)[0]
 

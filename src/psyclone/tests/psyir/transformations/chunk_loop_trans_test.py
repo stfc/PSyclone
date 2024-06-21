@@ -333,8 +333,8 @@ def test_chunkloop_trans_validation_options(fortran_reader):
 def test_chunkloop_trans_apply_pos():
     '''Test the apply method of ChunkLoopTrans for a positive step index'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     chunktrans = ChunkLoopTrans()
@@ -358,8 +358,8 @@ def test_chunkloop_trans_apply_pos():
 def test_chunkloop_trans_apply_neg():
     '''Test the apply method of ChunkLoopTrans for a negative step'''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     schedule.children[0].step_expr.replace_with(Literal("-1", INTEGER_TYPE))
@@ -382,8 +382,8 @@ def test_chunkloop_trans_apply_neg():
 def test_chunkloop_trans_apply_with_options():
     ''' Check that a non-default chunksize option is used correctly. '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+                           api="gocean")
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     chunktrans = ChunkLoopTrans()

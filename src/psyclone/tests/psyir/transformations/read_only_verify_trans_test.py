@@ -82,7 +82,7 @@ def test_read_only_basic():
     '''Check basic functionality: node names, schedule view.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     read_only = ReadOnlyVerifyTrans()
     read_only.apply(invoke.schedule[0].loop_body[0])
     result = invoke.schedule.view()
@@ -101,7 +101,7 @@ def test_read_only_options():
     the use of the newly defined names.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     read_only = ReadOnlyVerifyTrans()
     read_only.apply(invoke.schedule[0].loop_body[0],
                     options={"region_name": ("a", "b")})
@@ -116,7 +116,7 @@ def test_invalid_apply():
 
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0)
+                           "gocean", idx=0)
     read_only = ReadOnlyVerifyTrans()
     omp = OMPParallelLoopTrans()
     omp.apply(invoke.schedule[0])

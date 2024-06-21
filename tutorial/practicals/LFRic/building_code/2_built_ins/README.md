@@ -4,8 +4,8 @@ In the [first tutorial](../1_simple_kernels) we used [kernels](
 ../1_simple_kernels/LFRic_kernel_structure.md) for simple mathematical
 linear algebra operations, such as setting field to a value and adding fields.
 PSyclone provides [built-ins support](
-https://psyclone.readthedocs.io/en/stable/built_ins.html) for such simple
-operations.
+https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#built-ins)
+for such simple operations.
 
 In this tutorial we will learn how to utilise the
 [LFRic (Dynamo 0.3) API built-ins](
@@ -202,7 +202,7 @@ below).
 As each `invoke` call generates a PSy-layer subroutine (see the
 *Step 3* below for the algorithm code processing), it can be
 easier to specify a [label (name) for an `invoke`](
-https://psyclone.readthedocs.io/en/stable/algorithm_layer.html#named-invokes)
+https://psyclone.readthedocs.io/en/stable/introduction_to_psykal.html#algorithm-layer)
 (and hence the subroutine) call to make it easier to search for in the
 generated code. To do this here modify the completed `invoke` by adding a
 name in the first line of the `invoke` call, e.g.

@@ -184,11 +184,11 @@ def test_omptaskloop_apply(monkeypatch):
     taskloop's inbuilt value. Use the gocean API.
     '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     taskloop = OMPTaskloopTrans()
     master = OMPMasterTrans()
     parallel = OMPParallelTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -225,7 +225,7 @@ def test_omptaskloop_apply(monkeypatch):
     assert taskloop._nogroup is False
     with pytest.raises(TransformationError) as excinfo:
         _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                               "single_invoke.f90"), api="gocean1.0")
+                               "single_invoke.f90"), api="gocean")
         schedule = psy.invokes.invoke_list[0].schedule
         taskloop.apply(schedule[0], {"nogroup": True})
     assert "Fake error" in str(excinfo.value)
@@ -669,9 +669,9 @@ def test_ompsingle_invalid_nowait():
 def test_ompsingle_nested():
     ''' Tests to check OMPSingle rejects being applied to another OMPSingle '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     single = OMPSingleTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -696,9 +696,9 @@ def test_ompmaster_nested():
     OMPMasterTrans'''
 
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
-                           api="gocean1.0")
+                           api="gocean")
     master = OMPMasterTrans()
-    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+    psy = PSyFactory("gocean", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
@@ -731,7 +731,7 @@ def test_profile_trans_name(options):
     set to None.
 
     '''
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", "lfric", idx=0)
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     if options:
