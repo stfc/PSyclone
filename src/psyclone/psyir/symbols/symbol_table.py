@@ -35,6 +35,7 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+#          J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' This module contains the SymbolTable implementation. '''
@@ -1211,8 +1212,8 @@ class SymbolTable():
         :returns: ordered list of arguments.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises InternalError: if the entries of the SymbolTable are not \
-            self-consistent.
+        :raises InternalError: if the entries of the SymbolTable are not
+                               self-consistent.
 
         '''
         try:
@@ -1226,29 +1227,28 @@ class SymbolTable():
 
     def insert_argument(self, index, argument):
         '''
-        Insert a new argument at a given index in the argument list and add \
+        Insert a new argument at a given index in the argument list and add
         it in the symbol table itself.
 
-        :param index: the position in the argument list where the new \
-            argument should be inserted.
-        :type index: int
+        :param int index: the position in the argument list where the new
+                      argument should be inserted.
         :param argument: the new argument to add to the list.
         :type argument: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises InternalError: if the entries of the SymbolTable are not \
+        :raises InternalError: if the entries of the SymbolTable are not
                                self-consistent.
         :raises TypeError: if the supplied index is not an integer.
         :raises TypeError: if the supplied argument is not a DataSymbol.
-        :raises ValueError: if the supplied argument is not marked as a \
+        :raises ValueError: if the supplied argument is not marked as a
                             kernel argument.
         '''
         if not isinstance(index, int):
             raise TypeError(
-                f"Expected an integer index but found "
-                f"'{type(index).__name__}'.")
+                f"Expected an integer index for the position at which to "
+                f"insert the argument but found '{type(index).__name__}'.")
         if not isinstance(argument, DataSymbol):
             raise TypeError(
-                f"Expected a DataSymbol but found "
+                f"Expected a DataSymbol for the argument to insert but found "
                 f"'{type(argument).__name__}'.")
         if not argument.is_argument:
             raise ValueError(
@@ -1268,21 +1268,21 @@ class SymbolTable():
 
     def append_argument(self, argument):
         '''
-        Append a new argument to the argument list and add it in the symbol \
+        Append a new argument to the argument list and add it in the symbol
         table itself.
 
         :param argument: the new argument to add to the list.
         :type argument: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises InternalError: if the entries of the SymbolTable are not \
+        :raises InternalError: if the entries of the SymbolTable are not
                                self-consistent.
         :raises TypeError: if the supplied argument is not a DataSymbol.
-        :raises ValueError: if the supplied argument is not marked as a \
+        :raises ValueError: if the supplied argument is not marked as a
                             kernel argument.
         '''
         if not isinstance(argument, DataSymbol):
             raise TypeError(
-                f"Expected a DataSymbol but found "
+                f"Expected a DataSymbol for the argument to insert but found "
                 f"'{type(argument).__name__}'.")
         if not argument.is_argument:
             raise ValueError(
@@ -1308,10 +1308,10 @@ class SymbolTable():
         :param arg_list: the proposed kernel arguments.
         :type param_list: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :raises TypeError: if any item in the supplied list is not a \
-            DataSymbol.
-        :raises ValueError: if any of the symbols does not have an argument \
-            interface.
+        :raises TypeError: if any item in the supplied list is not a
+                           DataSymbol.
+        :raises ValueError: if any of the symbols does not have an argument
+                            interface.
 
         '''
         for symbol in arg_list:
@@ -1329,8 +1329,8 @@ class SymbolTable():
         Performs internal consistency checks on the current entries in the
         SymbolTable that do not represent kernel arguments.
 
-        :raises ValueError: if a symbol that is not in the argument list \
-            has an argument interface.
+        :raises ValueError: if a symbol that is not in the argument list
+                            has an argument interface.
 
         '''
         for symbol in self.datasymbols:

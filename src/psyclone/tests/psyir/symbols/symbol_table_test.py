@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+#         J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' Perform py.test tests on the psyclone.psyir.symbols.symbol_table file '''
@@ -1608,15 +1609,18 @@ def test_insert_argument():
         arg = symbols.DataSymbol("var4", symbols.REAL_TYPE,
                                  interface=symbols.ArgumentInterface())
         sym_table.insert_argument('Not an int', arg)
-    assert "Expected an integer index but found 'str'." in str(err.value)
+    assert ("Expected an integer index for the position at which to insert "
+            "the argument but found 'str'." in str(err.value))
 
     with pytest.raises(TypeError) as err:
         sym_table.insert_argument(0, "Not a symbol")
-    assert "Expected a DataSymbol but found 'str'." in str(err.value)
+    assert ("Expected a DataSymbol for the argument to insert but found "
+            "'str'." in str(err.value))
 
     with pytest.raises(TypeError) as err:
         sym_table.insert_argument(0, symbols.Symbol("Not a DataSymbol"))
-    assert "Expected a DataSymbol but found 'Symbol'." in str(err.value)
+    assert ("Expected a DataSymbol for the argument to insert but found "
+            "'Symbol'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
         sym_table.insert_argument(0, symbols.DataSymbol("var5",
@@ -1624,6 +1628,8 @@ def test_insert_argument():
     assert ("DataSymbol 'var5' is not marked as a kernel argument."
             in str(err.value))
 
+    # Make table inconsistent by adding a symbol with an argument interface
+    # that is not listed as an argument
     arg3 = symbols.DataSymbol("var6", symbols.REAL_TYPE,
                               interface=symbols.ArgumentInterface())
     sym_table.add(arg3)
@@ -1636,6 +1642,8 @@ def test_insert_argument():
                " and yet has an ArgumentInterface interface."
                 in str(err.value))
 
+    # Make table inconsistent by putting a non-argument symbol into the
+    # internal argument list
     sym_table = symbols.SymbolTable()
     var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
     sym_table._argument_list.append(var1)
@@ -1674,11 +1682,13 @@ def test_append_argument():
 
     with pytest.raises(TypeError) as err:
         sym_table.append_argument("Not a symbol")
-    assert "Expected a DataSymbol but found 'str'." in str(err.value)
+    assert ("Expected a DataSymbol for the argument to insert but found "
+            "'str'." in str(err.value))
 
     with pytest.raises(TypeError) as err:
         sym_table.append_argument(symbols.Symbol("Not a DataSymbol"))
-    assert "Expected a DataSymbol but found 'Symbol'." in str(err.value)
+    assert ("Expected a DataSymbol for the argument to insert but found "
+            "'Symbol'." in str(err.value))
 
     with pytest.raises(ValueError) as err:
         sym_table.append_argument(symbols.DataSymbol("var4",
@@ -1686,6 +1696,8 @@ def test_append_argument():
     assert ("DataSymbol 'var4' is not marked as a kernel argument." in
             str(err.value))
 
+    # Make table inconsistent by adding a symbol with an argument interface
+    # that is not listed as an argument
     arg3 = symbols.DataSymbol("var6", symbols.REAL_TYPE,
                               interface=symbols.ArgumentInterface())
     sym_table.add(arg3)
@@ -1698,6 +1710,8 @@ def test_append_argument():
                " and yet has an ArgumentInterface interface."
                 in str(err.value))
 
+    # Make table inconsistent by putting a non-argument symbol into the
+    # internal argument list
     sym_table = symbols.SymbolTable()
     var1 = symbols.DataSymbol("var1", symbols.REAL_TYPE)
     sym_table._argument_list.append(var1)
