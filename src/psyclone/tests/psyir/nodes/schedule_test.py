@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+#         J. Remy, Univesité Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Schedule PSyIR node. '''
