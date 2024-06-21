@@ -5134,6 +5134,13 @@ class Fparser2Reader():
 
         '''
         call = Call(parent=parent)
+        # TODO #PENDING_ISSUE_NUMBER For now `null()` is treated as a
+        # `Function_Reference` by fparser, instead of an
+        # `Intrinsic_Function_Reference` so we redirect to the correct
+        # handler for fparser2 tests to pass. This should be removed once
+        # fparser2 is fixed.
+        if str(node.items[0]).lower() == "null":
+            return self._intrinsic_handler(node, parent)
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
         # If it's a plain reference, promote the symbol to a RoutineSymbol
