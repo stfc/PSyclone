@@ -1991,6 +1991,12 @@ def test_deep_copy():
     newsym4 = symtab2.lookup("symbol4")
     assert newsym4.datatype.shape[0].upper.symbol.name == "symbol1"
     assert newsym4.datatype.shape[0].upper.symbol is not sym1
+    newsym1 = symtab2.lookup("symbol1")
+    assert newsym4.datatype.shape[0].upper.symbol is newsym1
+    assert newsym1.is_argument
+    # Check that the original declaration still uses the original
+    # dimensioning symbol.
+    assert sym4.datatype.shape[0].upper.symbol is sym1
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table

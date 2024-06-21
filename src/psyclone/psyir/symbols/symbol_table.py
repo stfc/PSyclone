@@ -308,6 +308,7 @@ class SymbolTable():
             if not symbol.is_array or not isinstance(symbol.datatype,
                                                      ArrayType):
                 continue
+            # TODO we must take a copy of any shape and initial value exprns
             for dim in symbol.datatype.shape:
                 if isinstance(dim, ArrayType.ArrayBounds):
                     exprns = [dim.lower, dim.upper]
