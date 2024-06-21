@@ -86,11 +86,14 @@ def test_subroutine_handler(parser, fortran_writer, code, expected):
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
     subroutine = parse_tree.children[0]
-    psyir = processor._subroutine_handler(subroutine, None)
+    fake_parent = Container("None")
+    psyir = processor._subroutine_handler(subroutine, fake_parent)
     # Check the expected PSyIR nodes are being created
     assert isinstance(psyir, Routine)
     assert psyir.parent is None
-    result = fortran_writer(psyir)
+    # Fix the one directional parent adding
+    fake_parent.addchild(psyir)
+    result = fortran_writer(fake_parent.children[0])
     assert expected == result
 
 
@@ -106,8 +109,9 @@ end subroutine'''
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
     subroutine = parse_tree.children[0]
+    fake_parent = Container("None")
     with pytest.raises(InternalError) as err:
-        _ = processor._subroutine_handler(subroutine, None)
+        _ = processor._subroutine_handler(subroutine, fake_parent)
     assert ("The argument list ['idx'] for routine 'sub1' does not match "
             "the variable declarations:" in str(err.value))
 
@@ -126,8 +130,9 @@ end subroutine'''
     reader = FortranStringReader(code)
     parse_tree = parser(reader)
     subroutine = parse_tree.children[0]
+    fake_parent = Container("None")
     with pytest.raises(InternalError) as err:
-        _ = processor._subroutine_handler(subroutine, None)
+        _ = processor._subroutine_handler(subroutine, fake_parent)
     err_msg = str(err.value)
     assert "The argument list ['var', 'idx'] for routine 'sub1'" in err_msg
     assert "Could not find 'idx' in the Symbol Table" in err_msg
@@ -223,9 +228,6 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
     result = fortran_writer(psyir)
     assert result == expected
-    # Also check that the "own_routine_symbol" tag is maintained
-    assert routine.symbol_table.lookup_with_tag("own_routine_symbol") \
-        is return_sym
 
 
 FN1_IN = ("  function my_func() result(my_val)\n"
@@ -273,6 +275,10 @@ def test_function_result_suffix(fortran_reader, fortran_writer,
     assert len(routines) == 1
     assert (routines[0].return_symbol is
             routines[0].symbol_table.lookup("my_val"))
+    print(psyir.children[0].symbol_table)
+    for sym in psyir.children[0].children[0].symbol_table.symbols:
+        print(sym)
+#    print(psyir.children[0].children[0].symbol_table.symbols)
     result = fortran_writer(psyir)
     assert expected in result
 

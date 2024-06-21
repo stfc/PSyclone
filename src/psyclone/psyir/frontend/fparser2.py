@@ -823,7 +823,8 @@ def get_literal_precision(fparser2_node, psyir_literal_parent):
         return _kind_find_or_create(precision_name, symbol_table)
 
 
-def _process_routine_symbols(module_ast, symbol_table, visibility_map):
+def _process_routine_symbols(module_ast, container, symbol_table,
+                             visibility_map):
     '''
     Examines the supplied fparser2 parse tree for a module and creates
     RoutineSymbols for every routine (function or subroutine) that it
@@ -831,6 +832,8 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
 
     :param module_ast: fparser2 parse tree for module.
     :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+    :param container: the PSyIR node in which to add the empty Routine nodes.
+    :type container: :py:class:`psyclone.psyir.nodes.Container`
     :param symbol_table: the SymbolTable to which to add the symbols.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
     :param visibility_map: dict of symbol names with explicit visibilities.
@@ -854,11 +857,11 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
         # By default, Fortran routines are not elemental.
         is_elemental = False
         # Name of the routine.
-        name = str(routine.children[0].children[1]).lower()
+        name = str(routine.children[0].children[1])
         # Type to give the RoutineSymbol.
         sym_type = type_map[type(routine)]()
         # Visibility of the symbol.
-        vis = visibility_map.get(name, symbol_table.default_visibility)
+        vis = visibility_map.get(name.lower(), symbol_table.default_visibility)
         # Check any prefixes on the routine declaration.
         prefix = routine.children[0].children[0]
         if prefix:
@@ -874,7 +877,8 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
         rsymbol = RoutineSymbol(name, sym_type, visibility=vis,
                                 is_pure=is_pure, is_elemental=is_elemental,
                                 interface=DefaultModuleInterface())
-        symbol_table.add(rsymbol)
+        routine_obj = Routine(name, is_program=False, symbol=rsymbol)
+        container.addchild(routine_obj)
 
 
 def _process_access_spec(attr):
@@ -1220,7 +1224,8 @@ class Fparser2Reader():
         new_container.symbol_table.default_visibility = default_visibility
 
         # Create symbols for all routines defined within this module
-        _process_routine_symbols(module_ast, new_container.symbol_table,
+        _process_routine_symbols(module_ast, new_container,
+                                 new_container.symbol_table,
                                  visibility_map)
 
         # Parse the declarations if it has any
@@ -5257,130 +5262,168 @@ class Fparser2Reader():
                 f"ENTRY statements but found '{entry_stmts[0]}'")
 
         name = node.children[0].children[1].string
-        routine = Routine(name, parent=parent)
-        routine._ast = node
+        routine = None
+        # The Routine may have been forward declared in
+        # _process_routine_symbol, and so may already exist in the
+        # PSyIR as a child of parent with no subtree. If so, we find the
+        # Routine object and fill it with the Routine internals.
+        # If we find a Routine object in this way we also need to detach it
+        # from its parent so it can be added to its parent in _create_child.
+        for routine_node in parent.walk(Routine):
+            if routine_node.name.lower() == name.lower():
+                routine = routine_node
+                break
+        if routine is None:
+            routine = Routine(name, parent=parent)
+            # We add this to the parent so the finally of the next block
+            # can safe call detach on the routine. This handles the case
+            # where an error occurs which should result in a codeblock, but
+            # we had forward declared the Routine and we need to ensure the
+            # empty Routine is detached from the tree.
+            parent.addchild(routine)
 
-        # Deal with any arguments
         try:
-            sub_spec = _first_type_match(node.content,
-                                         Fortran2003.Specification_Part)
-            decl_list = sub_spec.content
-        except ValueError:
-            # Subroutine has no Specification_Part so has no
-            # declarations. Continue with empty list.
-            decl_list = []
+            routine._ast = node
 
-        # TODO this if test can be removed once fparser/#211 is fixed
-        # such that routine arguments are always contained in a
-        # Dummy_Arg_List, even if there's only one of them.
-        if (isinstance(node, (Fortran2003.Subroutine_Subprogram,
-                              Fortran2003.Function_Subprogram)) and
-                isinstance(node.children[0].children[2],
-                           Fortran2003.Dummy_Arg_List)):
-            arg_list = node.children[0].children[2].children
-        else:
-            # Routine has no arguments
-            arg_list = []
+            # Deal with any arguments
+            try:
+                sub_spec = _first_type_match(node.content,
+                                             Fortran2003.Specification_Part)
+                decl_list = sub_spec.content
+            except ValueError:
+                # Subroutine has no Specification_Part so has no
+                # declarations. Continue with empty list.
+                decl_list = []
 
-        self.process_declarations(routine, decl_list, arg_list)
-
-        # Check whether the function-stmt has a prefix specifying the
-        # return type (other prefixes are handled in
-        # _process_routine_symbols()).
-        base_type = None
-        prefix = node.children[0].children[0]
-        if prefix:
-            for child in prefix.children:
-                if isinstance(child, Fortran2003.Prefix_Spec):
-                    if child.string not in SUPPORTED_ROUTINE_PREFIXES:
-                        raise NotImplementedError(
-                            f"Routine has unsupported prefix: {child.string}")
-                else:
-                    base_type, _ = self._process_type_spec(routine, child)
-
-        if isinstance(node, Fortran2003.Function_Subprogram):
-            # Check whether this function-stmt has a suffix containing
-            # 'RETURNS'
-            suffix = node.children[0].children[3]
-            if suffix:
-                # Although the suffix can, in principle, contain a proc-
-                # language-binding-spec (e.g. BIND(C, "some_name")), this is
-                # only valid in an interface block and we are dealing with a
-                # function-subprogram here.
-                return_name = suffix.children[0].string
+            # TODO this if test can be removed once fparser/#211 is fixed
+            # such that routine arguments are always contained in a
+            # Dummy_Arg_List, even if there's only one of them.
+            if (isinstance(node, (Fortran2003.Subroutine_Subprogram,
+                                  Fortran2003.Function_Subprogram)) and
+                    isinstance(node.children[0].children[2],
+                               Fortran2003.Dummy_Arg_List)):
+                arg_list = node.children[0].children[2].children
             else:
-                # Otherwise, the return value of the function is given by
-                # a symbol of the same name.
-                return_name = name
+                # Routine has no arguments
+                arg_list = []
 
-            # Ensure that we have an explicit declaration for the symbol
-            # returned by the function.
-            keep_tag = None
-            if return_name in routine.symbol_table:
-                symbol = routine.symbol_table.lookup(return_name)
-                # If the symbol table still contains a RoutineSymbol
-                # for the function name (rather than a DataSymbol)
-                # then there is no explicit declaration within the
-                # function of the variable used to hold the return
-                # value.
-                if isinstance(symbol, RoutineSymbol):
-                    # Remove the RoutineSymbol ready to replace it with a
-                    # DataSymbol.
-                    routine.symbol_table.remove(symbol)
-                    keep_tag = "own_routine_symbol"
+            self.process_declarations(routine, decl_list, arg_list)
 
-            if return_name not in routine.symbol_table:
-                # There is no existing declaration for the symbol returned by
-                # the function (because it is specified by the prefix and
-                # suffix of the function declaration). We add one rather than
-                # attempt to recreate the prefix. We have to set shadowing to
-                # True as there is likely to be a RoutineSymbol for this
-                # function in any enclosing Container.
-                if not base_type:
-                    # The type of the return value was not specified in the
-                    # function prefix or in a local declaration and therefore
-                    # we have no explicit type information for it. Since we
-                    # default to adding `implicit none` when generating Fortran
-                    # we can't simply put this function into a CodeBlock as the
-                    # generated code won't compile.
-                    raise SymbolError(
-                        f"No explicit return-type information found for "
-                        f"function '{name}'. PSyclone requires that all "
-                        f"symbols be explicitly typed.")
+            # Check whether the function-stmt has a prefix specifying the
+            # return type (other prefixes are handled in
+            # _process_routine_symbols()).
+            base_type = None
+            prefix = node.children[0].children[0]
+            if prefix:
+                for child in prefix.children:
+                    if isinstance(child, Fortran2003.Prefix_Spec):
+                        if child.string not in SUPPORTED_ROUTINE_PREFIXES:
+                            raise NotImplementedError(
+                                f"Routine has unsupported prefix: "
+                                f"{child.string}")
+                    else:
+                        base_type, _ = self._process_type_spec(routine, child)
 
-                # First, update the existing RoutineSymbol with the
-                # return datatype specified in the function
-                # declaration.
+            if isinstance(node, Fortran2003.Function_Subprogram):
+                # Check whether this function-stmt has a suffix containing
+                # 'RETURNS'
+                suffix = node.children[0].children[3]
+                if suffix:
+                    # Although the suffix can, in principle, contain a proc-
+                    # language-binding-spec (e.g. BIND(C, "some_name")), this
+                    # is only valid in an interface block and we are dealing
+                    # with a function-subprogram here.
+                    return_name = suffix.children[0].string
+                else:
+                    # Otherwise, the return value of the function is given by
+                    # a symbol of the same name.
+                    return_name = name
 
-                # Lookup with the routine name as return_name may be
-                # declared with its own local name. Be wary that this
-                # function may not be referenced so there might not be
-                # a RoutineSymbol.
-                try:
-                    routine_symbol = routine.symbol_table.lookup(routine.name)
-                    routine_symbol.datatype = base_type
-                except KeyError:
-                    pass
+                # Ensure that we have an explicit declaration for the symbol
+                # returned by the function.
+                keep_tag = None
+                if return_name in routine.symbol_table:
+                    symbol = routine.symbol_table.lookup(return_name)
+                    # If the symbol table still contains a RoutineSymbol
+                    # for the function name (rather than a DataSymbol)
+                    # then there is no explicit declaration within the
+                    # function of the variable used to hold the return
+                    # value.
+                    if isinstance(symbol, RoutineSymbol):
+                        # Remove the RoutineSymbol ready to replace it with a
+                        # DataSymbol.
+                        routine.symbol_table.remove(symbol)
+                        keep_tag = "own_routine_symbol"
 
-                routine.symbol_table.new_symbol(return_name,
-                                                tag=keep_tag,
-                                                symbol_type=DataSymbol,
-                                                datatype=base_type,
-                                                shadowing=True)
+                if return_name not in routine.symbol_table:
+                    # There is no existing declaration for the symbol returned
+                    # by the function (because it is specified by the prefix
+                    # and suffix of the function declaration). We add one
+                    # rather than attempt to recreate the prefix. We have to
+                    # set shadowing to True as there is likely to be a
+                    # RoutineSymbol for this function in any enclosing
+                    # Container.
+                    if not base_type:
+                        # The type of the return value was not specified in the
+                        # function prefix or in a local declaration and
+                        # therefore we have no explicit type information for
+                        # it. Since we default to adding `implicit none` when
+                        # generating Fortran we can't simply put this function
+                        # into a CodeBlock as the generated code won't compile.
+                        raise SymbolError(
+                            f"No explicit return-type information found for "
+                            f"function '{name}'. PSyclone requires that all "
+                            f"symbols be explicitly typed.")
 
-            # Update the Routine object with the return symbol.
-            routine.return_symbol = routine.symbol_table.lookup(return_name)
+                    # First, update the existing RoutineSymbol with the
+                    # return datatype specified in the function
+                    # declaration.
 
-        try:
-            sub_exec = _first_type_match(node.content,
-                                         Fortran2003.Execution_Part)
-        except ValueError:
-            # Routines without any execution statements are still
-            # valid.
-            pass
-        else:
-            self.process_nodes(routine, sub_exec.content)
+                    # Lookup with the routine name as return_name may be
+                    # declared with its own local name. Be wary that this
+                    # function may not be referenced so there might not be
+                    # a RoutineSymbol.
+                    try:
+                        routine_symbol = routine.symbol_table.lookup(
+                                routine.name
+                        )
+                        routine_symbol.datatype = base_type
+                    except KeyError:
+                        pass
 
+                    routine.symbol_table.new_symbol(return_name,
+                                                    tag=keep_tag,
+                                                    symbol_type=DataSymbol,
+                                                    datatype=base_type,
+                                                    shadowing=True)
+
+                # Update the Routine object with the return symbol.
+                routine.return_symbol = routine.symbol_table.lookup(
+                        return_name
+                )
+
+            try:
+                sub_exec = _first_type_match(node.content,
+                                             Fortran2003.Execution_Part)
+            except ValueError:
+                # Routines without any execution statements are still
+                # valid.
+                pass
+            else:
+                self.process_nodes(routine, sub_exec.content)
+        except NotImplementedError as err:
+            # If we will make a CodeBlock to represent this subroutine then
+            # we still need to ensure the symbol is in the parent's symbol
+            # table. For this case the best we can do is place the symbol
+            # in the tree without a coresponding Routine.
+            sym = parent.symbol_table.lookup(routine.name)
+            routine.detach()
+            parent.symbol_table.add(sym)
+            raise err
+
+        # We always make sure the symbol is detached as it will be connected
+        # in _create_child
+        routine.detach()
         return routine
 
     def _main_program_handler(self, node, parent):
@@ -5456,7 +5499,8 @@ class Fparser2Reader():
         container.symbol_table.default_visibility = default_visibility
 
         # Create symbols for all routines defined within this module
-        _process_routine_symbols(node, container.symbol_table, visibility_map)
+        _process_routine_symbols(node, container,
+                                 container.symbol_table, visibility_map)
 
         # Parse the declarations if it has any
         try:
