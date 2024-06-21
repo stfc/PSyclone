@@ -128,7 +128,10 @@ class ArrayReference(ArrayMixin, Reference):
         :returns: the datatype of the accessed array element(s).
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
         '''
-        shape = self._get_effective_shape()
+        try:
+            shape = self._get_effective_shape()
+        except NotImplementedError:
+            return UnresolvedType()
         if shape:
             if type(self.symbol) is Symbol:
                 # We don't have any information on the shape of the original
