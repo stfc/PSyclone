@@ -1226,7 +1226,8 @@ class SymbolTable():
 
     def insert_argument(self, index, argument):
         '''
-        Insets a new argument in the argument list.
+        Insert a new argument at a given index in the argument list and add \
+        it in the symbol table itself.
 
         :param index: the position in the argument list where the new \
             argument should be inserted.
@@ -1267,7 +1268,8 @@ class SymbolTable():
 
     def append_argument(self, argument):
         '''
-        Appends a new argument to the argument list.
+        Append a new argument to the argument list and add it in the symbol \
+        table itself.
 
         :param argument: the new argument to add to the list.
         :type argument: :py:class:`psyclone.psyir.symbols.DataSymbol`
