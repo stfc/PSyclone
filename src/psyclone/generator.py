@@ -425,7 +425,7 @@ def main(arguments):
         version=f'PSyclone version: {__VERSION__}',
         help='display version information')
     parser.add_argument("--config", "-c", help="config file with "
-                        "PSyclone specific options.")
+                        "PSyclone specific options")
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation recipe')
     parser.add_argument(
@@ -440,7 +440,7 @@ def main(arguments):
         'Fortran only.')
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
-        help="add profiling hooks for 'kernels', 'invokes' or 'routines'.")
+        help="add profiling hooks for 'kernels', 'invokes' or 'routines'")
     parser.add_argument(
         '--backend', dest='backend',
         choices=['enable-validation', 'disable-validation'],
@@ -453,9 +453,9 @@ def main(arguments):
                         help='(code-transformation mode) output file')
 
     # PSyKAl mode flags
-    parser.add_argument('-api', '-psykal-dsl', metavar='DSL',
-                        help=f'whether to use particular PSyKAl DSL API from '
-                        f'{Config.get().curated_api_list}.')
+    parser.add_argument('-api', '--psykal-dsl', metavar='DSL',
+                        help=f'whether to use a PSyKAl DSL (one of '
+                        f'{Config.get().curated_api_list})')
     parser.add_argument('-oalg', metavar='OUTPUT_ALGORITHM_FILE',
                         help='(psykal mode) filename of transformed '
                         'algorithm code')
@@ -465,7 +465,7 @@ def main(arguments):
     parser.add_argument('-okern', metavar='OUTPUT_KERNEL_PATH',
                         help='(psykal mode) directory in which to put '
                         'transformed kernels, default is the current working'
-                        ' directory.')
+                        ' directory')
     parser.add_argument(
         '-d', '--directory', default=[], action="append", help='(psykal mode) '
         'path to a root directory structure containing kernel source code. '
@@ -486,16 +486,16 @@ def main(arguments):
     args = parser.parse_args(arguments)
 
     # Validate that the given arguments are for the right operation mode
-    if not args.api:
+    if not args.psykal_dsl:
         if (args.oalg or args.opsy or args.okern or args.directory):
             print(f"When using the code-transformation mode (with no -api or "
-                  f"-psykal-dsl flags), the psykal mode arguments must not be "
+                  f"--psykal-dsl flags), the psykal mode arguments must not be "
                   f"present in the command, but found {arguments}")
             sys.exit(1)
     else:
         if args.o:
             print("The '-o' flag is not valid when using the psykal mode "
-                  "(-api/-psykal-dsl flag), use the -oalg, -opsy, -okern to "
+                  "(-api/--psykal-dsl flag), use the -oalg, -opsy, -okern to "
                   "specify the output filenames of each psykal layer.")
             sys.exit(1)
 
@@ -504,16 +504,17 @@ def main(arguments):
     Config.get().load(args.config)
 
     # Check whether a PSyKAl API has been specified.
-    if args.api is None:
+    if args.psykal_dsl is None:
         api = ""
-    elif args.api not in Config.get().supported_apis:
-        print(f"Unsupported API '{args.api}' specified. Supported APIs are "
-              f"{Config.get().curated_api_list}.", file=sys.stderr)
+    elif args.psykal_dsl not in Config.get().supported_apis:
+        print(f"Unsupported PSyKAL DSL / API '{args.psykal_dsl}' specified. "
+              f"Supported DSLs are {Config.get().curated_api_list}.",
+              file=sys.stderr)
         sys.exit(1)
     else:
         # There is a valid API specified on the command line. Set it
         # as API in the config object as well.
-        api = args.api
+        api = args.psykal_dsl
     Config.get().api = api
 
     # Record any profiling options.
@@ -542,7 +543,7 @@ def main(arguments):
         print(str(err), file=sys.stderr)
         sys.exit(1)
 
-    if not args.api:
+    if not args.psykal_dsl:
         code_transformation_mode(input_file=args.filename,
                                  recipe_file=args.script,
                                  output_file=args.o,

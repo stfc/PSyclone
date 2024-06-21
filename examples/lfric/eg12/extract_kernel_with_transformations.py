@@ -60,7 +60,6 @@ be found using the 'find_kernel.py' script.
 '''
 
 # Import transformation script and apply transformations
-import colouring_and_omp as transformation
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
@@ -86,6 +85,7 @@ def trans(psy):
     # Get instance of the ExtractTrans transformation
     etrans = LFRicExtractTrans()
 
+    import colouring_and_omp as transformation
     psy = transformation.trans(psy)
 
     # Get Invoke and its Schedule

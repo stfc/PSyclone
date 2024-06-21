@@ -41,7 +41,7 @@ call that we are interested in.
 From this directory run:
 
 ```bash
-    $ psyclone -psykal-dsl lfric -nodm -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone --psykal-dsl lfric -nodm -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 Notice the schedule.py script requires a path (`./` in this case). The
@@ -136,7 +136,7 @@ PSyclone code generation could be changed to do this at some point.
 Run the same command as before but with the `-nodm` option removed.
 
 ```bash
-    $ psyclone -psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 The schedule should look the same as before except that there are now

@@ -79,7 +79,7 @@ by the command:
      -h, --help            show this help message and exit
      --version, -v         display version information
      --config CONFIG, -c CONFIG
-                           config file with PSyclone specific options.
+                           config file with PSyclone specific options
      -s SCRIPT, --script SCRIPT
                            filename of a PSyclone optimisation recipe
      -I INCLUDE, --include INCLUDE
@@ -89,14 +89,14 @@ by the command:
                            Use 'all' to apply limit to both input and output Fortran. Use
                            'output' to apply line-length limit to output Fortran only.
      --profile {invokes,routines,kernels}, -p {invokes,routines,kernels}
-                           add profiling hooks for 'kernels', 'invokes' or 'routines'.
+                           add profiling hooks for 'kernels', 'invokes' or 'routines'
      --backend {enable-validation,disable-validation}
                            options to control the PSyIR backend used for code generation.
                            Use 'disable-validation' to disable the validation checks that
                            are performed by default.
      -o OUTPUT_FILE        (code-transformation mode) output file
-     -api DSL, -psykal-dsl DSL
-                           whether to use particular PSyKAl DSL API from ['lfric', 'gocean'].
+     -api DSL, --psykal-dsl DSL
+                           whether to use a PSyKAl DSL (one of ['lfric', 'gocean'])
      -oalg OUTPUT_ALGORITHM_FILE
                            (psykal mode) filename of transformed algorithm code
      -opsy OUTPUT_PSY_FILE
@@ -123,12 +123,12 @@ The simplest way to use ``psyclone`` is to provide a Fortran input source file:
 
     psyclone input.f90
 
-If the input file is valid Fortran, psyclone will print the output Fortran
+If the input file is valid Fortran, PSyclone will print the output Fortran
 (in this case the same unmodified code but with normalised syntax) to stdout.
 Otherwise it will print the errors detected while parsing the Fortran file.
 
 Usually we want to redirect the output to a file that we can later
-compile, we can do this with the `-o` flag:
+compile. We can do this with the `-o` flag:
 
 .. code-block:: console
 
@@ -138,9 +138,9 @@ compile, we can do this with the `-o` flag:
 Transformation script
 ---------------------
 
-By default the ``psyclone`` command will not  apply any transformation (other
+By default, the ``psyclone`` command will not apply any transformation (other
 than canonicalising the code and generating a normalised syntax). To apply
-transformation to the code, a recipe needs to be specifies with the `-s` flag.
+transformations to the code, a recipe needs to be specified with the `-s` flag.
 This option is discussed in more detail in the :ref:`sec_transformations_script`
 section. With a transformation recipe the command looks like:
 
@@ -168,7 +168,12 @@ using multiple ``-I`` flags, e.g.:
 If no include paths are specified then the directory containing the
 source file currently being parsed is searched by default. If the
 specified INCLUDE file is not found then PSyclone will abort with
-an appropriate error.
+an appropriate error. For example:
+
+.. code-block:: console
+
+    psyclone -I nonexisting test.f90
+    PSyclone configuration error: Include path 'nonexisting' does not exist
 
 Currently, the PSyKAl-based APIs (LFRic and GOcean - see below) will ignore
 (but preserve) INCLUDE statements in algorithm-layer code. However, INCLUDE
@@ -184,9 +189,7 @@ statements. However, certain transformations *do* require that e.g. type
 information be determined for all variables in the code being transformed.
 In this case PSyclone *will* need to be able to find and process any
 referenced modules. To do this it searches in the directories specified
-by the ``-I``/``--include`` flags. (Currently this search assumes that a
-module named e.g. "my_mod" will be in a file named "my_mod.*90" - see issue
-#1895.)
+by the ``-I``/``--include`` flags.
 
 C Pre-processor #include Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -195,8 +198,8 @@ PSyclone currently only supports Fortran input. As such, if a file to
 be processed contains CPP ``#include`` statements then it must first be
 processed by a suitable pre-processor before being passed to PSyclone.
 PSyclone will abort with an appropriate error if it encounters a
-``#include`` in any code being processed. This is true of all of the
-PSyclone APIs.
+``#include`` in any code being processed (whether or not a PSykAL DSL is
+in use).
 
 .. _fort_line_length:
 
@@ -208,16 +211,16 @@ consideration of Fortran line-length limits. As the line-length limit
 for free-format Fortran is 132 characters, the code that is output may
 be non-conformant.
 
-Line length is not an issue for many compilers as they
-allow compiler flags to be set which allow lines longer than the
-Fortran standard. However this is not the case for all compilers.
+Line length is not an issue for many compilers as they provide flags to
+increase or disable Fortran standard line lengths limits. However this is
+not the case for all compilers.
 
 When either the ``-l all`` or ``-l output`` option is specified to
 the ``psyclone`` command, the output will be line wrapped so that the
 output lines are always within the 132 character limit.
 
-The ``-l all`` additionally checks the parsed algorithm and kernel files for
-conformance and raises an error if they do not conform.
+The ``-l all`` additionally checks the input Fortran files for conformance
+and raises an error if they do not conform.
 
 Line wrapping is not performed by default. There are two reasons for
 this. This first reason is that most compilers are able to cope with
@@ -255,30 +258,30 @@ Automatic Profiling Instrumentation
 
 The ``--profile`` option allows the user to instruct PSyclone to automatically
 insert profiling calls in addition to the code transformations specified in
-the recipe.  This flags accept the options: ``routines``, ``invokes`` and
+the recipe.  This flag accepts the options: ``routines``, ``invokes`` and
 ``kernels``. PSyclone will insert profiling-start and -stop calls at the
-beginning and end of every of these node of interest.
-The generated code must be
-linked against the PSyclone profiling interface and the profiling tool
-itself. The application that calls the PSyclone-generated code is
-responsible for initialising and finalising the profiling library that
-is being used (if necessary).  For full details on the use of this
-profiling functionality please see the :ref:`profiling` section.
+beginning and end of each routine, PSy-layer invoke or PSy-layer kernel call,
+respectively. The generated code must be linked against the PSyclone profiling
+interface and the profiling tool itself. The application that calls the
+PSyclone-generated code is responsible for initialising and finalising the
+profiling library that is being used (if necessary). For more details on the use
+of this profiling functionality please see the :ref:`profiling` section.
 
 
 Using PSyclone for PSyKAL DSLs
 ------------------------------
 
 In addition to the default code-transformation mode, ``psyclone`` can also
-be used to process Fortranfiles that implements PSyKAL DSLs (see
+be used to process Fortran files that implement PSyKAL DSLs (see
 :ref:`introduction_to_psykal`). To do this you can choose a DSL API
-with the ``-api`` or ``-psykal-dsl`` flag.
+with the ``-api`` or ``--psykal-dsl`` flag.
 
-The main difference is that instead of poviding a file to process, in this
-case PSyclone expects an algorithm-layer file that describes the high-level
-view of an algorithm. PSyclone will use this algorithm file and its associated
-kernels metadata to generate a PSy(Parallel System)-layer code that connects them.
-In this mode of operation the transformation recipe is applied to the PSy-layer.
+The main difference is that, instead of providing a single file to process, for
+PSyKAl DSLs PSyclone expects an algorithm-layer file that describes the high-level
+view of an algorithm. PSyclone will use this algorithm file and the metadata of the
+kernels that it calls to generate a PSy(Parallel System)-layer code that connects
+the Algorithm layer to the Kernels. In this mode of operation, any supplied
+transformation recipe is applied to the PSy-layer.
 
 By default, the ``psyclone`` command for PSyKAl APIs will generate distributed
 memory (DM) code (unless otherwise specified in the :ref:`configuration` file).
@@ -395,8 +398,8 @@ specified directory:
     only one instance of the specified file within (or below) the
     specified directories.
 
-Outputting of Transformed Kernels
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Transforming PSyKAl Kernels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When transforming kernels there are two use-cases to consider:
 

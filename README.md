@@ -53,7 +53,7 @@ cloning this repository and using:
 For more information about the installation process see
 [this section of the User Guide](https://psyclone.readthedocs.io/en/latest/system_specific_setup.html).
 
-<!---
+<!---  TODO #2627
 # Try it on Binder #
 
 Some of the examples are available as Jupyter notebooks. These may

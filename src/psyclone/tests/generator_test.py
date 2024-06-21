@@ -575,16 +575,16 @@ def test_wrong_flags_for_mode(capsys):
             main([filename, flag, "FILE"])
         output, _ = capsys.readouterr()
         assert ("When using the code-transformation mode (with no -api or"
-                " -psykal-dsl flags), the psykal mode arguments must not "
+                " --psykal-dsl flags), the psykal mode arguments must not "
                 "be present in the command, but found" in output)
 
     # PSyKAl-DSL mode
     filename = os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90")
     with pytest.raises(SystemExit):
-        main([filename, "-psykal-dsl", "gocean", "-o", "FILE"])
+        main([filename, "--psykal-dsl", "gocean", "-o", "FILE"])
     output, _ = capsys.readouterr()
     assert ("The '-o' flag is not valid when using the psykal mode (-api/"
-            "-psykal-dsl flag), use the -oalg, -opsy, -okern to specify the "
+            "--psykal-dsl flag), use the -oalg, -opsy, -okern to specify the "
             "output filenames of each psykal layer." in output)
 
 
@@ -656,8 +656,8 @@ def test_main_invalid_api(capsys):
     # The error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    expected_output = ("Unsupported API 'madeup' specified. Supported APIs "
-                       "are ['lfric', 'gocean'].\n")
+    expected_output = ("Unsupported PSyKAL DSL / API 'madeup' specified. "
+                       "Supported DSLs are ['lfric', 'gocean'].\n")
     assert output == expected_output
 
 
@@ -676,9 +676,9 @@ def test_main_api():
     main([filename, "-api", "gocean"])
     assert Config.get().api == "gocean"
 
-    # Reset api and try with "-psykal-dsl" flag
+    # Reset api and try with "--psykal-dsl" flag
     Config.get().api = ""
-    main([filename, "-psykal-dsl", "gocean"])
+    main([filename, "--psykal-dsl", "gocean"])
     assert Config.get().api == "gocean"
 
     main([filename, "-api", "gocean1.0"])
