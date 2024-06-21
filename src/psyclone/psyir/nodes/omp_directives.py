@@ -1274,8 +1274,8 @@ class OMPParallelDirective(OMPRegionDirective):
     _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
                               "OMPFirstprivate, [OMPReductionClause]*")
 
-    @staticmethod
-    def create(children=None):
+    @classmethod
+    def create(cls, children=None):
         '''
         Create an OMPParallelDirective.
 
@@ -1286,7 +1286,7 @@ class OMPParallelDirective(OMPRegionDirective):
         :rtype: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
         '''
 
-        instance = OMPParallelDirective(children=children)
+        instance = cls(children=children)
 
         # An OMPParallelDirective must have 4 children.
         # Child 0 is a Schedule, created in the constructor.
@@ -2209,17 +2209,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         :param children: The child nodes of the new directive.
         :type children: List of :py:class:`psyclone.psyir.nodes.Node`
-        :param kwargs: additional keyword arguments provided to the PSyIR node:
-                       - Optional[str] omp_schedule: the OpenMP schedule to \
-                         use. Defaults to "none" which means it is \
-                         implementation dependent).
-                       - Optional[int] collapse: optional number of nested \
-                         loops to collapse into a single iteration space to \
-                         parallelise. Defaults to None.
-                       - Optional[bool] reprod: whether or not to generate \
-                         code for run-reproducible OpenMP reductions (if not \
-                         specified the value is provided by the PSyclone \
-                         Config file).
+        :param kwargs: additional keyword arguments provided to the PSyIR \
+                       node.
         :type kwargs: unwrapped dict.
 
         :returns: A new OMPParallelDoDirective.
