@@ -36,6 +36,7 @@
 #         I. Kavcic,    Met Office
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
+#         J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenMP Directive
@@ -1886,14 +1887,16 @@ class OMPDoDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 
-    :param str omp_schedule: the OpenMP schedule to use (defaults to
-        "none" which means it is implementation dependent).
+    :param Optional[str] omp_schedule: the OpenMP schedule to use. Defaults \
+                                       to "none" which means it is \
+                                       implementation dependent.
     :param Optional[int] collapse: optional number of nested loops to \
-        collapse into a single iteration space to parallelise. Defaults to \
-        None.
+                                   collapse into a single iteration space to \
+                                   parallelise. Defaults to None.
     :param Optional[bool] reprod: whether or not to generate code for \
-        run-reproducible OpenMP reductions (if not specified the value is \
-        provided by the PSyclone Config file).
+                                  run-reproducible OpenMP reductions (if not \
+                                  specified the value is provided by the \
+                                  PSyclone Config file).
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
@@ -2199,21 +2202,31 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         self.addchild(OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED))
 
-    @staticmethod
-    def create(children=None, **kwargs):
+    @classmethod
+    def create(cls, children=None, **kwargs):
         '''
         Create an OMPParallelDoDirective.
 
         :param children: The child nodes of the new directive.
         :type children: List of :py:class:`psyclone.psyir.nodes.Node`
-        :param kwargs: additional keyword arguments provided to the PSyIR node.
+        :param kwargs: additional keyword arguments provided to the PSyIR node:
+                       - Optional[str] omp_schedule: the OpenMP schedule to \
+                         use. Defaults to "none" which means it is \
+                         implementation dependent).
+                       - Optional[int] collapse: optional number of nested \
+                         loops to collapse into a single iteration space to \
+                         parallelise. Defaults to None.
+                       - Optional[bool] reprod: whether or not to generate \
+                         code for run-reproducible OpenMP reductions (if not \
+                         specified the value is provided by the PSyclone \
+                         Config file).
         :type kwargs: unwrapped dict.
 
         :returns: A new OMPParallelDoDirective.
         :rtype: :py:class:`psyclone.psyir.nodes.OMPParallelDoDirective`
         '''
 
-        return OMPParallelDoDirective(children=children, **kwargs)
+        return cls(children=children, **kwargs)
 
     @staticmethod
     def _validate_child(position, child):
