@@ -174,7 +174,7 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
         time.
 
         :raises GenerationError: if this directive is not the first statement
-            in a routine.
+                                 in a routine.
 
         '''
         if self.parent and (not isinstance(self.parent, Routine) or
@@ -198,7 +198,7 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         time.
 
         :raises GenerationError: if this OMPTaskwait is not enclosed
-                            within some OpenMP parallel region.
+                                 within some OpenMP parallel region.
 
         '''
         # It is only at the point of code generation that we can check for
@@ -897,7 +897,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         OMPTaskwaitDirective nodes.
 
         :raises NotImplementedError: If this region contains both an
-                                 OMPTaskDirective and an OMPTaskloopDirective.
+                                     OMPTaskDirective and an
+                                     OMPTaskloopDirective.
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
@@ -1346,8 +1347,8 @@ class OMPParallelDirective(OMPRegionDirective):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         :raises GenerationError: if the OpenMP directive needs some
-            synchronisation mechanism to create valid code. These are not
-            implemented yet.
+                                 synchronisation mechanism to create valid
+                                 code. These are not implemented yet.
 
         '''
         # pylint: disable=import-outside-toplevel
@@ -1456,8 +1457,8 @@ class OMPParallelDirective(OMPRegionDirective):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         :raises GenerationError: if the OpenMP directive needs some
-            synchronisation mechanism to create valid code. These are not
-            implemented yet.
+                                 synchronisation mechanism to create valid
+                                 code. These are not implemented yet.
         '''
         # Keep the first two children and compute the rest using the current
         # state of the node/tree (lowering it first in case new symbols are
@@ -1683,7 +1684,7 @@ class OMPParallelDirective(OMPRegionDirective):
         time.
 
         :raises GenerationError: if this OMPDoDirective is not enclosed
-                            within some OpenMP parallel region.
+                                 within some OpenMP parallel region.
         '''
         if self.ancestor(OMPParallelDirective) is not None:
             raise GenerationError("Cannot nest OpenMP parallel regions.")
@@ -2018,7 +2019,7 @@ class OMPDoDirective(OMPRegionDirective):
         :param str value: the omp_schedule for this object.
 
         :raises TypeError: if the provided omp_schedule is not a valid
-            schedule string.
+                           schedule string.
         '''
         if not isinstance(value, str):
             raise TypeError(
@@ -2052,7 +2053,7 @@ class OMPDoDirective(OMPRegionDirective):
         time.
 
         :raises GenerationError: if this OMPDoDirective is not enclosed
-                            within some OpenMP parallel region.
+                                 within some OpenMP parallel region.
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
@@ -2076,7 +2077,8 @@ class OMPDoDirective(OMPRegionDirective):
         immediately nested loops as the collapse value.
 
         :raises GenerationError: if this OMPLoopDirective has a collapse
-            clause but it doesn't have the expected number of nested Loops.
+                                 clause but it doesn't have the expected
+                                 number of nested Loops.
         '''
         if self._collapse:
             cursor = self.dir_body.children[0]
@@ -2516,13 +2518,14 @@ class OMPLoopDirective(OMPRegionDirective):
         done at code-generation time.
 
         :raises GenerationError: if this OMPLoopDirective has more than one
-            child in its associated schedule.
+                                 child in its associated schedule.
         :raises GenerationError: if the schedule associated with this
-            OMPLoopDirective does not contain a Loop.
+                                 OMPLoopDirective does not contain a Loop.
         :raises GenerationError: this directive must be inside a omp target
-            or parallel region.
+                                 or parallel region.
         :raises GenerationError: if this OMPLoopDirective has a collapse
-            clause but it doesn't have the expected number of nested Loops.
+                                 clause but it doesn't have the expected
+                                 number of nested Loops.
 
         '''
         if len(self.dir_body.children) != 1:
@@ -2635,7 +2638,8 @@ class OMPAtomicDirective(OMPRegionDirective):
         done at code-generation time.
 
         :raises GenerationError: if the OMPAtomicDirective associated
-            statement does not conform to a valid OpenMP atomic operation.
+                                 statement does not conform to a valid OpenMP
+                                 atomic operation.
         '''
         if not self.children or len(self.dir_body.children) != 1:
             raise GenerationError(
@@ -2674,7 +2678,7 @@ class OMPSimdDirective(OMPRegionDirective):
         done at code-generation time.
 
         :raises GenerationError: if the OMPSimdDirective does not contain
-            precisely one loop.
+                                 precisely one loop.
 
         '''
         if (not self.children or len(self.dir_body.children) != 1 or
