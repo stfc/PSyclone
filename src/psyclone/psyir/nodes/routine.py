@@ -66,9 +66,10 @@ class Routine(Schedule, CommentableMixin):
     _text_name = "Routine"
 
     def __init__(self, name, is_program=False, **kwargs):
-        # This attribute needs to be set before anything, as the _symbol
+        # These attributes need to be set before anything, as the _symbol
         # is required for setting the _parent, which is overriden by Routine
         self._symbol = None
+        self._parent_node = None
         super().__init__(**kwargs)
 
         self._return_symbol = None
@@ -170,6 +171,8 @@ class Routine(Schedule, CommentableMixin):
 
     @_parent.setter
     def _parent(self, parent):
+        if self._parent_node is not None:
+            self._parent_node.symbol_table.remove(self._symbol)
         self._parent_node = parent
         if self._symbol and parent is not None:
             parent.symbol_table.add(self._symbol)
