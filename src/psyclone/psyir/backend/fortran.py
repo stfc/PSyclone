@@ -1761,3 +1761,19 @@ class FortranWriter(LanguageWriter):
             result_list.append(self._visit(child))
         args = ", ".join(result_list)
         return f"{node.name}({args})"
+
+    def schedule_node(self, node):
+        '''
+        Translate the Schedule node into Fortran.
+
+        :param node: the PSyIR node to translate.
+        :type node: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: the equivalent Fortran code.
+        :rtype: str
+
+        '''
+        result = ""
+        for child in node.children:
+            result += self._visit(child)
+        return result

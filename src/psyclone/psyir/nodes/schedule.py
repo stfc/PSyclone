@@ -95,6 +95,12 @@ class Schedule(ScopingNode):
         for child in self.children:
             child.gen_code(parent)
 
+    def debug_string(self):
+        debug_string = ""
+        for statement in self.children:
+            debug_string += statement.debug_string()
+        return debug_string
+
 
 # For AutoAPI documentation generation
 __all__ = ['Schedule']
