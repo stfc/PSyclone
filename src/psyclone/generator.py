@@ -679,7 +679,7 @@ def add_builtins_use(fp2_tree, name):
 
 
 def code_transformation_mode(input_file, recipe_file, output_file,
-                             line_length=False):
+                             line_length="off"):
     ''' Process the input_file with the recipe_file instructions and
     store it in the output_file.
 
@@ -693,7 +693,8 @@ def code_transformation_mode(input_file, recipe_file, output_file,
     :type input_file: Optional[str | os.PathLike]
     :param output_file: the output file where to store the resulting code.
     :type output_file: Optional[str | os.PathLike]
-    :param line_length: whether to break the output into lines of 123 chars.
+    :param str line_length: set to "output" to break the output into lines
+        of 123 chars, and to "all", to additionally check the input code.
 
     '''
     # Load recipe file

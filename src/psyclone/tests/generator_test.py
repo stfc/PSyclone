@@ -937,8 +937,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert "TypeError: argument of type 'int' is not iterable" in output
 
 
-@pytest.mark.parametrize("limit", [[], ['-l', 'off']])
-def test_main_fort_line_length_off(capsys, limit):
+def test_main_fort_line_length_off(capsys):
     '''Tests that the Fortran line-length limiting is off by default and
     is also disabled by `-l off`. One of the generated psy-layer lines
     should be longer than 132 characters.
@@ -947,9 +946,39 @@ def test_main_fort_line_length_off(capsys, limit):
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3",
                              "10.3_operator_different_spaces.f90"))
-    main([filename, '-api', 'lfric'] + limit)
+    main([filename, '-api', 'lfric'])
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
+
+    main([filename, '-api', 'lfric', '-l', 'off'])
+    output, _ = capsys.readouterr()
+    assert not all(len(line) <= 132 for line in output.split('\n'))
+
+    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    main([alg_filename])
+    output, _ = capsys.readouterr()
+    assert not all(len(line) <= 132 for line in output.split('\n'))
+
+    main([alg_filename, '-l', 'off'])
+    output, _ = capsys.readouterr()
+    assert not all(len(line) <= 132 for line in output.split('\n'))
+
+
+def test_main_fort_line_length_output_only(capsys):
+    '''Check that the '-l output' option still processes the long lines but
+    limits the line lengths in the output.
+    '''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3",
+                             "10.3_operator_different_spaces.f90"))
+    main([filename, '-api', 'lfric', '-l', 'output'])
+    output, _ = capsys.readouterr()
+    assert all(len(line) <= 132 for line in output.split('\n'))
+
+    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    main([alg_filename, '-l', 'output'])
+    output, _ = capsys.readouterr()
+    assert all(len(line) <= 132 for line in output.split('\n'))
 
 
 def test_main_fort_line_length_all(capsys):
@@ -973,20 +1002,6 @@ def test_main_fort_line_length_all(capsys):
     _, output = capsys.readouterr()
     assert ("does not conform to the specified 132 line length limit"
             in output)
-
-
-def test_main_fort_line_length_output_only(capsys):
-    '''Check that the '-l output' option disables the line-length check
-    on input files but still limits the line lengths in the
-    output.
-
-    '''
-    alg_filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
-    # If we only mandate that the output be limited then we should be fine
-    main([alg_filename, '-l', 'output'])
-    output, _ = capsys.readouterr()
-    for line in output.split('\n'):
-        assert len(line) <= 132
 
 
 def test_main_no_invoke_alg_stdout(capsys):
