@@ -109,51 +109,44 @@ def load_script(script_name, function_name="trans", is_optional=False):
         be called.
 
     '''
-    # pylint: disable=too-many-locals
-    sys_path_prepended = False
-    try:
-        filepath, filename = os.path.split(script_name)
-        module_name, fileext = os.path.splitext(filename)
-        # the file must either be:
-        # a) at the given path or, given no path, in the current directory; or
-        # b) given no path, in the system path
-        if not (os.path.isfile(script_name) or
-                not filepath and any(os.path.isfile(os.path.join(p, filename))
-                                     for p in sys.path)):
-            raise GenerationError(
-                f"generator: script file '{script_name}' not found")
-        # the file must have the .py extension
-        if fileext != '.py':
-            raise GenerationError(
-                f"generator: expected the script file '{filename}' to have "
-                f"the '.py' extension")
-        # prepend file path - if none, the empty string equates to the current
-        # working directory - to the system path to guarantee we find the user
-        # provided module instead of a similarly named module that might
-        # already exist elsewhere in the system path
-        sys_path_prepended = True
-        sys.path.insert(0, filepath)
-        recipe_module = importlib.import_module(module_name)
-
-        if hasattr(recipe_module, "FILES_TO_SKIP"):
-            files_to_skip = recipe_module.FILES_TO_SKIP
-        else:
-            files_to_skip = []
-
-        if hasattr(recipe_module, function_name):
-            transformation_recipe = getattr(recipe_module, function_name)
-            if callable(transformation_recipe):
-                # Everything is good, return recipe and files_to_skip
-                return transformation_recipe, files_to_skip
-        elif is_optional:
-            return None, files_to_skip
+    filepath, filename = os.path.split(script_name)
+    module_name, fileext = os.path.splitext(filename)
+    # the file must either be:
+    # a) at the given path or, given no path, in the current directory; or
+    # b) given no path, in the system path
+    if not (os.path.isfile(script_name) or
+            not filepath and any(os.path.isfile(os.path.join(p, filename))
+                                 for p in sys.path)):
         raise GenerationError(
-            f"generator: attempted to use specified PSyclone "
-            f"transformation module '{module_name}' but it does not "
-            f"contain a callable '{function_name}' function")
-    finally:
-        if sys_path_prepended:
-            sys.path.pop(0)
+            f"generator: script file '{script_name}' not found")
+    # the file must have the .py extension
+    if fileext != '.py':
+        raise GenerationError(
+            f"generator: expected the script file '{filename}' to have "
+            f"the '.py' extension")
+    # prepend file path - if none, the empty string equates to the current
+    # working directory - to the system path to guarantee we find the user
+    # provided module instead of a similarly named module that might
+    # already exist elsewhere in the system path
+    sys.path.insert(0, filepath)
+    recipe_module = importlib.import_module(module_name)
+
+    if hasattr(recipe_module, "FILES_TO_SKIP"):
+        files_to_skip = recipe_module.FILES_TO_SKIP
+    else:
+        files_to_skip = []
+
+    if hasattr(recipe_module, function_name):
+        transformation_recipe = getattr(recipe_module, function_name)
+        if callable(transformation_recipe):
+            # Everything is good, return recipe and files_to_skip
+            return transformation_recipe, files_to_skip
+    elif is_optional:
+        return None, files_to_skip
+    raise GenerationError(
+        f"generator: attempted to use specified PSyclone "
+        f"transformation module '{module_name}' but it does not "
+        f"contain a callable '{function_name}' function")
 
 
 def generate(filename, api="", kernel_paths=None, script_name=None,
