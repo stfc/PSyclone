@@ -42,7 +42,7 @@ import abc
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.nodes import Schedule, Loop
+from psyclone.psyir.nodes import Schedule, Loop, Assignment
 
 
 class LoopTrans(Transformation, metaclass=abc.ABCMeta):
@@ -112,7 +112,17 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
                 if isinstance(item, self.excluded_node_types):
                     raise TransformationError(
                         f"Nodes of type '{type(item).__name__}' cannot be "
-                        f"enclosed by a {self.name} transformation")
+                        f"enclosed by a {self.name} transformation (use "
+                        f"the 'node-type-check: False' option to accept them "
+                        f"at your own risk)")
+
+            for assignment in node.walk(Assignment):
+                if assignment.is_pointer:
+                    raise TransformationError(
+                        f"'{type(self).__name__}' can not be applied to nodes"
+                        f" that contain pointer assignments by default (use "
+                        f"the 'node-type-check: False' option to accept them "
+                        f"at your own risk)")
 
         # Disable warning to avoid circular dependency
         # pylint: disable=import-outside-toplevel

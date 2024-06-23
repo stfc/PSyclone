@@ -194,7 +194,10 @@ def normalise_loops(
     if hoist_expressions:
         # First hoist all possible expressions
         for loop in schedule.walk(Loop):
-            HoistLoopBoundExprTrans().apply(loop)
+            try:
+                HoistLoopBoundExprTrans().apply(loop)
+            except TransformationError:
+                pass
 
         # Hoist all possible assignments (in reverse order so the inner loop
         # constants are hoisted all the way out if possible)
