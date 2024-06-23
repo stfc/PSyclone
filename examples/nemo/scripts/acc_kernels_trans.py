@@ -381,7 +381,7 @@ def trans(psyir):
     '''Applies OpenACC 'kernels' directives to NEMO code. Data movement can be
     handled manually or through CUDA's managed-memory functionality.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
     logging.basicConfig(filename='psyclone.log', filemode='w',

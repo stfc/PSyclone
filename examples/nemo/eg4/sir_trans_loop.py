@@ -51,7 +51,7 @@ def trans(psyir):
     HoistTrans transformations and then produces the SIR representation
     of the given code.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''

@@ -181,10 +181,8 @@ class PSyFactory():
         Create the API-specific PSy instance.
 
         :param invoke_info: information on the invoke()s found by parsing
-                            the Algorithm layer or (for NEMO) the fparser2
-                            parse tree of the source file.
-        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo` |
-                           :py:class:`fparser.two.Fortran2003.Program`
+                            the Algorithm layer.
+        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
 
         :returns: an instance of the API-specific sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`

@@ -57,7 +57,7 @@ def trans(psyir):
     implicit ones, to parallelise the code and execute it in an acceleration
     device.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''

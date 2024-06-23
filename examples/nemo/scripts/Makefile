@@ -59,10 +59,7 @@ $(OUTPUT_FOLDERS):
 $(TARGETS): % : $(addprefix psycloned-%/, $(notdir $(SRC_FILES)))
 	@echo "Finished generating $@"
 
-# PSyclone instructions for each target type.
-
-# We perform a 'passthrough' test by simply not providing a transformation
-# script.
+# PSyclone instructions for each transformation recipe
 psycloned-passthrough/%.f90: ${ROOT_SRC}%.f90 psycloned-passthrough
 	psyclone -s passthrough.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o $@ $<
 

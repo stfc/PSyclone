@@ -48,7 +48,7 @@ USE_GPU = True  # Enable for generating OpenMP target directives
 def trans(psyir):
     ''' Add OpenMP Target and Loop directives to all loops.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''

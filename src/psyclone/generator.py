@@ -99,12 +99,13 @@ def load_script(script_name, function_name="trans", is_optional=False):
     :param str function_name: the name of the function to call in the script.
     :param bool is_optional: whether the function is optional or
         not. Defaults to False.
+
     :returns: callable recipe and list of files to skip.
     :rtype: Tuple[Callable, List[str]]
 
     :raises IOError: if the file is not found.
     :raises GenerationError: if the file does not have .py extension.
-    :raises GenerationError: if the function 'trans' does not exist or can not
+    :raises GenerationError: if the named function does not exist or can not
         be called.
 
     '''
@@ -254,6 +255,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
+            # Apply provided recipe to PSyIR
             recipe, _ = load_script(script_name)
             recipe(psy)
         alg_gen = None
@@ -489,14 +491,14 @@ def main(arguments):
     if not args.psykal_dsl:
         if (args.oalg or args.opsy or args.okern or args.directory):
             print(f"When using the code-transformation mode (with no -api or "
-                  f"--psykal-dsl flags), the psykal mode arguments must not be "
-                  f"present in the command, but found {arguments}")
+                  f"--psykal-dsl flags), the psykal-mode arguments must not be"
+                  f" present in the command, but found {arguments}")
             sys.exit(1)
     else:
         if args.o:
             print("The '-o' flag is not valid when using the psykal mode "
                   "(-api/--psykal-dsl flag), use the -oalg, -opsy, -okern to "
-                  "specify the output filenames of each psykal layer.")
+                  "specify the output destination of each psykal layer.")
             sys.exit(1)
 
     # If no config file name is specified, args.config is none
@@ -709,6 +711,16 @@ def code_transformation_mode(input_file, recipe_file, output_file,
 
     _, filename = os.path.split(input_file)
     if filename not in files_to_skip:
+        # If line_length "all" is provided, check the input source
+        fll = FortLineLength()
+        if line_length == "all":
+            with open(input_file, "r", encoding='utf8') as myfile:
+                code_str = myfile.read()
+                if fll.long_lines(code_str):
+                    print(f"'{filename}' does not conform to the specified "
+                          f"{fll.length} line length limit", file=sys.stderr)
+                    sys.exit(1)
+
         # Parse file
         psyir = FortranReader().psyir_from_file(input_file)
 
@@ -722,9 +734,9 @@ def code_transformation_mode(input_file, recipe_file, output_file,
 
         # Generate Fortran
         output = FortranWriter()(psyir)
-        # Fix line_length is requested
-        if line_length:
-            output = FortLineLength().process(output)
+        # Fix line_length if requested
+        if line_length in ("output", "all"):
+            output = fll.process(output)
     else:
         # Skip parsing and transformation and copy contents of file directly
         with open(input_file, mode='r', encoding="utf8") as ifile:
@@ -734,4 +746,4 @@ def code_transformation_mode(input_file, recipe_file, output_file,
         with open(output_file, mode='w', encoding="utf8") as ofile:
             ofile.write(output)
     else:
-        print(output)
+        print(output, file=sys.stdout)

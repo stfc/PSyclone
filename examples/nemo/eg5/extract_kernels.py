@@ -76,7 +76,7 @@ from psyclone.psyir.nodes import Loop, Routine
 def trans(psyir):
     '''Applies the kernel extraction to every subroutine in the file.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 

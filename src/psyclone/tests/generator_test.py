@@ -575,7 +575,7 @@ def test_wrong_flags_for_mode(capsys):
             main([filename, flag, "FILE"])
         output, _ = capsys.readouterr()
         assert ("When using the code-transformation mode (with no -api or"
-                " --psykal-dsl flags), the psykal mode arguments must not "
+                " --psykal-dsl flags), the psykal-mode arguments must not "
                 "be present in the command, but found" in output)
 
     # PSyKAl-DSL mode
@@ -585,7 +585,7 @@ def test_wrong_flags_for_mode(capsys):
     output, _ = capsys.readouterr()
     assert ("The '-o' flag is not valid when using the psykal mode (-api/"
             "--psykal-dsl flag), use the -oalg, -opsy, -okern to specify the "
-            "output filenames of each psykal layer." in output)
+            "output destination of each psykal layer." in output)
 
 
 def test_main_profile(capsys):
@@ -635,6 +635,12 @@ def test_main_profile(capsys):
     Profiler._options = []
     with pytest.raises(SystemExit):
         main(["--profile", "kernels", filename])
+    _, outerr = capsys.readouterr()
+    assert ("Invalid profiling option: The profiling 'kernels' and 'invokes' "
+            "options are only available when using PSyKAl DSLs." in outerr)
+
+    with pytest.raises(SystemExit):
+        main(["--profile", "invokes", filename])
     _, outerr = capsys.readouterr()
     assert ("Invalid profiling option: The profiling 'kernels' and 'invokes' "
             "options are only available when using PSyKAl DSLs." in outerr)
@@ -931,23 +937,6 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
     assert "TypeError: argument of type 'int' is not iterable" in output
 
 
-@pytest.mark.parametrize("limit", ['all', 'output'])
-def test_main_fort_line_length(capsys, limit):
-    '''Tests that the Fortran line length object works correctly. Without
-    the -l option one of the generated psy-layer lines would be longer
-    than 132 characters. Since it is in the output code, both the
-    'all' and 'output' options should cause the limit to be
-    applied.
-
-    '''
-    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p3",
-                             "10.3_operator_different_spaces.f90"))
-    main([filename, '-api', 'lfric', '-l', limit])
-    output, _ = capsys.readouterr()
-    assert all(len(line) <= 132 for line in output.split('\n'))
-
-
 @pytest.mark.parametrize("limit", [[], ['-l', 'off']])
 def test_main_fort_line_length_off(capsys, limit):
     '''Tests that the Fortran line-length limiting is off by default and
@@ -961,6 +950,29 @@ def test_main_fort_line_length_off(capsys, limit):
     main([filename, '-api', 'lfric'] + limit)
     output, _ = capsys.readouterr()
     assert not all(len(line) <= 132 for line in output.split('\n'))
+
+
+def test_main_fort_line_length_all(capsys):
+    '''Tests that the Fortran line length object works correctly. With
+    the '-l all' option the input Fortran file is checked to verify that
+    it complies with the 132 characters standard limit.
+
+    '''
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3",
+                             "10.3_operator_different_spaces.f90"))
+    with pytest.raises(SystemExit):
+        main([filename, '-api', 'lfric', '-l', 'all'])
+    _, output = capsys.readouterr()
+    assert ("does not conform to the specified 132 line length limit"
+            in output)
+    # And for code transformations
+    filename = os.path.join(NEMO_BASE_PATH, "explicit_do_long_line.f90")
+    with pytest.raises(SystemExit):
+        main([filename, '-l', 'all'])
+    _, output = capsys.readouterr()
+    assert ("does not conform to the specified 132 line length limit"
+            in output)
 
 
 def test_main_fort_line_length_output_only(capsys):

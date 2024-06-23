@@ -69,7 +69,7 @@ def trans(psyir):
     over vertical levels OpenMP parallel. Encloses children 6-9 of the
     outer iteration loop within a single OpenMP parallel region.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 

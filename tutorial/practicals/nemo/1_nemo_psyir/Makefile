@@ -49,7 +49,7 @@ run: compile
 	@echo "No run targets for example tutorial/1_nemo_psyir"
 
 clean:
-	rm -f output.f90 *.o *.mod *~
+	rm -f *.o *.mod *~
 
 allclean: clean
 	rm -f *.exe output.dat

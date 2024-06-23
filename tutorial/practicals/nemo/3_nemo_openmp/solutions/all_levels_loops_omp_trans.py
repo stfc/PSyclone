@@ -66,7 +66,7 @@ def trans(psyir):
     ''' Transform a specific Schedule by making all loops
     over vertical levels OpenMP parallel.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 

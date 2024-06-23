@@ -76,7 +76,7 @@ ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
 def trans(psyir):
     ''' Applies OpenACC 'kernels' and 'data' directives to NEMO code.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 

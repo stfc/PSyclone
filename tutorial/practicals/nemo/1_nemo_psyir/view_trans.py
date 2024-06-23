@@ -50,7 +50,7 @@ Once you have psyclone installed, this may be used by doing:
 def trans(psyir):
     ''' Prints the PSyIR of the input file to stdout.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
     print(psyir.view())

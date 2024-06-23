@@ -106,7 +106,19 @@ the number of MPI processes and resulting inter-process communication.)
    END DO
    ```
 
-   and the `write` statement is represented as a CodeBlock in the PSyIR.
+   and the `write` statement is represented as a CodeBlock in the PSyIR:
+   ```
+    20: Loop[variable='jk', loop_type='levels']
+        ...
+        Schedule[]
+            0: Loop[variable='jj']
+               ...
+               Schedule[]
+                   0: Loop[variable='ji']
+                      ...
+                      Schedule[]
+                          0: CodeBlock[[<class 'fparser.two.Fortran2003.Write_Stmt'>]]
+   ```
    Since, by definition, a CodeBlock contains code that PSyclone does not
    understand, it will refuse to parallelise any region that contains
    one.
@@ -144,7 +156,7 @@ the number of MPI processes and resulting inter-process communication.)
    ```
 
    Note that PSyclone has automatically identified all necessary thread
-   sharing attributes (shared, private, of firstprivate).
+   sharing attributes (shared, private, or firstprivate).
 
 4. We are now ready to do our first parallel run. The number of threads
    to use is set via the OMP_NUM_THREADS environment variable at run

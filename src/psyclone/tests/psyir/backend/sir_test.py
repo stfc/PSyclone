@@ -74,12 +74,10 @@ CODE = (
     "end module test\n")
 
 
-def get_schedule(code):
-    '''Utility function that returns the first schedule for a code with
-    the NEMO api.
+def get_routine(code):
+    ''' Utility function that returns the PSyIR of the first routine for a
+    given code.
 
-    :param parser: the parser class.
-    :type parser: :py:class:`fparser.two.Fortran2003.Program`
     :param str code: the code as a string.
 
     :returns: the first schedule in the supplied code.
@@ -100,7 +98,7 @@ def get_assignment(code):
     :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
 
     '''
-    schedule = get_schedule(code)
+    schedule = get_routine(code)
     assignment = schedule.walk(Assignment)[0]
     assert isinstance(assignment, Assignment)
     return assignment
@@ -159,7 +157,7 @@ def test_gen_stencil_2():
     a node of the wrong type is provided.
 
     '''
-    schedule = get_schedule(CODE)
+    schedule = get_routine(CODE)
     with pytest.raises(VisitorError) as excinfo:
         _ = gen_stencil(schedule)
     assert ("gen_stencil expected an ArrayReference as input" in
@@ -225,7 +223,7 @@ def test_sirwriter_node_1():
     True. Also check for SIR indentation.
 
     '''
-    schedule = get_schedule(CODE)
+    schedule = get_routine(CODE)
 
     class Unsupported(Node):
         '''A PSyIR node that will not be supported by the SIR writer but
@@ -273,7 +271,7 @@ def test_sirwriter_nemoloop_node_1(sir_writer):
     code = code.replace(
         "    real :: a(n,n,n)\n",
         "    real :: a(n,n,n), b(n,n,n)\n")
-    schedule = get_schedule(code)
+    schedule = get_routine(code)
     result = sir_writer(schedule)
     assert result.count(
         "interval = make_interval(Interval.Start, Interval.End, 0, 0)\n"
@@ -295,7 +293,7 @@ def test_sirwriter_nemoloop_node_2(sir_writer):
         "      do j=1,n\n",
         "      a(i,1,1) = 1.0\n"
         "      do j=1,n\n")
-    schedule = get_schedule(code)
+    schedule = get_routine(code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
     assert "Child of loop should be a single loop" in str(excinfo.value)
@@ -317,7 +315,7 @@ def test_sirwriter_nemoloop_node_3(sir_writer):
         "      end do\n"
         "      do j=1,n\n"
         "      end do\n")
-    schedule = get_schedule(code)
+    schedule = get_routine(code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
     assert "Child of loop should be a single loop" in str(excinfo.value)
@@ -337,7 +335,7 @@ def test_sirwriter_nemoloop_node_4(sir_writer):
         "        a(i,j,1) = 1.0\n"
         "        do k=1,n\n"
         "        end do\n")
-    schedule = get_schedule(code)
+    schedule = get_routine(code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
     assert ("Child of child of loop should be a single loop"
@@ -359,7 +357,7 @@ def test_sirwriter_nemoloop_node_5(sir_writer):
         "        end do\n"
         "        do k=1,n\n"
         "        end do\n")
-    schedule = get_schedule(code)
+    schedule = get_routine(code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
     assert "Only triply-nested loops are supported" in str(excinfo.value)
@@ -376,7 +374,7 @@ def test_sirwriter_nemoloop_node_6(sir_writer):
                         "            a(i,j,k,l) = 1.0\n"
                         "          end do\n")
     code = code.replace("real :: a(n,n,n)", "real :: a(n,n,n,3)")
-    schedule = get_schedule(code)
+    schedule = get_routine(code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
     assert ("Only triply-nested loops are supported."
@@ -390,7 +388,7 @@ def test_sirwriter_nemoloop_node_not_compute(sir_writer):
     '''
     code = CODE.replace("          a(i,j,k) = 1.0\n",
                         "          write(*,*) a(i,j,k)\n")
-    schedule = get_schedule(code)
+    schedule = get_routine(code)
     with pytest.raises(VisitorError) as excinfo:
         _ = sir_writer(schedule)
     assert ("A loop nest containing a CodeBlock cannot be translated to SIR"
@@ -449,7 +447,7 @@ def test_sirwriter_binaryoperation_node_2(sir_writer, foper, soper):
                         "\n    real :: b, c\n    integer ::")
     code = code.replace(
         "a(i,j,k) = 1.0", f"if (b {foper} c) then\na(i,j,k) = 1.0\nend if")
-    sched = get_schedule(code)
+    sched = get_routine(code)
     if_statement = sched.walk(IfBlock)[0]
     if_condition = if_statement.condition
     result = sir_writer.binaryoperation_node(if_condition)
@@ -537,7 +535,7 @@ def test_sirwriter_reference_node_2(sir_writer):
     exception if the PSyIR Reference node has children.
 
     '''
-    schedule = get_schedule(CODE)
+    schedule = get_routine(CODE)
     with pytest.raises(VisitorError) as excinfo:
         # Use a node which has children to raise the exception.
         _ = sir_writer.reference_node(schedule)
@@ -692,7 +690,7 @@ def test_sirwriter_ifblock_node_1(sir_writer):
                         "\n    integer :: b, c\n    integer ::")
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
-    sched = get_schedule(code)
+    sched = get_routine(code)
     if_statement = sched.walk(IfBlock)[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
@@ -717,7 +715,7 @@ def test_sirwriter_ifblock_node_2(sir_writer):
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nelse\n"
         "a(i,j,k) = 0.0\nend if")
-    sched = get_schedule(code)
+    sched = get_routine(code)
     if_statement = sched.walk(IfBlock)[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
@@ -745,7 +743,7 @@ def test_sirwriter_ifblock_node_3(sir_writer):
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if\n"
         "if (c .ge. 0.5) then\na(i,j,k) = -1.0\nend if\n")
-    sched = get_schedule(code)
+    sched = get_routine(code)
     if_stmts = sched.walk(IfBlock)
     if_statement_0 = if_stmts[0]
     result_0 = sir_writer.ifblock_node(if_statement_0)
@@ -792,7 +790,7 @@ def test_sirwriter_ifblock_node_4(sir_writer):
         "    a(i,j,k) = -1.0\n"
         "  end if\n"
         "end if")
-    sched = get_schedule(code)
+    sched = get_routine(code)
     if_statement = sched.walk(IfBlock)[0]
     result = sir_writer.ifblock_node(if_statement)
     assert (
@@ -832,7 +830,7 @@ def test_sirwriter_schedule_node_1(sir_writer):
                         "\n    integer :: b, c\n    integer ::")
     code = code.replace(
         "a(i,j,k) = 1.0", "if (b .eq. c) then\na(i,j,k) = 1.0\nend if")
-    sched = get_schedule(code)
+    sched = get_routine(code)
     if_statement = sched.walk(IfBlock)[0]
     schedule = if_statement.if_body
     assert isinstance(schedule, Schedule)

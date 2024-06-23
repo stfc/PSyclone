@@ -1165,8 +1165,8 @@ class Fparser2Reader():
         :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
         :param Optional[str] filename: associated name for FileContainer.
 
-        :returns: PSyIR representation of the supplied fparser2 parse_tree.
-        :rtype: :py:class:`psyclone.psyir.nodes.FileContainer
+        :returns: PSyIR of the supplied fparser2 parse_tree.
+        :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
 
         :raises GenerationError: if the root of the supplied fparser2
             parse tree is not a Program.

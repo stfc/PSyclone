@@ -53,7 +53,7 @@ def trans(psyir):
     ''' Add OpenMP Parallel and Do directives to all loops, including the
     implicit ones.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''

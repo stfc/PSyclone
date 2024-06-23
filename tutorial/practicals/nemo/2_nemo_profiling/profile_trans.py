@@ -52,7 +52,7 @@ from psyclone.psyir.nodes import Routine
 def trans(psyir):
     ''' Adds profiling to each Routine.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 

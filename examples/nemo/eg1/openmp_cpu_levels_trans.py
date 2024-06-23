@@ -54,7 +54,7 @@ Loop.set_loop_type_inference_rules({
 def trans(psyir):
     ''' Add OpenMP Parallel Loop directives to Nemo loops over levels.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''

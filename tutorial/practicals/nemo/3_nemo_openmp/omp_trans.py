@@ -54,7 +54,7 @@ def trans(psyir):
     ''' Parallelise the provided file by making all loops over vertical (jk)
     levels OpenMP parallel.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 

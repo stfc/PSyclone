@@ -1,4 +1,4 @@
-# PSyclone for code-transformation of existing code
+# PSyclone for transforming existing code
  
 The tutorial on the use of PSyclone to transform existing code is
 broken into four parts:

@@ -54,11 +54,11 @@ from psyclone.psyir.transformations import (
 
 def trans(psyir):
     '''Transformation routine for use with PSyclone. Applies the PSyIR2SIR
-    transform to the supplied invokes after replacing any ABS, SIGN or
+    transform to the supplied code after replacing any ABS, SIGN or
     MIN intrinsics with equivalent code. This is done because the SIR
     does not support intrinsics.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''

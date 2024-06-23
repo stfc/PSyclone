@@ -75,7 +75,7 @@ def trans(psyir):
     applies COLLAPSE(2) to every latitude-longitude loop nest
     within that.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
     subroutine = psyir.children[0].children[0]

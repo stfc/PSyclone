@@ -43,9 +43,9 @@ from psyclone.psyir.nodes import Routine
 
 def trans(psyir):
     '''Transformation routine for use with PSyclone. Applies the PSyIR2SIR
-    transform to the supplied invokes.
+    transform to the routines in the supplied PSyIR.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''

@@ -172,20 +172,15 @@ class Parser():
         parse tree of the code contained therein and an object
         containing information about the 'invoke' calls in the
         algorithm file and any associated kernels within the invoke
-        calls. If the NEMO API is being used then the parsed code is
-        returned without any additional information about the code.
+        calls.
 
         :param str alg_filename: The file containing the algorithm code.
 
-        :returns: 2-tuple consisting of the fparser2 parse tree of the \
-            algorithm code and an object holding details of the \
-            algorithm code and the invokes found within it, unless it \
-            is the NEMO API, where the first entry of the tuple is \
-            None and the second is the fparser2 parse tree of the \
-            code.
-        :rtype: (:py:class:`fparser.two.Fortran2003.Program`, \
-            :py:class:`psyclone.parse.FileInfo`) or (NoneType, \
-            :py:class:`fparser.two.Fortran2003.Program`)
+        :returns: 2-tuple consisting of the fparser2 parse tree of the
+            algorithm code and an object holding details of the
+            algorithm code and the invokes found within it.
+        :rtype: Tuple[:py:class:`fparser.two.Fortran2003.Program`,
+                      :py:class:`psyclone.parse.FileInfo`]
 
         '''
         self._alg_filename = alg_filename

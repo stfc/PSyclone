@@ -28,7 +28,8 @@ types. The best way to do this is to use the [PSyclone Reference Guide
 
 ## 1. Processing NEMO Fortran code with PSyclone ##
 
-By default the `psyclone` command parses the provided input Fortran file.
+By default (i.e. without the additional arguments), the `psyclone` command
+parses the provided input Fortran file:
 
 ```bash
     psyclone tra_adv.F90
@@ -45,7 +46,7 @@ PROGRAM tra_adv
 ```
 
 Since we have not specified any transformation yet, the generated code
-is semantically the same than the input file, but with possibly a different
+is semantically equivalent to the input file, but with possibly a different
 syntax. Also note that some statements have been marked with a "! PSyclone
  CodeBlock (unsupported code) reason:" comment. These are statements that
 PSyclone does not understand the semantics of and (in most cases) will
@@ -123,7 +124,7 @@ via the `-s` flag to PSyclone.
 ```
 
 This should display a text representation of the tree of PSyIR nodes
-that represent the `tra_adv.f90` file.
+that represent the `tra_adv.f90` file:
 
 ```bash
 FileContainer[]
@@ -139,7 +140,7 @@ FileContainer[]
 [`pip install termcolor`] then the PSyIR will be displayed with colour
 highlighting.) Since the tracer-advection mini-app consists of a single
 program unit, it is represented in PSyclone by a single `Routine` with the
-content of the program (the sequence of executable statements).
+content of the program (the sequence of executable statements) as children.
 
 
 ## 3. Interpreting the PSyIR ##
@@ -212,9 +213,9 @@ To familiarise yourself with PSyIR navigation, you can:
 
 2. Modify the transformation script so that it uses `walk` to search
    for all of the CodeBlocks in the file and prints information
-   about each of them.  Work out which lines of Fortran in the
+   about each of them. Work out which lines of Fortran in the
    mini-app each corresponds to. (All nodes have a `debug_string()`
-   method to quickly print the node and its children)
+   method to quickly print the node and its children.)
 
     ```python
     from psyclone.psyir.nodes import CodeBlock

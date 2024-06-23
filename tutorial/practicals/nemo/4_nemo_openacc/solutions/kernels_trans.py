@@ -64,9 +64,9 @@ ACC_KERNELS_TRANS = ACCKernelsTrans()
 
 
 def trans(psyir):
-    '''A PSyclone-script compliant transformation function.
+    ''' A PSyclone-script that applies OpenACC KERNELS around suitable loops.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
     subroutine = psyir.children[0].children[0]

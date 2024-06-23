@@ -61,7 +61,7 @@ NAME = ./tra_adv.exe
 $(NAME): $(KERNELS) output_openacc.o runner.o
 	$(F90) $(F90FLAGS) $^ -o $@
 
-# Target that uses PSyclone to generate 'psy%.f90' - it is used
+# Target that uses PSyclone to generate 'output%.f90' - it is used
 # to create output_openacc.f90 here, but also to create output_1 as
 # default target.
 output%.f90: tra_adv_mod.F90 ${TRANS_SCRIPT}

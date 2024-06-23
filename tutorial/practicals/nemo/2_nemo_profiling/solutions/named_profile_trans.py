@@ -57,7 +57,7 @@ Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"}})
 def trans(psyir):
     ''' Adds profiling around loops over levels.
 
-    :param psyir: the PSyIR representing the provided file.
+    :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
