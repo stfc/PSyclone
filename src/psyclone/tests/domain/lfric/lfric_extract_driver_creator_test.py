@@ -270,7 +270,7 @@ def test_lfric_driver_simple_test():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
-    for line in ["if (TRIM(psydata_filename) /= '') then",
+    for line in ["if (ALLOCATED(psydata_filename)) then",
                  "call extract_psy_data%OpenReadFileName(psydata_filename)",
                  "else",
                  "call extract_psy_data%OpenReadModuleRegion('field', 'test')",

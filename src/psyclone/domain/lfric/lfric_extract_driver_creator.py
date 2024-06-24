@@ -806,7 +806,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
 
         # Now add the handling of the filename parameter
         code = f"""
-        if (trim({psydata_filename}) /= "") then
+        if (allocated({psydata_filename})) then
            call {psy_data_var.name}%OpenReadFileName({psydata_filename})
         else
            call {psy_data_var.name}%OpenReadModuleRegion('{module_name}', &
