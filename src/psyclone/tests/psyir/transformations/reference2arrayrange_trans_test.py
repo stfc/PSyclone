@@ -346,6 +346,23 @@ def test_validate_deallocate(fortran_reader):
             " be transformed, but found:\n DEALLOCATE(a)" in str(info.value))
 
 
+def test_validate_pointer_assignment(fortran_reader):
+    '''Test that a reference in a PointerAssignment raises an exception. '''
+    code = (
+        "program test\n"
+        "  integer, dimension(10), target :: a\n"
+        "  integer, dimension(10), pointer :: b\n"
+        "  b => a\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Reference2ArrayRangeTrans()
+    for reference in psyir.walk(Reference):
+        with pytest.raises(TransformationError) as info:
+            trans.validate(reference)
+        assert ("can not be applied to references inside pointer assignments"
+                in str(info.value))
+
+
 def test_apply_validate():
     '''Test that the apply method calls validate by checking that the
     exception raised by validate is raised when apply is called.

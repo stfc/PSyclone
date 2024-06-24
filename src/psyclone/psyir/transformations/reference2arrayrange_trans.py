@@ -44,7 +44,7 @@
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Range, Reference, ArrayReference, Literal,
-                                  IntrinsicCall)
+                                  IntrinsicCall, Assignment)
 from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -161,6 +161,11 @@ class Reference2ArrayRangeTrans(Transformation):
                 lambda: f"References to arrays passed to "
                 f"'{node.parent.routine.name}' intrinsics should not be "
                 f"transformed, but found:\n {node.parent.debug_string()}"))
+        assignment = node.ancestor(Assignment)
+        if assignment and assignment.is_pointer:
+            raise TransformationError(
+                f"'{type(self).__name__}' can not be applied to references"
+                f" inside pointer assignments, but found '{node.name}'")
 
     def apply(self, node, options=None):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
