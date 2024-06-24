@@ -160,7 +160,7 @@ def test_extract_node_lower_to_language_level():
 
     # Test a Loop nested within the OMP Parallel DO Directive
     psy, invoke = get_invoke("single_invoke_three_kernels.f90",
-                             "gocean1.0", idx=0, dist_mem=False)
+                             "gocean", idx=0, dist_mem=False)
     etrans.apply(invoke.schedule.children[0])
 
     code = str(psy.gen)
@@ -214,7 +214,7 @@ def test_extract_node_gen():
 
     etrans = LFRicExtractTrans()
 
-    psy, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
+    psy, invoke = get_invoke("1_single_invoke.f90", "lfric",
                              idx=0, dist_mem=False)
     etrans.apply(invoke.schedule.children[0])
     code = str(psy.gen)

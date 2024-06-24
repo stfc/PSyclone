@@ -126,11 +126,6 @@ def test_distmem_error(monkeypatch):
     _, invoke = get_invoke("1_single_invoke.f90", DYNAMO_API,
                            idx=0, dist_mem=True)
     schedule = invoke.schedule
-    # Try applying Extract transformation
-    with pytest.raises(TransformationError) as excinfo:
-        etrans.apply(schedule.children[3])
-    assert ("Error in LFRicExtractTrans: Distributed memory is "
-            "not supported.") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing HaloExchange
     # We have to disable distributed memory, otherwise an earlier test
