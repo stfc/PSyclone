@@ -34,7 +34,6 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
-#         J. Remy, Univesité Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Schedule PSyIR node. '''
@@ -42,10 +41,9 @@
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.psyir.nodes import Schedule, Assignment, Range, Statement, \
-                                 Reference
+from psyclone.psyir.nodes import Schedule, Assignment, Range, Statement
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.psyGen import PSyFactory
 from psyclone.parse.algorithm import parse
 from psyclone.errors import GenerationError
@@ -138,23 +136,3 @@ def test_sched_children_validation():
 
     # Valid children
     schedule.addchild(statement)
-
-
-def test_sched_debug_string():
-    '''Test the debug_string method of the Schedule class is indentical to
-    the debug_string of its children.
-
-    '''
-    sym_a = DataSymbol("a", REAL_TYPE)
-    sym_b = DataSymbol("b", REAL_TYPE)
-    sym_c = DataSymbol("c", REAL_TYPE)
-    assignment_0 = Assignment.create(Reference(sym_a),
-                                     Reference(sym_b))
-    assignment_1 = Assignment.create(Reference(sym_b),
-                                     Reference(sym_c))
-    schedule = Schedule([assignment_0, assignment_1])
-
-    assert (schedule.debug_string() == assignment_0.debug_string() +
-            assignment_1.debug_string())
-    expected_string = "a = b\nb = c\n"
-    assert schedule.debug_string() == expected_string

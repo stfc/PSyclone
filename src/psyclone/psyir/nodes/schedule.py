@@ -34,7 +34,6 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
-#         J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Schedule node implementation.'''
@@ -95,12 +94,6 @@ class Schedule(ScopingNode):
         '''
         for child in self.children:
             child.gen_code(parent)
-
-    def debug_string(self):
-        debug_string = ""
-        for statement in self.children:
-            debug_string += statement.debug_string()
-        return debug_string
 
 
 # For AutoAPI documentation generation
