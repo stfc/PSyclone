@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         A. B. G. Chalk, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+#          J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenMP PSyIR Directive nodes. '''
@@ -520,6 +521,23 @@ def test_omp_do_directive_validate_global_constraints(fortran_reader,
             "Directive[collapse=3]' has a collapse=3 and "
             "the nested body at depth 2 cannot be collapsed."
             in str(err.value))
+
+
+def test_omp_parallel_do_create():
+    ''' Test the OMPParallelDoDirective create method. '''
+    loop = Loop.create(DataSymbol("i", INTEGER_SINGLE_TYPE),
+                       Literal("1", INTEGER_SINGLE_TYPE),
+                       Literal("10", INTEGER_SINGLE_TYPE),
+                       Literal("1", INTEGER_SINGLE_TYPE),
+                       [])
+    children = [loop]
+    directive = OMPParallelDoDirective.create(children=children, collapse=2)
+    assert directive.collapse == 2
+    assert directive.omp_schedule == "none"
+    assert str(directive) == "OMPParallelDoDirective[collapse=2]"
+    assert directive.dir_body.children[0] is loop
+    assert (directive.default_clause.clause_type
+            == OMPDefaultClause.DefaultClauseTypes.SHARED)
 
 
 def test_omp_pdo_validate_child():

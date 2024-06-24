@@ -1500,7 +1500,7 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
     code = fortran_writer(kern.get_kernel_schedule())
-    assert "!$acc routine\n" in code
+    assert "!$acc routine seq\n" in code
 
     # If the kernel schedule is not accessible, the transformation fails
     def raise_gen_error():
@@ -1526,7 +1526,7 @@ def test_accroutinetrans_with_routine(fortran_writer):
     rtrans.apply(routine)
     # Check that there is a acc routine directive in the routine
     code = fortran_writer(routine)
-    assert "!$acc routine\n" in code
+    assert "!$acc routine seq\n" in code
 
     # Even if applied multiple times the Directive is only there once
     previous_num_children = len(routine.children)
