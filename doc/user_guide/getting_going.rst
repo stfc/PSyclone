@@ -521,10 +521,10 @@ the code-transformation mode (when no `-api`/`--psykal-dsl` flags is provided) o
 PSyKAl DSL mode (when a `-api`/`--psykal-dsl` flag is provided). The following sections provide
 a brief introduction to each mode.
 
-PSyclone for Code Transformations
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PSyclone for Code Transformation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When using PSyclone for code transformation of existing Fortran files, only an
+When using PSyclone for transforming existing Fortran files, only an
 input source file is required:
 
 .. code-block:: console
@@ -541,7 +541,7 @@ compile. We can do this using the `-o` flag:
 
 
 This should not transform the semantics of the code (only the syntax), and is
-what we sometimes refer to as a "passthrough" run. This ca be useful as an initial
+what we sometimes refer to as a "passthrough" run. This can be useful as an initial
 correctness test when applying PSyclone to a new code.
 
 However, PSyclone allows users to programatically change the source code of the
@@ -594,7 +594,8 @@ command-line arguments please see the :ref:`psyclone_command` Section.
 Examples are provided in the ``examples/lfric`` and ``examples/gocean`` directories
 of the PSyclone repository. Alternatively, if you have installed PSyclone using
 ``pip`` then they may be found in the ``share/psyclone`` directory under your Python
-installation (see :ref:`above <getting-going-env-loc>` for location of PSyclone installation.
+installation (see :ref:`above <getting-going-env-loc>` for the location of the
+PSyclone installation).
 In this case you should copy the whole ``examples`` directory to some
 convenient location before attempting to carry out the following instructions.
 Depending on your precise setup, you may also need to set ``PSYCLONE_CONFIG`` to the full-path to the PSyclone

@@ -93,7 +93,9 @@ LFRIC_TESTING = False
 
 
 def load_script(script_name, function_name="trans", is_optional=False):
-    ''' Loads the specified script containing a psyclone recipe.
+    ''' Loads the specified script containing a psyclone recipe. We also
+    prepend the script path to the sys.path, so that the script itself and
+    any imports that it has from the same directory can be found.
 
     :param str script_name: name of the script to load.
     :param str function_name: the name of the function to call in the script.
