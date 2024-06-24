@@ -709,6 +709,13 @@ class ArrayType(DataType):
 
         return True
 
+    def copy(self):
+        '''
+        '''
+        # TODO
+        new_type = ArrayType()
+        return new_type
+
 
 class StructureType(DataType):
     '''
