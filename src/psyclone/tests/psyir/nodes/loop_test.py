@@ -194,6 +194,12 @@ def test_loop_node_str(monkeypatch):
     assert loop.node_str(colour=True) == "yes[variable='i']"
     assert loop.node_str(colour=False) == "no[variable='i']"
 
+    # And with loop_type rules
+    Loop.set_loop_type_inference_rules({"i-loop": {"variable": "i"}})
+    out = loop.node_str()
+    assert "yes[variable='i', loop_type='i-loop']" in out
+    Loop.set_loop_type_inference_rules({})
+
 
 def test_loop_str():
     '''Test the __str__ property of Loop.'''
@@ -201,6 +207,12 @@ def test_loop_str():
     out = str(loop)
     assert "Loop[variable:'i']\n" in out
     assert "End Loop" in out
+
+    # And with loop_type rules
+    Loop.set_loop_type_inference_rules({"i-loop": {"variable": "i"}})
+    out = str(loop)
+    assert "Loop[variable:'i', loop_type:'i-loop']\n" in out
+    Loop.set_loop_type_inference_rules({})
 
 
 def test_loop_independent_iterations():

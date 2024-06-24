@@ -45,9 +45,9 @@
 
 .. _psyir-ug:
 
-==============================================
- PSyIR: the PSyclone Internal Representation
-==============================================
+===============================================
+PSyIR: the PSyclone Intermediate Representation
+===============================================
 
 The PSyIR is at the heart of PSyclone, representing code for existing
 code and PSyKAl DSLs (at both the PSy- and kernel-layer levels). A PSyIR

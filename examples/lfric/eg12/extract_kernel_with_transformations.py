@@ -59,8 +59,8 @@ Names of Invokes and positions of Nodes containing the Kernel call can
 be found using the 'find_kernel.py' script.
 '''
 
-from __future__ import print_function
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
+
 
 # Specify the Kernel name as it appears in the Kernel calls
 # (ending with "_code")

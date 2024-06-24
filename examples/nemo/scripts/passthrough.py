@@ -1,7 +1,8 @@
+#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council.
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,48 +32,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Authors: S. Siso, STFC Daresbury Lab
 
-'''A transformation script that simply prints the PSyIR of each invoke
-to stdout. No actual transformations are performed.
+''' Process Nemo code with PSyclone but don't do any changes. This file is only
+needed to provide a FILES_TO_SKIP list. '''
 
-In order to use this script you must first install PSyclone. See
-README.md in the top-level psyclone directory.
+from utils import NOT_WORKING
 
-Once you have psyclone installed, this may be used by doing:
-
- $ psyclone -api nemo -s ./schedule_view_trans.py some_source_file.f90
-
-This should produce a lot of output, ending with generated
-Fortran. Note that the Fortran source files provided to PSyclone must
-have already been preprocessed (if required).
-
-'''
-
-from __future__ import print_function, absolute_import
+# List of all files that psyclone will skip processing
+FILES_TO_SKIP = NOT_WORKING
 
 
-def trans(psy):
-    '''A PSyclone-script compliant transformation function. Prints
-    the PSyIR of each invoke to stdout.
-
-    :param psy: The PSy layer object to apply transformations to.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-    '''
-    # Since "Backslashes may not appear inside the expression
-    # portions of f-strings" via PEP 498, use chr(10) for '\n'
-    print(f"Invokes found:\n"
-          f"{chr(10).join([str(name) for name in psy.invokes.names])}\n")
-
-    for invoke in psy.invokes.invoke_list:
-
-        sched = invoke.schedule
-
-        if not sched:
-            # In NEMO, the pre-processing step can result in some
-            # subroutines that have no executable statements and
-            # therefore no Schedule.
-            print(f"Invoke {invoke.name} has no Schedule! Skipping...")
-            continue
-        print(sched.view())
+def trans(_):
+    ''' Don't do any changes. '''
