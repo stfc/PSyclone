@@ -131,6 +131,10 @@
 	47) PR #2625 for #2619. Adds a create function for OMPParallelDoDirective
 	to avoid issues from using its parent class' create method.
 
+	48) PR #2609 for #2407. The OpenACC routine directive and transformation
+	now accept a "parallelism" attribute to set the level of parallelism, which
+	is mandatory in recent OpenACC standards.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
