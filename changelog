@@ -135,6 +135,9 @@
 	now accept a "parallelism" attribute to set the level of parallelism, which
 	is mandatory in recent OpenACC standards.
 
+	49) PR #2626 for #2622. Adds convenience methods to the SymbolTable for
+	manipulating Routine argument lists.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
