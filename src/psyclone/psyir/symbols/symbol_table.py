@@ -1317,11 +1317,12 @@ class SymbolTable():
         for symbol in arg_list:
             if not isinstance(symbol, DataSymbol):
                 raise TypeError(f"Expected a list of DataSymbols but found an "
-                                f"object of type '{type(symbol)}'.")
+                                f"object of type '{type(symbol).__name__}'.")
             if not symbol.is_argument:
                 raise ValueError(
                     f"DataSymbol '{symbol}' is listed as a kernel argument "
-                    f"but has an interface of type '{type(symbol.interface)}' "
+                    f"but has an interface of type "
+                    f"'{type(symbol.interface).__name__}' "
                     f"rather than ArgumentInterface")
 
     def _validate_non_args(self):

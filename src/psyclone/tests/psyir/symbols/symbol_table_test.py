@@ -1637,10 +1637,8 @@ def test_insert_argument():
                               interface=symbols.ArgumentInterface())
     with pytest.raises(InternalError) as err:
         sym_table.insert_argument(0, arg4)
-        assert ("var6" in str(err.value)
-                and " is not listed as a kernel argument"
-               " and yet has an ArgumentInterface interface."
-                in str(err.value))
+    assert ("var6" in str(err.value) and " is not listed as a kernel argument"
+            " and yet has an ArgumentInterface interface." in str(err.value))
 
     # Make table inconsistent by putting a non-argument symbol into the
     # internal argument list
@@ -1651,11 +1649,9 @@ def test_insert_argument():
                               interface=symbols.ArgumentInterface())
     with pytest.raises(InternalError) as err:
         sym_table.insert_argument(0, arg1)
-        assert ("var1" in str(err.value)
-                and " is listed as a kernel argument "
-                    "but has an interface of type 'AutomaticInterface' "
-                    "rather than ArgumentInterface"
-               in str(err.value))
+    assert ("var1" in str(err.value) and " is listed as a kernel argument "
+            "but has an interface of type 'AutomaticInterface' "
+            "rather than ArgumentInterface" in str(err.value))
 
 
 def test_append_argument():
@@ -1705,10 +1701,8 @@ def test_append_argument():
                               interface=symbols.ArgumentInterface())
     with pytest.raises(InternalError) as err:
         sym_table.append_argument(arg4)
-        assert ("var6" in str(err.value)
-                and " is not listed as a kernel argument"
-               " and yet has an ArgumentInterface interface."
-                in str(err.value))
+    assert ("var6" in str(err.value) and " is not listed as a kernel argument"
+            " and yet has an ArgumentInterface interface." in str(err.value))
 
     # Make table inconsistent by putting a non-argument symbol into the
     # internal argument list
@@ -1719,11 +1713,9 @@ def test_append_argument():
                               interface=symbols.ArgumentInterface())
     with pytest.raises(InternalError) as err:
         sym_table.append_argument(arg1)
-        assert ("var1" in str(err.value)
-                and " is listed as a kernel argument "
-                    "but has an interface of type 'AutomaticInterface' "
-                    "rather than ArgumentInterface"
-               in str(err.value))
+    assert ("var1" in str(err.value) and " is listed as a kernel argument "
+            "but has an interface of type 'AutomaticInterface' "
+            "rather than ArgumentInterface" in str(err.value))
 
 
 def test_validate_non_args():
