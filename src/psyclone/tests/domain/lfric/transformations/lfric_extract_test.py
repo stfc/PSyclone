@@ -43,7 +43,6 @@ transformations and ExtractNode.
 
 import pytest
 
-from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import colored, ExtractNode, Loop
@@ -117,9 +116,10 @@ def test_node_list_error(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_distmem_error(monkeypatch):
+def test_distmem_error():
     ''' Test that applying ExtractRegionTrans with distributed memory
-    enabled raises a TransformationError. '''
+    enabled raises a TransformationError if a node is included that
+    is not supported. '''
     etrans = LFRicExtractTrans()
 
     # Test Dynamo0.3 API with distributed memory
@@ -128,25 +128,17 @@ def test_distmem_error(monkeypatch):
     schedule = invoke.schedule
 
     # Try applying Extract transformation to Node(s) containing HaloExchange
-    # We have to disable distributed memory, otherwise an earlier test
-    # will be triggered
-    config = Config.get()
-    monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(schedule.children[2:4])
     assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
-    # This will set config.distributed_mem to True again.
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            DYNAMO_API, idx=0, dist_mem=True)
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
 
-    # We have to disable distributed memory again (get_invoke before
-    # will set it to true), otherwise an earlier test will be triggered
-    monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(glob_sum)
 
