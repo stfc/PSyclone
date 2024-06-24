@@ -443,7 +443,6 @@ def test_sirwriter_routine_node_2(sir_writer, monkeypatch):
         "])\n" in result)
 
 
-
 def test_sirwriter_loop_node_not_compute(sir_writer):
     '''Check the loop_node method of the SIRWriter class raises an
     exception if the content of the triply nested loop is not computation.
