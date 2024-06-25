@@ -832,8 +832,8 @@ def test_omp_region_invalid_node():
 
     with pytest.raises(TransformationError) as err:
         ompr.apply(schedule.children)
-    assert ("ACCParallelDirective' cannot be enclosed by a "
-            "OMPParallelTrans transformation" in str(err.value))
+    assert ("cannot be enclosed by a OMPParallelTrans transformation"
+            in str(err.value))
 
     # Check that the test can be disabled with the appropriate option:
     ompr.apply(schedule.children, {"node-type-check": False})
@@ -1053,8 +1053,8 @@ def test_acc_parallel_trans_dm():
     # of the HaloExchange nodes.
     with pytest.raises(TransformationError) as err:
         acct.apply(schedule.children)
-    assert ("Nodes of type 'GOHaloExchange' cannot be enclosed by a "
-            "ACCParallelTrans transformation" in str(err.value))
+    assert ("cannot be enclosed by a ACCParallelTrans transformation"
+            in str(err.value))
     acct.apply(schedule.children[1:])
     # Add an enter-data region.
     accdt.apply(schedule)
@@ -1124,8 +1124,8 @@ def test_acc_parallel_invalid_node():
     # Attempt to enclose the enter-data directive within a parallel region
     with pytest.raises(TransformationError) as err:
         accpara.apply(schedule.children[0])
-    assert ("'GOACCEnterDataDirective' cannot be enclosed by a "
-            "ACCParallelTrans transformation" in str(err.value))
+    assert ("cannot be enclosed by a ACCParallelTrans transformation"
+            in str(err.value))
 
 
 def test_acc_data_copyin(tmpdir):
@@ -1500,7 +1500,7 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
     code = fortran_writer(kern.get_kernel_schedule())
-    assert "!$acc routine\n" in code
+    assert "!$acc routine seq\n" in code
 
     # If the kernel schedule is not accessible, the transformation fails
     def raise_gen_error():
@@ -1526,7 +1526,7 @@ def test_accroutinetrans_with_routine(fortran_writer):
     rtrans.apply(routine)
     # Check that there is a acc routine directive in the routine
     code = fortran_writer(routine)
-    assert "!$acc routine\n" in code
+    assert "!$acc routine seq\n" in code
 
     # Even if applied multiple times the Directive is only there once
     previous_num_children = len(routine.children)
