@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author L. Turner, Met Office
 
-'''Module containing the ArrayArgMetadata class which captures the metadata
-associated with an array argument. Supports the creation, modification
+'''Module containing the ScalarArrayArgMetadata class which captures the
+metadata associated with an array argument. Supports the creation, modification
 and Fortran output of an Array argument.
 
 '''
@@ -42,14 +42,13 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 
 
-class ArrayArgMetadata(ScalarArgMetadata):
+class ScalarArrayArgMetadata(ScalarArgMetadata):
     '''Class to capture LFRic kernel metadata information for an array
     argument.
 
     :param str datatype: the datatype of this array (GH_INTEGER, ...).
     :param str access: the way the kernel accesses this array (GH_READ).
-    :param str function_space: the function space that this array is \
-        on (W0, ...).
+    :param str array_ndims: the rank (number of dimensions) of this array
 
     '''
     # The name used to specify an array argument in LFRic metadata.
@@ -111,7 +110,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
 
         '''
         const = LFRicConstants()
-        ArrayArgMetadata.validate_scalar_value(
+        ScalarArrayArgMetadata.validate_scalar_value(
             value, const.VALID_ARRAY_DATA_TYPES, "datatype descriptor")
 
     @staticmethod
@@ -120,11 +119,11 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :param str value: the access descriptor to validate.
 
         :raises ValueError: if the provided value is not a valid
-            access  descriptor.
+            access descriptor.
 
         '''
         const = LFRicConstants()
-        ArrayArgMetadata.validate_scalar_value(
+        ScalarArrayArgMetadata.validate_scalar_value(
             value, const.VALID_ARRAY_ACCESS_TYPES, "access descriptor")
 
     @property
@@ -138,8 +137,12 @@ class ArrayArgMetadata(ScalarArgMetadata):
     @array_ndims.setter
     def array_ndims(self, value):
         '''
-        :param str value: set the function space to the
-            specified value.
+        :param str value: set the function space to the specified value.
+
+        :raises TypeError: if the array_size is not a string
+        :raises ValueError: if the array size is not an integer
+        :raises ValeuError: if the array size is less than 1
+
         '''
         if not isinstance(value, str):
             raise TypeError(f"The 'array_size' value should be of type str, "
@@ -156,4 +159,4 @@ class ArrayArgMetadata(ScalarArgMetadata):
         self._array_ndims = value
 
 
-__all__ = ["ArrayArgMetadata"]
+__all__ = ["ScalarArrayArgMetadata"]

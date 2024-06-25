@@ -33,25 +33,25 @@
 # -----------------------------------------------------------------------------
 # Author: L. Turner, Met Office
 
-'''Module containing tests for the ArrayArgMetadata class.
+'''Module containing tests for the ScalarArrayArgMetadata class.
 
 '''
 import pytest
 
 from fparser.two import Fortran2003
 
-from psyclone.domain.lfric.kernel import ArrayArgMetadata
+from psyclone.domain.lfric.kernel import ScalarArrayArgMetadata
 
 
 @pytest.mark.parametrize("datatype, access, array_ndims", [
     ("GH_REAL", "GH_READ", "1"), ("gh_real", "gh_read", "1")])
 def test_create(datatype, access, array_ndims):
-    '''Test that an instance of ArrayArgMetadata can be created
+    '''Test that an instance of ScalarArrayArgMetadata can be created
     successfully. Also test that the arguments are case insensitive.
 
     '''
-    array_arg = ArrayArgMetadata(datatype, access, array_ndims)
-    assert isinstance(array_arg, ArrayArgMetadata)
+    array_arg = ScalarArrayArgMetadata(datatype, access, array_ndims)
+    assert isinstance(array_arg, ScalarArrayArgMetadata)
     assert array_arg.form == "gh_scalar_array"
     assert array_arg.datatype == "gh_real"
     assert array_arg.access == "gh_read"
@@ -64,7 +64,7 @@ def test_init_invalid_an():
 
     '''
     with pytest.raises(TypeError) as info:
-        _ = ArrayArgMetadata("GH_REAL", "GH_READ", None)
+        _ = ScalarArrayArgMetadata("GH_REAL", "GH_READ", None)
     assert ("The 'array_size' value should be of type str, but found "
             "'NoneType'." in str(info.value))
 
@@ -73,9 +73,9 @@ def test_init_invalid_an():
                          ["arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 2)"])
 def test_get_metadata(metadata):
     '''Test that the _get_metadata class method works as expected '''
-    fparser2_tree = ArrayArgMetadata.create_fparser2(
+    fparser2_tree = ScalarArrayArgMetadata.create_fparser2(
         metadata, Fortran2003.Part_Ref)
-    datatype, access, array_ndims = ArrayArgMetadata._get_metadata(
+    datatype, access, array_ndims = ScalarArrayArgMetadata._get_metadata(
         fparser2_tree)
     assert datatype == "GH_REAL"
     assert access == "GH_READ"
@@ -86,7 +86,7 @@ def test_get_metadata(metadata):
     "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 5)"])
 def test_fortran_string(fortran_string):
     '''Test that the fortran_string method works as expected.'''
-    array_arg = ArrayArgMetadata.create_from_fortran_string(fortran_string)
+    array_arg = ScalarArrayArgMetadata.create_from_fortran_string(fortran_string)
     result = array_arg.fortran_string()
     assert result == fortran_string.lower()
 
@@ -94,9 +94,9 @@ def test_fortran_string(fortran_string):
 @pytest.mark.parametrize("datatype", ["GH_REAL", "GH_INTEGER", "GH_LOGICAL"])
 def test_check_datatype(datatype):
     '''Test the check_datatype method works as expected.'''
-    ArrayArgMetadata.check_datatype(datatype)
+    ScalarArrayArgMetadata.check_datatype(datatype)
     with pytest.raises(ValueError) as info:
-        ArrayArgMetadata.check_datatype("invalid")
+        ScalarArrayArgMetadata.check_datatype("invalid")
     assert ("The 'datatype descriptor' metadata should be a recognised value "
             "(one of ['gh_real', 'gh_integer', 'gh_logical']) but found "
             "'invalid'." in str(info.value))
@@ -104,9 +104,9 @@ def test_check_datatype(datatype):
 
 def test_check_access():
     '''Test the check_access method works as expected.'''
-    ArrayArgMetadata.check_access("GH_READ")
+    ScalarArrayArgMetadata.check_access("GH_READ")
     with pytest.raises(ValueError) as info:
-        ArrayArgMetadata.check_access("invalid")
+        ScalarArrayArgMetadata.check_access("invalid")
     assert ("The 'access descriptor' metadata should be a recognised value "
             "(one of ['gh_read']) but found 'invalid'." in str(info.value))
 
@@ -116,7 +116,7 @@ def test_array_ndims_setter_getter():
     including raising an exception if the value is invalid.
 
     '''
-    array_arg = ArrayArgMetadata("GH_REAL", "GH_READ", "2")
+    array_arg = ScalarArrayArgMetadata("GH_REAL", "GH_READ", "2")
 
     with pytest.raises(ValueError) as info:
         array_arg.array_ndims = "invalid"

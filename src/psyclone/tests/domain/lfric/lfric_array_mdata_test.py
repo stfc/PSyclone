@@ -60,9 +60,9 @@ module testkern_mod
 
   type, extends(kernel_type) :: testkern_array_type
      type(arg_type), meta_args(5) =                                          &
-          (/ arg_type(gh_scalar_array,   gh_real,    gh_read, 1),                   &
-             arg_type(gh_scalar_array,   gh_integer, gh_read, 2),                   &
-             arg_type(gh_scalar_array,   gh_logical, gh_read, 4),                   &
+          (/ arg_type(gh_scalar_array,   gh_real,    gh_read, 1),            &
+             arg_type(gh_scalar_array,   gh_integer, gh_read, 2),            &
+             arg_type(gh_scalar_array,   gh_logical, gh_read, 4),            &
              arg_type(gh_operator, gh_real,   gh_read, w2, w2),              &
              arg_type(gh_field,    gh_real,   gh_write, w3)                  &
            /)
