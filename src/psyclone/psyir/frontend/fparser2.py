@@ -5359,9 +5359,7 @@ class Fparser2Reader():
                 # declaration.
 
                 # Lookup with the routine name as return_name may be
-                # declared with its own local name. Be wary that this
-                # function may not be referenced so there might not be
-                # a RoutineSymbol.
+                # declared with its own local name.
                 routine_symbol = routine.symbol_table.lookup(routine.name)
                 routine_symbol.datatype = base_type
 
