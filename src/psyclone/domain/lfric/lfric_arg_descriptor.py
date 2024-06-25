@@ -278,7 +278,7 @@ class LFRicArgDescriptor(Descriptor):
     def _validate_array_ndims(self, arg_type):
         '''
         Validates descriptors for scalar array arguments and populates
-        vector properties accordingly.
+        properties accordingly.
 
         :param str separator: operator in a binary expression.
         :param arg_type: LFRic API array argument type.
@@ -287,15 +287,13 @@ class LFRicArgDescriptor(Descriptor):
         :raises ParseError: if the array notation is not in the
                             correct format 'n' where 'n' is
                             an integer.
-        :raises ParseError: if the array notation is used for the
-                            array size of less than 1.
+        :raises ParseError: if the specified number of array dimensions
+                            is less than 1.
         :raises ParseError: if the array notation is used for an
                             argument that is not an array.
 
         '''
-        print(arg_type.args[3])
-
-        # Try to find the array size for a scalar array and return
+        # Try to find the array size for a scalar array and raise
         # an error if it is not an integer number...
         try:
             array_ndims = int(arg_type.args[3])
@@ -659,10 +657,8 @@ class LFRicArgDescriptor(Descriptor):
         :raises InternalError: if argument type other than an array is
                                passed in.
         :raises ParseError: if there are not exactly 4 metadata arguments.
-        :raises InternalError: if an array argument has an invalid data type.
+        :raises InternalError: if the array argument has an invalid data type.
         :raises ParseError: if array arguments do not have read-only access.
-        :raises ParseError: if a scalar argument that is not a real
-                            scalar has a reduction access.
 
         '''
         const = LFRicConstants()
@@ -676,13 +672,13 @@ class LFRicArgDescriptor(Descriptor):
         nargs_array = 4
         if self._nargs != nargs_array:
             raise ParseError(
-                "In the LFRic API each 'meta_arg' entry must have "
+                "In the LFRic API a 'meta_arg' entry must have "
                 f"{nargs_array} arguments if its first argument is of "
                 f"{const.VALID_ARRAY_NAMES} type, but found {self._nargs} in "
                 f"'{arg_type}'.")
 
         # Check whether an invalid data type for an array argument is passed
-        # in. Valid data types for arrays are valid data types in LFRic API.
+        # in.
         if self._data_type not in const.VALID_ARRAY_DATA_TYPES:
             raise InternalError(
                 f"Expected one of {const.VALID_ARRAY_DATA_TYPES} as the "
@@ -762,7 +758,7 @@ class LFRicArgDescriptor(Descriptor):
         function_space_from for an operator and nothing for a scalar.
 
         :returns: function space relating to this kernel argument or
-                  None (for a scalar).
+                  None (for a scalar or ScalarArray).
         :rtype: str or NoneType
 
         :raises InternalError: if an invalid argument type is passed in.
@@ -774,7 +770,7 @@ class LFRicArgDescriptor(Descriptor):
         if self._argument_type in const.VALID_OPERATOR_NAMES:
             return self._function_space2
         if self._argument_type in const.VALID_ARRAY_NAMES:
-            return self._function_space1
+            return None
         if self._argument_type in const.VALID_SCALAR_NAMES:
             return None
         raise InternalError(f"Expected a valid argument type but got "
