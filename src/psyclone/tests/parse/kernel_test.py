@@ -407,7 +407,7 @@ def test_builtinfactory_metadataerror(monkeypatch):
 
     '''
     monkeypatch.setattr(fpapi, "parse", None)
-    factory = BuiltInKernelTypeFactory()
+    factory = BuiltInKernelTypeFactory("lfric")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(builtins.keys(), fname, "setval_c")
     assert "Failed to parse the meta-data for PSyclone built-ins" \
