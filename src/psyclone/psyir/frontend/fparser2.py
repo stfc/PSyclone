@@ -5134,7 +5134,7 @@ class Fparser2Reader():
 
         '''
         call = Call(parent=parent)
-        # TODO #PENDING_ISSUE_NUMBER For now `null()` is treated as a
+        # TODO fparser/#447 For now `null()` is treated as a
         # `Function_Reference` by fparser, instead of an
         # `Intrinsic_Function_Reference` so we redirect to the correct
         # handler for fparser2 tests to pass. This should be removed once
