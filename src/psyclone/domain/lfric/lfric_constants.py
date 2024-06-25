@@ -158,8 +158,6 @@ class LFRicConstants():
         LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer",
                                                       "logical"]
 
-        # Valid intrinsic types for array kernel argument data
-        # ('real', 'integer', and 'logical').
         LFRicConstants.VALID_ARRAY_INTRINSIC_TYPES = ["real", "integer",
                                                       "logical"]
 
