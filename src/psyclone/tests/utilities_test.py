@@ -318,7 +318,6 @@ def test_get_invoke():
     # Check that dist_mem is being accepted:
     get_invoke("1_single_invoke.f90", "lfric", idx=0, dist_mem=True)
     get_invoke("1_single_invoke.f90", "lfric", idx=0, dist_mem=False)
-    get_invoke("explicit_do.f90", "nemo", idx=0)
 
     # Test that an invalid name raises an exception
     with pytest.raises(RuntimeError) as excinfo:
@@ -335,18 +334,18 @@ def test_get_invoke():
 
     # Test that invalid parameter combinations raise an exception:
     with pytest.raises(RuntimeError) as excinfo:
-        get_invoke("does_not_exist", "nemo")
+        get_invoke("does_not_exist", "lfric")
     assert ("Either the index or the name of the requested invoke must "
             "be specified") in str(excinfo.value)
 
     with pytest.raises(RuntimeError) as excinfo:
-        get_invoke("does_not_exist", "nemo", idx=0, name="name")
+        get_invoke("does_not_exist", "lfric", idx=0, name="name")
     assert ("Either the index or the name of the requested invoke must "
             "be specified") in str(excinfo.value)
 
     # Test that a non-existent file raises the right exception
     with pytest.raises(ParseError) as excinfo:
-        get_invoke("does_not_exist", "nemo", idx=0)
+        get_invoke("does_not_exist", "lfric", idx=0)
     assert "No such file or directory" in str(excinfo.value)
 
 

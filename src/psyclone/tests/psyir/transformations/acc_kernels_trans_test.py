@@ -40,18 +40,12 @@
 
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-
 from psyclone.errors import GenerationError
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, ACCKernelsDirective, Loop, Routine
 from psyclone.psyir.transformations import (
     ACCKernelsTrans, TransformationError, ProfileTrans)
 from psyclone.transformations import ACCLoopTrans
 from psyclone.tests.utilities import get_invoke
-
-# These tests are for PSyclone without a DSL.
-API = ""
 
 EXPLICIT_LOOP = ("program do_loop\n"
                  "use kind_params_mod\n"
@@ -64,34 +58,32 @@ EXPLICIT_LOOP = ("program do_loop\n"
                  "end program do_loop\n")
 
 
-def test_kernels_single_node(parser):
+def test_kernels_single_node(fortran_reader):
     ''' Check that we can apply the ACCKernelsTrans to a single node
     instead of to a list of nodes. '''
-    code = parser(FortranStringReader(EXPLICIT_LOOP))
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_LOOP)
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule[0], {"default_present": True})
     assert isinstance(schedule[0], ACCKernelsDirective)
 
 
-def test_no_kernels_error(parser):
+def test_no_kernels_error(fortran_reader):
     ''' Check that the transformation rejects an attempt to put things
     that aren't kernels inside a kernels region. '''
-    reader = FortranStringReader("program write_out\n"
-                                 "integer, parameter :: wp = kind(1.0)\n"
-                                 "integer :: ji, jpj\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "read(*,*) sto_tmp(ji)\n"
-                                 "end do\n"
-                                 "do ji = 1,jpj\n"
-                                 "write(*,*) sto_tmp(ji)\n"
-                                 "end do\n"
-                                 "end program write_out\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+             "program write_out\n"
+             "integer, parameter :: wp = kind(1.0)\n"
+             "integer :: ji, jpj\n"
+             "real(kind=wp) :: sto_tmp(5)\n"
+             "do ji = 1,jpj\n"
+             "read(*,*) sto_tmp(ji)\n"
+             "end do\n"
+             "do ji = 1,jpj\n"
+             "write(*,*) sto_tmp(ji)\n"
+             "end do\n"
+             "end program write_out\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children[0:2], {"default_present": True})
@@ -112,17 +104,16 @@ def test_acc_kernels_gocean_error():
             "GOcean InvokeSchedules" in str(err.value))
 
 
-def test_no_loops(parser):
+def test_no_loops(fortran_reader):
     ''' Check that the transformation refuses to generate a kernels region
     if it contains no loops and that this check may also be disabled. '''
-    reader = FortranStringReader("program no_loop\n"
-                                 "integer :: jpk\n"
-                                 "jpk = 30\n"
-                                 "end program no_loop\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program no_loop\n"
+                "integer :: jpk\n"
+                "jpk = 30\n"
+                "end program no_loop\n")
     acc_trans = ACCKernelsTrans()
+    schedule = psyir.walk(Routine)[0]
     with pytest.raises(TransformationError) as err:
         acc_trans.validate(schedule.children[0:1])
     assert ("must enclose at least one loop or array range but none were "
@@ -131,49 +122,47 @@ def test_no_loops(parser):
     acc_trans.validate(schedule[0:1], options={"disable_loop_check": True})
 
 
-def test_implicit_loop(parser):
+def test_implicit_loop(fortran_reader, fortran_writer):
     ''' Check that the transformation generates correct code when applied
     to an implicit loop. '''
-    reader = FortranStringReader("program implicit_loop\n"
-                                 "use kind_params_mod\n"
-                                 "real(kind=wp) :: sto_tmp(5,5)\n"
-                                 "sto_tmp(:,:) = 0.0_wp\n"
-                                 "end program implicit_loop\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program implicit_loop\n"
+                "use kind_params_mod\n"
+                "real(kind=wp) :: sto_tmp(5,5)\n"
+                "sto_tmp(:,:) = 0.0_wp\n"
+                "end program implicit_loop\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule.children[0:1], {"default_present": True})
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir)
     assert ("  !$acc kernels default(present)\n"
             "  sto_tmp(:,:) = 0.0_wp\n"
             "  !$acc end kernels\n" in gen_code)
 
 
-def test_multikern_if(parser):
+def test_multikern_if(fortran_reader, fortran_writer):
     ''' Check that we can include an if-block containing multiple
     loops within a kernels region. '''
-    reader = FortranStringReader("program implicit_loop\n"
-                                 "use kind_params_mod\n"
-                                 "logical :: do_this\n"
-                                 "integer :: jk\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "if(do_this)then\n"
-                                 "do jk = 1, 3\n"
-                                 "  sto_tmp(jk) = jk\n"
-                                 "end do\n"
-                                 "else\n"
-                                 "do jk = 1, 5\n"
-                                 "  sto_tmp(jk) = jk\n"
-                                 "end do\n"
-                                 "end if\n"
-                                 "end program implicit_loop\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program implicit_loop\n"
+                "use kind_params_mod\n"
+                "logical :: do_this\n"
+                "integer :: jk\n"
+                "real(kind=wp) :: sto_tmp(5)\n"
+                "if(do_this)then\n"
+                "do jk = 1, 3\n"
+                "  sto_tmp(jk) = jk\n"
+                "end do\n"
+                "else\n"
+                "do jk = 1, 5\n"
+                "  sto_tmp(jk) = jk\n"
+                "end do\n"
+                "end if\n"
+                "end program implicit_loop\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule.children[0:1], {"default_present": True})
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir)
     assert ("  !$acc kernels default(present)\n"
             "  if (do_this) then\n"
             "    do jk = 1, 3, 1\n" in gen_code)
@@ -184,28 +173,27 @@ def test_multikern_if(parser):
             "end program implicit_loop" in gen_code)
 
 
-def test_kernels_within_if(parser):
+def test_kernels_within_if(fortran_reader, fortran_writer):
     ''' Check that we can put a kernels region within an if block. '''
-    reader = FortranStringReader("program if_then\n"
-                                 "logical :: do_this\n"
-                                 "integer :: ji, jpi\n"
-                                 "real :: fld(:), fld2d(:,:)\n"
-                                 "if(do_this)then\n"
-                                 "  do ji=1,jpi\n"
-                                 "    fld(ji) = 1.0\n"
-                                 "  end do\n"
-                                 "else\n"
-                                 "  fld2d(:,:) = 0.0\n"
-                                 "end if\n"
-                                 "end program if_then\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program if_then\n"
+                "logical :: do_this\n"
+                "integer :: ji, jpi\n"
+                "real :: fld(:), fld2d(:,:)\n"
+                "if(do_this)then\n"
+                "  do ji=1,jpi\n"
+                "    fld(ji) = 1.0\n"
+                "  end do\n"
+                "else\n"
+                "  fld2d(:,:) = 0.0\n"
+                "end if\n"
+                "end program if_then\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
 
     acc_trans.apply(schedule.children[0].if_body, {"default_present": True})
     acc_trans.apply(schedule.children[0].else_body, {"default_present": True})
-    new_code = str(psy.gen).lower()
+    new_code = fortran_writer(psyir)
     assert ("  if (do_this) then\n"
             "    !$acc kernels default(present)\n"
             "    do ji = 1, jpi, 1\n" in new_code)
@@ -218,57 +206,51 @@ def test_kernels_within_if(parser):
             "  end if\n" in new_code)
 
 
-def test_no_code_block_kernels(parser):
+def test_no_code_block_kernels(fortran_reader):
     ''' Check that we reject attempts to enclose CodeBlocks within a
     Kernels region. '''
-    reader = FortranStringReader("program cb_mix\n"
-                                 "  integer :: ji, jpi\n"
-                                 "  real :: fld(:)\n"
-                                 "  do ji=1,jpi\n"
-                                 "    fld(ji) = 1.0\n"
-                                 "  end do\n"
-                                 "  write(*,*) 'Hello'\n"
-                                 "end program cb_mix\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program cb_mix\n"
+                "  integer :: ji, jpi\n"
+                "  real :: fld(:)\n"
+                "  do ji=1,jpi\n"
+                "    fld(ji) = 1.0\n"
+                "  end do\n"
+                "  write(*,*) 'Hello'\n"
+                "end program cb_mix\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children)
-    assert ("'CodeBlock' cannot be enclosed by a ACCKernelsTrans "
+    assert ("cannot be enclosed by a ACCKernelsTrans "
             in str(err.value))
 
 
-def test_no_default_present(parser):
+def test_no_default_present(fortran_reader, fortran_writer):
     ''' Check that we can create a kernels region with no 'default(present)'
     clause (as we will want to do when using managed memory). '''
-    reader = FortranStringReader(EXPLICIT_LOOP)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_LOOP)
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule.children, {"default_present": False})
-    gen_code = str(psy.gen)
-    assert "!$acc kernels\n" in gen_code
+    assert "!$acc kernels\n" in fortran_writer(psyir)
 
 
-def test_kernels_around_where_construct(parser):
+def test_kernels_around_where_construct(fortran_reader, fortran_writer):
     ''' Check that we can put a WHERE construct inside a KERNELS region. '''
-    reader = FortranStringReader("program where_test\n"
-                                 "  integer :: flag\n"
-                                 "  real :: a(:,:), b(:,:)\n"
-                                 "  where (a(:,:) < flag)\n"
-                                 "    b(:,:) = 0.0\n"
-                                 "  end where\n"
-                                 "end program where_test\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program where_test\n"
+                "  integer :: flag\n"
+                "  real :: a(:,:), b(:,:)\n"
+                "  where (a(:,:) < flag)\n"
+                "    b(:,:) = 0.0\n"
+                "  end where\n"
+                "end program where_test\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule)
     assert isinstance(schedule[0], ACCKernelsDirective)
     assert isinstance(schedule[0].dir_body[0], Loop)
-    new_code = str(psy.gen)
     assert ("  !$acc kernels\n"
             "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
             "    do widx1 = 1, SIZE(a(:,:), dim=1), 1\n"
@@ -279,24 +261,22 @@ def test_kernels_around_where_construct(parser):
             "      end if\n"
             "    enddo\n"
             "  enddo\n"
-            "  !$acc end kernels\n" in new_code)
+            "  !$acc end kernels\n" in fortran_writer(psyir))
 
 
-def test_kernels_around_where_stmt(parser):
+def test_kernels_around_where_stmt(fortran_reader, fortran_writer):
     ''' Check that we can put a WHERE statement inside a KERNELS region. '''
-    reader = FortranStringReader("program where_test\n"
-                                 "  integer :: flag\n"
-                                 "  real :: a(:,:), b(:,:), c(:,:)\n"
-                                 "  a(:,:) = 1.0\n"
-                                 "  where (a(:,:) < flag) b(:,:) = 0.0\n"
-                                 "  c(:,:) = 1.0\n"
-                                 "end program where_test\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program where_test\n"
+                "  integer :: flag\n"
+                "  real :: a(:,:), b(:,:), c(:,:)\n"
+                "  a(:,:) = 1.0\n"
+                "  where (a(:,:) < flag) b(:,:) = 0.0\n"
+                "  c(:,:) = 1.0\n"
+                "end program where_test\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply([schedule[1]])
-    new_code = str(psy.gen)
     assert ("  a(:,:) = 1.0\n"
             "  !$acc kernels\n"
             "  do widx2 = 1, SIZE(a(:,:), dim=2), 1\n"
@@ -309,20 +289,19 @@ def test_kernels_around_where_stmt(parser):
             "    enddo\n"
             "  enddo\n"
             "  !$acc end kernels\n"
-            "  c(:,:) = 1.0\n" in new_code)
+            "  c(:,:) = 1.0\n" in fortran_writer(psyir))
 
 
-def test_loop_inside_kernels(parser):
+def test_loop_inside_kernels(fortran_reader, fortran_writer):
     ''' Check that we can put an ACC LOOP directive inside a KERNELS
     region. '''
-    code = parser(FortranStringReader(EXPLICIT_LOOP))
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_LOOP)
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     acc_trans.apply([schedule[0]])
     loop_trans = ACCLoopTrans()
     loop_trans.apply(schedule[0].dir_body[0])
-    output = str(psy.gen).lower()
+    output = fortran_writer(psyir)
     assert ("  !$acc kernels\n"
             "  !$acc loop independent\n"
             "  do ji = 1, jpj, 1\n" in output)
@@ -330,29 +309,28 @@ def test_loop_inside_kernels(parser):
             "  !$acc end kernels\n" in output)
 
 
-def test_two_loops_inside_kernels(parser):
+def test_two_loops_inside_kernels(fortran_reader, fortran_writer):
     ''' Check that we can mark-up one or both loops inside a KERNELS
     region containing two loops. '''
-    reader = FortranStringReader("program two_loops\n"
-                                 "  integer :: ji\n"
-                                 "  real :: array(10)\n"
-                                 "  do ji = 1, 10\n"
-                                 "    array(ji) = 1.0\n"
-                                 "  end do\n"
-                                 "  do ji = 1, 5\n"
-                                 "    array(ji) = 2.0*array(ji)\n"
-                                 "  end do\n"
-                                 "end program two_loops\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program two_loops\n"
+                "  integer :: ji\n"
+                "  real :: array(10)\n"
+                "  do ji = 1, 10\n"
+                "    array(ji) = 1.0\n"
+                "  end do\n"
+                "  do ji = 1, 5\n"
+                "    array(ji) = 2.0*array(ji)\n"
+                "  end do\n"
+                "end program two_loops\n")
+    schedule = psyir.walk(Routine)[0]
     # Enclose both loops within a KERNELS region
     acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule[0:2])
     # Apply a loop transformation to just the first loop
     loop_trans = ACCLoopTrans()
     loop_trans.apply(schedule[0].dir_body[0])
-    output = str(psy.gen).lower()
+    output = fortran_writer(psyir)
     assert ("  !$acc kernels\n"
             "  !$acc loop independent\n"
             "  do ji = 1, 10, 1\n" in output)
@@ -361,7 +339,7 @@ def test_two_loops_inside_kernels(parser):
             "\n"
             "end program" in output)
     loop_trans.apply(schedule[0].dir_body[1])
-    output = str(psy.gen).lower()
+    output = fortran_writer(psyir)
     assert ("  !$acc loop independent\n"
             "  do ji = 1, 5, 1\n" in output)
     assert ("  enddo\n"
@@ -370,25 +348,24 @@ def test_two_loops_inside_kernels(parser):
             "end program" in output)
 
 
-def test_loop_after_implicit_kernels(parser):
+def test_loop_after_implicit_kernels(fortran_reader, fortran_writer):
     ''' Test the addition of a loop directive after some implicit loops
     within a kernels region. '''
-    reader = FortranStringReader("program two_loops\n"
-                                 "  integer :: ji\n"
-                                 "  real :: array(10,10)\n"
-                                 "  array(:,:) = -1.0\n"
-                                 "  do ji = 1, 5\n"
-                                 "    array(ji,1) = 2.0*array(ji,2)\n"
-                                 "  end do\n"
-                                 "end program two_loops\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+                "program two_loops\n"
+                "  integer :: ji\n"
+                "  real :: array(10,10)\n"
+                "  array(:,:) = -1.0\n"
+                "  do ji = 1, 5\n"
+                "    array(ji,1) = 2.0*array(ji,2)\n"
+                "  end do\n"
+                "end program two_loops\n")
+    schedule = psyir.walk(Routine)[0]
     acc_trans = ACCKernelsTrans()
     loop_trans = ACCLoopTrans()
     acc_trans.apply(schedule[0:2])
     loop_trans.apply(schedule[0].dir_body[1])
-    output = str(psy.gen).lower()
+    output = fortran_writer(psyir)
     assert ("  !$acc kernels\n"
             "  array(:,:) = -1.0\n"
             "  !$acc loop independent\n"
@@ -399,12 +376,11 @@ def test_loop_after_implicit_kernels(parser):
             "end program" in output)
 
 
-def test_no_psydata_in_kernels(parser, monkeypatch):
+def test_no_psydata_in_kernels(fortran_reader, monkeypatch):
     ''' Check that we refuse to generate code when a kernels region
     contains PSyData calls. '''
-    code = parser(FortranStringReader(EXPLICIT_LOOP))
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_LOOP)
+    schedule = psyir.walk(Routine)[0]
     ptrans = ProfileTrans()
     acc_trans = ACCKernelsTrans()
     acc_trans.apply(schedule[0])
@@ -420,7 +396,7 @@ def test_no_psydata_in_kernels(parser, monkeypatch):
     ptrans.apply(assign)
     # Check that an appropriate error is raised by the backend
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        psyir.walk(ACCKernelsDirective)[0].validate_global_constraints()
     assert ("Cannot include CodeBlocks or calls to PSyData routines within "
             "OpenACC regions but found [" in str(err.value))
 
