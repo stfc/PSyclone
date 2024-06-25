@@ -86,7 +86,8 @@ def test_get_metadata(metadata):
     "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 5)"])
 def test_fortran_string(fortran_string):
     '''Test that the fortran_string method works as expected.'''
-    array_arg = ScalarArrayArgMetadata.create_from_fortran_string(fortran_string)
+    array_arg = ScalarArrayArgMetadata.create_from_fortran_string(
+        fortran_string)
     result = array_arg.fortran_string()
     assert result == fortran_string.lower()
 
