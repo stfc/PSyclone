@@ -52,9 +52,10 @@ top-level loop (that does not contain a CodeBlock) within a KERNELS
 region:
 
 ```python
-    for node in sched.children:
+    subroutine = psyir.children[0].children[0]
+    for node in subroutine.children:
         if isinstance(node, Loop):
-	    try:
+            try:
                 ACC_KERNELS_TRANS.apply(node)
             except TransformationError:
                 pass
@@ -108,7 +109,7 @@ various ways in which PSyclone can be used.)
    ```python
    # Find the outer, 'iteration' loop
    tloop = None
-   for node in sched.children:
+   for node in subroutine.children:
        if isinstance(node, Loop) and node.loop_type == "tracers":
            tloop = node
            break
@@ -323,7 +324,7 @@ add the necessary option to add the `COLLAPSE` clause.
     from psyclone.transformations import ACCLoopTrans, TransformationError
     ACC_LOOP_TRANS = ACCLoopTrans()
     ...
-    loops = sched.walk(Loop)
+    loops = subroutine.walk(Loop)
     for loop in loops:
         if loop.loop_type == "lat":
             try:
@@ -348,7 +349,7 @@ add the necessary option to add the `COLLAPSE` clause.
    ```python
     # Find the outer, 'iteration' loop
     tloop = None
-    for node in sched.children:
+    for node in subroutine.children:
         if isinstance(node, Loop) and node.loop_type == "tracers":
             tloop = node
             break
