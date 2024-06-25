@@ -103,7 +103,7 @@ def test_ad_array_type_wrong_num_of_args():
     name = "testkern_array_type"
     with pytest.raises(ParseError) as excinfo:
         _ = LFRicKernMetadata(ast, name=name)
-    assert ("each 'meta_arg' entry must have 4 arguments if its first "
+    assert ("a 'meta_arg' entry must have 4 arguments if its first "
             "argument is of ['gh_scalar_array'] type" in str(excinfo.value))
 
 
