@@ -141,9 +141,9 @@ Array
 +++++
 
 In the LFRic API a scalar array represents a multi-valued Fortran array of
-scalars, identified with ``GH_ARRAY`` metadata. As with scalars, array arguments
-can have ``real``, ``integer`` or ``logical`` data type in :ref:`user-defined
-Kernels <lfric-kernel-valid-data-type>`.
+scalars, identified with ``GH_SCALAR_ARRAY`` metadata. As with scalars, array
+arguments can have ``real``, ``integer`` or ``logical`` data type in
+:ref:`user-defined Kernels <lfric-kernel-valid-data-type>`.
 
 .. _lfric-field:
 
@@ -420,43 +420,43 @@ associated kernel metadata description and their precision:
 
 .. tabularcolumns:: |l|l|l|
 
-+--------------------------+---------------------------------+-----------+
-| Data Type                | Kernel Metadata                 | Precision |
-+==========================+=================================+===========+
-| REAL(R_DEF)              | GH_SCALAR/GH_ARRAY, GH_REAL     | R_DEF     |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_BL)               | GH_SCALAR/GH_ARRAY, GH_REAL     | R_BL      |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_PHYS)             | GH_SCALAR/GH_ARRAY, GH_REAL     | R_PHYS    |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_SOLVER)           | GH_SCALAR/GH_ARRAY, GH_REAL     | R_SOLVER  |
-+--------------------------+---------------------------------+-----------+
-| REAL(R_TRAN)             | GH_SCALAR/GH_ARRAY, GH_REAL     | R_TRAN    |
-+--------------------------+---------------------------------+-----------+
-| INTEGER(I_DEF)           | GH_SCALAR/GH_ARRAY, GH_INTEGER  | I_DEF     |
-+--------------------------+---------------------------------+-----------+
-| LOGICAL(L_DEF)           | GH_SCALAR/GH_ARRAY, GH_LOGICAL  | L_DEF     |
-+--------------------------+---------------------------------+-----------+
-| FIELD_TYPE               | GH_FIELD, GH_REAL               | R_DEF     |
-+--------------------------+---------------------------------+-----------+
-| R_BL_FIELD_TYPE          | GH_FIELD, GH_REAL               | R_BL      |
-+--------------------------+---------------------------------+-----------+
-| R_PHYS_FIELD_TYPE        | GH_FIELD, GH_REAL               | R_PHYS    |
-+--------------------------+---------------------------------+-----------+
-| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL               | R_SOLVER  |
-+--------------------------+---------------------------------+-----------+
-| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL               | R_TRAN    |
-+--------------------------+---------------------------------+-----------+
-| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER            | I_DEF     |
-+--------------------------+---------------------------------+-----------+
-| OPERATOR_TYPE            | GH_OPERATOR, GH_REAL            | R_DEF     |
-+--------------------------+---------------------------------+-----------+
-| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR, GH_REAL            | R_SOLVER  |
-+--------------------------+---------------------------------+-----------+
-| R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL            | R_TRAN    |
-+--------------------------+---------------------------------+-----------+
-| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL | R_SOLVER  |
-+--------------------------+---------------------------------+-----------+
++--------------------------+------------------------------------+-----------+
+| Data Type                | Kernel Metadata                    | Precision |
++==========================+====================================+===========+
+| REAL(R_DEF)              | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL | R_DEF     |
++--------------------------+------------------------------------+-----------+
+| REAL(R_BL)               | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL | R_BL      |
++--------------------------+------------------------------------+-----------+
+| REAL(R_PHYS)             | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL     | R_PHYS    |
++--------------------------+------------------------------------+-----------+
+| REAL(R_SOLVER)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL     | R_SOLVER  |
++--------------------------+------------------------------------+-----------+
+| REAL(R_TRAN)             | GH_SCALAR/GH_SCALAR_ARRAY, GH_REAL     | R_TRAN    |
++--------------------------+------------------------------------+-----------+
+| INTEGER(I_DEF)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_INTEGER  | I_DEF     |
++--------------------------+------------------------------------+-----------+
+| LOGICAL(L_DEF)           | GH_SCALAR/GH_SCALAR_ARRAY, GH_LOGICAL  | L_DEF     |
++--------------------------+------------------------------------+-----------+
+| FIELD_TYPE               | GH_FIELD, GH_REAL                  | R_DEF     |
++--------------------------+------------------------------------+-----------+
+| R_BL_FIELD_TYPE          | GH_FIELD, GH_REAL                  | R_BL      |
++--------------------------+------------------------------------+-----------+
+| R_PHYS_FIELD_TYPE        | GH_FIELD, GH_REAL                  | R_PHYS    |
++--------------------------+------------------------------------+-----------+
+| R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL                  | R_SOLVER  |
++--------------------------+------------------------------------+-----------+
+| R_TRAN_FIELD_TYPE        | GH_FIELD, GH_REAL                  | R_TRAN    |
++--------------------------+------------------------------------+-----------+
+| INTEGER_FIELD_TYPE       | GH_FIELD, GH_INTEGER               | I_DEF     |
++--------------------------+------------------------------------+-----------+
+| OPERATOR_TYPE            | GH_OPERATOR, GH_REAL               | R_DEF     |
++--------------------------+------------------------------------+-----------+
+| R_SOLVER_OPERATOR_TYPE   | GH_OPERATOR, GH_REAL               | R_SOLVER  |
++--------------------------+------------------------------------+-----------+
+| R_TRAN_OPERATOR_TYPE     | GH_OPERATOR, GH_REAL               | R_TRAN    |
++--------------------------+------------------------------------+-----------+
+| COLUMNWISE_OPERATOR_TYPE | GH_COLUMNWISE_OPERATOR, GH_REAL    | R_SOLVER  |
++--------------------------+------------------------------------+-----------+
 
 As can be seen from the above table, the kernel metadata does not
 capture all of the precision options. For example, from the metadata
@@ -1089,7 +1089,7 @@ Argument metadata (information contained within the brackets of an
 or an **operator** (either LMA or CMA).
 
 The first argument-metadata entry describes whether the data that is
-being passed is for a scalar (``GH_SCALAR``), an array (``GH_ARRAY``), a
+being passed is for a scalar (``GH_SCALAR``), an array (``GH_SCALAR_ARRAY``), a
 field (``GH_FIELD``) or an operator (either ``GH_OPERATOR`` for LMA or
 ``GH_COLUMNWISE_OPERATOR`` for CMA). This information is mandatory.
 
@@ -1106,7 +1106,7 @@ of size 3.
 
   type(arg_type) :: meta_args(5) = (/                                  &
        arg_type(GH_SCALAR, GH_REAL, ...),                              &
-       arg_type(GH_ARRAY, GH_LOGICAL, ...),                            &
+       arg_type(GH_SCALAR_ARRAY, GH_LOGICAL, ...),                     &
        arg_type(GH_FIELD, GH_INTEGER, ...),                            &
        arg_type(GH_FIELD*3, GH_REAL, ...),                             &
        arg_type(GH_OPERATOR, GH_REAL, ...)                             &
@@ -1160,14 +1160,14 @@ combinations are specified later in this section (see
 
 For example::
 
-  type(arg_type) :: meta_args(7) = (/                            &
-       arg_type(GH_OPERATOR, GH_REAL,    GH_READ,      ... ),    &
-       arg_type(GH_FIELD*3,  GH_REAL,    GH_WRITE,     ... ),    &
-       arg_type(GH_FIELD,    GH_REAL,    GH_READWRITE, ... ),    &
-       arg_type(GH_FIELD,    GH_INTEGER, GH_INC,       ... ),    &
-       arg_type(GH_FIELD,    GH_REAL,    GH_READINC,   ... ),    &
-       arg_type(GH_ARRAY,    GH_LOGICAL, GH_READ,      ... ),    &
-       arg_type(GH_SCALAR,   GH_REAL,    GH_SUM)                 &
+  type(arg_type) :: meta_args(7) = (/                                &
+       arg_type(GH_OPERATOR,     GH_REAL,    GH_READ,      ... ),    &
+       arg_type(GH_FIELD*3,      GH_REAL,    GH_WRITE,     ... ),    &
+       arg_type(GH_FIELD,        GH_REAL,    GH_READWRITE, ... ),    &
+       arg_type(GH_FIELD,        GH_INTEGER, GH_INC,       ... ),    &
+       arg_type(GH_FIELD,        GH_REAL,    GH_READINC,   ... ),    &
+       arg_type(GH_SCALAR_ARRAY, GH_LOGICAL, GH_READ,      ... ),    &
+       arg_type(GH_SCALAR,       GH_REAL,    GH_SUM)                 &
        /)
 
 .. warning:: It is important that ``GH_INC`` is not incorrectly used
@@ -1304,7 +1304,7 @@ the :ref:`LFRic fields <lfric-field>`):
 +========================+=================================+
 | GH_SCALAR              | GH_REAL, GH_INTEGER, GH_LOGICAL |
 +------------------------+---------------------------------+
-| GH_ARRAY               | GH_REAL, GH_INTEGER, GH_LOGICAL |
+| GH_SCALAR_ARRAY        | GH_REAL, GH_INTEGER, GH_LOGICAL |
 +------------------------+---------------------------------+
 | GH_FIELD               | GH_REAL, GH_INTEGER             |
 +------------------------+---------------------------------+
@@ -1321,7 +1321,7 @@ Valid Access Modes
 As mentioned earlier, not all combinations of metadata are
 valid. Valid combinations for each argument type in
 user-defined Kernels are summarised here. All argument types
-(``GH_SCALAR``, ``GH_ARRAY``, ``GH_FIELD``, ``GH_OPERATOR`` and
+(``GH_SCALAR``, ``GH_SCALAR_ARRAY``, ``GH_FIELD``, ``GH_OPERATOR`` and
 ``GH_COLUMNWISE_OPERATOR``) may be read within a Kernel and this
 is specified in metadata using ``GH_READ``. At least one kernel
 argument must be listed as being modified. When data is *modified*
@@ -1337,7 +1337,7 @@ modes depend upon the argument type and the function space it is on:
 +========================+==============================+====================+
 | GH_SCALAR              | n/a                          | GH_READ            |
 +------------------------+------------------------------+--------------------+
-| GH_ARRAY               | n/a                          | GH_READ            |
+| GH_SCALAR_ARRAY        | n/a                          | GH_READ            |
 +------------------------+------------------------------+--------------------+
 | GH_FIELD               | Discontinuous                | GH_READ, GH_WRITE, |
 |                        |                              | GH_READWRITE       |

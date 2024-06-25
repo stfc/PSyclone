@@ -264,7 +264,7 @@ def test_get_array_ndims():
 
     '''
     fparser_tree = CheckArg.create_fparser2(
-        "arg_type(GH_ARRAY, GH_REAL, GH_READ, 3)", Fortran2003.Part_Ref)
+        "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 3)", Fortran2003.Part_Ref)
     vector_length = CheckArg.get_array_ndims(fparser_tree)
     assert vector_length == "3"
 

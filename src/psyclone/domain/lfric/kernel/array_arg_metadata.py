@@ -53,7 +53,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
 
     '''
     # The name used to specify an array argument in LFRic metadata.
-    form = "gh_array"
+    form = "gh_scalar_array"
     # The relative positions of LFRic metadata. Metadata for an array
     # argument is provided in the following format 'arg_type(form,
     # datatype, access, function_space)'. Therefore, for example, the

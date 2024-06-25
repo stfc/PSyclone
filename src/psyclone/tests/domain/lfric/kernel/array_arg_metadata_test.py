@@ -52,7 +52,7 @@ def test_create(datatype, access, array_ndims):
     '''
     array_arg = ArrayArgMetadata(datatype, access, array_ndims)
     assert isinstance(array_arg, ArrayArgMetadata)
-    assert array_arg.form == "gh_array"
+    assert array_arg.form == "gh_scalar_array"
     assert array_arg.datatype == "gh_real"
     assert array_arg.access == "gh_read"
     assert array_arg.array_ndims == "1"
@@ -70,7 +70,7 @@ def test_init_invalid_an():
 
 
 @pytest.mark.parametrize("metadata",
-                         ["arg_type(GH_ARRAY, GH_REAL, GH_READ, 2)"])
+                         ["arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 2)"])
 def test_get_metadata(metadata):
     '''Test that the _get_metadata class method works as expected '''
     fparser2_tree = ArrayArgMetadata.create_fparser2(
@@ -83,7 +83,7 @@ def test_get_metadata(metadata):
 
 
 @pytest.mark.parametrize("fortran_string", [
-    "arg_type(GH_ARRAY, GH_REAL, GH_READ, 5)"])
+    "arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 5)"])
 def test_fortran_string(fortran_string):
     '''Test that the fortran_string method works as expected.'''
     array_arg = ArrayArgMetadata.create_from_fortran_string(fortran_string)

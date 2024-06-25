@@ -78,7 +78,7 @@ class LFRicConstants():
 
         # Supported LFRic API argument types (scalars, fields, operators)
         LFRicConstants.VALID_SCALAR_NAMES = ["gh_scalar"]
-        LFRicConstants.VALID_ARRAY_NAMES = ["gh_array"]
+        LFRicConstants.VALID_ARRAY_NAMES = ["gh_scalar_array"]
         LFRicConstants.VALID_FIELD_NAMES = ["gh_field"]
         LFRicConstants.VALID_OPERATOR_NAMES = ["gh_operator",
                                                "gh_columnwise_operator"]
