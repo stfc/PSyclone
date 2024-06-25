@@ -76,17 +76,6 @@ nodes representing higher-level concepts such as kernels or halo
 exchanges. This raising is performed by means of the transformations
 listed in the sub-sections below.
 
-Raising Transformations for the NEMO API
-----------------------------------------
-
-The top-level raising transformation creates NEMO PSy layer PSyIR:
-
-.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoPSyTrans
-
-This transformation is itself implemented using:
-
-.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoInvokeScheduleTrans
-
 Raising Transformations for the LFRic API
 -----------------------------------------
 

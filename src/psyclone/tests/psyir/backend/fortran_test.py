@@ -42,7 +42,6 @@
 
 from collections import OrderedDict
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
     FortranWriter, precedence
@@ -61,8 +60,6 @@ from psyclone.psyir.symbols import (
     UnsupportedType, UnsupportedFortranType, DataTypeSymbol, StructureType)
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
-from psyclone.psyGen import PSyFactory
-from psyclone.nemo import NemoInvokeSchedule
 
 
 def test_gen_intent():
@@ -1607,42 +1604,6 @@ def test_fw_codeblock_3(fortran_writer):
         _ = fortran_writer.codeblock_node(code_block)
     assert ("Unsupported CodeBlock Structure 'unsupported' found."
             in str(excinfo.value))
-
-
-def get_nemo_schedule(parser, code):
-    '''Utility function that returns the first schedule for a code with
-    the nemo api.
-
-    :param parser: the parser class.
-    :type parser: :py:class:`fparser.two.Fortran2003.Program`
-    :param str code: the code as a string.
-
-    :returns: the first schedule in the supplied code.
-    :rtype: :py:class:`psyclone.nemo.NemoInvokeSchedule`
-
-    '''
-    reader = FortranStringReader(code)
-    prog = parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    return psy.invokes.invoke_list[0].schedule
-
-
-def test_fw_nemoinvokeschedule(fortran_writer, parser):
-    '''Check that the FortranWriter class nemoinvokeschedule accepts the
-    NemoInvokeSchedule node and prints the expected code (from any
-    children of the node as the node itself simply calls its
-    children).
-
-    '''
-    code = (
-        "program test\n"
-        "  integer :: a\n"
-        "  a=1\n"
-        "end program test\n")
-    schedule = get_nemo_schedule(parser, code)
-    assert isinstance(schedule, NemoInvokeSchedule)
-    result = fortran_writer(schedule)
-    assert "a = 1\n" in result
 
 
 def test_fw_query_intrinsics(fortran_reader, fortran_writer, tmpdir):

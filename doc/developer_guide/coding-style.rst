@@ -254,7 +254,7 @@ domain:
 
 psyir:
     This directory contains all classes and functions related to the PSyIR
-    (PSyclone Internal Representation). The directory itself does not contain
+    (PSyclone Intermediate Representation). The directory itself does not contain
     any source files (except `__init__.py` to shorten the import paths).
 
     psyir/transformations

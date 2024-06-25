@@ -1158,17 +1158,17 @@ class Fparser2Reader():
         del fp2_nodes[:]
         return code_block
 
-    def generate_psyir(self, parse_tree):
+    def generate_psyir(self, parse_tree, filename=""):
         '''Translate the supplied fparser2 parse_tree into PSyIR.
 
         :param parse_tree: the supplied fparser2 parse tree.
         :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
+        :param Optional[str] filename: associated name for FileContainer.
 
-        :returns: PSyIR representation of the supplied fparser2 parse_tree.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container` or \
-            :py:class:`psyclone.psyir.nodes.Routine`
+        :returns: PSyIR of the supplied fparser2 parse_tree.
+        :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
 
-        :raises GenerationError: if the root of the supplied fparser2 \
+        :raises GenerationError: if the root of the supplied fparser2
             parse tree is not a Program.
 
         '''
@@ -1181,6 +1181,7 @@ class Fparser2Reader():
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
+        result.name = filename
         return result.detach()
 
     def generate_container(self, module_ast):
