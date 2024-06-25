@@ -75,7 +75,9 @@ from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
+from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType,\
+                                   StructureType
 
 # pylint: disable=too-many-lines
 # pylint: disable=too-many-instance-attributes
@@ -697,6 +699,11 @@ class LFRicKernelMetadata(CommonMetadata):
                 f"{type(symbol).__name__}.")
 
         datatype = symbol.datatype
+
+        if isinstance(datatype, StructureType):
+            type_declaration = FortranWriter().gen_typedecl(symbol).replace(", public", "").replace(", private", "")
+            return LFRicKernelMetadata.create_from_fortran_string(
+                type_declaration)
 
         if not isinstance(datatype, UnsupportedFortranType):
             raise InternalError(

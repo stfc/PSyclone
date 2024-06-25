@@ -51,7 +51,7 @@ from psyclone.psyad.domain.lfric import generate_lfric_adjoint
 from psyclone.psyad.domain.lfric.lfric_adjoint import (
     _update_access_metadata, _check_or_add_access_symbol)
 from psyclone.psyir.symbols import (
-    DataSymbol, ArgumentInterface, INTEGER_TYPE, REAL_TYPE)
+    DataSymbol, ArgumentInterface, INTEGER_TYPE, REAL_TYPE, StructureType)
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -256,11 +256,13 @@ def test_generate_lfric_adjoint_multi_precision(
     sym_table = psyir.children[0].symbol_table
     test_type_symbol = sym_table.lookup("test_type")
     datatype = test_type_symbol.datatype
+    assert isinstance(datatype, StructureType)
+    datatype.procedure_components.clear()
     # Remove procedure metadata
-    new_declaration = (datatype.declaration.
-                       replace("PROCEDURE, NOPASS :: kern_code", "").
-                       replace("CONTAINS", ""))
-    datatype._declaration = new_declaration
+    # new_declaration = (datatype.declaration.
+    #                    replace("PROCEDURE, NOPASS :: kern_code", "").
+    #                    replace("CONTAINS", ""))
+    # datatype._declaration = new_declaration
     ad_psyir = generate_lfric_adjoint(psyir, ["field_1_w0", "field_2_w0"])
     result = fortran_writer(ad_psyir)
     # Check that the metadata type name is updated.

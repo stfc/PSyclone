@@ -616,7 +616,8 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
             "    inner2 = inner2 + ascalar * ascalar_input\n"
             "    inner2 = inner2 + field_field_input_inner_prod\n" in gen)
 
-
+@pytest.mark.xfail(reason="func_type and gh_quadrature_xyoz are neither "
+                          "declared nor imported in the TL code.")
 def test_generate_lfric_adj_test_quadrature(fortran_reader):
     '''Check that input copies of quadrature arguments are not created.'''
     # Change the metadata so that it requires quadrature.

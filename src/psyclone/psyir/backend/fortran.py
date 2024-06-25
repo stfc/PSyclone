@@ -499,6 +499,34 @@ class FortranWriter(LanguageWriter):
                     ", ".join(sorted(only_list)) + "\n")
 
         return f"{self._nindent}use{intrinsic_str}{symbol.name}\n"
+    
+    def gen_proceduredecl(self, symbol, include_visibility=True):
+        if not isinstance(symbol.datatype, UnsupportedFortranType):
+            raise VisitorError(
+                f"gen_proceduredecl() expects a symbol with an "
+                f"UnsupportedFortranType datatype but got '{symbol.datatype}'")
+        return f"{self._nindent}{symbol.datatype.declaration}\n"
+        result = "procedure"
+
+        if include_visibility:
+            if symbol.visibility == Symbol.Visibility.PRIVATE:
+                result += ", private"
+            elif symbol.visibility == Symbol.Visibility.PUBLIC:
+                result += ", public"
+            else:
+                raise InternalError(
+                    f"A Symbol must be either public or private but symbol "
+                    f"'{symbol.name}' has visibility '{symbol.visibility}'")
+
+        # Specify name
+        result += f" :: {symbol.name}"
+
+        # Specify initialisation expression
+        if symbol.initial_value:
+            result += " => " + self._visit(symbol.initial_value)
+
+        return result + "\n"
+
 
     def gen_vardecl(self, symbol, include_visibility=False):
         '''Create and return the Fortran variable declaration for this Symbol
@@ -707,8 +735,23 @@ class FortranWriter(LanguageWriter):
             raise VisitorError(
                 f"Fortran backend cannot generate code for symbol "
                 f"'{symbol.name}' of type '{type(symbol.datatype).__name__}'")
+        
+        if isinstance(symbol.datatype, UnresolvedType):
+            raise VisitorError(
+                f"Local Symbol '{symbol.name}' is of UnresolvedType and "
+                f"therefore no declaration can be created for it. Should it "
+                f"have an ImportInterface?")
+
+        if not isinstance(symbol.datatype, StructureType):
+            raise VisitorError(
+                f"gen_typedecl expects a DataTypeSymbol with a StructureType "
+                f"as its datatype but got: '{type(symbol.datatype).__name__}'")
 
         result = f"{self._nindent}type"
+
+        if symbol.datatype.extends:
+            # This is a component of a derived type
+            result += f", extends({symbol.datatype.extends.name})"
 
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
@@ -722,12 +765,6 @@ class FortranWriter(LanguageWriter):
                     f"type '{type(symbol.visibility).__name__}'")
         result += f" :: {symbol.name}\n"
 
-        if isinstance(symbol.datatype, UnresolvedType):
-            raise VisitorError(
-                f"Local Symbol '{symbol.name}' is of UnresolvedType and "
-                f"therefore no declaration can be created for it. Should it "
-                f"have an ImportInterface?")
-
         self._depth += 1
 
         for member in symbol.datatype.components.values():
@@ -736,6 +773,14 @@ class FortranWriter(LanguageWriter):
             # part of a module.
             result += self.gen_vardecl(member,
                                        include_visibility=include_visibility)
+        if len(symbol.datatype.procedure_components) > 0:
+            result += f"{self._nindent}contains\n"
+            self._depth += 1
+            for procedure in symbol.datatype.procedure_components.values():
+                result += self.gen_proceduredecl(procedure,
+                                                 include_visibility=include_visibility)
+            self._depth -= 1
+
         self._depth -= 1
 
         result += f"{self._nindent}end type {symbol.name}\n"

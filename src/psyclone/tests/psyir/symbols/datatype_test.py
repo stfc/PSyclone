@@ -692,37 +692,37 @@ def test_structure_type():
     stype = StructureType()
     assert str(stype) == "StructureType<>"
     assert not stype.components
-    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
-    flag = stype.lookup("flag")
+    stype.add_component("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
+    flag = stype.lookup_component("flag")
     assert not flag.initial_value
     assert isinstance(flag, StructureType.ComponentType)
-    stype.add("flag2", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
+    stype.add_component("flag2", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
               Literal("1", INTEGER_TYPE))
-    flag2 = stype.lookup("flag2")
+    flag2 = stype.lookup_component("flag2")
     assert isinstance(flag2, StructureType.ComponentType)
     assert flag2.initial_value.value == "1"
     with pytest.raises(TypeError) as err:
-        stype.add(1, "hello", "hello", None)
+        stype.add_component(1, "hello", "hello", None)
     assert ("name of a component of a StructureType must be a 'str' but got "
             "'int'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", "hello", "hello", None)
+        stype.add_component("hello", "hello", "hello", None)
     assert ("type of a component of a StructureType must be a 'DataType' "
             "or 'DataTypeSymbol' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", INTEGER_TYPE, "hello", None)
+        stype.add_component("hello", INTEGER_TYPE, "hello", None)
     assert ("visibility of a component of a StructureType must be an instance "
             "of 'Symbol.Visibility' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, "Hello")
+        stype.add_component("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, "Hello")
     assert ("The initial value of a component of a StructureType must be "
             "None or an instance of 'DataNode', but got 'str'."
             in str(err.value))
     with pytest.raises(KeyError):
-        stype.lookup("missing")
+        stype.lookup_component("missing")
     # Cannot have a recursive type definition
     with pytest.raises(TypeError) as err:
-        stype.add("hello", stype, Symbol.Visibility.PUBLIC, None)
+        stype.add_component("hello", stype, Symbol.Visibility.PUBLIC, None)
     assert ("attempting to add component 'hello' - a StructureType definition "
             "cannot be recursive" in str(err.value))
 
@@ -737,13 +737,13 @@ def test_create_structuretype():
          Literal("1.0", REAL_TYPE)),
         ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
     assert len(stype.components) == 3
-    george = stype.lookup("george")
+    george = stype.lookup_component("george")
     assert isinstance(george, StructureType.ComponentType)
     assert george.name == "george"
     assert george.datatype == REAL_TYPE
     assert george.visibility == Symbol.Visibility.PRIVATE
     assert george.initial_value.value == "1.0"
-    barry = stype.lookup("barry")
+    barry = stype.lookup_component("barry")
     assert isinstance(barry, StructureType.ComponentType)
     assert barry.datatype is tsymbol
     assert barry.visibility == Symbol.Visibility.PUBLIC

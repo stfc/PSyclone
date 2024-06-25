@@ -50,8 +50,10 @@ from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType
+from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType,\
+                                   StructureType
 
 
 class GOceanContainer(Container):
@@ -221,6 +223,11 @@ class GOceanKernelMetadata():
                 f"{type(symbol).__name__}.")
 
         datatype = symbol.datatype
+
+        if isinstance(datatype, StructureType):
+            type_declaration = FortranWriter().gen_typedecl(symbol).replace(", public", "").replace(", private", "")
+            return GOceanKernelMetadata.create_from_fortran_string(
+                type_declaration)
 
         if not isinstance(datatype, UnsupportedFortranType):
             raise InternalError(
