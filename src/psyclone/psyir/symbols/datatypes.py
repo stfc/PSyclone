@@ -38,6 +38,7 @@
 ''' This module contains the datatype definitions.'''
 
 import abc
+import copy
 from collections import OrderedDict, namedtuple
 from enum import Enum
 
@@ -66,6 +67,13 @@ class DataType(metaclass=abc.ABCMeta):
         :rtype: bool
         '''
         return type(other) is type(self)
+
+    def copy(self):
+        '''
+        :returns: a shallow copy of this datatype.
+        :rtype: :py:class:`psyclone.psyir.symbols.datatypes.DataType`
+        '''
+        return copy.copy(self)
 
 
 class UnresolvedType(DataType):
@@ -379,6 +387,13 @@ class ArrayType(DataType):
         '''
         DEFERRED = 1
         ATTRIBUTE = 2
+
+        def copy(self):
+            '''
+            :returns: a shallow copy of self.
+            :rtype: :py:class:`psyclone.psyir.symbols.ArrayType.Extent`
+            '''
+            return copy.copy(self)
 
     #: namedtuple used to store lower and upper limits of an array dimension
     ArrayBounds = namedtuple("ArrayBounds", ["lower", "upper"])
@@ -711,10 +726,26 @@ class ArrayType(DataType):
 
     def copy(self):
         '''
+        Create a shallow copy of this ArrayType. (Any References will be
+        re-created but the target Symbols will remain unchanged.)
+
+        :returns: a copy of this ArrayType.
+        :rtype: :py:class:`psyclone.psyir.datatype.ArrayType`
+
         '''
-        # TODO
-        new_type = ArrayType()
-        return new_type
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.psyir.nodes.node import Node
+        new_shape = []
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.ArrayBounds):
+                new_bounds = ArrayType.ArrayBounds(dim.lower.copy(),
+                                                   dim.upper.copy())
+                new_shape.append(new_bounds)
+            elif isinstance(dim, Node):
+                new_shape.append(dim.copy())
+            else:
+                new_shape.append(dim)
+        return ArrayType(self.datatype, new_shape)
 
 
 class StructureType(DataType):
