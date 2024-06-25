@@ -41,7 +41,6 @@
 
 import os
 import pytest
-from psyclone.configuration import Config
 from psyclone.errors import UnresolvedDependencyError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -71,7 +70,6 @@ from psyclone.transformations import (
     Dynamo0p3OMPLoopTrans, OMPParallelTrans,
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
     OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
-from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -284,7 +282,6 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     appropriate begin_string and clauses for the backend to generate
     the right code'''
 
-    Config.get().api = "nemo"
     code = '''
     subroutine my_subroutine()
         integer, dimension(321, 10) :: A
@@ -619,25 +616,30 @@ def test_ompdo_equality():
     assert ompdo1 != ompdo2
 
 
-def test_omp_do_children_err():
+def test_omp_do_children_err(fortran_reader):
     ''' Tests that we raise the expected error when an OpenMP parallel do
     directive has more than one child or the child is not a loop. '''
     otrans = OMPParallelLoopTrans()
-    psy, invoke_info = get_invoke("imperfect_nest.f90", api="nemo", idx=0)
-    schedule = invoke_info.schedule
-    otrans.apply(schedule[0].loop_body[2])
-    directive = schedule[0].loop_body[2]
-    assert isinstance(directive, OMPParallelDoDirective)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1
+            real, dimension(10) :: array
+            do i = 1, 10
+               array(i) = scalar1
+            enddo
+        end subroutine''')
+    otrans.apply(psyir.walk(Loop)[0])
+    directive = psyir.walk(OMPParallelDoDirective)[0]
     # Make the schedule invalid by adding a second child to the
     # OMPParallelDoDirective
     directive.dir_body.children.append(directive.dir_body[0].copy())
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        directive.validate_global_constraints()
     assert ("An OMPParallelDoDirective can only be applied to a single loop "
             "but this Node has 2 children:" in str(err.value))
     directive.dir_body.children = [Return()]
     with pytest.raises(GenerationError) as err:
-        _ = psy.gen
+        directive.validate_global_constraints()
     assert ("An OMPParallelDoDirective can only be applied to a loop but "
             "this Node has a child of type 'Return'" in str(err.value))
 

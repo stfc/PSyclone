@@ -38,7 +38,7 @@ the necessary code for running with distributed memory.
 The second example provides an introduction to the use of
 transformations to:
 
-1. display the PSyclone Internal Representation of the PSy-layer code:
+1. display the PSyclone Intermediate Representation of the PSy-layer code:
    ```sh
    cd eg2/
    psyclone -api lfric -nodm -d ../code -s ./print_psyir_trans.py ./multi_invoke_mod.x90

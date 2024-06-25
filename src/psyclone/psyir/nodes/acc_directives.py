@@ -144,12 +144,54 @@ class ACCStandaloneDirective(ACCDirective, StandaloneDirective,
 
 
 class ACCRoutineDirective(ACCStandaloneDirective):
-    ''' Class representing a "!$ACC routine" OpenACC directive in PSyIR. '''
+    '''
+    Class representing an "ACC routine" OpenACC directive in PSyIR.
+
+    :param str parallelism: the level of parallelism in the routine, one of
+        "gang", "worker", "vector", "seq".
+
+    '''
+    SUPPORTED_PARALLELISM = ["seq", "vector", "worker", "gang"]
+
+    def __init__(self, parallelism="seq", **kwargs):
+        self.parallelism = parallelism
+
+        super().__init__(self, **kwargs)
+
+    @property
+    def parallelism(self):
+        '''
+        :returns: the clause describing the level of parallelism within this
+                  routine (or a called one).
+        :rtype: str
+
+        '''
+        return self._parallelism
+
+    @parallelism.setter
+    def parallelism(self, value):
+        '''
+        :param str value: the new value for the level-of-parallelism within
+                          this routine (or a called one).
+
+        :raises TypeError: if `value` is not a str.
+        :raises ValueError: if `value` is not a recognised level of
+                            parallelism.
+        '''
+        if not isinstance(value, str):
+            raise TypeError(
+                f"Expected a str to specify the level of parallelism but got "
+                f"'{type(value).__name__}'")
+        if value.lower() not in self.SUPPORTED_PARALLELISM:
+            raise ValueError(
+                f"Expected one of {self.SUPPORTED_PARALLELISM} for the level "
+                f"of parallelism but got '{value}'")
+        self._parallelism = value.lower()
 
     def gen_code(self, parent):
-        '''Generate the fortran ACC Routine Directive and any associated code.
+        '''Generate the Fortran ACC Routine Directive and any associated code.
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         '''
@@ -157,7 +199,8 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         self.validate_global_constraints()
 
         # Generate the code for this Directive
-        parent.add(DirectiveGen(parent, "acc", "begin", "routine", ""))
+        parent.add(DirectiveGen(parent, "acc", "begin", "routine",
+                                f"{self.parallelism}"))
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -168,7 +211,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         :rtype: str
 
         '''
-        return "acc routine"
+        return f"acc routine {self.parallelism}"
 
 
 class ACCEnterDataDirective(ACCStandaloneDirective):

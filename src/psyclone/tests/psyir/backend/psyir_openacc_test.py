@@ -40,8 +40,7 @@
    psyclone.psyir.backend.fortran and c modules. '''
 
 import pytest
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import TransInfo
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Assignment, Reference, Loop, Directive,
@@ -145,23 +144,20 @@ end module test''')
 # ----------------------------------------------------------------------------
 @pytest.mark.parametrize("default_present, expected",
                          [(True, " default(present)"), (False, "")])
-def test_nemo_acc_kernels(default_present, expected, parser, fortran_writer):
+def test_acc_kernels(default_present, expected, fortran_reader,
+                     fortran_writer):
     '''
-    Tests that an OpenACC kernels directive is handled correctly in the
-    NEMO API.
+    Tests that an OpenACC kernels directive is handled correctly.
     '''
-    # Generate fparser2 parse tree from Fortran code.
-    reader = FortranStringReader(NEMO_TEST_CODE)
-    code = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(code)
-    nemo_sched = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(NEMO_TEST_CODE)
+    schedule = psyir.children[0].children[0]
 
     # Now apply a kernels transform
     ktrans = ACCKernelsTrans()
     options = {"default_present": default_present}
-    ktrans.apply(nemo_sched[0], options)
+    ktrans.apply(schedule[0], options)
 
-    result = fortran_writer(nemo_sched)
+    result = fortran_writer(schedule)
     correct = f'''  !$acc kernels{expected}
   do i = 1, 20, 2
     a = 2 * i + d(i)
@@ -173,25 +169,23 @@ def test_nemo_acc_kernels(default_present, expected, parser, fortran_writer):
 
 
 # ----------------------------------------------------------------------------
-def test_nemo_acc_parallel(parser):
-    '''Tests that an OpenACC parallel directive in NEMO is handled correctly.
+def test_acc_parallel(fortran_reader):
+    '''Tests that an OpenACC parallel directive is handled correctly.
     '''
     # Generate fparser2 parse tree from Fortran code.
-    reader = FortranStringReader(NEMO_TEST_CODE)
-    code = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(code)
-    nemo_sched = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(NEMO_TEST_CODE)
+    schedule = psyir.children[0].children[0]
 
     # Now apply an ACC parallel transform
     dtrans = ACCDataTrans()
     ktrans = ACCParallelTrans()
 
-    ktrans.apply(nemo_sched[0])
-    dtrans.apply(nemo_sched[0])
+    ktrans.apply(schedule[0])
+    dtrans.apply(schedule[0])
 
     # Disable node validation to avoid having to add a data region
     fort_writer = FortranWriter(check_global_constraints=False)
-    result = fort_writer(nemo_sched)
+    result = fort_writer(schedule)
 
     correct = '''!$acc parallel default(present)
   do i = 1, 20, 2
@@ -204,12 +198,10 @@ def test_nemo_acc_parallel(parser):
 
 
 # ----------------------------------------------------------------------------
-def test_acc_loop(parser, fortran_writer):
+def test_acc_loop(fortran_reader, fortran_writer):
     ''' Tests that an OpenACC loop directive is handled correctly. '''
-    reader = FortranStringReader(DOUBLE_LOOP)
-    code = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(DOUBLE_LOOP)
+    schedule = psyir.children[0]
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     # An ACC Loop must be within a KERNELS or PARALLEL region
     kernels_trans = ACCKernelsTrans()

@@ -1259,22 +1259,6 @@ These scripts may be found in ``examples/nemo/scripts`` and their
 use is described in the ``README.md`` file in that directory.
 
 
-PSyIR Construction
-------------------
-
-Since NEMO is an existing code, the way it is handled in PSyclone is
-slightly different from those APIs that mandate a PSyKAl separation of
-concerns (LFRic and GOcean1.0).  As with the other APIs, fparser2 is
-used to parse the supplied Fortran source file and construct a parse
-tree (in ``psyclone.generator.generate``). This parse tree is then
-passed to the ``NemoPSy`` constructor which uses the ``fparser2`` PSyIR
-frontend to construct the equivalent PSyIR. (This PSyIR is
-'language-level' in that it does not contain any domain-specific
-constructs.) Finally, the PSyIR is passed to the ``NemoInvokes``
-constructor which applies various 'raising' transformations which
-raise the level of abstraction by introducing domain-specific
-information.
-
 Implicit Loops
 --------------
 
