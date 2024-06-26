@@ -5257,6 +5257,12 @@ class Fparser2Reader():
                 f"PSyclone does not support routines that contain one or more "
                 f"ENTRY statements but found '{entry_stmts[0]}'")
 
+        # If the parent of this subroutine is a FileContainer, then we need
+        # to create its symbol and store it there. No visibility information
+        # is available since we're not contained in module.
+        if isinstance(parent, FileContainer):
+            _process_routine_symbols(node, parent.symbol_table, {})
+
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
         routine._ast = node
@@ -5354,14 +5360,9 @@ class Fparser2Reader():
                 # declaration.
 
                 # Lookup with the routine name as return_name may be
-                # declared with its own local name. Be wary that this
-                # function may not be referenced so there might not be
-                # a RoutineSymbol.
-                try:
-                    routine_symbol = routine.symbol_table.lookup(routine.name)
-                    routine_symbol.datatype = base_type
-                except KeyError:
-                    pass
+                # declared with its own local name.
+                routine_symbol = routine.symbol_table.lookup(routine.name)
+                routine_symbol.datatype = base_type
 
                 routine.symbol_table.new_symbol(return_name,
                                                 tag=keep_tag,

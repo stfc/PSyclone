@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified by A. R. Porter and S. Siso, STFC Daresbury Lab,
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # Modified by J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
@@ -891,7 +892,16 @@ def test_fw_filecontainer_error1(fortran_writer):
         _ = fortran_writer(file_container)
     assert (
         "In the Fortran backend, a file container should not have any "
-        "symbols associated with it, but found 1." in str(info.value))
+        "symbols associated with it other than RoutineSymbols, but found "
+        "x: Symbol<Automatic>." in str(info.value))
+
+    # Check that a routine symbol is fine.
+    symbol_table = SymbolTable()
+    routine_symbol = RoutineSymbol("mysub")
+    symbol_table.add(routine_symbol)
+    file_container = FileContainer.create("None", symbol_table, [])
+    output = fortran_writer(file_container)
+    assert "mysub" not in output
 
 
 def test_fw_filecontainer_error2(fortran_writer):
