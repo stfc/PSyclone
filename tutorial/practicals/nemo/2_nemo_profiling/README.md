@@ -49,11 +49,11 @@ this session.)
        $ make allclean
        $ make tra_adv.exe
 
-   At this point, the compiled application can be run (ensure you have
+   At this point, the compiled application can be run (either ensure you have
    the necessary environment variables set first - see
-   ../1_nemo_psyir/README.md):
+   ../1_nemo_psyir/README.md - or include them inline as indicated):
 
-       $ ./tra_adv.exe
+       $ JPK=30 JPI=100 JPJ=100 IT=10 ./tra_adv.exe
 
    but no timing information is output!
 
@@ -127,7 +127,12 @@ transformation script to perform finer-grained profiling.
 1. Modify the provided transformation script (`profile_trans.py`) so that
    it uses `walk` to find all Loop nodes:
    ```python
-   loops = payir.walk(Loop)
+   loops = psyir.walk(Loop)
+   ```
+   Note, you will need to import the definition of the `Loop` class into
+   the script:
+   ```python
+   from psyclone.psyir.nodes import Loop
    ```
    Next, identify those loops that are over vertical `levels`. These are
    loops that use the 'jk' loop variable as required in the NEMO Code
