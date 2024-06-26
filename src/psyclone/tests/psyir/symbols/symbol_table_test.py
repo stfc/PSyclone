@@ -46,7 +46,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    CodeBlock, Container, KernelSchedule,
+    BinaryOperation, CodeBlock, Container, KernelSchedule,
     Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir import symbols
 
@@ -56,7 +56,7 @@ def create_hierarchy():
     symbol in each symbol table.
 
     :returns: two symbol tables created in a hierarchy.
-    :rtype: (:py:class:`psyclone.psyir.symbols.SymbolTable`, \
+    :rtype: (:py:class:`psyclone.psyir.symbols.SymbolTable`,
         :py:class:`psyclone.psyir.symbols.SymbolTable`)
 
     '''
@@ -2072,14 +2072,41 @@ def test_deep_copy():
         "symbol2",
         interface=symbols.ImportInterface(mod, orig_name="altsym2"))
     sym3 = symbols.DataSymbol("symbol3", symbols.INTEGER_TYPE)
+    # Shape containing References.
     sym4 = symbols.DataSymbol("symbol4",
                               symbols.ArrayType(symbols.REAL_TYPE,
                                                 [Reference(sym1)]))
+    # Shape with a attribute rather than bounds.
+    sym4a = symbols.DataSymbol(
+        "sym4a",
+        symbols.ArrayType(symbols.REAL_TYPE,
+                          [symbols.ArrayType.Extent.ATTRIBUTE]))
+    other_sym = symbols.DataSymbol("other_sym", symbols.UnresolvedType())
+    # Shape with a reference to an unresolved Symbol.
+    sym4b = symbols.DataSymbol(
+        "sym4b",
+        symbols.ArrayType(symbols.REAL_TYPE,
+                          [Reference(other_sym)]))
+    # Initial value containing References.
+    sym5 = symbols.DataSymbol(
+        "symbol5", symbols.INTEGER_TYPE,
+        initial_value=BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                             Reference(sym1), Reference(sym2)))
+    # Initial value containing a Reference to an unresolved Symbol.
+    sym5a = symbols.DataSymbol(
+        "sym5a", symbols.INTEGER_TYPE,
+        initial_value=BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                             Reference(sym1),
+                                             Reference(other_sym)))
     symtab.add(mod)
     symtab.add(sym1)
     symtab.add(sym2, tag="tag1")
     symtab.add(sym3)
     symtab.add(sym4)
+    symtab.add(sym4a)
+    symtab.add(sym4b)
+    symtab.add(sym5)
+    symtab.add(sym5a)
     symtab.specify_argument_list([sym1])
     rsym = symbols.RoutineSymbol("my_sub")
     gisym = symbols.GenericInterfaceSymbol("generic_sub", [(rsym, False)])
@@ -2130,9 +2157,25 @@ def test_deep_copy():
     newsym1 = symtab2.lookup("symbol1")
     assert newsym4.datatype.shape[0].upper.symbol is newsym1
     assert newsym1.is_argument
+    newsym4a = symtab2.lookup("sym4a")
+    assert newsym4a.datatype.shape[0] == symbols.ArrayType.Extent.ATTRIBUTE
     # Check that the original declaration still uses the original
     # dimensioning symbol.
     assert sym4.datatype.shape[0].upper.symbol is sym1
+    newsym4b = symtab2.lookup("sym4b")
+    # Check that the reference to an unresolved symbol is unchanged.
+    assert newsym4b.datatype.shape[0].upper.symbol is other_sym
+
+    # Check that initial-value expressions are updated correctly.
+    newsym5 = symtab2.lookup("symbol5")
+    newsym2 = symtab2.lookup("symbol2")
+    assert isinstance(newsym5.initial_value, BinaryOperation)
+    assert newsym5.initial_value.children[0].symbol is newsym1
+    assert newsym5.initial_value.children[1].symbol is newsym2
+    assert sym5.initial_value.children[0].symbol is sym1
+    assert sym5.initial_value.children[1].symbol is sym2
+    newsym5a = symtab2.lookup("sym5a")
+    assert newsym5a.initial_value.children[1].symbol is other_sym
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
