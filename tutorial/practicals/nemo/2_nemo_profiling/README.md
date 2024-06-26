@@ -196,7 +196,8 @@ transformation script to perform finer-grained profiling.
    is available from
    [bitbucket](https://bitbucket.org/apeg/dl_timer/src/master/). You
    will need to obtain the source for this library and then update the
-   three `PROFILE_*` variables in the Makefile in this directory.
+   three `PROFILE_*` variables in the Makefile in this directory to point
+   to its location.
 
 ## 4. Conclusion
 

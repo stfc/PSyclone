@@ -173,7 +173,7 @@ interesting from a performance point of view.
 To familiarise yourself with PSyIR navigation, you can:
 
 1. Modify the transformation script so that it breaks-out into the Python
-   debugger once it has obtained the PSyIR:
+   debugger, pdb, as soon as it is called (from PSyclone):
 
    ```python
     def trans(psyir):
@@ -189,8 +189,8 @@ To familiarise yourself with PSyIR navigation, you can:
        -> print(psyir.view())
        (Pdb) 
 
-   You can now interactively explore the Schedule and try the `walk`
-   method, e.g.:
+   You can now interactively explore the PSyIR (passed to the routine via the
+   `psyir` argument) and try the `walk` method, e.g.:
 
    ```python
     (Pdb) psyir
@@ -240,12 +240,19 @@ are [`Loop`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsy
    assignments = sched.walk(Assignment)
    ```
 
-4. Use the `view()` method of one of these `Assignments` nodes to
+4. Use the `view()` method of one of these `Assignment` nodes to
    examine its children. Check that you are able to work out
    which Fortran assignment this corresponds to, e.g.:
 
    ```python
    print(assignments[0].view())
+   ```
+
+   As mentioned earlier, the `debug_string` method can also be very
+   useful:
+
+   ```python
+   print(assignments[0].debug_string())
    ```
 
 ## 4. Conclusion

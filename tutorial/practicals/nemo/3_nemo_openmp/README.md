@@ -3,8 +3,8 @@
 This tutorial follows on from Tutorials 1 and 2
 (../1_nemo_psyir/README.md and ../2_nemo_profiling/README.md) and
 assumes that you are comfortable with the topics covered there. It
-uses PSyclone to parallelise the tracer-advection mini-app by adding
-OpenMP directives.
+uses PSyclone to parallelise the tracer-advection mini-app to make
+use of a multi-core CPU by adding appropriate OpenMP directives.
 
 You can find information on the various transformations supported by
 PSyclone in the [User Guide]
@@ -28,8 +28,8 @@ Ideally you will be familiar with the use of OpenMP to parallelise code
 although this is not absolutely essential. A detailed explanation
 of OpenMP is beyond the scope of this course but, for the purposes of
 this tutorial, OpenMP enables work to be shared over the cores of a
-multi-core CPU (or CPUs in a multi-socket machine). It does this by
-spawning threads, each of which has full access to all of the memory
+multi-core CPU (or CPUs in a multi-socket, shared-memory machine). It does
+this by spawning threads, each of which has full access to all of the memory
 of the parent process.
 
 ## Validation ##
@@ -76,7 +76,7 @@ Hopefully that looks similar to what you may have ended up with at the
 end of the profiling part of this tutorial although we are applying a
 different transformation here.
 
-Note that in this tutorial we will only be applying OpenMP
+Note that in this tutorial, we will only be applying OpenMP
 parallelisation to the loops over vertical levels. This is because, in
 the full NEMO code, the horizontal domain is already decomposed over
 MPI processes and there is no attempt to exploit the parallelism
@@ -162,7 +162,7 @@ the number of MPI processes and resulting inter-process communication.)
    to use is set via the OMP_NUM_THREADS environment variable at run
    time, e.g. in bash:
    ```bash
-    $ OMP_NUM_THREADS=4 ./tra_adv.exe
+    $ OMP_NUM_THREADS=4 JPI=100 JPJ=100 JPK=30 IT=10 ./tra_adv.exe
    ```
    At this point, the first thing to do is to check that we haven't
    broken anything. Assuming you've followed the steps in the
@@ -188,7 +188,7 @@ other options are available.)
    simple timing library.
    Running the mini-app should now produce timing information:
    ```bash
-   $ OMP_NUM_THREADS=4 ./tra_adv.exe
+   $ OMP_NUM_THREADS=4 JPI=100 JPJ=100 JPK=30 IT=10 ./tra_adv.exe
     Tracer-advection Mini-app:
     Domain is  100x 100 grid points
     Performing   10 iterations
@@ -219,8 +219,8 @@ immediate children of the root Schedule.
    (in the same way as was done for profiling in tutorial 2). Check that
    the generated PSyIR looks as you would expect. (You can use a second
    `walk`, after the transformation is complete, to count the number of
-   `Directive` nodes that have been inserted in the Schedule - there
-   should be 13.)
+   `Directive` [`from psyclone.psyir.nodes import Directive`] nodes that
+   have been inserted in the Schedule - there should be 13.)
 
 2. Now that we've parallelised a reasonable percentage of the mini-app,
    you should see a speed-up as you increase OMP_NUM_THREADS. For

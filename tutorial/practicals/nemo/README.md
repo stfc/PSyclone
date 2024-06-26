@@ -15,3 +15,7 @@ upon what has gone before. For parts 1-3 it is assumed you have a
 working Fortran compiler as you are encouraged to build and run the
 code that PSyclone generates.  For part 4 this is optional since it
 requires a compiler that supports OpenACC and access to GPU hardware.
+
+Currently this tutorial does not cover the use of PSyclone to transform
+code to make use of OpenMP offload. If you are interested in this, please
+see the first 'nemo' [example](../../../examples/nemo/eg1/README.md).
