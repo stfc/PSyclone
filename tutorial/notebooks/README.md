@@ -2,7 +2,7 @@
 
 Welcome to the Jupyter-based parts of the PSyclone tutorial. It
 provides material on fparser (the Fortran parser used by PSyclone),
-the PSyclone Internal Representation and the NEMO API.  To get started
+the PSyclone Intermediate Representation and the NEMO API.  To get started
 you will need a working Jupyter installation:
 
 ```bash

@@ -72,6 +72,7 @@ def test_generate_container(parser):
     processor = Fparser2Reader()
     container = processor.generate_container(ast)
     assert isinstance(container, Container)
+    print(container)
     assert not container.children
     assert container.symbol_table
     assert container.symbol_table.lookup("modvar1")

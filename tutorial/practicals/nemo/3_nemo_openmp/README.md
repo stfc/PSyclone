@@ -7,7 +7,7 @@ uses PSyclone to parallelise the tracer-advection mini-app by adding
 OpenMP directives.
 
 You can find information on the various transformations supported by
-PSyclone in the User Guide
+PSyclone in the [User Guide]
 (https://psyclone.readthedocs.io/en/stable/transformations.html).
 
 ## Prerequisites ##
@@ -56,14 +56,6 @@ tutorial:
  * the script uses the `OMPParallelLoopTrans` transformation which
    decorates the target loop with an `OMP PARALLEL DO` directive.
 
- * the script is written specifically to work on the 'tra_adv' routine:
-   ```python
-        sched = psy.invokes.get('tra_adv').schedule
-   ```
-   this is just a choice. Normally a script will be written to be as
-   general as possible but occasionally, something tailored to a
-   particular routine may be required.
-
  * it blindly applies a transformation to each loop over vertical levels
    that is an immediate child of the Schedule. As we did when inserting
    profiling, we can identify loops over `levels` by the fact that they use
@@ -75,8 +67,8 @@ tutorial:
    With this, we can use the `loop_type` property and then enclose each of
    them within a profiling region:
    ```python
-   for child in sched.children:
-       if isinstance(child, Loop) and child.loop_type == "levels":
+   for loop in psyir.walk(Loop):
+       if loop.loop_type == "levels":
            OMP_TRANS.apply(child)
    ```
 
@@ -97,7 +89,7 @@ the number of MPI processes and resulting inter-process communication.)
    transform the mini-app. You can use the Makefile or just run
    PSyclone directly:
    ```bash
-   $ psyclone -s ./omp_trans.py -api nemo -opsy psy.f90 -l output tra_adv_mod.F90
+   psyclone -s ./omp_trans.py -o output.f90 -l output tra_adv_mod.F90
    ```
    This will produce an error message. Can you see what causes this?
 
@@ -139,41 +131,32 @@ the number of MPI processes and resulting inter-process communication.)
 
    ```python
      try:
-         OMP_TRANS.apply(child)
-     except TransformationError:
-         pass
+         OMP_TRANS.apply(loop)
+     except TransformationError as err:
+         print(f"Could not parallelise:\n{loop.debug_string()}"
+               f"because:\n{err.value}")
    ```
 
    Edit the `omp_trans.py` script to use this approach and then build the
    code (`make tra_adv.exe`). Verify that PSyclone now successfully
-   transforms the code and examine the PSyIR to see where the OpenMP
+   transforms the code and examine the output to see where the OpenMP
    directives have been inserted. You should see that there are now
-   `Directive` nodes in the PSyIR, e.g.:
-
-       14: OMPParallelDoDirective[omp_schedule=auto]
-           Schedule[]
-               0: Loop[variable='jk', loop_type='levels']
-                   Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                   Reference[name:'jpk']
-                   Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                   Schedule[]
-                       0: Loop[variable='jj']
-                           Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-
-   and the corresponding Fortran looks like:
+   `!$omp parallel do` directives in the generated code, e.g.:
 
    ```fortran
-       !$OMP parallel do default(shared), private(ji,jj,jk), schedule(auto)
-       DO jk = 1, jpk
-         DO jj = 1, jpj
-           DO ji = 1, jpi
-             umask(ji, jj, jk) = ji * jj * jk / r
+   !$omp parallel do default(shared), private(jk), schedule(auto)
+   do jk = 1, jpk, 1
+     rnfmsk_z(jk) = jk / jpk
+   enddo
+   !$omp end parallel do
+   do jt = 1, it, 1
+     !$omp parallel do default(shared), private(ji,jj,jk), firstprivate(zice), schedule(auto)
+     do jk = 1, jpk, 1
+       do jj = 1, jpj, 1
    ```
 
-   Note that PSyclone has automatically identified all scalars
-   accessed within the loop and has declared them as thread
-   private. All other variables are declared to be shared between
-   threads.
+   Note that PSyclone has automatically identified all necessary thread
+   sharing attributes (shared, private, or firstprivate).
 
 4. We are now ready to do our first parallel run. The number of threads
    to use is set via the OMP_NUM_THREADS environment variable at run

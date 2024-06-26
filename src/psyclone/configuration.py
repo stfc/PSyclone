@@ -67,7 +67,6 @@ VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
 LFRIC_API_NAMES = ["lfric", "dynamo0.3"]
 GOCEAN_API_NAMES = ["gocean", "gocean1.0"]
-NO_API_NAMES = ["nemo", ""]
 
 
 # pylint: disable=too-many-lines
@@ -103,7 +102,7 @@ class Config:
     _HAS_CONFIG_BEEN_INITIALISED = False
 
     # List of supported API by PSyclone
-    _supported_api_list = LFRIC_API_NAMES + GOCEAN_API_NAMES + NO_API_NAMES
+    _supported_api_list = LFRIC_API_NAMES + GOCEAN_API_NAMES
     # List for printing purposes (remove duplicates and use prefered names)
     _curated_api_list = [LFRIC_API_NAMES[0], GOCEAN_API_NAMES[0]]
 
@@ -501,7 +500,7 @@ class Config:
 
         :raises ValueError if api is not a supported API.
         '''
-        if api not in self._supported_api_list:
+        if api not in self._supported_api_list + [""]:
             raise ValueError(f"'{api}' is not a valid API, it must be one "
                              f"of {Config._supported_api_list}'.")
         self._api = api

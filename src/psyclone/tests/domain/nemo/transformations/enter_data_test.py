@@ -40,14 +40,10 @@
 
 import os
 
-from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import ACCEnterDataTrans
 
 
-# Constants
-API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../../test_files")
@@ -68,16 +64,14 @@ EXPLICIT_DO = ("program explicit_do\n"
                "end program explicit_do\n")
 
 
-def test_apply_to_explicit_loop(parser, fortran_writer):
+def test_apply_to_explicit_loop(fortran_reader, fortran_writer):
     '''
     Check code generation for enclosing a single explicit loop containing a
     kernel inside a data region.
 
     '''
-    reader = FortranStringReader(EXPLICIT_DO)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.get('explicit_do').schedule
+    psyir = fortran_reader.psyir_from_source(EXPLICIT_DO)
+    schedule = psyir.children[0]
     acc_kernels = ACCKernelsTrans()
     acc_kernels.apply(schedule.children)
     acc_trans = ACCEnterDataTrans()
