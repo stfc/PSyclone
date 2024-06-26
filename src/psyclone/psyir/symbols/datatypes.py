@@ -41,6 +41,7 @@ import abc
 import copy
 from collections import OrderedDict, namedtuple
 from enum import Enum
+from typing import Any
 
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
@@ -394,9 +395,21 @@ class ArrayType(DataType):
             :rtype: :py:class:`psyclone.psyir.symbols.ArrayType.Extent`
             '''
             return copy.copy(self)
-
+    from dataclasses import dataclass
     #: namedtuple used to store lower and upper limits of an array dimension
-    ArrayBounds = namedtuple("ArrayBounds", ["lower", "upper"])
+    # ArrayBounds = namedtuple("ArrayBounds", ["lower", "upper"])
+
+    @dataclass
+    class ArrayBounds:
+        '''
+        '''
+        lower: Any = None
+        upper: Any = None
+
+        def copy(self):
+            '''
+            '''
+            return type(self)(self.lower.copy(), self.upper.copy())
 
     def __init__(self, datatype, shape):
 
@@ -631,6 +644,9 @@ class ArrayType(DataType):
                         f"'{dimension}' has {len(dimension)} entries.")
                 _validate_data_node(dimension[0], is_lower_bound=True)
                 _validate_data_node(dimension[1])
+            elif isinstance(dimension, ArrayType.ArrayBounds):
+                _validate_data_node(dimension.lower, is_lower_bound=True)
+                _validate_data_node(dimension.upper)
             else:
                 _validate_data_node(dimension)
 
@@ -647,8 +663,8 @@ class ArrayType(DataType):
             # dimension must have an 'ATTRIBUTE' extent
             for dim in extents:
                 if not (dim == ArrayType.Extent.ATTRIBUTE or
-                        (isinstance(dim, tuple) and
-                         dim[-1] == ArrayType.Extent.ATTRIBUTE)):
+                        (isinstance(dim, ArrayType.ArrayBounds) and
+                         dim.upper == ArrayType.Extent.ATTRIBUTE)):
                     raise TypeError(
                         f"An assumed-shape array must have every "
                         f"dimension unspecified (either as 'ATTRIBUTE' or "
@@ -737,14 +753,14 @@ class ArrayType(DataType):
         from psyclone.psyir.nodes.node import Node
         new_shape = []
         for dim in self.shape:
-            if isinstance(dim, ArrayType.ArrayBounds):
-                new_bounds = ArrayType.ArrayBounds(dim.lower.copy(),
-                                                   dim.upper.copy())
-                new_shape.append(new_bounds)
-            elif isinstance(dim, Node):
-                new_shape.append(dim.copy())
-            else:
-                new_shape.append(dim)
+            #if isinstance(dim, ArrayType.ArrayBounds):
+            #    new_bounds = ArrayType.ArrayBounds(dim.lower.copy(),
+            #                                       dim.upper.copy())
+            #    new_shape.append(new_bounds)
+            #elif isinstance(dim, Node):
+            new_shape.append(dim.copy())
+            #else:
+            #    new_shape.append(dim)
         return ArrayType(self.datatype, new_shape)
 
 
