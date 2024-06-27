@@ -26,6 +26,28 @@ scripts, it may be useful to see the documentation of the various node
 types. The best way to do this is to use the [PSyclone Reference Guide
 ](https://psyclone-ref.readthedocs.io/en/latest/).
 
+## A note on importing PSyclone modules ##
+
+Throughout these tutorials you will be working with PSyclone transformation
+scripts written in Python. If you are adding functionality that requires
+class definitions not already imported into the script then you will have
+to add suitable import statements. e.g. to make the `Directive` node class
+available you would add:
+
+```python
+from psyclone.psyir.nodes import Directive
+```
+
+All PSyIR node definitions are within the `psyclone.psyir.nodes` module
+and all symbols and datatypes are within `psyclone.psyir.symbols`.
+
+Unfortunately, the various transformation classes are not yet as well
+organised. Many are now in the 'proper' location of
+`psyclone.psyir.transformations` but some are still in
+`psyclone.transformations`. If in doubt consult the
+[Reference Guide](https://psyclone-ref.readthedocs.io/en/latest/_static/html/annotated.html).
+
+
 ## 1. Processing NEMO Fortran code with PSyclone ##
 
 By default (i.e. without the additional arguments), the `psyclone` command
