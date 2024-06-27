@@ -1,8 +1,8 @@
 # PSyclone for existing code - Tutorial 1 #
 
 Welcome to the first part of the tutorial on using PSyclone with existing
-Fortran code via its code-transformation capabilites. For this tutorial
-we will be using a standalone, single-source-file mini-app (tra_adv.F90)
+Fortran code via its code-transformation capabilities. For this tutorial
+we will be using a standalone, single-file mini-app (tra_adv.F90)
 based on a tracer-advection routine that has been extracted from the full
 source of the NEMO ocean model (www.nemo-ocean.eu). The original version of
 this mini-app was kindly provided by Silvia Mocavero of CMCC.
@@ -17,7 +17,7 @@ Check that PSyclone is installed and configured correctly by doing
 this file):
 
 ```bash
-    psyclone -h
+psyclone -h
 ```
 
 When examining the PSyIR (the intermediate representation that PSyclone
@@ -43,8 +43,8 @@ and all symbols and datatypes are within `psyclone.psyir.symbols`.
 
 Unfortunately, the various transformation classes are not yet as well
 organised. Many are now in the 'proper' location of
-`psyclone.psyir.transformations` but some are still in
-`psyclone.transformations`. If in doubt consult the
+`psyclone.psyir.transformations`, but some are still in
+`psyclone.transformations`. If in doubt, consult the
 [Reference Guide](https://psyclone-ref.readthedocs.io/en/latest/_static/html/annotated.html).
 
 
@@ -54,7 +54,7 @@ By default (i.e. without the additional arguments), the `psyclone` command
 parses the provided input Fortran file:
 
 ```bash
-    psyclone tra_adv.F90
+psyclone tra_adv.F90
 ```
 
 This command should result in PSyclone processing the supplied Fortran
@@ -79,7 +79,7 @@ to be written to a file instead of stdout. This is achieved with the
 `-o` flag.
 
 ```bash
-    psyclone tra_adv.F90 -o output.f90
+psyclone tra_adv.F90 -o output.f90
 ```
 
 will create a new file, `output.f90`, containing the generated Fortran
@@ -93,7 +93,7 @@ instruct PSyclone to limit the line lengths in the output Fortran via
 the `-l output` flag:
 
 ```bash
-    psyclone tra_adv.F90 -o output.f90 -l output
+psyclone tra_adv.F90 -o output.f90 -l output
 ```
 
 (Note that if we also wanted PSyclone to validate that the *incoming*
@@ -103,7 +103,7 @@ Then we can provide the generated file to a Fortran compiler. For example,
 if we use `gfortran`, we can do:
 
 ```bash
-    gfortran output.f90 -o tra_adv.exe
+gfortran output.f90 -o tra_adv.exe
 ```
 
 The mini-app picks-up the domain size and number of iterations from
@@ -113,18 +113,18 @@ using csh or tcsh. You can either cut-n-paste the commands into your
 shell or do:
 
 ```bash
-    source ../domain_setup.csh
+source ../domain_setup.sh
 ```
 
 Once the environment variables are set, you are ready to execute the
 mini-app:
 
 ```bash
-    ./tra_adv.exe 
-    Tracer-advection Mini-app:
-    Domain is  100x 100 grid points
-    Performing   10 iterations
-    Mini-app finished.
+./tra_adv.exe 
+Tracer-advection Mini-app:
+Domain is  100x 100 grid points
+Performing   10 iterations
+Mini-app finished.
 ```
 
 At this point we have succeeded in processing some Fortran code
@@ -142,11 +142,11 @@ with a transformation script, `view_trans.py`. This is done
 via the `-s` flag to PSyclone.
 
 ```bash
-    $ psyclone tra_adv.f90 -s view_trans.py -o /dev/null | less
+psyclone tra_adv.F90 -s view_trans.py -o /dev/null | less
 ```
 
 This should display a text representation of the tree of PSyIR nodes
-that represent the `tra_adv.f90` file:
+that represent the `tra_adv.F90` file:
 
 ```bash
 FileContainer[]
@@ -168,8 +168,7 @@ content of the program (the sequence of executable statements) as children.
 ## 3. Interpreting the PSyIR ##
 
 The basic structure and means of navigating the PSyIR are covered in the
-[PSyIR - Tree naviation documentation]
-(https://psyclone.readthedocs.io/en/latest/psyir.html#tree-navigation).
+[PSyIR - Tree navigation documentation](https://psyclone.readthedocs.io/en/latest/psyir.html#tree-navigation).
 In summary, all nodes in the PSyIR have `parent` and `children`
 properties and a `walk` method which may be used to find all nodes of
 a given type (or types) below the current node. Various sub-classes of
@@ -183,9 +182,9 @@ This is an important node type since it makes it possible
 for the PSyIR to represent arbitrary Fortran code without requiring
 that it be fully understood. Since PSyclone uses fparser2 to parse
 Fortran, a `CodeBlock` stores the nodes of the underlying fparser2
-parse tree that cannot be represented in the PSyIR. For more
-information on fparser2 see the
-[fparser User Guide](https://fparser.readthedocs.io/en/latest/).
+parse tree that cannot be represented in the PSyIR. PSyclone treats
+the CodeBlock as a blackbox that cannot be transformed, while still
+allowing the transformation of any code outside the CodeBlock.
 
 We can see from the fparser2 node type printed in the description of
 the `CodeBlock` that this particular node represents a Fortran `READ`
@@ -203,9 +202,10 @@ To familiarise yourself with PSyIR navigation, you can:
    ```
 
    Re-running PSyclone:
-    
-       $ psyclone -s ./view_trans.py tra_adv.F90
 
+   ```bash
+   psyclone -s ./view_trans.py tra_adv.F90
+   ```
    will now launch the Python debugger at that point:
 
        -> print(psyir.view())
@@ -234,7 +234,7 @@ To familiarise yourself with PSyIR navigation, you can:
    by entering the `quit()` command.)
 
 2. Modify the transformation script so that it uses `walk` to search
-   for all of the CodeBlocks in the file and prints information
+   for all of CodeBlocks in the file and prints information
    about each of them. Work out which lines of Fortran in the
    mini-app each corresponds to. (All nodes have a `debug_string()`
    method to quickly print the node and its children.)
@@ -258,7 +258,7 @@ are [`Loop`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsy
    `Assignment` nodes:
 
    ```python
-   form psyclone.psyir.nodes import Assignment
+   from psyclone.psyir.nodes import Assignment
    assignments = sched.walk(Assignment)
    ```
 

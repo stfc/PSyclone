@@ -7,8 +7,7 @@ uses PSyclone to parallelise the tracer-advection mini-app to make
 use of a multi-core CPU by adding appropriate OpenMP directives.
 
 You can find information on the various transformations supported by
-PSyclone in the [User Guide]
-(https://psyclone.readthedocs.io/en/stable/transformations.html).
+PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/stable/transformations.html).
 
 ## Prerequisites ##
 
@@ -162,13 +161,13 @@ the number of MPI processes and resulting inter-process communication.)
    to use is set via the OMP_NUM_THREADS environment variable at run
    time, e.g. in bash:
    ```bash
-    $ OMP_NUM_THREADS=4 JPI=100 JPJ=100 JPK=30 IT=10 ./tra_adv.exe
+   OMP_NUM_THREADS=4 JPI=100 JPJ=100 JPK=30 IT=10 ./tra_adv.exe
    ```
    At this point, the first thing to do is to check that we haven't
    broken anything. Assuming you've followed the steps in the
    [Validation](#validation) section then doing:
    ```bash
-   $ diff output.dat output.dat.serial
+   diff output.dat output.dat.serial
    ```
    should show no differences.
 
@@ -188,7 +187,7 @@ other options are available.)
    simple timing library.
    Running the mini-app should now produce timing information:
    ```bash
-   $ OMP_NUM_THREADS=4 JPI=100 JPJ=100 JPK=30 IT=10 ./tra_adv.exe
+   OMP_NUM_THREADS=4 JPI=100 JPJ=100 JPK=30 IT=10 ./tra_adv.exe
     Tracer-advection Mini-app:
     Domain is  100x 100 grid points
     Performing   10 iterations

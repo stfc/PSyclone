@@ -1,6 +1,6 @@
 # Using Profiling with PSyclone - Tutorial 2 #
 
-This tutorial follows on from Tutorial 1 (../1_nemo_psyir/README.md) and
+This tutorial follows on from [Tutorial 1](../1_nemo_psyir/README.md) and
 assumes that you are comfortable with the topics covered there. It uses
 the same tracer-advection mini-app, although for this tutorial it has
 been refactored so that the mini-app itself is called from a separate
@@ -8,8 +8,8 @@ driver program. The reason for this will become clear as you work
 through the tutorial.
 
 You can find information on the various transformations supported by
-PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/stable/transformations.html).
-There is a separate [section](https://psyclone.readthedocs.io/en/stable/profiling.html) on
+PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/latest/transformations.html).
+There is a separate [section](https://psyclone.readthedocs.io/en/latest/profiling.html) on
 PSyclone's support for profiling.
 
 ## Prerequisites ##
@@ -22,8 +22,7 @@ Make then you may need to edit the Makefile and replace the occurrences of
 ## 1. Automatic Profiling ##
 
 To begin, we will make use of PSyclone's support for the
-[automatic addition of profiling instrumentation]
-(https://psyclone.readthedocs.io/en/stable/profiling.html). For
+[automatic addition of profiling instrumentation](https://psyclone.readthedocs.io/en/stable/profiling.html). For
 demonstration purposes we will be using the 'simple-timing' library
 distributed with PSyclone since that has no dependencies. (PSyclone
 currently provides wrapper libraries for profiling tools such as
@@ -34,9 +33,9 @@ this session.)
 
 1. Use `psyclone` to generate a version of the mini-app with profiling
    calipers inserted at the beginning and end of each routine:
-
-       $ psyclone tra_adv_mod.F90 -o output_1.f90 --profile routines
-
+   ```bash
+   psyclone tra_adv_mod.F90 -o output_1.f90 --profile routines
+   ```
    When examining the generated Fortran code (in `output_1.f90`), you
    should see that PSyclone has added `USE profile_psy_data_mod, ONLY:
    profile_PSyDataType` as well as calls to
@@ -45,16 +44,17 @@ this session.)
    suitable wrapper library must be provided when compiling the
    mini-app. The supplied Makefile will build the 'simple_timing'
    implementation of this library and link our mini-app against it:
-
-       $ make allclean
-       $ make tra_adv.exe
-
+   ```bash
+   make allclean
+   make tra_adv.exe
+   ```
    At this point, the compiled application can be run (either ensure you have
    the necessary environment variables set first - see
-   ../1_nemo_psyir/README.md - or include them inline as indicated):
-
-       $ JPK=30 JPI=100 JPJ=100 IT=10 ./tra_adv.exe
-
+   [Tutorial 1](../1_nemo_psyir/README.md) - or include them inline
+   as indicated):
+   ```bash
+   JPK=30 JPI=100 JPJ=100 IT=10 ./tra_adv.exe
+   ```
    but no timing information is output!
 
 2. No timing information is output because the timing library is not
