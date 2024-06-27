@@ -7,9 +7,9 @@ mini-app. When built with a suitable compiler this then enables the
 code to be run on a GPU (but this is not required for this tutorial).
 
 You may find it helpful to read the section on
-[OpenACC](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#openacc)
+[OpenACC](https://psyclone.readthedocs.io/en/latest/transformations.html?highlight=accdatatrans#openacc)
 in the
-[Transformations](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#transformations)
+[Transformations](https://psyclone.readthedocs.io/en/latest/transformations.html?highlight=accdatatrans#transformations)
 section of the PSyclone User Guide.
 
 The OpenACC specification may be found at https://www.openacc.org/specification.
@@ -378,7 +378,7 @@ add the necessary option to add the `COLLAPSE` clause.
 
 4. How do we add the `COLLAPSE` clause? If we look at the documentation
    for `ACCLoopTrans` in the
-   [Transformations](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#transformations)
+   [Transformations](https://psyclone.readthedocs.io/en/latest/transformations.html?highlight=accdatatrans#transformations)
    section of the User Guide, we see that it takes an `options`
    dictionary argument. We can therefore specify that we want
    `COLLAPSE(2)` by doing:
@@ -423,10 +423,7 @@ In practice, the use of PSyclone to process the whole of the NEMO
 ocean code is currently relying on NVIDIA's 'managed memory'
 support. No explicit data regions are added to the code. Instead, the
 run-time system moves data to/from the GPU automatically when page
-faults occur. This was originally intended as being a quick way to get
-something working on the GPU but it has actually proved to work well
-in general.
-
+faults occur.
 
 ## 6. Conclusion ##
 

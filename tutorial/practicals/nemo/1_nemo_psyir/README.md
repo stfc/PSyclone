@@ -12,9 +12,7 @@ this mini-app was kindly provided by Silvia Mocavero of CMCC.
 The requirements for this section are as described in the practicals
 [README.md](../../README.md#Requirements).
 
-Check that PSyclone is installed and configured correctly by doing
-(assuming that your current working directory is the one containing
-this file):
+Check that PSyclone is installed and configured correctly by doing:
 
 ```bash
 psyclone -h
@@ -284,3 +282,7 @@ At this point you should be able to run PSyclone on a Fortran source
 file, use a transformation script to access the PSyIR of the code and
 be able to understand the structure of the PSyIR and how it relates to
 the original Fortran.
+
+You may now proceed to the [second section](../2_nemo_profiling/README.md)
+of the tutorial where you will use PSyclone to add profiling instrumentation
+to the mini-app.

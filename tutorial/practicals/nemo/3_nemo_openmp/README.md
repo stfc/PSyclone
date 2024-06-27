@@ -1,13 +1,13 @@
 # Using PSyclone to add OpenMP - Tutorial 3 #
 
-This tutorial follows on from Tutorials 1 and 2
-(../1_nemo_psyir/README.md and ../2_nemo_profiling/README.md) and
+This tutorial follows on from [Tutorial 1](../1_nemo_psyir/README.md) and
+[Tutorial 2](../2_nemo_profiling/README.md) and
 assumes that you are comfortable with the topics covered there. It
 uses PSyclone to parallelise the tracer-advection mini-app to make
 use of a multi-core CPU by adding appropriate OpenMP directives.
 
 You can find information on the various transformations supported by
-PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/stable/transformations.html).
+PSyclone in the [User Guide](https://psyclone.readthedocs.io/en/latest/transformations.html).
 
 ## Prerequisites ##
 
@@ -251,7 +251,7 @@ activity on your machine. This is all well beyond the scope of this
 tutorial.
 
 (Note also that the 'simple_timing' library has been found to have very
-poor granularity on MACOS.)
+poor granularity on macOS.)
 
 ## 4. Improving Performance ##
 
@@ -266,7 +266,7 @@ If time allows then it is possible to improve upon the parallelisation
 achieved in the previous section by creating parallel regions containing
 multiple loop nests (this reduces any possible overhead associated with the
 creation and destruction of the OpenMP threads). For instance, if
-you examine the `psy.f90` that has been created, you will see:
+you examine the `output.f90` that has been created, you will see:
 
 ```fortran
       !$OMP parallel do default(shared), private(ji,jj,jk), schedule(static)
@@ -333,11 +333,14 @@ steps to achieve this are:
 
 ## 5. Conclusion ##
 
-Congratulations, you have now completed part 3 of the NEMO
+Congratulations, you have now completed part 3 of the
 tutorial. We have looked in more detail at the process of creating an
 optimisation script and have used PSyclone to add OpenMP
 parallelisation to the tracer-advection mini-app. With the caveats
 noted earlier, you should have been able to measure a performance
 improvement.
+
+In [part 4 of this tutorial](../4_nemo_openacc/README.md), we will
+look at using PSyclone to add OpenACC directives to the mini-app.
 
 

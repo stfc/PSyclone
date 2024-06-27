@@ -22,7 +22,7 @@ Make then you may need to edit the Makefile and replace the occurrences of
 ## 1. Automatic Profiling ##
 
 To begin, we will make use of PSyclone's support for the
-[automatic addition of profiling instrumentation](https://psyclone.readthedocs.io/en/stable/profiling.html). For
+[automatic addition of profiling instrumentation](https://psyclone.readthedocs.io/en/latest/profiling.html). For
 demonstration purposes we will be using the 'simple-timing' library
 distributed with PSyclone since that has no dependencies. (PSyclone
 currently provides wrapper libraries for profiling tools such as
@@ -203,6 +203,6 @@ transformation script to perform finer-grained profiling.
 
 Congratulations, you have now completed this part of the tutorial. We
 have used a PSyclone transformation to add profiling
-instrumentation to the tracer-advection mini-app. In subsequent
-tutorials we will look at using PSyclone transformations to
-parallelise the code.
+instrumentation to the tracer-advection mini-app. In the
+[next tutorial](../3_nemo_openmp/README.md) we will look at using PSyclone
+transformations to parallelise the code on CPU.
