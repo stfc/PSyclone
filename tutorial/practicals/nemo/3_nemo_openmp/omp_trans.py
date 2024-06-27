@@ -48,7 +48,11 @@ from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 # Get the transformation we will apply
 OMP_TRANS = OMPParallelLoopTrans()
 
-Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"}})
+# Specify some loop-type inference rules to make it easier to identify
+# loops of interest.
+Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"},
+                                    "tracers": {"variable": "jt"}})
+
 
 def trans(psyir):
     ''' Parallelise the provided file by making all loops over vertical (jk)
