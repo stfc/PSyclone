@@ -19,7 +19,7 @@ Make then you may need to edit the Makefile and replace the occurrences of
 The flags to enable OpenMP will depend upon which Fortran compiler you
 are using. By default, the Makefile is configured to use gfortran. If you
 are using some other compiler then you must either edit the Makefile
-or set the F90 and F90FLAGS environment variables. (Since OpenMP directives
+or set the `F90` and `F90FLAGS` environment variables. (Since OpenMP directives
 are just comments, the compiler will ignore them unless the appropriate
 flag is set.)
 
@@ -41,7 +41,7 @@ parts of the NEMO tutorial then you will have run the mini-app on a
 single core and it will have produced an `output.dat` file. Copy that
 file to `output.dat.serial` or similar so that we have something to
 compare with. (Note that this 'known good answer' is problem-size
-specific so if you change JPI, JPJ, JPK or IT then you will need to
+specific so if you change `JPI`, `JPJ`, `JPK` or `IT` then you will need to
 re-generate it.)
 
 ## 1. Adding basic OpenMP parallelism ##
@@ -105,20 +105,20 @@ the number of MPI processes and resulting inter-process communication.)
    END DO
    ```
 
-   and the `write` statement is represented as a CodeBlock in the PSyIR:
+   and the `write` statement is represented as a `CodeBlock` in the PSyIR:
    ```
-    20: Loop[variable='jk', loop_type='levels']
-        ...
-        Schedule[]
-            0: Loop[variable='jj']
-               ...
-               Schedule[]
-                   0: Loop[variable='ji']
-                      ...
-                      Schedule[]
-                          0: CodeBlock[[<class 'fparser.two.Fortran2003.Write_Stmt'>]]
+   20: Loop[variable='jk', loop_type='levels']
+       ...
+       Schedule[]
+           0: Loop[variable='jj']
+              ...
+              Schedule[]
+                  0: Loop[variable='ji']
+                     ...
+                     Schedule[]
+                         0: CodeBlock[[<class 'fparser.two.Fortran2003.Write_Stmt'>]]
    ```
-   Since, by definition, a CodeBlock contains code that PSyclone does not
+   Since, by definition, a `CodeBlock` contains code that PSyclone does not
    understand, it will refuse to parallelise any region that contains
    one.
 
@@ -158,7 +158,7 @@ the number of MPI processes and resulting inter-process communication.)
    sharing attributes (shared, private, or firstprivate).
 
 4. We are now ready to do our first parallel run. The number of threads
-   to use is set via the OMP_NUM_THREADS environment variable at run
+   to use is set via the `OMP_NUM_THREADS` environment variable at run
    time, e.g. in bash:
    ```bash
    OMP_NUM_THREADS=4 JPI=100 JPJ=100 JPK=30 IT=10 ./tra_adv.exe
@@ -208,6 +208,12 @@ the initialisation loops have been parallelised. Since each of these
 loop nests are before the main iteration loop, their effect on the
 overall runtime is negligible.
 
+(N.B. since we are using a mini-app consisting of a single file, it
+is very easy to examine the code produced by PSyclone in order to identify
+the cause of any performance issues. When applying PSyclone to a large
+code base, it becomes essential to use a good profiling tool to identify
+the location of any performance problems.)
+
 ## 3. Improving Coverage ##
 
 Clearly, the optimisation script needs to be improved so that it finds
@@ -250,8 +256,7 @@ poor granularity on MACOS.)
 ## 4. Improving Performance ##
 
 The next section is optional and so, depending on how much time you
-have, you may want to move on to the OpenACC part of this tutorial
-(../4_nemo_openacc). If you are interested but don't have much time
+have, you may want to move on to the [OpenACC part of this tutorial](../4_nemo_openacc). If you are interested but don't have much time
 then example solutions are provided in the
 `parallel_region_omp_trans.py` and
 `general_parallel_region_omp_trans.py` scripts in the `solutions`

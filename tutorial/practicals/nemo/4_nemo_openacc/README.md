@@ -12,8 +12,7 @@ in the
 [Transformations](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#transformations)
 section of the PSyclone User Guide.
 
-The OpenACC specification may be found at
-https://www.openacc.org/sites/default/files/inline-files/OpenACC.2.6.final.pdf
+The OpenACC specification may be found at https://www.openacc.org/specification.
 
 ## Prerequisites ##
 
@@ -126,8 +125,8 @@ various ways in which PSyclone can be used.)
 
 2. Use the supplied Makefile to run PSyclone and generate the transformed
    code (just type `make tra_adv.exe`). If you examine the generated Fortran
-   in `psy_openacc.f90` you should see that ACC Kernels Directive nodes have
-   been added to the Schedule, e.g.:
+   in `psy_openacc.f90` you should see that ACC Kernels Directives have
+   been added, e.g.:
    ```fortran
     DO jt = 1, it
       !$ACC KERNELS
@@ -227,9 +226,11 @@ of that between the CPU and main memory. Therefore, frequent data
 movement on and off the GPU will destroy performance.
 
 The OpenACC specification allows for both implicit (compiler generated)
-and explicit data movement. NVIDIA also supports 'managed'/'unified' memory
-where page faults on either the CPU or GPU cause the necessary memory
-to be moved automatically to the correct location.
+and explicit data movement. In addition, various GPU vendors also have
+support for so-called 'unified' memory. Depending on the vendor, this
+may be implemented either in hardware or software (where page faults on
+either the CPU or GPU cause the necessary memory
+to be moved automatically to the correct location).
 
 Explicit data movement can be controlled using OpenACC Data Regions and
 PSyclone can create these using the [`ACCDataTrans`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCDataTrans.html)
@@ -275,7 +276,7 @@ between various kernel invocations.
    it is clearly not necessary to copy it back to the CPU).
 
 (Currently PSyclone's analysis is limited to the contents of the DATA
-region.  In our example, we can see that although `zind` for instance
+region.  In our example, we can see that although e.g. `zind`
 is written to within the data region, it is in fact not used again
 outside the data region and therefore does not actually need to be
 copied back from the GPU.)
@@ -418,8 +419,8 @@ the nodes in the `loop_body` of the candidate latitude loop.)
 
 ## 5. Managed Memory ##
 
-In practice, the work being done to extend PSyclone to process the
-whole of the NEMO code is currently using NVIDIA's 'managed memory'
+In practice, the use of PSyclone to process the whole of the NEMO
+ocean code is currently relying on NVIDIA's 'managed memory'
 support. No explicit data regions are added to the code. Instead, the
 run-time system moves data to/from the GPU automatically when page
 faults occur. This was originally intended as being a quick way to get
