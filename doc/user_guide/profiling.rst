@@ -218,8 +218,9 @@ around every routine that it processes.)
 
 The option ``--profile kernels`` will surround each outer loop
 created by PSyclone with start and end profiling calls. Note that this
-option is not available for the 'nemo' API as it does not have the
-concept of explicit Kernels.
+option is only available if PSyclone was invoked with a ``-api``
+parameter. If you are only transforming existing code, this option
+cannot be used as there is no concept of `kernels`.
 
 .. note:: In some APIs (for example :ref:`LFRic <lfric-api>`
           when using distributed memory) additional minor code might
@@ -450,8 +451,8 @@ For the :ref:`LFRic <lfric-api>` and
   names would clash when compiling).
 
 * the `region_name` is set to the name of the invoke in which it
-  resides, followed by a `:` and a kernel name if the
-  profile region contains a single kernel, and is completed by `:r`
+  resides, followed by a `-` and a kernel name if the
+  profile region contains a single kernel, and is completed by `-r`
   (standing for region) followed by an integer which uniquely
   identifies the profile within the invoke (based on the profile
   node's position in the PSyIR representation relative to any other
@@ -506,9 +507,9 @@ This is the code created for this example::
       CONTAINS
       SUBROUTINE invoke_0(a, f1, f2, m1, m2, istp, qr)
         ...
-        CALL psy_data_3%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r0", &
+        CALL psy_data_3%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r0", &
                                      0, 0)
-        CALL psy_data%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r1", 0, 0)
+        CALL psy_data%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r1", 0, 0)
         IF (f2_proxy%is_dirty(depth=1)) THEN
           CALL f2_proxy%halo_exchange(depth=1)
         END IF 
@@ -519,14 +520,14 @@ This is the code created for this example::
           CALL m2_proxy%halo_exchange(depth=1)
         END IF 
         CALL psy_data%PreEnd()
-        CALL psy_data_1%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r2", &
+        CALL psy_data_1%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r2", &
                                      0, 0)
         DO cell=1,mesh%get_last_halo_cell(1)
           CALL testkern_code(...)
         END DO 
         ...
         CALL psy_data_2%PreStart("multi_functions_multi_invokes_psy", &
-                          "invoke_0:testkern_code:r3", 0, 0)
+                          "invoke_0-testkern_code-r3", 0, 0)
         DO cell=1,mesh%get_last_halo_cell(1)
           CALL testkern_code(...)
         END DO 
