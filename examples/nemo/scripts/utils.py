@@ -261,7 +261,7 @@ def insert_explicit_loop_parallelism(
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
-        opts = {}
+        opts = {"collapse": collapse}
 
         routine_name = loop.ancestor(Routine).name
 
@@ -319,7 +319,6 @@ def insert_explicit_loop_parallelism(
         # pnd_lev requires manual privatisation of ztmp
         if any(name in routine_name for name in ('tab_', 'pnd_')):
             opts = {"force": True}
-
         try:
             loop_directive_trans.apply(loop, options=opts)
             # Only add the region directive if the loop was successfully
@@ -330,47 +329,6 @@ def insert_explicit_loop_parallelism(
             # This loop can not be transformed, proceed to next loop
             print("Loop not parallelised because:", str(err))
             continue
-
-        if collapse:
-
-            # Count the number of perfectly nested loops that can be collapsed
-            num_nested_loops = 0
-            next_loop = loop
-            previous_variables = []
-            while isinstance(next_loop, Loop):
-                previous_variables.append(next_loop.variable)
-                num_nested_loops += 1
-
-                # If it has more than one children, the next loop will not be
-                # perfectly nested, so stop searching. If there is no child,
-                # we have an empty loop (which would cause a crash when
-                # accessing the child next)
-                if len(next_loop.loop_body.children) != 1:
-                    break
-
-                next_loop = next_loop.loop_body.children[0]
-                if not isinstance(next_loop, Loop):
-                    break
-
-                # If it is a dependent (e.g. triangular) loop, it can not be
-                # collapsed
-                dependent_of_previous_variable = False
-                for bound in (next_loop.start_expr, next_loop.stop_expr,
-                              next_loop.step_expr):
-                    for ref in bound.walk(Reference):
-                        if ref.symbol in previous_variables:
-                            dependent_of_previous_variable = True
-                            break
-                if dependent_of_previous_variable:
-                    break
-
-                # Check that the next loop has no loop-carried dependencies
-                if not next_loop.independent_iterations():
-                    break
-
-            # Add collapse clause to the parent directive
-            if num_nested_loops > 1:
-                loop.parent.parent.collapse = num_nested_loops
 
 
 def add_profiling(children):

@@ -43,7 +43,7 @@ import abc
 from psyclone import psyGen
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Reference
 from psyclone.psyir.tools import DependencyTools, DTCode
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -70,8 +70,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         :param children: list of nodes that will be children of this Directive.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: the number of tightly-nested loops to which \
-                             this directive applies or None.
+        :param int collapse: the number of tightly-nested loops to which
+            this directive applies or None.
 
         :returns: the new Directive node.
         :rtype: sub-class of :py:class:`psyclone.psyir.nodes.Directive`.
@@ -83,24 +83,30 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         :param node: the node we are checking.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations.\
-                        This transform supports "collapse", which is the\
-                        number of nested loops to collapse.
+        :param options: a dictionary with options for transformations.
+            This transform supports "collapse", which is the number of nested
+            loops to collapse.
         :type options: Optional[Dict[str, Any]]
-        :param int options["collapse"]: number of nested loops to collapse
-                                        or None.
+        :param bool|int options["collapse"]: if it's a bool and is False
+            (default), it won't collapse. If it's a bool and is True, it will
+            collapse as much as possible. If it's an integer, it will attempt
+            to collapse until the specified number of loops (if they exist and
+            are safe to collapse them). The 'force' and 'ignore_symbols'
+            options also affect the collapse validation analysis.
         :param bool options["force"]: whether to force parallelisation of the
-                target loop (i.e. ignore any dependence analysis).
+            target loop (i.e. ignore any dependence analysis).
+        :param list[str] options["force"]: whether to ignore some symbol names
+            from the dependence analysis checks.
         :param bool options["sequential"]: whether this is a sequential loop.
+        :param bool options["verbose"]: whether report the reasons the validate
+            and collapse steps have failed.
 
-        :raises TransformationError: if the \
-                :py:class:`psyclone.psyir.nodes.Loop` loop iterates over \
-                colours.
-        :raises TransformationError: if 'collapse' is supplied with an \
-                invalid number of loops.
-        :raises TransformationError: if there is a data dependency that \
-                prevents the parallelisation of the loop unless \
-                `options["force"]` is True.
+        :raises TransformationError: if the given loop iterates over a
+                colours (LFRic domain) iteration space.
+        :raises TransformationError: if 'collapse' is not an int or a bool.
+        :raises TransformationError: if there is a data dependency that
+                prevents the parallelisation of the loop and the provided
+                options don't disregard them.
 
         '''
         # Check that the supplied node is a Loop and does not contain any
@@ -109,8 +115,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         if not options:
             options = {}
-        collapse = options.get("collapse", None)
+        collapse = options.get("collapse", False)
         ignore_dep_analysis = options.get("force", False)
+        ignore_symbols = options.get("ignore_symbols", [])
         sequential = options.get("sequential", False)
 
         # Check we are not a sequential loop
@@ -123,25 +130,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
         if collapse:
-            if not isinstance(collapse, int):
+            if not isinstance(collapse, (int,bool)):
                 raise TransformationError(
-                    f"The 'collapse' argument must be an integer but got an "
-                    f"object of type {type(collapse)}")
-            if collapse < 2:
-                raise TransformationError(
-                    f"It only makes sense to collapse 2 or more loops "
-                    f"but got a value of {collapse}")
-            # Count the number of loops in the loop nest
-            loop_count = 0
-            cnode = node
-            while isinstance(cnode, Loop):
-                loop_count += 1
-                # Loops must be tightly nested (no intervening statements)
-                cnode = cnode.loop_body[0]
-            if collapse > loop_count:
-                raise TransformationError(
-                    f"Cannot apply COLLAPSE({collapse}) clause to a loop nest "
-                    f"containing only {loop_count} loops")
+                    f"The 'collapse' argument must be an integer or a bool but"
+                    f" got an object of type {type(collapse)}")
 
         # Check that there are no loop-carried dependencies
         if sequential or ignore_dep_analysis:
@@ -201,10 +193,55 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         node_parent = node.parent
         node_position = node.position
 
+        # If 'collapse' is specified, check that it is an int and that the
+        # loop nest has at least that number of loops in it
+        if collapse:
+            max_loops = collapse if isinstance(collapse, int) else 999
+
+            # Count the number of perfectly nested loops that can be collapsed
+            num_collapsable_loops = 0
+            next_loop = node
+            previous_iteration_variables = []
+            while isinstance(next_loop, Loop):
+                previous_iteration_variables.append(next_loop.variable)
+                num_collapsable_loops += 1
+
+                # If it has more than one children, the next loop will not be
+                # perfectly nested, so stop searching. If there is no child,
+                # we have an empty loop (which would cause a crash when
+                # accessing the child next)
+                if len(next_loop.loop_body.children) != 1:
+                    break
+
+                next_loop = next_loop.loop_body.children[0]
+                if not isinstance(next_loop, Loop):
+                    break
+
+                # If it is a loop dependent on a previous iteration variable (e.g.
+                # a triangular iteration space), it can not be collapsed
+                dependent_of_previous_variable = False
+                for bound in (next_loop.start_expr, next_loop.stop_expr,
+                              next_loop.step_expr):
+                    for ref in bound.walk(Reference):
+                        if ref.symbol in previous_iteration_variables:
+                            dependent_of_previous_variable = True
+                            break
+                if dependent_of_previous_variable:
+                    break
+
+                # Check that the next loop has no loop-carried dependencies
+                dtools = DependencyTools()
+                if not next_loop.independent_iterations(dep_tools=dtools):
+                    msgs = dtools.get_all_messages()
+                    next_loop.preceding_comment = "\n".join([str(m) for m in msgs])
+                    break
+        else:
+            num_collapsable_loops = 1
+
         # Add our orphan loop directive setting its parent to the node's
         # parent and its children to the node. This calls down to the sub-class
         # to get the type of directive we require.
-        directive = self._directive([node.detach()], collapse)
+        directive = self._directive([node.detach()], num_collapsable_loops)
 
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)

@@ -2549,7 +2549,7 @@ class OMPLoopDirective(OMPRegionDirective):
         # nested loops as the collapse value
         if self._collapse:
             cursor = self.dir_body.children[0]
-            for depth in range(self._collapse):
+            for depth in range(self._collapse - 1):
                 if not isinstance(cursor, Loop):
                     raise GenerationError(
                         f"OMPLoopDirective must have as many immediately "
