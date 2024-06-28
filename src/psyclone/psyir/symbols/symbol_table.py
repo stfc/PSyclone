@@ -306,7 +306,8 @@ class SymbolTable():
         # pylint: disable-next=import-outside-toplevel
         from psyclone.psyir.nodes import Node, Reference
         for symbol in new_st.symbols:
-            if not isinstance(symbol.datatype, ArrayType):
+            if not (symbol.is_array and isinstance(symbol.datatype,
+                                                   ArrayType)):
                 continue
             for dim in symbol.datatype.shape:
                 if isinstance(dim, ArrayType.ArrayBounds):
