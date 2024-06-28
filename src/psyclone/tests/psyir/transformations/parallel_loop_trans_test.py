@@ -54,7 +54,7 @@ class ParaTrans(ParallelLoopTrans):
         '''
         Creates an OMP Parallel Do directive for the purposes of testing.
         '''
-        return OMPParallelDoDirective(children=children)
+        return OMPParallelDoDirective(children=children, collapse=collapse)
 
 
 CODE = '''
@@ -87,6 +87,97 @@ def test_paralooptrans_validate_force(fortran_reader):
     trans.validate(loop, {"force": True})
 
 
+def test_paralooptrans_validate_ignore_symbols(fortran_reader):
+    '''
+    Test that the 'ignore_symbols' option allows the validate check to succeed
+    even when the dependency analysis finds a possible loop-carried dependency,
+    but the user guarantees that it's a false dependency.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(CODE)
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop)
+    assert ("Dependency analysis failed with the following messages:\n"
+            "Warning: Variable 'sum' is read first, which indicates a "
+            "reduction. Variable: 'sum'.") in str(err.value)
+    # Set the ignore_symbols option to ignore "sum"
+    trans.validate(loop, {"ignore_symbols": ["sum"]})
+
+
+def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
+    '''
+    even when the dependency analysis finds a possible loop-carried dependency,
+    but the user guarantees that it's a false dependency.
+
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer :: i, j, k
+          real :: var(10,10) = 1
+
+          do i = 1, 10  ! This loop is iteration independent
+            do j = 1, 10  ! This loop has a loop-carried dependency in var1
+              do k = 1, j  ! This loop bounds depend on previous indices
+                var(i,j,k) = var(i, j-1, k)
+              end do
+            end do
+          end do
+        end subroutine my_sub''')
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+    # The validation does not see any problem because the outer loop can be
+    # parallel
+    trans.validate(loop)
+
+    # By default it stops at collapse 1, because loop 2 has a dependency on,
+    # var. With verbose it print the reason
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": True, "verbose": True})
+    assert '''\
+!$omp parallel do collapse(1) default(shared), private(i,j,k)
+do i = 1, 10, 1
+  ! Error: The write access to 'var(i,j,k)' and the read access to 'var(i,j \
+- 1,k)' are dependent and cannot be parallelised. Variable: 'var'.
+  do j = 1, 10, 1
+    do k = 1, j, 1
+      var(i,j,k) = var(i,j - 1,k)
+    enddo
+  enddo
+enddo
+''' in fortran_writer(test_loop.parent.parent)
+
+    # Check that the collapse logic can uses the "ignore_symbols" and "force"
+    # logic to skip dependencies
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": True, "verbose": True,
+                            "ignore_symbols": ["var"]})
+    assert '''\
+!$omp parallel do collapse(2) default(shared), private(i,j,k)
+do i = 1, 10, 1
+  do j = 1, 10, 1
+    do k = 1, j, 1
+      var(i,j,k) = var(i,j - 1,k)
+    enddo
+  enddo
+enddo
+''' in fortran_writer(test_loop.parent.parent)
+
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": True, "verbose": True, "force": True})
+    assert '''\
+!$omp parallel do collapse(2) default(shared), private(i,j,k)
+do i = 1, 10, 1
+  do j = 1, 10, 1
+    do k = 1, j, 1
+      var(i,j,k) = var(i,j - 1,k)
+    enddo
+  enddo
+enddo
+''' in fortran_writer(test_loop.parent.parent)
+
+
 def test_paralooptrans_validate_sequential(fortran_reader):
     '''
     Test that the 'sequential' option allows the validate check to succeed even
@@ -114,20 +205,8 @@ def test_paralooptrans_validate_collapse(fortran_reader):
     # Check that we reject non-integer collapse arguments
     with pytest.raises(TransformationError) as err:
         trans.validate(loop, {"collapse": loop})
-    assert ("The 'collapse' argument must be an integer but got an object "
-            "of type" in str(err.value))
-
-    # Check that we reject invalid depths
-    with pytest.raises(TransformationError) as err:
-        trans.validate(loop, {"collapse": 1})
-    assert ("It only makes sense to collapse 2 or more loops but got a "
-            "value of 1" in str(err.value))
-
-    # Check that we reject attempts to collapse more loops than we have
-    with pytest.raises(TransformationError) as err:
-        trans.validate(loop, {"collapse": 3})
-    assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
-            "only 2 loops" in str(err.value))
+    assert ("The 'collapse' argument must be an integer or a bool but got an"
+            " object of type" in str(err.value))
 
 
 def test_paralooptrans_validate_colours(monkeypatch):

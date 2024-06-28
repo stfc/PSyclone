@@ -39,8 +39,10 @@
 ''' This module provides the ParallelLoopTrans transformation.'''
 
 import abc
+from collections.abc import Iterable
 
 from psyclone import psyGen
+from psyclone.core import Signature
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Loop, Reference
@@ -115,6 +117,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         if not options:
             options = {}
+        verbose = options.get("verbose", False)
         collapse = options.get("collapse", False)
         ignore_dep_analysis = options.get("force", False)
         ignore_symbols = options.get("ignore_symbols", [])
@@ -130,7 +133,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
         if collapse:
-            if not isinstance(collapse, (int,bool)):
+            if not isinstance(collapse, (int, bool)):
                 raise TransformationError(
                     f"The 'collapse' argument must be an integer or a bool but"
                     f" got an object of type {type(collapse)}")
@@ -139,10 +142,22 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         if sequential or ignore_dep_analysis:
             return
 
+        if ignore_symbols:
+            if (not isinstance(ignore_symbols, Iterable) or
+                    not all(isinstance(item, str) for item in ignore_symbols)):
+                raise TransformationError(
+                    f"The 'ignore_symbols' option must be an Iterable object "
+                    f"containing containing str representing the symbols to "
+                    f"ignore, but got {ignore_symbols}.")
+
         dep_tools = DependencyTools()
 
-        if not node.independent_iterations(dep_tools=dep_tools,
-                                           test_all_variables=True):
+        list_of_signatures = [Signature(name) for name in ignore_symbols]
+
+        if not node.independent_iterations(
+                       dep_tools=dep_tools,
+                       test_all_variables=True,
+                       signatures_to_ignore=list_of_signatures):
             # The DependencyTools also returns False for things that are
             # not an issue, so we ignore specific messages.
             for message in dep_tools.get_all_messages():
@@ -151,6 +166,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 all_msg_str = [str(message) for message in
                                dep_tools.get_all_messages()]
                 messages = "\n".join(all_msg_str)
+                if verbose:
+                    node.preceding_comment = messages
                 raise TransformationError(
                     f"Dependency analysis failed with the following "
                     f"messages:\n{messages}")
@@ -186,7 +203,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             options = {}
         self.validate(node, options=options)
 
+        verbose = options.get("verbose", False)
         collapse = options.get("collapse", None)
+        ignore_dep_analysis = options.get("force", False)
+        ignore_symbols = options.get("ignore_symbols", [])
+        list_of_signatures = [Signature(name) for name in ignore_symbols]
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -205,6 +226,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             while isinstance(next_loop, Loop):
                 previous_iteration_variables.append(next_loop.variable)
                 num_collapsable_loops += 1
+                if num_collapsable_loops > max_loops:
+                    break
 
                 # If it has more than one children, the next loop will not be
                 # perfectly nested, so stop searching. If there is no child,
@@ -224,19 +247,29 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                               next_loop.step_expr):
                     for ref in bound.walk(Reference):
                         if ref.symbol in previous_iteration_variables:
-                            dependent_of_previous_variable = True
+                            dependent_of_previous_variable = ref.symbol
                             break
                 if dependent_of_previous_variable:
+                    if verbose:
+                        next_loop.preceding_comment = (
+                            f"Loop can not be collapsed because one of the "
+                            f"bounds depends on the interation variable "
+                            f"{dependent_of_previous_variable.name}")
                     break
 
                 # Check that the next loop has no loop-carried dependencies
                 dtools = DependencyTools()
-                if not next_loop.independent_iterations(dep_tools=dtools):
-                    msgs = dtools.get_all_messages()
-                    next_loop.preceding_comment = "\n".join([str(m) for m in msgs])
-                    break
+                if not ignore_dep_analysis:
+                    if not next_loop.independent_iterations(
+                               dep_tools=dtools,
+                               signatures_to_ignore=list_of_signatures):
+                        if verbose:
+                            msgs = dtools.get_all_messages()
+                            next_loop.preceding_comment = (
+                                "\n".join([str(m) for m in msgs]))
+                        break
         else:
-            num_collapsable_loops = 1
+            num_collapsable_loops = None
 
         # Add our orphan loop directive setting its parent to the node's
         # parent and its children to the node. This calls down to the sub-class
