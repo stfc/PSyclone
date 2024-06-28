@@ -1,4 +1,4 @@
-#aaaa -----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
 # Copyright (c) 2017-2024, Science and Technology Facilities Council.
@@ -44,6 +44,7 @@
                  the 'builtins' directory.
  '''
 
+import re
 import os
 import pytest
 
@@ -59,7 +60,7 @@ from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (
-    ArrayReference, Loop, Reference, UnaryOperation, Literal)
+    ArrayReference, Loop, Reference, UnaryOperation, Literal, Routine)
 from psyclone.psyir.symbols import (
     ArrayType, ScalarType, UnsupportedFortranType)
 from psyclone.tests.lfric_build import LFRicBuild
@@ -1421,6 +1422,270 @@ def test_sign_X_by_value(fortran_writer):
     code = fortran_writer(kern)
     assert ("! Built-in: sign_X (sign of a real-valued field)\n"
             "f2_data(df) = SIGN(-2.0_r_def, f1_data(df))\n" in code)
+
+# ------------- Other builtins   --------- #
+
+
+def test_setval_random(fortran_writer):
+    ''' Test the metadata, str and lower_to_language_level builtin methods. '''
+    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+
+    kern = builtin_from_file("15.7.4_setval_random_builtin.f90")
+    assert str(kern) == ("Built-in: setval_random (fill a real-valued field"
+                         " with pseudo-random numbers)")
+
+    # Test the 'lower_to_language_level()' method
+    code = fortran_writer(kern)
+    assert ("! Built-in: setval_random (fill a real-valued field "
+            "with pseudo-random numbers)\n"
+            "call RANDOM_NUMBER(f1_data(df))\n") in code
+
+
+def test_sum_x(fortran_writer):
+    ''' Test the metadata, str and lower_to_language_level builtin methods. '''
+    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+
+    kern = builtin_from_file("15.8.1_sum_X_builtin.f90")
+    assert str(kern) == "Built-in: sum_X (sum a real-valued field)"
+
+    # Test the 'lower_to_language_level()' method
+    code = fortran_writer(kern)
+    assert ("! Built-in: sum_X (sum a real-valued field)\n"
+            "asum = asum + f1_data(df)\n") in code
+
+
+def test_x_innerproduct_x(fortran_writer):
+    ''' Test the metadata, str and lower_to_language_level builtin methods. '''
+    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+
+    kern = builtin_from_file("15.9.2_X_innerproduct_X_builtin.f90")
+    assert str(kern) == "Built-in: X_innerproduct_X (real-valued field)"
+
+    # Test the 'lower_to_language_level()' method
+    code = fortran_writer(kern)
+    assert ("! Built-in: X_innerproduct_X (real-valued field)\n"
+            "asum = asum + f1_data(df) * f1_data(df)\n") in code
+
+
+def test_x_innerproduct_y(fortran_writer):
+    ''' Test the metadata, str and lower_to_language_level builtin methods. '''
+    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+
+    kern = builtin_from_file("15.9.1_X_innerproduct_Y_builtin.f90")
+    assert str(kern) == "Built-in: X_innerproduct_Y (real-valued fields)"
+
+    # Test the 'lower_to_language_level()' method
+    code = fortran_writer(kern)
+    assert ("! Built-in: X_innerproduct_Y (real-valued fields)\n"
+            "asum = asum + f1_data(df) * f2_data(df)\n") in code
+
+
+def test_int_to_real_x(fortran_writer):
+    ''' Test the metadata, str and lower_to_language_level builtin methods. '''
+    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+
+    kern = builtin_from_file("15.28.2_int_to_real_X_builtin.f90")
+    assert str(kern) == ("Built-in: int_to_real_X (convert an integer-valued "
+                         "to a real-valued field)")
+
+    # Test the 'lower_to_language_level()' method
+    code = fortran_writer(kern)
+    assert (
+        "! Built-in: int_to_real_X (convert an integer-valued to a "
+        "real-valued field)\n"
+        "f2_data(df) = REAL(f1_data(df), kind=r_def)\n") in code
+
+
+@pytest.mark.parametrize("kind_name", ["r_solver", "r_tran", "r_bl", "r_phys"])
+def test_int_to_real_x_precision(tmpdir, kind_name):
+    '''
+    Test that the built-in picks up and creates correct code for field
+    data with precision that is not the default, i.e. not 'r_def'. Try with
+    all supported LFRic real-valued field precisions to make sure all work.
+
+    '''
+    # Note that monkeypatching required to change field type, field proxy
+    # type and the field data precisions is extensive and complicated.
+    # Modifying the test algorithm is easier and more effective.
+    with open(os.path.join(BASE_PATH, "15.28.2_int_to_real_X_builtin.f90"),
+              "r", encoding='utf-8') as alg_file:
+        alg_code = alg_file.read()
+
+    # Modify the 'real'-valued field type and precision, and store the
+    # modified temporary algorithm
+    pattern = re.compile(r"\bfield_")
+    alg_code = re.sub(pattern, f"{kind_name}_field_", alg_code)
+    os.mkdir(str(tmpdir.join("tmp")))
+    tmp_fname = str(tmpdir.join("tmp", f"real_{kind_name}_X_builtin_alg.f90"))
+    with open(tmp_fname, "w", encoding='utf-8') as tmp_file:
+        tmp_file.write(alg_code)
+    tmp_file.close()
+
+    # Read and parse the modified algorithm
+    with open(tmp_fname, "r", encoding='utf-8') as alg_file:
+        _, invoke_info = parse(alg_file, api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    code = str(psy.gen)
+
+    # Test code generation
+    assert f"USE constants_mod, ONLY: {kind_name}, i_def" in code
+    assert (f"USE {kind_name}_field_mod, ONLY: {kind_name}_field_type, "
+            f"{kind_name}_field_proxy_type") in code
+    assert f"TYPE({kind_name}_field_type), intent(in) :: f2" in code
+    assert (f"REAL(KIND={kind_name}), pointer, dimension(:) :: "
+            "f2_data => null()") in code
+    assert f"TYPE({kind_name}_field_proxy_type) f2_proxy" in code
+    assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
+
+    # Test compilation of generated code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_real_to_int_x(fortran_writer):
+    ''' Test the metadata, str and lower_to_language_level builtin methods. '''
+    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+
+    kern = builtin_from_file("15.10.3_real_to_int_X_builtin.f90")
+    assert str(kern) == ("Built-in: real_to_int_X (convert a real-valued to "
+                         "an integer-valued field)")
+
+    # Test the 'lower_to_language_level()' method
+    code = fortran_writer(kern)
+    assert (
+        "! Built-in: real_to_int_X (convert a real-valued to an "
+        "integer-valued field)\n"
+        "f2_data(df) = INT(f1_data(df), kind=i_def)\n") in code
+
+
+@pytest.mark.parametrize("kind_name", ["i_native", "i_ncdf"])
+def test_real_to_int_x_precision(monkeypatch, kind_name):
+    '''
+    Test that the built-in picks up and creates correct code for field
+    data with precision that is not the default, i.e. not 'i_def'.
+    At the moment there is no other integer precision for field data
+    so we use random integer precisions from 'constants_mod'.
+    However, this does mean that we are not able to check whether the
+    generated PSy layer compiles.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.3_real_to_int_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    table = first_invoke.schedule.symbol_table
+    arg = first_invoke.schedule.children[0].loop_body[0].args[0]
+    # Set 'f2_data' to another 'i_<prec>'
+    sym_kern = table.lookup_with_tag(f"{arg.name}:data")
+    monkeypatch.setattr(arg, "_precision", f"{kind_name}")
+    monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
+                        "_name", f"{kind_name}")
+
+    # Test limited code generation (no equivalent field type)
+    code = str(psy.gen)
+    assert f"USE constants_mod, ONLY: r_def, {kind_name}" in code
+    assert (f"INTEGER(KIND={kind_name}), pointer, dimension(:) :: "
+            "f2_data => null()") in code
+    assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
+
+
+def test_real_to_real_x(fortran_writer):
+    ''' Test the metadata, str and lower_to_language_level builtin methods. '''
+    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+
+    kern = builtin_from_file("15.10.8_real_to_real_X_builtin.f90")
+    assert str(kern) == ("Built-in: real_to_real_X (convert a real-valued to "
+                         "a real-valued field)")
+
+    loops = kern.ancestor(Routine).walk(Loop)
+    # Test the 'lower_to_language_level()' method
+    for idx, loop in enumerate(loops):
+        kern = loop.loop_body[0]
+        code = fortran_writer(kern)
+        if idx == 0:
+            assert (
+                "! Built-in: real_to_real_X (convert a real-valued to a "
+                "real-valued field)\n"
+                "f2_data(df) = REAL(f1_data(df), kind=r_tran)\n") in code
+        elif idx == 1:
+            assert (
+                "! Built-in: real_to_real_X (convert a real-valued to a "
+                "real-valued field)\n"
+                "f1_data(df) = REAL(f3_data(df), kind=r_def)\n") in code
+        elif idx == 2:
+            assert (
+                "! Built-in: real_to_real_X (convert a real-valued to a "
+                "real-valued field)\n"
+                "f3_data(df) = REAL(f2_data(df), kind=r_solver)\n") in code
+        else:
+            assert False, code  # There are only 3 kern
+
+
+@pytest.mark.parametrize("kind_name", ["r_bl", "r_phys", "r_um"])
+def test_real_to_real_x_lowering(monkeypatch, kind_name):
+    '''
+    Test that the lower_to_language_level() method works as expected.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.10.8_real_to_real_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API,
+                     distributed_memory=False).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    table = first_invoke.schedule.symbol_table
+    arg = first_invoke.schedule.children[0].loop_body[0].args[0]
+    # Set 'f2_data' to another 'r_<prec>'
+    sym_kern = table.lookup_with_tag(f"{arg.name}:data")
+    monkeypatch.setattr(arg, "_precision", f"{kind_name}")
+    monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
+                        "_name", f"{kind_name}")
+
+    # Test limited code generation (no equivalent field type)
+    code = str(psy.gen)
+
+    # Due to the reverse alphabetical ordering performed by PSyclone,
+    # different cases will arise depending on the substitution
+    if kind_name < 'r_def':
+        assert f"USE constants_mod, ONLY: r_solver, r_def, {kind_name}" in code
+    elif 'r_solver' > kind_name > 'r_def':
+        assert f"USE constants_mod, ONLY: r_solver, {kind_name}, r_def" in code
+    else:
+        assert f"USE constants_mod, ONLY: {kind_name}, r_solver, r_def" in code
+
+    # Assert correct type is set
+    assert (f"REAL(KIND={kind_name}), pointer, dimension(:) :: "
+            "f2_data => null()") in code
+    assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
+
+
+# ------------- Invalid built-in with an integer scalar reduction ----------- #
+
+def test_scalar_int_builtin_error(monkeypatch):
+    '''
+    Test that specifying incorrect meta-data for built-in such that it
+    claims to perform a reduction into an integer variable raises the
+    expected error.
+
+    '''
+    monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        value=os.path.join(BASE_PATH,
+                                           "int_reduction_builtins_mod.f90"))
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = parse(os.path.join(BASE_PATH,
+                                  "16.2_integer_scalar_sum.f90"),
+                     api=API)
+    assert ("In the LFRic API a reduction access 'gh_sum' is only valid "
+            "with a real scalar argument, but a scalar argument with "
+            "'gh_integer' data type was found" in str(excinfo.value))
+
 
 # ------------- Built-ins with multiple calls or mixed with kernels --------- #
 
