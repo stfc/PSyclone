@@ -740,6 +740,8 @@ class ArrayType(DataType):
                                                    dim.upper.copy())
                 new_shape.append(new_bounds)
             else:
+                # This dimension is specified with an ArrayType.Extent
+                # so no need to copy.
                 new_shape.append(dim)
         return ArrayType(self.datatype, new_shape)
 

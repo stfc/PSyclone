@@ -302,16 +302,15 @@ class SymbolTable():
                                      routine.from_container))
             symbol.routines = new_routines
 
-        # Ensure any symbols referenced in array shapes are also updated
+        # Ensure any Symbols referenced in array shapes are also updated
         # pylint: disable-next=import-outside-toplevel
         from psyclone.psyir.nodes import Node, Reference
         for symbol in new_st.symbols:
-            if not symbol.is_array or not isinstance(symbol.datatype,
-                                                     ArrayType):
+            if not isinstance(symbol.datatype, ArrayType):
                 continue
             for dim in symbol.datatype.shape:
                 if isinstance(dim, ArrayType.ArrayBounds):
-                    exprns = [dim.lower, dim.upper]
+                    exprns = dim
                 else:
                     exprns = [dim]
                 for bnd in exprns:
