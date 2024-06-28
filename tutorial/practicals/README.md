@@ -1,8 +1,7 @@
 ﻿# PSyclone Hands-On Practicals
 
-Welcome to the PSyclone hands-on practicals. Unlike those parts of the
-tutorial that use Jupyter notebooks, the sections in the directories
-below this one work through using PSyclone in a 'normal' Linux environment.
+Welcome to the PSyclone hands-on practicals. The sections in the directories
+below this one work through using PSyclone in a 'normal' Linux-type environment.
 There are two sections to the practicals:
 
 1. Transforming [existing code](nemo/README.md)
@@ -29,54 +28,15 @@ need access to a terminal (command-line) on a computer running a Linux
 recommend using the Windows Subsystem for Linux (WSL). Alternatively,
 you can run a Linux virtual machine (e.g. using VirtualBox or
 VMWare). Whichever of these you use, we recommend that you install
-Ubuntu 20.04 LTS.
+the latest LTS release of Ubuntu.
 
-* Please see
-  https://docs.microsoft.com/en-us/windows/wsl/install-win10 for
-  instructions on getting started with WSL. Note that WSL requires
-  Windows 10 version 1607 (the Anniversary update) or better.
-
-   * In order to have multiple windows open simultaneously you will
-     need to install an X-server such as VcXsrv
-     (https://sourceforge.net/projects/vcxsrv/). Once you have that
-     running, set DISPLAY=localhost:0.0 in your linux terminal and you
-     will then be able to launch GUI applications.
+* Please see https://learn.microsoft.com/en-us/windows/wsl/install
+  for instructions on getting started with WSL.
 
 * Please see https://www.oracle.com/virtualization/technologies/vm/virtualbox.html
   for instructions on getting started with VirtualBox and the system requirements.
-  Here are the basic steps:
-  
-   * Download the ubuntu 20.04.1 ISO from
-     [here](https://ubuntu.com/download/desktop);
-   * Install Virtual Box from
-     https://www.oracle.com/virtualization/technologies/vm/downloads/virtualbox-downloads.html
-     (using the Windows hosts link for Windows);
-   * Select new in the Virtual Box manager page;
-   * Choose a name for the VM and linux and ubuntu (64-bit) as the options;
-   * Click start;
-   * Find the ubuntu iso from the search box and add it, then follow the
-     install instructions;
-   * If your ubuntu screen does not resize run Devices -> Insert Guest CD.
-     After doing this and after reboot you should be able to resize the VM
-     screen. If not, try clicking on View -> Auto-resize guest display.
-   * In order to enable copy-n-paste between the host and virtual machines
-     please follow the instructions at
-     https://www.howtogeek.com/187535/how-to-copy-and-paste-between-a-virtualbox-host-machine-and-a-guest-machine/
 
-* To install VMWare:
-
-   * As above, download the ubuntu 20.04.01 ISO;
-   * Install VMware player from
-     https://www.vmware.com/uk/products/workstation-player/workstation-player-evaluation.html;
-   * You may be told to restart your system and re-run the installer;
-   * Confirm you are using it for non-commercial use and skip the update
-     to pro;
-   * Click on create a new VM, find the ubuntu ISO and install;
-   * If you get an error message beginning with "Your host does not meet 
-     minimum requirements to run VMware Player with Hyper-V or Device/Credential 
-     Guard enabled...." then it is probably best to install Virtual Box instead. 
-     If not, google how to fix the problem.
-
+* For VMWare see: https://knowledge.broadcom.com/external/article?articleNumber=309355
 
 In the instructions below we assume that you are using Ubuntu. If you
 are using some other Linux distribution you will have to change the
@@ -89,9 +49,7 @@ installed. Additionally, we recommend working with a Python virtual
 environment which virtualenvwrapper makes quite straightforward (see
 e.g. https://docs.python-guide.org/dev/virtualenvs/). Some of the
 commands in the remainder of this document assume a virtual
-environment so would need to be changed if one is not used (e.g. use
-the `--user` flag to any pip commands so as to install packages as a
-local user).
+environment so would need to be changed if one is not used.
 
 We recommend using pip to install Python packages. To get pip (for Python 3):
 
@@ -172,11 +130,12 @@ $ sudo apt install gfortran
 ```
 
 For the session on adding OpenACC to NEMO, you may wish to be able to
-compile the generated OpenACC code. This requires version 8 or higher
-of gfortran. Alternatively, the NVIDIA HPC SDK is also freely
-available (https://developer.nvidia.com/hpc-sdk). This has the
-advantage that the NVIDIA Fortran compiler is also capable of
-compiling OpenACC code to target multi-core CPUs as well as GPUs.
+compile the generated OpenACC code. This requires version 11 or higher
+of gfortran (compiled with nvpvtx support). Alternatively, the NVIDIA
+HPC SDK is also freely available
+(https://developer.nvidia.com/hpc-sdk). This has the advantage that
+the NVIDIA Fortran compiler is also capable of compiling OpenACC code
+to target multi-core CPUs as well as GPUs.
 
 LFRic code is routinely built with the Gnu Fortran compiler 6.1.0. and
 later, and it is proven to work with the latest GCC 10.2.0.
