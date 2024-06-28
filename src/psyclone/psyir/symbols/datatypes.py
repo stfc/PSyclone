@@ -124,7 +124,7 @@ class UnsupportedType(DataType, metaclass=abc.ABCMeta):
     @property
     def declaration(self):
         '''
-        :returns: the original declaration of the symbol. This is obviously \
+        :returns: the original declaration of the symbol. This is obviously
                   language specific and hence this class must be subclassed.
         :rtype: str
         '''
@@ -471,7 +471,7 @@ class ArrayType(DataType):
                 # The lower bound is 1 by default.
                 self._shape.append(
                     ArrayType.ArrayBounds(
-                        _dangling_parent(one),
+                        _dangling_parent(one.copy()),
                         _dangling_parent(_node_from_int(dim))))
             elif isinstance(dim, tuple):
                 self._shape.append(
@@ -733,16 +733,12 @@ class ArrayType(DataType):
         :rtype: :py:class:`psyclone.psyir.datatype.ArrayType`
 
         '''
-        # pylint: disable-next=import-outside-toplevel
-        from psyclone.psyir.nodes.node import Node
         new_shape = []
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
                 new_bounds = ArrayType.ArrayBounds(dim.lower.copy(),
                                                    dim.upper.copy())
                 new_shape.append(new_bounds)
-            elif isinstance(dim, Node):
-                new_shape.append(dim.copy())
             else:
                 new_shape.append(dim)
         return ArrayType(self.datatype, new_shape)
