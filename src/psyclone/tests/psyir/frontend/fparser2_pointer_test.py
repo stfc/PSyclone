@@ -58,7 +58,7 @@ def test_pointer_assignments(fortran_reader):
     end subroutine
     '''
     file_container = fortran_reader.psyir_from_source(test_module)
-    assert len(file_container.walk(CodeBlock)) == 0
+    assert not file_container.walk(CodeBlock)
     assignments = file_container.walk(Assignment)
     assert len(assignments) == 2
     for assignment in assignments:

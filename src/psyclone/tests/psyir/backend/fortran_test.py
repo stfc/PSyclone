@@ -2004,7 +2004,7 @@ def test_pointer_assignments(fortran_reader, fortran_writer):
     '''
     file_container = fortran_reader.psyir_from_source(test_module)
     code = fortran_writer(file_container)
-    assert len(file_container.walk(CodeBlock)) == 0
+    assert not file_container.walk(CodeBlock)
     assert len(file_container.walk(Assignment)) == 3
     assert "a = 4" in code
     assert "b => a" in code

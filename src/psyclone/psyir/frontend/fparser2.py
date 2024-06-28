@@ -4636,8 +4636,8 @@ class Fparser2Reader():
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
         '''
-        is_poitner = isinstance(node, Fortran2003.Pointer_Assignment_Stmt)
-        assignment = Assignment(is_pointer=is_poitner, ast=node, parent=parent)
+        is_pointer = isinstance(node, Fortran2003.Pointer_Assignment_Stmt)
+        assignment = Assignment(is_pointer=is_pointer, ast=node, parent=parent)
         self.process_nodes(parent=assignment, nodes=[node.items[0]])
         self.process_nodes(parent=assignment, nodes=[node.items[2]])
 
@@ -4678,7 +4678,7 @@ class Fparser2Reader():
         # Note that fparser2 misclassifies variable-names, so it always is the
         # second variant of this rule. (variable-name are Name, so it correctly
         # ends up as a PSyIR reference)
-        # Alse note that fparser2 scalar-variable is not always scalar, so it
+        # Also, note that fparser2 scalar-variable is not always scalar, so it
         # needs to be handled as a data-ref (which actually makes this
         # implementation easier because its the same as procedure-designator)
         if isinstance(node, (Fortran2003.Procedure_Designator,

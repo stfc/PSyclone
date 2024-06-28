@@ -40,7 +40,8 @@ transformation.'''
 import pytest
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import IfBlock, IntrinsicCall, Literal, Reference
+from psyclone.psyir.nodes import (
+    IfBlock, IntrinsicCall, Literal, Reference, Assignment)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, IntrinsicSymbol
 from psyclone.psyir.transformations import (Reference2ArrayRangeTrans,
                                             TransformationError)
@@ -315,18 +316,20 @@ def test_validate_structure(fortran_reader):
         "program test\n"
         "  type :: array_type\n"
         "      real, dimension(10) :: a\n"
+        "      real, pointer :: ptr\n"
         "  end type\n"
         "  type(array_type) :: ref\n"
         "  real :: b\n\n"
         "  ref%a = b\n"
+        "  ref%ptr => b\n"
         "end program test\n")
     psyir = fortran_reader.psyir_from_source(code)
-    reference = psyir.walk(Reference)[0]
     trans = Reference2ArrayRangeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(reference)
-    assert ("The supplied node should be a Reference but found "
-            "'StructureReference'." in str(info.value))
+    for assign in psyir.walk(Assignment):
+        with pytest.raises(TransformationError) as info:
+            trans.validate(assign.lhs)
+        assert ("The supplied node should be a Reference but found "
+                "'StructureReference'." in str(info.value))
 
 
 def test_validate_deallocate(fortran_reader):

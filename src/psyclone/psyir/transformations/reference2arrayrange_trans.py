@@ -165,7 +165,8 @@ class Reference2ArrayRangeTrans(Transformation):
         if assignment and assignment.is_pointer:
             raise TransformationError(
                 f"'{type(self).__name__}' can not be applied to references"
-                f" inside pointer assignments, but found '{node.name}'")
+                f" inside pointer assignments, but found '{node.name}' in"
+                f" {assignment.debug_string()}")
 
     def apply(self, node, options=None):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified

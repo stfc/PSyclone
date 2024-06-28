@@ -341,7 +341,7 @@ def test_assignment_gen_code():
 
 
 def test_pointer_assignment():
-    ''' Test that pointer assingments work as expected '''
+    ''' Test that pointer assignments work as expected '''
     lhs = Reference(Symbol("var1"))
     rhs = Reference(Symbol("var2"))
 
@@ -352,12 +352,15 @@ def test_pointer_assignment():
     assignment2 = Assignment.create(lhs, rhs, is_pointer=True)
     not_pointer = Assignment.create(lhs.copy(), rhs.copy())
 
-    # Getters and equality
+    # Getters, equality and copy
     assert assignment1.is_pointer
     assert assignment2.is_pointer
+    assert assignment2.copy().is_pointer
     assert not not_pointer.is_pointer
     assert assignment1 == assignment2
+    assert assignment1.copy() == assignment2
     assert assignment1 != not_pointer
+    assert assignment1 != 3
 
     # Str and setter
     assert "Assignment[is_pointer=True]" in str(assignment1)
