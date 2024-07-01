@@ -56,12 +56,15 @@ class DataTypeSymbol(Symbol):
     '''
     def __init__(self, name, datatype,
                  visibility=Symbol.DEFAULT_VISIBILITY,
-                 interface=None):
+                 interface=None,
+                 is_class=False):
         super(DataTypeSymbol, self).__init__(name, visibility, interface)
 
-        # The following attribute has a setter method (with error checking)
+        # The following attributes have setter methods (with error checking)
         self._datatype = None
         self.datatype = datatype
+
+        self.is_class = is_class
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the
@@ -74,7 +77,7 @@ class DataTypeSymbol(Symbol):
 
         '''
         return type(self)(self.name, self.datatype, visibility=self.visibility,
-                          interface=self.interface)
+                          interface=self.interface, is_class=self.is_class)
 
     def __str__(self):
         return f"{self.name}: {type(self).__name__}"
@@ -108,6 +111,31 @@ class DataTypeSymbol(Symbol):
                 f"DataType but got: '{type(value).__name__}'")
         self._datatype = value
 
+    @property
+    def is_class(self):
+        '''
+        :returns: whether this DataTypeSymbol is a 'class' declaration, i.e.
+                  not a 'type' one.
+        :rtype: bool
+        '''
+        return self._is_class
+
+    @is_class.setter
+    def is_class(self, value):
+        ''' Setter for DataTypeSymbol is_class.
+
+        :param bool value: whether this DataTypeSymbol is a 'class' \
+                           declaration, i.e. not a 'type' one.
+
+        :raises TypeError: if value is not a bool.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"The is_class attribute of a DataTypeSymbol must be a bool "
+                f"but got: '{type(value).__name__}'")
+        self._is_class = value
+
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name (which is immutable) and visibility.
@@ -123,6 +151,12 @@ class DataTypeSymbol(Symbol):
                             f"found '{type(symbol_in).__name__}'.")
         super(DataTypeSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
+        self._is_class = symbol_in.is_class
+
+    def _process_arguments(self, visibility=None, interface=None,
+                           is_class=False):
+        super()._process_arguments(visibility, interface)
+        self.is_class = is_class
 
 
 # For automatic documentation generation

@@ -1428,9 +1428,13 @@ def test_process_not_supported_declarations():
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     sym = fake_parent.symbol_table.lookup("carg")
-    assert isinstance(sym.datatype, UnsupportedFortranType)
-    assert (sym.datatype.declaration.lower() ==
-            "class(my_type), intent(in) :: carg")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, DataTypeSymbol)
+    assert sym.datatype.is_class is True
+    assert sym.name == "carg"
+    assert sym.datatype.name == "my_type"
+    assert isinstance(sym.interface, ArgumentInterface)
+    assert (sym.interface.access == ArgumentInterface.Access.READ)
 
     # Allocatable but with specified extent. This is invalid Fortran but
     # fparser2 doesn't spot it (see fparser/#229).
@@ -3101,7 +3105,7 @@ def test_structures(fortran_reader, fortran_writer):
         "  type, extends(parent_type), public :: test_type\n"
         "    integer, public :: i = 1\n"
         "    contains\n"
-        "      procedure :: test_code\n"
+        "      procedure, public :: test_code\n"
         "      procedure, private :: test_code_private\n"
         "      procedure, public :: test_code_public\n"
         "  end type test_type\n" in result)

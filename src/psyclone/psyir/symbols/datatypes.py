@@ -880,13 +880,13 @@ class StructureType(DataType):
 
     def lookup_component(self, name):
         '''
-        :returns: the ComponentType tuple describing the named member of this \
+        :returns: the ComponentType tuple describing the named member of this
                   StructureType.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''
         return self._components[name]
 
-    def add_procedure_component(self, name, datatype, visibility, 
+    def add_procedure_component(self, name, datatype, visibility,
                                 initial_value):
         '''
         Create a procedure component with the supplied attributes and add it to
@@ -895,11 +895,11 @@ class StructureType(DataType):
         :param str name: the name of the new procedure component.
         :param datatype: the type of the new procedure component.
         :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-        :param visibility: whether this procedure component is public or 
+        :param visibility: whether this procedure component is public or
                            private.
         :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
         :param initial_value: the initial value of the new procedure component.
-        :type initial_value: 
+        :type initial_value:
             Optional[:py:class:`psyclone.psyir.nodes.DataNode`]
 
         :raises TypeError: if any of the supplied values are of the wrong type.
@@ -939,7 +939,7 @@ class StructureType(DataType):
 
     def lookup_procedure_component(self, name):
         '''
-        :returns: the ComponentType tuple describing the named procedure 
+        :returns: the ComponentType tuple describing the named procedure
                   member of this StructureType.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType.ComponentType`
         '''

@@ -72,7 +72,60 @@ def test_type(fortran_reader, fortran_writer, tmpdir):
         "  END SELECT\n"
         "end subroutine\n"
         "end module\n")
-    expected1 = "CLASS(*), TARGET :: type_selector"
+    expected1 = "class(*), target :: type_selector"
+    expected2 = (
+        "    character(256) :: type_string\n"
+        "    INTEGER, pointer :: ptr_INTEGER => null()\n"
+        "    REAL, pointer :: ptr_REAL => null()\n\n"
+        "    type_string = ''\n"
+        "    SELECT TYPE(type_selector)\n"
+        "      TYPE IS (INTEGER)\n"
+        "      type_string = \"integer\"\n"
+        "      ptr_INTEGER => type_selector\n"
+        "      TYPE IS (REAL)\n"
+        "      type_string = \"real\"\n"
+        "      ptr_REAL => type_selector\n"
+        "    END SELECT\n"
+        "    if (type_string == 'integer') then\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "      iinfo = ptr_INTEGER\n"
+        "    else\n"
+        "      if (type_string == 'real') then\n"
+        "        branch2 = 1\n"
+        "        rinfo = ptr_REAL\n"
+        "      end if\n"
+        "    end if\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir).lower()
+    assert expected1.lower() in result
+    assert expected2.lower() in result
+    if_blocks = psyir.walk(IfBlock)
+    assert "was_type_is" in if_blocks[0].annotations
+    assert "was_type_is" in if_blocks[1].annotations
+    assert Compile(tmpdir).string_compiles(result)
+
+    code = (
+        "module select_mod\n"
+        "use my_mod, only: my_class\n"
+        "contains\n"
+        "subroutine select_type(type_selector)\n"
+        "  class(my_class), target :: type_selector\n"
+        "  integer :: branch1, branch2\n"
+        "  integer :: iinfo\n"
+        "  real :: rinfo\n"
+        "  SELECT TYPE (type_selector)\n"
+        "    TYPE IS (INTEGER)\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "      iinfo = type_selector\n"
+        "    TYPE IS (REAL)\n"
+        "      branch2 = 1\n"
+        "      rinfo = type_selector\n"
+        "  END SELECT\n"
+        "end subroutine\n"
+        "end module\n")
+    expected1 = "class(my_class), target :: type_selector"
     expected2 = (
         "    character(256) :: type_string\n"
         "    INTEGER, pointer :: ptr_INTEGER => null()\n"
@@ -255,6 +308,89 @@ def test_class(fortran_reader, fortran_writer, tmpdir):
     assert "was_class_is" in if_blocks[2].annotations
     assert Compile(tmpdir).string_compiles(result)
 
+    code = (
+        "module select_mod\n"
+        "use my_mod, only: my_class\n"
+        "contains\n"
+        "subroutine select_type(type)\n"
+        "  class(my_class), pointer :: type\n"
+        "  type type2\n"
+        "    integer :: scalar\n"
+        "  end type\n"
+        "  type type3\n"
+        "    integer :: field\n"
+        "  end type\n"
+        "  integer :: branch0, branch1, branch2, branch3\n"
+        "  type(type2) :: my_type2\n"
+        "  type(type3) :: my_type3\n"
+        "  integer :: iinfo\n"
+        "  SELECT TYPE (type)\n"
+        "    CLASS IS(type2)\n"
+        "      branch0 = 1\n"
+        "      my_type2 = type\n"
+        "    TYPE IS (INTEGER)\n"
+        "      branch1 = 1\n"
+        "      branch2 = 0\n"
+        "      iinfo = type\n"
+        "    CLASS IS(type3)\n"
+        "      branch2 = 1\n"
+        "      my_type3 = type\n"
+        "    TYPE IS (REAL)\n"
+        "      branch3 = 1\n"
+        "      ! type not used here\n"
+        "  END SELECT\n"
+        "end subroutine\n"
+        "end module\n")
+    expected1 = "class(my_class), pointer :: type"
+    expected2 = (
+        "    character(256) :: type_string\n"
+        "    type(type2), pointer :: ptr_type2 => null()\n"
+        "    INTEGER, pointer :: ptr_INTEGER => null()\n"
+        "    type(type3), pointer :: ptr_type3 => null()\n"
+        "    REAL, pointer :: ptr_REAL => null()\n\n"
+        "    type_string = ''\n"
+        "    SELECT TYPE(type)\n"
+        "      CLASS IS (type2)\n"
+        "      type_string = \"type2\"\n"
+        "      ptr_type2 => type\n"
+        "      TYPE IS (INTEGER)\n"
+        "      type_string = \"integer\"\n"
+        "      ptr_INTEGER => type\n"
+        "      CLASS IS (type3)\n"
+        "      type_string = \"type3\"\n"
+        "      ptr_type3 => type\n"
+        "      TYPE IS (REAL)\n"
+        "      type_string = \"real\"\n"
+        "      ptr_REAL => type\n"
+        "    END SELECT\n"
+        "    if (type_string == 'type2') then\n"
+        "      branch0 = 1\n"
+        "      my_type2 = ptr_type2\n"
+        "    else\n"
+        "      if (type_string == 'integer') then\n"
+        "        branch1 = 1\n"
+        "        branch2 = 0\n"
+        "        iinfo = ptr_INTEGER\n"
+        "      else\n"
+        "        if (type_string == 'type3') then\n"
+        "          branch2 = 1\n"
+        "          my_type3 = ptr_type3\n"
+        "        else\n"
+        "          if (type_string == 'real') then\n"
+        "            branch3 = 1\n"
+        "          end if\n"
+        "        end if\n"
+        "      end if\n"
+        "    end if\n").lower()
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir).lower()
+    assert expected1 in result
+    assert expected2 in result
+    if_blocks = psyir.walk(IfBlock)
+    assert "was_class_is" in if_blocks[0].annotations
+    assert "was_class_is" in if_blocks[2].annotations
+    assert Compile(tmpdir).string_compiles(result)
+
 
 def test_class_with_codeblock(fortran_reader, fortran_writer, tmpdir):
     '''Check that the handler copes with the case where we have a CodeBlock
@@ -377,7 +513,7 @@ def test_kind(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
-        "    CLASS(*), TARGET :: type\n"
+        "    class(*), target :: type\n"
         "    integer :: branch1\n"
         "    integer :: branch2\n"
         "    REAL(KIND = 4) :: rinfo1\n"
@@ -435,7 +571,7 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
-        "    CLASS(*), TARGET :: type\n"
+        "    class(*), target :: type\n"
         "    type :: field_type\n"
         "      integer :: x\n"
         "    end type field_type\n"
@@ -455,9 +591,9 @@ def test_derived(fortran_reader, fortran_writer, tmpdir):
         "      field_type_info = ptr_field_type\n"
         "    end if\n")
     psyir = fortran_reader.psyir_from_source(code)
-    result = fortran_writer(psyir)
-    assert expected1 in result
-    assert expected2 in result
+    result = fortran_writer(psyir).lower()
+    assert expected1.lower() in result
+    assert expected2.lower() in result
     assert Compile(tmpdir).string_compiles(result)
 
 
@@ -492,7 +628,7 @@ def test_datatype(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n"
         "end module\n")
     expected1 = (
-        "    CLASS(*), TARGET :: type_selector\n"
+        "    class(*), target :: type_selector\n"
         "    integer :: branch1\n"
         "    integer :: branch2\n"
         "    integer :: branch3\n"
@@ -564,7 +700,7 @@ def test_character(fortran_reader, fortran_writer, tmpdir, char_type_in,
         f"end module\n")
     expected1 = (
         f"  subroutine select_type(type_selector)\n"
-        f"    CLASS(*), TARGET :: type_selector\n"
+        f"    class(*), target :: type_selector\n"
         f"    CHARACTER{char_type_out} :: character_type\n"
         f"    character(256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => "
@@ -609,7 +745,7 @@ def test_character_assumed_len(fortran_reader, fortran_writer, tmpdir,
         f"end module\n")
     expected1 = (
         f"  subroutine select_type(type_selector)\n"
-        f"    CLASS(*), TARGET :: type_selector\n"
+        f"    class(*), target :: type_selector\n"
         f"    CHARACTER{char_type_out}, POINTER :: character_type => null()\n"
         f"    character(256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => "
@@ -723,7 +859,7 @@ def test_class_target(
         f"  public\n\n"
         f"  contains\n"
         f"  subroutine select_type(type_selector, character_type)\n"
-        f"    CLASS(*), {post_attribute} :: type_selector\n"
+        f"    class(*), {post_attribute.lower()} :: type_selector\n"
         f"    CHARACTER(LEN = *) :: character_type\n"
         f"    character(256) :: type_string\n"
         f"    CHARACTER(LEN=256), pointer :: ptr_CHARACTER_star => null()\n\n"
@@ -799,3 +935,11 @@ end module my_mod
     table.add(sym2)
     fp2reader._add_target_attribute("a_local", table)
     assert "INTEGER, TARGET :: a_local" in str(sym2.datatype)
+
+def test_this(fortran_reader):
+    psy = fortran_reader.psyir_from_source(
+        '''module mymod
+    PROCEDURE(chir2xyz_interface), PROTECTED, POINTER :: chir2xyz => null() 
+ end module''')
+    from psyclone.psyir.nodes import Container
+    assert isinstance(psy.children[0], Container)
