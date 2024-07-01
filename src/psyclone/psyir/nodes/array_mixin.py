@@ -439,6 +439,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # The size of the bound is available.
         if bound_type == "upper":
             declaration_bound = datatype.shape[index].upper
+            if isinstance(declaration_bound, ArrayType.Extent):
+                # But only at run-time.
+                return False
         else:
             declaration_bound = datatype.shape[index].lower
 

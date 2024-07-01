@@ -826,23 +826,23 @@ def test_same_range(fortran_reader):
     # comparisons should also work symbolically
     code = '''
     subroutine test()
-        real, dimension(1:4, 1:4, 2:5) :: A, C
+        real, dimension(1+0:4, 1:4, 2:4+1) :: A, C
         real, dimension(4,   4,   4) :: B
         A(:,:,:) = B(:,:,:)
         C(:,:4,:4) = 0
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
-    array1, array2 = psyir.walk(Assignment)[0].children
-    array3, _ = psyir.walk(Assignment)[1].children
-    assert array1.same_range(0, array2, 0) is True
-    assert array1.same_range(1, array2, 1) is True
-    assert array1.same_range(2, array2, 2) is False
+    aref, bref = psyir.walk(Assignment)[0].children
+    cref, _ = psyir.walk(Assignment)[1].children
+    assert aref.same_range(0, bref, 0) is True
+    assert aref.same_range(1, bref, 1) is True
+    assert aref.same_range(2, bref, 2) is False
     # If the type in known, ranges in different assignments can also be
     # compared
-    assert array1.same_range(0, array3, 0) is True
-    assert array1.same_range(1, array3, 1) is True
-    assert array1.same_range(2, array3, 2) is False
+    assert aref.same_range(0, cref, 0) is True
+    assert aref.same_range(1, cref, 1) is True
+    assert aref.same_range(2, cref, 2) is False
 
     # If the values are implicit, and the declaration uses ATTRIBUTE or
     # DEFERRED shape, we return the appropriate results
@@ -865,6 +865,28 @@ def test_same_range(fortran_reader):
     assert array1.same_range(0, array2, 0) is True
     assert array3.same_range(0, array4, 0) is False
     assert array5.same_range(0, array6, 0) is False
+
+    # A mixture of expressions and assumed-size dimensions.
+    code = '''
+    module test_mod
+      use some_mod
+      real, allocatable, dimension(:,:,:) ::   trdt
+    contains
+    subroutine test(kttrd, ptrd)
+      integer, dimension(2), intent(in) :: kttrd
+      real, dimension(kttrd(1):,kttrd(2):,:), intent(in) ::   ptrd
+      trdt(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:) =    &
+         ptrd(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:) * &
+         tmask(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:)
+    end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+    lhs = assign.lhs
+    ptrd = assign.rhs.children[0]
+    assert lhs.same_range(0, ptrd, 0) is True
+    assert lhs.same_range(2, ptrd, 2) is False
 
     # This functionality also works with SoA and SoAoS
     code = '''
