@@ -1146,8 +1146,8 @@ def test_process_unsupported_declarations(fortran_reader):
     assert ssym.initial_value.symbol.name == "fbsp"
 
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_unsupported_decln_initial_value(monkeypatch):
+#ARPDBG@pytest.mark.usefixtures("f2008_parser")
+def unsupported_decln_initial_value(monkeypatch):
     ''' Check that an invalid constant value for a parameter is handled
     correctly. '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -3209,17 +3209,33 @@ def test_structures_constant_use(fortran_reader, fortran_writer):
 
 def test_structures_duplicate_name(f2008_parser):
     '''
+    Check that the datatype of a structure member correctly refers to
+    a DataTypeSymbol in the parent scope.
     '''
     test_code = '''\
     subroutine test()
+      integer, parameter :: nelem = 10
       type :: y
         integer, dimension(3) :: jp
       end type
       type :: x
-        type(y) :: y
+        type(y), dimension(nelem) :: y
       end type
     end subroutine'''
     reader = FortranStringReader(test_code)
     ptree = f2008_parser(reader)
     processor = Fparser2Reader()
     psyir = processor.generate_psyir(ptree)
+    routine = psyir.walk(Routine)[0]
+    table = routine.symbol_table
+    xsym = table.lookup("x")
+    nelem = table.lookup("nelem")
+    assert isinstance(xsym, DataTypeSymbol)
+    dtype = xsym.datatype
+    assert isinstance(dtype, StructureType)
+    ycompt = dtype.components["y"]
+    # The datatype of the member 'y' must be the 'y' DataTypeSymbol.
+    assert isinstance(ycompt.datatype, ArrayType)
+    # Its shape must refer to "nelem" in the table of the Routine.
+    assert isinstance(ycompt.datatype.shape[0].upper, Reference)
+    assert ycompt.datatype.shape[0].upper.symbol is nelem

@@ -1876,6 +1876,7 @@ class Fparser2Reader():
         '''
         # pylint: disable=too-many-arguments
         (type_spec, attr_specs, entities) = decl.items
+        is_member = isinstance(decl, Fortran2003.Data_Component_Def_Stmt)
 
         # Parse the type_spec
         base_type, _ = self._process_type_spec(scope, type_spec)
@@ -2060,9 +2061,12 @@ class Fparser2Reader():
                 # scalar
                 datatype = base_type
 
-            # Make sure the declared symbol exists in the SymbolTable
+            # Make sure the declared symbol exists in the SymbolTable unless
+            # we are dealing with a member of a struct.
             tag = None
             try:
+                if is_member:
+                    raise KeyError
                 sym = symbol_table.lookup(sym_name, scope_limit=scope)
                 # pylint: disable=unidiomatic-typecheck
                 if type(sym) is Symbol:
@@ -2214,22 +2218,22 @@ class Fparser2Reader():
             # referenced within the type definition (e.g. a type name).
             fake_sched = Container("andy", parent=parent)
             local_table = fake_sched.symbol_table
-            #import pdb; pdb.set_trace()
             local_table.default_visibility = default_compt_visibility
-            #local_table = SymbolTable(
-            #    default_visibility=default_compt_visibility)
+
             for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
                 self._process_decln(parent, local_table, child)
             # Convert from Symbols to type information
             for symbol in local_table.symbols:
                 if type(symbol) is Symbol:
-                    datatype = UnresolvedType()
-                    initial_value = None
+                    # If we don't have type information for this Symbol then
+                    # it isn't defined within this structure so we add it
+                    # to the parent SymbolTable.
+                    parent.symbol_table.add(symbol)
                 else:
                     datatype = symbol.datatype
                     initial_value = symbol.initial_value
-                dtype.add(symbol.name, datatype, symbol.visibility,
-                          initial_value)
+                    dtype.add(symbol.name, datatype, symbol.visibility,
+                              initial_value)
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype
