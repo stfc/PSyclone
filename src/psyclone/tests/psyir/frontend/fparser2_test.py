@@ -3169,6 +3169,7 @@ def test_structures_duplicate_name(f2008_parser):
     routine = psyir.walk(Routine)[0]
     table = routine.symbol_table
     xsym = table.lookup("x")
+    ysym = table.lookup("y")
     nelem = table.lookup("nelem")
     assert isinstance(xsym, DataTypeSymbol)
     dtype = xsym.datatype
@@ -3176,6 +3177,7 @@ def test_structures_duplicate_name(f2008_parser):
     ycompt = dtype.components["y"]
     # The datatype of the member 'y' must be the 'y' DataTypeSymbol.
     assert isinstance(ycompt.datatype, ArrayType)
+    assert ycompt.datatype.intrinsic is ysym
     # Its shape must refer to "nelem" in the table of the Routine.
     assert isinstance(ycompt.datatype.shape[0].upper, Reference)
     assert ycompt.datatype.shape[0].upper.symbol is nelem

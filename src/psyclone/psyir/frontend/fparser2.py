@@ -1845,6 +1845,7 @@ class Fparser2Reader():
         '''
         # pylint: disable=too-many-arguments
         (type_spec, attr_specs, entities) = decl.items
+        # Whether or not we are dealing with a member of a Structure.
         is_member = isinstance(decl, Fortran2003.Data_Component_Def_Stmt)
 
         # Parse the type_spec
@@ -2030,12 +2031,16 @@ class Fparser2Reader():
                 # scalar
                 datatype = base_type
 
-            # Make sure the declared symbol exists in the SymbolTable unless
-            # we are dealing with a member of a struct.
+            # Make sure the declared symbol exists in the SymbolTable.
             tag = None
             try:
                 if is_member:
+                    # We are dealing with the declaration of a member of a
+                    # structure. This must be a new entity and therefore we do
+                    # not want to attempt to lookup a symbol with this name -
+                    # trigger the exception path to create a new, local symbol.
                     raise KeyError
+
                 sym = symbol_table.lookup(sym_name, scope_limit=scope)
                 # pylint: disable=unidiomatic-typecheck
                 if type(sym) is Symbol:
