@@ -169,11 +169,15 @@ profile_PSyDataInit()
 This method needs to be called once to initialise the profiling tool.
 At this stage this call is not automatically inserted by PSyclone, so
 it is the responsibility of the user to add the call to an appropriate
-location in the application::
+location in the application:
 
-   use profile_psy_data_mod, only : profile_PSyDataInit
-   ...
-   call profile_PSyDataInit()
+.. code-block::
+    :caption: Adding profile_PSyDataInit.
+    :emphasize-lines: 3
+
+    use profile_psy_data_mod, only : profile_PSyDataInit
+    ...
+    call profile_PSyDataInit()
 
 The "appropriate" location might depend on the profiling library used.
 For example, it might be necessary to invoke this before or after
@@ -187,7 +191,11 @@ must be called.
 It will make sure that the measurements are printed, files are flushed,
 and that the profiling tool is closed correctly. Again at
 this stage it is necessary to manually insert the call at an appropriate
-location::
+location:
+
+.. code-block::
+    :caption: Adding profile_PSyDataShutdown.
+    :emphasize-lines: 3
 
     use profile_psy_data_mod, only : profile_PSyDataShutdown
     ...
@@ -244,7 +252,11 @@ profiling regions. Below we show an example of a schedule created
 when instrumenting invokes - all children of a Profile-Node will
 be part of the profiling region, including all loops created by
 PSyclone and all kernel calls (note that for brevity, the nodes
-holding the loop bounds have been omitted for all but the first loop)::
+holding the loop bounds have been omitted for all but the first loop):
+
+.. code-block::
+    :caption: Instrumenting invokes.
+    :emphasize-lines: 2
 
     GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
@@ -279,7 +291,11 @@ holding the loop bounds have been omitted for all but the first loop)::
 
 And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
-region::
+region:
+
+.. code-block::
+    :caption: Instrumenting kernels.
+    :emphasize-lines: 2,13,24
 
     GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
@@ -316,7 +332,11 @@ region::
                                 0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
                                         cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
-Both options can be specified at the same time::
+Both options can be specified at the same time:
+
+.. code-block::
+    :caption: Instrumenting kernels and invokes.
+    :emphasize-lines: 2,4,16,28
 
     GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
@@ -367,7 +387,11 @@ takes either a single PSyIR Node or a list of PSyIR Nodes as argument,
 and will insert a Profile Node into the PSyIR, with the 
 specified nodes as children. At code creation time the
 listed children will all be enclosed in one profile region.
-As an example::
+As an example:
+
+.. code-block::
+    :caption: Explicitly adding profiling regions.
+    :emphasize-lines: 3,8
 
     from psyclone.psyir.transformations import ProfileTrans
 
@@ -384,12 +408,16 @@ explicitly, rather than being automatically created (see
 :ref:`profile_names` for details). This allows for potentially
 more intuitive names or finer grain control over profiling
 (as particular regions could be provided with the same profile
-names). For example::
+names). For example:
+
+.. code-block::
+    :caption: Setting profile region names.
+    :emphasize-lines: 5,8
 
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
-    # Use the actual psy-layer module and subroutine names.
+    # Use the actual PSy-layer module and subroutine names.
     options = {"region_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)
     # Use own names and repeat for different regions to aggregate profile.
@@ -415,10 +443,10 @@ Naming Profiling Regions
 ------------------------
 A profile region derives its name from two components:
 
-`module_name`
-    A string identifying the psy-layer containing this 
+``module_name``
+    A string identifying the PSy-layer containing this
     profile node.
-`region_name`
+``region_name``
     A string identifying the invoke containing 
     this profile node and its location within the invoke
     (where necessary).
@@ -429,34 +457,37 @@ somewhat cryptic, alternative names can be specified by the user
 when adding profiling via a transformation script, see
 :ref:`dev_guide:psy_data_parameters_to_constructor`.
 
-The automatic name generation depends on the API according
-to the following rules:
+The automatic name generation depends on if you are using an
+API or only the transformation capabilities of PSyclone. If you are
+transforming existing code:
 
-For the :ref:`NEMO API <nemo-api>`,
-
-* the `module_name` string is set to the name of the parent
+* the ``module_name`` string is set to the name of the parent
   function/subroutine/program. This name is unique as Fortran requires
   these names to be unique within a program.
 
-* the `region_name` is set to an `r` (standing for region) followed by
+* the ``region_name`` is set to an ``r`` (standing for region) followed by
   an integer which uniquely identifies the profile within the parent
   function/subroutine/program (based on the profile node's position in
   the PSyIR representation relative to any other profile nodes).
 
 For the :ref:`LFRic <lfric-api>` and
-:ref:`GOcean <gocean-api>` APIs,
+:ref:`GOcean <gocean-api>` APIs:
 
-* the `module_name` string is set to the module name of the generated
+* the ``module_name`` string is set to the module name of the generated
   PSy-layer. This name should be unique by design (otherwise module
   names would clash when compiling).
 
-* the `region_name` is set to the name of the invoke in which it
-  resides, followed by a `-` and a kernel name if the
-  profile region contains a single kernel, and is completed by `-r`
+* the ``region_name`` is set to the name of the invoke in which it
+  resides, followed by a ``-`` and a kernel name if the
+  profile region contains a single kernel, and is completed by ``-r``
   (standing for region) followed by an integer which uniquely
   identifies the profile within the invoke (based on the profile
   node's position in the PSyIR representation relative to any other
-  profile nodes). For example::
+  profile nodes). For example:
+
+.. code-block::
+    :caption: PSyIR with profiling nodes.
+    :emphasize-lines: 2
 
     InvokeSchedule[invoke='invoke_0', dm=True]
       0: Profile[]
@@ -501,7 +532,11 @@ For the :ref:`LFRic <lfric-api>` and
                       0: CodedKern testkern_qr_code(f1,f2,m1,a,m2,istp)
                          [module_inline=False]
 
-This is the code created for this example::
+This is the code created for this example:
+
+.. code-block::
+    :caption: Created Fortran source code with profiling regions.
+    :emphasize-lines: 5,6,7,18,19,24,25
 
      MODULE container
       CONTAINS
