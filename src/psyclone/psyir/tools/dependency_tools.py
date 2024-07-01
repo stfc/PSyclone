@@ -768,7 +768,7 @@ class DependencyTools():
 
         result = True
         # Now check all variables used in the loop
-        for signature in var_accesses.all_signatures:
+        for signature, var_info in var_accesses.items():
             # This string contains derived type information, e.g.
             # "a%b"
             var_string = str(signature)
@@ -779,12 +779,9 @@ class DependencyTools():
             if signature in signatures_to_ignore:
                 continue
 
-            # This returns the first component of the signature,
-            # i.e. in case of "a%b" it will only return "a"
-            var_name = signature.var_name
-            var_info = var_accesses[signature]
-            symbol_table = loop.scope.symbol_table
-            symbol = symbol_table.lookup(var_name)
+            # Access the symbol by inspecting the first access reference
+            symbol = var_info.all_accesses[0].node.symbol
+
             # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)
             if is_array:

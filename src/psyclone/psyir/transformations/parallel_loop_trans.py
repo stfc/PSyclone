@@ -93,12 +93,12 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             (default), it won't collapse. If it's a bool and is True, it will
             collapse as much as possible. If it's an integer, it will attempt
             to collapse until the specified number of loops (if they exist and
-            are safe to collapse them). The 'force' and 'ignore_symbols'
-            options also affect the collapse validation analysis.
+            are safe to collapse them). The options 'ignore_dependencies_for'
+            and 'force' also affect the collapse applicabilty analysis.
         :param bool options["force"]: whether to force parallelisation of the
             target loop (i.e. ignore any dependence analysis).
-        :param list[str] options["force"]: whether to ignore some symbol names
-            from the dependence analysis checks.
+        :param list[str] options["ignore_dependencies_for"]: whether to ignore
+            some symbol names from the dependence analysis checks.
         :param bool options["sequential"]: whether this is a sequential loop.
         :param bool options["verbose"]: whether report the reasons the validate
             and collapse steps have failed.
@@ -106,6 +106,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :raises TransformationError: if the given loop iterates over a
                 colours (LFRic domain) iteration space.
         :raises TransformationError: if 'collapse' is not an int or a bool.
+        :raises TransformationError: if 'ignore_dependencies_for' is not a
+                list of str.
         :raises TransformationError: if there is a data dependency that
                 prevents the parallelisation of the loop and the provided
                 options don't disregard them.
@@ -120,7 +122,7 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         verbose = options.get("verbose", False)
         collapse = options.get("collapse", False)
         ignore_dep_analysis = options.get("force", False)
-        ignore_symbols = options.get("ignore_symbols", [])
+        ignore_dependencies_for = options.get("ignore_dependencies_for", [])
         sequential = options.get("sequential", False)
 
         # Check we are not a sequential loop
@@ -142,22 +144,22 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         if sequential or ignore_dep_analysis:
             return
 
-        if ignore_symbols:
-            if (not isinstance(ignore_symbols, Iterable) or
-                    not all(isinstance(item, str) for item in ignore_symbols)):
+        if ignore_dependencies_for:
+            if (not isinstance(ignore_dependencies_for, Iterable) or not all(
+                    isinstance(v, str) for v in ignore_dependencies_for)):
                 raise TransformationError(
-                    f"The 'ignore_symbols' option must be an Iterable object "
-                    f"containing containing str representing the symbols to "
-                    f"ignore, but got {ignore_symbols}.")
+                    f"The 'ignore_dependencies_for' option must be an Iterable"
+                    f" object containing containing str representing the "
+                    f"symbols to ignore, but got {ignore_dependencies_for}.")
 
         dep_tools = DependencyTools()
 
-        list_of_signatures = [Signature(name) for name in ignore_symbols]
+        signatures = [Signature(name) for name in ignore_dependencies_for]
 
         if not node.independent_iterations(
                        dep_tools=dep_tools,
                        test_all_variables=True,
-                       signatures_to_ignore=list_of_signatures):
+                       signatures_to_ignore=signatures):
             # The DependencyTools also returns False for things that are
             # not an issue, so we ignore specific messages.
             for message in dep_tools.get_all_messages():
@@ -190,13 +192,24 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         At code-generation time (when gen_code()` is called), this node must be
         within (i.e. a child of) a PARALLEL region.
 
-        :param node: the supplied node to which we will apply the \
-                     Loop transformation.
+        :param node: the supplied node to which we will apply the
+                loop parallelisation transformation.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param options: a dictionary with options for transformations. \
+        :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param int options["collapse"]: the number of loops to collapse into \
-                single iteration space or None.
+        :param bool|int options["collapse"]: if it's a bool and is False
+            (default), it won't collapse. If it's a bool and is True, it will
+            collapse as much as possible. If it's an integer, it will attempt
+            to collapse until the specified number of loops (if they exist and
+            are safe to collapse them). The options 'ignore_dependencies_for'
+            and 'force' also affect the collapse applicabilty analysis.
+        :param bool options["force"]: whether to force parallelisation of the
+            target loop (i.e. ignore any dependence analysis).
+        :param list[str] options["ignore_dependencies_for"]: whether to ignore
+            some symbol names from the dependence analysis checks.
+        :param bool options["sequential"]: whether this is a sequential loop.
+        :param bool options["verbose"]: whether report the reasons the validate
+            and collapse steps have failed.
 
         '''
         if not options:
@@ -204,10 +217,10 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         self.validate(node, options=options)
 
         verbose = options.get("verbose", False)
-        collapse = options.get("collapse", None)
+        collapse = options.get("collapse", False)
         ignore_dep_analysis = options.get("force", False)
-        ignore_symbols = options.get("ignore_symbols", [])
-        list_of_signatures = [Signature(name) for name in ignore_symbols]
+        list_of_names = options.get("ignore_dependencies_for", [])
+        list_of_signatures = [Signature(name) for name in list_of_names]
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -226,8 +239,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             while isinstance(next_loop, Loop):
                 previous_iteration_variables.append(next_loop.variable)
                 num_collapsable_loops += 1
-                if num_collapsable_loops > max_loops:
-                    break
+                if not isinstance(collapse, bool):
+                    if num_collapsable_loops >= collapse:
+                        break
 
                 # If it has more than one children, the next loop will not be
                 # perfectly nested, so stop searching. If there is no child,
@@ -253,8 +267,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     if verbose:
                         next_loop.preceding_comment = (
                             f"Loop can not be collapsed because one of the "
-                            f"bounds depends on the interation variable "
-                            f"{dependent_of_previous_variable.name}")
+                            f"bounds depends on the previous iteration variab"
+                            f"le '{dependent_of_previous_variable.name}'")
                     break
 
                 # Check that the next loop has no loop-carried dependencies

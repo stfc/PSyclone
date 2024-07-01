@@ -87,11 +87,11 @@ def test_paralooptrans_validate_force(fortran_reader):
     trans.validate(loop, {"force": True})
 
 
-def test_paralooptrans_validate_ignore_symbols(fortran_reader):
+def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader):
     '''
-    Test that the 'ignore_symbols' option allows the validate check to succeed
-    even when the dependency analysis finds a possible loop-carried dependency,
-    but the user guarantees that it's a false dependency.
+    Test that the 'ignore_dependencies_for' option allows the validate check to
+    succeed even when the dependency analysis finds a possible loop-carried
+    dependency, but the user guarantees that it's a false dependency.
 
     '''
     psyir = fortran_reader.psyir_from_source(CODE)
@@ -102,25 +102,61 @@ def test_paralooptrans_validate_ignore_symbols(fortran_reader):
     assert ("Dependency analysis failed with the following messages:\n"
             "Warning: Variable 'sum' is read first, which indicates a "
             "reduction. Variable: 'sum'.") in str(err.value)
-    # Set the ignore_symbols option to ignore "sum"
-    trans.validate(loop, {"ignore_symbols": ["sum"]})
+    # Set the ignore_dependencies_for option to ignore "sum"
+    trans.validate(loop, {"ignore_dependencies_for": ["sum"]})
+
+
+def test_paralooptrans_apply_collapse(fortran_reader, fortran_writer):
+    ''' Test the 'collapse' option with valid bool and integer values. '''
+    trans = ParaTrans()
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer :: i, j, k
+          real :: var(10,10,10) = 1
+
+          do i = 1, 10
+            do j = 1, 10
+              do k = 1, 10
+                var(i,j,k) = var(i, j, k) + 1
+              end do
+            end do
+          end do
+        end subroutine my_sub''')
+
+    # When 'collapse' is an integer, it won't collapse more than the requested
+    # number of loops. But it won't fail if it can't
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": 2})
+    assert ("!$omp parallel do collapse(2)"
+            in fortran_writer(test_loop.parent.parent))
+
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": 4})
+    assert ("!$omp parallel do collapse(3)"
+            in fortran_writer(test_loop.parent.parent))
+
+    # When collapse is a bool, it will collapse all possible loops when True
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": True})
+    assert ("!$omp parallel do collapse(3)"
+            in fortran_writer(test_loop.parent.parent))
 
 
 def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
     '''
-    even when the dependency analysis finds a possible loop-carried dependency,
-    but the user guarantees that it's a false dependency.
-
+    Test the 'collapse' option, also in combination with the 'force' and
+    'ignore_dependencies_for' options.
     '''
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_sub()
           integer :: i, j, k
-          real :: var(10,10) = 1
+          real :: var(10,10,10) = 1
+          integer, dimension(10) :: map
 
           do i = 1, 10  ! This loop is iteration independent
             do j = 1, 10  ! This loop has a loop-carried dependency in var1
               do k = 1, j  ! This loop bounds depend on previous indices
-                var(i,j,k) = var(i, j-1, k)
+                var(i,j,k) = var(i, map(j), k)
               end do
             end do
           end do
@@ -132,33 +168,35 @@ def test_paralooptrans_collapse_options(fortran_reader, fortran_writer):
     trans.validate(loop)
 
     # By default it stops at collapse 1, because loop 2 has a dependency on,
-    # var. With verbose it print the reason
+    # var. With verbose it adds the stopping reason as a comment.
     test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
     trans.apply(test_loop, {"collapse": True, "verbose": True})
     assert '''\
 !$omp parallel do collapse(1) default(shared), private(i,j,k)
 do i = 1, 10, 1
-  ! Error: The write access to 'var(i,j,k)' and the read access to 'var(i,j \
-- 1,k)' are dependent and cannot be parallelised. Variable: 'var'.
+  ! Error: The write access to 'var(i,j,k)' and the read access to 'var(i,\
+map(j),k)' are dependent and cannot be parallelised. Variable: 'var'.
   do j = 1, 10, 1
     do k = 1, j, 1
-      var(i,j,k) = var(i,j - 1,k)
+      var(i,j,k) = var(i,map(j),k)
     enddo
   enddo
 enddo
 ''' in fortran_writer(test_loop.parent.parent)
 
-    # Check that the collapse logic can uses the "ignore_symbols" and "force"
-    # logic to skip dependencies
+    # Check that the collapse logic can uses the "ignore_dependencies_for" and
+    # "force" logic to skip dependencies
     test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
     trans.apply(test_loop, {"collapse": True, "verbose": True,
-                            "ignore_symbols": ["var"]})
+                            "ignore_dependencies_for": ["var"]})
     assert '''\
 !$omp parallel do collapse(2) default(shared), private(i,j,k)
 do i = 1, 10, 1
   do j = 1, 10, 1
+    ! Loop can not be collapsed because one of the bounds depends on the \
+previous iteration variable 'j'
     do k = 1, j, 1
-      var(i,j,k) = var(i,j - 1,k)
+      var(i,j,k) = var(i,map(j),k)
     enddo
   enddo
 enddo
@@ -170,8 +208,10 @@ enddo
 !$omp parallel do collapse(2) default(shared), private(i,j,k)
 do i = 1, 10, 1
   do j = 1, 10, 1
+    ! Loop can not be collapsed because one of the bounds depends on the \
+previous iteration variable 'j'
     do k = 1, j, 1
-      var(i,j,k) = var(i,j - 1,k)
+      var(i,j,k) = var(i,map(j),k)
     enddo
   enddo
 enddo

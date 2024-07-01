@@ -232,7 +232,7 @@ def normalise_loops(
 
 
 def insert_explicit_loop_parallelism(
-        schedule,
+        subroutine,
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
@@ -240,35 +240,35 @@ def insert_explicit_loop_parallelism(
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
 
-    :param schedule: the PSyIR Schedule to transform.
-    :type schedule: :py:class:`psyclone.psyir.nodes.node`
-    :param region_directive_trans: PSyclone transformation to insert the \
+    :param subroutine: the NEMO Routine to transform.
+    :type subroutine: :py:class:`psyclone.psyir.nodes.Routine`
+    :param region_directive_trans: PSyclone transformation that inserts the
         region directive.
     :type region_directive_trans: \
         :py:class:`psyclone.transformation.Transformation`
-    :param loop_directive_trans: PSyclone transformation to use to insert the \
-        loop directive.
+    :param loop_directive_trans: PSyclone transformation that inserts the
+        loop parallelisation directive.
     :type loop_directive_trans: \
         :py:class:`psyclone.transformation.Transformation`
-    :param collapse: whether to attempt to insert the collapse clause to as \
+    :param collapse: whether to attempt to insert the collapse clause to as
         many nested loops as possible.
-    :param collapse: whether to insert directive on loops with Calls or \
-        CodeBlocks in their loop body.
 
     '''
     # Add the parallel directives in each loop
-    for loop in schedule.walk(Loop):
+    for loop in subroutine.walk(Loop):
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
-        opts = {"collapse": collapse}
+        opts = {"collapse": collapse, "verbose": True}
 
         routine_name = loop.ancestor(Routine).name
 
         if ('dyn_spg' in routine_name and len(loop.walk(Loop)) > 2):
-            print("Loop not parallelised because its in 'dyn_spg' and "
-                  "its not the inner loop")
+            loop.append_preceding_comment(
+                "PSyclone: Loop not parallelised because its in 'dyn_spg' and "
+                "its not the inner loop")
             continue
+
         # Skip if it is an array operation loop on an ice routine if along the
         # third dim or higher or if the loop nests a loop over ice points
         # (npti) or if the loop and array dims do not match.
@@ -284,22 +284,21 @@ def insert_explicit_loop_parallelism(
                         for ref in lp.stop_expr.walk(Reference))
                  or (str(len(loop.walk(Loop))) !=
                      loop.stop_expr.arguments[1].value))):
-            print("ICE Loop not parallelised for performance reasons")
+            loop.append_preceding_comment(
+                "PSyclone: ICE Loop not parallelised for performance reasons")
             continue
+
         # Skip if looping over ice categories, ice or snow layers
         # as these have only 5, 4, and 1 iterations, respectively
         if (any(ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
                 for ref in loop.stop_expr.walk(Reference))):
-            print("Loop not parallelised because stops at 'jpl', 'nlay_i' "
-                  "or 'nlay_s'.")
+            loop.append_preceding_comment(
+                "PSyclone: Loop not parallelised because stops at 'jpl',"
+                " 'nlay_i' or 'nlay_s'.")
             continue
 
         def skip_for_correctness(loop):
             for call in loop.walk(Call):
-                if not isinstance(call, IntrinsicCall):
-                    print(f"Loop not parallelised because it has a call to "
-                          f"{call.routine.name}")
-                    return True
                 if not call.is_available_on_device():
                     print(f"Loop not parallelised because it has a "
                           f"{call.intrinsic.name} not available on GPUs.")
@@ -319,15 +318,20 @@ def insert_explicit_loop_parallelism(
         # pnd_lev requires manual privatisation of ztmp
         if any(name in routine_name for name in ('tab_', 'pnd_')):
             opts = {"force": True}
+
         try:
+            # First check that the region_directive is fesible for this region
+            if region_directive_trans:
+                region_directive_trans.validate(loop, options=opts)
+
+            # If it is, apply the parallelisation directive
             loop_directive_trans.apply(loop, options=opts)
-            # Only add the region directive if the loop was successfully
-            # parallelised.
+
+            # And if successful, the region directive on top.
             if region_directive_trans:
                 region_directive_trans.apply(loop.parent.parent)
-        except TransformationError as err:
+        except TransformationError:
             # This loop can not be transformed, proceed to next loop
-            print("Loop not parallelised because:", str(err))
             continue
 
 
