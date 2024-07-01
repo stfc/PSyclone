@@ -62,8 +62,8 @@ from psyclone.psyir.nodes import (
     RegionDirective, Routine, StandaloneDirective, StructureReference,
     ArrayOfStructuresReference, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
-    DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
-    SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, RoutineSymbol,
+    DataSymbol, ContainerSymbol, ArgumentInterface, ArrayType,
+    SymbolError, ScalarType, INTEGER_TYPE, REAL_TYPE, RoutineSymbol,
     UnsupportedFortranType, UnresolvedType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface,
     StructureType, DataTypeSymbol)
@@ -1144,64 +1144,6 @@ def test_process_unsupported_declarations(fortran_reader):
     assert ssym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert isinstance(ssym.initial_value, Reference)
     assert ssym.initial_value.symbol.name == "fbsp"
-
-
-#ARPDBG@pytest.mark.usefixtures("f2008_parser")
-def unsupported_decln_initial_value(monkeypatch):
-    ''' Check that an invalid constant value for a parameter is handled
-    correctly. '''
-    fake_parent = KernelSchedule("dummy_schedule")
-    reader = FortranStringReader(
-        "INTEGER, PRIVATE, PARAMETER :: happy=1, "
-        "fbsp=SELECTED_REAL_KIND(6,37), sad=fbsp")
-    fparser2spec = Specification_Part(reader).content[0]
-    # This error condition is very difficult to trigger so we monkeypatch
-    # the DataSymbol class itself with a setter that raises a ValueError
-    # for anything other than a Literal.
-
-    class BrokenDataSymbol(DataSymbol):
-        ''' Sub-class of DataSymbol with `initial_value` setter patched
-        so that it raises a ValueError for anything other than a Literal. '''
-        @property
-        def initial_value(self):
-            return self._initial_value
-
-        @initial_value.setter
-        def initial_value(self, value):
-            if isinstance(value, Literal):
-                self._initial_value = value
-            else:
-                raise ValueError("")
-
-    # At this point the fparser2 module will already have 'DataSymbol' in
-    # its namespace (due to the imports at the top of this file) so we
-    # monkeypatch that entry.
-    # pylint: disable=import-outside-toplevel
-    from psyclone.psyir.frontend import fparser2
-    monkeypatch.setattr(fparser2, "DataSymbol", BrokenDataSymbol)
-
-    processor = Fparser2Reader()
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    hsym = fake_parent.symbol_table.lookup("happy")
-    assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert hsym.initial_value.value == "1"
-    fbsym = fake_parent.symbol_table.lookup("fbsp")
-    assert isinstance(fbsym.datatype, UnsupportedFortranType)
-    assert (fbsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
-            "fbsp = SELECTED_REAL_KIND(6, 37)")
-    sadsym = fake_parent.symbol_table.lookup("sad")
-    assert isinstance(sadsym.datatype, UnsupportedFortranType)
-    assert (sadsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
-            "sad = fbsp")
-
-    # Now do the same but the UnsupportedType constant_value is also the symbol
-    # tagged as 'own_routine_symbol'. This is not recoverable.
-    fake_parent = KernelSchedule("fbsp")
-    with pytest.raises(InternalError) as err:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("The fparser2 frontend does not support declarations where the "
-            "routine name is of UnsupportedType, but found this case in "
-            "'fbsp'." in str(err.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")

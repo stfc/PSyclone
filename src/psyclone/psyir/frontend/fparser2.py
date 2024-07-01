@@ -66,7 +66,7 @@ from psyclone.psyir.symbols import (
     CommonBlockInterface, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DefaultModuleInterface, GenericInterfaceSymbol, ImportInterface,
     INTEGER_TYPE, NoType, RoutineSymbol, ScalarType, StaticInterface,
-    StructureType, Symbol, SymbolError, SymbolTable, UnknownInterface,
+    StructureType, Symbol, SymbolError, UnknownInterface,
     UnresolvedInterface, UnresolvedType, UnsupportedFortranType,
     UnsupportedType)
 
@@ -2292,10 +2292,8 @@ class Fparser2Reader():
             else:
                 node.items[1].items = tuple(entry_list)
 
-        # Try to parse the modified node. We use a temporary symbol table as
-        # we don't want to add the resulting symbol to the actual table as it
-        # doesn't have all the properties of the original.
-        symbol_table = scope.symbol_table #  SymbolTable()
+        # Try to parse the modified node.
+        symbol_table = scope.symbol_table
         try:
             self._process_decln(scope, symbol_table, node,
                                 visibility_map)
@@ -2304,7 +2302,8 @@ class Fparser2Reader():
             new_sym = symbol_table.lookup(symbol_name)
             datatype = new_sym.datatype
             init_expr = new_sym.initial_value
-            # Remove the Symbol that has just been added.
+            # Remove the Symbol that has just been added as it doesn't have
+            # all the necessary properties.
             symbol_table._symbols.pop(new_sym.name)
         except NotImplementedError:
             datatype = None
