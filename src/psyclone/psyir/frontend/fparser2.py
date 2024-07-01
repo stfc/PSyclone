@@ -4635,9 +4635,17 @@ class Fparser2Reader():
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
+
+        :raises NotImplementedError: if the parse tree contains unsupported
+            elements.
         '''
         is_pointer = isinstance(node, Fortran2003.Pointer_Assignment_Stmt)
         assignment = Assignment(is_pointer=is_pointer, ast=node, parent=parent)
+        if is_pointer and node.items[1]:
+            raise NotImplementedError(
+                "Pointer assignment with bounds-spec-list or"
+                "bounds-remapping-list are not supported")
+        # when its not a pointer, items[1] always has the "=" string
         self.process_nodes(parent=assignment, nodes=[node.items[0]])
         self.process_nodes(parent=assignment, nodes=[node.items[2]])
 
