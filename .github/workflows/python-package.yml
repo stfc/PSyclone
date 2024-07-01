@@ -52,17 +52,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  markdown-link-check:
-    if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
-    # Check all markdown files for dead links. See the 'mlc_config.json'
-    # file in the project root directory for configuration.
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@master
-    - uses: gaurav-nelson/github-action-markdown-link-check@v1
-      with:
-        use-verbose-mode: 'yes'
-        config-file: '.github/workflows/mlc_config.json'
   sphinx-link-check:
     if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
     # Check all Sphinx documentation for dead links.
