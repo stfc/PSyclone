@@ -5,7 +5,7 @@ below this one work through using PSyclone in a 'normal' Linux-type environment.
 There are two sections to the practicals:
 
 1. Transforming [existing code](nemo/README.md)
-2. Using the [LFRic DSL](LFRic/README.md)
+2. Using the [LFRic DSL](LFRic/BROKEN_README.md)
 
 ## Prerequisites
 
