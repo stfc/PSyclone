@@ -39,9 +39,9 @@
 .PHONY: clean transform
 
 transform:
-	${MAKE} -C ../ psy_1.f90
-	${MAKE} TRANS_SCRIPT=solutions/kernels_trans.py -C ../ psy_2.f90
-	${MAKE} TRANS_SCRIPT=solutions/collapse_trans.py -C ../ psy_openacc.f90
+	${MAKE} -C ../ output_1.f90
+	${MAKE} TRANS_SCRIPT=solutions/kernels_trans.py -C ../ output_2.f90
+	${MAKE} TRANS_SCRIPT=solutions/collapse_trans.py -C ../ output_openacc.f90
 
 clean:
 	${MAKE} -C ../ clean

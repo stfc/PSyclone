@@ -364,7 +364,10 @@ def test_call_reference_accesses():
     # A call with an argument passed by value.
     call1 = Call.create(rsym, [Literal("1", INTEGER_TYPE)])
     var_info = VariablesAccessInfo()
+    assert var_info._location == 0
     call1.reference_accesses(var_info)
+    # Check that the current location number is increased after the call:
+    assert var_info._location == 1
     assert not var_info.all_signatures
     dsym = DataSymbol("beta", INTEGER_TYPE)
     # Simple argument passed by reference.

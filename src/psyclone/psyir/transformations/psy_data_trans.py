@@ -54,7 +54,7 @@ class PSyDataTrans(RegionTrans):
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
+    >>> api = "gocean"
     >>> ast, invoke_info = parse(SOURCE_FILE, api=api)
     >>> psy = PSyFactory(api).create(invoke_info)
     >>>

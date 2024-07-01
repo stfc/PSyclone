@@ -2,6 +2,7 @@
   <img width="460" src="doc/logo/psyclone_v1.0.png">
 </p>
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11190458.svg)](https://doi.org/10.5281/zenodo.11190458)
 ![Build Status](https://github.com/stfc/PSyclone/workflows/PSyclone%20tests%20and%20examples/badge.svg)
 [![codecov](https://codecov.io/gh/stfc/PSyclone/branch/master/graph/badge.svg)](https://codecov.io/gh/stfc/PSyclone)
 
@@ -52,6 +53,7 @@ cloning this repository and using:
 For more information about the installation process see
 [this section of the User Guide](https://psyclone.readthedocs.io/en/latest/system_specific_setup.html).
 
+<!---  TODO #2627
 # Try it on Binder #
 
 Some of the examples are available as Jupyter notebooks. These may
@@ -61,12 +63,11 @@ software. This can take several minutes. You can track its progress
 by clicking the 'show' link next to the 'Build logs' heading.)
 
  * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=tutorial%2Fnotebooks%2Fintroduction.ipynb) The **PSyclone Tutorial**. Note that we currently recommend following the more up-to-date README files under the `tutorials/practicals` directory.
- * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fnemo%2Feg4%2Fcopy_stencil.ipynb) Uses PSyclone's NEMO API to process some simple Fortran code, display the resulting PSyIR and then re-generate Fortran.
 
  * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fgocean%2Feg1%2Fopenmp.ipynb) Uses PSyclone's GOcean API to process example code that conforms to the PSyKAl separation of concerns. Transformations are applied in order to fuse various loops before parallelising the result with OpenMP.
  
  * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fgocean%2Feg1%2Fdag.ipynb) demonstrates the generation of a DAG for the PSy layer of the previous example.
-
+--->
 
 # Structure #
 

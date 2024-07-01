@@ -36,7 +36,7 @@
 include ../common.mk
 
 transform:
-	${KERNEL_STUB_GEN} testkern_stencil_multi_mod.f90
+	${KERNEL_STUB_GEN} -api lfric testkern_stencil_multi_mod.f90
 
 compile:
 	@echo "No compilation supported for stub-generation example"

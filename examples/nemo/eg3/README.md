@@ -1,6 +1,6 @@
 # PSyclone NEMO Example 3
 
-**Authors:** R. W. Ford and A. R. Porter, STFC Daresbury Lab
+**Authors:** R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 This directory contains a relatively simple example transformation script,
 `kernels_trans.py`.  This demonstrates the use of PSyclone to add OpenACC
@@ -19,7 +19,7 @@ Once you have installed PSyclone, either script may be supplied to
 PSyclone via the -s option, e.g.:
 
 ```sh
-psyclone -api nemo -s ./kernels_trans.py ../code/tra_adv.F90
+psyclone -s ./kernels_trans.py ../code/tra_adv.F90
 ```
 
 Executing this will output 1) the PSyclone invokes found in the code,

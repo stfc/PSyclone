@@ -456,53 +456,158 @@ suite, you need to install PSyclone from source, see :ref:`above
 
 .. _getting-going-run:
 
-Run
----
+Running PSyclone
+----------------
 
-You are now ready to try running PSyclone on the :ref:`examples <examples>`.
-One way of doing this is to use the ``psyclone`` driver script. Assuming it
-is on your ``PATH``::
+You are now ready to run PSyclone. One way of doing this is to use the ``psyclone``
+command. To list the available options run: `psyclone -h`, it should output::
 
-   > psyclone
-   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
-                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
-                   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                   [--profile {invokes,kernels}] [--config CONFIG] [--version]
+   usage: psyclone [-h] [--version] [--config CONFIG] [-s SCRIPT] [-I INCLUDE]
+                   [-l {off,all,output}] [--profile {invokes,routines,kernels}]
+				   [--backend {enable-validation,disable-validation}] [-o OUTPUT_FILE]
+				   [-api DSL] [-oalg OUTPUT_ALGORITHM_FILE] [-opsy OUTPUT_PSY_FILE]
+                   [-okern OUTPUT_KERNEL_PATH] [-d DIRECTORY] [-dm] [-nodm]
+                   [--kernel-renaming {multiple,single}]
                    filename
-   psyclone: error: the following arguments are required: filename
 
-As indicated above, the ``psyclone`` script takes the name of the
-Fortran source file containing the algorithm specification (in terms
+   Transform a file using the PSyclone source-to-source Fortran compiler
+
+   positional arguments:
+     filename              input source code
+
+   options:
+     -h, --help            show this help message and exit
+     --version, -v         display version information
+     --config CONFIG, -c CONFIG
+                           config file with PSyclone specific options
+     -s SCRIPT, --script SCRIPT
+                           filename of a PSyclone optimisation recipe
+     -I INCLUDE, --include INCLUDE
+                           path to Fortran INCLUDE or module files
+     -l {off,all,output}, --limit {off,all,output}
+                           limit the Fortran line length to 132 characters (default 'off').
+                           Use 'all' to apply limit to both input and output Fortran. Use
+                           'output' to apply line-length limit to output Fortran only.
+     --profile {invokes,routines,kernels}, -p {invokes,routines,kernels}
+                           add profiling hooks for 'kernels', 'invokes' or 'routines'
+     --backend {enable-validation,disable-validation}
+                           options to control the PSyIR backend used for code generation.
+                           Use 'disable-validation' to disable the validation checks that
+                           are performed by default.
+     -o OUTPUT_FILE        (code-transformation mode) output file
+     -api DSL, --psykal-dsl DSL
+                           whether to use a PSyKAl DSL (one of ['lfric', 'gocean'])
+     -oalg OUTPUT_ALGORITHM_FILE
+                           (psykal mode) filename of transformed algorithm code
+     -opsy OUTPUT_PSY_FILE
+                           (psykal mode) filename of generated PSy-layer code
+     -okern OUTPUT_KERNEL_PATH
+                           (psykal mode) directory in which to put transformed kernels, default
+                           is the current working directory
+     -d DIRECTORY, --directory DIRECTORY
+                           (psykal mode) path to a root directory structure containing kernel
+                           source code. Multiple roots can be specified by using multiple -d
+                           arguments.
+     -dm, --dist_mem       (psykal mode) generate distributed memory code
+     -nodm, --no_dist_mem  (psykal mode) do not generate distributed memory code
+     --kernel-renaming {multiple,single}
+                           (psykal mode) naming scheme to use when re-naming transformed kernels
+
+There is more detailed information about each flag in the :ref:`psyclone_command` section,
+but the main parameters are the input source file that we aim to transform, and a transformation
+recipe that is provided with the `-s` flag.
+In addition to these, note that ``psyclone`` can be used in two distinct modes:
+the code-transformation mode (when no `-api`/`--psykal-dsl` flags is provided) or the
+PSyKAl DSL mode (when a `-api`/`--psykal-dsl` flag is provided). The following sections provide
+a brief introduction to each mode.
+
+PSyclone for Code Transformation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When using PSyclone for transforming existing Fortran files, only an
+input source file is required:
+
+.. code-block:: console
+
+    psyclone input_file.f90
+
+
+However, we usually want to redirect the output to a file so that we can later
+compile. We can do this using the `-o` flag:
+
+.. code-block:: console
+
+    psyclone input_file.f90 -o output.f90
+
+
+This should not transform the semantics of the code (only the syntax), and is
+what we sometimes refer to as a "passthrough" run. This can be useful as an initial
+correctness test when applying PSyclone to a new code.
+
+However, PSyclone allows users to programatically change the source code of the
+processed file. This is achieved using transformation recipes which are python scripts
+with a `trans` function defined. For example:
+
+.. code-block:: python
+
+    def trans(psyir):
+        ''' Add OpenMP Parallel Loop directives.
+
+        :param psyir: the PSyIR of the provided file.
+        :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+
+        '''
+        omp_trans = TransInfo().get_trans_name('OMPParallelLoopTrans')
+
+        for loop in psyir.walk(Loop):
+            try:
+                omp_trans.apply(loop)
+            except TransformationError as err:
+                print(f"Loop not paralellised because: {err.value}")
+
+
+And can be applied using the `-s` flag:
+
+.. code-block:: console
+
+    psyclone input_file.f90 -s trans_script.py -o output.f90
+
+
+To see more complete examples of PSyclone for code transformation, see the
+``examples/nemo`` folder in the PSyclone repository.
+
+PSyclone for PSyKAl DSLs
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+As indicated above, the ``psyclone`` command can also be used to process PSyKAl
+DSLs (`--psykal-dsl` flag). In this case the command takes as input the Fortran
+source file containing the algorithm specification (in terms
 of calls to ``invoke()``). It parses this, finds the necessary kernel
 source files and produces two Fortran files. The first contains the
-:ref:`PSy, middle layer <PSy-layer>` and the second a re-write of the
+:ref:`middle, PSy-layer <PSy-layer>` and the second a re-write of the
 :ref:`algorithm code <algorithm-layer>` to use that layer. These files
-are named according to the user-supplied arguments (options ``-oalg``
-and ``-opsy``). If those arguments are not supplied then the script writes
-the generated/re-written Fortran to the terminal. For details of the other
+are named according to the user-supplied arguments (options ``-opsy``
+and ``-oalg`` respectively). If those arguments are not supplied then the script
+writes the re-written Fortran Algorithm layer to the terminal. For details of the other
 command-line arguments please see the :ref:`psyclone_command` Section.
 
-Examples are provided in the ``examples`` directory of the PSyclone Git
-repository - if you have cloned the repository then ``EGS_HOME`` in
-what follows is the root ``PSyclone`` directory. Alternatively, if you
-have installed PSyclone using ``pip`` then they may be found in the
-``share/psyclone`` directory under your Python installation (see
-:ref:`above <getting-going-env-loc>` for location of PSyclone installation.
+Examples are provided in the ``examples/lfric`` and ``examples/gocean`` directories
+of the PSyclone repository. Alternatively, if you have installed PSyclone using
+``pip`` then they may be found in the ``share/psyclone`` directory under your Python
+installation (see :ref:`above <getting-going-env-loc>` for the location of the
+PSyclone installation).
 In this case you should copy the whole ``examples`` directory to some
-convenient location (hereafter called ``EGS_HOME``) before attempting to
-carry out the following instructions. Depending on your precise setup, you
-may also need to set ``PSYCLONE_CONFIG`` to the full-path to the PSyclone
+convenient location before attempting to carry out the following instructions.
+Depending on your precise setup, you may also need to set ``PSYCLONE_CONFIG`` to the full-path to the PSyclone
 configuration file (see :ref:`getting-going-configuration`).
 
-There are seven subdirectories, three of which (``lfric``, ``gocean``
-and ``nemo``) correspond to the different APIs/domains that are
-supported by PSyclone. (Note, that we are currently in the process of
-renaming the ``dynamo0.3`` API to ``lfric``.)  In this case we are
-going to use one of the LFRic examples::
+In this case we are going to use one of the LFRic examples:
 
-   > cd <EGS_HOME>/examples/lfric/eg1
-   > psyclone -api dynamo0.3 -d ../code -nodm -oalg alg.f90 \
-       -opsy psy.f90 ./single_invoke.x90
+.. code-block:: console
+
+    cd <EGS_HOME>/examples/lfric/eg1
+    psyclone --psykal-dsl lfric -d ../code -nodm -oalg alg.f90 \
+        -opsy psy.f90 ./single_invoke.x90
 
 
 You should see two new files created, called ``alg.f90`` (containing
@@ -513,14 +618,19 @@ therefore cannot be compiled stand-alone.
 
 The PSy-layer that PSyclone creates is constructed using the PSyclone Internal
 Representation (:ref:`PSyIR <psyir-ug>`). Accessing this is demonstrated
-by the ``print_psyir_trans.py`` script in the second LFRic example::
+by the ``print_psyir_trans.py`` script in the second LFRic example:
 
-  > cd <EGS_HOME>/examples/lfric/eg2
-  > psyclone -api dynamo0.3 -d ../code -s ./print_psyir_trans.py \
-      -opsy psy.f90 -oalg alg.f90 ./multi_invoke_mod.x90
+.. code-block:: console
+
+    cd <EGS_HOME>/examples/lfric/eg2
+    psyclone --psykal-dsl lfric -d ../code -s ./print_psyir_trans.py \
+        -opsy psy.f90 -oalg alg.f90 ./multi_invoke_mod.x90
 
 Take a look at the ``print_psyir_trans.py`` script for more information. *Hint*;
 you can insert a single line in that script in order to break into the Python
 interpreter during execution: ``import pdb; pdb.set_trace()``. This then enables
-interactive exploration of the PSyIR if you are interested. Alternatively,
-you can play with some interactive examples on `Binder <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
+interactive exploration of the PSyIR if you are interested.
+
+.. TODO #2627
+  Alternatively, you can play with some interactive examples
+  on `Binder <https://github.com/stfc/PSyclone#try-it-on-binder>`_.

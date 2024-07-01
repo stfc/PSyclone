@@ -36,6 +36,7 @@
 #         I. Kavcic,    Met Office
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
+#         J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenMP Directive
@@ -117,6 +118,11 @@ class OMPRegionDirective(OMPDirective, RegionDirective, metaclass=abc.ABCMeta):
 
         '''
         result = []
+
+        # TODO #514: not yet working with generic PSyIR, so skip for now
+        if Config.get().api not in ('gocean', 'lfric'):
+            return result
+
         const = Config.get().api_conf().get_constants()
         for call in self.kernels():
             for arg in call.arguments.args:
@@ -141,7 +147,7 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
         '''Generate the fortran OMP Declare Target Directive and any
         associated code.
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         '''
@@ -167,8 +173,8 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
         Perform validation checks that can only be done at code-generation
         time.
 
-        :raises GenerationError: if this directive is not the first statement \
-            in a routine.
+        :raises GenerationError: if this directive is not the first statement
+                                 in a routine.
 
         '''
         if self.parent and (not isinstance(self.parent, Routine) or
@@ -191,8 +197,8 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         Perform validation checks that can only be done at code-generation
         time.
 
-        :raises GenerationError: if this OMPTaskwait is not enclosed \
-                            within some OpenMP parallel region.
+        :raises GenerationError: if this OMPTaskwait is not enclosed
+                                 within some OpenMP parallel region.
 
         '''
         # It is only at the point of code generation that we can check for
@@ -212,7 +218,7 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         '''Generate the fortran OMP Taskwait Directive and any associated
         code
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         '''
@@ -666,7 +672,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                             the second dependency clause.
         :type sympy_ref2s: List[:py:class:`sympy.core.basic.Basic`]
 
-        :returns: whether this is a valid overlap according to the OpenMP \
+        :returns: whether this is a valid overlap according to the OpenMP
                   standard.
         :rtype: bool
         '''
@@ -704,27 +710,27 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         know the addresses/array sections covered by this index are identical.
 
         :param ref1: the first Node to compare.
-        :type ref1: Union[:py:class:`psyclone.psyir.nodes.Reference`, \
+        :type ref1: Union[:py:class:`psyclone.psyir.nodes.Reference`,
                     :py:class:`psyclone.psyir.nodes.BinaryOperation`]
         :param ref2: the second Node to compare.
-        :type ref2: Union[:py:class:`psyclone.psyir.nodes.Reference`, \
+        :type ref2: Union[:py:class:`psyclone.psyir.nodes.Reference`,
                     :py:class:`psyclone.psyir.nodes.BinaryOperation`]
         :param task1: the task containing ref1 as a child.
         :type task1: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
         :param task2: the task containing ref2 as a child.
         :type task2: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
 
-        :raises GenerationError: If ref1 and ref2 are dependencies on the \
-                                 same array, and one does not contain a \
+        :raises GenerationError: If ref1 and ref2 are dependencies on the
+                                 same array, and one does not contain a
                                  Reference but the other does.
-        :raises GenerationError: If ref1 and ref2 are dependencies on the \
-                                 same array but are References to different \
+        :raises GenerationError: If ref1 and ref2 are dependencies on the
+                                 same array but are References to different
                                  variables.
-        :raises GenerationError: If ref1 and ref2 are dependencies on the \
-                                 same array, but the computed index values \
+        :raises GenerationError: If ref1 and ref2 are dependencies on the
+                                 same array, but the computed index values
                                  are not dependent according to OpenMP.
 
-        :returns: whether or not these two nodes can be used as a valid \
+        :returns: whether or not these two nodes can be used as a valid
                   dependency on the same array in OpenMP.
         :rtype: bool
 
@@ -798,14 +804,14 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         :type node1: :py:class:`psyclone.psyir.nodes.Reference`
         :param node2: the second input node to check.
         :type node2: :py:class:`psyclone.psyir.nodes.Reference`
-        :param task1: the OMPTaskDirective node containing node1 as a \
+        :param task1: the OMPTaskDirective node containing node1 as a
                       dependency
         :type task1: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
-        :param task2: the OMPTaskDirective node containing node2 as a \
+        :param task2: the OMPTaskDirective node containing node2 as a
                       dependency
         :type task2: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
 
-        :returns: whether the dependence is going to be handled safely \
+        :returns: whether the dependence is going to be handled safely
                   according to the OpenMP standard.
         :rtype: bool
         '''
@@ -890,8 +896,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         OpenMP's depend clause will be handled through the addition of
         OMPTaskwaitDirective nodes.
 
-        :raises NotImplementedError: If this region contains both an \
-                                 OMPTaskDirective and an OMPTaskloopDirective.
+        :raises NotImplementedError: If this region contains both an
+                                     OMPTaskDirective and an
+                                     OMPTaskloopDirective.
         '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
@@ -1075,9 +1082,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         Perform validation checks that can only be done at code-generation
         time.
 
-        :raises GenerationError: if this OMPSerial is not enclosed \
+        :raises GenerationError: if this OMPSerial is not enclosed
                                  within some OpenMP parallel region.
-        :raises GenerationError: if this OMPSerial is enclosed within \
+        :raises GenerationError: if this OMPSerial is enclosed within
                                  any OMPSerialDirective subclass region.
 
         '''
@@ -1109,8 +1116,8 @@ class OMPSingleDirective(OMPSerialDirective):
     '''
     Class representing an OpenMP SINGLE directive in the PSyIR.
 
-    :param bool nowait: argument describing whether this single should have \
-        a nowait clause applied. Default value is False.
+    :param bool nowait: argument describing whether this single should have
+                        a nowait clause applied. Default value is False.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
@@ -1163,7 +1170,7 @@ class OMPSingleDirective(OMPSerialDirective):
         '''Generate the fortran OMP Single Directive and any associated
         code
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         '''
@@ -1221,7 +1228,7 @@ class OMPMasterDirective(OMPSerialDirective):
         '''Generate the Fortran OMP Master Directive and any associated
         code
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         '''
@@ -1268,8 +1275,8 @@ class OMPParallelDirective(OMPRegionDirective):
     _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
                               "OMPFirstprivate, [OMPReductionClause]*")
 
-    @staticmethod
-    def create(children=None):
+    @classmethod
+    def create(cls, children=None):
         '''
         Create an OMPParallelDirective.
 
@@ -1280,7 +1287,7 @@ class OMPParallelDirective(OMPRegionDirective):
         :rtype: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
         '''
 
-        instance = OMPParallelDirective(children=children)
+        instance = cls(children=children)
 
         # An OMPParallelDirective must have 4 children.
         # Child 0 is a Schedule, created in the constructor.
@@ -1340,8 +1347,8 @@ class OMPParallelDirective(OMPRegionDirective):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         :raises GenerationError: if the OpenMP directive needs some
-            synchronisation mechanism to create valid code. These are not
-            implemented yet.
+                                 synchronisation mechanism to create valid
+                                 code. These are not implemented yet.
 
         '''
         # pylint: disable=import-outside-toplevel
@@ -1450,8 +1457,8 @@ class OMPParallelDirective(OMPRegionDirective):
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
         :raises GenerationError: if the OpenMP directive needs some
-            synchronisation mechanism to create valid code. These are not
-            implemented yet.
+                                 synchronisation mechanism to create valid
+                                 code. These are not implemented yet.
         '''
         # Keep the first two children and compute the rest using the current
         # state of the node/tree (lowering it first in case new symbols are
@@ -1676,8 +1683,8 @@ class OMPParallelDirective(OMPRegionDirective):
         Perform validation checks that can only be done at code-generation
         time.
 
-        :raises GenerationError: if this OMPDoDirective is not enclosed \
-                            within some OpenMP parallel region.
+        :raises GenerationError: if this OMPDoDirective is not enclosed
+                                 within some OpenMP parallel region.
         '''
         if self.ancestor(OMPParallelDirective) is not None:
             raise GenerationError("Cannot nest OpenMP parallel regions.")
@@ -1704,24 +1711,24 @@ class OMPTaskloopDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP TASKLOOP directive in the PSyIR.
 
-    :param grainsize: The grainsize value used to specify the grainsize \
-                      clause on this OpenMP directive. If this is None \
-                      the grainsize clause is not applied. Default \
+    :param grainsize: The grainsize value used to specify the grainsize
+                      clause on this OpenMP directive. If this is None
+                      the grainsize clause is not applied. Default
                       value is None.
     :type grainsize: int or None.
-    :param num_tasks: The num_tasks value used to specify the num_tasks \
-                      clause on this OpenMP directive. If this is None \
-                      the num_tasks clause is not applied. Default value \
+    :param num_tasks: The num_tasks value used to specify the num_tasks
+                      clause on this OpenMP directive. If this is None
+                      the num_tasks clause is not applied. Default value
                       is None.
     :type num_tasks: int or None.
-    :param nogroup: Whether the nogroup clause should be used for this node. \
+    :param nogroup: Whether the nogroup clause should be used for this node.
                     Default value is False
     :type nogroup: bool
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
-    :raises GenerationError: if this OMPTaskloopDirective has both \
-                             a grainsize and num_tasks value \
+    :raises GenerationError: if this OMPTaskloopDirective has both
+                             a grainsize and num_tasks value
                              specified.
     '''
     # This specification respects the mutual exclusion of OMPGransizeClause
@@ -1757,10 +1764,10 @@ class OMPTaskloopDirective(OMPRegionDirective):
          Decides whether a given child and position are valid for this node.
          The rules are:
          1. Child 0 must always be a Schedule.
-         2. Child 1 may be either a OMPGrainsizeClause or OMPNumTasksClause, \
-            or if neither of those clauses are present, it may be a \
+         2. Child 1 may be either a OMPGrainsizeClause or OMPNumTasksClause,
+            or if neither of those clauses are present, it may be a
             OMPNogroupClause.
-         3. Child 2 must always be a OMPNogroupClause, and can only exist if \
+         3. Child 2 must always be a OMPNogroupClause, and can only exist if
             child 1 is a OMPGrainsizeClause or OMPNumTasksClause.
 
         :param int position: the position to be validated.
@@ -1793,7 +1800,7 @@ class OMPTaskloopDirective(OMPRegionDirective):
         Perform validation checks that can only be done at code-generation
         time.
 
-        :raises GenerationError: if this OMPTaskloopDirective is not \
+        :raises GenerationError: if this OMPTaskloopDirective is not
                                  enclosed within an OpenMP serial region.
         :raises GenerationError: if this OMPTaskloopDirective has two
                                  Nogroup clauses as children.
@@ -1822,11 +1829,11 @@ class OMPTaskloopDirective(OMPRegionDirective):
         Generate the f2pygen AST entries in the Schedule for this OpenMP
         taskloop directive.
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if this "!$omp taskloop" is not enclosed \
-                                 within an OMP Parallel region and an OMP \
+        :raises GenerationError: if this "!$omp taskloop" is not enclosed
+                                 within an OMP Parallel region and an OMP
                                  Serial region.
 
         '''
@@ -1881,14 +1888,16 @@ class OMPDoDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 
-    :param str omp_schedule: the OpenMP schedule to use (defaults to
-        "none" which means it is implementation dependent).
-    :param Optional[int] collapse: optional number of nested loops to \
-        collapse into a single iteration space to parallelise. Defaults to \
-        None.
-    :param Optional[bool] reprod: whether or not to generate code for \
-        run-reproducible OpenMP reductions (if not specified the value is \
-        provided by the PSyclone Config file).
+    :param Optional[str] omp_schedule: the OpenMP schedule to use. Defaults
+                                       to "none" which means it is
+                                       implementation dependent.
+    :param Optional[int] collapse: optional number of nested loops to
+                                   collapse into a single iteration space to
+                                   parallelise. Defaults to None.
+    :param Optional[bool] reprod: whether or not to generate code for
+                                  run-reproducible OpenMP reductions (if not
+                                  specified the value is provided by the
+                                  PSyclone Config file).
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
 
@@ -1942,12 +1951,12 @@ class OMPDoDirective(OMPRegionDirective):
         and it is only used for LFRic (which does not support GPU offloading
         that gets improved with the collapse clause) it will not be supported.
 
-        :param value: optional number of nested loop to collapse into a \
-            single iteration space to parallelise. Defaults to None.
+        :param value: optional number of nested loop to collapse into a
+                      single iteration space to parallelise. Defaults to None.
         :type value: int or NoneType.
 
-        :raises TypeError: if the collapse value given is not an integer \
-            or NoneType.
+        :raises TypeError: if the collapse value given is not an integer
+                           or NoneType.
         :raises ValueError: if the collapse integer given is not positive.
 
         '''
@@ -2009,8 +2018,8 @@ class OMPDoDirective(OMPRegionDirective):
         '''
         :param str value: the omp_schedule for this object.
 
-        :raises TypeError: if the provided omp_schedule is not a valid \
-            schedule string.
+        :raises TypeError: if the provided omp_schedule is not a valid
+                           schedule string.
         '''
         if not isinstance(value, str):
             raise TypeError(
@@ -2043,8 +2052,8 @@ class OMPDoDirective(OMPRegionDirective):
         Perform validation checks that can only be done at code-generation
         time.
 
-        :raises GenerationError: if this OMPDoDirective is not enclosed \
-                            within some OpenMP parallel region.
+        :raises GenerationError: if this OMPDoDirective is not enclosed
+                                 within some OpenMP parallel region.
         '''
         # It is only at the point of code generation that we can check for
         # correctness (given that we don't mandate the order that a user
@@ -2067,8 +2076,9 @@ class OMPDoDirective(OMPRegionDirective):
         Checks that if there is a collapse clause, there must be as many
         immediately nested loops as the collapse value.
 
-        :raises GenerationError: if this OMPLoopDirective has a collapse \
-            clause but it doesn't have the expected number of nested Loops.
+        :raises GenerationError: if this OMPLoopDirective has a collapse
+                                 clause but it doesn't have the expected
+                                 number of nested Loops.
         '''
         if self._collapse:
             cursor = self.dir_body.children[0]
@@ -2113,10 +2123,10 @@ class OMPDoDirective(OMPRegionDirective):
         and it is only used for LFRic (which does not support GPU offloading
         that gets improved with the collapse clause) it will not be supported.
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if this "!$omp do" is not enclosed within \
+        :raises GenerationError: if this "!$omp do" is not enclosed within
                                  an OMP Parallel region.
 
         '''
@@ -2194,6 +2204,22 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         self.addchild(OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.SHARED))
 
+    @classmethod
+    def create(cls, children=None, **kwargs):
+        '''
+        Create an OMPParallelDoDirective.
+
+        :param children: The child nodes of the new directive.
+        :type children: List of :py:class:`psyclone.psyir.nodes.Node`
+        :param kwargs: additional keyword arguments provided to the PSyIR node.
+        :type kwargs: unwrapped dict.
+
+        :returns: A new OMPParallelDoDirective.
+        :rtype: :py:class:`psyclone.psyir.nodes.OMPParallelDoDirective`
+        '''
+
+        return cls(children=children, **kwargs)
+
     @staticmethod
     def _validate_child(position, child):
         '''
@@ -2229,7 +2255,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         and it is only used for LFRic (which does not support GPU offloading
         that gets improved with the collapse clause) it will not be supported.
 
-        :param parent: the parent Node in the Schedule to which to add our \
+        :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
 
@@ -2381,9 +2407,9 @@ class OMPLoopDirective(OMPRegionDirective):
     ''' Class for the !$OMP LOOP directive that specifies that the iterations
     of the associated loops may execute concurrently.
 
-    :param Optional[int] collapse: optional number of nested loops to \
-        collapse into a single iteration space to parallelise. Defaults \
-        to None.
+    :param Optional[int] collapse: optional number of nested loops to
+                                   collapse into a single iteration space to
+                                   parallelise. Defaults to None.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
     '''
@@ -2425,12 +2451,12 @@ class OMPLoopDirective(OMPRegionDirective):
         and it is only used for LFRic (which does not support GPU offloading
         that gets improved with the collapse clause) it will not be supported.
 
-        :param value: optional number of nested loop to collapse into a \
-            single iteration space to parallelise. Defaults to None.
+        :param value: optional number of nested loop to collapse into a
+                      single iteration space to parallelise. Defaults to None.
         :type value: int or NoneType.
 
-        :raises TypeError: if the collapse value given is not an integer \
-            or NoneType.
+        :raises TypeError: if the collapse value given is not an integer
+                           or NoneType.
         :raises ValueError: if the collapse integer given is not positive.
 
         '''
@@ -2491,14 +2517,15 @@ class OMPLoopDirective(OMPRegionDirective):
         ''' Perform validation of those global constraints that can only be
         done at code-generation time.
 
-        :raises GenerationError: if this OMPLoopDirective has more than one \
-            child in its associated schedule.
-        :raises GenerationError: if the schedule associated with this \
-            OMPLoopDirective does not contain a Loop.
-        :raises GenerationError: this directive must be inside a omp target \
-            or parallel region.
-        :raises GenerationError: if this OMPLoopDirective has a collapse \
-            clause but it doesn't have the expected number of nested Loops.
+        :raises GenerationError: if this OMPLoopDirective has more than one
+                                 child in its associated schedule.
+        :raises GenerationError: if the schedule associated with this
+                                 OMPLoopDirective does not contain a Loop.
+        :raises GenerationError: this directive must be inside a omp target
+                                 or parallel region.
+        :raises GenerationError: if this OMPLoopDirective has a collapse
+                                 clause but it doesn't have the expected
+                                 number of nested Loops.
 
         '''
         if len(self.dir_body.children) != 1:
@@ -2611,7 +2638,8 @@ class OMPAtomicDirective(OMPRegionDirective):
         done at code-generation time.
 
         :raises GenerationError: if the OMPAtomicDirective associated
-            statement does not conform to a valid OpenMP atomic operation.
+                                 statement does not conform to a valid OpenMP
+                                 atomic operation.
         '''
         if not self.children or len(self.dir_body.children) != 1:
             raise GenerationError(
@@ -2650,7 +2678,7 @@ class OMPSimdDirective(OMPRegionDirective):
         done at code-generation time.
 
         :raises GenerationError: if the OMPSimdDirective does not contain
-            precisely one loop.
+                                 precisely one loop.
 
         '''
         if (not self.children or len(self.dir_body.children) != 1 or
