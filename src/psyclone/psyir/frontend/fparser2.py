@@ -4640,12 +4640,13 @@ class Fparser2Reader():
             elements.
         '''
         is_pointer = isinstance(node, Fortran2003.Pointer_Assignment_Stmt)
-        assignment = Assignment(is_pointer=is_pointer, ast=node, parent=parent)
         if is_pointer and node.items[1]:
+            # This are expressions like: "mytype%field(1:3) => ptr"
             raise NotImplementedError(
                 "Pointer assignment with bounds-spec-list or"
                 "bounds-remapping-list are not supported")
         # when its not a pointer, items[1] always has the "=" string
+        assignment = Assignment(is_pointer=is_pointer, ast=node, parent=parent)
         self.process_nodes(parent=assignment, nodes=[node.items[0]])
         self.process_nodes(parent=assignment, nodes=[node.items[2]])
 

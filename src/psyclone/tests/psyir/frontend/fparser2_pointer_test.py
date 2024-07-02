@@ -67,17 +67,16 @@ def test_pointer_assignments(fortran_reader):
 
 def test_unsupported_pointer_assignments(fortran_reader):
     '''
-    Test that pointer assignments that have and array accessor syntax on the
-    inner element are not supported.
+    Test that pointer assignments that have and an array accessor syntax
+    on the inner element are not supported.
     '''
     test_module = '''
     subroutine mysub()
         use other_symbols
-        integer, target :: a = 1
-        integer, pointer :: b => null()
 
-        field(3,c)%array_of_pointer(1:) => b
-        field(3,c)%array_of_pointer(1:3) => b
+        array(3:) => ptr
+        field(3,c)%array_of_pointer(1:) => ptr
+        field(3,c)%array_of_pointer(1:3) => ptr
     end subroutine
     '''
     file_container = fortran_reader.psyir_from_source(test_module)

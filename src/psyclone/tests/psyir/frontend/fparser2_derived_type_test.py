@@ -557,8 +557,8 @@ def test_derived_type_codeblocks(f2008_parser):
 
 def test_array_of_derived_type_pointer(f2008_parser):
     ''' Test that the frontend handles structure accesses to pointers.
-    Note that expressions which end with array accessor syntax are actually
-    are not currently supported.
+    Note that expressions which end with array accessor syntax are
+    not currently supported.
     '''
     processor = Fparser2Reader()
     reader = FortranStringReader("subroutine my_sub()\n"
@@ -572,6 +572,8 @@ def test_array_of_derived_type_pointer(f2008_parser):
 
     # The LHS expression type depend on its content (if supported)
     assignments = sched.children[0].children
+    assert assignments[0].is_pointer
     assert isinstance(assignments[0].lhs, StructureReference)
+    assert assignments[1].is_pointer
     assert isinstance(assignments[1].lhs, ArrayOfStructuresReference)
     assert isinstance(assignments[2], CodeBlock)
