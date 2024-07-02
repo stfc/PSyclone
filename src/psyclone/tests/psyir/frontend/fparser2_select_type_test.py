@@ -935,11 +935,3 @@ end module my_mod
     table.add(sym2)
     fp2reader._add_target_attribute("a_local", table)
     assert "INTEGER, TARGET :: a_local" in str(sym2.datatype)
-
-def test_this(fortran_reader):
-    psy = fortran_reader.psyir_from_source(
-        '''module mymod
-    PROCEDURE(chir2xyz_interface), PROTECTED, POINTER :: chir2xyz => null() 
- end module''')
-    from psyclone.psyir.nodes import Container
-    assert isinstance(psy.children[0], Container)
