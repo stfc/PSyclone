@@ -67,7 +67,7 @@ def test_pointer_assignments(fortran_reader):
 
 def test_unsupported_pointer_assignments(fortran_reader):
     '''
-    Test that pointer assignments that have and an array accessor syntax
+    Test that pointer assignments that have an array-accessor syntax
     on the inner element are not supported.
     '''
     test_module = '''
