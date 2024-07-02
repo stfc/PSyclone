@@ -444,11 +444,12 @@ Naming Profiling Regions
 A profile region derives its name from two components:
 
 ``module_name``
-    A string identifying the PSy-layer containing this
-    profile node.
+    A string identifying the PSy-layer (PSyKAl DSL) or module (existing code)
+    containing this profile node.
+
 ``region_name``
-    A string identifying the invoke containing 
-    this profile node and its location within the invoke
+    A string identifying the invoke (PSyKAl DSL) or routine (existing code)
+    containing this profile node and its location within the invoke/routine
     (where necessary).
 
 By default PSyclone will generate appropriate names to uniquely
@@ -457,9 +458,9 @@ somewhat cryptic, alternative names can be specified by the user
 when adding profiling via a transformation script, see
 :ref:`dev_guide:psy_data_parameters_to_constructor`.
 
-The automatic name generation depends on if you are using an
-API or only the transformation capabilities of PSyclone. If you are
-transforming existing code:
+The automatic name generation depends on whether you are using a
+PSyKAl DSL or only the transformation capabilities of PSyclone. If
+you are transforming existing code:
 
 * the ``module_name`` string is set to the name of the parent
   function/subroutine/program. This name is unique as Fortran requires
