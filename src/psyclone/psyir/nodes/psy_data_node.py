@@ -559,7 +559,7 @@ class PSyDataNode(Statement):
             if len(kerns) == 1:
                 # This PSyData region only has one kernel within it,
                 # so append the kernel name.
-                region_name += f":{kerns[0].name}"
+                region_name += f"-{kerns[0].name}"
             # Add a region index to ensure uniqueness when there are
             # multiple regions in an invoke.
             psy_data_nodes = self.root.walk(PSyDataNode)
@@ -570,7 +570,7 @@ class PSyDataNode(Statement):
                 if node is self:
                     idx = index
                     break
-            region_name += f":r{idx}"
+            region_name += f"-r{idx}"
 
         if not options:
             options = {}

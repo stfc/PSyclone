@@ -36,8 +36,6 @@
 
 ''' Module containing tests for generating PSyData hooks'''
 
-from __future__ import absolute_import
-
 import pytest
 
 from psyclone.configuration import Config
@@ -168,12 +166,12 @@ def test_psy_data_get_unique_region_names():
                            "gocean", idx=0)
     region_name = data_trans.get_unique_region_name(invoke.schedule, {})
     assert region_name == ('psy_single_invoke_different_iterates_over',
-                           'invoke_0:r0')
+                           'invoke_0-r0')
 
     region_name = data_trans.\
         get_unique_region_name([invoke.schedule[0]], {})
     assert region_name == ('psy_single_invoke_different_iterates_over',
-                           'invoke_0:compute_cv_code:r0')
+                           'invoke_0-compute_cv_code-r0')
 
 
 # -----------------------------------------------------------------------------
