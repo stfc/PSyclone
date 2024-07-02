@@ -48,7 +48,6 @@ import re
 import os
 import pytest
 
-from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata, FieldArgMetadata
@@ -1610,7 +1609,7 @@ def test_sign_X_by_value(fortran_writer):
 
 def test_setval_random(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
-    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    metadata = lfric_builtins.LFRicSetvalRandomKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
 
     kern = builtin_from_file("15.7.4_setval_random_builtin.f90")
@@ -1626,7 +1625,7 @@ def test_setval_random(fortran_writer):
 
 def test_sum_x(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
-    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    metadata = lfric_builtins.LFRicSumXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
 
     kern = builtin_from_file("15.8.1_sum_X_builtin.f90")
@@ -1668,7 +1667,7 @@ def test_x_innerproduct_y(fortran_writer):
 
 def test_int_to_real_x(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
-    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    metadata = lfric_builtins.LFRicIntToRealXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
 
     kern = builtin_from_file("15.28.2_int_to_real_X_builtin.f90")
@@ -1730,7 +1729,7 @@ def test_int_to_real_x_precision(tmpdir, kind_name):
 
 def test_real_to_int_x(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
-    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    metadata = lfric_builtins.LFRicRealToIntXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
 
     kern = builtin_from_file("15.10.3_real_to_int_X_builtin.f90")
@@ -1779,7 +1778,7 @@ def test_real_to_int_x_precision(monkeypatch, kind_name):
 
 def test_real_to_real_x(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
-    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    metadata = lfric_builtins.LFRicRealToRealXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
 
     kern = builtin_from_file("15.10.8_real_to_real_X_builtin.f90")
@@ -1867,282 +1866,6 @@ def test_scalar_int_builtin_error(monkeypatch):
     assert ("In the LFRic API a reduction access 'gh_sum' is only valid "
             "with a real scalar argument, but a scalar argument with "
             "'gh_integer' data type was found" in str(excinfo.value))
-
-
-# ------------- Built-ins with multiple calls or mixed with kernels --------- #
-
-
-def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Tests that we generate correct code when we have an 'invoke'
-    containing multiple set operations. Test with and without annexed
-    DoFs being computed as this affects the generated code.
-
-    '''
-    api_config = Config.get().api_conf(API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.14.2_multiple_set_kernels.f90"),
-                           api=API)
-    psy = PSyFactory(
-        API, distributed_memory=dist_mem).create(invoke_info)
-    code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    if not dist_mem:
-        output = (
-            "    SUBROUTINE invoke_0(f1, fred, f2, f3, ginger)\n"
-            "      REAL(KIND=r_def), intent(in) :: fred, ginger\n"
-            "      TYPE(field_type), intent(in) :: f1, f2, f3\n"
-            "      INTEGER(KIND=i_def) df\n"
-            "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
-            "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
-            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-            "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => "
-            "null()\n"
-            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
-            "null()\n"
-            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
-            "null()\n"
-            "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
-            "      INTEGER(KIND=i_def) undf_aspc1_f1, "
-            "undf_aspc1_f2, undf_aspc1_f3\n"
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
-            "      f1_proxy = f1%get_proxy()\n"
-            "      f1_data => f1_proxy%data\n"
-            "      f2_proxy = f2%get_proxy()\n"
-            "      f2_data => f2_proxy%data\n"
-            "      f3_proxy = f3%get_proxy()\n"
-            "      f3_data => f3_proxy%data\n"
-            "      !\n"
-            "      ! Initialise number of DoFs for aspc1_f1\n"
-            "      !\n"
-            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
-            "      !\n"
-            "      ! Initialise number of DoFs for aspc1_f2\n"
-            "      !\n"
-            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
-            "      !\n"
-            "      ! Initialise number of DoFs for aspc1_f3\n"
-            "      !\n"
-            "      undf_aspc1_f3 = f3_proxy%vspace%get_undf()\n"
-            "      !\n"
-            "      ! Set-up all of the loop bounds\n"
-            "      !\n"
-            "      loop0_start = 1\n"
-            "      loop0_stop = undf_aspc1_f1\n"
-            "      loop1_start = 1\n"
-            "      loop1_stop = undf_aspc1_f2\n"
-            "      loop2_start = 1\n"
-            "      loop2_stop = undf_aspc1_f3\n"
-            "      !\n"
-            "      ! Call our kernels\n"
-            "      !\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
-            "a real scalar value)\n"
-            "        f1_data(df) = fred\n"
-            "      END DO\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
-            "a real scalar value)\n"
-            "        f2_data(df) = 3.0_r_def\n"
-            "      END DO\n"
-            "      DO df = loop2_start, loop2_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
-            "a real scalar value)\n"
-            "        f3_data(df) = ginger\n"
-            "      END DO\n")
-        assert output in code
-    if dist_mem:
-        output_dm_2 = (
-            "      loop0_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
-            "      loop1_start = 1\n"
-            "      loop1_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
-            "      loop2_start = 1\n"
-            "      loop2_stop = f3_proxy%vspace%get_last_dof_annexed()\n"
-            "      !\n"
-            "      ! Call kernels and communication routines\n"
-            "      !\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
-            "a real scalar value)\n"
-            "        f1_data(df) = fred\n"
-            "      END DO\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
-            "      !\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
-            "a real scalar value)\n"
-            "        f2_data(df) = 3.0_r_def\n"
-            "      END DO\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      CALL f2_proxy%set_dirty()\n"
-            "      !\n"
-            "      DO df = loop2_start, loop2_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
-            "a real scalar value)\n"
-            "        f3_data(df) = ginger\n"
-            "      END DO\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      CALL f3_proxy%set_dirty()\n"
-            "      !\n")
-        if not annexed:
-            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
-        assert output_dm_2 in code
-
-
-def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Tests that we generate correct code for a built-in set operation
-    when the 'invoke' also contains a normal kernel. Test with and
-    without annexed DoFs being computed as this affects the generated
-    code.
-
-    '''
-    api_config = Config.get().api_conf(API)
-    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api=API)
-
-    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    dofmap_output = (
-        "      !\n"
-        "      ! Look-up dofmaps for each function space\n"
-        "      !\n"
-        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
-        )
-    assert dofmap_output in code
-
-    if not dist_mem:
-        output = (
-            "      ! Initialise number of DoFs for w3\n"
-            "      !\n"
-            "      ndf_w3 = m2_proxy%vspace%get_ndf()\n"
-            "      undf_w3 = m2_proxy%vspace%get_undf()\n"
-            "      !\n"
-            "      ! Initialise number of DoFs for aspc1_f1\n"
-            "      !\n"
-            "      ndf_aspc1_f1 = f1_proxy%vspace%get_ndf()\n"
-            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
-            "      !\n"
-            "      ! Set-up all of the loop bounds\n"
-            "      !\n"
-            "      loop0_start = 1\n"
-            "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
-            "      loop1_start = 1\n"
-            "      loop1_stop = undf_aspc1_f1\n"
-            "      !\n"
-            "      ! Call our kernels\n"
-            "      !\n"
-            "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL testkern_code(nlayers, ginger, f1_data, "
-            "f2_data, "
-            "m1_data, m2_data, ndf_w1, undf_w1, "
-            "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
-            "undf_w3, map_w3(:,cell))\n"
-            "      END DO\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
-            "a real scalar value)\n"
-            "        f1_data(df) = 0.0_r_def\n"
-            "      END DO")
-        assert output in code
-    if dist_mem:
-        mesh_code_present("f1", code)
-        output_dm_2 = (
-            "      loop0_stop = mesh%get_last_halo_cell(1)\n"
-            "      loop1_start = 1\n"
-            "      loop1_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
-            "      !\n"
-            "      ! Call kernels and communication routines\n"
-            "      !\n"
-            "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-            "        CALL f2_proxy%halo_exchange(depth=1)\n"
-            "      END IF\n"
-            "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
-            "        CALL m1_proxy%halo_exchange(depth=1)\n"
-            "      END IF\n"
-            "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
-            "        CALL m2_proxy%halo_exchange(depth=1)\n"
-            "      END IF\n"
-            "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL testkern_code(nlayers, ginger, f1_data, "
-            "f2_data, m1_data, m2_data, ndf_w1, "
-            "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
-            "ndf_w3, undf_w3, map_w3(:,cell))\n"
-            "      END DO\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
-            "      !\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
-            "a real scalar value)\n"
-            "        f1_data(df) = 0.0_r_def\n"
-            "      END DO\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
-            "      !\n")
-        if not annexed:
-            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
-            f1_hex_code = (
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL f1_proxy%halo_exchange(depth=1)\n"
-                "      END IF\n")
-            output_dm_2 = output_dm_2.replace(
-                "      ! Call kernels and communication routines\n"
-                "      !\n", f1_hex_code)
-        assert output_dm_2 in code
-
-
-# ------------- Auxiliary mesh code generation function --------------------- #
-
-
-def mesh_code_present(field_str, code):
-    '''This test checks for the existance of mesh code. This exists for
-    all built-ins with dm = True (although it is not actually
-    required!) so each test can call this function. Mesh code is
-    generated from the first field in a built-in arguments list, here
-    denoted with field_str.
-
-    '''
-    assert "      USE mesh_mod, ONLY: mesh_type" in code
-    assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
-    output_dm_1 = (
-        "      !\n"
-        "      ! Create a mesh object\n"
-        "      !\n"
-        "      mesh => " + field_str + "_proxy%vspace%get_mesh()\n"
-        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
-        "      !\n")
-    assert output_dm_1 in code
 
 
 def test_field_access_info_for_arrays_in_builtins():
