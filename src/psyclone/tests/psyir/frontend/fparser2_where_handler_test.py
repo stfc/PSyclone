@@ -424,9 +424,6 @@ def test_where_mask_starting_value(fortran_reader, fortran_writer):
     Check handling of a case where the mask array is indexed from values other
     than unity.
 
-    # TODO #949 - we can't currently take advantage of any knowledge of the
-    # declared lower bounds of arrays because the fparser2 frontend doesn't yet
-    # capture this information (we get an UnsupportedFortranType).
     '''
     code = '''\
     program my_sub
@@ -447,21 +444,16 @@ def test_where_mask_starting_value(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     print(output)
     expected = '''\
-  do widx2 = 1, SIZE(picefr, dim=2), 1
-    do widx1 = 1, SIZE(picefr, dim=1), 1
-      if (picefr(LBOUND(picefr, dim=1) + widx1 - 1,\
-LBOUND(picefr, dim=2) + widx2 - 1) > 1.e-10) then
-        zevap_ice(LBOUND(zevap_ice, dim=1) + widx1 - 1,\
-LBOUND(zevap_ice, dim=2) + widx2 - 1,1) = \
-snow(LBOUND(snow, dim=1) + widx1 - 1,3,LBOUND(snow, dim=3) + widx2 - 1) * \
+  do widx2 = 1, 5 - (-5) + 1, 1
+    do widx1 = 1, 5 - (-5) + 1, 1
+      if (picefr(-5 + widx1 - 1,-5 + widx2 - 1) > 1.e-10) then
+        zevap_ice(widx1,widx2,1) = snow(-2 + widx1 - 1,3,-3 + widx2 - 1) * \
 frcv(jpr_ievp)%z3(LBOUND(frcv(jpr_ievp)%z3, dim=1) + widx1 - 1,\
 LBOUND(frcv(jpr_ievp)%z3, dim=2) + widx2 - 1,1) / \
-picefr(LBOUND(picefr, dim=1) + widx1 - 1,LBOUND(picefr, dim=2) + widx2 - 1)
+picefr(-5 + widx1 - 1,-5 + widx2 - 1)
       else
-        zevap_ice(LBOUND(zevap_ice, dim=1) + widx1 - 1,\
-LBOUND(zevap_ice, dim=2) + widx2 - 1,1) = \
-snow(LBOUND(snow, dim=1) + widx1 - 1,map(jpl),\
-LBOUND(snow, dim=3) + widx2 - 1) + slush(-22 + widx1 - 1,jpl,-32 + widx2 - 1)
+        zevap_ice(widx1,widx2,1) = snow(-2 + widx1 - 1,map(jpl),\
+-3 + widx2 - 1) + slush(-22 + widx1 - 1,jpl,-32 + widx2 - 1)
 '''
     assert expected in output
 
