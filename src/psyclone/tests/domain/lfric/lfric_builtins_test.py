@@ -702,10 +702,11 @@ def test_inc_X_plus_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncXPlusYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
-    assert metadata.operates_on == "dof"
-    assert metadata.name == "inc_X_plus_Y"
-    assert metadata.procedure_name == "inc_X_plus_Y_code"
     assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_readwrite"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
 
     kern = builtin_from_file("15.1.2_inc_X_plus_Y_builtin.f90")
     assert (str(kern) == "Built-in: inc_X_plus_Y (increment a "
@@ -721,6 +722,12 @@ def test_a_plus_X(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicAPlusXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.1.8_a_plus_X_builtin.f90")
     assert str(kern) == "Built-in: a_plus_X (real-valued fields)"
@@ -740,6 +747,10 @@ def test_inc_a_plus_X(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncAPlusXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_read"
+    assert metadata.meta_args[1].access == "gh_readwrite"
+    assert metadata.meta_args[1].function_space == "any_space_1"
 
     kern = builtin_from_file("15.1.9_inc_a_plus_X_builtin.f90")
     assert str(kern) == "Built-in: inc_a_plus_X (real-valued field)"
@@ -754,6 +765,14 @@ def test_aX_plus_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicAXPlusYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 4
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
+    assert metadata.meta_args[3].access == "gh_read"
+    assert metadata.meta_args[3].function_space == "any_space_1"
 
     kern = builtin_from_file("15.1.3_aX_plus_Y_builtin.f90")
     assert str(kern) == "Built-in: aX_plus_Y (real-valued fields)"
@@ -768,6 +787,12 @@ def test_inc_aX_plus_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncAXPlusYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_read"
+    assert metadata.meta_args[1].access == "gh_readwrite"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.1.4_inc_aX_plus_Y_builtin.f90")
     assert str(kern) == "Built-in: inc_aX_plus_Y (real-valued fields)"
@@ -782,6 +807,12 @@ def test_inc_X_plus_bY(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncXPlusBYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_readwrite"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.1.5_inc_X_plus_bY_builtin.f90")
     assert str(kern) == "Built-in: inc_X_plus_bY (real-valued fields)"
@@ -796,6 +827,15 @@ def test_aX_plus_bY(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicAXPlusBYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 5
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
+    assert metadata.meta_args[3].access == "gh_read"
+    assert metadata.meta_args[4].access == "gh_read"
+    assert metadata.meta_args[4].function_space == "any_space_1"
 
     kern = builtin_from_file("15.1.6_aX_plus_bY_builtin.f90")
     assert str(kern) == "Built-in: aX_plus_bY (real-valued fields)"
@@ -810,6 +850,13 @@ def test_inc_aX_plus_bY(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncAXPlusBYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 4
+    assert metadata.meta_args[0].access == "gh_read"
+    assert metadata.meta_args[1].access == "gh_readwrite"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[3].access == "gh_read"
+    assert metadata.meta_args[3].function_space == "any_space_1"
 
     kern = builtin_from_file("15.1.7_inc_aX_plus_bY_builtin.f90")
     assert str(kern) == "Built-in: inc_aX_plus_bY (real-valued fields)"
@@ -824,6 +871,14 @@ def test_aX_plus_aY(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicAXPlusAYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 4
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
+    assert metadata.meta_args[3].access == "gh_read"
+    assert metadata.meta_args[3].function_space == "any_space_1"
 
     kern = builtin_from_file("15.1.10_aX_plus_aY_builtin.f90")
     assert str(kern) == "Built-in: aX_plus_aY (real-valued fields)"
@@ -841,6 +896,13 @@ def test_X_minus_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicXMinusYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.2.1_X_minus_Y_builtin.f90")
     assert str(kern) == "Built-in: X_minus_Y (subtract real-valued fields)"
@@ -855,6 +917,11 @@ def test_inc_X_minus_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncXMinusYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_readwrite"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
 
     kern = builtin_from_file("15.2.2_inc_X_minus_Y_builtin.f90")
     assert (str(kern) == "Built-in: inc_X_minus_Y (decrement a "
@@ -870,6 +937,12 @@ def test_a_minus_X(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicAMinusXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.2.7_a_minus_X_builtin.f90")
     assert str(kern) == "Built-in: a_minus_X (real-valued fields)"
@@ -882,8 +955,12 @@ def test_a_minus_X(fortran_writer):
 
 def test_inc_a_minus_X(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
-    metadata = lfric_builtins.LFRicIncXMinusYKern.metadata()
+    metadata = lfric_builtins.LFRicIncAMinusXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_read"
+    assert metadata.meta_args[1].access == "gh_readwrite"
+    assert metadata.meta_args[1].function_space == "any_space_1"
 
     kern = builtin_from_file("15.2.8_inc_a_minus_X_builtin.f90")
     assert str(kern) == "Built-in: inc_a_minus_X (real-valued field)"
@@ -896,8 +973,14 @@ def test_inc_a_minus_X(fortran_writer):
 
 def test_X_minus_a(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
-    metadata = lfric_builtins.LFRicIncAMinusXKern.metadata()
+    metadata = lfric_builtins.LFRicXMinusAKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert metadata.meta_args[2].access == "gh_read"
 
     kern = builtin_from_file("15.2.9_X_minus_a_builtin.f90")
     assert str(kern) == "Built-in: X_minus_a (real-valued fields)"
@@ -912,6 +995,10 @@ def test_inc_X_minus_a(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncXMinusAKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_readwrite"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
 
     kern = builtin_from_file("15.2.10_inc_X_minus_a_builtin.f90")
     assert str(kern) == "Built-in: inc_X_minus_a (real-valued field)"
@@ -926,6 +1013,14 @@ def test_aX_minus_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicAXMinusYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 4
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
+    assert metadata.meta_args[3].access == "gh_read"
+    assert metadata.meta_args[3].function_space == "any_space_1"
 
     kern = builtin_from_file("15.2.3_aX_minus_Y_builtin.f90")
     assert str(kern) == "Built-in: aX_minus_Y (real-valued fields)"
@@ -940,6 +1035,14 @@ def test_X_minus_bY(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicXMinusBYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 4
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[3].access == "gh_read"
+    assert metadata.meta_args[3].function_space == "any_space_1"
 
     kern = builtin_from_file("15.2.4_X_minus_bY_builtin.f90")
     assert str(kern) == "Built-in: X_minus_bY (real-valued fields)"
@@ -954,6 +1057,12 @@ def test_inc_X_minus_bY(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncXMinusBYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_readwrite"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.2.5_inc_X_minus_bY_builtin.f90")
     assert str(kern) == "Built-in: inc_X_minus_bY (real-valued fields)"
@@ -968,6 +1077,15 @@ def test_aX_minus_bY(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicAXMinusBYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 5
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
+    assert metadata.meta_args[3].access == "gh_read"
+    assert metadata.meta_args[4].access == "gh_read"
+    assert metadata.meta_args[4].function_space == "any_space_1"
 
     kern = builtin_from_file("15.2.6_aX_minus_bY_builtin.f90")
     assert str(kern) == "Built-in: aX_minus_bY (real-valued fields)"
@@ -985,6 +1103,13 @@ def test_X_times_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicXTimesYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.3.1_X_times_Y_builtin.f90")
     assert str(kern) == "Built-in: X_times_Y (multiply real-valued fields)"
@@ -999,6 +1124,11 @@ def test_inc_X_times_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncXTimesYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_readwrite"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
 
     kern = builtin_from_file("15.3.2_inc_X_times_Y_builtin.f90")
     assert (str(kern) == "Built-in: inc_X_times_Y (multiply one real-valued "
@@ -1015,6 +1145,12 @@ def test_inc_aX_times_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncAXTimesYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_read"
+    assert metadata.meta_args[1].access == "gh_readwrite"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.3.3_inc_aX_times_Y_builtin.f90")
     assert str(kern) == "Built-in: inc_aX_times_Y (real-valued fields)"
@@ -1032,6 +1168,12 @@ def test_a_times_X(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicATimesXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.4.1_a_times_X_builtin.f90")
     assert str(kern) == "Built-in: a_times_X (copy a scaled real-valued field)"
@@ -1046,6 +1188,10 @@ def test_inc_a_times_X(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncATimesXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_read"
+    assert metadata.meta_args[1].access == "gh_readwrite"
+    assert metadata.meta_args[1].function_space == "any_space_1"
 
     kern = builtin_from_file("15.4.2_inc_a_times_X_builtin.f90")
     assert str(kern) == "Built-in: inc_a_times_X (scale a real-valued field)"
@@ -1063,6 +1209,13 @@ def test_X_divideby_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicXDividebyYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.5.1_X_divideby_Y_builtin.f90")
     assert str(kern) == "Built-in: X_divideby_Y (divide real-valued fields)"
@@ -1077,6 +1230,11 @@ def test_inc_X_divideby_Y(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncXDividebyYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_readwrite"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
 
     kern = builtin_from_file("15.5.2_inc_X_divideby_Y_builtin.f90")
     assert (str(kern) == "Built-in: inc_X_divideby_Y (divide one real-valued "
@@ -1093,6 +1251,12 @@ def test_X_divideby_a(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicXDividebyAKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert metadata.meta_args[2].access == "gh_read"
 
     kern = builtin_from_file("15.5.5_X_divideby_a_builtin.f90")
     assert str(kern) == ("Built-in: X_divideby_a (divide a real-valued field "
@@ -1109,6 +1273,10 @@ def test_inc_X_divideby_a(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncXDividebyAKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_readwrite"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
 
     kern = builtin_from_file("15.5.6_inc_X_divideby_a_builtin.f90")
     assert str(kern) == ("Built-in: inc_X_divideby_a (divide a real-valued "
@@ -1128,6 +1296,12 @@ def test_a_divideby_X(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicADividebyXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 3
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
 
     kern = builtin_from_file("15.5.3_a_divideby_X_builtin.f90")
     assert (str(kern) == "Built-in: a_divideby_X (inverse scaling of a "
@@ -1144,6 +1318,10 @@ def test_inc_a_divideby_X(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncADividebyXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_read"
+    assert metadata.meta_args[1].access == "gh_readwrite"
+    assert metadata.meta_args[1].function_space == "any_space_1"
 
     kern = builtin_from_file("15.5.4_inc_a_divideby_X_builtin.f90")
     assert (str(kern) == "Built-in: inc_a_divideby_X (inverse scaling of a "
@@ -1163,6 +1341,10 @@ def test_inc_X_powreal_a(fortran_writer):
     ''' Test the metadata, str and lower_to_language_level builtin methods. '''
     metadata = lfric_builtins.LFRicIncXPowrealAKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    assert len(metadata.meta_args) == 2
+    assert metadata.meta_args[0].access == "gh_readwrite"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert metadata.meta_args[1].access == "gh_read"
 
     kern = builtin_from_file("15.6.1_inc_X_powreal_a_builtin.f90")
     assert (str(kern) == "Built-in: inc_X_powreal_a (raise a real-valued "
