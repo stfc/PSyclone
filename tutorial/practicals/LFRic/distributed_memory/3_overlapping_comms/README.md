@@ -37,7 +37,7 @@ in this file assume that you are in the same directory as this
 `README.md` file):
 
 ```bash
-    $ psyclone -api lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 The schedule containing the halo exchanges is stored as a tree in the
@@ -132,7 +132,7 @@ def trans(psy):
 You are now ready to transform the code. Run your script:
 
 ```bash
-    $ psyclone -api lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
+    $ psyclone --psykal-dsl lfric -oalg /dev/null -opsy psy.f90 -s ./schedule.py ../code/helmholtz_solver_alg_mod.x90
 ```
 
 You will see that all halo exchanges have been converted to asynchronous halo exchanges.

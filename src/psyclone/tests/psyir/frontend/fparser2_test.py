@@ -50,7 +50,6 @@ from fparser.two.Fortran2003 import (
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, _is_array_range_literal, _is_bound_full_extent,
     _check_args, default_precision,
@@ -2707,8 +2706,8 @@ def test_nodes_to_code_block_1(f2008_parser):
         end program test
         ''')
     prog = f2008_parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    processor = Fparser2Reader()
+    schedule = processor.generate_psyir(prog).walk(Routine)[0]
     assert isinstance(schedule[0], CodeBlock)
     assert schedule[0].structure == CodeBlock.Structure.STATEMENT
     # Check that the error message that generated the codeblock has been
@@ -2737,8 +2736,8 @@ def test_nodes_to_code_block_2(f2008_parser):
         end program test
         ''')
     prog = f2008_parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    processor = Fparser2Reader()
+    schedule = processor.generate_psyir(prog).walk(Routine)[0]
     assert isinstance(schedule[0].if_body[0], CodeBlock)
     assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
     # Check that the error message that generated the codeblock has been
@@ -2785,12 +2784,13 @@ def test_named_and_wildcard_use_var(f2008_parser):
         end module test_mod
         ''')
     prog = f2008_parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
+    processor = Fparser2Reader()
+    psyir = processor.generate_psyir(prog)
     # We should not have an entry for "a_var" in the Container symbol
     # table as we don't know whether the access in "test_sub1" comes
     # from the wildcard import ("some_mod"). The Container is the
     # first child of the FileContainer node.
-    container = psy.container.children[0]
+    container = psyir.children[0]
     assert "a_var" not in container.symbol_table
     # There should be an entry for "a_var" in the symbol table for the
     # "test_sub1" routine as we do not yet know where it is declared.

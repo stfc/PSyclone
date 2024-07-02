@@ -1063,17 +1063,20 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran code as a string.
         :rtype: str
 
-        :raises VisitorError: if the attached symbol table contains \
-            any data symbols.
-        :raises VisitorError: if more than one child is a Routine Node \
+        :raises VisitorError: if the attached symbol table contains
+            any non-routine symbols.
+        :raises VisitorError: if more than one child is a Routine Node
             with is_program set to True.
 
         '''
-        if node.symbol_table.symbols:
-            raise VisitorError(
-                f"In the Fortran backend, a file container should not have "
-                f"any symbols associated with it, but found "
-                f"{len(node.symbol_table.symbols)}.")
+        for symbol in node.symbol_table.symbols:
+            # TODO #2201 - ContainerSymbols should be accepted but
+            # currently are stored in its containing scope.
+            if not isinstance(symbol, RoutineSymbol):
+                raise VisitorError(
+                    f"In the Fortran backend, a file container should not "
+                    f"have any symbols associated with it other than "
+                    f"RoutineSymbols, but found {str(symbol)}.")
 
         program_nodes = len([child for child in node.children if
                              isinstance(child, Routine) and child.is_program])
