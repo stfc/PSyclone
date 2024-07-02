@@ -239,7 +239,7 @@ class LFRicDofmaps(LFRicCollection):
                 dmap_sym = DataSymbol(
                     dmap, UnsupportedFortranType(
                         f"integer(kind=i_def), pointer :: {dmap}(:,:) => null()"))
-                self._symbol_table.add(dmap_sym)
+                self._symbol_table.add(dmap_sym, tag=dmap)
 
         # if decl_map_names:
         #     parent.add(DeclGen(parent, datatype="integer",

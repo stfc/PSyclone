@@ -73,7 +73,10 @@ class LFRicCollection():
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
-            self._symbol_table = node._stub_symbol_table
+            if node._stub_symbol_table:
+                self._symbol_table = node._stub_symbol_table
+            else:
+                self._symbol_table = LFRicSymbolTable()
             # We only have a single Kernel call in this case
             self._calls = [node]
         else:

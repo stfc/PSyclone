@@ -167,8 +167,8 @@ def test_colour_trans_declarations(tmpdir, dist_mem):
     # Check that we've declared the loop-related variables
     # and colour-map pointers
     assert "integer(kind=i_def), pointer :: cmap(:,:)" in gen
-    assert "integer(kind=i_def) ncolour" in gen
-    assert "integer(kind=i_def) colour" in gen
+    assert "integer(kind=i_def) :: ncolour" in gen
+    assert "integer(kind=i_def) :: colour" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -194,17 +194,18 @@ def test_colour_trans(tmpdir, dist_mem):
     # a string (Fortran is not case sensitive)
     gen = str(psy.gen).lower()
 
+    print(gen)
     if dist_mem:
-        assert ("integer(kind=i_def), allocatable :: "
-                "last_halo_cell_all_colours(:,:)" in gen)
+        assert ("integer(kind=i_def), allocatable, dimension(:,:) :: "
+                "last_halo_cell_all_colours" in gen)
     else:
-        assert ("integer(kind=i_def), allocatable :: "
-                "last_edge_cell_all_colours(:)" in gen)
+        assert ("integer(kind=i_def), allocatable, dimension(:) :: "
+                "last_edge_cell_all_colours" in gen)
 
     # Check that we're calling the API to get the no. of colours
     # and the generated loop bounds are correct
-    output = ("      ncolour = mesh%get_ncolours()\n"
-              "      cmap => mesh%get_colour_map()\n")
+    output = ("    ncolour = mesh%get_ncolours()\n"
+              "    cmap => mesh%get_colour_map()\n")
     assert output in gen
 
     assert "loop0_start = 1" in gen
@@ -215,15 +216,15 @@ def test_colour_trans(tmpdir, dist_mem):
         assert ("last_halo_cell_all_colours = mesh%get_last_halo_cell_all_"
                 "colours()" in gen)
         output = (
-            "      do colour = loop0_start, loop0_stop, 1\n"
-            "        do cell = loop1_start, last_halo_cell_all_colours(colour,"
+            "    do colour = loop0_start, loop0_stop, 1\n"
+            "      do cell = loop1_start, last_halo_cell_all_colours(colour,"
             "1), 1\n")
     else:  # not dist_mem
         assert ("last_edge_cell_all_colours = mesh%get_last_edge_cell_all_"
                 "colours()" in gen)
         output = (
-            "      do colour = loop0_start, loop0_stop, 1\n"
-            "        do cell = loop1_start, "
+            "    do colour = loop0_start, loop0_stop, 1\n"
+            "      do cell = loop1_start, "
             "last_edge_cell_all_colours(colour), 1\n")
     assert output in gen
 
@@ -239,12 +240,11 @@ def test_colour_trans(tmpdir, dist_mem):
         # Check that we get the right number of set_dirty halo calls in
         # the correct location
         dirty_str = (
-            "      end do\n"
-            "      !\n"
-            "      ! set halos dirty/clean for fields modified in the "
+            "    enddo\n"
+            "\n"
+            "    ! set halos dirty/clean for fields modified in the "
             "above loop\n"
-            "      !\n"
-            "      call f1_proxy%set_dirty()\n")
+            "    call f1_proxy%set_dirty()\n")
         assert dirty_str in gen
         assert gen.count("set_dirty()") == 1
 
@@ -275,7 +275,7 @@ def test_colour_trans_operator(tmpdir, dist_mem):
     gen = str(psy.gen)
 
     # check the first argument is a colourmap lookup
-    assert "CALL testkern_operator_code(cmap(colour,cell), nlayers" in gen
+    assert "call testkern_operator_code(cmap(colour,cell), nlayers" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -308,13 +308,13 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         lookup = "last_edge_cell_all_colours(colour)"
 
     assert (
-        f"      DO colour = loop0_start, loop0_stop, 1\n"
-        f"        DO cell = loop1_start, {lookup}, 1\n"
-        f"          CALL columnwise_op_asm_field_kernel_code("
+        f"      do colour = loop0_start, loop0_stop, 1\n"
+        f"        do cell = loop1_start, {lookup}, 1\n"
+        f"          call columnwise_op_asm_field_kernel_code("
         f"cmap(colour,") in gen
 
     assert (
-        "          CALL columnwise_op_asm_field_kernel_code(cmap(colour,"
+        "          call columnwise_op_asm_field_kernel_code(cmap(colour,"
         "cell), nlayers, ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
@@ -322,8 +322,8 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "ndf_aspc1_afield, undf_aspc1_afield, "
         "map_aspc1_afield(:,cmap(colour,cell)), cbanded_map_aspc1_afield, "
         "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)\n"
-        "        END DO\n"
-        "      END DO\n") in gen
+        "        enddo\n"
+        "      enddo\n") in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -348,7 +348,7 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
 
     # Check that we index the stencil dofmap appropriately
     assert (
-        "          CALL testkern_stencil_code(nlayers, f1_data, "
+        "          call testkern_stencil_code(nlayers, f1_data, "
         "f2_data, f2_stencil_size(cmap(colour,cell)), "
         "f2_stencil_dofmap(:,:,cmap(colour,cell)), f3_data, "
         "f4_data, ndf_w1, undf_w1, map_w1(:,cmap(colour,cell)), "
@@ -384,7 +384,7 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
     # Check that we index the adjacent face dofmap appropriately
     assert (
-        "CALL testkern_mesh_prop_code(nlayers, a, f1_data, ndf_w1, "
+        "call testkern_mesh_prop_code(nlayers, a, f1_data, ndf_w1, "
         "undf_w1, map_w1(:,cmap(colour,cell)), nfaces_re_h, "
         "adjacent_face(:,cmap(colour,cell))" in gen)
 
@@ -409,7 +409,7 @@ def test_colour_trans_continuous_write(dist_mem, tmpdir):
     # enabled.
     assert ("last_edge_cell_all_colours = "
             "mesh%get_last_edge_cell_all_colours()" in gen)
-    assert "DO cell = loop1_start, last_edge_cell_all_colours(colour)" in gen
+    assert "do cell = loop1_start, last_edge_cell_all_colours(colour)" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -559,10 +559,10 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     else:
         lookup = "last_edge_cell_all_colours(colour)"
     output = (
-        f"      DO colour = loop0_start, loop0_stop, 1\n"
+        f"      do colour = loop0_start, loop0_stop, 1\n"
         f"        !$omp parallel do default(shared), private(cell), "
         f"schedule(static)\n"
-        f"        DO cell = loop1_start, {lookup}, 1\n")
+        f"        do cell = loop1_start, {lookup}, 1\n")
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -801,7 +801,7 @@ def test_omp_region_omp_do(dist_mem):
     else:
         assert "loop0_stop = m2_proxy%vspace%get_ncell()" in code
     for idx, line in enumerate(code.split('\n')):
-        if "DO cell = loop0_start, loop0_stop" in line:
+        if "do cell = loop0_start, loop0_stop" in line:
             cell_loop_idx = idx
         if "!$omp do" in line:
             omp_do_idx = idx
@@ -809,7 +809,7 @@ def test_omp_region_omp_do(dist_mem):
             omp_para_idx = idx
         if "!$omp end do" in line:
             omp_enddo_idx = idx
-        if "END DO" in line:
+        if "enddo" in line:
             cell_end_loop_idx = idx
 
     assert (omp_do_idx - omp_para_idx) == 1
@@ -857,7 +857,7 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
         assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
-    loop_str = "DO cell = loop0_start, loop0_stop"
+    loop_str = "do cell = loop0_start, loop0_stop"
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_loop_idx = idx
@@ -867,7 +867,7 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed, dist_mem):
             omp_para_idx = idx
         if "!$omp end do" in line:
             omp_enddo_idx = idx
-        if "END DO" in line:
+        if "enddo" in line:
             cell_end_loop_idx = idx
 
     assert (omp_do_idx - omp_para_idx) == 1
@@ -915,7 +915,7 @@ def test_multi_kernel_single_omp_region(dist_mem):
         assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
         assert "loop0_stop = m2_proxy%vspace%get_ncell()" in code
-    loop_str = "DO cell = loop0_start, loop0_stop"
+    loop_str = "do cell = loop0_start, loop0_stop"
     for idx, line in enumerate(code.split('\n')):
         if (cell_loop_idx == -1) and (loop_str in line):
             cell_loop_idx = idx
@@ -925,7 +925,7 @@ def test_multi_kernel_single_omp_region(dist_mem):
             omp_end_do_idx = idx
         if "!$omp parallel default(shared), private(cell)" in line:
             omp_para_idx = idx
-        if "END DO" in line:
+        if "enddo" in line:
             end_do_idx = idx
         if "!$omp end parallel" in line:
             omp_end_para_idx = idx
@@ -1084,16 +1084,16 @@ def test_loop_fuse(dist_mem):
         assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()" in gen
-    loop_str = "DO cell = loop0_start, loop0_stop"
+    loop_str = "do cell = loop0_start, loop0_stop"
     for idx, line in enumerate(gen.split('\n')):
         if loop_str in line:
             cell_loop_idx = idx
-        if "CALL testkern_code" in line:
+        if "call testkern_code" in line:
             if call_idx1 == -1:
                 call_idx1 = idx
             else:
                 call_idx2 = idx
-        if "END DO" in line:
+        if "enddo" in line:
             end_loop_idx = idx
 
     assert cell_loop_idx != -1
@@ -1148,19 +1148,19 @@ def test_loop_fuse_omp(dist_mem):
         assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
         assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
-    loop_str = "DO cell = loop0_start, loop0_stop"
+    loop_str = "do cell = loop0_start, loop0_stop"
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_do_idx = idx
         if ("!$omp parallel do default(shared), private(cell), "
                 "schedule(static)" in line):
             omp_para_idx = idx
-        if "CALL testkern_w2v_code" in line:
+        if "call testkern_w2v_code" in line:
             if call1_idx == -1:
                 call1_idx = idx
             else:
                 call2_idx = idx
-        if "END DO" in line:
+        if "enddo" in line:
             cell_enddo_idx = idx
         if "!$omp end parallel do" in line:
             omp_endpara_idx = idx
@@ -1214,18 +1214,18 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
         assert "loop0_stop = mesh%get_last_edge_cell()" in code
     else:
         assert "loop0_stop = m2_proxy%vspace%get_ncell()" in code
-    loop_str = "DO cell = loop0_start, loop0_stop"
+    loop_str = "do cell = loop0_start, loop0_stop"
     for idx, line in enumerate(code.split('\n')):
         if loop_str in line:
             cell_do_idx = idx
         if "!$omp parallel do default(shared), " +\
            "private(cell), schedule(static)" in line:
             omp_para_idx = idx
-        if "CALL testkern_w3_code" in line:
+        if "call testkern_w3_code" in line:
             call1_idx = idx
-        if "CALL testkern_anyd_any_space_code" in line:
+        if "call testkern_anyd_any_space_code" in line:
             call2_idx = idx
-        if "END DO" in line:
+        if "enddo" in line:
             cell_enddo_idx = idx
         if "!$omp end parallel do" in line:
             omp_endpara_idx = idx
@@ -1295,32 +1295,32 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         lookup = "last_edge_cell_all_colours(colour)"
 
     output = (
-        f"      DO colour = loop0_start, loop0_stop, 1\n"
+        f"      do colour = loop0_start, loop0_stop, 1\n"
         f"        !$omp parallel default(shared), private(cell)\n"
         f"        !$omp do schedule(static)\n"
-        f"        DO cell = loop1_start, {lookup}, 1\n"
-        f"          CALL ru_code(nlayers, a_data, b_data, "
+        f"        do cell = loop1_start, {lookup}, 1\n"
+        f"          call ru_code(nlayers, a_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
         f"map_w3(:,cmap(colour,cell)), basis_w3_qr, ndf_w0, undf_w0, "
         f"map_w0(:,cmap(colour,cell)), basis_w0_qr, diff_basis_w0_qr, "
         f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        f"        END DO\n"
+        f"        enddo\n"
         f"        !$omp end do\n"
         f"        !$omp do schedule(static)\n"
-        f"        DO cell = loop2_start, {lookup}, 1\n"
-        f"          CALL ru_code(nlayers, f_data, b_data, "
+        f"        do cell = loop2_start, {lookup}, 1\n"
+        f"          call ru_code(nlayers, f_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
         f"map_w3(:,cmap(colour,cell)), basis_w3_qr, ndf_w0, undf_w0, "
         f"map_w0(:,cmap(colour,cell)), basis_w0_qr, diff_basis_w0_qr, "
         f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        f"        END DO\n"
+        f"        enddo\n"
         f"        !$omp end do\n"
         f"        !$omp end parallel\n"
-        f"      END DO\n")
+        f"      enddo\n")
     assert output in code
 
     if dist_mem:
@@ -1328,8 +1328,8 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop\n"
             "      !\n"
-            "      CALL a_proxy%set_dirty()\n"
-            "      CALL f_proxy%set_dirty()\n")
+            "      call a_proxy%set_dirty()\n"
+            "      call f_proxy%set_dirty()\n")
         assert set_dirty_str in code
         assert code.count("set_dirty()") == 2
 
@@ -1382,7 +1382,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "      cma_op1_gamma_p = cma_op1_proxy%gamma_p\n"
     ) in code
     assert (
-        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
+        "call columnwise_op_asm_field_kernel_code(cell, nlayers, "
         "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
@@ -1390,7 +1390,7 @@ def test_loop_fuse_cma(tmpdir, dist_mem):
         "undf_aspc1_afield, map_aspc1_afield(:,cell), "
         "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
         "cbanded_map_aspc2_lma_op1)\n"
-        "        CALL testkern_two_real_scalars_code(nlayers, scalar1, "
+        "        call testkern_two_real_scalars_code(nlayers, scalar1, "
         "afield_data, bfield_data, cfield_data, "
         "dfield_data, scalar2, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
@@ -1452,28 +1452,28 @@ def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
         code = (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_X (set a real-valued field "
             "equal to another such field)\n"
             "        f2_data(df) = f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f2_proxy%set_dirty()")
+            "      call f2_proxy%set_dirty()")
         assert code in result
     else:  # not distmem. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f2" in result
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_X (set a real-valued field "
             "equal to another such field)\n"
             "        f2_data(df) = f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do") in result
 
 
@@ -1508,49 +1508,49 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
         code = (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f1_data(df) = fred\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
+            "      call f1_proxy%set_dirty()\n"
             "      !\n"
             "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f2_data(df) = 3.0_r_def\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f2_proxy%set_dirty()\n"
+            "      call f2_proxy%set_dirty()\n"
             "      !\n"
             "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop2_start, loop2_stop, 1\n"
+            "      do df = loop2_start, loop2_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f3_data(df) = ginger\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f3_proxy%set_dirty()")
+            "      call f3_proxy%set_dirty()")
         assert code in result
     else:  # not distmem. annexed can be True or False
         for idx in range(1, 4):
@@ -1558,27 +1558,27 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f1_data(df) = fred\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f2_data(df) = 3.0_r_def\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop2_start, loop2_stop, 1\n"
+            "      do df = loop2_start, loop2_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f3_data(df) = ginger\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n") in result
 
 
@@ -1616,7 +1616,7 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
         code = (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f1_data(df) = fred\n"
@@ -1626,22 +1626,22 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f3_data(df) = ginger\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
-            "      CALL f2_proxy%set_dirty()\n"
-            "      CALL f3_proxy%set_dirty()")
+            "      call f1_proxy%set_dirty()\n"
+            "      call f2_proxy%set_dirty()\n"
+            "      call f3_proxy%set_dirty()")
         assert code in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f1" in result
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f1_data(df) = fred\n"
@@ -1651,7 +1651,7 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f3_data(df) = ginger\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do") in result
 
 
@@ -1690,29 +1690,29 @@ def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_X (set a real-valued field equal to "
             "another such field)\n"
             "        f2_data(df) = f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f2_proxy%set_dirty()\n"
+            "      call f2_proxy%set_dirty()\n"
             "      !\n") in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f2" in result
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_X (set a real-valued field equal to "
             "another such field)\n"
             "        f2_data(df) = f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n") in result
 
@@ -1760,34 +1760,34 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
         code = (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f1_data(df) = fred\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f2_data(df) = 3.0_r_def\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop2_start, loop2_stop, 1\n"
+            "      do df = loop2_start, loop2_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f3_data(df) = ginger\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
-            "      CALL f2_proxy%set_dirty()\n"
-            "      CALL f3_proxy%set_dirty()\n")
+            "      call f1_proxy%set_dirty()\n"
+            "      call f2_proxy%set_dirty()\n"
+            "      call f3_proxy%set_dirty()\n")
         assert code in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f1" in result
@@ -1796,25 +1796,25 @@ def test_builtin_multiple_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f1_data(df) = fred\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f2_data(df) = 3.0_r_def\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop2_start, loop2_stop, 1\n"
+            "      do df = loop2_start, loop2_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f3_data(df) = ginger\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel") in result
 
@@ -1857,7 +1857,7 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
         code = (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f1_data(df) = fred\n"
@@ -1867,16 +1867,16 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f3_data(df) = ginger\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
-            "      CALL f2_proxy%set_dirty()\n"
-            "      CALL f3_proxy%set_dirty()\n"
+            "      call f1_proxy%set_dirty()\n"
+            "      call f2_proxy%set_dirty()\n"
+            "      call f3_proxy%set_dirty()\n"
             "      !\n")
         assert code in result
     else:  # distmem is False. annexed can be True or False
@@ -1884,7 +1884,7 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f1_data(df) = fred\n"
@@ -1894,7 +1894,7 @@ def test_builtin_loop_fuse_do(tmpdir, monkeypatch, annexed, dist_mem):
             "        ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f3_data(df) = ginger\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel") in result
 
@@ -1919,10 +1919,10 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n") in code
@@ -1932,10 +1932,10 @@ def test_reduction_real_pdo(tmpdir, dist_mem):
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n") in code
 
 
@@ -1962,10 +1962,10 @@ def test_reduction_real_do(tmpdir, dist_mem):
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      global_sum%value = asum\n"
@@ -1975,10 +1975,10 @@ def test_reduction_real_do(tmpdir, dist_mem):
         assert (
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n") in code
 
@@ -2010,10 +2010,10 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -2024,10 +2024,10 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n") in code
@@ -2039,10 +2039,10 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Zero summation variables\n"
@@ -2051,10 +2051,10 @@ def test_multi_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n") in code
 
 
@@ -2102,23 +2102,23 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bvalue * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        asum = asum + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
+            "      call f1_proxy%set_dirty()\n"
             "      !\n"
             "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
@@ -2134,16 +2134,16 @@ def test_reduction_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bvalue * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        asum = asum + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel")
     assert expected_output in result
@@ -2193,30 +2193,30 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bvalue * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! sum the partial results sequentially\n"
             "      !\n"
-            "      DO th_idx=1,nthreads\n"
+            "      do th_idx=1,nthreads\n"
             "        asum = asum+l_asum(1,th_idx)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      DEALLOCATE (l_asum)\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
+            "      call f1_proxy%set_dirty()\n"
             "      !\n"
             "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
@@ -2235,24 +2235,24 @@ def test_reprod_red_after_normal_real_do(tmpdir, monkeypatch, annexed,
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bvalue * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! sum the partial results sequentially\n"
             "      !\n"
-            "      DO th_idx=1,nthreads\n"
+            "      do th_idx=1,nthreads\n"
             "        asum = asum+l_asum(1,th_idx)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      DEALLOCATE (l_asum)\n")
     assert expected_output in result
 
@@ -2295,16 +2295,16 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        bsum = bsum + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      global_sum%value = asum\n"
@@ -2322,16 +2322,16 @@ def test_two_reductions_real_do(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static), reduction(+:bsum)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        bsum = bsum + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel")
     assert expected_output in result
@@ -2380,29 +2380,29 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
             "f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        l_bsum(1,th_idx) = l_bsum(1,th_idx) + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! sum the partial results sequentially\n"
             "      !\n"
-            "      DO th_idx=1,nthreads\n"
+            "      do th_idx=1,nthreads\n"
             "        asum = asum+l_asum(1,th_idx)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      DEALLOCATE (l_asum)\n"
-            "      DO th_idx=1,nthreads\n"
+            "      do th_idx=1,nthreads\n"
             "        bsum = bsum+l_bsum(1,th_idx)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      DEALLOCATE (l_bsum)\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -2424,29 +2424,29 @@ def test_two_reprod_reductions_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
             "f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        l_bsum(1,th_idx) = l_bsum(1,th_idx) + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! sum the partial results sequentially\n"
             "      !\n"
-            "      DO th_idx=1,nthreads\n"
+            "      do th_idx=1,nthreads\n"
             "        asum = asum+l_asum(1,th_idx)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      DEALLOCATE (l_asum)\n"
-            "      DO th_idx=1,nthreads\n"
+            "      do th_idx=1,nthreads\n"
             "        bsum = bsum+l_bsum(1,th_idx)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      DEALLOCATE (l_bsum)")
     assert expected_output in result
 
@@ -2534,10 +2534,10 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -2548,10 +2548,10 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:bsum)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        bsum = bsum + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = bsum\n"
             "      bsum = global_sum%get_sum()\n") in code
@@ -2565,10 +2565,10 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Zero summation variables\n"
@@ -2577,10 +2577,10 @@ def test_multi_different_reduction_real_pdo(tmpdir, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:bsum)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        bsum = bsum + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n") in code
 
 
@@ -2620,25 +2620,25 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bsum * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n")
+            "      call f1_proxy%set_dirty()\n")
         assert code in result
     else:  # not distmem. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f1" in result
@@ -2650,17 +2650,17 @@ def test_multi_builtins_red_then_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bsum * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n") in result
 
 
@@ -2706,23 +2706,23 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bsum * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
+            "      call f1_proxy%set_dirty()\n"
             "      !\n"
             "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
@@ -2741,16 +2741,16 @@ def test_multi_builtins_red_then_do(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      !$omp parallel default(shared), private(df)\n"
             "      !$omp do schedule(static), reduction(+:asum)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        asum = asum + f1_data(df) * f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bsum * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n") in result
 
@@ -2800,19 +2800,19 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
                 "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
+                "      call f1_proxy%set_dirty()\n"
                 "      !\n"
                 "      ! End of set dirty/clean section for above loop(s)\n"
                 "      !\n"
@@ -2827,13 +2827,13 @@ def test_multi_builtins_red_then_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
                 "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end parallel do\n")
         assert code in result
 
@@ -2884,20 +2884,20 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
                 "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
+                "      call f1_proxy%set_dirty()\n"
                 "      !\n"
                 "      ! End of set dirty/clean section for above loop(s)\n"
                 "      !\n"
@@ -2910,13 +2910,13 @@ def test_multi_builtins_red_then_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
                 "        asum = asum + f1_data(df) * f2_data(df)\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n")
         assert code in result
@@ -2957,16 +2957,16 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
         code = (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bvalue * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
+            "      call f1_proxy%set_dirty()\n"
             "      !\n"
             "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
@@ -2977,10 +2977,10 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        asum = asum + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n")
@@ -2991,10 +2991,10 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
         assert (
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bvalue * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n"
             "      !\n"
             "      ! Zero summation variables\n"
@@ -3003,10 +3003,10 @@ def test_multi_builtins_usual_then_red_pdo(tmpdir, monkeypatch, annexed,
             "      !\n"
             "      !$omp parallel do default(shared), private(df), "
             "schedule(static), reduction(+:asum)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: sum_X (sum a real-valued field)\n"
             "        asum = asum + f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end parallel do\n") in result
 
 
@@ -3048,19 +3048,19 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bvalue * f1_data(df)\n"
                 "        ! Built-in: sum_X (sum a real-valued field)\n"
                 "        asum = asum + f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end parallel do\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
+                "      call f1_proxy%set_dirty()\n"
                 "      !\n"
                 "      ! End of set dirty/clean section for above loop(s)\n"
                 "      !\n"
@@ -3075,13 +3075,13 @@ def test_builtins_usual_then_red_fuse_pdo(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bvalue * f1_data(df)\n"
                 "        ! Built-in: sum_X (sum a real-valued field)\n"
                 "        asum = asum + f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end parallel do\n")
         assert code in result
 
@@ -3126,20 +3126,20 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bvalue * f1_data(df)\n"
                 "        ! Built-in: sum_X (sum a real-valued field)\n"
                 "        asum = asum + f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
+                "      call f1_proxy%set_dirty()\n"
                 "      !\n"
                 "      ! End of set dirty/clean section for above loop(s)\n"
                 "      !\n"
@@ -3152,13 +3152,13 @@ def test_builtins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bvalue * f1_data(df)\n"
                 "        ! Built-in: sum_X (sum a real-valued field)\n"
                 "        asum = asum + f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n")
         assert code in result
@@ -3253,19 +3253,19 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
             "* f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! sum the partial results sequentially\n"
             "      !\n"
-            "      DO th_idx=1,nthreads\n"
+            "      do th_idx=1,nthreads\n"
             "        asum = asum+l_asum(1,th_idx)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      DEALLOCATE (l_asum)\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()") in code
@@ -3279,19 +3279,19 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
             "* f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! sum the partial results sequentially\n"
             "      !\n"
-            "      DO th_idx=1,nthreads\n"
+            "      do th_idx=1,nthreads\n"
             "        asum = asum+l_asum(1,th_idx)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      DEALLOCATE (l_asum)\n") in code
 
 
@@ -3374,31 +3374,31 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
             "* f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bsum * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! sum the partial results sequentially\n"
             "      !\n"
-            "      DO th_idx=1,nthreads\n"
+            "      do th_idx=1,nthreads\n"
             "        asum = asum+l_asum(1,th_idx)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      DEALLOCATE (l_asum)\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n"
+            "      call f1_proxy%set_dirty()\n"
             "      !\n"
             "      ! End of set dirty/clean section for above loop(s)\n"
             "      !\n"
@@ -3416,25 +3416,25 @@ def test_reprod_builtins_red_then_usual_do(tmpdir, monkeypatch, annexed,
             "      !$omp parallel default(shared), private(df,th_idx)\n"
             "      th_idx = omp_get_thread_num()+1\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop0_start, loop0_stop, 1\n"
+            "      do df = loop0_start, loop0_stop, 1\n"
             "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
             "        l_asum(1,th_idx) = l_asum(1,th_idx) + f1_data(df) "
             "* f2_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp do schedule(static)\n"
-            "      DO df = loop1_start, loop1_stop, 1\n"
+            "      do df = loop1_start, loop1_stop, 1\n"
             "        ! Built-in: inc_a_times_X (scale a real-valued field)\n"
             "        f1_data(df) = bsum * f1_data(df)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$omp end do\n"
             "      !$omp end parallel\n"
             "      !\n"
             "      ! sum the partial results sequentially\n"
             "      !\n"
-            "      DO th_idx=1,nthreads\n"
+            "      do th_idx=1,nthreads\n"
             "        asum = asum+l_asum(1,th_idx)\n"
-            "      END DO\n"
+            "      enddo\n"
             "      DEALLOCATE (l_asum)\n") in result
 
 
@@ -3499,28 +3499,28 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_data(df) * f2_data(df)\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
                 "      ! sum the partial results sequentially\n"
                 "      !\n"
-                "      DO th_idx=1,nthreads\n"
+                "      do th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      DEALLOCATE (l_asum)\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
+                "      call f1_proxy%set_dirty()\n"
                 "      !\n"
                 "      ! End of set dirty/clean section for above loop(s)\n"
                 "      !\n"
@@ -3536,22 +3536,22 @@ def test_repr_bltins_red_then_usual_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: X_innerproduct_Y (real-valued fields)\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_data(df) * f2_data(df)\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bsum * f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
                 "      ! sum the partial results sequentially\n"
                 "      !\n"
-                "      DO th_idx=1,nthreads\n"
+                "      do th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      DEALLOCATE (l_asum)\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -3599,28 +3599,28 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bvalue * f1_data(df)\n"
                 "        ! Built-in: sum_X (sum a real-valued field)\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
                 "      ! sum the partial results sequentially\n"
                 "      !\n"
-                "      DO th_idx=1,nthreads\n"
+                "      do th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      DEALLOCATE (l_asum)\n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
                 "above loop(s)\n"
                 "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
+                "      call f1_proxy%set_dirty()\n"
                 "      !\n"
                 "      ! End of set dirty/clean section for above loop(s)\n"
                 "      !\n"
@@ -3636,22 +3636,22 @@ def test_repr_bltins_usual_then_red_fuse_do(tmpdir, monkeypatch, annexed,
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df = loop0_start, loop0_stop, 1\n"
+                "      do df = loop0_start, loop0_stop, 1\n"
                 "        ! Built-in: inc_a_times_X (scale a real-valued field)"
                 "\n"
                 "        f1_data(df) = bvalue * f1_data(df)\n"
                 "        ! Built-in: sum_X (sum a real-valued field)\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx) + "
                 "f1_data(df)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
                 "      ! sum the partial results sequentially\n"
                 "      !\n"
-                "      DO th_idx=1,nthreads\n"
+                "      do th_idx=1,nthreads\n"
                 "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      DEALLOCATE (l_asum)\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -3698,21 +3698,21 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df = loop"+names["loop_idx"]+"_start, "
+                "      do df = loop"+names["loop_idx"]+"_start, "
                 "loop"+names["loop_idx"]+"_stop, 1\n"
                 "        " + names["builtin"] + "\n"
                 "        " + names["lvar"] + "(1,th_idx) = " +
                 names["lvar"] + "(1,th_idx) + " + names["rhs"] + "\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
                 "      ! sum the partial results sequentially\n"
                 "      !\n"
-                "      DO th_idx=1,nthreads\n"
+                "      do th_idx=1,nthreads\n"
                 "        " + names["var"] + " = " + names["var"] + "+" +
                 names["lvar"] + "(1,th_idx)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      DEALLOCATE (" + names["lvar"] + ")\n"
                 "      global_sum%value = " + names["var"] + "\n"
                 "      " + names["var"] + " = "
@@ -3738,21 +3738,21 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df = loop"+names["loop_idx"]+"_start, "
+                "      do df = loop"+names["loop_idx"]+"_start, "
                 "loop" + names["loop_idx"]+"_stop, 1\n"
                 "        " + names["builtin"] + "\n"
                 "        " + names["lvar"] + "(1,th_idx) = " +
                 names["lvar"] + "(1,th_idx) + " + names["rhs"] + "\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      !$omp end do\n"
                 "      !$omp end parallel\n"
                 "      !\n"
                 "      ! sum the partial results sequentially\n"
                 "      !\n"
-                "      DO th_idx=1,nthreads\n"
+                "      do th_idx=1,nthreads\n"
                 "        " + names["var"] + " = " + names["var"] + "+" +
                 names["lvar"] + "(1,th_idx)\n"
-                "      END DO\n"
+                "      enddo\n"
                 "      DEALLOCATE (" + names["lvar"] + ")\n") in code
 
 
@@ -4194,12 +4194,12 @@ def test_rc_continuous_depth():
     result = str(psy.gen)
 
     for field_name in ["f2", "m1", "m2"]:
-        assert f"IF ({field_name}_proxy%is_dirty(depth=3)) THEN" in result
-        assert f"CALL {field_name}_proxy%halo_exchange(depth=3)" in result
+        assert f"if ({field_name}_proxy%is_dirty(depth=3)) then" in result
+        assert f"call {field_name}_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
-    assert "DO cell = loop0_start, loop0_stop" in result
-    assert ("      CALL f1_proxy%set_dirty()\n"
-            "      CALL f1_proxy%set_clean(2)") in result
+    assert "do cell = loop0_start, loop0_stop" in result
+    assert ("      call f1_proxy%set_dirty()\n"
+            "      call f1_proxy%set_clean(2)") in result
 
 
 def test_rc_continuous_no_depth():
@@ -4218,19 +4218,19 @@ def test_rc_continuous_no_depth():
     rc_trans.apply(loop)
     result = str(psy.gen)
 
-    assert ("      IF (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) THEN"
+    assert ("      if (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) then"
             "\n"
-            "        CALL f1_proxy%halo_exchange(depth=max_halo_depth_mesh"
+            "        call f1_proxy%halo_exchange(depth=max_halo_depth_mesh"
             " - 1)" in result)
     for fname in ["f2", "m1", "m2"]:
-        assert (f"      IF ({fname}_proxy%is_dirty(depth=max_halo_depth_mesh"
-                f")) THEN\n"
-                f"        CALL {fname}_proxy%halo_exchange(depth=max_halo_"
+        assert (f"      if ({fname}_proxy%is_dirty(depth=max_halo_depth_mesh"
+                f")) then\n"
+                f"        call {fname}_proxy%halo_exchange(depth=max_halo_"
                 f"depth_mesh)" in result)
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
-    assert "DO cell = loop0_start, loop0_stop" in result
-    assert ("      CALL f1_proxy%set_dirty()\n"
-            "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)") in result
+    assert "do cell = loop0_start, loop0_stop" in result
+    assert ("      call f1_proxy%set_dirty()\n"
+            "      call f1_proxy%set_clean(max_halo_depth_mesh-1)") in result
 
 
 def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
@@ -4258,13 +4258,13 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
     for field_name in ["f1", "f2", "m1"]:
-        assert (f"      IF ({field_name}_proxy%is_dirty(depth=3)) THEN\n"
-                f"        CALL {field_name}_proxy%halo_exchange(depth=3)"
+        assert (f"      if ({field_name}_proxy%is_dirty(depth=3)) then\n"
+                f"        call {field_name}_proxy%halo_exchange(depth=3)"
                 in result)
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
-    assert "DO cell = loop0_start, loop0_stop" in result
-    assert ("      CALL m2_proxy%set_dirty()\n"
-            "      CALL m2_proxy%set_clean(3)") in result
+    assert "do cell = loop0_start, loop0_stop" in result
+    assert ("      call m2_proxy%set_dirty()\n"
+            "      call m2_proxy%set_clean(3)") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4295,14 +4295,14 @@ def test_rc_discontinuous_no_depth(monkeypatch, annexed):
     result = str(psy.gen)
 
     for field_name in ["f1", "f2", "m1"]:
-        assert (f"IF ({field_name}_proxy%is_dirty(depth=max_halo_depth_mesh)) "
+        assert (f"if ({field_name}_proxy%is_dirty(depth=max_halo_depth_mesh)) "
                 f"THEN" in result)
-        assert (f"CALL {field_name}_proxy%halo_exchange("
+        assert (f"call {field_name}_proxy%halo_exchange("
                 f"depth=max_halo_depth_mesh)" in result)
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
-    assert "DO cell = loop0_start, loop0_stop" in result
-    assert "CALL m2_proxy%set_dirty()" not in result
-    assert "CALL m2_proxy%set_clean(max_halo_depth_mesh)" in result
+    assert "do cell = loop0_start, loop0_stop" in result
+    assert "call m2_proxy%set_dirty()" not in result
+    assert "call m2_proxy%set_clean(max_halo_depth_mesh)" in result
 
 
 def test_rc_all_discontinuous_depth(tmpdir):
@@ -4318,12 +4318,12 @@ def test_rc_all_discontinuous_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
-    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
+    assert "if (f2_proxy%is_dirty(depth=3)) then" in result
+    assert "call f2_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
-    assert "DO cell = loop0_start, loop0_stop" in result
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(3)" in result
+    assert "do cell = loop0_start, loop0_stop" in result
+    assert "call f1_proxy%set_dirty()" in result
+    assert "call f1_proxy%set_clean(3)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4342,11 +4342,11 @@ def test_rc_all_discontinuous_no_depth(tmpdir):
     rc_trans.apply(loop)
     result = str(psy.gen)
 
-    assert "IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN" in result
-    assert "CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
+    assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
+    assert "call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
-    assert "DO cell = loop0_start, loop0_stop" in result
-    assert "CALL f1_proxy%set_clean(max_halo_depth_mesh)" in result
+    assert "do cell = loop0_start, loop0_stop" in result
+    assert "call f1_proxy%set_clean(max_halo_depth_mesh)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4366,13 +4366,13 @@ def test_rc_all_discontinuous_vector_depth(tmpdir):
     result = str(psy.gen)
 
     for idx in range(1, 4):
-        assert f"IF (f2_proxy({idx})%is_dirty(depth=3)) THEN" in result
-        assert f"CALL f2_proxy({idx})%halo_exchange(depth=3)" in result
+        assert f"if (f2_proxy({idx})%is_dirty(depth=3)) then" in result
+        assert f"call f2_proxy({idx})%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
-    assert "DO cell = loop0_start, loop0_stop" in result
+    assert "do cell = loop0_start, loop0_stop" in result
     for idx in range(1, 4):
-        assert f"CALL f1_proxy({idx})%set_dirty()" in result
-        assert f"CALL f1_proxy({idx})%set_clean(3)" in result
+        assert f"call f1_proxy({idx})%set_dirty()" in result
+        assert f"call f1_proxy({idx})%set_clean(3)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4391,14 +4391,14 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir):
     rc_trans.apply(loop)
     result = str(psy.gen)
     for idx in range(1, 4):
-        assert (f"IF (f2_proxy({idx})%is_dirty(depth=max_halo_depth_mesh"
-                f")) THEN") in result
-        assert (f"CALL f2_proxy({idx})%halo_exchange(depth=max_halo_depth_mesh"
+        assert (f"if (f2_proxy({idx})%is_dirty(depth=max_halo_depth_mesh"
+                f")) then") in result
+        assert (f"call f2_proxy({idx})%halo_exchange(depth=max_halo_depth_mesh"
                 f")") in result
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
-    assert "DO cell = loop0_start, loop0_stop" in result
+    assert "do cell = loop0_start, loop0_stop" in result
     for idx in range(1, 4):
-        assert f"CALL f1_proxy({idx})%set_clean(max_halo_depth_mesh)" in result
+        assert f"call f1_proxy({idx})%set_clean(max_halo_depth_mesh)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4418,13 +4418,13 @@ def test_rc_all_disc_prev_depend_depth(tmpdir):
     loop = schedule[1]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    assert "IF (f1_proxy%is_dirty(depth=3)) THEN" not in result
-    assert "CALL f1_proxy%halo_exchange(depth=3)" in result
+    assert "if (f1_proxy%is_dirty(depth=3)) then" not in result
+    assert "call f1_proxy%halo_exchange(depth=3)" in result
     assert "loop1_stop = mesh%get_last_halo_cell(3)" in result
-    assert "DO cell = loop1_start, loop1_stop" in result
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f3_proxy%set_dirty()" in result
-    assert "CALL f3_proxy%set_clean(3)" in result
+    assert "do cell = loop1_start, loop1_stop" in result
+    assert "call f1_proxy%set_dirty()" in result
+    assert "call f3_proxy%set_dirty()" in result
+    assert "call f3_proxy%set_clean(3)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4443,13 +4443,13 @@ def test_rc_all_disc_prev_depend_no_depth():
     loop = schedule[1]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert ("IF (f1_proxy%is_dirty(depth=max_halo_depth_mesh)) "
+    assert "call f1_proxy%set_dirty()" in result
+    assert ("if (f1_proxy%is_dirty(depth=max_halo_depth_mesh)) "
             "THEN") not in result
-    assert "CALL f1_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
+    assert "call f1_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
     assert "loop1_stop = mesh%get_last_halo_cell()" in result
-    assert "DO cell = loop1_start, loop1_stop" in result
-    assert "CALL f3_proxy%set_clean(max_halo_depth_mesh)" in result
+    assert "do cell = loop1_start, loop1_stop" in result
+    assert "call f3_proxy%set_clean(max_halo_depth_mesh)" in result
 
 
 def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
@@ -4468,14 +4468,14 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir):
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
     for idx in range(1, 4):
-        assert f"IF (f1_proxy({idx})%is_dirty(depth=3)) THEN" not in result
-        assert f"CALL f1_proxy({idx})%halo_exchange(depth=3)" in result
+        assert f"if (f1_proxy({idx})%is_dirty(depth=3)) then" not in result
+        assert f"call f1_proxy({idx})%halo_exchange(depth=3)" in result
         assert "loop1_stop = mesh%get_last_halo_cell(3)" in result
-    assert "DO cell = loop1_start, loop1_stop" in result
+    assert "do cell = loop1_start, loop1_stop" in result
     for idx in range(1, 4):
-        assert f"CALL f1_proxy({idx})%set_dirty()" in result
-        assert f"CALL f3_proxy({idx})%set_dirty()" in result
-        assert f"CALL f3_proxy({idx})%set_clean(3)" in result
+        assert f"call f1_proxy({idx})%set_dirty()" in result
+        assert f"call f3_proxy({idx})%set_dirty()" in result
+        assert f"call f3_proxy({idx})%set_clean(3)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4496,13 +4496,13 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir):
     result = str(psy.gen)
     assert "is_dirty" not in result
     for idx in range(1, 4):
-        assert (f"CALL f1_proxy({idx})%halo_exchange(depth=max_halo_depth_"
+        assert (f"call f1_proxy({idx})%halo_exchange(depth=max_halo_depth_"
                 f"mesh)") in result
     assert "loop1_stop = mesh%get_last_halo_cell()" in result
-    assert "DO cell = loop1_start, loop1_stop" in result
+    assert "do cell = loop1_start, loop1_stop" in result
     for idx in range(1, 4):
-        assert f"CALL f1_proxy({idx})%set_dirty()" in result
-        assert f"CALL f3_proxy({idx})%set_clean(max_halo_depth_mesh)" in result
+        assert f"call f1_proxy({idx})%set_dirty()" in result
+        assert f"call f3_proxy({idx})%set_clean(max_halo_depth_mesh)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4523,19 +4523,19 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     result = str(psy.gen)
     # f3 has readwrite access so need to check the halos
     for idx in range(1, 4):
-        assert (f"IF (f3_proxy({idx})%is_dirty(depth=max_halo_depth_mesh))"
+        assert (f"if (f3_proxy({idx})%is_dirty(depth=max_halo_depth_mesh))"
                 in result)
-        assert (f"CALL f3_proxy({idx})%halo_exchange(depth=max_halo_depth_mesh"
+        assert (f"call f3_proxy({idx})%halo_exchange(depth=max_halo_depth_mesh"
                 ")" in result)
     # f1 has RW to W dependency
     for idx in range(1, 4):
-        assert (f"CALL f1_proxy({idx})%halo_exchange(depth=max_halo_depth_mesh"
+        assert (f"call f1_proxy({idx})%halo_exchange(depth=max_halo_depth_mesh"
                 f")" in result)
     assert "loop1_stop = mesh%get_last_halo_cell()" in result
-    assert "DO cell = loop1_start, loop1_stop" in result
+    assert "do cell = loop1_start, loop1_stop" in result
     for idx in range(1, 4):
-        assert f"CALL f1_proxy({idx})%set_dirty()" in result
-        assert f"CALL f3_proxy({idx})%set_clean(max_halo_depth_mesh)" in result
+        assert f"call f1_proxy({idx})%set_dirty()" in result
+        assert f"call f3_proxy({idx})%set_clean(max_halo_depth_mesh)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4556,12 +4556,12 @@ def test_rc_dofs_depth():
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
     for field in ["f1", "f2"]:
-        assert f"IF ({field}_proxy%is_dirty(depth=3)) THEN" in result
-        assert f"CALL {field}_proxy%halo_exchange(depth=3)" in result
+        assert f"if ({field}_proxy%is_dirty(depth=3)) then" in result
+        assert f"call {field}_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = f1_proxy%vspace%get_last_dof_halo(3)" in result
-    assert "DO df = loop0_start, loop0_stop" in result
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(3)" in result
+    assert "do df = loop0_start, loop0_stop" in result
+    assert "call f1_proxy%set_dirty()" in result
+    assert "call f1_proxy%set_clean(3)" in result
 
 
 def test_rc_dofs_no_depth():
@@ -4580,12 +4580,12 @@ def test_rc_dofs_no_depth():
     rc_trans.apply(loop)
     result = str(psy.gen)
 
-    assert "IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN" in result
-    assert "CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
+    assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
+    assert "call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
     assert "loop0_stop = f1_proxy%vspace%get_last_dof_halo()" in result
-    assert "DO df = loop0_start, loop0_stop" in result
-    assert "CALL f1_proxy%set_dirty()" not in result
-    assert "CALL f1_proxy%set_clean(max_halo_depth_mesh)" in result
+    assert "do df = loop0_start, loop0_stop" in result
+    assert "call f1_proxy%set_dirty()" not in result
+    assert "call f1_proxy%set_clean(max_halo_depth_mesh)" in result
 
 
 def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
@@ -4614,11 +4614,11 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Check that the f2 halo exchange is modified
-    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
+    assert "call f2_proxy%halo_exchange(depth=3)" in result
     # There is a need for a run-time is_dirty check for field f2 as
     # this field is not modified in this invoke and therefore its halo
     # is in an unknown state before it is read
-    assert ("IF (f2_proxy%is_dirty(depth=3)) "
+    assert ("if (f2_proxy%is_dirty(depth=3)) "
             "THEN") in result
 
     # Check that the existing halo exchanges (for the first un-modified
@@ -4628,12 +4628,12 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed, tmpdir):
     if annexed:
         fld_hex_names.remove("f1")
     for field_name in fld_hex_names:
-        assert f"IF ({field_name}_proxy%is_dirty(depth=1)) THEN" in result
-        assert f"CALL {field_name}_proxy%halo_exchange(depth=1)" in result
+        assert f"if ({field_name}_proxy%is_dirty(depth=1)) then" in result
+        assert f"call {field_name}_proxy%halo_exchange(depth=1)" in result
     assert "loop1_stop = f1_proxy%vspace%get_last_dof_halo(3)" in result
-    assert "DO df = loop1_start, loop1_stop" in result
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(3)" in result
+    assert "do df = loop1_start, loop1_stop" in result
+    assert "call f1_proxy%set_dirty()" in result
+    assert "call f1_proxy%set_clean(3)" in result
 
 
 def test_rc_dofs_no_depth_prev_dep():
@@ -4653,16 +4653,16 @@ def test_rc_dofs_no_depth_prev_dep():
     result = str(psy.gen)
 
     # Check that the f2 halo exchange is modified
-    assert "CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
-    assert "IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN" in result
+    assert "call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
+    assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
     # Check that the existing f1, m1 and m2 halo exchanges remain unchanged
     for fname in ["f1", "m1", "m2"]:
-        assert f"IF ({fname}_proxy%is_dirty(depth=1)) THEN" in result
-        assert f"CALL {fname}_proxy%halo_exchange(depth=1)" in result
+        assert f"if ({fname}_proxy%is_dirty(depth=1)) then" in result
+        assert f"call {fname}_proxy%halo_exchange(depth=1)" in result
     assert "loop1_stop = f1_proxy%vspace%get_last_dof_halo()" in result
-    assert "DO df = loop1_start, loop1_stop" in result
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(max_halo_depth_mesh)" in result
+    assert "do df = loop1_start, loop1_stop" in result
+    assert "call f1_proxy%set_dirty()" in result
+    assert "call f1_proxy%set_clean(max_halo_depth_mesh)" in result
 
 
 def test_continuous_no_set_clean():
@@ -4673,9 +4673,9 @@ def test_continuous_no_set_clean():
                         TEST_API, idx=0, dist_mem=True)
     result = str(psy.gen)
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in result
-    assert "DO cell = loop0_start, loop0_stop" in result
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(" not in result
+    assert "do cell = loop0_start, loop0_stop" in result
+    assert "call f1_proxy%set_dirty()" in result
+    assert "call f1_proxy%set_clean(" not in result
 
 
 def test_discontinuous_no_set_clean():
@@ -4686,8 +4686,8 @@ def test_discontinuous_no_set_clean():
                         idx=0, dist_mem=True)
     result = str(psy.gen)
     assert "loop0_stop = mesh%get_last_edge_cell()" in result
-    assert "CALL m2_proxy%set_dirty()" in result
-    assert "CALL m2_proxy%set_clean(" not in result
+    assert "call m2_proxy%set_dirty()" in result
+    assert "call m2_proxy%set_clean(" not in result
 
 
 def test_dofs_no_set_clean(monkeypatch, annexed):
@@ -4708,8 +4708,8 @@ def test_dofs_no_set_clean(monkeypatch, annexed):
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_annexed()" in result
     else:
         assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()" in result
-    assert "CALL f1_proxy%set_dirty()" in result
-    assert "CALL f1_proxy%set_clean(" not in result
+    assert "call f1_proxy%set_dirty()" in result
+    assert "call f1_proxy%set_clean(" not in result
 
 
 def test_rc_vector_depth(tmpdir):
@@ -4729,13 +4729,13 @@ def test_rc_vector_depth(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
-    assert "CALL f2_proxy%halo_exchange(depth=3)" in result
+    assert "if (f2_proxy%is_dirty(depth=3)) then" in result
+    assert "call f2_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
     for index in range(1, 4):
-        assert f"CALL chi_proxy({index})%set_dirty()" in result
+        assert f"call chi_proxy({index})%set_dirty()" in result
     for index in range(1, 4):
-        assert f"CALL chi_proxy({index})%set_clean(2)" in result
+        assert f"call chi_proxy({index})%set_clean(2)" in result
 
 
 def test_rc_vector_no_depth(tmpdir):
@@ -4755,13 +4755,13 @@ def test_rc_vector_no_depth(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    assert "IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN" in result
-    assert "CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
+    assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
+    assert "call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)" in result
     assert "loop0_stop = mesh%get_last_halo_cell()" in result
     for idx in range(1, 4):
-        assert f"CALL chi_proxy({idx})%set_dirty()" in result
+        assert f"call chi_proxy({idx})%set_dirty()" in result
     for idx in range(1, 4):
-        assert (f"CALL chi_proxy({idx})%set_clean(max_halo_depth_mesh-1)"
+        assert (f"call chi_proxy({idx})%set_clean(max_halo_depth_mesh-1)"
                 in result)
 
 
@@ -4781,32 +4781,32 @@ def test_rc_no_halo_decrease():
     loop = schedule.children[4]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
-    assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
-    assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "if (f2_proxy%is_dirty(depth=3)) then" in result
+    assert "if (m1_proxy%is_dirty(depth=3)) then" in result
+    assert "if (m2_proxy%is_dirty(depth=3)) then" in result
     # Second, try to change the size of the f2 halo exchange to 2 by
     # performing redundant computation in the second loop
     loop = schedule.children[5]
     rc_trans.apply(loop, {"depth": 2})
     result = str(psy.gen)
-    assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
-    assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
-    assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "if (f2_proxy%is_dirty(depth=3)) then" in result
+    assert "if (m1_proxy%is_dirty(depth=3)) then" in result
+    assert "if (m2_proxy%is_dirty(depth=3)) then" in result
     # Third, set the size of the f2 halo exchange to the full halo
     # depth by performing redundant computation in the second loop
     rc_trans.apply(loop)
     result = str(psy.gen)
-    assert "IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN" in result
-    assert "IF (m1_proxy%is_dirty(depth=3)) THEN" in result
-    assert "IF (m2_proxy%is_dirty(depth=3)) THEN" in result
+    assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
+    assert "if (m1_proxy%is_dirty(depth=3)) then" in result
+    assert "if (m2_proxy%is_dirty(depth=3)) then" in result
     # Fourth, try to change the size of the f2 halo exchange to 4 by
     # performing redundant computation in the first loop
     loop = schedule.children[4]
     rc_trans.apply(loop, {"depth": 4})
     result = str(psy.gen)
-    assert "IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN" in result
-    assert "IF (m1_proxy%is_dirty(depth=4)) THEN" in result
-    assert "IF (m2_proxy%is_dirty(depth=4)) THEN" in result
+    assert "if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then" in result
+    assert "if (m1_proxy%is_dirty(depth=4)) then" in result
+    assert "if (m2_proxy%is_dirty(depth=4)) then" in result
 
 
 def test_rc_updated_dependence_analysis():
@@ -4882,10 +4882,10 @@ def test_rc_remove_halo_exchange(tmpdir, monkeypatch):
     psy, _ = get_invoke("14.7_halo_annexed.f90",
                         TEST_API, idx=0, dist_mem=True)
     result = str(psy.gen)
-    assert "CALL f1_proxy%halo_exchange(depth=1)" in result
-    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
-    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    assert "call f1_proxy%halo_exchange(depth=1)" in result
+    assert "call f2_proxy%halo_exchange(depth=1)" in result
+    assert "if (m1_proxy%is_dirty(depth=1)) then" in result
+    assert "call m1_proxy%halo_exchange(depth=1)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4897,18 +4897,18 @@ def test_rc_remove_halo_exchange(tmpdir, monkeypatch):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
-    assert "CALL f1_proxy%halo_exchange(depth=1)" not in result
-    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
-    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    assert "call f1_proxy%halo_exchange(depth=1)" not in result
+    assert "call f2_proxy%halo_exchange(depth=1)" in result
+    assert "if (m1_proxy%is_dirty(depth=1)) then" in result
+    assert "call m1_proxy%halo_exchange(depth=1)" in result
     #
     loop = schedule.children[1]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
-    assert "CALL f1_proxy%halo_exchange(depth=1)" not in result
-    assert "CALL f2_proxy%halo_exchange(depth=1)" not in result
-    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    assert "call f1_proxy%halo_exchange(depth=1)" not in result
+    assert "call f2_proxy%halo_exchange(depth=1)" not in result
+    assert "if (m1_proxy%is_dirty(depth=1)) then" in result
+    assert "call m1_proxy%halo_exchange(depth=1)" in result
 
 
 def test_rc_max_remove_halo_exchange(tmpdir):
@@ -4929,8 +4929,8 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     #
     # f3 has "inc" access so there is a check for the halo exchange
     # of depth 1
-    assert "CALL f3_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
+    assert "call f3_proxy%halo_exchange(depth=1)" in result
+    assert "if (f3_proxy%is_dirty(depth=1)) then" in result
     rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[4]
     rc_trans.apply(loop)
@@ -4941,11 +4941,11 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     # and therefore the outermost halo stays dirty. We can not be
     # certain whether the halo exchange is required or not as we don't
     # know the depth of the halo.
-    assert "CALL f3_proxy%halo_exchange(depth=1)" in result
+    assert "call f3_proxy%halo_exchange(depth=1)" in result
     # We do not know whether we need the halo exchange so we include an if
-    assert "IF (f3_proxy%is_dirty(depth=1)) THEN" in result
+    assert "if (f3_proxy%is_dirty(depth=1)) then" in result
     #
-    assert "CALL f4_proxy%halo_exchange(depth=1)" in result
+    assert "call f4_proxy%halo_exchange(depth=1)" in result
     loop = schedule.children[5]
     rc_trans.apply(loop)
     result = str(psy.gen)
@@ -4954,7 +4954,7 @@ def test_rc_max_remove_halo_exchange(tmpdir):
     # are clean. However, we introduce a new halo exchange for
     # f5. This could be removed by redundant computation but we don't
     # bother as that is not relevant to this test.
-    assert "CALL f4_proxy%halo_exchange(depth=1)" not in result
+    assert "call f4_proxy%halo_exchange(depth=1)" not in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -4982,8 +4982,8 @@ def test_rc_continuous_halo_remove():
     # exchanges is placed before the f3_inc_loop and one is placed
     # before the f3_read_loop (there are three other halo exchanges,
     # one each for fields f1, f2 and f4).
-    assert result.count("CALL f3_proxy%halo_exchange(depth=1") == 2
-    assert result.count("IF (f3_proxy%is_dirty(depth=1)) THEN") == 1
+    assert result.count("call f3_proxy%halo_exchange(depth=1") == 2
+    assert result.count("if (f3_proxy%is_dirty(depth=1)) then") == 1
     #
     # Applying redundant computation to equal depth on f3_inc_loop and
     # f3_read_loop does not remove the initial number of halo exchanges.
@@ -4992,11 +4992,11 @@ def test_rc_continuous_halo_remove():
     rc_trans.apply(f3_read_loop, {"depth": 3})
     rc_trans.apply(f3_inc_loop, {"depth": 3})
     result = str(psy.gen)
-    assert result.count("CALL f3_proxy%halo_exchange(depth=") == 2
+    assert result.count("call f3_proxy%halo_exchange(depth=") == 2
     assert f3_inc_hex._compute_halo_depth() == "2"
     assert f3_read_hex._compute_halo_depth() == "3"
-    assert "IF (f3_proxy%is_dirty(depth=2)) THEN" in result
-    assert "IF (f3_proxy%is_dirty(depth=3)) THEN" not in result
+    assert "if (f3_proxy%is_dirty(depth=2)) then" in result
+    assert "if (f3_proxy%is_dirty(depth=3)) then" not in result
     #
     # Applying redundant computation to one more depth to f3_inc_loop
     # removes the halo exchange before the f3_read_loop.
@@ -5004,11 +5004,11 @@ def test_rc_continuous_halo_remove():
     # f3_inc_loop are now to depth 3.
     rc_trans.apply(f3_inc_loop, {"depth": 4})
     result = str(psy.gen)
-    assert result.count("CALL f3_proxy%halo_exchange(depth=") == 1
+    assert result.count("call f3_proxy%halo_exchange(depth=") == 1
     assert f3_inc_hex._compute_halo_depth() == "3"
     # Position 7 is now halo exchange on f4 instead of f3
     assert schedule.children[7].field != "f3"
-    assert "IF (f3_proxy%is_dirty(depth=4)" not in result
+    assert "if (f3_proxy%is_dirty(depth=4)" not in result
 
 
 def test_rc_discontinuous_halo_remove(monkeypatch):
@@ -5026,19 +5026,19 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     f4_write_loop = schedule.children[5]
     f4_read_loop = schedule.children[9]
-    assert "CALL f4_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f4_proxy%is_dirty(depth=1)) THEN" not in result
+    assert "call f4_proxy%halo_exchange(depth=1)" in result
+    assert "if (f4_proxy%is_dirty(depth=1)) then" not in result
     rc_trans.apply(f4_read_loop, {"depth": 3})
     rc_trans.apply(f4_write_loop, {"depth": 2})
     result = str(psy.gen)
-    assert "CALL f4_proxy%halo_exchange(depth=3)" in result
-    assert "IF (f4_proxy%is_dirty(depth=3)) THEN" not in result
+    assert "call f4_proxy%halo_exchange(depth=3)" in result
+    assert "if (f4_proxy%is_dirty(depth=3)) then" not in result
     # Increase RC depth to 3 and check that halo exchange is removed
     # when a discontinuous field has write access
     rc_trans.apply(f4_write_loop, {"depth": 3})
     result = str(psy.gen)
-    assert "CALL f4_proxy%halo_exchange(depth=" not in result
-    assert "IF (f4_proxy%is_dirty(depth=" not in result
+    assert "call f4_proxy%halo_exchange(depth=" not in result
+    assert "if (f4_proxy%is_dirty(depth=" not in result
     # Increase RC depth to 3 and check that halo exchange is not removed
     # when a discontinuous field has readwrite access
     call = f4_write_loop.loop_body[0]
@@ -5047,8 +5047,8 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     monkeypatch.setattr(f4_write_loop, "_upper_bound_halo_depth", value=2)
     rc_trans.apply(f4_write_loop, {"depth": 3})
     result = str(psy.gen)
-    assert "CALL f4_proxy%halo_exchange(depth=" in result
-    assert "IF (f4_proxy%is_dirty(depth=" in result
+    assert "call f4_proxy%halo_exchange(depth=" in result
+    assert "if (f4_proxy%is_dirty(depth=" in result
 
 
 def test_rc_reader_halo_remove():
@@ -5064,21 +5064,21 @@ def test_rc_reader_halo_remove():
     result = str(psy.gen)
 
     result = str(psy.gen)
-    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+    assert "call f2_proxy%halo_exchange(depth=1)" in result
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
     # Redundant computation to avoid halo exchange for f2
     rc_trans.apply(schedule.children[1], {"depth": 2})
     result = str(psy.gen)
-    assert "CALL f2_proxy%halo_exchange(" not in result
+    assert "call f2_proxy%halo_exchange(" not in result
 
     # Redundant computation to depth 2 in f2 reader loop should not
     # cause a new halo exchange as it is still covered by depth=2 in
     # the writer loop
     rc_trans.apply(schedule.children[4], {"depth": 2})
     result = str(psy.gen)
-    assert "CALL f2_proxy%halo_exchange(" not in result
+    assert "call f2_proxy%halo_exchange(" not in result
 
 
 def test_rc_vector_reader_halo_remove():
@@ -5152,11 +5152,11 @@ def test_rc_vector_reader_halo_readwrite():
     for idvct in range(1, 4):
         idx = str(idvct)
         assert (
-            "CALL f1_proxy(" + idx + ")%halo_exchange(depth=2)") in result
+            "call f1_proxy(" + idx + ")%halo_exchange(depth=2)") in result
         assert (
-            "      IF (f1_proxy(" + idx + ")%is_dirty(depth=2)) THEN\n"
-            "         CALL f1_proxy(" + idx + ")%halo_exchange(depth=2)\n"
-            "      END IF\n") not in result
+            "      if (f1_proxy(" + idx + ")%is_dirty(depth=2)) then\n"
+            "         call f1_proxy(" + idx + ")%halo_exchange(depth=2)\n"
+            "      end if\n") not in result
 
 
 def test_stencil_rc_max_depth_1(monkeypatch):
@@ -5616,22 +5616,22 @@ def test_rc_colour(tmpdir):
     result = str(psy.gen)
 
     assert (
-        "      IF (f2_proxy%is_dirty(depth=2)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=2)\n"
-        "      END IF\n"
-        "      IF (m1_proxy%is_dirty(depth=2)) THEN\n"
-        "        CALL m1_proxy%halo_exchange(depth=2)\n"
-        "      END IF\n"
-        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
-        "        CALL m2_proxy%halo_exchange(depth=2)\n"
-        "      END IF\n" in result)
+        "      if (f2_proxy%is_dirty(depth=2)) then\n"
+        "        call f2_proxy%halo_exchange(depth=2)\n"
+        "      end if\n"
+        "      if (m1_proxy%is_dirty(depth=2)) then\n"
+        "        call m1_proxy%halo_exchange(depth=2)\n"
+        "      end if\n"
+        "      if (m2_proxy%is_dirty(depth=2)) then\n"
+        "        call m2_proxy%halo_exchange(depth=2)\n"
+        "      end if\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = "
             "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
-        "      DO colour = loop0_start, loop0_stop, 1\n"
-        "        DO cell = loop1_start, last_halo_cell_all_colours(colour,2)"
+        "      do colour = loop0_start, loop0_stop, 1\n"
+        "        do cell = loop1_start, last_halo_cell_all_colours(colour,2)"
         in result)
 
     # We've requested redundant computation out to the level 2 halo
@@ -5639,8 +5639,8 @@ def test_rc_colour(tmpdir):
     # dirty. This means that all of the halo is dirty apart from level
     # 1.
     assert (
-        "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(1)" in result)
+        "      call f1_proxy%set_dirty()\n"
+        "      call f1_proxy%set_clean(1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5665,28 +5665,28 @@ def test_rc_max_colour(tmpdir):
 
     result = str(psy.gen)
     assert (
-        "      IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      END IF\n"
-        "      IF (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
-        "        CALL m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      END IF\n"
-        "      IF (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
-        "        CALL m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      END IF\n" in result)
+        "      if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "        call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "      end if\n"
+        "      if (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "        call m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "      end if\n"
+        "      if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "        call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "      end if\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = "
             "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
-        "      DO colour = loop0_start, loop0_stop, 1\n"
-        "        DO cell = loop1_start, last_halo_cell_all_colours(colour,"
+        "      do colour = loop0_start, loop0_stop, 1\n"
+        "        do cell = loop1_start, last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh), 1\n"
         in result)
 
     assert (
-        "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      call f1_proxy%set_dirty()\n"
+        "      call f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5738,32 +5738,32 @@ def test_rc_then_colour(tmpdir):
     result = str(psy.gen)
 
     assert (
-        "      IF (f2_proxy%is_dirty(depth=3)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=3)\n"
-        "      END IF\n"
-        "      IF (m1_proxy%is_dirty(depth=3)) THEN\n"
-        "        CALL m1_proxy%halo_exchange(depth=3)\n"
-        "      END IF\n"
-        "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
-        "        CALL m2_proxy%halo_exchange(depth=3)\n"
-        "      END IF\n" in result)
+        "      if (f2_proxy%is_dirty(depth=3)) then\n"
+        "        call f2_proxy%halo_exchange(depth=3)\n"
+        "      end if\n"
+        "      if (m1_proxy%is_dirty(depth=3)) then\n"
+        "        call m1_proxy%halo_exchange(depth=3)\n"
+        "      end if\n"
+        "      if (m2_proxy%is_dirty(depth=3)) then\n"
+        "        call m2_proxy%halo_exchange(depth=3)\n"
+        "      end if\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = "
             "mesh%get_last_halo_cell_all_colours()" in result)
     assert (
-        "      DO colour = loop0_start, loop0_stop, 1\n"
-        "        DO cell = loop1_start, last_halo_cell_all_colours(colour,3),"
+        "      do colour = loop0_start, loop0_stop, 1\n"
+        "        do cell = loop1_start, last_halo_cell_all_colours(colour,3),"
         " 1\n"
-        "          CALL testkern_code(nlayers, a, f1_data,"
+        "          call testkern_code(nlayers, a, f1_data,"
         " f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
         "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
         "map_w3(:,cmap(colour,cell)))\n" in result)
 
     assert (
-        "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(2)" in result)
+        "      call f1_proxy%set_dirty()\n"
+        "      call f1_proxy%set_clean(2)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5794,27 +5794,27 @@ def test_rc_then_colour2(tmpdir):
     result = str(psy.gen)
 
     assert (
-        "      IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      END IF\n"
-        "      IF (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
-        "        CALL m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      END IF\n"
-        "      IF (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
-        "        CALL m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      END IF\n" in result)
+        "      if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "        call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "      end if\n"
+        "      if (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "        call m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "      end if\n"
+        "      if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "        call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "      end if\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = mesh%"
             "get_last_halo_cell_all_colours()" in result)
     assert (
-        "      DO colour = loop0_start, loop0_stop, 1\n"
-        "        DO cell = loop1_start, last_halo_cell_all_colours(colour,"
+        "      do colour = loop0_start, loop0_stop, 1\n"
+        "        do cell = loop1_start, last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh), 1\n" in result)
 
     assert (
-        "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      call f1_proxy%set_dirty()\n"
+        "      call f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -5849,29 +5849,29 @@ def test_loop_fuse_then_rc(tmpdir):
 
     assert "max_halo_depth_mesh = mesh%get_halo_depth()" in result
     assert (
-        "      IF (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) THEN\n"
-        "        CALL f1_proxy%halo_exchange(depth=max_halo_depth_mesh - 1)\n"
-        "      END IF\n"
-        "      IF (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      END IF\n"
-        "      IF (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
-        "        CALL m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      END IF\n"
-        "      IF (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) THEN\n"
-        "        CALL m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
-        "      END IF\n" in result)
+        "      if (f1_proxy%is_dirty(depth=max_halo_depth_mesh - 1)) then\n"
+        "        call f1_proxy%halo_exchange(depth=max_halo_depth_mesh - 1)\n"
+        "      end if\n"
+        "      if (f2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "        call f2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "      end if\n"
+        "      if (m1_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "        call m1_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "      end if\n"
+        "      if (m2_proxy%is_dirty(depth=max_halo_depth_mesh)) then\n"
+        "        call m2_proxy%halo_exchange(depth=max_halo_depth_mesh)\n"
+        "      end if\n" in result)
     assert "      cmap => mesh%get_colour_map()\n" in result
     assert "loop0_stop = ncolour" in result
     assert ("last_halo_cell_all_colours = mesh%"
             "get_last_halo_cell_all_colours()" in result)
     assert (
-        "      DO colour = loop0_start, loop0_stop, 1\n"
-        "        DO cell = loop1_start, last_halo_cell_all_colours(colour,"
+        "      do colour = loop0_start, loop0_stop, 1\n"
+        "        do cell = loop1_start, last_halo_cell_all_colours(colour,"
         "max_halo_depth_mesh), 1\n" in result)
     assert (
-        "      CALL f1_proxy%set_dirty()\n"
-        "      CALL f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
+        "      call f1_proxy%set_dirty()\n"
+        "      call f1_proxy%set_clean(max_halo_depth_mesh-1)" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6420,19 +6420,19 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     otrans.apply(loops[5])
     gen = str(psy.gen)
     assert "loop4_stop = ncolour_cmap_fld_c" in gen
-    assert ("      DO colour = loop4_start, loop4_stop, 1\n"
+    assert ("      do colour = loop4_start, loop4_stop, 1\n"
             "        !$omp parallel do default(shared), private(cell), "
             "schedule(static)\n" in gen)
 
     if dist_mem:
         assert ("last_halo_cell_all_colours_cmap_fld_c = "
                 "mesh_cmap_fld_c%get_last_halo_cell_all_colours()" in gen)
-        assert ("DO cell = loop5_start, last_halo_cell_all_colours_cmap_fld_c"
+        assert ("do cell = loop5_start, last_halo_cell_all_colours_cmap_fld_c"
                 "(colour,1), 1\n" in gen)
     else:
         assert ("last_edge_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%"
                 "get_last_edge_cell_all_colours()" in gen)
-        assert ("DO cell = loop5_start, last_edge_cell_all_colours_cmap_fld_c"
+        assert ("do cell = loop5_start, last_edge_cell_all_colours_cmap_fld_c"
                 "(colour), 1\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6467,19 +6467,19 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
                 "get_last_edge_cell_all_colours()\n" in gen)
         upper_bound = "last_edge_cell_all_colours_cmap_fld_c(colour)"
     assert "loop0_stop = ncolour_cmap_fld_c\n" in gen
-    assert (f"      DO colour = loop0_start, loop0_stop, 1\n"
+    assert (f"      do colour = loop0_start, loop0_stop, 1\n"
             f"        !$omp parallel default(shared), private(cell)\n"
             f"        !$omp do schedule(static)\n"
-            f"        DO cell = loop1_start, {upper_bound}, 1\n"
-            f"          CALL prolong_test_kernel_code(nlayers, "
+            f"        do cell = loop1_start, {upper_bound}, 1\n"
+            f"          call prolong_test_kernel_code(nlayers, "
             f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
             f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
             f"fld_m_data, cmap_fld_c_data, ndf_w1, undf_w1, "
             f"map_w1, undf_w2, map_w2(:,cmap_cmap_fld_c(colour,cell)))\n"
-            f"        END DO\n"
+            f"        enddo\n"
             f"        !$omp end do\n"
             f"        !$omp end parallel\n"
-            f"      END DO\n" in gen)
+            f"      enddo\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -6581,7 +6581,7 @@ def test_accenterdata_builtin(tmpdir):
             "        ! built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
             "        f1_data(df) = 0.0_r_def\n"
-            "      end do\n"
+            "      enddo\n"
             "      !$acc end parallel\n" in output)
 
 # Class ACCEnterDataTrans end
@@ -6603,9 +6603,9 @@ def test_acckernelstrans():
     assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
     assert (
         "      !$acc kernels\n"
-        "      DO cell = loop0_start, loop0_stop, 1\n" in code)
+        "      do cell = loop0_start, loop0_stop, 1\n" in code)
     assert (
-        "      END DO\n"
+        "      enddo\n"
         "      !$acc end kernels\n" in code)
 
 
@@ -6629,15 +6629,15 @@ def test_acckernelstrans_dm():
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in code
     assert (
         "      !$acc kernels\n"
-        "      DO cell = loop0_start, loop0_stop, 1\n" in code)
+        "      do cell = loop0_start, loop0_stop, 1\n" in code)
     assert (
-        "      END DO\n"
+        "      enddo\n"
         "      !$acc end kernels\n"
         "      !\n"
         "      ! Set halos dirty/clean for fields modified in the above "
         "loop(s)\n"
         "      !\n"
-        "      CALL f1_proxy%set_dirty()\n" in code)
+        "      call f1_proxy%set_dirty()\n" in code)
 
 # Class ACCKernelsTrans end
 
@@ -6666,9 +6666,9 @@ def test_accparalleltrans(tmpdir):
         "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
-        "      DO cell = loop0_start, loop0_stop, 1") in code
+        "      do cell = loop0_start, loop0_stop, 1") in code
     assert (
-        "      END DO\n"
+        "      enddo\n"
         "      !$acc end parallel\n") in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -6697,18 +6697,18 @@ def test_accparalleltrans_dm(tmpdir):
     code = str(psy.gen)
 
     assert ("      !$acc parallel default(present)\n"
-            "      DO cell = loop0_start, loop0_stop, 1\n"
-            "        CALL testkern_code(nlayers, a, f1_data, "
+            "      do cell = loop0_start, loop0_stop, 1\n"
+            "        call testkern_code(nlayers, a, f1_data, "
             "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell))\n"
-            "      END DO\n"
+            "      enddo\n"
             "      !$acc end parallel\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the above "
             "loop(s)\n"
             "      !\n"
-            "      CALL f1_proxy%set_dirty()\n" in code)
+            "      call f1_proxy%set_dirty()\n" in code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6741,12 +6741,12 @@ def test_acclooptrans():
         "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
-        "      DO colour = loop0_start, loop0_stop, 1\n"
+        "      do colour = loop0_start, loop0_stop, 1\n"
         "        !$acc loop independent\n"
-        "        DO cell = loop1_start, last_edge_cell_all_colours(colour), 1"
+        "        do cell = loop1_start, last_edge_cell_all_colours(colour), 1"
         in code)
     assert (
-        "      END DO\n"
+        "      enddo\n"
         "      !$acc end parallel\n") in code
 
 # Class ACCLoopTrans end
@@ -6795,15 +6795,15 @@ def test_async_hex(tmpdir):
     assert (
         "      ! Call kernels and communication routines\n"
         "      !\n"
-        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f1_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange_start(depth=1)\n"
-        "      END IF\n"
-        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange_finish(depth=1)\n"
-        "      END IF\n") in result
+        "      if (f1_proxy%is_dirty(depth=1)) then\n"
+        "        call f1_proxy%halo_exchange(depth=1)\n"
+        "      end if\n"
+        "      if (f2_proxy%is_dirty(depth=1)) then\n"
+        "        call f2_proxy%halo_exchange_start(depth=1)\n"
+        "      end if\n"
+        "      if (f2_proxy%is_dirty(depth=1)) then\n"
+        "        call f2_proxy%halo_exchange_finish(depth=1)\n"
+        "      end if\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6828,18 +6828,18 @@ def test_async_hex_move_1(tmpdir):
     mtrans.apply(schedule.children[4], schedule.children[3])
     result = str(psy.gen)
     assert (
-        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m1_proxy%halo_exchange_start(depth=1)\n"
-        "      END IF\n"
-        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m2_proxy%halo_exchange(depth=1)\n"
-        "      END IF\n"
-        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
-        "        CALL m1_proxy%halo_exchange_finish(depth=1)\n"
-        "      END IF\n") in result
+        "      if (m1_proxy%is_dirty(depth=1)) then\n"
+        "        call m1_proxy%halo_exchange_start(depth=1)\n"
+        "      end if\n"
+        "      if (f2_proxy%is_dirty(depth=1)) then\n"
+        "        call f2_proxy%halo_exchange(depth=1)\n"
+        "      end if\n"
+        "      if (m2_proxy%is_dirty(depth=1)) then\n"
+        "        call m2_proxy%halo_exchange(depth=1)\n"
+        "      end if\n"
+        "      if (m1_proxy%is_dirty(depth=1)) then\n"
+        "        call m1_proxy%halo_exchange_finish(depth=1)\n"
+        "      end if\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6926,13 +6926,13 @@ def test_async_hex_move_2(tmpdir, monkeypatch):
     result = str(psy.gen)
     assert "loop3_stop = mesh%get_last_halo_cell(1)" in result
     assert (
-        "      CALL f2_proxy%halo_exchange_start(depth=1)\n"
-        "      DO cell = loop3_start, loop3_stop, 1\n"
-        "        CALL testkern_any_space_3_code(cell, nlayers, "
+        "      call f2_proxy%halo_exchange_start(depth=1)\n"
+        "      do cell = loop3_start, loop3_stop, 1\n"
+        "        call testkern_any_space_3_code(cell, nlayers, "
         "op_proxy%ncell_3d, op_local_stencil, ndf_aspc1_op, "
         "ndf_aspc2_op)\n"
-        "      END DO\n"
-        "      CALL f2_proxy%halo_exchange_finish(depth=1)\n") in result
+        "      enddo\n"
+        "      call f2_proxy%halo_exchange_finish(depth=1)\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -7013,33 +7013,33 @@ def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir):
     ahex_trans.apply(f1_hex)
 
     result = str(psy.gen)
-    assert "CALL f1_proxy%halo_exchange_start(depth=1)" in result
-    assert "CALL f1_proxy%halo_exchange_finish(depth=1)" in result
-    assert "CALL f2_proxy%halo_exchange_start(depth=1)" in result
-    assert "CALL f2_proxy%halo_exchange_finish(depth=1)" in result
-    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    assert "call f1_proxy%halo_exchange_start(depth=1)" in result
+    assert "call f1_proxy%halo_exchange_finish(depth=1)" in result
+    assert "call f2_proxy%halo_exchange_start(depth=1)" in result
+    assert "call f2_proxy%halo_exchange_finish(depth=1)" in result
+    assert "if (m1_proxy%is_dirty(depth=1)) then" in result
+    assert "call m1_proxy%halo_exchange(depth=1)" in result
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
-    assert "CALL f1_proxy%halo_exchange_start(depth=1)" not in result
-    assert "CALL f1_proxy%halo_exchange_finish(depth=1)" not in result
-    assert "CALL f2_proxy%halo_exchange_start(depth=1)" in result
-    assert "CALL f2_proxy%halo_exchange_finish(depth=1)" in result
-    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    assert "call f1_proxy%halo_exchange_start(depth=1)" not in result
+    assert "call f1_proxy%halo_exchange_finish(depth=1)" not in result
+    assert "call f2_proxy%halo_exchange_start(depth=1)" in result
+    assert "call f2_proxy%halo_exchange_finish(depth=1)" in result
+    assert "if (m1_proxy%is_dirty(depth=1)) then" in result
+    assert "call m1_proxy%halo_exchange(depth=1)" in result
     #
     loop = schedule.children[1]
     rc_trans.apply(loop, {"depth": 1})
     result = str(psy.gen)
-    assert "CALL f1_proxy%halo_exchange_start(depth=1)" not in result
-    assert "CALL f1_proxy%halo_exchange_finish(depth=1)" not in result
-    assert "CALL f2_proxy%halo_exchange_start(depth=1)" not in result
-    assert "CALL f2_proxy%halo_exchange_finish(depth=1)" not in result
-    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    assert "call f1_proxy%halo_exchange_start(depth=1)" not in result
+    assert "call f1_proxy%halo_exchange_finish(depth=1)" not in result
+    assert "call f2_proxy%halo_exchange_start(depth=1)" not in result
+    assert "call f2_proxy%halo_exchange_finish(depth=1)" not in result
+    assert "if (m1_proxy%is_dirty(depth=1)) then" in result
+    assert "call m1_proxy%halo_exchange(depth=1)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -7070,17 +7070,17 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     ahex_trans.apply(m2_hex)
     result = str(psy.gen)
     assert (
-        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
-        "        CALL m2_proxy%halo_exchange_start(depth=2)\n"
-        "      END IF\n"
-        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
-        "        CALL m2_proxy%halo_exchange_finish(depth=2)\n"
-        "      END IF\n") in result
+        "      if (m2_proxy%is_dirty(depth=2)) then\n"
+        "        call m2_proxy%halo_exchange_start(depth=2)\n"
+        "      end if\n"
+        "      if (m2_proxy%is_dirty(depth=2)) then\n"
+        "        call m2_proxy%halo_exchange_finish(depth=2)\n"
+        "      end if\n") in result
     assert (
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
-        "      CALL m2_proxy%set_dirty()\n"
-        "      CALL m2_proxy%set_clean(2)\n") in result
+        "      call m2_proxy%set_dirty()\n"
+        "      call m2_proxy%set_clean(2)\n") in result
 
     # move m2 async halo exchange start and end then check depths and
     # set clean are still generated correctly for m2
@@ -7089,18 +7089,18 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
     mtrans.apply(schedule.children[6], schedule.children[2])
     result = str(psy.gen)
     assert (
-        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
-        "        CALL m2_proxy%halo_exchange_start(depth=2)\n"
-        "      END IF\n") in result
+        "      if (m2_proxy%is_dirty(depth=2)) then\n"
+        "        call m2_proxy%halo_exchange_start(depth=2)\n"
+        "      end if\n") in result
     assert (
-        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
-        "        CALL m2_proxy%halo_exchange_finish(depth=2)\n"
-        "      END IF\n") in result
+        "      if (m2_proxy%is_dirty(depth=2)) then\n"
+        "        call m2_proxy%halo_exchange_finish(depth=2)\n"
+        "      end if\n") in result
     assert (
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
-        "      CALL m2_proxy%set_dirty()\n"
-        "      CALL m2_proxy%set_clean(2)\n") in result
+        "      call m2_proxy%set_dirty()\n"
+        "      call m2_proxy%set_clean(2)\n") in result
 
     # increase depth of redundant computation. We do this to all loops
     # to remove halo exchanges for f1 and f2 just because we can :-)
@@ -7111,18 +7111,18 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
     assert (
-        "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
-        "        CALL m2_proxy%halo_exchange_start(depth=3)\n"
-        "      END IF\n") in result
+        "      if (m2_proxy%is_dirty(depth=3)) then\n"
+        "        call m2_proxy%halo_exchange_start(depth=3)\n"
+        "      end if\n") in result
     assert (
-        "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
-        "        CALL m2_proxy%halo_exchange_finish(depth=3)\n"
-        "      END IF\n") in result
+        "      if (m2_proxy%is_dirty(depth=3)) then\n"
+        "        call m2_proxy%halo_exchange_finish(depth=3)\n"
+        "      end if\n") in result
     assert (
         "      ! Set halos dirty/clean for fields modified in the above loop\n"
         "      !\n"
-        "      CALL m2_proxy%set_dirty()\n"
-        "      CALL m2_proxy%set_clean(3)\n") in result
+        "      call m2_proxy%set_dirty()\n"
+        "      call m2_proxy%set_clean(3)\n") in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -7190,17 +7190,17 @@ def test_vector_async_halo_exchange(tmpdir):
     result = str(psy.gen)
     for index in [1, 2, 3]:
         assert (
-            f"      IF (f1_proxy({index})%is_dirty(depth=1)) THEN\n"
-            f"        CALL f1_proxy({index})%halo_exchange_start(depth=1)\n"
-            f"      END IF\n"
-            f"      IF (f1_proxy({index})%is_dirty(depth=1)) THEN\n"
-            f"        CALL f1_proxy({index})%halo_exchange_finish(depth=1)\n"
-            f"      END IF\n") in result
+            f"      if (f1_proxy({index})%is_dirty(depth=1)) then\n"
+            f"        call f1_proxy({index})%halo_exchange_start(depth=1)\n"
+            f"      end if\n"
+            f"      if (f1_proxy({index})%is_dirty(depth=1)) then\n"
+            f"        call f1_proxy({index})%halo_exchange_finish(depth=1)\n"
+            f"      end if\n") in result
     assert (
-        "      CALL f1_proxy(1)%halo_exchange(depth=1)\n"
-        "      CALL f1_proxy(2)%halo_exchange_start(depth=1)\n"
-        "      CALL f1_proxy(2)%halo_exchange_finish(depth=1)\n"
-        "      CALL f1_proxy(3)%halo_exchange(depth=1)\n") in result
+        "      call f1_proxy(1)%halo_exchange(depth=1)\n"
+        "      call f1_proxy(2)%halo_exchange_start(depth=1)\n"
+        "      call f1_proxy(2)%halo_exchange_finish(depth=1)\n"
+        "      call f1_proxy(3)%halo_exchange(depth=1)\n") in result
 
     # we are not able to test re-ordering of vector halo exchanges as
     # the dependence analysis does not currently support it

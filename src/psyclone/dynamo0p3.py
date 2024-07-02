@@ -800,30 +800,49 @@ class LFRicMeshProperties(LFRicCollection):
             # need do nothing.
             return cursor
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Initialise mesh properties"))
-        parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent, " Initialise mesh properties"))
+        # parent.add(CommentGen(parent, ""))
 
-        mesh = self._symbol_table.find_or_create_tag("mesh").name
+        mesh = self._symbol_table.find_or_create_tag("mesh")
 
         for prop in self._properties:
             if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self._symbol_table.find_or_create_tag(
-                    "adjacent_face").name
-                parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
-                                     rhs=mesh+"%get_adjacent_face()"))
+                    "adjacent_face")
+                # parent.add(AssignGen(parent, pointer=True, lhs=adj_face,
+                #                      rhs=mesh+"%get_adjacent_face()"))
+                assignment = Assignment.create(
+                        lhs=Reference(adj_face),
+                        rhs=Call.create(StructureReference.create(
+                            mesh, ["get_adjacent_face"])),
+                        is_pointer=True)
+                self._invoke._schedule.addchild(assignment, cursor)
+                cursor += 1
 
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
                 name = self._symbol_table.find_or_create_integer_symbol(
                     "ncell_2d_no_halos", tag="ncell_2d_no_halos").name
-                parent.add(AssignGen(parent, lhs=name,
-                                     rhs=mesh+"%get_last_edge_cell()"))
+                # parent.add(AssignGen(parent, lhs=name,
+                #                      rhs=mesh+"%get_last_edge_cell()"))
+                assignment = Assignment.create(
+                        lhs=Reference(name),
+                        rhs=Call.create(StructureReference.create(
+                            mesh, ["get_last_edge_cell"])),)
+                self._invoke._schedule.addchild(assignment, cursor)
+                cursor += 1
 
             elif prop == MeshProperty.NCELL_2D:
                 name = self._symbol_table.find_or_create_integer_symbol(
-                    "ncell_2d", tag="ncell_2d").name
-                parent.add(AssignGen(parent, lhs=name,
-                                     rhs=mesh+"%get_ncells_2d()"))
+                    "ncell_2d", tag="ncell_2d")
+                # parent.add(AssignGen(parent, lhs=name,
+                #                      rhs=mesh+"%get_ncells_2d()"))
+                assignment = Assignment.create(
+                        lhs=Reference(name),
+                        rhs=Call.create(StructureReference.create(
+                            mesh, ["get_ncells_2d"])),)
+                self._invoke._schedule.addchild(assignment, cursor)
+                cursor += 1
             else:
                 raise InternalError(
                     f"Found unsupported mesh property '{str(prop)}' when "
@@ -832,14 +851,26 @@ class LFRicMeshProperties(LFRicCollection):
 
         if need_colour_halo_limits:
             lhs = self._symbol_table.find_or_create_tag(
-                "last_halo_cell_all_colours").name
-            rhs = f"{mesh}%get_last_halo_cell_all_colours()"
-            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+                "last_halo_cell_all_colours")
+            # rhs = f"{mesh}%get_last_halo_cell_all_colours()"
+            # parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_halo_cell_all_colours"])))
+            self._invoke._schedule.addchild(assignment, cursor)
+            cursor += 1
         if need_colour_limits:
             lhs = self._symbol_table.find_or_create_tag(
-                "last_edge_cell_all_colours").name
-            rhs = f"{mesh}%get_last_edge_cell_all_colours()"
-            parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+                "last_edge_cell_all_colours")
+            # rhs = f"{mesh}%get_last_edge_cell_all_colours()"
+            # parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
+            assignment = Assignment.create(
+                    lhs=Reference(lhs),
+                    rhs=Call.create(StructureReference.create(
+                        mesh, ["get_last_edge_cell_all_colours"])))
+            self._invoke._schedule.addchild(assignment, cursor)
+            cursor += 1
         return cursor
 
 
@@ -2588,27 +2619,27 @@ class DynMeshes():
             ncolours = \
                 self._schedule.symbol_table.find_or_create_tag(base_name).name
             # Add declarations for these variables
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True,
-                               entity_decls=[colour_map+"(:,:)"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=[ncolours]))
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    pointer=True,
+            #                    entity_decls=[colour_map+"(:,:)"]))
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    entity_decls=[ncolours]))
             if self._needs_colourmap_halo:
                 last_cell = self._symbol_table.find_or_create_tag(
                     "last_halo_cell_all_colours")
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   allocatable=True,
-                                   entity_decls=[last_cell.name+"(:,:)"]))
+                # parent.add(DeclGen(parent, datatype="integer",
+                #                    kind=api_config.default_kind["integer"],
+                #                    allocatable=True,
+                #                    entity_decls=[last_cell.name+"(:,:)"]))
             if self._needs_colourmap:
                 last_cell = self._symbol_table.find_or_create_tag(
                     "last_edge_cell_all_colours")
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   allocatable=True,
-                                   entity_decls=[last_cell.name+"(:)"]))
+                # parent.add(DeclGen(parent, datatype="integer",
+                #                    kind=api_config.default_kind["integer"],
+                #                    allocatable=True,
+                #                    entity_decls=[last_cell.name+"(:)"]))
         return cursor
 
     def initialise(self, cursor):
@@ -2665,21 +2696,33 @@ class DynMeshes():
                 # parent.add(AssignGen(parent, lhs=depth_name,
                 #                      rhs=f"{mesh_name}%get_halo_depth()"))
             if self._needs_colourmap or self._needs_colourmap_halo:
-                parent.add(CommentGen(parent, ""))
-                parent.add(CommentGen(parent, " Get the colourmap"))
-                parent.add(CommentGen(parent, ""))
+                # parent.add(CommentGen(parent, ""))
+                # parent.add(CommentGen(parent, " Get the colourmap"))
+                # parent.add(CommentGen(parent, ""))
                 # Look-up variable names for colourmap and number of colours
-                colour_map = self._schedule.symbol_table.find_or_create_tag(
-                    "cmap").name
+                cmap = self._schedule.symbol_table.find_or_create_tag("cmap")
                 ncolour = \
-                    self._schedule.symbol_table.find_or_create_tag("ncolour")\
-                                               .name
+                    self._schedule.symbol_table.find_or_create_tag("ncolour")
                 # Get the number of colours
-                parent.add(AssignGen(
-                    parent, lhs=ncolour, rhs=f"{mesh_name}%get_ncolours()"))
+                # parent.add(AssignGen(
+                #     parent, lhs=ncolour, rhs=f"{mesh_name}%get_ncolours()"))
+                assignment = Assignment.create(
+                        lhs=Reference(ncolour),
+                        rhs=Call.create(StructureReference.create(
+                            mesh_sym, ["get_ncolours"])))
+                assignment.preceding_comment = "Get the colourmap"
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
                 # Get the colour map
-                parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
-                                     rhs=f"{mesh_name}%get_colour_map()"))
+                # parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
+                #                      rhs=f"{mesh_name}%get_colour_map()"))
+                assignment = Assignment.create(
+                        lhs=Reference(cmap),
+                        rhs=Call.create(StructureReference.create(
+                            mesh_sym, ["get_colour_map"])),
+                        is_pointer=True)
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
             return cursor
 
         parent.add(CommentGen(

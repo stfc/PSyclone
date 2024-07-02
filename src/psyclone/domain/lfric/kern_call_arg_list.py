@@ -959,7 +959,7 @@ class KernCallArgList(ArgOrdering):
                                         AccessType.READ,
                                         self._kern, ["colour", "cell"])
 
-            return (self._kern.colourmap + "(colour,cell)",
+            return (self._kern.colourmap.name + "(colour,cell)",
                     array_ref)
 
         if var_accesses is not None:

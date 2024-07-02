@@ -569,7 +569,7 @@ class LFRicLoop(PSyLoop):
                     raise InternalError(
                         f"All kernels within a loop over colours must have "
                         f"been coloured but kernel '{kern.name}' has not")
-            return kernels[0].ncolours_var
+            return Reference(sym_tab.lookup(kernels[0].ncolours_var))
 
         if self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.
@@ -578,9 +578,9 @@ class LFRicLoop(PSyLoop):
             root_name = "last_edge_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
-            sym = self.ancestor(
-                InvokeSchedule).symbol_table.find_or_create_tag(root_name)
-            return f"{sym.name}(colour)"
+            sym = sym_tab.find_or_create_tag(root_name)
+            colour = sym_tab.find_or_create_tag("colour")
+            return ArrayReference.create(sym, [colour])
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
@@ -592,12 +592,13 @@ class LFRicLoop(PSyLoop):
             else:
                 # If no depth is specified then we go to the full halo depth
                 depth = sym_tab.find_or_create_tag(
-                    f"max_halo_depth_{self._mesh_name}").name
+                    f"max_halo_depth_{self._mesh_name}")
             root_name = "last_halo_cell_all_colours"
             if self._kern.is_intergrid:
                 root_name += "_" + self._field_name
             sym = sym_tab.find_or_create_tag(root_name)
-            return f"{sym.name}(colour, {depth})"
+            colour = sym_tab.find_or_create_tag("colour")
+            return ArrayReference.create(sym, [colour, depth])
         if self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":

@@ -189,20 +189,20 @@ class LFRicSymbolTable(SymbolTable):
             raise TypeError(f"Symbol '{sym.name}' already exists, but is "
                             f"not a DataSymbol, but '{type(sym)}'.")
 
-        if not isinstance(sym.datatype, ArrayType):
-            raise TypeError(f"Symbol '{sym.name}' already exists, but is "
-                            f"not an ArraySymbol, but "
-                            f"'{type(sym.datatype)}'.")
+        # if not isinstance(sym.datatype, ArrayType):
+        #     raise TypeError(f"Symbol '{sym.name}' already exists, but is "
+        #                     f"not an ArraySymbol, but "
+        #                     f"'{type(sym.datatype)}'.")
 
-        if sym.datatype.datatype != datatype:
-            raise TypeError(f"Symbol '{sym.name}' already exists, but is "
-                            f"not of type '{intrinsic_type}', but "
-                            f"'{type(sym.datatype.datatype)}'.")
+        # if sym.datatype.datatype != datatype:
+        #     raise TypeError(f"Symbol '{sym.name}' already exists, but is "
+        #                     f"not of type '{intrinsic_type}', but "
+        #                     f"'{type(sym.datatype.datatype)}'.")
 
-        if len(sym.shape) != num_dimensions:
-            raise TypeError(f"Array '{sym.name}' already exists, but has "
-                            f"{len(sym.shape)} dimensions, not "
-                            f"{num_dimensions}.")
+        # if len(sym.shape) != num_dimensions:
+        #     raise TypeError(f"Array '{sym.name}' already exists, but has "
+        #                     f"{len(sym.shape)} dimensions, not "
+        #                     f"{num_dimensions}.")
 
         return sym
 

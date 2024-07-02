@@ -88,6 +88,7 @@ class LFRicKern(CodedKern):
             from psyclone.dynamo0p3 import DynKernelArguments
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._parent = None
+        self._stub_symbol_table = None
         self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
@@ -427,16 +428,23 @@ class LFRicKern(CodedKern):
                                 f"coloured loop.")
         sched = self.ancestor(InvokeSchedule)
         if self.is_intergrid:
-            cmap = self._intergrid_ref.colourmap_symbol.name
+            cmap = self._intergrid_ref.colourmap_symbol
         else:
             try:
-                cmap = sched.symbol_table.lookup_with_tag("cmap").name
+                cmap = sched.symbol_table.lookup_with_tag("cmap")
             except KeyError:
                 # We have to do this here as _init_colourmap (which calls this
                 # method) is only called at code-generation time.
-                cmap = sched.symbol_table.find_or_create_array(
-                    "cmap", 2, ScalarType.Intrinsic.INTEGER,
-                    tag="cmap").name
+                cmap = sched.symbol_table.find_or_create_tag(
+                    "cmap", symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(
+                        "integer(kind=i_def), pointer :: cmap(:,:)"))
+                    # datatype=ArrayType(
+                    #     LFRicTypes("LFRicIntegerScalarDataType")(),
+                    #     shape=[ArrayType.Extent.ATTRIBUTE]*2))
+                # cmap = sched.symbol_table.find_or_create(
+                #     "cmap", 2, ScalarType.Intrinsic.INTEGER,
+                #     tag="cmap").name
 
         return cmap
 
