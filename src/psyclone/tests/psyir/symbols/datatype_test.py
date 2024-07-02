@@ -40,8 +40,8 @@
 
 import pytest
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Container, KernelSchedule
+from psyclone.psyir.nodes import (Literal, BinaryOperation, Reference,
+                                  Container, KernelSchedule, Routine)
 from psyclone.psyir.symbols import (
     ArrayType, DataType, UnresolvedType, ScalarType, UnsupportedFortranType,
     DataSymbol, StructureType, NoType, INTEGER_TYPE, REAL_TYPE, Symbol,
@@ -83,6 +83,15 @@ def test_unresolvedtype_eq():
     data_type1 = UnresolvedType()
     assert data_type1 == UnresolvedType()
     assert data_type1 != NoType()
+
+
+def test_unresolvedtype_copy():
+    '''Test the copy() method of UnresolvedType (which is just inherited
+    from DataType).'''
+    dtype1 = UnresolvedType()
+    dtype2 = dtype1.copy()
+    assert isinstance(dtype2, UnresolvedType)
+    assert dtype2 is not dtype1
 
 
 # NoType class
@@ -268,6 +277,14 @@ def test_scalartype_immutable():
 
 # ArrayType class
 
+def test_arraytype_extent():
+    '''Test the ArrayType.Extent class. This is just an enum with a
+    copy() method. '''
+    xtent = ArrayType.Extent.ATTRIBUTE
+    ytent = xtent.copy()
+    assert isinstance(ytent, ArrayType.Extent)
+
+
 def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected. Test the
     different dimension datatypes that are supported.'''
@@ -319,8 +336,9 @@ def test_arraytype():
     assert array_type.shape[1] == ArrayType.Extent.DEFERRED
     # Provided as an attribute extent
     array_type = ArrayType(
-        scalar_type, [ArrayType.Extent.ATTRIBUTE, ArrayType.Extent.ATTRIBUTE])
-    assert array_type.shape[1] == ArrayType.Extent.ATTRIBUTE
+        scalar_type, [ArrayType.Extent.ATTRIBUTE,
+                      (2, ArrayType.Extent.ATTRIBUTE)])
+    assert array_type.shape[1].upper == ArrayType.Extent.ATTRIBUTE
 
 
 def test_arraytype_invalid_datatype():
@@ -366,6 +384,7 @@ def test_arraytype_unsupportedtype():
     assert isinstance(atype, ArrayType)
     assert atype.datatype is utype
     assert atype.precision is None
+    assert utype.declaration == "integer, pointer :: var"
 
 
 def test_arraytype_invalid_shape():
@@ -572,6 +591,27 @@ def test_arraytype_eq():
     assert data_type1 != ArrayType(iscalar_type, [10, 10])
 
 
+def test_arraytype_copy():
+    '''Test the copy() method of ArrayType.'''
+    sym1 = DataSymbol("alimit", INTEGER_TYPE)
+    atype = ArrayType(INTEGER_TYPE, [Reference(sym1),
+                                     (Reference(sym1), Reference(sym1))])
+    acopy = atype.copy()
+    assert acopy == atype
+    assert acopy is not atype
+    # The Reference defining the upper bound should have been copied.
+    assert acopy.shape[0].upper is not atype.shape[0].upper
+    assert acopy.shape[1].lower is not atype.shape[1].lower
+    # But the new Reference should still refer to the same Symbol.
+    assert acopy.shape[0].upper.symbol is atype.shape[0].upper.symbol
+    assert acopy.shape[1].lower.symbol is atype.shape[1].lower.symbol
+    # When shape doesn't have set bounds.
+    btype = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE])
+    bcopy = btype.copy()
+    assert bcopy == btype
+    assert bcopy is not btype
+
+
 # UnsupportedFortranType tests
 
 def test_unsupported_fortran_type():
@@ -683,6 +723,48 @@ def test_unsupported_fortran_type_eq():
     # Just sanity check that the type of a SAVE != that of a common.
     assert (UnsupportedFortranType("common /how_common/ a, b, cc") !=
             UnsupportedFortranType("save :: blue_blood"))
+
+
+def test_unsupported_fortran_type_copy(fortran_reader):
+    '''Test the copy() method of UnsupportedFortranType.'''
+    code = '''
+    subroutine test
+      use some_mod, only: some_type, start, stop
+      integer, parameter :: nelem = 4
+      type(some_type), pointer :: var(nelem), var2(start:stop)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    vsym = routine.symbol_table.lookup("var")
+    vtype = vsym.datatype
+    assert isinstance(vtype, UnsupportedFortranType)
+    cpytype = vtype.copy()
+    assert isinstance(cpytype, UnsupportedFortranType)
+    assert isinstance(cpytype.partial_datatype, ArrayType)
+    # Reference to 'nelem' should be a copy.
+    assert (cpytype.partial_datatype.shape[0] is not
+            vtype.partial_datatype.shape[0])
+    assert (cpytype.partial_datatype.shape[0].lower is not
+            vtype.partial_datatype.shape[0].lower)
+    assert (cpytype.partial_datatype.shape[0].upper is not
+            vtype.partial_datatype.shape[0].upper)
+    # But the symbol referred to should be the same.
+    assert (cpytype.partial_datatype.shape[0].upper.symbol is
+            vtype.partial_datatype.shape[0].upper.symbol)
+    # The intrinsic type of the partial type should also be the same Symbol
+    # in both cases.
+    stype = routine.symbol_table.lookup("some_type")
+    assert vtype.partial_datatype.intrinsic is stype
+    assert cpytype.partial_datatype.intrinsic is stype
+    # Repeat check when array lower bound is also a Reference.
+    var2 = routine.symbol_table.lookup("var2")
+    v2type = var2.datatype
+    v2copy = v2type.copy()
+    assert (v2type.partial_datatype.shape[0].lower is not
+            v2copy.partial_datatype.shape[0].lower)
+    assert (v2type.partial_datatype.shape[0].lower.symbol is
+            v2copy.partial_datatype.shape[0].lower.symbol)
 
 
 # StructureType tests

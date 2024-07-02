@@ -38,6 +38,7 @@
 ''' This module contains the datatype definitions.'''
 
 import abc
+import copy
 from collections import OrderedDict, namedtuple
 from enum import Enum
 
@@ -66,6 +67,13 @@ class DataType(metaclass=abc.ABCMeta):
         :rtype: bool
         '''
         return type(other) is type(self)
+
+    def copy(self):
+        '''
+        :returns: a shallow copy of this datatype.
+        :rtype: :py:class:`psyclone.psyir.symbols.datatypes.DataType`
+        '''
+        return copy.copy(self)
 
 
 class UnresolvedType(DataType):
@@ -116,8 +124,7 @@ class UnsupportedType(DataType, metaclass=abc.ABCMeta):
     @property
     def declaration(self):
         '''
-        :returns: the original declaration of the symbol. This is obviously \
-                  language specific and hence this class must be subclassed.
+        :returns: the original declaration of the symbol.
         :rtype: str
         '''
         return self._declaration
@@ -233,6 +240,16 @@ class UnsupportedFortranType(UnsupportedType):
             return False
 
         return other.type_text == self.type_text
+
+    def copy(self):
+        '''
+        :returns: a shallow copy of this datatype.
+        :rtype: :py:class:`psyclone.psyir.symbols.datatypes.UnknownFortranType`
+        '''
+        new = copy.copy(self)
+        if self._partial_datatype:
+            new._partial_datatype = self._partial_datatype.copy()
+        return new
 
 
 class ScalarType(DataType):
@@ -380,6 +397,13 @@ class ArrayType(DataType):
         DEFERRED = 1
         ATTRIBUTE = 2
 
+        def copy(self):
+            '''
+            :returns: a shallow copy of self.
+            :rtype: :py:class:`psyclone.psyir.symbols.ArrayType.Extent`
+            '''
+            return copy.copy(self)
+
     #: namedtuple used to store lower and upper limits of an array dimension
     ArrayBounds = namedtuple("ArrayBounds", ["lower", "upper"])
 
@@ -456,7 +480,7 @@ class ArrayType(DataType):
                 # The lower bound is 1 by default.
                 self._shape.append(
                     ArrayType.ArrayBounds(
-                        _dangling_parent(one),
+                        _dangling_parent(one.copy()),
                         _dangling_parent(_node_from_int(dim))))
             elif isinstance(dim, tuple):
                 self._shape.append(
@@ -708,6 +732,27 @@ class ArrayType(DataType):
                 return False
 
         return True
+
+    def copy(self):
+        '''
+        Create a shallow copy of this ArrayType. (Any References will be
+        re-created but the target Symbols will remain unchanged.)
+
+        :returns: a copy of this ArrayType.
+        :rtype: :py:class:`psyclone.psyir.datatype.ArrayType`
+
+        '''
+        new_shape = []
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.ArrayBounds):
+                new_bounds = ArrayType.ArrayBounds(dim.lower.copy(),
+                                                   dim.upper.copy())
+                new_shape.append(new_bounds)
+            else:
+                # This dimension is specified with an ArrayType.Extent
+                # so no need to copy.
+                new_shape.append(dim)
+        return ArrayType(self.datatype, new_shape)
 
 
 class StructureType(DataType):

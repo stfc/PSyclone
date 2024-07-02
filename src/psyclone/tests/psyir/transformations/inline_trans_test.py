@@ -617,6 +617,38 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
     assert Compile(tmpdir).string_compiles(output)
 
 
+def test_apply_array_limits_are_formal_args(fortran_reader, fortran_writer):
+    '''
+    Check that apply() correctly handles the case where the start/stop
+    values of an array formal argument are given in terms of other formal
+    arguments.
+
+    '''
+    code = '''
+module test_mod
+  implicit none
+contains
+  subroutine caller()
+    integer :: a_var
+    real, dimension(20) :: this_one
+    call sub(this_one, a_var, 4)
+  end subroutine caller
+  subroutine sub(var, start, ldim)
+    integer, intent(in) :: ldim
+    integer, intent(in) :: start
+    real, dimension(ldim:) :: var
+    var(start+1) = 5.0
+  end subroutine
+end module test_mod
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    inline_trans = InlineTrans()
+    acall = psyir.walk(Call, stop_type=Call)[0]
+    inline_trans.apply(acall)
+    output = fortran_writer(psyir)
+    assert "this_one(a_var + 1 - 4 + 1) = 5.0" in output
+
+
 def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
     '''
     Check that apply() works correctly when a formal argument is given the
@@ -1614,7 +1646,8 @@ def test_validate_return_stmt(fortran_reader):
 
 def test_validate_codeblock(fortran_reader):
     '''Test that validate() raises the expected error for a routine that
-    contains a CodeBlock.'''
+    contains a CodeBlock. Also test that using the "force" option overrides
+    this check.'''
     code = (
         "module test_mod\n"
         "contains\n"
@@ -1634,7 +1667,8 @@ def test_validate_codeblock(fortran_reader):
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
     assert ("Routine 'sub' contains one or more CodeBlocks and therefore "
-            "cannot be inlined" in str(err.value))
+            "cannot be inlined. (If you are confident " in str(err.value))
+    inline_trans.validate(call, options={"force": True})
 
 
 def test_validate_unsupportedtype_argument(fortran_reader):

@@ -303,10 +303,21 @@ class DataSymbol(TypedSymbol):
 
         '''
         if self.initial_value is not None:
+            # Ensure any References in the initial-value expression are
+            # also copied. At this stage they will still point to the
+            # same Symbols as the original.
             new_init_value = self.initial_value.copy()
         else:
             new_init_value = None
-        return DataSymbol(self.name, self.datatype, visibility=self.visibility,
+        if self.is_array:
+            # Ensure any References in the shape definition of an ArrayType
+            # are also copied. At this stage they will still point to the
+            # same Symbols as the original.
+            new_datatype = self.datatype.copy()
+        else:
+            new_datatype = self.datatype
+        return DataSymbol(self.name, new_datatype,
+                          visibility=self.visibility,
                           interface=self.interface,
                           is_constant=self.is_constant,
                           initial_value=new_init_value)

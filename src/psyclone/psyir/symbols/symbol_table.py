@@ -52,6 +52,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
+from psyclone.psyir.symbols.datatypes import ArrayType
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -145,14 +146,12 @@ class SymbolTable():
         '''If this symbol table is enclosed in another scope, return the
         symbol table of the next outer scope. Otherwise return None.
 
-        :param scope_limit: optional Node which limits the symbol \
-            search space to the symbol tables of the nodes within the \
-            given scope. If it is None (the default), the whole \
-            scope (all symbol tables in ancestor nodes) is searched \
-            otherwise ancestors of the scope_limit node are not \
-            searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
+        :param scope_limit: optional Node which limits the symbol search
+            space to the symbol tables of the nodes within the given scope.
+            If it is None (the default), the whole scope (all symbol tables
+            in ancestor nodes) is searched otherwise ancestors of the
+            scope_limit node are not searched.
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the 'parent' SymbolTable of the current SymbolTable (i.e.
                   the one that encloses this one in the PSyIR hierarchy).
@@ -302,6 +301,40 @@ class SymbolTable():
                 new_routines.append((new_st.lookup(routine.symbol.name),
                                      routine.from_container))
             symbol.routines = new_routines
+
+        # Ensure any Symbols referenced in array shapes are also updated
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.psyir.nodes import Node, Reference
+        for symbol in new_st.symbols:
+            if not (symbol.is_array and isinstance(symbol.datatype,
+                                                   ArrayType)):
+                continue
+            for dim in symbol.datatype.shape:
+                if isinstance(dim, ArrayType.ArrayBounds):
+                    exprns = dim
+                else:
+                    exprns = [dim]
+                for bnd in exprns:
+                    if isinstance(bnd, Node):
+                        for ref in bnd.walk(Reference):
+                            try:
+                                ref.symbol = new_st.lookup(ref.symbol.name)
+                            except KeyError:
+                                # This dimensioning symbol isn't in the table
+                                # we are copying.
+                                pass
+
+        # Ensure any Symbols referenced in initial values are updated.
+        for symbol in new_st.symbols:
+            if not isinstance(symbol, DataSymbol):
+                continue
+            if symbol.initial_value:
+                for ref in symbol.initial_value.walk(Reference):
+                    try:
+                        ref.symbol = new_st.lookup(ref.symbol.name)
+                    except KeyError:
+                        # This symbol isn't in the table we are copying.
+                        pass
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
