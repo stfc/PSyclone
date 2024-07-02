@@ -700,7 +700,7 @@ class InlineTrans(Transformation):
 
         for sym in routine_table.datasymbols:
             # We don't inline symbols that have an UnsupportedType and are
-            # arguments since we don't know if a simple assingment if
+            # arguments since we don't know if a simple assignment if
             # enough (e.g. pointers)
             if isinstance(sym.interface, ArgumentInterface):
                 if isinstance(sym.datatype, UnsupportedType):

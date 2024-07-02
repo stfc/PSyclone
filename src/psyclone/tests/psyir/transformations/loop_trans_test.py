@@ -102,9 +102,40 @@ def test_loop_trans_validate_options(monkeypatch):
     # exclude CodedKern nodes.
     monkeypatch.setattr(trans, "excluded_node_types", (CodedKern, ))
     with pytest.raises(TransformationError) as err:
-        trans.validate(loop)
-    assert ("Nodes of type 'GOKern' cannot be enclosed by a "
-            "OMPParallelLoopTrans transformation" in str(err.value))
+        trans.validate(loop, options={"verbose": True})
+    message = (
+        "Nodes of type 'GOKern' cannot be enclosed by a "
+        "OMPParallelLoopTrans transformation (use the 'node-type-check: "
+        "False' option to accept them at your own risk)")
+    assert message in loop.preceding_comment
+    assert message + " in:" in str(err.value)
+    # Now disable this check on excluded node types
+    trans.validate(loop, options={"node-type-check": False})
+
+
+def test_loop_trans_validate_pointer_assignments(fortran_reader):
+    ''' Test that the transformation can not be applied to loops
+    with pointer assignment unless the 'node-type-check' is disabled '''
+    psyir_test = fortran_reader.psyir_from_source('''
+       subroutine test()
+           integer :: i
+           integer, target :: a
+           integer, pointer :: b
+           do i = 1, 10
+               b => a
+           enddo
+       end subroutine test
+    ''')
+    loop = psyir_test.walk(Loop)[0]
+    trans = OMPParallelLoopTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop, options={"verbose": True})
+    message = (
+        "can not be applied to nodes that contain pointer assignments "
+        "by default (use the 'node-type-check: False' option to accept"
+        " them at your own risk)")
+    assert message in loop.preceding_comment
+    assert message + " in:" in str(err.value)
     # Now disable this check on excluded node types
     trans.validate(loop, options={"node-type-check": False})
 
