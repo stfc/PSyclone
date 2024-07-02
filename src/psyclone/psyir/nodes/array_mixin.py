@@ -433,7 +433,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if isinstance(datatype.shape[index], ArrayType.Extent):
             # The size is unspecified at compile-time (but is
             # available at run-time e.g. when the size is allocated by
-            # an allocate statement.
+            # an allocate statement).
             return False
 
         # The size of the bound is available.

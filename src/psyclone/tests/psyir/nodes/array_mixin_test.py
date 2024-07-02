@@ -153,17 +153,29 @@ def test_is_upper_lower_bound(fortran_reader):
     class.
 
     '''
-    code = (
-        "subroutine test()\n"
-        "real a(n)\n"
-        "a(1:n) = 0.0\n"
-        "end subroutine\n")
-
-    # Return True as the symbolic values of the declaration and array
-    # reference match.
+    code = '''
+    subroutine test(kttrd, ptrd)
+      use some_mod
+      real a(n)
+      integer, dimension(2), intent(in) :: kttrd
+      real, dimension(kttrd(1):,kttrd(2):,:), intent(in) ::   ptrd
+      trdt(ntsi-(0):,ntsj-(0):ntej+(0),:) =    &
+         ptrd(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:)
+      a(1:n) = 0.0
+    end subroutine
+    '''
     psyir = fortran_reader.psyir_from_source(code)
     assigns = psyir.walk(Assignment)
-    array_ref = assigns[0].lhs
+    trdt_ref = assigns[0].lhs
+    assert trdt_ref.is_upper_bound(0)
+    assert not trdt_ref.is_upper_bound(1)
+    assert trdt_ref.is_upper_bound(2)
+    ptrd_ref = assigns[0].rhs
+    assert not ptrd_ref.is_upper_bound(0)
+    assert ptrd_ref.is_upper_bound(2)
+    # Return True as the symbolic values of the declaration and array
+    # reference match.
+    array_ref = assigns[1].lhs
     assert array_ref.is_lower_bound(0)
     assert array_ref.is_upper_bound(0)
 
@@ -339,6 +351,8 @@ def test_is_same_array(fortran_reader):
     """)
 
     assignments = psyir.walk(Assignment)
+    # Argument must be a Member or Reference
+    assert not assignments[0].lhs.is_same_array(Literal("1", INTEGER_TYPE))
     # Check that the array itself is the same, not the accessed index
     assert assignments[0].lhs.is_same_array(assignments[1].lhs)
     # Also works when comparing with a plain reference of the array
@@ -821,9 +835,6 @@ def test_same_range(fortran_reader):
 
     # If the values are implicit, but we know the declaration we can also
     # compare them.
-    # TODO #949: Currently expressions inside shape (e.g. dimension(5-1)),
-    # produce an UnsupportedFortranType but when this is resolved, shape
-    # comparisons should also work symbolically
     code = '''
     subroutine test()
         real, dimension(1+0:4, 1:4, 2:4+1) :: A, C
