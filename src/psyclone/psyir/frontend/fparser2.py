@@ -3522,10 +3522,10 @@ class Fparser2Reader():
             (e.g. a routine argument or an imported symbol).
 
         '''
-        #pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
         # Import here to avoid circular dependencies.
         from psyclone.psyir.backend.fortran import FortranWriter
-        
+
         try:
             symbol = table.lookup(var_name)
         except KeyError as err:
@@ -3538,7 +3538,7 @@ class Fparser2Reader():
                 f"be resolved and a DataSymbol")
 
         datatype = symbol.datatype
-        # If this is of UnsupportedFortranType, 
+        # If this is of UnsupportedFortranType,
         # create Fortran text for the supplied datatype from the
         # supplied UnsupportedFortranType text, then parse this into an
         # fparser2 tree and store the fparser2 representation of the

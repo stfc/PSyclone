@@ -1158,7 +1158,7 @@ def test_get_procedure_name_error(fortran_reader):
         "testkern_type")
     datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
-    #reader = FortranStringReader(datatype.declaration)
+    # reader = FortranStringReader(datatype.declaration)
     assert isinstance(datatype, StructureType)
     type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
     reader = FortranStringReader(type_declaration)
@@ -1176,7 +1176,7 @@ def test_get_procedure_name_error(fortran_reader):
         "testkern_type")
     datatype = datatype_symbol.datatype
     metadata = LFRicKernelMetadata()
-    #reader = FortranStringReader(datatype.declaration)
+    # reader = FortranStringReader(datatype.declaration)
     assert isinstance(datatype, StructureType)
     type_declaration = FortranWriter().gen_typedecl(datatype_symbol)
     reader = FortranStringReader(type_declaration)

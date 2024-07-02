@@ -52,7 +52,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Container
-from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType,\
+from psyclone.psyir.symbols import DataTypeSymbol, UnsupportedFortranType, \
                                    StructureType
 
 
@@ -224,8 +224,14 @@ class GOceanKernelMetadata():
 
         datatype = symbol.datatype
 
+        # TODO #2643: This is a temporary solution using FortranWriter
+        # to allow the current metadata extraction to work with StructureType,
+        # instead of relying on UnsupportedFortranType.
+        # This will be removed when the metadata is extracted from the PSyIR
+        # itself.
         if isinstance(datatype, StructureType):
-            type_declaration = FortranWriter().gen_typedecl(symbol).replace(", public", "").replace(", private", "")
+            type_declaration = FortranWriter().gen_typedecl(symbol)
+            type_declaration.replace(", public", "").replace(", private", "")
             return GOceanKernelMetadata.create_from_fortran_string(
                 type_declaration)
 

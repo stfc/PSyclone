@@ -697,7 +697,7 @@ def test_structure_type():
     assert not flag.initial_value
     assert isinstance(flag, StructureType.ComponentType)
     stype.add_component("flag2", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
-              Literal("1", INTEGER_TYPE))
+                        Literal("1", INTEGER_TYPE))
     flag2 = stype.lookup_component("flag2")
     assert isinstance(flag2, StructureType.ComponentType)
     assert flag2.initial_value.value == "1"
@@ -714,7 +714,8 @@ def test_structure_type():
     assert ("visibility of a component of a StructureType must be an instance "
             "of 'Symbol.Visibility' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add_component("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, "Hello")
+        stype.add_component("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
+                            "Hello")
     assert ("The initial value of a component of a StructureType must be "
             "None or an instance of 'DataNode', but got 'str'."
             in str(err.value))
