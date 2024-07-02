@@ -40,8 +40,8 @@
 
 import pytest
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Container, KernelSchedule
+from psyclone.psyir.nodes import (Literal, BinaryOperation, Reference,
+                                  Container, KernelSchedule, Routine)
 from psyclone.psyir.symbols import (
     ArrayType, DataType, UnresolvedType, ScalarType, UnsupportedFortranType,
     DataSymbol, StructureType, NoType, INTEGER_TYPE, REAL_TYPE, Symbol,
@@ -723,6 +723,48 @@ def test_unsupported_fortran_type_eq():
     # Just sanity check that the type of a SAVE != that of a common.
     assert (UnsupportedFortranType("common /how_common/ a, b, cc") !=
             UnsupportedFortranType("save :: blue_blood"))
+
+
+def test_unsupported_fortran_type_copy(fortran_reader):
+    '''Test the copy() method of UnsupportedFortranType.'''
+    code = '''
+    subroutine test
+      use some_mod, only: some_type, start, stop
+      integer, parameter :: nelem = 4
+      type(some_type), pointer :: var(nelem), var2(start:stop)
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    vsym = routine.symbol_table.lookup("var")
+    vtype = vsym.datatype
+    assert isinstance(vtype, UnsupportedFortranType)
+    cpytype = vtype.copy()
+    assert isinstance(cpytype, UnsupportedFortranType)
+    assert isinstance(cpytype.partial_datatype, ArrayType)
+    # Reference to 'nelem' should be a copy.
+    assert (cpytype.partial_datatype.shape[0] is not
+            vtype.partial_datatype.shape[0])
+    assert (cpytype.partial_datatype.shape[0].lower is not
+            vtype.partial_datatype.shape[0].lower)
+    assert (cpytype.partial_datatype.shape[0].upper is not
+            vtype.partial_datatype.shape[0].upper)
+    # But the symbol referred to should be the same.
+    assert (cpytype.partial_datatype.shape[0].upper.symbol is
+            vtype.partial_datatype.shape[0].upper.symbol)
+    # The intrinsic type of the partial type should also be the same Symbol
+    # in both cases.
+    stype = routine.symbol_table.lookup("some_type")
+    assert vtype.partial_datatype.intrinsic is stype
+    assert cpytype.partial_datatype.intrinsic is stype
+    # Repeat check when array lower bound is also a Reference.
+    var2 = routine.symbol_table.lookup("var2")
+    v2type = var2.datatype
+    v2copy = v2type.copy()
+    assert (v2type.partial_datatype.shape[0].lower is not
+            v2copy.partial_datatype.shape[0].lower)
+    assert (v2type.partial_datatype.shape[0].lower.symbol is
+            v2copy.partial_datatype.shape[0].lower.symbol)
 
 
 # StructureType tests

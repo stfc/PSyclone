@@ -124,8 +124,7 @@ class UnsupportedType(DataType, metaclass=abc.ABCMeta):
     @property
     def declaration(self):
         '''
-        :returns: the original declaration of the symbol. This is obviously
-                  language specific and hence this class must be subclassed.
+        :returns: the original declaration of the symbol.
         :rtype: str
         '''
         return self._declaration
@@ -241,6 +240,16 @@ class UnsupportedFortranType(UnsupportedType):
             return False
 
         return other.type_text == self.type_text
+
+    def copy(self):
+        '''
+        :returns: a shallow copy of this datatype.
+        :rtype: :py:class:`psyclone.psyir.symbols.datatypes.UnknownFortranType`
+        '''
+        new = copy.copy(self)
+        if self._partial_datatype:
+            new._partial_datatype = self._partial_datatype.copy()
+        return new
 
 
 class ScalarType(DataType):
