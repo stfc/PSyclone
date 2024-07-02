@@ -2189,9 +2189,9 @@ class Fparser2Reader():
 
             # Re-use the existing code for processing symbols. This needs to
             # be able to find any symbols declared in an outer scope but
-            # referenced within the type definition (e.g. a type name).
-            fake_sched = Container("andy", parent=parent)
-            local_table = fake_sched.symbol_table
+            # referenced within the type definition (e.g. a type name). Hence
+            # the table needs to be connected to the tree.
+            local_table = Container("tmp", parent=parent).symbol_table
             local_table.default_visibility = default_compt_visibility
 
             for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
@@ -2201,7 +2201,9 @@ class Fparser2Reader():
                 if type(symbol) is Symbol:
                     # If we don't have type information for this Symbol then
                     # it isn't defined within this structure so we add it
-                    # to the parent SymbolTable.
+                    # to the parent SymbolTable. (This can happen when e.g.
+                    # an array member is dimensioned by a parameter declared
+                    # elsewhere.)
                     parent.symbol_table.add(symbol)
                 else:
                     datatype = symbol.datatype
