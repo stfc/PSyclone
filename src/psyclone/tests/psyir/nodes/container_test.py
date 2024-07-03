@@ -44,8 +44,7 @@ from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (colored, Container, FileContainer,
                                   KernelSchedule, Return, Routine)
-from psyclone.psyir.symbols import (
-    DataSymbol, NoType, REAL_SINGLE_TYPE, RoutineSymbol, SymbolTable)
+from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, SymbolTable
 from psyclone.tests.utilities import check_links
 
 
@@ -183,21 +182,19 @@ def test_container_children_validation():
 
 
 def test_container_get_routine_psyir():
-    '''Test that get_routine_psyir works.
+    '''Test that get_routine_psyir works
 
     '''
     symbol_table = SymbolTable()
     symbol_table.add(DataSymbol("tmp", REAL_SINGLE_TYPE))
-    symbol_table.add(RoutineSymbol("mod_1", NoType()))
-    symbol_table.add(RoutineSymbol("mod_2", NoType()))
     kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
     kernel2 = KernelSchedule.create("mod_2", SymbolTable(), [])
     container = Container.create("container_name", symbol_table,
                                  [kernel1, kernel2])
     for name in ["mod_1", "mod_2"]:
         psyir = container.get_routine_psyir(name)
-        assert isinstance(psyir[0], Routine)
-        assert psyir[0].name == name
+        assert isinstance(psyir, Routine)
+        assert psyir.name == name
 
     assert container.get_routine_psyir("doesnotexist") is None
 
