@@ -258,8 +258,8 @@ class ScalarType(DataType):
     :param intrinsic: the intrinsic of this scalar type.
     :type intrinsic: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic`
     :param precision: the precision of this scalar type.
-    :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
-        int or :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :type precision: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
+                     int | :py:class:`psyclone.psyir.symbols.DataSymbol`
 
     :raises TypeError: if any of the arguments are of the wrong type.
     :raises ValueError: if any of the argument have unexpected values.
@@ -291,27 +291,10 @@ class ScalarType(DataType):
                 f"ScalarType expected 'intrinsic' argument to be of type "
                 f"ScalarType.Intrinsic but found "
                 f"'{type(intrinsic).__name__}'.")
-        if not isinstance(precision, (int, ScalarType.Precision, DataSymbol)):
-            raise TypeError(
-                f"ScalarType expected 'precision' argument to be of type "
-                f"int, ScalarType.Precision or DataSymbol, but found "
-                f"'{type(precision).__name__}'.")
-        if isinstance(precision, int) and precision <= 0:
-            raise ValueError(
-                f"The precision of a DataSymbol when specified as an integer "
-                f"number of bytes must be > 0 but found '{precision}'.")
-        if (isinstance(precision, DataSymbol) and
-                not (isinstance(precision.datatype, ScalarType) and
-                     precision.datatype.intrinsic ==
-                     ScalarType.Intrinsic.INTEGER) and
-                not isinstance(precision.datatype, UnresolvedType)):
-            raise ValueError(
-                f"A DataSymbol representing the precision of another "
-                f"DataSymbol must be of either 'unresolved' or scalar, "
-                f"integer type but got: {precision}")
 
         self._intrinsic = intrinsic
-        self._precision = precision
+        # Use the 'precision' setter to do validation.
+        self.precision = precision
 
     @property
     def intrinsic(self):
@@ -325,10 +308,43 @@ class ScalarType(DataType):
     def precision(self):
         '''
         :returns: the precision of this scalar type.
-        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision`, \
-            int or :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
+                int | :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._precision
+
+    @precision.setter
+    def precision(self, value):
+        '''
+        Setter for the precision of this scalar type.
+
+        :param value: the new precision to assign to this type.
+        :type value: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
+                     int | :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises TypeError: if the supplied value is of incorrect type.
+        :raises ValueError: if the supplied value is invalid.
+
+        '''
+        if not isinstance(value, (int, ScalarType.Precision, DataSymbol)):
+            raise TypeError(
+                f"ScalarType expected 'precision' argument to be of type "
+                f"int, ScalarType.Precision or DataSymbol, but found "
+                f"'{type(value).__name__}'.")
+        if isinstance(value, int) and value <= 0:
+            raise ValueError(
+                f"The precision of a DataSymbol when specified as an integer "
+                f"number of bytes must be > 0 but found '{value}'.")
+        if (isinstance(value, DataSymbol) and
+                not (isinstance(value.datatype, ScalarType) and
+                     value.datatype.intrinsic ==
+                     ScalarType.Intrinsic.INTEGER) and
+                not isinstance(value.datatype, UnresolvedType)):
+            raise ValueError(
+                f"A DataSymbol representing the precision of another "
+                f"DataSymbol must be of either 'unresolved' or scalar, "
+                f"integer type but got: {value}")
+        self._precision = value
 
     def __str__(self):
         '''
@@ -455,13 +471,13 @@ class ArrayType(DataType):
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
             if not isinstance(datatype, (UnsupportedType, UnresolvedType)):
-                self._intrinsic = datatype.intrinsic
+                self.intrinsic = datatype.intrinsic
                 self._precision = datatype.precision
             else:
-                self._intrinsic = datatype
+                self.intrinsic = datatype
                 self._precision = None
         elif isinstance(datatype, DataTypeSymbol):
-            self._intrinsic = datatype
+            self.intrinsic = datatype
             self._precision = None
         else:
             raise TypeError(
@@ -506,9 +522,22 @@ class ArrayType(DataType):
         '''
         :returns: the intrinsic type of each element in the array.
         :rtype: :py:class:`pyclone.psyir.datatypes.ScalarType.Intrinsic` |
-                :py:class:`psyclone.psyir.symbols.DataSymbol`
+                :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         '''
         return self._intrinsic
+
+    @intrinsic.setter
+    def intrinsic(self, value):
+        '''
+        Setter for the intrinsic type of each element in the array.
+
+        :param value: the new intrinsic type.
+        :type value: :py:class:`psyclone.psyir.datatypes.ScalarType.Intrinsic`
+            | :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        '''
+        if not isinstance(value, (ScalarType.Intrinsic, DataTypeSymbol)):
+            raise TypeError("lalal")
+        self._intrinsic = value
 
     @property
     def precision(self):
