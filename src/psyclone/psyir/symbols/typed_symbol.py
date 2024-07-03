@@ -230,3 +230,25 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
                 return self._datatype.partial_datatype.shape
             return self._datatype.shape
         return []
+
+    def relink(self, table):
+        '''
+        Replace any Symbols referred to by this object with those of the
+        same name in the supplied SymbolTable. If, for a given Symbol, there
+        is no corresponding entry in the supplied table, then that
+        Symbol is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        super().relink(table)
+
+        from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+        if isinstance(self.datatype, DataTypeSymbol):
+            try:
+                self._datatype = table.lookup(self.datatype.name)
+            except KeyError:
+                pass
+        else:
+            self._datatype.relink(table)

@@ -341,3 +341,20 @@ class DataSymbol(TypedSymbol):
         super().copy_properties(symbol_in)
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
+
+    def relink(self, table):
+        '''
+        Replace any Symbols referred to by this object with those of the
+        same name in the supplied SymbolTable. If, for a given Symbol, there
+        is no corresponding entry in the supplied table, then that
+        Symbol is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        super().relink(table)
+
+        # Ensure any Symbols referenced in the initial value are updated.
+        if self.initial_value:
+            self.initial_value.relink(table)

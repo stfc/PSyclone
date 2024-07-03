@@ -507,3 +507,25 @@ class Symbol():
         # in this case.
         # TODO #1213: check for wildcard imports
         return self.is_array
+
+    def relink(self, table):
+        '''
+        Replace any Symbols referred to by this object with those of the
+        same name in the supplied SymbolTable. If, for a given Symbol, there
+        is no corresponding entry in the supplied table, then that
+        Symbol is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        if not isinstance(self.interface, ImportInterface):
+            return
+        name = self.interface.container_symbol.name
+        orig_name = self.interface.orig_name
+        try:
+            new_container = table.lookup(name)
+            self.interface = ImportInterface(new_container,
+                                             orig_name=orig_name)
+        except KeyError:
+            pass

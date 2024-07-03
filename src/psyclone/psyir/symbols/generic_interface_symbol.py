@@ -152,6 +152,27 @@ class GenericInterfaceSymbol(RoutineSymbol):
                           visibility=self.visibility,
                           interface=self.interface)
 
+    def relink(self, table):
+        '''
+        Replace the RoutineSymbols in this object with those of the
+        same name in the supplied SymbolTable. If, for a given Symbol, there
+        is no corresponding entry in the supplied table, then that
+        Symbol is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # Construct a new list of RoutineSymbols.
+        new_routines = []
+        for routine in self.routines:
+            try:
+                new_rt = table.lookup(routine.symbol.name)
+            except KeyError:
+                new_rt = routine.symbol
+            new_routines.append((new_rt, routine.from_container))
+        self.routines = new_routines
+
 
 # For Sphinx AutoAPI documentation generation
 __all__ = ["GenericInterfaceSymbol"]

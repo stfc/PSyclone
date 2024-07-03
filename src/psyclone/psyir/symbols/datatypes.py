@@ -75,6 +75,18 @@ class DataType(metaclass=abc.ABCMeta):
         '''
         return copy.copy(self)
 
+    def relink(self, table):
+        '''
+        Replace any Symbols referred to by this object with those of the
+        same name in the supplied SymbolTable. If, for a given Symbol, there
+        is no corresponding entry in the supplied table, then that
+        Symbol is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+
 
 class UnresolvedType(DataType):
     # pylint: disable=too-few-public-methods
@@ -264,6 +276,22 @@ class UnsupportedFortranType(UnsupportedType):
             new._partial_datatype = self._partial_datatype.copy()
         return new
 
+    def relink(self, table):
+        '''Replace any Symbols referred to in the partial_datatype of this
+        type with those of the same name in the supplied
+        SymbolTable. If, for a given Symbol, there is no corresponding
+        entry in the supplied table, then that Symbol is left
+        unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # If we have partial type information then update the symbols
+        # referred to within it (if any).
+        if self.partial_datatype:
+            self.partial_datatype.relink(table)
+
 
 class ScalarType(DataType):
     '''Describes a scalar datatype (and its precision).
@@ -306,8 +334,26 @@ class ScalarType(DataType):
                 f"'{type(intrinsic).__name__}'.")
 
         self._intrinsic = intrinsic
-        # Use the 'precision' setter to do validation.
-        self.precision = precision
+
+        if not isinstance(precision, (int, ScalarType.Precision, DataSymbol)):
+            raise TypeError(
+                f"ScalarType expected 'precision' argument to be of type "
+                f"int, ScalarType.Precision or DataSymbol, but found "
+                f"'{type(precision).__name__}'.")
+        if isinstance(precision, int) and precision <= 0:
+            raise ValueError(
+                f"The precision of a DataSymbol when specified as an integer "
+                f"number of bytes must be > 0 but found '{precision}'.")
+        if (isinstance(precision, DataSymbol) and
+                not (isinstance(precision.datatype, ScalarType) and
+                     precision.datatype.intrinsic ==
+                     ScalarType.Intrinsic.INTEGER) and
+                not isinstance(precision.datatype, UnresolvedType)):
+            raise ValueError(
+                f"A DataSymbol representing the precision of another "
+                f"DataSymbol must be of either 'unresolved' or scalar, "
+                f"integer type but got: {precision}")
+        self._precision = precision
 
     @property
     def intrinsic(self):
@@ -325,39 +371,6 @@ class ScalarType(DataType):
                 int | :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return self._precision
-
-    @precision.setter
-    def precision(self, value):
-        '''
-        Setter for the precision of this scalar type.
-
-        :param value: the new precision to assign to this type.
-        :type value: :py:class:`psyclone.psyir.symbols.ScalarType.Precision` |
-                     int | :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        :raises TypeError: if the supplied value is of incorrect type.
-        :raises ValueError: if the supplied value is invalid.
-
-        '''
-        if not isinstance(value, (int, ScalarType.Precision, DataSymbol)):
-            raise TypeError(
-                f"ScalarType expected 'precision' argument to be of type "
-                f"int, ScalarType.Precision or DataSymbol, but found "
-                f"'{type(value).__name__}'.")
-        if isinstance(value, int) and value <= 0:
-            raise ValueError(
-                f"The precision of a DataSymbol when specified as an integer "
-                f"number of bytes must be > 0 but found '{value}'.")
-        if (isinstance(value, DataSymbol) and
-                not (isinstance(value.datatype, ScalarType) and
-                     value.datatype.intrinsic ==
-                     ScalarType.Intrinsic.INTEGER) and
-                not isinstance(value.datatype, UnresolvedType)):
-            raise ValueError(
-                f"A DataSymbol representing the precision of another "
-                f"DataSymbol must be of either 'unresolved' or scalar, "
-                f"integer type but got: {value}")
-        self._precision = value
 
     def __str__(self):
         '''
@@ -381,8 +394,38 @@ class ScalarType(DataType):
         if not super().__eq__(other):
             return False
 
-        return (self.precision == other.precision and
-                self.intrinsic == other.intrinsic)
+        if isinstance(other.precision, Symbol) and isinstance(self.precision,
+                                                              Symbol):
+            # If the precision in both types is given by a Symbol then we just
+            # compare the names of those symbols.
+            precision_match = other.precision.name == self.precision.name
+        else:
+            precision_match = self.precision == other.precision
+        return precision_match and self.intrinsic == other.intrinsic
+
+    def relink(self, table):
+        '''
+        Replace any Symbols referred to by this object with those of the
+        same name in the supplied SymbolTable. If, for a given Symbol, there
+        is no corresponding entry in the supplied table, then that
+        Symbol is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        if isinstance(self.precision, Symbol):
+            # Update any 'precision' information.
+            try:
+                self._precision = table.lookup(self.precision.name)
+            except KeyError:
+                pass
+        if isinstance(self.intrinsic, Symbol):
+            # Update any 'intrinsic' information.
+            try:
+                self._intrinsic = table.lookup(self.intrinsic.name)
+            except KeyError:
+                pass
 
 
 class ArrayType(DataType):
@@ -484,13 +527,13 @@ class ArrayType(DataType):
                     "those structures must be supplied as a DataTypeSymbol "
                     "but got a StructureType instead.")
             if not isinstance(datatype, (UnsupportedType, UnresolvedType)):
-                self.intrinsic = datatype.intrinsic
+                self._intrinsic = datatype.intrinsic
                 self._precision = datatype.precision
             else:
-                self.intrinsic = datatype
+                self._intrinsic = datatype
                 self._precision = None
         elif isinstance(datatype, DataTypeSymbol):
-            self.intrinsic = datatype
+            self._intrinsic = datatype
             self._precision = None
         else:
             raise TypeError(
@@ -538,19 +581,6 @@ class ArrayType(DataType):
                 :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         '''
         return self._intrinsic
-
-    @intrinsic.setter
-    def intrinsic(self, value):
-        '''
-        Setter for the intrinsic type of each element in the array.
-
-        :param value: the new intrinsic type.
-        :type value: :py:class:`psyclone.psyir.datatypes.ScalarType.Intrinsic`
-            | :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
-        '''
-        if not isinstance(value, (ScalarType.Intrinsic, DataTypeSymbol)):
-            raise TypeError("lalal")
-        self._intrinsic = value
 
     @property
     def precision(self):
@@ -796,6 +826,50 @@ class ArrayType(DataType):
                 new_shape.append(dim)
         return ArrayType(self.datatype, new_shape)
 
+    def relink(self, table):
+        '''
+        Replace any Symbols referred to by this object with those of the
+        same name in the supplied SymbolTable. If, for a given Symbol, there
+        is no corresponding entry in the supplied table, then that
+        Symbol is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+        if isinstance(self.datatype, DataTypeSymbol):
+            try:
+                self._datatype = table.lookup(self.datatype.name)
+            except KeyError:
+                pass
+        else:
+            self.datatype.relink(table)
+
+        # TODO #1857: we will probably remove '_precision' and have
+        # 'intrinsic' be 'datatype'.
+        if self._precision and isinstance(self._precision, Symbol):
+            try:
+                self._precision = table.lookup(self._precision.name)
+            except KeyError:
+                pass
+        if self._intrinsic and isinstance(self._intrinsic, Symbol):
+            try:
+                self._intrinsic = table.lookup(self._intrinsic.name)
+            except KeyError:
+                pass
+
+        from psyclone.psyir.nodes import Node
+        # Update any Symbols referenced in the array shape
+        for dim in self.shape:
+            if isinstance(dim, ArrayType.ArrayBounds):
+                exprns = dim
+            else:
+                exprns = [dim]
+            for bnd in exprns:
+                if isinstance(bnd, Node):
+                    bnd.relink(table)
+
 
 class StructureType(DataType):
     '''
@@ -934,6 +1008,36 @@ class StructureType(DataType):
             return False
 
         return True
+
+    def relink(self, table):
+        '''
+        Replace any Symbols referred to by this object with those of the
+        same name in the supplied SymbolTable. If, for a given Symbol, there
+        is no corresponding entry in the supplied table, then that
+        Symbol is left unchanged.
+
+        :param table: the symbol table from which to get replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+        # TODO switch ComponentType to a dataclass to allow it to be mutated?
+        new_components = OrderedDict()
+        for component in self.components.values():
+            if isinstance(component.datatype, DataTypeSymbol):
+                try:
+                    new_type = table.lookup(component.datatype.name)
+                except KeyError:
+                    pass
+            else:
+                component.datatype.relink(table)
+                new_type = component.datatype
+            if component.initial_value:
+                component.initial_value.relink(table)
+            new_components[component.name] = StructureType.ComponentType(
+                component.name, new_type, component.visibility,
+                component.initial_value)
+        self._components = new_components
 
 
 # Create common scalar datatypes
