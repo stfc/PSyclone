@@ -777,8 +777,8 @@ class ArrayType(DataType):
 
     def copy(self):
         '''
-        Create a shallow copy of this ArrayType. (Any References will be
-        re-created but the target Symbols will remain unchanged.)
+        Create a shallow copy of this ArrayType. Any shape expressions will be
+        re-created but any referenced Symbols will remain unchanged.
 
         :returns: a copy of this ArrayType.
         :rtype: :py:class:`psyclone.psyir.datatype.ArrayType`

@@ -298,20 +298,23 @@ class DataSymbol(TypedSymbol):
         original will not be affected so the copy will not be referred
         to by any other object.
 
+        N.B. any Symbols referenced in either the datatype or the initial_value
+        properties will remain unchanged in the copied object.
+
         :returns: An object with the same properties as this symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         if self.initial_value is not None:
-            # Ensure any References in the initial-value expression are
-            # also copied. At this stage they will still point to the
-            # same Symbols as the original.
+            # Ensure any initial-value expression is also copied. Any Symbols
+            # that are referenced will be the same objects as in the original
+            # expression.
             new_init_value = self.initial_value.copy()
         else:
             new_init_value = None
         if self.is_array:
             # Ensure any References in the shape definition of an ArrayType
-            # are also copied. At this stage they will still point to the
+            # are also copied. They will still point to the
             # same Symbols as the original.
             new_datatype = self.datatype.copy()
         else:
