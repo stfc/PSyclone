@@ -52,7 +52,8 @@ from psyclone.errors import InternalError
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
-from psyclone.psyir.symbols.datatypes import ArrayType
+from psyclone.psyir.symbols.datatypes import (
+    ArrayType, ScalarType, UnsupportedFortranType)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -233,6 +234,22 @@ class SymbolTable():
             current = current.parent_symbol_table(scope_limit)
         return all_tags
 
+    @staticmethod
+    def _replace_symbols_in_expr(node, table):
+        '''
+        '''
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.psyir.nodes import Node, Reference
+        if not isinstance(node, Node):
+            return
+
+        for ref in node.walk(Reference):
+            try:
+                ref.symbol = table.lookup(ref.symbol.name)
+            except KeyError:
+                # This symbol isn't in the table.
+                pass
+
     def shallow_copy(self):
         '''Create a copy of the symbol table with new instances of the
         top-level data structures but keeping the same existing symbol
@@ -302,39 +319,50 @@ class SymbolTable():
                                      routine.from_container))
             symbol.routines = new_routines
 
-        # Ensure any Symbols referenced in array shapes are also updated
-        # pylint: disable-next=import-outside-toplevel
-        from psyclone.psyir.nodes import Node, Reference
+        # Update any symbols within `intrinsic` and `precision` properties
         for symbol in new_st.symbols:
-            if not (symbol.is_array and isinstance(symbol.datatype,
-                                                   ArrayType)):
+            if not isinstance(symbol, TypedSymbol):
                 continue
-            for dim in symbol.datatype.shape:
+            dtype = symbol.datatype
+            if isinstance(dtype, UnsupportedFortranType):
+                if symbol.datatype.partial_datatype:
+                    base = symbol.datatype
+                    dtype = symbol.datatype.partial_datatype
+                    if isinstance(dtype, DataTypeSymbol):
+                        try:
+                            base.partial_datatype = new_st.lookup(dtype.name)
+                        except KeyError:
+                            pass
+            if isinstance(dtype, (ScalarType, ArrayType)):
+                if isinstance(dtype.precision, Symbol):
+                    try:
+                        dtype.precision = new_st.lookup(dtype.precision.name)
+                    except KeyError:
+                        pass
+                if isinstance(dtype.intrinsic, Symbol):
+                    try:
+                        dtype.intrinsic = new_st.lookup(dtype.intrinsic.name)
+                    except KeyError:
+                        pass
+
+            # Update any Symbols referenced in array shapes
+            if not isinstance(dtype, ArrayType):
+                continue
+            for dim in dtype.shape:
                 if isinstance(dim, ArrayType.ArrayBounds):
                     exprns = dim
                 else:
                     exprns = [dim]
                 for bnd in exprns:
-                    if isinstance(bnd, Node):
-                        for ref in bnd.walk(Reference):
-                            try:
-                                ref.symbol = new_st.lookup(ref.symbol.name)
-                            except KeyError:
-                                # This dimensioning symbol isn't in the table
-                                # we are copying.
-                                pass
+                    SymbolTable._replace_symbols_in_expr(bnd, new_st)
 
         # Ensure any Symbols referenced in initial values are updated.
         for symbol in new_st.symbols:
             if not isinstance(symbol, DataSymbol):
                 continue
             if symbol.initial_value:
-                for ref in symbol.initial_value.walk(Reference):
-                    try:
-                        ref.symbol = new_st.lookup(ref.symbol.name)
-                    except KeyError:
-                        # This symbol isn't in the table we are copying.
-                        pass
+                SymbolTable._replace_symbols_in_expr(symbol.initial_value,
+                                                     new_st)
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility

@@ -46,7 +46,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    BinaryOperation, CodeBlock, Container, KernelSchedule,
+    BinaryOperation, CodeBlock, Container, IntrinsicCall, KernelSchedule,
     Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir import symbols
 
@@ -2058,54 +2058,62 @@ def test_shallow_copy():
 
 def test_deep_copy():
     ''' Tests the SymbolTable deep copy generates a new SymbolTable with
-    new identical copies of the symbols in the original symbol table'''
+    new, identical copies of the symbols in the original symbol table'''
 
     # Create an initial SymbolTable
     symtab = symbols.SymbolTable(
         default_visibility=symbols.Symbol.Visibility.PRIVATE)
     Schedule(symbol_table=symtab)
     mod = symbols.ContainerSymbol("my_mod")
+    symtab.add(mod)
     sym1 = symbols.DataSymbol("symbol1", symbols.INTEGER_TYPE,
                               interface=symbols.ArgumentInterface(
                                   symbols.ArgumentInterface.Access.READ))
+    symtab.add(sym1)
     sym2 = symbols.Symbol(
         "symbol2",
         interface=symbols.ImportInterface(mod, orig_name="altsym2"))
+    symtab.add(sym2, tag="tag1")
     sym3 = symbols.DataSymbol("symbol3", symbols.INTEGER_TYPE)
+    symtab.add(sym3)
     # Shape containing References.
     sym4 = symbols.DataSymbol("symbol4",
                               symbols.ArrayType(symbols.REAL_TYPE,
                                                 [Reference(sym1)]))
-    # Shape with a attribute rather than bounds.
+    symtab.add(sym4)
+    # Shape with an attribute rather than bounds.
     sym4a = symbols.DataSymbol(
         "sym4a",
         symbols.ArrayType(symbols.REAL_TYPE,
                           [symbols.ArrayType.Extent.ATTRIBUTE]))
+    symtab.add(sym4a)
     other_sym = symbols.DataSymbol("other_sym", symbols.UnresolvedType())
     # Shape with a reference to an unresolved Symbol.
     sym4b = symbols.DataSymbol(
         "sym4b",
         symbols.ArrayType(symbols.REAL_TYPE,
                           [Reference(other_sym)]))
+    symtab.add(sym4b)
     # Initial value containing References.
     sym5 = symbols.DataSymbol(
         "symbol5", symbols.INTEGER_TYPE,
         initial_value=BinaryOperation.create(BinaryOperation.Operator.ADD,
                                              Reference(sym1), Reference(sym2)))
+    symtab.add(sym5)
+    dpsym = symbols.DataSymbol("dp", symbols.REAL_DOUBLE_TYPE)
+    symtab.add(dpsym)
+    icall = IntrinsicCall.create(IntrinsicCall.Intrinsic.KIND,
+                                 [Reference(dpsym)])
+    wp = symbols.DataSymbol("wp", symbols.INTEGER_TYPE,
+                            initial_value=icall)
+    symtab.add(wp)
     # Initial value containing a Reference to an unresolved Symbol.
     sym5a = symbols.DataSymbol(
-        "sym5a", symbols.INTEGER_TYPE,
+        "sym5a",
+        symbols.ScalarType(symbols.ScalarType.Intrinsic.INTEGER, wp),
         initial_value=BinaryOperation.create(BinaryOperation.Operator.ADD,
                                              Reference(sym1),
                                              Reference(other_sym)))
-    symtab.add(mod)
-    symtab.add(sym1)
-    symtab.add(sym2, tag="tag1")
-    symtab.add(sym3)
-    symtab.add(sym4)
-    symtab.add(sym4a)
-    symtab.add(sym4b)
-    symtab.add(sym5)
     symtab.add(sym5a)
     symtab.specify_argument_list([sym1])
     rsym = symbols.RoutineSymbol("my_sub")
@@ -2176,7 +2184,12 @@ def test_deep_copy():
     assert sym5.initial_value.children[1].symbol is sym2
     newsym5a = symtab2.lookup("sym5a")
     assert newsym5a.initial_value.children[1].symbol is other_sym
-
+    # Check that precision value has been updated.
+    new_wp = symtab2.lookup("wp")
+    new_dp = symtab2.lookup("dp")
+    assert newsym5a.datatype.precision is new_wp
+    assert new_wp.initial_value.arguments[0].symbol is new_dp
+    
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
     symtab.add(symbols.Symbol("st1"))
@@ -2195,6 +2208,37 @@ def test_deep_copy():
     assert "symbol2" in symtab
     assert "symbol3" not in symtab
     assert "symbol3" not in symtab2
+
+
+def test_deep_copy_partial_datatype():
+    '''
+    '''
+    symtab = symbols.SymbolTable()
+    # A symbol of unsupported type but with partial type information.
+    bla_type = symbols.DataTypeSymbol("blah_type", symbols.UnresolvedType())
+    symtab.add(bla_type)
+    nelem = symbols.DataSymbol("nelem", symbols.INTEGER_TYPE)
+    symtab.add(nelem)
+    ptype = symbols.ArrayType(bla_type, [Reference(nelem)])
+    orig_text = "type(blah_type), pointer, dimension(nelem) :: sym6"
+    sym6 = symbols.DataSymbol(
+        "sym6", symbols.UnsupportedFortranType(orig_text,
+                                               partial_datatype=ptype))
+    symtab.add(sym6)
+
+    symtab2 = symtab.deep_copy()
+    # Check that partial datatype has been updated.
+    newsym6 = symtab2.lookup("sym6")
+    new_blah_type = symtab2.lookup("blah_type")
+    new_nelem = symtab2.lookup("nelem")
+    assert isinstance(newsym6.datatype, symbols.UnsupportedFortranType)
+    assert newsym6.datatype.declaration == orig_text
+    newptype = newsym6.datatype.partial_datatype
+    assert newptype.intrinsic is not ptype.intrinsic
+    assert newptype.intrinsic.name == ptype.intrinsic.name
+    assert newptype.intrinsic is new_blah_type
+    assert len(newptype.shape) == 1
+    assert newptype.shape[0].upper.symbol is new_nelem
 
 
 def test_get_symbols():
