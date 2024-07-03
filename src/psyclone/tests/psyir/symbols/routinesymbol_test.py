@@ -39,8 +39,8 @@
 
 import pytest
 from psyclone.psyir.symbols import (
-    RoutineSymbol, Symbol, UnresolvedInterface,
-    NoType, INTEGER_TYPE, UnresolvedType, DataTypeSymbol)
+    DataSymbol, RoutineSymbol, UnresolvedInterface,
+    NoType, INTEGER_TYPE, ScalarType, Symbol, UnresolvedType, DataTypeSymbol)
 
 
 def test_routinesymbol_init():
@@ -156,6 +156,7 @@ def test_routinesymbol_copy():
     assert new_sym.visibility == asym.visibility
     assert new_sym.is_elemental
     assert new_sym.is_pure
+    assert new_sym.datatype is not asym.datatype
 
     # Default is elemental and pure is None
     sym2 = RoutineSymbol("a")
@@ -167,3 +168,11 @@ def test_routinesymbol_copy():
     assert new_sym.is_elemental is None
     assert new_sym.is_pure == sym2.is_pure
     assert new_sym.is_pure is None
+
+    # Test when the routine has a datatype.
+    wp = DataSymbol("wp", INTEGER_TYPE)
+    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL,
+                                             wp))
+    new_sym3 = sym3.copy()
+    assert new_sym3.datatype is not sym3.datatype
+    assert new_sym3.datatype.precision is wp

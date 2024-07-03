@@ -147,7 +147,8 @@ class GenericInterfaceSymbol(RoutineSymbol):
         '''
         # The constructors for all Symbol-based classes have 'name' as the
         # first positional argument.
-        return type(self)(self.name, self.routines, datatype=self.datatype,
+        return type(self)(self.name, self.routines[:],
+                          datatype=self.datatype.copy(),
                           visibility=self.visibility,
                           interface=self.interface)
 

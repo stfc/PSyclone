@@ -110,6 +110,9 @@ def test_gis_copy():
     assert isinstance(spinney, GenericInterfaceSymbol)
     assert spinney is not coppice
     assert len(spinney.routines) == 2
+    # The list of routines should be a copy.
+    assert spinney.routines is not coppice.routines
+    # The Routine objects themselves should be unchanged.
     rsyms = [item.symbol for item in spinney.routines]
     assert ash in rsyms
     assert holly in rsyms
