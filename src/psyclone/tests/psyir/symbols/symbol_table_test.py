@@ -2094,6 +2094,13 @@ def test_deep_copy():
         symbols.ArrayType(symbols.REAL_TYPE,
                           [Reference(other_sym)]))
     symtab.add(sym4b)
+    maxcall = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                   [Reference(sym1), Reference(sym3)])
+    binop = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                   Literal("3", symbols.INTEGER_TYPE), maxcall)
+    sym4c = symbols.DataSymbol(
+        "sym4c", symbols.ArrayType(symbols.REAL_TYPE, [binop]))
+    symtab.add(sym4c)
     # Initial value containing References.
     sym5 = symbols.DataSymbol(
         "symbol5", symbols.INTEGER_TYPE,
@@ -2173,6 +2180,13 @@ def test_deep_copy():
     newsym4b = symtab2.lookup("sym4b")
     # Check that the reference to an unresolved symbol is unchanged.
     assert newsym4b.datatype.shape[0].upper.symbol is other_sym
+    # Repeat check when array bound is given by an expression.
+    newsym4c = symtab2.lookup("sym4c")
+    assert isinstance(newsym4c.datatype.shape[0].upper, BinaryOperation)
+    for ref in newsym4c.datatype.shape[0].upper.walk(Reference):
+        if not isinstance(ref.symbol, symbols.RoutineSymbol):
+            assert ref.symbol in symtab2.symbols
+            assert ref.symbol not in symtab.symbols
 
     # Check that initial-value expressions are updated correctly.
     newsym5 = symtab2.lookup("symbol5")
@@ -2189,7 +2203,7 @@ def test_deep_copy():
     new_dp = symtab2.lookup("dp")
     assert newsym5a.datatype.precision is new_wp
     assert new_wp.initial_value.arguments[0].symbol is new_dp
-    
+
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
     symtab.add(symbols.Symbol("st1"))
