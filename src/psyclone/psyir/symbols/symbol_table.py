@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, DataTypeSymbol, GenericInterfaceSymbol,
     ImportInterface, RoutineSymbol, Symbol, SymbolError, UnresolvedInterface)
 from psyclone.psyir.symbols.datatypes import (
-    ArrayType, ScalarType, UnsupportedFortranType)
+    ArrayType, ScalarType, StructureType, UnsupportedFortranType)
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -68,14 +68,14 @@ class SymbolTable():
     default visibility is not specified then it defaults to
     Symbol.Visbility.PUBLIC.
 
-    :param node: reference to the Schedule or Container to which this \
+    :param node: reference to the Schedule or Container to which this
         symbol table belongs.
-    :type node: :py:class:`psyclone.psyir.nodes.Schedule`, \
-        :py:class:`psyclone.psyir.nodes.Container` or NoneType
-    :param default_visibility: optional default visibility value for this \
+    :type node: Optional[:py:class:`psyclone.psyir.nodes.Schedule` |
+                         :py:class:`psyclone.psyir.nodes.Container`]
+    :param default_visibility: optional default visibility value for this
         symbol table, if not provided it defaults to PUBLIC visibility.
-    :type default_visibillity: \
-        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :type default_visibillity: Optional[
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
     :raises TypeError: if node argument is not a Schedule or a Container.
 
@@ -319,50 +319,66 @@ class SymbolTable():
                                      routine.from_container))
             symbol.routines = new_routines
 
-        # Update any symbols within `intrinsic` and `precision` properties
+        # Update any symbols within `intrinsic`, `precision` and
+        # `initial_value` properties.
         for symbol in new_st.symbols:
             if not isinstance(symbol, TypedSymbol):
+                # No need to do anything for a Symbol without type info.
                 continue
-            dtype = symbol.datatype
-            if isinstance(dtype, UnsupportedFortranType):
-                if symbol.datatype.partial_datatype:
-                    base = symbol.datatype
-                    dtype = symbol.datatype.partial_datatype
-                    if isinstance(dtype, DataTypeSymbol):
+            # This allows us to have just the one loop which handles both
+            # Symbols and components of StructureTypes.
+            if isinstance(symbol.datatype, StructureType):
+                entries = symbol.datatype.components.values()
+            else:
+                entries = [symbol]
+
+            for entry in entries:
+
+                dtype = entry.datatype
+
+                if isinstance(dtype, UnsupportedFortranType):
+                    # If we only have partial type information then that's the
+                    # type we need to update.
+                    if entry.datatype.partial_datatype:
+                        base = entry.datatype
+                        dtype = entry.datatype.partial_datatype
+                        if isinstance(dtype, DataTypeSymbol):
+                            try:
+                                base.partial_datatype = new_st.lookup(
+                                    dtype.name)
+                            except KeyError:
+                                pass
+                if isinstance(dtype, (ScalarType, ArrayType)):
+                    if isinstance(dtype.precision, Symbol):
+                        # Update any 'precision' information.
                         try:
-                            base.partial_datatype = new_st.lookup(dtype.name)
+                            dtype.precision = new_st.lookup(
+                                dtype.precision.name)
                         except KeyError:
                             pass
-            if isinstance(dtype, (ScalarType, ArrayType)):
-                if isinstance(dtype.precision, Symbol):
-                    try:
-                        dtype.precision = new_st.lookup(dtype.precision.name)
-                    except KeyError:
-                        pass
-                if isinstance(dtype.intrinsic, Symbol):
-                    try:
-                        dtype.intrinsic = new_st.lookup(dtype.intrinsic.name)
-                    except KeyError:
-                        pass
+                    if isinstance(dtype.intrinsic, Symbol):
+                        # Update any 'intrinsic' information.
+                        try:
+                            dtype.intrinsic = new_st.lookup(
+                                dtype.intrinsic.name)
+                        except KeyError:
+                            pass
 
-            # Update any Symbols referenced in array shapes
-            if not isinstance(dtype, ArrayType):
-                continue
-            for dim in dtype.shape:
-                if isinstance(dim, ArrayType.ArrayBounds):
-                    exprns = dim
-                else:
-                    exprns = [dim]
-                for bnd in exprns:
-                    SymbolTable._replace_symbols_in_expr(bnd, new_st)
+                # Ensure any Symbols referenced in initial values are updated.
+                if hasattr(entry, "initial_value") and entry.initial_value:
+                    SymbolTable._replace_symbols_in_expr(entry.initial_value,
+                                                         new_st)
 
-        # Ensure any Symbols referenced in initial values are updated.
-        for symbol in new_st.symbols:
-            if not isinstance(symbol, DataSymbol):
-                continue
-            if symbol.initial_value:
-                SymbolTable._replace_symbols_in_expr(symbol.initial_value,
-                                                     new_st)
+                # Update any Symbols referenced in array shapes
+                if not isinstance(dtype, ArrayType):
+                    continue
+                for dim in dtype.shape:
+                    if isinstance(dim, ArrayType.ArrayBounds):
+                        exprns = dim
+                    else:
+                        exprns = [dim]
+                    for bnd in exprns:
+                        SymbolTable._replace_symbols_in_expr(bnd, new_st)
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility

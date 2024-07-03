@@ -2212,19 +2212,25 @@ def test_deep_copy():
 
 def test_deep_copy_partial_datatype():
     '''
+    Test the deep-copy functionality for an UnknownFortranType with
+    partial datatype information.
     '''
     symtab = symbols.SymbolTable()
-    # A symbol of unsupported type but with partial type information.
     bla_type = symbols.DataTypeSymbol("blah_type", symbols.UnresolvedType())
     symtab.add(bla_type)
     nelem = symbols.DataSymbol("nelem", symbols.INTEGER_TYPE)
     symtab.add(nelem)
     ptype = symbols.ArrayType(bla_type, [Reference(nelem)])
+    # A symbol of unsupported type but with partial type information.
     orig_text = "type(blah_type), pointer, dimension(nelem) :: sym6"
     sym6 = symbols.DataSymbol(
         "sym6", symbols.UnsupportedFortranType(orig_text,
                                                partial_datatype=ptype))
     symtab.add(sym6)
+    sym7 = symbols.DataSymbol(
+        "sym7", symbols.UnsupportedFortranType(
+            "type(blah_type), pointer :: sym7", partial_datatype=bla_type))
+    symtab.add(sym7)
 
     symtab2 = symtab.deep_copy()
     # Check that partial datatype has been updated.
@@ -2237,8 +2243,44 @@ def test_deep_copy_partial_datatype():
     assert newptype.intrinsic is not ptype.intrinsic
     assert newptype.intrinsic.name == ptype.intrinsic.name
     assert newptype.intrinsic is new_blah_type
+    # Check that the partial type has the correct shape and that that shape
+    # refers to the appropriate symbol in the new table.
     assert len(newptype.shape) == 1
     assert newptype.shape[0].upper.symbol is new_nelem
+
+
+def test_deep_copy_struct_type():
+    '''
+    '''
+    symtab = symbols.SymbolTable()
+    # One member will have its type defined by a DataTypeSymbol
+    tsymbol = symbols.DataTypeSymbol("my_type", symbols.UnresolvedType())
+    symtab.add(tsymbol)
+    vsym = symbols.DataSymbol("var", symbols.INTEGER_TYPE)
+    symtab.add(vsym)
+    atype = symbols.ArrayType(tsymbol, [Reference(vsym)])
+    stype = symbols.StructureType.create([
+        ("fred", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
+         Reference(vsym)),
+        ("george", atype, symbols.Symbol.Visibility.PRIVATE, None),
+        ("barry", tsymbol, symbols.Symbol.Visibility.PUBLIC, None)])
+    mytype = symbols.DataSymbol("astruct", stype)
+    symtab.add(mytype)
+
+    symtab2 = symtab.deep_copy()
+    newtsym = symtab2.lookup("astruct")
+    newvsym = symtab2.lookup("var")
+    assert newtsym is not tsymbol
+    assert isinstance(newtsym.datatype, symbols.StructureType)
+    newfred = newtsym.datatype.lookup("fred")
+    assert isinstance(newfred.initial_value, Reference)
+    assert newfred.initial_value.symbol is not vsym
+    assert newfred.initial_value.symbol is newvsym
+    newgeorge = newtsym.datatype.lookup("george")
+    assert isinstance(newgeorge.datatype, symbols.ArrayType)
+    assert len(newgeorge.datatype.shape) == 1
+    assert newgeorge.datatype.shape[0].upper.symbol is not vsym
+    assert newgeorge.datatype.shape[0].upper.symbol is newvsym
 
 
 def test_get_symbols():
