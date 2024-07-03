@@ -159,9 +159,15 @@ class UnsupportedFortranType(UnsupportedType):
         # This will hold the Fortran type specification (as opposed to
         # the whole declaration).
         self._type_text = ""
+        if not isinstance(
+                partial_datatype, (type(None), DataType, DataTypeSymbol)):
+            raise TypeError(
+                f"partial_datatype argument in UnsupportedFortranType "
+                f"initialisation should be a DataType, DataTypeSymbol, or "
+                f"NoneType, but found '{type(partial_datatype).__name__}'.")
         # This holds a subset of the type in a datatype if it is
         # possible to determine enough information to create one.
-        self.partial_datatype = partial_datatype
+        self._partial_datatype = partial_datatype
 
     def __str__(self):
         return f"UnsupportedFortranType('{self._declaration}')"
@@ -175,24 +181,6 @@ class UnsupportedFortranType(UnsupportedType):
             :py:class:`psyclone.symbols.symbols.DataTypeSymbol`
         '''
         return self._partial_datatype
-
-    @partial_datatype.setter
-    def partial_datatype(self, value):
-        '''
-        Setter for the partial_datatype property.
-
-        :param value: the partial datatype information for this type.
-        :type value: :py:class:`psyclone.psyir.symbols.DataType` |
-                     :py:class:`psyclone.symbols.symbols.DataTypeSymbol` |
-                     NoneType
-        '''
-        if not isinstance(
-                value, (type(None), DataType, DataTypeSymbol)):
-            raise TypeError(
-                f"partial_datatype argument in UnsupportedFortranType "
-                f"initialisation should be a DataType, DataTypeSymbol, or "
-                f"NoneType, but found '{type(value).__name__}'.")
-        self._partial_datatype = value
 
     @property
     def type_text(self):
@@ -287,8 +275,6 @@ class UnsupportedFortranType(UnsupportedType):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        # If we have partial type information then update the symbols
-        # referred to within it (if any).
         if self.partial_datatype:
             self.partial_datatype.relink(table)
 
