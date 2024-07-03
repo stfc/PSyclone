@@ -224,7 +224,7 @@ indexed in the following way.
 	   :width: 120
 
 When the distributed memory option is switched on in the LFRic API
-(see the :ref:`distributed_memory` Section) the cells in the model are
+(see the :ref:`psykal_usage` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. In this
 case the LFRic infrastructure maintains the global cell index and
@@ -275,7 +275,7 @@ index 2 and the cell above that contains dof index 3 etc.
 
 As discussed in the previous section, when the distributed memory
 option is switched on in the LFRic API (see the
-:ref:`distributed_memory` Section) the cells in the model are
+:ref:`psykal_usage` Section) the cells in the model are
 partitioned amongst processors and halo cells are added at the
 boundaries to a depth determined by the LFRic infrastructure. This
 results in the dofs being replicated in the halo cells, leading to a
@@ -308,7 +308,7 @@ that contains dof index 3 etc.
 	   :width: 140
 
 As already explained, when the distributed memory option is switched
-on in the LFRic API (see the :ref:`distributed_memory` Section)
+on in the LFRic API (see the :ref:`psykal_usage` Section)
 the cells in the model are partitioned amongst processors and halo
 cells are added at the boundaries.
 
@@ -1259,22 +1259,6 @@ These scripts may be found in ``examples/nemo/scripts`` and their
 use is described in the ``README.md`` file in that directory.
 
 
-PSyIR Construction
-------------------
-
-Since NEMO is an existing code, the way it is handled in PSyclone is
-slightly different from those APIs that mandate a PSyKAl separation of
-concerns (LFRic and GOcean1.0).  As with the other APIs, fparser2 is
-used to parse the supplied Fortran source file and construct a parse
-tree (in ``psyclone.generator.generate``). This parse tree is then
-passed to the ``NemoPSy`` constructor which uses the ``fparser2`` PSyIR
-frontend to construct the equivalent PSyIR. (This PSyIR is
-'language-level' in that it does not contain any domain-specific
-constructs.) Finally, the PSyIR is passed to the ``NemoInvokes``
-constructor which applies various 'raising' transformations which
-raise the level of abstraction by introducing domain-specific
-information.
-
 Implicit Loops
 --------------
 
@@ -1283,7 +1267,7 @@ use of array notation is encouraged in the NEMO Coding Conventions
 :cite:`nemo_code_conv` and identifying these loops can be important
 when introducing, e.g. OpenMP. These implicit loops are not
 automatically represented as PSyIR Loop instances but can be converted
-to explicit loops using the ``NemoAllArrayRange2LoopTrans``
+to explicit loops using the ``ArrayAssignment2LoopsTrans``
 transformation.
 
 

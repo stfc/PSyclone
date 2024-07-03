@@ -183,15 +183,15 @@ def test_lfric_driver_add_call(fortran_writer):
     program.symbol_table.find_or_create_tag("test")
     driver_creator = LFRicExtractDriverCreator()
     with pytest.raises(TypeError) as err:
-        driver_creator._add_call(program, "test", [])
-    assert ("Routine 'test' is a symbol of type 'Symbol', not a "
-            "'RoutineSymbol'" in str(err.value))
+        driver_creator.add_call(program, "test", [])
+    assert ("Error creating call to 'test' - existing symbol is of type "
+            "'Symbol', not a 'RoutineSymbol'" in str(err.value))
     # Clean up previous invalid test symbol
     del program.symbol_table._symbols['test']
     del program.symbol_table._tags['test']
 
-    driver_creator._add_call(program, "my_sub", [])
-    driver_creator._add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])
+    driver_creator.add_call(program, "my_sub", [])
+    driver_creator.add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])
     out = fortran_writer(program)
     assert "call my_sub()" in out
     assert "call my_sub_2(1)" in out
@@ -464,7 +464,7 @@ def test_lfric_driver_removing_structure_data():
             in driver)
     assert "ALLOCATE(f2_data, mold=f2_data_post)" in driver
     assert "f2_data(df) = a + f1_data(df)" in driver
-    assert "if (ALL(f2_data - f2_data_post == 0.0)) then" in driver
+    assert "compare('f2_data', f2_data, f2_data_post" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod"]:
         assert f"module {mod}" in driver
@@ -551,7 +551,8 @@ def test_lfric_driver_field_array_write():
     for i in range(1, 4):
         assert (f"ReadVariable('coord_post%{i}', coord_{i}_data_post)"
                 in driver)
-        assert f"ALL(coord_{i}_data - coord_{i}_data_post == 0.0))" in driver
+        assert (f"compare('coord_{i}_data', coord_{i}_data, "
+                f"coord_{i}_data_post)" in driver)
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -636,7 +637,8 @@ def test_lfric_driver_external_symbols():
 
     assert ("call extract_psy_data%ReadVariable('module_var_a_post@"
             "module_with_var_mod', module_var_a_post)" in driver)
-    assert "if (module_var_a == module_var_a_post)" in driver
+    assert ("call compare('module_var_a', module_var_a, module_var_a_post)"
+            in driver)
 
     # While the actual code is LFRic, the driver is stand-alone, and as such
     # does not need any of the infrastructure files

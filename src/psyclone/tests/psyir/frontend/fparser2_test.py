@@ -50,10 +50,9 @@ from fparser.two.Fortran2003 import (
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, _is_array_range_literal, _is_bound_full_extent,
-    _is_range_full_extent, _check_args, default_precision,
+    _check_args, default_precision,
     default_integer_type, default_real_type, _first_type_match,
     _get_arg_names)
 from psyclone.psyir.nodes import (
@@ -288,40 +287,6 @@ def test_is_array_range_literal():
     # 1st dimension, second argument to range has an unexpected
     # value.
     assert not _is_array_range_literal(array_reference, 1, 1, 2)
-
-
-def test_is_range_full_extent():
-    ''' Test the _is_range_full_extent function.'''
-    one = Literal("1", INTEGER_TYPE)
-    array_type = ArrayType(REAL_TYPE, [2])
-    symbol = DataSymbol('a', array_type)
-    lbound_op = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.LBOUND,
-        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
-    ubound_op = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.UBOUND,
-        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
-
-    my_range = Range.create(lbound_op, ubound_op, one)
-    _ = ArrayReference.create(symbol, [my_range])
-    # Valid structure
-    _is_range_full_extent(my_range)
-
-    # Invalid start (as 1st argument should be lower bound)
-    my_range = Range.create(ubound_op.copy(), ubound_op.copy(), one.copy())
-    _ = ArrayReference.create(symbol, [my_range])
-    assert not _is_range_full_extent(my_range)
-
-    # Invalid stop (as 2nd argument should be upper bound)
-    my_range = Range.create(lbound_op.copy(), lbound_op.copy(), one.copy())
-    _ = ArrayReference.create(symbol, [my_range])
-    assert not _is_range_full_extent(my_range)
-
-    # Invalid step (as 3rd argument should be Literal)
-    my_range = Range.create(lbound_op.copy(), ubound_op.copy(),
-                            ubound_op.copy())
-    _ = ArrayReference.create(symbol, [my_range])
-    assert not _is_range_full_extent(my_range)
 
 
 @pytest.mark.parametrize("value",
@@ -2741,8 +2706,8 @@ def test_nodes_to_code_block_1(f2008_parser):
         end program test
         ''')
     prog = f2008_parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    processor = Fparser2Reader()
+    schedule = processor.generate_psyir(prog).walk(Routine)[0]
     assert isinstance(schedule[0], CodeBlock)
     assert schedule[0].structure == CodeBlock.Structure.STATEMENT
     # Check that the error message that generated the codeblock has been
@@ -2771,8 +2736,8 @@ def test_nodes_to_code_block_2(f2008_parser):
         end program test
         ''')
     prog = f2008_parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
-    schedule = psy.invokes.invoke_list[0].schedule
+    processor = Fparser2Reader()
+    schedule = processor.generate_psyir(prog).walk(Routine)[0]
     assert isinstance(schedule[0].if_body[0], CodeBlock)
     assert schedule[0].if_body[0].structure == CodeBlock.Structure.STATEMENT
     # Check that the error message that generated the codeblock has been
@@ -2819,12 +2784,13 @@ def test_named_and_wildcard_use_var(f2008_parser):
         end module test_mod
         ''')
     prog = f2008_parser(reader)
-    psy = PSyFactory(api="nemo").create(prog)
+    processor = Fparser2Reader()
+    psyir = processor.generate_psyir(prog)
     # We should not have an entry for "a_var" in the Container symbol
     # table as we don't know whether the access in "test_sub1" comes
     # from the wildcard import ("some_mod"). The Container is the
     # first child of the FileContainer node.
-    container = psy.container.children[0]
+    container = psyir.children[0]
     assert "a_var" not in container.symbol_table
     # There should be an entry for "a_var" in the symbol table for the
     # "test_sub1" routine as we do not yet know where it is declared.

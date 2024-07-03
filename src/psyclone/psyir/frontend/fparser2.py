@@ -570,44 +570,6 @@ def _is_array_range_literal(array, dim, index, value):
     return False
 
 
-def _is_range_full_extent(my_range):
-    '''Utility function to check whether a Range object is equivalent to a
-    ":" in Fortran array notation. The PSyIR representation of "a(:)"
-    is "a(lbound(a,1):ubound(a,1):1). Therefore, for array a index 1,
-    the lower bound is compared with "lbound(a,1)", the upper bound is
-    compared with "ubound(a,1)" and the step is compared with 1.
-
-    If everything is OK then this routine silently returns, otherwise
-    an exception is raised by one of the functions
-    (_check_bound_is_full_extent or _check_array_range_literal) called by this
-    function.
-
-    This routine is only in fparser2.py until #717 is complete as it
-    is used to check that array syntax in a where statement is for the
-    full extent of the dimension. Once #717 is complete this routine
-    can be removed.
-
-    :param my_range: the Range node to check.
-    :type my_range: :py:class:`psyclone.psyir.node.Range`
-
-    '''
-
-    array = my_range.parent
-    # The array index of this range is determined by its position in
-    # the array list (+1 as the index starts from 0 but Fortran
-    # dimensions start from 1).
-    dim = array.children.index(my_range) + 1
-    # Check lower bound
-    is_lower = _is_bound_full_extent(
-        array, dim, IntrinsicCall.Intrinsic.LBOUND)
-    # Check upper bound
-    is_upper = _is_bound_full_extent(
-        array, dim, IntrinsicCall.Intrinsic.UBOUND)
-    # Check step (index 2 is the step index for the range function)
-    is_step = _is_array_range_literal(array, dim, 2, 1)
-    return is_lower and is_upper and is_step
-
-
 def _copy_full_base_reference(node):
     '''
     Given the supplied node, creates a new node with the same access
@@ -1116,7 +1078,9 @@ class Fparser2Reader():
             Fortran2003.Allocate_Stmt: self._allocate_handler,
             Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Data_Pointer_Object: self._structure_accessor_handler,
             Fortran2003.Data_Ref: self._structure_accessor_handler,
+            Fortran2003.Pointer_Assignment_Stmt: self._assignment_handler,
             Fortran2003.Procedure_Designator: self._structure_accessor_handler,
             Fortran2003.Deallocate_Stmt: self._deallocate_handler,
             Fortran2003.Function_Subprogram: self._subroutine_handler,
@@ -1196,17 +1160,17 @@ class Fparser2Reader():
         del fp2_nodes[:]
         return code_block
 
-    def generate_psyir(self, parse_tree):
+    def generate_psyir(self, parse_tree, filename=""):
         '''Translate the supplied fparser2 parse_tree into PSyIR.
 
         :param parse_tree: the supplied fparser2 parse tree.
         :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
+        :param Optional[str] filename: associated name for FileContainer.
 
-        :returns: PSyIR representation of the supplied fparser2 parse_tree.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container` or \
-            :py:class:`psyclone.psyir.nodes.Routine`
+        :returns: PSyIR of the supplied fparser2 parse_tree.
+        :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
 
-        :raises GenerationError: if the root of the supplied fparser2 \
+        :raises GenerationError: if the root of the supplied fparser2
             parse tree is not a Program.
 
         '''
@@ -1219,6 +1183,7 @@ class Fparser2Reader():
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
+        result.name = filename
         return result.detach()
 
     def generate_container(self, module_ast):
@@ -4218,7 +4183,7 @@ class Fparser2Reader():
             if isinstance(idx_node, Range):
                 # Found array syntax notation. Check that it is the
                 # simple ":" format.
-                if not _is_range_full_extent(idx_node):
+                if not array.is_full_range(array.index_of(idx_node)):
                     raise NotImplementedError(
                         "Only array notation of the form my_array(:, :, ...) "
                         "is supported.")
@@ -4281,6 +4246,10 @@ class Fparser2Reader():
 
             base_ref = _copy_full_base_reference(array)
             array_ref = array.ancestor(Reference, include_self=True)
+            if not isinstance(array_ref.datatype, ArrayType):
+                raise NotImplementedError(
+                    f"We can not get the resulting shape of the expression: "
+                    f"{array_ref.debug_string()}")
             shape = array_ref.datatype.shape
             add_op = BinaryOperation.Operator.ADD
             sub_op = BinaryOperation.Operator.SUB
@@ -4477,6 +4446,10 @@ class Fparser2Reader():
                 f"found '{logical_expr}'")
 
         array_ref = first_array.ancestor(Reference, include_self=True)
+        if not isinstance(array_ref.datatype, ArrayType):
+            raise NotImplementedError(
+                f"We can not get the resulting shape of the expression: "
+                f"{array_ref.debug_string()}")
         mask_shape = array_ref.datatype.shape
         # All array sections in a Fortran WHERE must have the same shape so
         # just look at that of the mask.
@@ -4655,14 +4628,25 @@ class Fparser2Reader():
         Transforms an fparser2 Assignment_Stmt to the PSyIR representation.
 
         :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt` |
+                    :py:class:`fparser.two.Fortran2003.Pointer_Assignment_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
+
+        :raises NotImplementedError: if the parse tree contains unsupported
+            elements.
         '''
-        assignment = Assignment(node, parent=parent)
+        is_pointer = isinstance(node, Fortran2003.Pointer_Assignment_Stmt)
+        if is_pointer and node.items[1]:
+            # This are expressions like: "mytype%field(1:3) => ptr"
+            raise NotImplementedError(
+                "Pointer assignment with bounds-spec-list or"
+                "bounds-remapping-list are not supported")
+        # when its not a pointer, items[1] always has the "=" string
+        assignment = Assignment(is_pointer=is_pointer, ast=node, parent=parent)
         self.process_nodes(parent=assignment, nodes=[node.items[0]])
         self.process_nodes(parent=assignment, nodes=[node.items[2]])
 
@@ -4670,13 +4654,15 @@ class Fparser2Reader():
 
     def _structure_accessor_handler(self, node, parent):
         '''
-        Create the PSyIR for structure accessors found in fparser2 Data_Ref and
+        Create the PSyIR for structure accessors found in fparser2 Data_Ref,
         Procedure_Designator (representing an access to a derived type data and
-        methods respectively).
+        methods respectively), and Data_Pointer_Object (representing an access
+        to a derived type pointer object).
 
         :param node: node in fparser2 parse tree.
         :type node: :py:class:`fparser.two.Fortran2003.Data_Ref` |
-                    :py:class:`fparser.two.Fortran2003.Process_Designator`
+                    :py:class:`fparser.two.Fortran2003.Process_Designator` |
+                    :py:class:`fparser.two.Fortran2003.Data_Pointer_Object`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -4694,7 +4680,18 @@ class Fparser2Reader():
         #                         or data-ref % binding-name
         # and R611 says that:
         #    data-ref             is part-ref [% part-ref]
-        if isinstance(node, Fortran2003.Procedure_Designator):
+        # and R1035 says that:
+        #    data-pointer-object is variable-name
+        #                        or scalar-variable % \
+        #                           data-pointer-component-name
+        # Note that fparser2 misclassifies variable-names, so it always is the
+        # second variant of this rule. (variable-name are Name, so it correctly
+        # ends up as a PSyIR reference)
+        # Also, note that fparser2 scalar-variable is not always scalar, so it
+        # needs to be handled as a data-ref (which actually makes this
+        # implementation easier because its the same as procedure-designator)
+        if isinstance(node, (Fortran2003.Procedure_Designator,
+                             Fortran2003.Data_Pointer_Object)):
             # If it is a Procedure_Designator split it in its components.
             # Note that this won't fail for procedure-name and proc-component
             # -ref, the binding_name will just become None, if we have a
@@ -5286,6 +5283,12 @@ class Fparser2Reader():
                 f"PSyclone does not support routines that contain one or more "
                 f"ENTRY statements but found '{entry_stmts[0]}'")
 
+        # If the parent of this subroutine is a FileContainer, then we need
+        # to create its symbol and store it there. No visibility information
+        # is available since we're not contained in module.
+        if isinstance(parent, FileContainer):
+            _process_routine_symbols(node, parent.symbol_table, {})
+
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
         routine._ast = node
@@ -5383,14 +5386,9 @@ class Fparser2Reader():
                 # declaration.
 
                 # Lookup with the routine name as return_name may be
-                # declared with its own local name. Be wary that this
-                # function may not be referenced so there might not be
-                # a RoutineSymbol.
-                try:
-                    routine_symbol = routine.symbol_table.lookup(routine.name)
-                    routine_symbol.datatype = base_type
-                except KeyError:
-                    pass
+                # declared with its own local name.
+                routine_symbol = routine.symbol_table.lookup(routine.name)
+                routine_symbol.datatype = base_type
 
                 routine.symbol_table.new_symbol(return_name,
                                                 tag=keep_tag,

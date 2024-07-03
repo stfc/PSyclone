@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,26 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# -----------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
-''' Module containing tests for the Nemo-specific extract features.
+'''A transformation script that simply prints the PSyIR of the input file
+to stdout. No actual transformations are performed.
+
+In order to use this script you must first install PSyclone. See
+README.md in the top-level psyclone directory.
+
+Once you have psyclone installed, this may be used by doing:
+
+ $ psyclone -s ./view_trans.py some_source_file.f90 -o /dev/null
+
 '''
 
 
-from psyclone.configuration import Config
-from psyclone.psyir.transformations import ExtractTrans
-from psyclone.tests.utilities import get_invoke
+def trans(psyir):
+    ''' Prints the PSyIR of the input file to stdout.
 
-
-# --------------------------------------------------------------------------- #
-def test_extract_distributed_memory_nemo(monkeypatch):
-    '''Check that extraction for the Nemo API works without disabling
-    distributed memory (which is implied in the Nemo API).'''
-
-    etrans = ExtractTrans()
-    config = Config.get()
-    monkeypatch.setattr(config, "_api", "nemo")
-    _, invoke = get_invoke("array_valued_function.f90",
-                           "nemo", idx=0, dist_mem=True)
-    etrans.apply(invoke.schedule.children[0])
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    '''
+    print(psyir.view())

@@ -167,7 +167,7 @@ def test_am_same_array():
     ref1 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("xobs", [one.copy()])])
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()])])
-    assert ref1.member.is_same_array(ref2) is True
+    assert ref1.member.is_same_array(ref2.member) is True
     assert ref2.member.is_same_array(ref1) is False
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()]),
                                                   ("yobs", [one.copy()])])
@@ -207,7 +207,7 @@ def test_am_same_array():
     # Reference to an element of the same array
     ref1 = nodes.StructureReference.create(sym1, ["data"])
     ref2 = nodes.StructureReference.create(sym1, [("data", [one.copy()])])
-    assert ref2.member.is_same_array(ref1) is True
+    assert ref2.member.is_same_array(ref1.member) is True
     # Reference to an ArrayOfStructures
     array_sym = symbols.DataSymbol("grids",
                                    symbols.ArrayType(grid_type, [two.copy()]))
@@ -222,4 +222,4 @@ def test_am_same_array():
                                                   ("c", [one.copy()])])
     amem = ref2.member.member
     assert amem.name == "b"
-    assert amem.is_same_array(ref1)
+    assert amem.is_same_array(ref1.member.member)

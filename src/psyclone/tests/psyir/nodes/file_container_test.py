@@ -63,7 +63,7 @@ def test_file_container_node_str():
     '''
     file_container = FileContainer("test")
     coloredtext = colored("FileContainer", FileContainer._colour)
-    assert coloredtext+"[]" in file_container.node_str()
+    assert coloredtext+"[test]" in file_container.node_str()
 
 
 def test_file_container_str():
@@ -72,7 +72,7 @@ def test_file_container_str():
 
     '''
     file_container = FileContainer("test")
-    assert "FileContainer[]\n" in str(file_container)
+    assert "FileContainer[name='test']\n" in str(file_container)
 
 
 def test_file_container_create():

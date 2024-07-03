@@ -41,9 +41,9 @@ Transformations
 ===============
 
 As discussed in the previous section, transformations can be applied
-to PSyclone's internal representation (PSyIR) to modify it. Typically
-transformations will be used to optimise the Algorithm, PSy and/or
-Kernel layer(s) for a particular architecture, however transformations
+to the PSyIR to modify it. Typically transformations will be used to
+optimise the provided source file, or the PSy and/or Kernel layer(s)
+in the PSyKAl DSLs, for a particular architecture. However, transformations
 could be added for other reasons, such as to aid debugging or for
 performance monitoring.
 
@@ -166,7 +166,7 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ACCKernelsTrans
+.. autoclass:: psyclone.psyir.transformations.ACCKernelsTrans
     :noindex:
     :members: apply
 
@@ -196,7 +196,7 @@ can be found in the API-specific sections).
   
 ####
 
-.. autoclass:: psyclone.psyir.transformations.ArrayRange2LoopTrans
+.. autoclass:: psyclone.psyir.transformations.ArrayAssignment2LoopsTrans
     :members: apply
     :noindex:
   
