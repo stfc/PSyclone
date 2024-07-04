@@ -57,16 +57,13 @@ class ACCKernelsTrans(RegionTrans):
 
     For example:
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "nemo"
-    >>> ast, invokeInfo = parse(NEMO_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.psyir.frontend import FortranReader
+    >>> psyir = FortranReader().psyir_from_source(NEMO_SOURCE_FILE)
     >>>
     >>> from psyclone.psyir.transformations import ACCKernelsTrans
     >>> ktrans = ACCKernelsTrans()
     >>>
-    >>> schedule = psy.invokes.get('tra_adv').schedule
+    >>> schedule = psyir.children[0]
     >>> # Uncomment the following line to see a text view of the schedule
     >>> # print(schedule.view())
     >>> kernels = schedule.children[9]

@@ -37,8 +37,8 @@
 ..          L. Turner, Met Office
 
 
-The PSyclone Internal Representation (PSyIR)
-############################################
+The PSyclone Intermediate Representation (PSyIR)
+################################################
 
 The PSyclone Intermediate Representation (PSyIR) is a language-independent
 Intermediate Representation that PSyclone uses to represent the PSy (Parallel
