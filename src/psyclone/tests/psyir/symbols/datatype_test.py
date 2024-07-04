@@ -640,8 +640,8 @@ def test_arraytype_copy():
 
 
 def test_arraytype_update_symbols_from():
-    '''Test that the update_symbols_from method updates any symbol referred to by an
-    ArrayType.
+    '''Test that the update_symbols_from method updates any symbol referred
+    to by an ArrayType.
 
     '''
     table = SymbolTable()
