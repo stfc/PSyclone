@@ -1732,27 +1732,6 @@ class Node():
         result_list.reverse()
         return result_list
 
-    def relink(self, table):
-        '''Replace any Symbols referred to in the tree with this node at its
-        root with those of the same name in the supplied
-        SymbolTable. If, for a given Symbol, there is no corresponding
-        entry in the supplied table, then that Symbol is left
-        unchanged.
-
-        :param table: the symbol table from which to get replacement symbols.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        '''
-        # TODO use reference_accesses here? Currently this won't pick-up
-        # precision symbols in literals for instance.
-        from psyclone.psyir.nodes import Reference
-        for ref in self.walk(Reference):
-            try:
-                ref.symbol = table.lookup(ref.symbol.name)
-            except KeyError:
-                # This symbol isn't in the table.
-                pass
-
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.

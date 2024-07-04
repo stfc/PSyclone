@@ -357,4 +357,6 @@ class DataSymbol(TypedSymbol):
 
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
-            self.initial_value.relink(table)
+            # pylint: disable-next=import-outside-toplevel
+            from psyclone.psyir.backend.relink import Relink
+            Relink(table)(self.initial_value)

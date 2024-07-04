@@ -818,7 +818,6 @@ class ArrayType(DataType):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
         if isinstance(self.datatype, DataTypeSymbol):
             try:
                 self._datatype = table.lookup(self.datatype.name)
@@ -840,8 +839,12 @@ class ArrayType(DataType):
             except KeyError:
                 pass
 
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.relink import Relink
         from psyclone.psyir.nodes import Node
+
         # Update any Symbols referenced in the array shape
+        relinker = Relink(table)
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
                 exprns = dim
@@ -849,7 +852,7 @@ class ArrayType(DataType):
                 exprns = [dim]
             for bnd in exprns:
                 if isinstance(bnd, Node):
-                    bnd.relink(table)
+                    relinker(bnd)
 
 
 class StructureType(DataType):
@@ -1001,7 +1004,10 @@ class StructureType(DataType):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.psyir.backend.relink import Relink
+
+        relinker = Relink(table)
         # TODO switch ComponentType to a dataclass to allow it to be mutated?
         new_components = OrderedDict()
         for component in self.components.values():
@@ -1014,7 +1020,7 @@ class StructureType(DataType):
                 component.datatype.relink(table)
                 new_type = component.datatype
             if component.initial_value:
-                component.initial_value.relink(table)
+                relinker(component.initial_value)
             new_components[component.name] = StructureType.ComponentType(
                 component.name, new_type, component.visibility,
                 component.initial_value)
