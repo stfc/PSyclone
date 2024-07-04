@@ -342,7 +342,7 @@ class DataSymbol(TypedSymbol):
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
 
-    def relink(self, table):
+    def update_symbols_from(self, table):
         '''
         Replace any Symbols referred to by this object with those of the
         same name in the supplied SymbolTable. If, for a given Symbol, there
@@ -353,10 +353,8 @@ class DataSymbol(TypedSymbol):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        super().relink(table)
+        super().update_symbols_from(table)
 
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
-            # pylint: disable-next=import-outside-toplevel
-            from psyclone.psyir.backend.relink import Relink
-            Relink(table)(self.initial_value)
+            self.initial_value.update_symbols_from(table)

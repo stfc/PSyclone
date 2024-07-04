@@ -152,7 +152,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
                           visibility=self.visibility,
                           interface=self.interface)
 
-    def relink(self, table):
+    def update_symbols_from(self, table):
         '''
         Replace the RoutineSymbols in this object with those of the
         same name in the supplied SymbolTable. If, for a given Symbol, there

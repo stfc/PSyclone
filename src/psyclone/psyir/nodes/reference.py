@@ -250,6 +250,21 @@ class Reference(DataNode):
             return all_accesses[index+1].node
         return None
 
+    def update_symbols_from(self, table):
+        '''
+        Update the Symbol referred to by this Node with the matching entry in
+        the supplied table. If there is no match then it is left unchanged.
+
+        :param table: the symbol table in which to look up replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        try:
+            self.symbol = table.lookup(self.symbol.name)
+        except KeyError:
+            pass
+        # Walk on down the tree.
+        super().update_symbols_from(table)
+
 
 # For AutoAPI documentation generation
 __all__ = ['Reference']

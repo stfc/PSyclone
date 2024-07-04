@@ -39,8 +39,6 @@
 
 ''' This module contains the Literal node implementation.'''
 
-from __future__ import absolute_import
-
 import re
 
 from psyclone.psyir.nodes.datanode import DataNode
@@ -171,3 +169,19 @@ class Literal(DataNode):
         '''
         return f"{self.coloured_name(colour)}"\
                f"[value:'{self._value}', {self.datatype}]"
+
+    def update_symbols_from(self, table):
+        '''
+        Update any Symbols referenced by this Literal node with those in the
+        supplied table with matching names. If there is no match for a given
+        Symbol then it is left unchanged.
+
+        :param table: the symbol table in which to look up replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        self.datatype.update_symbols_from(table)
+        # Literal is a leaf so no need to call super().
+
+
+# For AutoAPI documentation generation
+__all__ = ['Literal']

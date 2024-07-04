@@ -1732,6 +1732,20 @@ class Node():
         result_list.reverse()
         return result_list
 
+    def update_symbols_from(self, table):
+        '''
+        Update any Symbols referenced by this Node with those in the
+        supplied table with matching names. If there is no match for a given
+        Symbol then it is left unchanged.
+
+        This base implementation simply propagates the call to any child Nodes.
+
+        :param table: the symbol table in which to look up replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        '''
+        for child in self.children:
+            child.update_symbols_from(table)
+
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.

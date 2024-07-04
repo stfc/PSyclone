@@ -75,7 +75,7 @@ class DataType(metaclass=abc.ABCMeta):
         '''
         return copy.copy(self)
 
-    def relink(self, table):
+    def update_symbols_from(self, table):
         '''
         Replace any Symbols referred to by this object with those of the
         same name in the supplied SymbolTable. If, for a given Symbol, there
@@ -264,7 +264,7 @@ class UnsupportedFortranType(UnsupportedType):
             new._partial_datatype = self._partial_datatype.copy()
         return new
 
-    def relink(self, table):
+    def update_symbols_from(self, table):
         '''Replace any Symbols referred to in the partial_datatype of this
         type with those of the same name in the supplied
         SymbolTable. If, for a given Symbol, there is no corresponding
@@ -276,7 +276,7 @@ class UnsupportedFortranType(UnsupportedType):
 
         '''
         if self.partial_datatype:
-            self.partial_datatype.relink(table)
+            self.partial_datatype.update_symbols_from(table)
 
 
 class ScalarType(DataType):
@@ -389,7 +389,7 @@ class ScalarType(DataType):
             precision_match = self.precision == other.precision
         return precision_match and self.intrinsic == other.intrinsic
 
-    def relink(self, table):
+    def update_symbols_from(self, table):
         '''
         Replace any Symbols referred to by this object with those of the
         same name in the supplied SymbolTable. If, for a given Symbol, there
@@ -807,7 +807,7 @@ class ArrayType(DataType):
                 new_shape.append(dim)
         return ArrayType(self.datatype, new_shape)
 
-    def relink(self, table):
+    def update_symbols_from(self, table):
         '''
         Replace any Symbols referred to by this object with those of the
         same name in the supplied SymbolTable. If, for a given Symbol, there
@@ -824,7 +824,7 @@ class ArrayType(DataType):
             except KeyError:
                 pass
         else:
-            self.datatype.relink(table)
+            self.datatype.update_symbols_from(table)
 
         # TODO #1857: we will probably remove '_precision' and have
         # 'intrinsic' be 'datatype'.
@@ -840,11 +840,9 @@ class ArrayType(DataType):
                 pass
 
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.relink import Relink
         from psyclone.psyir.nodes import Node
 
         # Update any Symbols referenced in the array shape
-        relinker = Relink(table)
         for dim in self.shape:
             if isinstance(dim, ArrayType.ArrayBounds):
                 exprns = dim
@@ -852,7 +850,7 @@ class ArrayType(DataType):
                 exprns = [dim]
             for bnd in exprns:
                 if isinstance(bnd, Node):
-                    relinker(bnd)
+                    bnd.update_symbols_from(table)
 
 
 class StructureType(DataType):
@@ -993,7 +991,7 @@ class StructureType(DataType):
 
         return True
 
-    def relink(self, table):
+    def update_symbols_from(self, table):
         '''
         Replace any Symbols referred to by this object with those of the
         same name in the supplied SymbolTable. If, for a given Symbol, there
@@ -1004,10 +1002,6 @@ class StructureType(DataType):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        # pylint: disable-next=import-outside-toplevel
-        from psyclone.psyir.backend.relink import Relink
-
-        relinker = Relink(table)
         # TODO switch ComponentType to a dataclass to allow it to be mutated?
         new_components = OrderedDict()
         for component in self.components.values():
@@ -1017,10 +1011,10 @@ class StructureType(DataType):
                 except KeyError:
                     pass
             else:
-                component.datatype.relink(table)
+                component.datatype.update_symbols_from(table)
                 new_type = component.datatype
             if component.initial_value:
-                relinker(component.initial_value)
+                component.initial_value.update_symbols_from(table)
             new_components[component.name] = StructureType.ComponentType(
                 component.name, new_type, component.visibility,
                 component.initial_value)

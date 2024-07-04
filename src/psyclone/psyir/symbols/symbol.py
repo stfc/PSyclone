@@ -508,7 +508,7 @@ class Symbol():
         # TODO #1213: check for wildcard imports
         return self.is_array
 
-    def relink(self, table):
+    def update_symbols_from(self, table):
         '''
         Replace any Symbols referred to by this object with those of the
         same name in the supplied SymbolTable. If, for a given Symbol, there

@@ -231,7 +231,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
             return self._datatype.shape
         return []
 
-    def relink(self, table):
+    def update_symbols_from(self, table):
         '''
         Replace any Symbols referred to by this object with those of the
         same name in the supplied SymbolTable. If, for a given Symbol, there
@@ -242,7 +242,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        super().relink(table)
+        super().update_symbols_from(table)
 
         from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
         if isinstance(self.datatype, DataTypeSymbol):
@@ -251,4 +251,4 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
             except KeyError:
                 pass
         else:
-            self._datatype.relink(table)
+            self._datatype.update_symbols_from(table)

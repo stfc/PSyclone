@@ -283,7 +283,7 @@ class SymbolTable():
             new_st._tags[tag] = new_st.lookup(symbol.name)
 
         for symbol in new_st.symbols:
-            symbol.relink(new_st)
+            symbol.update_symbols_from(new_st)
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
