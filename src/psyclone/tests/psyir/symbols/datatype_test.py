@@ -41,7 +41,7 @@
 import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
-    BinaryOperation, Container, IntrinsicCall, KernelSchedule,
+    BinaryOperation, Container, KernelSchedule,
     Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     ArrayType, DataType, UnresolvedType, ScalarType, UnsupportedFortranType,
