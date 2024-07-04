@@ -40,8 +40,9 @@
 
 import pytest
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import (Literal, BinaryOperation, Reference,
-                                  Container, KernelSchedule, Routine)
+from psyclone.psyir.nodes import (
+    BinaryOperation, Container, IntrinsicCall, KernelSchedule,
+    Literal, Reference, Routine)
 from psyclone.psyir.symbols import (
     ArrayType, DataType, UnresolvedType, ScalarType, UnsupportedFortranType,
     DataSymbol, StructureType, NoType, INTEGER_TYPE, REAL_TYPE, Symbol,
@@ -273,6 +274,32 @@ def test_scalartype_immutable():
         data_type.intrinsic = ScalarType.Intrinsic.INTEGER
     with pytest.raises(AttributeError):
         data_type.precision = 8
+
+
+def test_scalartype_relink():
+    '''Test that the relink method updates any symbol referred to by a
+    ScalarType.
+
+    '''
+    stype = ScalarType(ScalarType.Intrinsic.BOOLEAN,
+                       ScalarType.Precision.UNDEFINED)
+    table = SymbolTable()
+    stype.relink(table)
+    # No Symbol so there should be no change to the object.
+    assert stype == ScalarType(ScalarType.Intrinsic.BOOLEAN,
+                               ScalarType.Precision.UNDEFINED)
+    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    stype2 = ScalarType(ScalarType.Intrinsic.INTEGER,
+                        rdef)
+    # Symbol with name 'rdef' is not in the supplied table so no change.
+    stype2.relink(table)
+    assert stype2.precision is rdef
+    # Add a symbol with that name to the table and repeat.
+    rdef2 = DataSymbol("rdef", INTEGER_TYPE)
+    table.add(rdef2)
+    stype2.relink(table)
+    # Precision symbol should have been updated.
+    assert stype2.precision is rdef2
 
 
 # ArrayType class
@@ -610,6 +637,67 @@ def test_arraytype_copy():
     bcopy = btype.copy()
     assert bcopy == btype
     assert bcopy is not btype
+
+
+def test_arraytype_relink():
+    '''Test that the relink method updates any symbol referred to by an
+    ArrayType.
+
+    '''
+    table = SymbolTable()
+    sym1 = DataSymbol("alimit", INTEGER_TYPE)
+    atype = ArrayType(INTEGER_TYPE, [Reference(sym1),
+                                     (Reference(sym1), Reference(sym1))])
+    atype.relink(table)
+    assert atype.shape[0].upper.symbol is sym1
+    assert atype.shape[1].lower.symbol is sym1
+    assert atype.shape[1].upper.symbol is sym1
+
+    sym1_new = DataSymbol("alimit", INTEGER_TYPE)
+    table.add(sym1_new)
+    atype.relink(table)
+    assert atype.shape[0].upper.symbol is sym1_new
+    assert atype.shape[1].lower.symbol is sym1_new
+    assert atype.shape[1].upper.symbol is sym1_new
+
+    # Test when the intrinsic type of the array is given by a DataTypeSymbol.
+    typesym = DataTypeSymbol("grid", UnresolvedType())
+    btype = ArrayType(typesym, [Reference(sym1)])
+    btype.relink(table)
+    assert btype.shape[0].upper.symbol is sym1_new
+    newtypesim = DataTypeSymbol("grid", UnresolvedType())
+    table.add(newtypesim)
+    btype.relink(table)
+    assert btype.intrinsic is newtypesim
+
+    # Test when the precision of the intrinsic type of the array is given
+    # by a symbol.
+    rdef = DataSymbol("rdef", INTEGER_TYPE)
+    ctype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, rdef),
+                      [Reference(sym1)])
+    ctype.relink(table)
+    assert ctype.precision is rdef
+    assert ctype.shape[0].upper.symbol is sym1_new
+    newrdef = DataSymbol("rdef", INTEGER_TYPE)
+    table.add(newrdef)
+    ctype.relink(table)
+    assert ctype.precision is newrdef
+
+    # Check that having an array dimension of unknown size is OK.
+    dtype = ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+    dtype.relink(table)
+    assert dtype == ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED])
+
+    idef = DataSymbol("idef", INTEGER_TYPE)
+    etype = ArrayType(ScalarType(ScalarType.Intrinsic.REAL, rdef),
+                      [Literal("10", ScalarType(ScalarType.Intrinsic.INTEGER,
+                                                idef))])
+    etype.relink(table)
+    assert etype.shape[0].upper.datatype.precision is idef
+    newidef = DataSymbol("idef", INTEGER_TYPE)
+    table.add(newidef)
+    etype.relink(table)
+    assert etype.shape[0].upper.datatype.precision is newidef
 
 
 # UnsupportedFortranType tests

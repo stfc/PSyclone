@@ -400,16 +400,11 @@ class ScalarType(DataType):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
+        # Only the 'precision' of a ScalarType can refer to a Symbol.
         if isinstance(self.precision, Symbol):
             # Update any 'precision' information.
             try:
                 self._precision = table.lookup(self.precision.name)
-            except KeyError:
-                pass
-        if isinstance(self.intrinsic, Symbol):
-            # Update any 'intrinsic' information.
-            try:
-                self._intrinsic = table.lookup(self.intrinsic.name)
             except KeyError:
                 pass
 
