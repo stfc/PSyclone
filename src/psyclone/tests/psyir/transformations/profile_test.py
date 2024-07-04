@@ -116,13 +116,13 @@ def test_profile_errors2():
     '''Test various error handling.'''
 
     with pytest.raises(ValueError) as err:
-        Profiler.set_options(["invalid"], "nemo")
+        Profiler.set_options(["invalid"])
     assert ("Options for automatic profiling must be one of 'invokes', "
             "'routines', 'kernels'" in str(err))
     with pytest.raises(ValueError) as err:
-        Profiler.set_options(["kernels"], "nemo")
-    assert ("The 'kernels' automatic profiling option is not compatible with "
-            "the 'nemo' API." in str(err))
+        Profiler.set_options(["kernels"])
+    assert ("The profiling 'kernels' and 'invokes' options are only available "
+            "when using PSyKAl DSLs." in str(err))
 
 
 # -----------------------------------------------------------------------------
