@@ -308,13 +308,13 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         lookup = "last_edge_cell_all_colours(colour)"
 
     assert (
-        f"      do colour = loop0_start, loop0_stop, 1\n"
-        f"        do cell = loop1_start, {lookup}, 1\n"
-        f"          call columnwise_op_asm_field_kernel_code("
+        f"    do colour = loop0_start, loop0_stop, 1\n"
+        f"      do cell = loop1_start, {lookup}, 1\n"
+        f"        call columnwise_op_asm_field_kernel_code("
         f"cmap(colour,") in gen
 
     assert (
-        "          call columnwise_op_asm_field_kernel_code(cmap(colour,"
+        "        call columnwise_op_asm_field_kernel_code(cmap(colour,"
         "cell), nlayers, ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
         "lma_op1_local_stencil, cma_op1_cma_matrix(:,:,:), cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, "
@@ -322,8 +322,8 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         "ndf_aspc1_afield, undf_aspc1_afield, "
         "map_aspc1_afield(:,cmap(colour,cell)), cbanded_map_aspc1_afield, "
         "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)\n"
-        "        enddo\n"
-        "      enddo\n") in gen
+        "      enddo\n"
+        "    enddo\n") in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -348,7 +348,7 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
 
     # Check that we index the stencil dofmap appropriately
     assert (
-        "          call testkern_stencil_code(nlayers, f1_data, "
+        "        call testkern_stencil_code(nlayers, f1_data, "
         "f2_data, f2_stencil_size(cmap(colour,cell)), "
         "f2_stencil_dofmap(:,:,cmap(colour,cell)), f3_data, "
         "f4_data, ndf_w1, undf_w1, map_w1(:,cmap(colour,cell)), "

@@ -171,50 +171,77 @@ class LFRicDofmaps(LFRicCollection):
         '''
 
         # If we've got no dofmaps then we do nothing
-        if self._unique_fs_maps:
-            # parent.add(CommentGen(parent, ""))
-            # parent.add(CommentGen(parent,
-            #                       " Look-up dofmaps for each function space"))
-            # parent.add(CommentGen(parent, ""))
+        # if self._unique_fs_maps:
+        #     parent.add(CommentGen(parent, ""))
+        #     parent.add(CommentGen(parent,
+        #                           " Look-up dofmaps for each function space"))
+        #     parent.add(CommentGen(parent, ""))
 
-            first = True
-            for dmap, field in self._unique_fs_maps.items():
-                stmt = Assignment.create(
-                        lhs=Reference(self._symbol_table.lookup(dmap)),
-                        rhs=field.generate_method_call("get_whole_dofmap"),
-                        is_pointer=True)
-                if first:
-                    stmt.preceding_comment = "Look-up dofmaps for each function space"
-                    first = False
-                self._invoke.schedule.addchild(stmt, cursor)
-                cursor += 1
-                # parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                #                      rhs=field.proxy_name_indexed +
-                #                      "%" + field.ref_name() +
-                #                      "%get_whole_dofmap()"))
+        first = True
+        for dmap, field in self._unique_fs_maps.items():
+            stmt = Assignment.create(
+                    lhs=Reference(self._symbol_table.lookup(dmap)),
+                    rhs=field.generate_method_call("get_whole_dofmap"),
+                    is_pointer=True)
+            if first:
+                stmt.preceding_comment = "Look-up dofmaps for each function space"
+                first = False
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+            #                      rhs=field.proxy_name_indexed +
+            #                      "%" + field.ref_name() +
+            #                      "%get_whole_dofmap()"))
 
-        if self._unique_cbanded_maps:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Look-up required column-banded dofmaps"))
-            parent.add(CommentGen(parent, ""))
+        # if self._unique_cbanded_maps:
+        #     parent.add(CommentGen(parent, ""))
+        #     parent.add(CommentGen(parent,
+        #                           " Look-up required column-banded dofmaps"))
+        #     parent.add(CommentGen(parent, ""))
 
-            for dmap, cma in self._unique_cbanded_maps.items():
-                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=cma["argument"].proxy_name_indexed +
-                                     "%column_banded_dofmap_" +
-                                     cma["direction"]))
+        first = True
+        for dmap, cma in self._unique_cbanded_maps.items():
+            stmt = Assignment.create(
+                    lhs=Reference(self._symbol_table.lookup(dmap)),
+                    rhs=cma['argument'].generate_method_call(
+                        f"column_banded_dofmap_{cma['direction']}",
+                        use_proxy=False),
+                    is_pointer=True)
+            if first:
+                stmt.preceding_comment = (
+                    "Look-up required column-banded dofmaps"
+                )
+                first = False
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+        # parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+        #                      rhs=cma["argument"].proxy_name_indexed +
+        #                      "%column_banded_dofmap_" +
+        #                      cma["direction"]))
 
-        if self._unique_indirection_maps:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Look-up required CMA indirection dofmaps"))
-            parent.add(CommentGen(parent, ""))
+        first = True
+        # if self._unique_indirection_maps:
+        #     parent.add(CommentGen(parent, ""))
+        #     parent.add(CommentGen(parent,
+        #                    " Look-up required CMA indirection dofmaps"))
+        #     parent.add(CommentGen(parent, ""))
 
-            for dmap, cma in self._unique_indirection_maps.items():
-                parent.add(AssignGen(parent, pointer=True, lhs=dmap,
-                                     rhs=cma["argument"].proxy_name_indexed +
-                                     "%indirection_dofmap_"+cma["direction"]))
+        for dmap, cma in self._unique_indirection_maps.items():
+            stmt = Assignment.create(
+                    lhs=Reference(self._symbol_table.lookup(dmap)),
+                    rhs=cma.generate_method_call(
+                        f"indirection_dofmap_{cma['direction']}"),
+                    is_pointer=True)
+            if first:
+                stmt.preceding_comment = (
+                    "Look-up required CMA indirection dofmaps"
+                )
+                first = False
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+        # parent.add(AssignGen(parent, pointer=True, lhs=dmap,
+        #                      rhs=cma["argument"].proxy_name_indexed +
+        #                      "%indirection_dofmap_"+cma["direction"]))
         return cursor
 
     def _invoke_declarations(self, cursor):
@@ -247,20 +274,32 @@ class LFRicDofmaps(LFRicCollection):
         #                        pointer=True, entity_decls=decl_map_names))
 
         # Column-banded dofmaps
-        decl_bmap_names = \
-            [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
-        if decl_bmap_names:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=decl_bmap_names))
+        # decl_bmap_names = \
+        #     [dmap+"(:,:) => null()" for dmap in self._unique_cbanded_maps]
+        # if decl_bmap_names:
+        #     parent.add(DeclGen(parent, datatype="integer",
+        #                        kind=api_config.default_kind["integer"],
+        #                        pointer=True, entity_decls=decl_bmap_names))
+        for dmap in sorted(self._unique_cbanded_maps):
+            if dmap not in self._symbol_table:
+                dmap_sym = DataSymbol(
+                    dmap, UnsupportedFortranType(
+                        f"integer(kind=i_def), pointer :: {dmap}(:,:) => null()"))
+                self._symbol_table.add(dmap_sym, tag=dmap)
 
         # CMA operator indirection dofmaps
-        decl_ind_map_names = \
-            [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
-        if decl_ind_map_names:
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               pointer=True, entity_decls=decl_ind_map_names))
+        # decl_ind_map_names = \
+        #     [dmap+"(:) => null()" for dmap in self._unique_indirection_maps]
+        # if decl_ind_map_names:
+        #     parent.add(DeclGen(parent, datatype="integer",
+        #                        kind=api_config.default_kind["integer"],
+        #                        pointer=True, entity_decls=decl_ind_map_names))
+        for dmap in sorted(self._unique_indirection_maps):
+            if dmap not in self._symbol_table:
+                dmap_sym = DataSymbol(
+                    dmap, UnsupportedFortranType(
+                        f"integer(kind=i_def), pointer :: {dmap}(:) => null()"))
+                self._symbol_table.add(dmap_sym, tag=dmap)
         return cursor
 
     def _stub_declarations(self, cursor):

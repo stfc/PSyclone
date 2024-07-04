@@ -690,22 +690,22 @@ class LFRicMeshProperties(LFRicCollection):
             if prop == MeshProperty.ADJACENT_FACE:
                 adj_face = self._symbol_table.find_or_create_tag(
                     "adjacent_face").name + "(:,:) => null()"
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   pointer=True, entity_decls=[adj_face]))
+                # parent.add(DeclGen(parent, datatype="integer",
+                #                    kind=api_config.default_kind["integer"],
+                #                    pointer=True, entity_decls=[adj_face]))
             elif prop == MeshProperty.NCELL_2D_NO_HALOS:
                 name = self._symbol_table.find_or_create_integer_symbol(
                     "ncell_2d_no_halos",
                     tag="ncell_2d_no_halos").name
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   entity_decls=[name]))
+                # parent.add(DeclGen(parent, datatype="integer",
+                #                    kind=api_config.default_kind["integer"],
+                #                    entity_decls=[name]))
             elif prop == MeshProperty.NCELL_2D:
                 name = self._symbol_table.find_or_create_integer_symbol(
                     "ncell_2d", tag="ncell_2d").name
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind=api_config.default_kind["integer"],
-                                   entity_decls=[name]))
+                # parent.add(DeclGen(parent, datatype="integer",
+                #                    kind=api_config.default_kind["integer"],
+                #                    entity_decls=[name]))
             else:
                 raise InternalError(
                     f"Found unsupported mesh property '{prop}' when generating"
@@ -1092,16 +1092,16 @@ class DynReferenceElement(LFRicCollection):
 
         refelem_type = const.REFELEMENT_TYPE_MAP["refelement"]["type"]
         refelem_mod = const.REFELEMENT_TYPE_MAP["refelement"]["module"]
-        parent.add(UseGen(parent, name=refelem_mod, only=True,
-                          funcnames=[refelem_type]))
-        parent.add(
-            TypeDeclGen(parent, pointer=True, is_class=True,
-                        datatype=refelem_type,
-                        entity_decls=[self._ref_elem_name + " => null()"]))
+        # parent.add(UseGen(parent, name=refelem_mod, only=True,
+        #                   funcnames=[refelem_type]))
+        # parent.add(
+        #     TypeDeclGen(parent, pointer=True, is_class=True,
+        #                 datatype=refelem_type,
+        #                 entity_decls=[self._ref_elem_name + " => null()"]))
 
-        parent.add(DeclGen(parent, datatype="integer",
-                           kind=api_config.default_kind["integer"],
-                           entity_decls=[var.name for var in nface_vars]))
+        # parent.add(DeclGen(parent, datatype="integer",
+        #                    kind=api_config.default_kind["integer"],
+        #                    entity_decls=[var.name for var in nface_vars]))
 
         if not self._properties:
             # We only need the number of horizontal faces so we're done
@@ -1171,74 +1171,149 @@ class DynReferenceElement(LFRicCollection):
         if not (self._properties or self._nfaces_h_required):
             return cursor
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(
-            CommentGen(parent,
-                       " Get the reference element and query its properties"))
-        parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent, ""))
+        # parent.add(
+        #     CommentGen(parent,
+        #                " Get the reference element and query its properties"))
+        # parent.add(CommentGen(parent, ""))
 
-        mesh_obj_name = self._symbol_table.find_or_create_tag("mesh").name
-        parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
-                             rhs=mesh_obj_name+"%get_reference_element()"))
+        mesh_obj = self._symbol_table.find_or_create_tag("mesh")
+        # parent.add(AssignGen(parent, pointer=True, lhs=self._ref_elem_name,
+        #                      rhs=mesh_obj_name+"%get_reference_element()"))
+        ref_element = self._symbol_table.lookup(self._ref_elem_name)
+        print(ref_element.name)
+        stmt = Assignment.create(
+                lhs=Reference(ref_element),
+                rhs=Call.create(
+                    StructureReference.create(
+                        mesh_obj, ["get_reference_element"])),
+                is_pointer=True)
+        stmt.preceding_comment = (
+            "Get the reference element and query its properties"
+        )
+        self._invoke.schedule.addchild(stmt, cursor)
+        cursor += 1
 
         if self._nfaces_h_symbol:
-            parent.add(
-                AssignGen(parent, lhs=self._nfaces_h_symbol.name,
-                          rhs=self._ref_elem_name +
-                          "%get_number_horizontal_faces()"))
+            stmt = Assignment.create(
+                    lhs=Reference(self._nfaces_h_symbol),
+                    rhs=Call.create(
+                        StructureReference.create(
+                            ref_element, f"get_number_horizontal_faces")))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(
+            #     AssignGen(parent, lhs=self._nfaces_h_symbol.name,
+            #               rhs=self._ref_elem_name +
+            #               "%get_number_horizontal_faces()"))
         if self._nfaces_v_symbol:
-            parent.add(
-                AssignGen(
-                    parent, lhs=self._nfaces_v_symbol.name,
-                    rhs=self._ref_elem_name + "%get_number_vertical_faces()"))
+            stmt = Assignment.create(
+                    lhs=Reference(self._nfaces_v_symbol),
+                    rhs=Call.create(
+                        StructureReference.create(
+                            ref_element, ["get_number_vertical_faces"])))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(
+            #     AssignGen(
+            #         parent, lhs=self._nfaces_v_symbol.name,
+            #         rhs=self._ref_elem_name + "%get_number_vertical_faces()"))
 
         if self._nfaces_symbol:
-            parent.add(
-                AssignGen(
-                    parent, lhs=self._nfaces_symbol.name,
-                    rhs=self._ref_elem_name + "%get_number_faces()"))
+            stmt = Assignment.create(
+                    lhs=Reference(self._nfaces_symbol),
+                    rhs=Call.create(
+                        StructureReference.create(
+                            ref_element, ["get_number_faces"])))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(
+            #     AssignGen(
+            #         parent, lhs=self._nfaces_symbol.name,
+            #         rhs=self._ref_elem_name + "%get_number_faces()"))
 
         if self._horiz_face_normals_symbol:
-            parent.add(
-                CallGen(parent,
-                        name=f"{self._ref_elem_name}%get_normals_to_"
-                             f"horizontal_faces("
-                             f"{self._horiz_face_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element, ["get_normals_to_horizontal_faces"]))
+            stmt.addchild(Reference(self._horiz_face_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(
+            #     CallGen(parent,
+            #             name=f"{self._ref_elem_name}%get_normals_to_"
+            #                  f"horizontal_faces("
+            #                  f"{self._horiz_face_normals_symbol.name})"))
 
         if self._horiz_face_out_normals_symbol:
-            parent.add(
-                CallGen(
-                    parent,
-                    name=f"{self._ref_elem_name}%get_outward_normals_to_"
-                         f"horizontal_faces("
-                         f"{self._horiz_face_out_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element,
+                    ["get_outward_normals_to_horizontal_faces"]))
+            stmt.addchild(Reference(self._horiz_face_out_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(
+            #     CallGen(
+            #         parent,
+            #         name=f"{self._ref_elem_name}%get_outward_normals_to_"
+            #              f"horizontal_faces("
+            #              f"{self._horiz_face_out_normals_symbol.name})"))
 
         if self._vert_face_normals_symbol:
-            parent.add(
-                CallGen(parent,
-                        name=f"{self._ref_elem_name}%get_normals_to_vertical_"
-                             f"faces({self._vert_face_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element,
+                    ["get_normals_to_vertical_faces"]))
+            stmt.addchild(Reference(self._vert_face_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(
+            #     CallGen(parent,
+            #             name=f"{self._ref_elem_name}%get_normals_to_vertical_"
+            #                  f"faces({self._vert_face_normals_symbol.name})"))
 
         if self._vert_face_out_normals_symbol:
-            parent.add(
-                CallGen(
-                    parent,
-                    name=f"{self._ref_elem_name}%get_outward_normals_to_"
-                         f"vertical_faces"
-                         f"({self._vert_face_out_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element,
+                    ["get_outward_normals_to_vertical_faces"]))
+            stmt.addchild(Reference(self._vert_face_out_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(
+            #     CallGen(
+            #         parent,
+            #         name=f"{self._ref_elem_name}%get_outward_normals_to_"
+            #              f"vertical_faces"
+            #              f"({self._vert_face_out_normals_symbol.name})"))
 
         if self._face_normals_symbol:
-            parent.add(
-                CallGen(parent,
-                        name=f"{self._ref_elem_name}%get_normals_to_faces"
-                             f"({self._face_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element,
+                    ["get_normals_to_faces"]))
+            stmt.addchild(Reference(self._face_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(
+            #     CallGen(parent,
+            #             name=f"{self._ref_elem_name}%get_normals_to_faces"
+            #                  f"({self._face_normals_symbol.name})"))
 
         if self._face_out_normals_symbol:
-            parent.add(
-                CallGen(
-                    parent,
-                    name=f"{self._ref_elem_name}%get_outward_normals_to_"
-                    f"faces({self._face_out_normals_symbol.name})"))
+            stmt = Call.create(
+                StructureReference.create(
+                    ref_element,
+                    ["get_ourwards_normals_to_faces"]))
+            stmt.addchild(Reference(self._face_out_normals_symbol))
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(
+            #     CallGen(
+            #         parent,
+            #         name=f"{self._ref_elem_name}%get_outward_normals_to_"
+            #         f"faces({self._face_out_normals_symbol.name})"))
         return cursor
 
 
@@ -1674,9 +1749,9 @@ class DynProxies(LFRicCollection):
         if cma_op_proxy_decs:
             op_type = cma_op_args[0].proxy_data_type
             op_mod = cma_op_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=op_type,
-                                   entity_decls=cma_op_proxy_decs))
+            # parent.add(TypeDeclGen(parent,
+            #                        datatype=op_type,
+            #                        entity_decls=cma_op_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(op_type))
         return cursor
@@ -2154,29 +2229,49 @@ class DynCMAOperators(LFRicCollection):
         if not self._cma_ops:
             return cursor
 
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent,
-                              " Look-up information for each CMA operator"))
-        parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(parent,
+        #                       " Look-up information for each CMA operator"))
+        # parent.add(CommentGen(parent, ""))
 
         const = LFRicConstants()
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
 
+        first = True
         for op_name in self._cma_ops:
             # First, assign a pointer to the array containing the actual
             # matrix.
             cma_name = self._symbol_table.lookup_with_tag(
-                f"{op_name}:{suffix}").name
-            parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
-                                 rhs=self._cma_ops[op_name]["arg"].
-                                 proxy_name_indexed+"%columnwise_matrix"))
+                f"{op_name}:{suffix}")
+            stmt = Assignment.create(
+                    lhs=Reference(cma_name),
+                    rhs=self._cma_ops[op_name]["arg"].generate_method_call(
+                        f"columnwise_matrix", use_proxy=False),
+                    is_pointer=True)
+            if first:
+                stmt.preceding_comment = (
+                    "Look-up information for each CMA operator"
+                )
+                first = False
+            self._invoke.schedule.addchild(stmt, cursor)
+            cursor += 1
+            # parent.add(AssignGen(parent, lhs=cma_name, pointer=True,
+            #                      rhs=self._cma_ops[op_name]["arg"].
+            #                      proxy_name_indexed+"%columnwise_matrix"))
             # Then make copies of the related integer parameters
             for param in self._cma_ops[op_name]["params"]:
                 param_name = self._symbol_table.find_or_create_tag(
-                    f"{op_name}:{param}:{suffix}").name
-                parent.add(AssignGen(parent, lhs=param_name,
-                                     rhs=self._cma_ops[op_name]["arg"].
-                                     proxy_name_indexed+"%"+param))
+                    f"{op_name}:{param}:{suffix}")
+                stmt = Assignment.create(
+                        lhs=Reference(param_name),
+                        rhs=self._cma_ops[op_name]["arg"].generate_method_call(
+                            param, use_proxy=False),
+                    )
+                self._invoke.schedule.addchild(stmt, cursor)
+                cursor += 1
+                # parent.add(AssignGen(parent, lhs=param_name,
+                #                      rhs=self._cma_ops[op_name]["arg"].
+                #                      proxy_name_indexed+"%"+param))
         return cursor
 
     def _invoke_declarations(self, cursor):
@@ -2209,10 +2304,10 @@ class DynCMAOperators(LFRicCollection):
         if cma_op_arg_list:
             op_type = cma_op_args[0].data_type
             op_mod = cma_op_args[0].module_name
-            parent.add(TypeDeclGen(parent,
-                                   datatype=op_type,
-                                   entity_decls=cma_op_arg_list,
-                                   intent="in"))
+            # parent.add(TypeDeclGen(parent,
+            #                        datatype=op_type,
+            #                        entity_decls=cma_op_arg_list,
+            #                        intent="in"))
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(op_type))
 
@@ -2220,14 +2315,15 @@ class DynCMAOperators(LFRicCollection):
         suffix = const.ARG_TYPE_SUFFIX_MAPPING["gh_columnwise_operator"]
         for op_name in self._cma_ops:
             # Declare the operator matrix itself.
-            tag_name = f"{op_name}:{suffix}"
-            cma_name = self._symbol_table.lookup_with_tag(tag_name).name
-            cma_dtype = self._cma_ops[op_name]["datatype"]
+            # tag_name = f"{op_name}:{suffix}"
+            # cma_name = self._symbol_table.lookup_with_tag(tag_name).name
+            # cma_dtype = self._cma_ops[op_name]["datatype"]
             cma_kind = self._cma_ops[op_name]["kind"]
-            parent.add(DeclGen(parent, datatype=cma_dtype,
-                               kind=cma_kind, pointer=True,
-                               dimension=":,:,:",
-                               entity_decls=[f"{cma_name} => null()"]))
+            # parent.add(DeclGen(parent, datatype=cma_dtype,
+            #                    kind=cma_kind, pointer=True,
+            #                    dimension=":,:,:",
+            #                    entity_decls=[f"{cma_name} => null()"]))
+
             const = LFRicConstants()
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
             const_mod_uses = self._invoke.invokes.psy. \
@@ -2245,9 +2341,9 @@ class DynCMAOperators(LFRicCollection):
                 sym = self._symbol_table.find_or_create_integer_symbol(
                     name, tag=tag)
                 param_names.append(sym.name)
-            parent.add(DeclGen(parent, datatype="integer",
-                               kind=api_config.default_kind["integer"],
-                               entity_decls=param_names))
+            # parent.add(DeclGen(parent, datatype="integer",
+            #                    kind=api_config.default_kind["integer"],
+            #                    entity_decls=param_names))
         return cursor
 
     def _stub_declarations(self, cursor):
@@ -6126,10 +6222,13 @@ class DynKernelArgument(KernelArgument):
         # already set up)
         self._complete_init(arg_info)
 
-    def generate_method_call(self, method, function_space=None):
+    def generate_method_call(self, method, function_space=None, use_proxy=True):
 
         symtab = self._call.scope.ancestor(InvokeSchedule).symbol_table
-        symbol = symtab.lookup(self.proxy_name)
+        if use_proxy:
+            symbol = symtab.lookup(self.proxy_name)
+        else:
+            symbol = symtab.lookup(self.name)
 
         if self._vector_size > 1:
             return Call.create(ArrayOfStructuresReference.create(
