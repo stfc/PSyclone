@@ -39,8 +39,9 @@
 
 import pytest
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, RoutineSymbol, UnresolvedInterface,
-    NoType, ScalarType, Symbol, SymbolTable, UnresolvedType, DataTypeSymbol)
+    ContainerSymbol, DataSymbol, DataTypeSymbol, ImportInterface, INTEGER_TYPE,
+    NoType, RoutineSymbol, ScalarType, Symbol, SymbolTable,
+    UnresolvedInterface, UnresolvedType)
 
 
 def test_routinesymbol_init():
@@ -175,6 +176,15 @@ def test_routinesymbol_copy():
     new_sym3 = sym3.copy()
     assert new_sym3.datatype is not sym3.datatype
     assert new_sym3.datatype.precision is wp
+
+    # Test when the routine has an interface.
+    csym = ContainerSymbol("test_mod")
+    interf = ImportInterface(csym)
+    sym4 = RoutineSymbol("gotit", interface=interf)
+    assert sym4.interface.container_symbol is csym
+    new_sym4 = sym4.copy()
+    assert new_sym4.interface is not interf
+    assert new_sym4.interface.container_symbol is csym
 
 
 def test_routinesymbol_update_symbols_from():
