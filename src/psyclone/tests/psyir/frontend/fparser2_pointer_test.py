@@ -58,8 +58,27 @@ def test_pointer_assignments(fortran_reader):
     end subroutine
     '''
     file_container = fortran_reader.psyir_from_source(test_module)
-    assert len(file_container.walk(CodeBlock)) == 0
+    assert not file_container.walk(CodeBlock)
     assignments = file_container.walk(Assignment)
     assert len(assignments) == 2
     for assignment in assignments:
         assert assignment.is_pointer is True
+
+
+def test_unsupported_pointer_assignments(fortran_reader):
+    '''
+    Test that pointer assignments that have an array-accessor syntax
+    on the inner element are not supported.
+    '''
+    test_module = '''
+    subroutine mysub()
+        use other_symbols
+
+        array(3:) => ptr
+        field(3,c)%array_of_pointer(1:) => ptr
+        field(3,c)%array_of_pointer(1:3) => ptr
+    end subroutine
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    assert file_container.walk(CodeBlock)
+    assert not file_container.walk(Assignment)

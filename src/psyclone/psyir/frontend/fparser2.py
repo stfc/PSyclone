@@ -1161,17 +1161,17 @@ class Fparser2Reader():
         del fp2_nodes[:]
         return code_block
 
-    def generate_psyir(self, parse_tree):
+    def generate_psyir(self, parse_tree, filename=""):
         '''Translate the supplied fparser2 parse_tree into PSyIR.
 
         :param parse_tree: the supplied fparser2 parse tree.
         :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
+        :param Optional[str] filename: associated name for FileContainer.
 
-        :returns: PSyIR representation of the supplied fparser2 parse_tree.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container` or \
-            :py:class:`psyclone.psyir.nodes.Routine`
+        :returns: PSyIR of the supplied fparser2 parse_tree.
+        :rtype: :py:class:`psyclone.psyir.nodes.FileContainer`
 
-        :raises GenerationError: if the root of the supplied fparser2 \
+        :raises GenerationError: if the root of the supplied fparser2
             parse tree is not a Program.
 
         '''
@@ -1184,6 +1184,7 @@ class Fparser2Reader():
         node = Container("dummy")
         self.process_nodes(node, [parse_tree])
         result = node.children[0]
+        result.name = filename
         return result.detach()
 
     def generate_container(self, module_ast):
@@ -4635,9 +4636,18 @@ class Fparser2Reader():
 
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
+
+        :raises NotImplementedError: if the parse tree contains unsupported
+            elements.
         '''
-        is_poitner = isinstance(node, Fortran2003.Pointer_Assignment_Stmt)
-        assignment = Assignment(is_pointer=is_poitner, ast=node, parent=parent)
+        is_pointer = isinstance(node, Fortran2003.Pointer_Assignment_Stmt)
+        if is_pointer and node.items[1]:
+            # This are expressions like: "mytype%field(1:3) => ptr"
+            raise NotImplementedError(
+                "Pointer assignment with bounds-spec-list or"
+                "bounds-remapping-list are not supported")
+        # when its not a pointer, items[1] always has the "=" string
+        assignment = Assignment(is_pointer=is_pointer, ast=node, parent=parent)
         self.process_nodes(parent=assignment, nodes=[node.items[0]])
         self.process_nodes(parent=assignment, nodes=[node.items[2]])
 
@@ -4678,7 +4688,7 @@ class Fparser2Reader():
         # Note that fparser2 misclassifies variable-names, so it always is the
         # second variant of this rule. (variable-name are Name, so it correctly
         # ends up as a PSyIR reference)
-        # Alse note that fparser2 scalar-variable is not always scalar, so it
+        # Also, note that fparser2 scalar-variable is not always scalar, so it
         # needs to be handled as a data-ref (which actually makes this
         # implementation easier because its the same as procedure-designator)
         if isinstance(node, (Fortran2003.Procedure_Designator,
@@ -5281,6 +5291,12 @@ class Fparser2Reader():
                 f"PSyclone does not support routines that contain one or more "
                 f"ENTRY statements but found '{entry_stmts[0]}'")
 
+        # If the parent of this subroutine is a FileContainer, then we need
+        # to create its symbol and store it there. No visibility information
+        # is available since we're not contained in module.
+        if isinstance(parent, FileContainer):
+            _process_routine_symbols(node, parent.symbol_table, {})
+
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
         routine._ast = node
@@ -5378,14 +5394,9 @@ class Fparser2Reader():
                 # declaration.
 
                 # Lookup with the routine name as return_name may be
-                # declared with its own local name. Be wary that this
-                # function may not be referenced so there might not be
-                # a RoutineSymbol.
-                try:
-                    routine_symbol = routine.symbol_table.lookup(routine.name)
-                    routine_symbol.datatype = base_type
-                except KeyError:
-                    pass
+                # declared with its own local name.
+                routine_symbol = routine.symbol_table.lookup(routine.name)
+                routine_symbol.datatype = base_type
 
                 routine.symbol_table.new_symbol(return_name,
                                                 tag=keep_tag,
