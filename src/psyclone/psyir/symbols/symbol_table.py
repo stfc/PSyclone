@@ -282,6 +282,8 @@ class SymbolTable():
         for tag, symbol in self._tags.items():
             new_st._tags[tag] = new_st.lookup(symbol.name)
 
+        # Update any references to Symbols within Symbols (initial values,
+        # precision etc.)
         for symbol in new_st.symbols:
             symbol.update_symbols_from(new_st)
 
