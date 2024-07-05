@@ -39,11 +39,11 @@
 
 ''' Performs py.test tests on the Literal PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import ScalarType, ArrayType, \
-    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE
+from psyclone.psyir.symbols import (
+    ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE, DataSymbol, INTEGER_SINGLE_TYPE,
+    REAL_DOUBLE_TYPE, ScalarType, SymbolTable)
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import colored
 
@@ -260,3 +260,17 @@ def test_literal_equality():
     assert literal == literal2
     assert literal != literal3
     assert literal != literal4
+
+
+def test_literal_update_symbols_from():
+    '''Test the update_symbols_from() method of Literal.'''
+    idef = DataSymbol("idef", INTEGER_SINGLE_TYPE)
+    stype = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
+    lit = Literal("1", stype)
+    table = SymbolTable()
+    lit.update_symbols_from(table)
+    assert lit.datatype.precision is idef
+    idef2 = idef.copy()
+    table.add(idef2)
+    lit.update_symbols_from(table)
+    assert lit.datatype.precision is idef2
