@@ -1009,7 +1009,7 @@ class StructureType(DataType):
                 try:
                     new_type = table.lookup(component.datatype.name)
                 except KeyError:
-                    pass
+                    new_type = component.datatype
             else:
                 component.datatype.update_symbols_from(table)
                 new_type = component.datatype
