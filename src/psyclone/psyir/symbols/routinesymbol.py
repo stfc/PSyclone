@@ -166,7 +166,7 @@ class RoutineSymbol(TypedSymbol):
         # first positional argument.
         return type(self)(self.name, self.datatype.copy(),
                           visibility=self.visibility,
-                          interface=self.interface,
+                          interface=self.interface.copy(),
                           is_pure=self.is_pure,
                           is_elemental=self.is_elemental)
 

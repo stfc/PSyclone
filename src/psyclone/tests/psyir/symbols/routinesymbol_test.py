@@ -39,8 +39,8 @@
 
 import pytest
 from psyclone.psyir.symbols import (
-    DataSymbol, RoutineSymbol, UnresolvedInterface,
-    NoType, INTEGER_TYPE, ScalarType, Symbol, UnresolvedType, DataTypeSymbol)
+    DataSymbol, INTEGER_TYPE, RoutineSymbol, UnresolvedInterface,
+    NoType, ScalarType, Symbol, SymbolTable, UnresolvedType, DataTypeSymbol)
 
 
 def test_routinesymbol_init():
@@ -171,8 +171,28 @@ def test_routinesymbol_copy():
 
     # Test when the routine has a datatype.
     wp = DataSymbol("wp", INTEGER_TYPE)
-    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL,
-                                             wp))
+    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, wp))
     new_sym3 = sym3.copy()
     assert new_sym3.datatype is not sym3.datatype
     assert new_sym3.datatype.precision is wp
+
+
+def test_routinesymbol_update_symbols_from():
+    '''Test that the update_symbols_from() method updates any symbols in
+    the datatype of a RoutineSymbol.
+
+    '''
+    sym1 = RoutineSymbol('a')
+    table = SymbolTable()
+    sym1.update_symbols_from(table)
+    assert isinstance(sym1.datatype, NoType)
+    # Test when the routine has a datatype.
+    wp = DataSymbol("wp", INTEGER_TYPE)
+    sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, wp))
+    # No symbol in table.
+    sym3.update_symbols_from(table)
+    assert sym3.datatype.precision is wp
+    wp_new = wp.copy()
+    table.add(wp_new)
+    sym3.update_symbols_from(table)
+    assert sym3.datatype.precision is wp_new

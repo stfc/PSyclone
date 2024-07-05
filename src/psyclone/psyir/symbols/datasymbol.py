@@ -299,7 +299,8 @@ class DataSymbol(TypedSymbol):
         to by any other object.
 
         N.B. any Symbols referenced in either the datatype or the initial_value
-        properties will remain unchanged in the copied object.
+        properties will remain unchanged in the copied object. See the
+        `update_symbols_from` method.
 
         :returns: An object with the same properties as this symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`

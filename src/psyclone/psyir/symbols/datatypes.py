@@ -1002,7 +1002,8 @@ class StructureType(DataType):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        # TODO switch ComponentType to a dataclass to allow it to be mutated?
+        # Since ComponentType is a namedtuple it is immutable therefore we
+        # must construct new ones.
         new_components = OrderedDict()
         for component in self.components.values():
             if isinstance(component.datatype, DataTypeSymbol):
@@ -1015,6 +1016,7 @@ class StructureType(DataType):
                 new_type = component.datatype
             if component.initial_value:
                 component.initial_value.update_symbols_from(table)
+            # Construct the new ComponentType
             new_components[component.name] = StructureType.ComponentType(
                 component.name, new_type, component.visibility,
                 component.initial_value)
