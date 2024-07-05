@@ -74,6 +74,10 @@ The compilation process will create the wrapper library
 ``dl_esm_inf`` infrastructure library, ``lib_fd.a``, if required, with the
 previously selected compiler flags.
 
+In order to support MPI in extraction (which means each process will write
+its own output data by appending its rank to the filename), set the environment
+variable ``MPI=yes`` before starting the build process.
+
 Similar to compilation of the [examples](
 https://psyclone.readthedocs.io/en/latest/examples.html#compilation), the
 compiled wrapper library can be removed by running ``make clean``. To also
