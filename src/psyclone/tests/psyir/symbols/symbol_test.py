@@ -398,3 +398,26 @@ def test_symbol_array_handling():
     # A generic symbol (no datatype) without an explicit array access
     # expression is not considered to have array access.
     assert not asym.is_array_access()
+
+
+def test_symbol_update_symbols_from():
+    '''Test the update_symbols_from() method in Symbol.'''
+    interf = DefaultModuleInterface()
+    asym = Symbol("a", interface=interf)
+    table = SymbolTable()
+    # No symbols in table and nothing to update.
+    asym.update_symbols_from(table)
+    assert asym.interface is interf
+    cont = ContainerSymbol("genesis")
+    binterf = ImportInterface(cont, orig_name="e")
+    bsym = Symbol("b", interface=binterf)
+    # No symbols in table.
+    bsym.update_symbols_from(table)
+    assert bsym.interface is binterf
+    assert bsym.interface.container_symbol is cont
+    # Add a new ContainerSymbol to the table.
+    cont2 = cont.copy()
+    table.add(cont2)
+    bsym.update_symbols_from(table)
+    assert bsym.interface is not binterf
+    assert bsym.interface.container_symbol is cont2
