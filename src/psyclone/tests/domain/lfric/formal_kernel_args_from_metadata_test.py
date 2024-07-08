@@ -52,10 +52,10 @@ def call_method(method_name, *args, metadata=None):
 
     :param str method_name: the name of the method to test.
     :param metadata: optional metadata required by some methods.
-    :type metadata: Optional[ \
+    :type metadata: Optional[
         :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`]
 
-    :returns: a FormalKernelArgsFromMetadata class after the supplied \
+    :returns: a FormalKernelArgsFromMetadata class after the supplied
         class method has been called.
     :rtype: :py:class:`psyclone.domain.lfric.FormalKernelArgsFromMetadata`
 
@@ -68,7 +68,8 @@ def call_method(method_name, *args, metadata=None):
 
 
 def check_single_symbol(
-        method_name, datasymbol_name, symbol_name, *args, metadata=None, check_unchanged=False):
+        method_name, datasymbol_name, symbol_name, *args, metadata=None,
+        check_unchanged=False):
     '''Utility function that calls the method in argument 'method_name'
     with the arguments stored in argument '*args' and checks that as a
     result a symbol with name 'symbol_name' of type 'datasymbol_name'
@@ -76,11 +77,11 @@ def check_single_symbol(
     created.
 
     :param str method_name: the name of the method to test.
-    :param str datasymbol_name: the name of the expected symbol type \
+    :param str datasymbol_name: the name of the expected symbol type
         that is created.
     :param str symbol_name: the expected name of the created symbol.
     :param metadata: optional metadata required by some methods.
-    :type metadata: Optional[ \
+    :type metadata: Optional[
         :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`]
     *** check unchanged ***
 
@@ -97,7 +98,8 @@ def check_single_symbol(
     assert len(cls._info._argument_list) == 1
     assert cls._info._argument_list[0] is symbol
     if check_unchanged:
-        # Check that the symbol remains unchanged if it has already been declared.
+        # Check that the symbol remains unchanged if it has already been
+        # declared.
         symbol_id = id(symbol)
         # Reset the argument list as this method will have added it
         # both to the symbol table and to the argument list whereas if
@@ -422,7 +424,8 @@ def test_fs_compulsory_field():
 def check_fs_compulsory_field(cls, function_space):
     ''' xxx '''
     undf_name = lfric.FormalKernelArgsFromMetadata._undf_name(function_space)
-    dofmap_name = lfric.FormalKernelArgsFromMetadata._dofmap_name(function_space)
+    dofmap_name = lfric.FormalKernelArgsFromMetadata._dofmap_name(
+        function_space)
     # Check that undf and dofmap symbols are added to the symbol table
     # and to the argument list.
     undf_class = lfric.LFRicTypes("NumberOfUniqueDofsDataSymbol")
@@ -465,7 +468,8 @@ def test_fs_intergrid():
     cls = call_method("_fs_intergrid", intergrid_meta_arg)
     ndf_name = lfric.FormalKernelArgsFromMetadata._ndf_name(function_space)
     undf_name = lfric.FormalKernelArgsFromMetadata._undf_name(function_space)
-    fullmap_name = lfric.FormalKernelArgsFromMetadata._fullmap_name(function_space)
+    fullmap_name = lfric.FormalKernelArgsFromMetadata._fullmap_name(
+        function_space)
     ndf_class = lfric.LFRicTypes("NumberOfDofsDataSymbol")
     undf_class = lfric.LFRicTypes("NumberOfUniqueDofsDataSymbol")
     check_arg_symbols(cls, OrderedDict(
@@ -486,7 +490,7 @@ def test_fs_intergrid():
     symbol_table = SymbolTable()
     symbol_table.add(undf_symbol, tag=undf_name)
     symbol_table.add(ndf_symbol, tag=ndf_name)
-    cls._info=symbol_table
+    cls._info = symbol_table
     cls._fs_intergrid(intergrid_meta_arg)
     check_arg_symbols(cls, OrderedDict(
         [(ndf_name, ndf_class), (undf_name, undf_class),
@@ -561,7 +565,8 @@ def test_basis():
     ''' Test _basis method. '''
     function_space = "w3"
     field_meta_arg = lfric.kernel.FieldArgMetadata("GH_REAL", "GH_WRITE", "W3")
-    meta_funcs_arg = lfric.kernel.MetaFuncsArgMetadata(function_space, basis_function=True)
+    meta_funcs_arg = lfric.kernel.MetaFuncsArgMetadata(function_space,
+                                                       basis_function=True)
     metadata = lfric.kernel.LFRicKernelMetadata(
         operates_on="cell_column", meta_args=[field_meta_arg],
         meta_funcs=[meta_funcs_arg], shapes=["gh_quadrature_xyoz"])
@@ -584,7 +589,8 @@ def test_diff_basis():
     ''' Test _diff_basis method. '''
     function_space = "w3"
     field_meta_arg = lfric.kernel.FieldArgMetadata("GH_REAL", "GH_WRITE", "W3")
-    meta_funcs_arg = lfric.kernel.MetaFuncsArgMetadata(function_space, diff_basis_function=True)
+    meta_funcs_arg = lfric.kernel.MetaFuncsArgMetadata(
+        function_space, diff_basis_function=True)
     metadata = lfric.kernel.LFRicKernelMetadata(
         operates_on="cell_column", meta_args=[field_meta_arg],
         meta_funcs=[meta_funcs_arg], shapes=["gh_quadrature_xyoz"])

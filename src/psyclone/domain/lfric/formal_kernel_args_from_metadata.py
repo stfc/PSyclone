@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,13 +63,13 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
     def _initialise(cls, symbol_table):
         '''Initialise any additional state for this class.
 
-        :param symbol_table: the symbol table that the kernel \
-            arguments should be added to. If it is set to None then a new \
+        :param symbol_table: the symbol table that the kernel
+            arguments should be added to. If it is set to None then a new
             symbol table is created.
-        :type symbol_table: \
+        :type symbol_table:
             Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
 
-        :raises TypeError: if the symbol_table argument is an \
+        :raises TypeError: if the symbol_table argument is an
             unexpected type.
 
         '''
@@ -99,7 +99,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         of type i_def and has intent in.
 
         '''
-        # TODO: if self._kern.iterates_over not in ["cell_column", "domain"]: return
+        # TODO: if self._kern.iterates_over not in ["cell_column", "domain"]:
+        #          return
         cls._add_lfric_symbol_name("MeshHeightDataSymbol", "nlayers")
 
     @classmethod
@@ -207,9 +208,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
     def _field_vector(cls, meta_arg):
         '''Arguments providing an LFRic field vector.
 
-        :param meta_arg: the metadata associated with this field \
+        :param meta_arg: the metadata associated with this field
             vector argument.
-        :type meta_arg: \
+        :type meta_arg:
             :py:class:`psyclone.domain.lfric.kernel.FieldVectorArgMetadata`
 
         '''
@@ -241,9 +242,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         from function spaces, respectively, and that of the third is
         <operator_name>'_ncell_3d'.
 
-        :param meta_arg: the metadata associated with the operator \
+        :param meta_arg: the metadata associated with the operator
             arguments.
-        :type meta_arg: \
+        :type meta_arg:
             :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
 
         '''
@@ -300,9 +301,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         integer of kind i_def with intent in and has default name
         'gamma_p_'<operator_name>.
 
-        :param meta_arg: the metadata associated with the CMA operator \
+        :param meta_arg: the metadata associated with the CMA operator
             arguments.
-        :type meta_arg: :py:class:`psyclone.domain.lfric.kernel.\
+        :type meta_arg: :py:class:`psyclone.domain.lfric.kernel.
             ColumnwiseOperatorArgMetadata`
 
         '''
@@ -364,9 +365,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         case the default name is the same name as the reference
         element property.
 
-        :param meta_ref_element: the metadata capturing the reference \
+        :param meta_ref_element: the metadata capturing the reference
             element properties required by the kernel.
-        :type meta_ref_element: List[:py:class:`psyclone.domain.lfric.\
+        :type meta_ref_element: List[:py:class:`psyclone.domain.lfric.
             kernel.MetaRefElementArgMetadata`]
 
         '''
@@ -438,9 +439,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         and extent nfaces_re_h, with default name being the name of
         the property (adjacent_face in this case).
 
-        :param meta_mesh: the metadata capturing the mesh properties \
+        :param meta_mesh: the metadata capturing the mesh properties
             required by the kernel.
-        :type meta_mesh: List[\
+        :type meta_mesh: List[
             :py:class:`psyclone.domain.lfric.kernel.MetaMeshArgMetadata`]
 
         raises InternalError: if the mesh property is not 'adjacent_face'.
@@ -487,13 +488,15 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         :param str function_space: the current function space.
 
         '''
-        # TODO: if self._kern.iterates_over not in ["cell_column", "domain"]: return
+        # TODO: if self._kern.iterates_over not in ["cell_column", "domain"]:
+        #          return
 
         function_space_name = cls._function_space_name(function_space)
         ndf_name = cls._ndf_name(function_space)
         # This symbol might be used to dimension an array in another
         # method and therefore could have already been declared.
-        symbol = cls._get_or_create_lfric_symbol("NumberOfDofsDataSymbol", ndf_name)
+        symbol = cls._get_or_create_lfric_symbol("NumberOfDofsDataSymbol",
+                                                 ndf_name)
         cls._append_to_arg_list(symbol)
 
     @classmethod
@@ -561,9 +564,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         mesh. This is an integer array of rank one, kind i_def and
         has intent in. Its default name is 'map_'<function_space>.
 
-        :param meta_arg: the metadata capturing the InterGrid argument \
+        :param meta_arg: the metadata capturing the InterGrid argument
             required by the kernel.
-        :type meta_arg: \
+        :type meta_arg:
         :py:class:`psyclone.domain.lfric.kernel.InterGridArgMetadata`]
 
         '''
@@ -813,11 +816,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         [np_xyz_<quadrature_arg_name>,
         nfaces/nedges_<quadrature_arg_name>]).
 
-        :param shapes: the metadata capturing the quadrature shapes \
+        :param shapes: the metadata capturing the quadrature shapes
             required by the kernel.
         :type shapes: List[str]
 
-        raises InternalError: if unexpected (quadrature) shape \
+        raises InternalError: if unexpected (quadrature) shape
             metadata is found.
 
         '''
@@ -853,7 +856,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         is "boundary_dofs_"<field_name>, where <field_name> is the
         default name of the field on the current function space.
 
-        :raises InternalError: if the enforce_bc_kernel does not have \
+        :raises InternalError: if the enforce_bc_kernel does not have
             a single field argument on the any_space_1 function space.
 
         '''
@@ -888,7 +891,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         name is "boundary_dofs_"<field_name>, where <field_name> is
         the default name of the field on the current function space.
 
-        :raises InternalError: if the enforce_operator_bc_kernel does \
+        :raises InternalError: if the enforce_operator_bc_kernel does
             not have a single lma operator argument.
 
         '''
@@ -898,7 +901,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
                 f"An enforce_operator_bc_code kernel should have a single "
                 f"argument but found '{len(cls._metadata.meta_args)}'.")
         meta_arg = cls._metadata.meta_args[0]
-        if not type(meta_arg) == OperatorArgMetadata:
+        if type(meta_arg) is not lfric.OperatorArgMetadata:
             raise InternalError(
                 f"An enforce_operator_bc_code kernel should have a single "
                 f"lma operator argument but found "
@@ -918,9 +921,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         name of the field with this stencil. This will supply the
         number of cells in each branch of the stencil.
 
-        :param meta_arg: the metadata associated with a field argument \
+        :param meta_arg: the metadata associated with a field argument
             with a cross2d stencil access.
-        :type meta_arg: \
+        :type meta_arg:
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
@@ -940,9 +943,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         stencil dofmap array and is required due to the varying length
         of the branches of the stencil when used on planar meshes.
 
-        :param meta_arg: the metadata associated with a field argument \
+        :param meta_arg: the metadata associated with a field argument
             with a cross2d stencil access.
-        :type meta_arg: \
+        :type meta_arg:
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
@@ -958,9 +961,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         name of the field with this stencil. This argument will
         contain the number of cells in the stencil.
 
-        :param meta_arg: the metadata associated with a field argument \
+        :param meta_arg: the metadata associated with a field argument
             with a stencil access.
-        :type meta_arg: \
+        :type meta_arg:
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
@@ -976,14 +979,15 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         <field_name> is the default name of the field with this
         stencil.
 
-        :param meta_arg: the metadata associated with a field argument \
+        :param meta_arg: the metadata associated with a field argument
             with a xory1d stencil access.
-        :type meta_arg: \
+        :type meta_arg: 
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
         field_name = cls._field_name(meta_arg)
-        cls._add_lfric_symbol_name("LFRicIntegerScalar", f"{field_name}_direction")
+        cls._add_lfric_symbol_name("LFRicIntegerScalar",
+                                   f"{field_name}_direction")
 
     @classmethod
     def _stencil_2d(cls, meta_arg):
@@ -994,9 +998,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         name is <field_name>"_stencil_dofmap", where <field_name> is
         the default name of the field with this stencil.
 
-        :param meta_arg: the metadata associated with a field argument \
+        :param meta_arg: the metadata associated with a field argument
             with a stencil access.
-        :type meta_arg: \
+        :type meta_arg:
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
@@ -1013,9 +1017,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         <field_name>"_stencil_dofmap, where <field_name> is the
         default name of the field with this stencil.
 
-        :param meta_arg: the metadata associated with a field argument \
+        :param meta_arg: the metadata associated with a field argument
             with a stencil access.
-        :type meta_arg: \
+        :type meta_arg:
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
@@ -1035,11 +1039,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         "ndf_"<arg_function_space> and the second is nlayers. Its
         default name is 'cbanded_map_'<function_space>'_'<op_name>
 
-        :param str function_space: the function space for this banded \
+        :param str function_space: the function space for this banded
             dofmap.
-        :param cma_operator: the cma operator metadata associated with \
+        :param cma_operator: the cma operator metadata associated with
             this banded dofmap.
-        :type cma_operator: :py:class:`psyclone.domain.lfric.kernel.\
+        :type cma_operator: :py:class:`psyclone.domain.lfric.kernel.
             ColumnwiseOperatorArgMetadata`
 
         '''
@@ -1047,7 +1051,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         name = cls._cma_operator_name(cma_operator)
         print("TO BE DONE")
         exit(1)
-        # cls._add_lfric_symbol_name(f"cbanded_map_{function_space_name}_{name}")
+        # cls._add_lfric_symbol_name(
+        #    f"cbanded_map_{function_space_name}_{name}")
 
     @classmethod
     def _indirection_dofmap(cls, function_space, cma_operator):
@@ -1070,11 +1075,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         to and from function spaces are the same so there is no need
         to explicitly check.
 
-        :param str function_space: the function space for this \
+        :param str function_space: the function space for this
             indirection dofmap.
-        :param cma_operator: the cma operator metadata associated with \
+        :param cma_operator: the cma operator metadata associated with
             this indirection dofmap.
-        :type cma_operator: :py:class:`psyclone.domain.lfric.kernel.\
+        :type cma_operator: :py:class:`psyclone.domain.lfric.kernel.
             ColumnwiseOperatorArgMetadata`
 
         '''
@@ -1095,10 +1100,12 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
     @classmethod
     def _create_array_symbol(cls, scalar_type_name, symbol_name, dims,
-                       access=symbols.ArgumentInterface.Access.READ):
+                             access=symbols.ArgumentInterface.Access.READ):
         ''' xxx '''
         scalar_type = cls._create_datatype(scalar_type_name)
-        array_args = [nodes.Reference(symbol) if not isinstance(symbol, nodes.Literal) else symbol for symbol in dims]
+        array_args = [nodes.Reference(symbol) if not isinstance(symbol,
+                                                                nodes.Literal)
+                      else symbol for symbol in dims]
         array_type = symbols.ArrayType(scalar_type, array_args)
         interface = symbols.ArgumentInterface(access)
         array_symbol = symbols.DataSymbol(
@@ -1108,7 +1115,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
     @classmethod
     def _add_array_symbol_name(cls, scalar_type_name, symbol_name, dims,
-                         access=symbols.ArgumentInterface.Access.READ):
+                               access=symbols.ArgumentInterface.Access.READ):
         '''xxx'''
         symbol = cls._create_array_symbol(
             scalar_type_name, symbol_name, dims, access=access)
@@ -1116,7 +1123,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
     @classmethod
     def _create_lfric_symbol(cls, class_name, symbol_name, dims=None,
-                       access=symbols.ArgumentInterface.Access.READ):
+                             access=symbols.ArgumentInterface.Access.READ):
         ''' xxx '''
         required_class = lfric.LFRicTypes(class_name)
         if dims:
@@ -1130,7 +1137,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
     @classmethod
     def _add_lfric_symbol_name(cls, class_name, symbol_name, dims=None,
-                         access=symbols.ArgumentInterface.Access.READ):
+                               access=symbols.ArgumentInterface.Access.READ):
         '''Utility function to create an LFRic-PSyIR symbol of type class_name
         and name symbol_name and add it to the symbol table.
 
@@ -1143,8 +1150,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         cls._append_to_arg_list(symbol)
 
     @classmethod
-    def _get_or_create_lfric_symbol(cls, class_name, symbol_name,
-                              access=symbols.ArgumentInterface.Access.READ):
+    def _get_or_create_lfric_symbol(
+            cls, class_name, symbol_name,
+            access=symbols.ArgumentInterface.Access.READ):
         ''' xxx '''
         try:
             symbol = cls._info.lookup_with_tag(symbol_name)
@@ -1166,26 +1174,12 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         # symbol_table.specify_argument_list([arg1])
 
     @classmethod
-    def _add_lfric_symbol_name(cls, class_name, symbol_name, dims=None,
-                         access=symbols.ArgumentInterface.Access.READ):
-        '''Utility function to create an LFRic-PSyIR symbol of type class_name
-        and name symbol_name and add it to the symbol table.
-
-        :param str class_name: the name of the class to be created.
-        :param str symbol_name: the name of the symbol to be created.
-
-        '''
-        symbol = cls._create_lfric_symbol(
-            class_name, symbol_name, dims=dims, access=access)
-        cls._append_to_arg_list(symbol)
-
-    @classmethod
     def _field_name(cls, meta_arg):
         '''Utility function providing the default field name from its meta_arg
         metadata.
 
         :param meta_arg: metadata describing a field argument.
-        :type meta_arg: \
+        :type meta_arg:
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         :returns: the default name for this meta_arg field.
@@ -1202,7 +1196,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         metadata.
 
         :param meta_arg: metadata describing an lma operator argument.
-        :type meta_arg: \
+        :type meta_arg:
             :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
 
         :returns: the default name for this meta_arg field.
@@ -1218,7 +1212,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         meta_arg metadata.
 
         :param meta_arg: metadata describing a cma operator argument.
-        :type meta_arg: :py:class:`psyclone.domain.lfric.kernel.\
+        :type meta_arg: :py:class:`psyclone.domain.lfric.kernel.
             ColumnwiseOperatorArgMetadata`
 
         :returns: the default name for this meta_arg cma operator.
