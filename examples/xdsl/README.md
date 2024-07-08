@@ -20,11 +20,11 @@ The xDSL backend has the following dependencies:
         user@local:~$ make install -j 12  # Where 12 is the number of cores on the machine
         ```
 
-2. The xDSL framework is required - it is recommended to use the following branch [`maurice/flang-to-std-dialects`](https://github.com/xdslproject/xdsl/tree/maurice/flang-to-std-dialects).
+2. The xDSL framework is required - it is recommended to use the branch [`maurice/flang-to-std-dialects`](https://github.com/xdslproject/xdsl/tree/maurice/flang-to-std-dialects).
 
     > See the [xDSL training](https://github.com/xdslproject/training-intro/blob/main/practical/general/local.md) for more information on building and installing the required MLIR and LLVM tool.
 
-3. The PSyclone xDSL dialects and transformations [`psy`](https://github.com/xdslproject/psy) are also required.
+3. The PSyclone xDSL dialects and transformations [`psy`](https://github.com/xdslproject/psy) are also required, using the branch [`xdsl-updates`](https://github.com/xdslproject/psy/tree/xdsl-updates).
 4. The PSyclone xDSL Fortran support functionality [`ftn`](https://github.com/xdslproject/ftn) 
 5. Once you have installed the above dependencies, you will need to set your `PYTHONPATH` environment variable to include the following directories:
 
