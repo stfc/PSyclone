@@ -34,7 +34,11 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Tests Fortran data statements in the fparser2 PSyIR front-end '''
+'''Tests Fortran data statements in the fparser2 PSyIR front-end. Data
+statements are represented as an UnsupportedFortranType. The tests
+here cover a few variations of the data statement, in case that at
+some stage we need more information.
+'''
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
@@ -62,3 +66,63 @@ def test_simple_data_statement():
     data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
     assert isinstance(data.datatype, UnsupportedFortranType)
     assert data.datatype.declaration == "DATA a / 1 /"
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_multiple_data_statement():
+    ''' Test that data statements are correctly captured. '''
+
+    # Create a dummy test routine
+    routine = Routine("test_routine")
+    symtab = routine.symbol_table
+    processor = Fparser2Reader()
+
+    # Test with a single namelist
+    reader = FortranStringReader('''
+        data a /1/, b/2/, c/3/''')
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(routine, fparser2spec.content, [])
+    # There is a data_stmt in the symbol table:
+    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
+    assert isinstance(data.datatype, UnsupportedFortranType)
+    assert data.datatype.declaration == "DATA a / 1 /, b / 2 /, c / 3 /"
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_data_statement_implicit_loop():
+    ''' Test that z data statement with an implicit loops is correctly
+    captured. '''
+
+    # Create a dummy test routine
+    routine = Routine("test_routine")
+    symtab = routine.symbol_table
+    processor = Fparser2Reader()
+
+    # Test with a single namelist
+    reader = FortranStringReader(
+        "DATA (es(ies),ies=    0, 5) / 0.966483e-02,0.966483e-02,"
+        "0.984279e-02,0.100240e-01,0.102082e-01,0.103957e-01/")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(routine, fparser2spec.content, [])
+    # There is a data_stmt in the symbol table:
+    data = symtab.lookup("_PSYCLONE_INTERNAL_DATA_STMT")
+    assert isinstance(data.datatype, UnsupportedFortranType)
+    assert (data.datatype.declaration == "DATA (es(ies), ies = 0, 5) / "
+            "0.966483E-02, 0.966483E-02, 0.984279E-02, 0.100240E-01, "
+            "0.102082E-01, 0.103957E-01 /")
+
+
+def test_data_statement_backend(fortran_reader, fortran_writer):
+    '''Test the full process: parsing source code with data statements,
+    converting them to PSyIR, and writing the out as Fortran.'''
+
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine test()
+            integer :: a, b, c(5)
+            data a/1/, b/2/
+            data (c(i), i=1,5) / 5, 4, 3, 2, 1/
+        end subroutine test
+      ''')
+    code = fortran_writer(psyir)
+    assert "DATA a / 1 /, b / 2 /" in code
+    assert "DATA (c(i), i = 1, 5) / 5, 4, 3, 2, 1 /" in code
