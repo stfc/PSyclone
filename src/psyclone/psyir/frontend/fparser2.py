@@ -1322,10 +1322,7 @@ class Fparser2Reader():
         '''
         Parse the fparser dimension attribute into a shape list. Each entry of
         this list is either None (if the extent is unknown) or a 2-tuple
-        containing the lower and upper bound of that dimension. If any of the
-        symbols encountered are instances of the generic Symbol class, they are
-        specialised (in place) and become instances of DataSymbol with
-        UnresolvedType.
+        containing the lower and upper bound of that dimension.
 
         :param dimensions: fparser dimension attribute.
         :type dimensions:
@@ -1343,11 +1340,14 @@ class Fparser2Reader():
             tuple[:py:class:`psyclone.psyir.nodes.DataNode`,
                   :py:class:`psyclone.psyir.nodes.DataNode`]]]
 
-        :raises NotImplementedError: if anything other than scalar, integer
-            literals or symbols are encounted in the dimensions list.
+        :raises GenerationError: if invalid Fortran is encounted in the
+                                 dimensions list.
+        :raises NotImplementedError: if the supplied dimension represents an
+                                     assumed-size specification.
+        :raises InternalError: if a dimension is not an Assumed_Shape_Spec,
+                               Explicit_Shape_Spec or Assumed_Size_Spec.
 
         '''
-
         one = Literal("1", INTEGER_TYPE)
         shape = []
         # Traverse shape specs in Depth-first-search order
@@ -1847,8 +1847,6 @@ class Fparser2Reader():
         '''
         # pylint: disable=too-many-arguments
         (type_spec, attr_specs, entities) = decl.items
-        # Whether or not we are dealing with a member of a Structure.
-        is_member = isinstance(decl, Fortran2003.Data_Component_Def_Stmt)
 
         # Parse the type_spec
         base_type, _ = self._process_type_spec(scope, type_spec)
@@ -2036,8 +2034,8 @@ class Fparser2Reader():
             # Make sure the declared symbol exists in the SymbolTable.
             tag = None
             try:
-                if is_member:
-                    # We are dealing with the declaration of a member of a
+                if isinstance(decl, Fortran2003.Data_Component_Def_Stmt):
+                    # We are dealing with the declaration of a component of a
                     # structure. This must be a new entity and therefore we do
                     # not want to attempt to lookup a symbol with this name -
                     # trigger the exception path to create a new, local symbol.
@@ -2198,14 +2196,13 @@ class Fparser2Reader():
 
             for child in walk(decl, Fortran2003.Data_Component_Def_Stmt):
                 self._process_decln(parent, local_table, child)
-            # Convert from Symbols to type information
+            # Convert from Symbols to StructureType components.
             for symbol in local_table.symbols:
-                if type(symbol) is Symbol:
-                    # If we don't have type information for this Symbol then
-                    # it isn't defined within this structure so we add it
-                    # to the parent SymbolTable. (This can happen when e.g.
-                    # an array member is dimensioned by a parameter declared
-                    # elsewhere.)
+                if symbol.is_unresolved:
+                    # If a Symbol is unresolved then it isn't defined within
+                    # this structure so we add it to the parent SymbolTable.
+                    # (This can happen when e.g. an array member is dimensioned
+                    # by a parameter declared elsewhere.)
                     parent.symbol_table.add(symbol)
                 else:
                     datatype = symbol.datatype

@@ -156,22 +156,27 @@ def test_is_upper_lower_bound(fortran_reader):
     code = '''
     subroutine test(kttrd, ptrd)
       use some_mod
-      real a(n)
+      real a(n-1)
       integer, dimension(2), intent(in) :: kttrd
       real, dimension(kttrd(1):,kttrd(2):,:), intent(in) ::   ptrd
       trdt(ntsi-(0):,ntsj-(0):ntej+(0),:) =    &
          ptrd(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:)
-      a(1:n) = 0.0
+      a(1:n-1) = 0.0
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
     assigns = psyir.walk(Assignment)
     trdt_ref = assigns[0].lhs
+    assert not trdt_ref.is_lower_bound(0)
     assert trdt_ref.is_upper_bound(0)
     assert not trdt_ref.is_upper_bound(1)
+    assert not trdt_ref.is_lower_bound(1)
     assert trdt_ref.is_upper_bound(2)
+    assert trdt_ref.is_lower_bound(2)
     ptrd_ref = assigns[0].rhs
+    assert not ptrd_ref.is_lower_bound(0)
     assert not ptrd_ref.is_upper_bound(0)
+    assert ptrd_ref.is_lower_bound(2)
     assert ptrd_ref.is_upper_bound(2)
     # Return True as the symbolic values of the declaration and array
     # reference match.
