@@ -42,8 +42,9 @@ Routine directive. PSyclone can apply this transformation script via its
 '''
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyGen import CodedKern
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
-    ACCEnterDataTrans, ACCKernelsTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
+    ACCEnterDataTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
 
 
 def trans(psy):

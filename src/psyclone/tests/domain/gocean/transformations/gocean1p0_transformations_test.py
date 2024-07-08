@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified work Copyright (c) 2017-2024 by J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
 ''' Module containing tests of Transformations when using the GOcean API '''
@@ -45,16 +45,17 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Loop, Routine
-from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
-    TransformationError
-from psyclone.transformations import ACCKernelsTrans, ACCRoutineTrans, \
+from psyclone.psyir.transformations import (
+    LoopFuseTrans, LoopTrans, TransformationError)
+from psyclone.transformations import ACCRoutineTrans, \
     OMPParallelTrans, GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
     OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
 from psyclone.tests.gocean_build import GOceanBuild
-from psyclone.tests.utilities import count_lines, get_invoke
+from psyclone.tests.utilities import count_lines, get_invoke, get_base_path
 
 # The version of the PSyclone API that the tests in this file
 # exercise
@@ -831,8 +832,8 @@ def test_omp_region_invalid_node():
 
     with pytest.raises(TransformationError) as err:
         ompr.apply(schedule.children)
-    assert ("ACCParallelDirective' cannot be enclosed by a "
-            "OMPParallelTrans transformation" in str(err.value))
+    assert ("cannot be enclosed by a OMPParallelTrans transformation"
+            in str(err.value))
 
     # Check that the test can be disabled with the appropriate option:
     ompr.apply(schedule.children, {"node-type-check": False})
@@ -1052,8 +1053,8 @@ def test_acc_parallel_trans_dm():
     # of the HaloExchange nodes.
     with pytest.raises(TransformationError) as err:
         acct.apply(schedule.children)
-    assert ("Nodes of type 'GOHaloExchange' cannot be enclosed by a "
-            "ACCParallelTrans transformation" in str(err.value))
+    assert ("cannot be enclosed by a ACCParallelTrans transformation"
+            in str(err.value))
     acct.apply(schedule.children[1:])
     # Add an enter-data region.
     accdt.apply(schedule)
@@ -1123,8 +1124,8 @@ def test_acc_parallel_invalid_node():
     # Attempt to enclose the enter-data directive within a parallel region
     with pytest.raises(TransformationError) as err:
         accpara.apply(schedule.children[0])
-    assert ("'GOACCEnterDataDirective' cannot be enclosed by a "
-            "ACCParallelTrans transformation" in str(err.value))
+    assert ("cannot be enclosed by a ACCParallelTrans transformation"
+            in str(err.value))
 
 
 def test_acc_data_copyin(tmpdir):
@@ -1459,19 +1460,7 @@ def test_acc_loop_seq():
             ", 1\n" in gen)
 
 
-def test_acc_kernels_error():
-    ''' Check that we refuse to allow the kernels transformation
-    for this API. '''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
-                           name="invoke_0", dist_mem=False)
-    schedule = invoke.schedule
-    accktrans = ACCKernelsTrans()
-    with pytest.raises(NotImplementedError) as err:
-        accktrans.apply(schedule.children)
-    assert ("kernels regions are currently only supported for the Nemo"
-            " and LFRic InvokeSchedules" in str(err.value))
-
-
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_accroutinetrans_module_use():
     ''' Check that ACCRoutineTrans rejects a kernel if it contains a module
     use statement. '''
@@ -1482,9 +1471,21 @@ def test_accroutinetrans_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("accesses the symbol 'rdt: Symbol<Import(container='model_mod')>' "
-            "which is imported. If this symbol "
+    assert ("accesses the symbol 'rdt: Symbol<Import(container='model_mod')>'"
+            " which is imported. If this symbol "
             "represents data then it must first" in str(err.value))
+    # Tell the ModuleManager where to find the module that is being USED by
+    # the kernel.
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(get_base_path("gocean"))
+    # Now that we can resolve the symbols, we know that `rdt` is a parameter
+    # (and is not a problem) but that `magic` is a variable.
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(kernels[0])
+    assert ("accesses the symbol 'magic: DataSymbol<Scalar<REAL, go_wp: "
+            "DataSymbol<Scalar<INTEGER, UNDEFINED>, Unresolved, "
+            "constant=True>>, Import(container='model_mod')>' which is "
+            "imported" in str(err.value))
 
 
 def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
@@ -1499,7 +1500,7 @@ def test_accroutinetrans_with_kern(fortran_writer, monkeypatch):
     rtrans.apply(kern)
     # Check that there is a acc routine directive in the kernel
     code = fortran_writer(kern.get_kernel_schedule())
-    assert "!$acc routine\n" in code
+    assert "!$acc routine seq\n" in code
 
     # If the kernel schedule is not accessible, the transformation fails
     def raise_gen_error():
@@ -1525,7 +1526,7 @@ def test_accroutinetrans_with_routine(fortran_writer):
     rtrans.apply(routine)
     # Check that there is a acc routine directive in the routine
     code = fortran_writer(routine)
-    assert "!$acc routine\n" in code
+    assert "!$acc routine seq\n" in code
 
     # Even if applied multiple times the Directive is only there once
     previous_num_children = len(routine.children)

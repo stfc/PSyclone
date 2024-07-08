@@ -94,7 +94,6 @@ def test_correct(func, output, tmpdir):
     argument to ABS is a simple argument and when it is an expression.
 
     '''
-    Config.get().api = "nemo"
     intr_call = example_psyir(func)
     root = intr_call.root
     writer = FortranWriter()
@@ -132,7 +131,6 @@ def test_correct_expr(tmpdir):
     is part of an expression.
 
     '''
-    Config.get().api = "nemo"
     intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
@@ -180,7 +178,6 @@ def test_correct_2abs(tmpdir):
     is more than one ABS() in an expression.
 
     '''
-    Config.get().api = "nemo"
     intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,

@@ -53,9 +53,10 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Node, Loop
 from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import (ACCEnterDataTrans, ACCKernelsTrans,
-                                      check_intergrid, Dynamo0p3ColourTrans,
+from psyclone.transformations import (ACCEnterDataTrans, check_intergrid,
+                                      Dynamo0p3ColourTrans,
                                       DynamoOMPParallelLoopTrans,
                                       TransformationError)
 

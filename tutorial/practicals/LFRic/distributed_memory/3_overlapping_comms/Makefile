@@ -37,10 +37,10 @@
 include ../../../../common.mk
 
 transform:
-	$(PSYCLONE) -api lfric -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
-	psyclone -api lfric -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
-	$(PSYCLONE) -api lfric -s ./solutions/overlap_generic.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
-	$(PSYCLONE) -api lfric -s ./solutions/overlap_specific.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+	$(PSYCLONE) --psykal-dsl lfric -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+	psyclone --psykal-dsl lfric -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
+	$(PSYCLONE) --psykal-dsl lfric -s ./solutions/overlap_generic.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+	$(PSYCLONE) --psykal-dsl lfric -s ./solutions/overlap_specific.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
 
 compile: transform
 	@echo "No compilation supported for tutorial/lfric/distributed_memory/3_overlapping_comms"

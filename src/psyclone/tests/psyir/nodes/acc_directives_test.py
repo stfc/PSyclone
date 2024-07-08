@@ -62,8 +62,9 @@ from psyclone.psyir.nodes import (ACCKernelsDirective,
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.transformations import (
-    ACCDataTrans, ACCEnterDataTrans, ACCKernelsTrans, ACCLoopTrans,
+    ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
     ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -416,15 +417,40 @@ def test_acc_routine_directive_constructor_and_strings():
     ''' Test the ACCRoutineDirective constructor and its output
     strings.'''
     target = ACCRoutineDirective()
-    assert target.begin_string() == "acc routine"
+    # Defaults to sequential.
+    assert target.begin_string() == "acc routine seq"
     assert str(target) == "ACCRoutineDirective[]"
 
     temporary_module = ModuleGen("test")
     target.gen_code(temporary_module)
-    assert "!$acc routine\n" in str(temporary_module.root)
+    assert "!$acc routine seq\n" in str(temporary_module.root)
 
+    target2 = ACCRoutineDirective("VECTOR")
+    assert target2.parallelism == "vector"
+    assert target2.begin_string() == "acc routine vector"
+    target3 = ACCRoutineDirective("GANG")
+    assert target3.parallelism == "gang"
+    target4 = ACCRoutineDirective("WORKER")
+    assert target4.parallelism == "worker"
+
+
+def test_acc_routine_parallelism():
+    ''' Test the ACCRoutineDirective parallelism property. '''
+    target = ACCRoutineDirective()
+    assert target.parallelism == "seq"
+    target.parallelism = "vector"
+    assert target.parallelism == "vector"
+    with pytest.raises(TypeError) as err:
+        target.parallelism = 1
+    assert ("Expected a str to specify the level of parallelism but got 'int'"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        target.parallelism = "sequential"
+    assert ("Expected one of ['seq', 'vector', 'worker', 'gang'] for the level"
+            " of parallelism but got 'sequential'" in str(err.value))
 
 # Class ACCUpdateDirective
+
 
 def test_accupdatedirective_init():
     ''' Test the constructor of ACCUpdateDirective node. '''

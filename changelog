@@ -105,6 +105,57 @@
 
 	38) PR #2599. Update integration test dependencies.
 
+	39) PR #2564 for $2462. Generalise ModuleManager.
+
+	40) PR #2598 towards #2543. Refresh the PSyKAl-related documentation
+	in both the User and Developer Guides.
+
+	41) PR #2611. Update Integration tests nvhpc mpi library path. 
+
+	42) PR #2614 towards #2604. Fixes broken links to the docs in the
+	various tutorial READMEs.
+
+	43) PR #2587 for #1989. Improves the statistics produced by the
+	generated PSyKE driver code.
+
+	44) #PR #2602 for #1596. Exclude assumed-size variable references from
+	the ACCKernels regions.
+
+	45) PR #2603 for #1841. Refactors the ArrayRange2Loop transformation
+	(merging in functionality from the NEMO-specific version). Renames it
+	to ArrayAssignment2LoopsTrans.
+
+	46) PR #2615 for #2610. Fixes various spurious warnings that were
+	being produced by the lfric/eg17/full_example_extract example.
+
+	47) PR #2625 for #2619. Adds a create function for OMPParallelDoDirective
+	to avoid issues from using its parent class' create method.
+
+	48) PR #2609 for #2407. The OpenACC routine directive and transformation
+	now accept a "parallelism" attribute to set the level of parallelism, which
+	is mandatory in recent OpenACC standards.
+
+	49) PR #2626 for #2622. Adds convenience methods to the SymbolTable for
+	manipulating Routine argument lists.
+
+	50) PR #2607 FOR #2600. Update psyclone command and script interface
+	to remove mention of 'nemo' API.
+
+	51) PR #2575 towards #2201. Allow FileContainer to have symbols of their
+	inner subroutines. It also solves an issue with missing PURE, ELEMENTAL, ...
+
+	52) PR #2632 for #2116. Update the code-transformation tutorial.
+
+	53) PR #2639 for #2638. Upgrade CI markdown-linkcheck to linkspector.
+
+	54) PR #2583 towards #2577. Adds partial support for pointer
+	assignments. (Array accessors within structures are not supported.)
+	Pointer *declarations* will still result in symbols of
+	UnsupportedFortranType.
+
+	55) PR #2445 for #2444. Changes the kernel-extraction tooling so
+	that filenames are construction using dashes instead of colons.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data

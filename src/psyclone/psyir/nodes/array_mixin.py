@@ -85,6 +85,29 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return True
 
+    def index_of(self, node):
+        '''
+        If the given node is one of the index expressions of the array, it
+        returns the zero-indexed dimension of the array that it belongs to.
+        Note that this is different to `node.position` because
+        ArraysOfStructures have a Member child, and it is different from
+        `array.indices.index(node)` because that would use the equality
+        operator, but sibling indices may be equal and provide unexpected
+        results.
+
+        :param node: the node to get the index of.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: the index of the given node in the array.
+        :rtype: int
+
+        :raises ValueError: if node is not an index of the array.
+
+        '''
+        if node.parent is self:
+            return node.position
+        raise ValueError(f"'{node}' is not a child of '{self}'")
+
     def get_signature_and_indices(self):
         '''
         Constructs the Signature of this array access and a list of the
@@ -141,12 +164,20 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: bool
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.structure_accessor_mixin import (
+            StructureAccessorMixin)
         if (isinstance(expr, IntrinsicCall) and
                 expr.intrinsic == bound_operator):
+            array = expr.arguments[0]
+            # If its a structure, we want to compare the whole accessor
+            while isinstance(array, StructureAccessorMixin) and array.member:
+                array = array.member
             # This is the expected bound
-            if self.is_same_array(expr.arguments[0]):
+            if self.is_same_array(array):
                 # The arrays match
-                if (isinstance(expr.arguments[1], Literal) and
+                if (len(expr.arguments) > 1 and
+                        isinstance(expr.arguments[1], Literal) and
                         expr.arguments[1].datatype.intrinsic ==
                         ScalarType.Intrinsic.INTEGER
                         and expr.arguments[1].value == str(index+1)):
@@ -190,7 +221,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # First, walk up to the parent reference and get its type. For a simple
         # ArrayReference this will just be self.
         root_ref = self.ancestor(Reference, include_self=True)
-        cursor_type = root_ref.symbol.datatype
+        if isinstance(root_ref.symbol, DataSymbol):
+            cursor_type = root_ref.symbol.datatype
+        else:
+            cursor_type = UnresolvedType()
 
         # Walk back down the structure, looking up the type information as we
         # go. We also collect the necessary information for creating a new
@@ -432,28 +466,26 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if not isinstance(node, (Member, Reference)):
             return False
 
+        # First check that the base and depths are the same
         if isinstance(self, Member):
-            # This node is somewhere within a structure access so we need to
-            # get the parent Reference and keep a record of how deep this node
-            # is within the structure access. e.g. if this node was the
-            # StructureMember 'b' in a%c%b%d then its depth would be 2.
-            depth = 1
-            current = self
-            while current.parent and not isinstance(current.parent, Reference):
-                depth += 1
-                current = current.parent
-            parent_ref = current.parent
-            if not parent_ref:
-                return False
+            self_base, depth = self.get_base_and_depth()
         else:
-            depth = 0
-            parent_ref = self
+            self_base, depth = self, 0
+        if isinstance(node, Member):
+            node_base, node_depth = node.get_base_and_depth()
+        else:
+            node_base, node_depth = node, 0
+        if (not isinstance(self_base, Reference) or
+                not isinstance(node_base, Reference)):
+            return False
+        if self_base.symbol != node_base.symbol or depth != node_depth:
+            return False
 
-        # Now we have the parent Reference and the depth, we can construct the
-        # Signatures and compare them to the required depth.
-        self_sig, self_indices = parent_ref.get_signature_and_indices()
-        node_sig, node_indices = node.get_signature_and_indices()
-        if self_sig[:depth+1] != node_sig[:]:
+        # Then use the signatures to compare that each member until
+        # depth are also the same
+        self_sig, self_indices = self_base.get_signature_and_indices()
+        node_sig, node_indices = node_base.get_signature_and_indices()
+        if self_sig[:depth+1] != node_sig[:depth+1]:
             return False
 
         # Examine the indices, ignoring any on the innermost accesses (hence
@@ -589,7 +621,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                     # array, e.g. `a(b(1:4))`.
                     indirect_array_shape = dtype.shape
                     if len(indirect_array_shape) > 1:
-                        raise InternalError(
+                        raise NotImplementedError(
                             f"An array defining a slice of a dimension of "
                             f"another array must be 1D but '{idx_expr.name}' "
                             f"used to index into '{self.name}' has "
@@ -666,77 +698,127 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             raise TypeError(
                 f"The 'index2' argument of the same_range() method should be "
                 f"an int but found '{type(index2).__name__}'.")
-        if not index < len(self.children):
+        if not index < len(self.indices):
             raise IndexError(
                 f"The value of the 'index' argument of the same_range() method"
                 f" is '{index}', but it should be less than the number of "
                 f"dimensions in the associated array, which is "
-                f"'{len(self.children)}'.")
-        if not index2 < len(array2.children):
+                f"'{len(self.indices)}'.")
+        if not index2 < len(array2.indices):
             raise IndexError(
                 f"The value of the 'index2' argument of the same_range() "
                 f"method is '{index2}', but it should be less than the number"
                 f" of dimensions in the associated array 'array2', which is "
-                f"'{len(array2.children)}'.")
-        if not isinstance(self.children[index], Range):
+                f"'{len(array2.indices)}'.")
+        if not isinstance(self.indices[index], Range):
             raise TypeError(
                 f"The child of the first array argument at the specified index"
                 f" '{index}' should be a Range node, but found "
-                f"'{type(self.children[index]).__name__}'.")
-        if not isinstance(array2.children[index2], Range):
+                f"'{type(self.indices[index]).__name__}'.")
+        if not isinstance(array2.indices[index2], Range):
             raise TypeError(
                 f"The child of the second array argument at the specified "
                 f"index '{index2}' should be a Range node, but found "
-                f"'{type(array2.children[index2]).__name__}'.")
+                f"'{type(array2.indices[index2]).__name__}'.")
 
-        range1 = self.children[index]
-        range2 = array2.children[index2]
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.assignment import Assignment
+        range1 = self.indices[index]
+        range2 = array2.indices[index2]
 
         sym_maths = SymbolicMaths.get()
-        # compare lower bounds
-        if self.is_lower_bound(index) and array2.is_lower_bound(index2):
-            # Both self and array2 use the lbound() intrinsic to
-            # specify the lower bound of the array dimension. We may
-            # not be able to determine what the lower bounds of these
-            # arrays are statically but at runtime the code will fail
-            # if the ranges do not match so we assume that the lower
-            # bounds are consistent.
-            pass
-        elif self.is_lower_bound(index) or array2.is_lower_bound(index2):
-            # One and only one of self and array2 use the lbound()
-            # intrinsic to specify the lower bound of the array
-            # dimension. In this case assume that the ranges are
-            # different (although they could potentially be the same).
-            return False
-        elif not sym_maths.equal(range1.start, range2.start):
-            # Neither self nor array2 use the lbound() intrinsic to
-            # specify the lower bound of the array dimension. Try to
-            # determine if they are the same by matching the
-            # text. Use symbolic maths to do the comparison.
+        # The logic below assumes array expressions come from valid Fortran,
+        # (e.g. a(2:4) = b(2:5) is not valid Fortran)
+        # and therefore, we assume the length of the equivalent ranges in the
+        # same statement matches:
+        # e.g. a(3, :) and b(4:, 4)
+        # a dim 2 and b dim 1 must have the same length, but not necessarily
+        # the same range (lower and upper bounds)
+        n_range1 = len([x for x in self.children[:index]
+                        if isinstance(x, Range)])
+        n_range2 = len([x for x in array2.children[:index2]
+                        if isinstance(x, Range)])
+        assume_same_length = (
+            (self.ancestor(Assignment) is array2.ancestor(Assignment) or
+             self.is_same_array(array2)) and n_range1 == n_range2
+        )
+
+        # Try to get the datatypes, only if they are ArrayType (so we know
+        # that these have the shape attribute)
+        array1_type = None
+        if (isinstance(self, Reference) and isinstance(self.symbol, DataSymbol)
+                and isinstance(self.symbol.datatype, ArrayType)):
+            array1_type = self.symbol.datatype
+        array2_type = None
+        if (isinstance(array2, Reference) and
+                isinstance(array2.symbol, DataSymbol) and
+                isinstance(array2.symbol.datatype, ArrayType)):
+            array2_type = array2.symbol.datatype
+
+        # Try to get the ranges start values
+        range1_start = None
+        range2_start = None
+        # If we have a implicit lower bound, e.g. a(:) = b(:)
+        # we need to prove that they have the same lower bound value on the
+        # declaration. For example
+        #   integer, dimension(1:3) :: a
+        #   integer, dimension(3:5) :: b
+        # would make it "not equal".
+        if self.is_lower_bound(index):
+            if self.is_same_array(array2) and array2.is_lower_bound(index2):
+                return True
+            if not array1_type:
+                return False
+            if array1_type.shape[index] == ArrayType.Extent.DEFERRED:
+                return False
+            if array1_type.shape[index] == ArrayType.Extent.ATTRIBUTE:
+                range1_start = Literal("1", INTEGER_TYPE)
+            else:
+                range1_start = array1_type.shape[index].lower
+
+        if array2.is_lower_bound(index2):
+            if not array2_type:
+                return False
+            if array2_type.shape[index2] == ArrayType.Extent.DEFERRED:
+                return False
+            if array2_type.shape[index2] == ArrayType.Extent.ATTRIBUTE:
+                range2_start = Literal("1", INTEGER_TYPE)
+            else:
+                range2_start = array2_type.shape[index2].lower
+
+        # If the previous block didn't populate the start value, it's explicit
+        if not range1_start:
+            range1_start = range1.start
+        if not range2_start:
+            range2_start = range2.start
+
+        # Now we can do a symbolic comparison of the start values
+        if not sym_maths.equal(range1_start, range2_start):
             return False
 
-        # compare upper bounds
-        if self.is_upper_bound(index) and array2.is_upper_bound(index2):
-            # Both self and array2 use the ubound() intrinsic to
-            # specify the upper bound of the array dimension. We may
-            # not be able to determine what the upper bounds of these
-            # arrays are statically but at runtime the code will fail
-            # if the ranges do not match so we assume that the upper
-            # bounds are consistent.
-            pass
-        elif self.is_upper_bound(index) or array2.is_upper_bound(index2):
-            # One and only one of self and array2 use the ubound()
-            # intrinsic to specify the upper bound of the array
-            # dimension. In this case assume that the ranges are
-            # different (although they could potentially be the same).
-            return False
-        elif not sym_maths.equal(range1.stop, range2.stop):
-            # Neither self nor array2 use the ubound() intrinsic to
-            # specify the upper bound of the array dimension. Use
-            # symbolic maths to check if they are equal.
-            return False
+        # If we can not guarantee the same length, we also need to check
+        # the upper bound
+        if not assume_same_length:
+            if self.is_upper_bound(index):
+                if array1_type:
+                    range1_stop = array1_type.shape[index].upper
+                else:
+                    return False
+            else:
+                range1_stop = range1.stop
 
-        # compare steps
+            if array2.is_upper_bound(index2):
+                if array2_type:
+                    range2_stop = array2_type.shape[index2].upper
+                else:
+                    return False
+            else:
+                range2_stop = range2.stop
+
+            if not sym_maths.equal(range1_stop, range2_stop):
+                return False
+
+        # Compare steps
         if not sym_maths.equal(range1.step, range2.step):
             return False
 
