@@ -1112,7 +1112,7 @@ def test_process_unsupported_declarations(fortran_reader):
     assert ssym.initial_value.symbol.name == "fbsp"
 
 
-def test_unsupported_decln_function_type(fortran_reader, monkeypatch):
+def test_unsupported_decln_function_type(fortran_reader):
     '''
     Check that the frontend raises the expected error if it hits trouble
     while creating a DataSymbol representing the return value of a function.
@@ -1122,24 +1122,11 @@ def test_unsupported_decln_function_type(fortran_reader, monkeypatch):
     module my_mod
     contains
     function problem()
+      ! Deliberately broken Fortran - a PARAMETER without an initial value.
       real, parameter :: problem
     end function problem
     end module my_mod
     '''
-    # The only way we seem to be able to trigger this error is to monkeypatch
-    # the 'initial_value' setter of DataSymbol so that it raises a ValueError.
-    # Monkeypatching a setter property is complicated - we use the Python
-    # 'property()' method.
-
-    def broken_setter(_1, _2):
-        raise ValueError("")
-
-    def get_val(_1):
-        return _1._initial_value
-
-    monkeypatch.setattr(DataSymbol, "initial_value",
-                        property(fget=get_val,
-                                 fset=broken_setter))
     with pytest.raises(InternalError) as err:
         _ = fortran_reader.psyir_from_source(code)
     assert ("declarations where the routine name is of UnsupportedType, but "
