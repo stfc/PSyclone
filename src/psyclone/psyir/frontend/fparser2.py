@@ -2644,6 +2644,12 @@ class Fparser2Reader():
                     root_name="_PSYCLONE_INTERNAL_NAMELIST",
                     symbol_type=DataSymbol,
                     datatype=UnsupportedFortranType(str(node)))
+
+            elif isinstance(node, Fortran2003.Data_Stmt):
+                parent.symbol_table.new_symbol(
+                    root_name="_PSYCLONE_INTERNAL_DATA_STMT",
+                    symbol_type=DataSymbol,
+                    datatype=UnsupportedFortranType(str(node)))
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
