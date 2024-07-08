@@ -6,8 +6,6 @@ subroutine main()
 
     call MPI_Init()
 
-    rank=MPI_CommRank()
-
     nx=256
     ny=512
     nz=256
@@ -20,10 +18,10 @@ subroutine main()
     allocate(u(nz, ny, nx))
     allocate(v(nz, ny, nx))
     allocate(w(nz, ny, nx))
-    allocate(tzc1(nz, 1, 1))
-    allocate(tzc2(nz, 1, 1))
-    allocate(tzd1(nz, 1, 1))
-    allocate(tzd2(nz, 1, 1))
+    allocate(tzc1(nz, fixed, fixed))
+    allocate(tzc2(nz, fixed, fixed))
+    allocate(tzd1(nz, fixed, fixed))
+    allocate(tzd2(nz, fixed, fixed))
 
     do i=1, nx
       do j=1, ny

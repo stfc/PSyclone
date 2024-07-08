@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,38 +30,9 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Laboratory
 
-from __future__ import print_function
-import sys
-from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.backend.xdsl import xDSLWriter
-from xdsl.printer import Printer
-from xdsl.dialects.builtin import ModuleOp
+EXAMPLES=$(sort $(wildcard eg*))
 
-
-def trans(psyir_root):
-
-    '''
-    :param psyir_root: root node of the IR.
-    :type psyir_root: :py:class:`psyclone.psyir.nodes.FileContainer`
-    '''
-
-    writer = xDSLWriter()
-    printer = Printer(stream=sys.stdout)
-
-    routine_list = []
-    for subroutine in psyir_root.walk(Routine):
-        routine_list.append(writer(subroutine))
-
-    top_level = ModuleOp(routine_list)
-    printer.print_op(top_level)
-
-    f = open("psy_output.mlir", "w")
-    p2 = Printer(stream=f)
-    p2.print_op(top_level)
-    f.close()
-
-    print("")
-    print("")
-    print("")
+include ../top_level.mk
