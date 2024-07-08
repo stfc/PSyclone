@@ -1112,6 +1112,40 @@ def test_process_unsupported_declarations(fortran_reader):
     assert ssym.initial_value.symbol.name == "fbsp"
 
 
+def test_unsupported_decln_function_type(fortran_reader, monkeypatch):
+    '''
+    Check that the frontend raises the expected error if it hits trouble
+    while creating a DataSymbol representing the return value of a function.
+
+    '''
+    code = '''
+    module my_mod
+    contains
+    function problem()
+      real, parameter :: problem
+    end function problem
+    end module my_mod
+    '''
+    # The only way we seem to be able to trigger this error is to monkeypatch
+    # the 'initial_value' setter of DataSymbol so that it raises a ValueError.
+    # Monkeypatching a setter property is complicated - we use the Python
+    # 'property()' method.
+
+    def broken_setter(_1, _2):
+        raise ValueError("")
+
+    def get_val(_1):
+        return _1._initial_value
+
+    monkeypatch.setattr(DataSymbol, "initial_value",
+                        property(fget=get_val,
+                                 fset=broken_setter))
+    with pytest.raises(InternalError) as err:
+        _ = fortran_reader.psyir_from_source(code)
+    assert ("declarations where the routine name is of UnsupportedType, but "
+            "found this case in 'problem'" in str(err.value))
+
+
 @pytest.mark.usefixtures("f2008_parser")
 def test_unsupported_decln_duplicate_symbol():
     ''' Check that we raise the expected error when an unsupported declaration
@@ -2926,10 +2960,31 @@ def test_structures(fortran_reader, fortran_writer):
     procedures.
 
     '''
-    # derived-type with initial value (StructureType)
+    # derived-type with initial value (StructureType) and in-line visibility
     test_code = (
         "module test_mod\n"
         "    type, private :: my_type\n"
+        "      integer :: i = 1\n"
+        "      integer :: j\n"
+        "    end type my_type\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("my_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, StructureType)
+    result = fortran_writer(psyir)
+    assert (
+        "  type, private :: my_type\n"
+        "    integer, public :: i = 1\n"
+        "    integer, public :: j\n"
+        "  end type my_type\n" in result)
+
+    # Repeat but have visibility of symbol specified separately.
+    test_code = (
+        "module test_mod\n"
+        "    private :: my_type\n"
+        "    type :: my_type\n"
         "      integer :: i = 1\n"
         "      integer :: j\n"
         "    end type my_type\n"
