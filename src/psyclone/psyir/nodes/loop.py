@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,11 @@
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.nodes import Schedule, Literal
+from psyclone.psyir.nodes import Schedule
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import DoGen, DeclGen
+from psyclone.f2pygen import DeclGen, PSyIRGen, UseGen
 
 
 class Loop(Statement):
@@ -82,6 +82,10 @@ class Loop(Statement):
     _text_name = "Loop"
     _colour = "red"
 
+    # Set of rules that give a loop a certain loop_type by inspecting
+    # its variable name
+    _loop_type_inference_rules = {}
+
     def __init__(self, variable=None, annotations=None, **kwargs):
         # Although the base class checks on the annotations individually, we
         # need to do further checks here
@@ -111,9 +115,71 @@ class Loop(Statement):
         :rtype: bool
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and self.variable == other.variable
+        # Similar to Reference equality, it is enough to compare the name
+        # since if the same-named symbols represent the same is already
+        # done in their respective scope symbol_table equality check.
+        is_eq = is_eq and self.variable.name == other.variable.name
 
         return is_eq
+
+    @property
+    def loop_type(self):
+        '''
+        :returns: the type of this loop.
+        :rtype: str
+        '''
+        return self._loop_type_inference_rules.get(self.variable.name, None)
+
+    @classmethod
+    def set_loop_type_inference_rules(cls, rules):
+        '''
+        Specify the rules that define a loop type by inspecting its variable,
+        name. This affects all instances of the Loop class. For example:
+
+        .. code-block::
+
+            rules = {
+                "lon": {"variable": "ji"},
+                "lat": {"variable": "jj"}
+            }
+
+        :param rules: new set of rules for inferring loop_types.
+        :type rules: dict[str, dict[str, str]]
+        '''
+        if rules is None:
+            cls._loop_type_inference_rules = {}
+            return
+
+        # Check that the provided rules have the right format
+        if not isinstance(rules, dict):
+            raise TypeError(f"The rules argument must be of type 'dict' but "
+                            f"found '{type(rules)}'.")
+        for key, rule in rules.items():
+            if not isinstance(key, str):
+                raise TypeError(f"The rules keys must be of type 'str' but "
+                                f"found '{type(key)}'.")
+            if not isinstance(rule, dict):
+                raise TypeError(f"The rules values must be of type 'dict' but "
+                                f"found '{type(rule)}'.")
+            for rkey, value in rule.items():
+                if not isinstance(rkey, str) or not isinstance(value, str):
+                    raise TypeError(
+                        f"All the values of the rule definition must be "
+                        f"of type 'str' but found '{rule}'.")
+                if rkey != "variable":
+                    raise TypeError(f"Currently only the 'variable' rule key"
+                                    f" is accepted, but found: '{rkey}'.")
+            if "variable" not in rule:
+                raise TypeError(f"A rule must at least have a 'variable' field"
+                                f" to specify the loop variable name that "
+                                f"defines this loop_type, but the rule for "
+                                f"'{key}' does not have it.")
+
+        # Convert the rules to a dictionary with variable as a key
+        inference_rules = {}
+        for key, rule in rules.items():
+            inference_rules[rule["variable"]] = key
+        cls._loop_type_inference_rules = inference_rules
 
     @staticmethod
     def _check_variable(variable):
@@ -127,18 +193,23 @@ class Loop(Statement):
             scalar integer.
 
         '''
+        try:
+            variable_name = f"'{variable.name}'"
+        except AttributeError:
+            variable_name = "property"
         if not isinstance(variable, DataSymbol):
             raise GenerationError(
-                f"variable property in Loop class should be a DataSymbol but "
-                f"found '{type(variable).__name__}'.")
+                f"variable {variable_name} in Loop class should be a "
+                f"DataSymbol but found '{type(variable).__name__}'.")
         if not isinstance(variable.datatype, ScalarType):
             raise GenerationError(
-                f"variable property in Loop class should be a ScalarType but "
-                f"found '{type(variable.datatype).__name__}'.")
+                f"variable {variable_name} in Loop class should be a "
+                f"ScalarType but found '{type(variable.datatype).__name__}'.")
         if variable.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
             raise GenerationError(
-                f"variable property in Loop class should be a scalar integer "
-                f"but found '{variable.datatype.intrinsic.name}'.")
+                f"variable {variable_name} in Loop class should be a "
+                f"scalar integer but found "
+                f"'{variable.datatype.intrinsic.name}'.")
 
     @staticmethod
     def _validate_child(position, child):
@@ -291,8 +362,15 @@ class Loop(Statement):
         :returns: Return the dag name for this loop
         :rtype: string
 
+        :raises InternalError: if this Loop has no ancestor Routine.
+
         '''
-        _, position = self._find_position(self.ancestor(Routine))
+        routine = self.ancestor(Routine)
+        if not routine:
+            raise InternalError(f"Cannot generate DAG name for loop node "
+                                f"'{self}' because it is not contained within "
+                                f"a Routine.")
+        _, position = self._find_position(routine)
 
         return "loop_" + str(position)
 
@@ -307,12 +385,16 @@ class Loop(Statement):
         :rtype: str
 
         '''
-        return f"{self.coloured_name(colour)}[variable='{self.variable.name}']"
+        result = f"{self.coloured_name(colour)}["
+        result += f"variable='{self.variable.name}'"
+        if self.loop_type:
+            result += f", loop_type='{self.loop_type}'"
+        return result + "]"
 
     @property
     def variable(self):
         '''
-        :returns: a reference to the control variable for this loop.
+        :returns: the control variable for this loop.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         self._check_variable(self._variable)
@@ -334,8 +416,10 @@ class Loop(Statement):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
-        result += "variable:'" + self.variable.name
-        result += "']\n"
+        result += f"variable:'{self.variable.name}'"
+        if self.loop_type:
+            result += f", loop_type:'{self.loop_type}'"
+        result += "]\n"
         for entity in self._children:
             result += str(entity) + "\n"
         result += "End " + name
@@ -376,6 +460,40 @@ class Loop(Statement):
             child.reference_accesses(var_accesses)
             var_accesses.next_location()
 
+    def independent_iterations(self,
+                               test_all_variables=False,
+                               signatures_to_ignore=None,
+                               dep_tools=None):
+        '''This function analyses a loop in the PSyIR to see whether
+        its iterations are independent.
+
+        :param bool test_all_variables: if True, it will test if all variable
+            accesses are independent, otherwise it will stop after the first
+            variable access is found that isn't.
+        :param signatures_to_ignore: list of signatures for which to skip
+            the access checks.
+        :type signatures_to_ignore: Optional[
+            List[:py:class:`psyclone.core.Signature`]]
+        :param dep_tools: an optional instance of DependencyTools so that the
+            caller can access any diagnostic messages detailing why the loop
+            iterations are not independent.
+        :type dep_tools: Optional[
+            :py:class:`psyclone.psyir.tools.DependencyTools`]
+
+        :returns: True if the loop iterations are independent, False otherwise.
+        :rtype: bool
+
+        '''
+        if not dep_tools:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.tools import DependencyTools
+            dtools = DependencyTools()
+        else:
+            dtools = dep_tools
+        return dtools.can_loop_be_parallelised(
+            self, test_all_variables=test_all_variables,
+            signatures_to_ignore=signatures_to_ignore)
+
     def gen_code(self, parent):
         '''
         Generate the Fortran Loop and any associated code.
@@ -388,40 +506,52 @@ class Loop(Statement):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
 
-        def is_unit_literal(expr):
-            ''' Check if the given expression is equal to the literal '1'.
-
-            :param expr: a PSyIR expression.
-            :type expr: :py:class:`psyclone.psyir.nodes.Node`
-
-            :returns: True if it is equal to the literal '1', false otherwise.
-            '''
-            return isinstance(expr, Literal) and expr.value == '1'
-
         if not self.is_openmp_parallel():
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
-        # start/stop/step_expr are generated with the FortranWriter
-        # backend, the rest of the loop with f2pygen.
-        fwriter = FortranWriter()
-        if is_unit_literal(self.step_expr):
-            step_str = None
-        else:
-            step_str = fwriter(self.step_expr)
+        # TODO #1010: The Fortran backend operates on a copy of the node so
+        # that the lowering changes are not reflected in the provided node.
+        # This is the correct behaviour but it means that the lowering changes
+        # to ancestors will be lost here because the ancestors use gen_code
+        # instead of lowering+backend.
+        # So we need to do the "rename_and_write" here for the invoke symbol
+        # table to be updated.
+        from psyclone.psyGen import CodedKern
+        for kernel in self.walk(CodedKern):
+            if not kernel.module_inline:
+                if kernel.modified:
+                    kernel.rename_and_write()
 
-        do_stmt = DoGen(parent, self.variable.name,
-                        fwriter(self.start_expr),
-                        fwriter(self.stop_expr),
-                        step_str)
-        # need to add do loop before children as children may want to add
-        # info outside of do loop
-        parent.add(do_stmt)
-        for child in self.loop_body:
-            child.gen_code(do_stmt)
-        my_decl = DeclGen(parent, datatype="integer",
-                          entity_decls=[self.variable.name])
-        parent.add(my_decl)
+        # Use the Fortran Backend from this point
+        parent.add(PSyIRGen(parent, self))
+
+        # TODO #1010: The Fortran backend operates on a copy of the node so
+        # that the lowering changes are not reflected in the provided node.
+        # This is the correct behaviour but it means that the lowering changes
+        # to ancestors will be lost here because the ancestors use gen_code
+        # instead of lowering+backend.
+        # Therefore we need to replicate the lowering ancestor changes
+        # manually here (all this can be removed when the invoke schedule also
+        # uses the lowering+backend), these are:
+        # - Declaring the loop variable symbols
+        for loop in self.walk(Loop):
+            # pylint: disable=protected-access
+            if loop._variable is None:
+                # This is the dummy iteration variable
+                name = "dummy"
+                kind_gen = None
+            else:
+                name = loop.variable.name
+                kind = loop.variable.datatype.precision.name
+                kind_gen = None if kind == "UNDEFINED" else kind
+            my_decl = DeclGen(parent, datatype="integer",
+                              kind=kind_gen,
+                              entity_decls=[name])
+            parent.add(my_decl)
+
+        # - Add the kernel module import statements
+        for kernel in self.walk(CodedKern):
+            if not kernel.module_inline:
+                parent.add(UseGen(parent, name=kernel._module_name, only=True,
+                                  funcnames=[kernel._name]))

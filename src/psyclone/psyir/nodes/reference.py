@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,11 +39,12 @@
 
 ''' This module contains the implementation of the Reference node.'''
 
-from psyclone.core import AccessType, Signature
+
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
-from psyclone.psyir.symbols.datatypes import DeferredType
+from psyclone.psyir.symbols.datatypes import UnresolvedType
 
 
 class Reference(DataNode):
@@ -85,11 +86,13 @@ class Reference(DataNode):
 
     @property
     def is_array(self):
-        ''':returns: if this reference is an array.
+        '''
+        :returns: whether this reference is an array, False if it can not be
+            determined.
         :rtype: bool
 
         '''
-        return False
+        return self.symbol.is_array
 
     @property
     def symbol(self):
@@ -162,6 +165,14 @@ class Reference(DataNode):
 
         '''
         sig, all_indices = self.get_signature_and_indices()
+        if self.symbol.is_import and \
+                var_accesses.options("USE-ORIGINAL-NAMES") and \
+                self.symbol.interface.orig_name:
+            # If the option is set to return the original (un-renamed)
+            # name of an imported symbol, get the original name from
+            # the interface and use it. The rest of the signature is
+            # used from the original access, it does not change.
+            sig = Signature(self.symbol.interface.orig_name, sig[1:])
         for indices in all_indices:
             for index in indices:
                 index.reference_accesses(var_accesses)
@@ -172,11 +183,72 @@ class Reference(DataNode):
         '''
         :returns: the datatype of this reference.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
         '''
+        # pylint: disable=unidiomatic-typecheck
+        # Use type() directly as we need to ignore inheritance.
         if type(self.symbol) is Symbol:
             # We don't even have a DataSymbol
-            return DeferredType()
+            return UnresolvedType()
         return self.symbol.datatype
+
+    def previous_access(self):
+        '''
+        :returns: the previous reference to the same symbol.
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        # The scope is as far as the Routine that contains this
+        # Reference.
+        routine = self.ancestor(Routine)
+        # Handle the case when this is a subtree without an ancestor
+        # Routine
+        if routine is None:
+            routine = self.root
+        var_access = VariablesAccessInfo(nodes=routine)
+        signature, _ = self.get_signature_and_indices()
+        all_accesses = var_access[signature].all_accesses
+        index = -1
+        # Find my position in the VariablesAccesInfo
+        for i, access in enumerate(all_accesses):
+            if access.node is self:
+                index = i
+                break
+
+        if index > 0:
+            return all_accesses[index-1].node
+        return None
+
+    def next_access(self):
+        '''
+        :returns: the next reference to the same symbol.
+        :rtype: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        # Avoid circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        # The scope is as far as the Routine that contains this
+        # Reference.
+        routine = self.ancestor(Routine)
+        # Handle the case when this is a subtree without an ancestor
+        # Routine
+        if routine is None:
+            routine = self.root
+        var_access = VariablesAccessInfo(nodes=routine)
+        signature, _ = self.get_signature_and_indices()
+        all_accesses = var_access[signature].all_accesses
+        index = len(all_accesses)
+        # Find my position in the VariablesAccesInfo
+        for i, access in enumerate(all_accesses):
+            if access.node is self:
+                index = i
+                break
+
+        if len(all_accesses) > index+1:
+            return all_accesses[index+1].node
+        return None
 
 
 # For AutoAPI documentation generation

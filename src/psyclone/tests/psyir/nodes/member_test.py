@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -86,6 +86,15 @@ def test_member_get_signature():
     signature, indices = mem.get_signature_and_indices()
     assert str(signature) == "fred"
     assert indices == [[]]
+
+
+def test_member_get_base_and_depth(fortran_reader):
+    ''' Test that we get the expected base_and_depth from a member. '''
+    expr = fortran_reader.psyir_from_expression("a%b%c(3)%d")
+    test1 = expr.children[0].children[0]
+    assert test1.get_base_and_depth() == (expr, 2)
+    test2 = expr.children[0].children[0].children[0]
+    assert test2.get_base_and_depth() == (expr, 3)
 
 
 def test_member_equality():

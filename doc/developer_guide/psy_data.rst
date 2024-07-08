@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@ the same time as checking that read-only values are indeed not modified,
 different module names and data types must be used.
 
 PSyData divides its application into different classes. For example,
-the class "profile" is used for all profiling tools (e.g. DrHook or the
+the class "profile" is used for all profiling tools (e.g. TAU, DrHook or the
 NVIDIA profiling tools). This class name is used as a prefix for
 the module name, the ``PSyDataType`` and functions. So if a profiling application
 is linked the above code will actually look like this::
@@ -100,8 +100,8 @@ The class prefixes supported at the moment are:
 ======================= =======================================================
 Class Prefix            Description
 ======================= =======================================================
-profile                 All libraries related to profiling tools like DrHook,
-                        NVIDIA's profiling tools etc. See
+profile                 All libraries related to profiling tools like TAU,
+                        DrHook, NVIDIA's profiling tools etc. See
                         :ref:`user_guide:profiling` for details.
 extract                 For libraries used for kernel data extraction. See
                         :ref:`user_guide:psyke` for details.
@@ -654,6 +654,8 @@ takes the following parameters:
         64-bit integer value
     ``logical``:
         32-bit logical value
+    ``char``:
+        A default string value
 
     Default value is ``real,double,int``.
 
@@ -967,9 +969,10 @@ an index used by the profiling tool in ``profile_PSyDataType``, or
 by storing pointers to the profiling data to be able to
 print all results in a ProfileFinalise() subroutine.
 Some of the wrapper libraries use the PSyData base class (e.g. dl_timer,
-simple_timing, template), others do not (e.g. NVIDIA profiling,
+simple_timing, template), others do not (e.g. NVIDIA profiling, TAU,
 DrHook wrapper).
 
+.. _psyke:
 
 Kernel Extraction (PSyKE)
 -------------------------
@@ -1172,7 +1175,7 @@ The driver creation process is explained in the Python sources:
 .. autoclass:: psyclone.domain.lfric.LFRicExtractDriverCreator
     :members:
 
-Here an example showing some of the driver code created:
+Here is an example showing some of the driver code created:
 
 .. code-block:: Fortran
 
@@ -1218,70 +1221,5 @@ compared with the expected values in ``field1_post``.
 .. note:: For now the created driver still depends on the infrastructure
     library and any other modules used. Issue #1991 improves this.
 
-Module Manager
-++++++++++++++
-The LFRic driver creation utilises a ``ModuleManager`` to find
+The LFRic driver creation utilises the :ref:`module_manager` to find
 and inline all modules required by the driver.
-
-
-.. autoclass:: psyclone.parse.ModuleManager
-    :members:
-
-Any PSyclone command line option ``-d`` (see :ref:`psyclone_command`)
-will be added to the ``ModuleManager`` as recursive search paths. The
-``ModuleManager`` is a singleton and it can be queried for information about
-any module. It internally uses caching to avoid repeatedly searching
-directories, and it will only access search paths as required. For example,
-if the first search path will be sufficient to find all modules during the
-lifetime of the module manager, no other search path will ever be accessed.
-The caching also implies that the ModuleManager will not detect if new files
-should be created during its lifetime.
-
-The ``ModuleManager`` also provides a static function that will sort
-a list of module dependencies, so that compiling the modules in this order
-(or adding them in this order to a file) will allow compilation, i.e. any
-module will only depend on previously defined modules.
-
-
-The ``ModuleManager`` will return a ``ModuleInfo`` object to make information
-about a module available:
-
-.. autoclass:: psyclone.parse.ModuleInfo
-    :members:
-
-Similar to the ``ModuleManager``, a ``ModuleInfo`` object will heavily rely on
-caching to avoid repeatedly reading a source file or parsing it. The side
-effect is that changes to a source file during the lifetime of the
-``ModuleManager`` will not be reflected in its information.
-
-At this stage, the ``ModuleInfo`` can be used to get the original source
-code of a module as string and to query a module about modules and symbols
-it depends on. It uses the fparser parse tree to detect this information (which
-means it can handle files that are not supported by PSyIR, e.g. files with
-preprocessor directives).
-
-An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects,
-which prints the filenames of all modules used in ``tl_testkern_mod``:
-
-.. testcode ::
-
-    mod_manager = ModuleManager.get()
-    # Add the path to the PSyclone LFRic example codes:
-    mod_manager.add_search_path("../../src/psyclone/tests/test_files/"
-                                "dynamo0p3")
-
-    testkern_info = mod_manager.get_module_info("tl_testkern_mod")
-
-    used_mods = testkern_info.get_used_modules()
-    # Sort the modules so we get a reproducible output ordering
-    used_mods_list = sorted(list(used_mods))
-    for module_name in used_mods_list:
-        mod_info = mod_manager.get_module_info(module_name)
-        print("Module:", module_name, os.path.basename(mod_info.filename))
-
-.. testoutput::
-
-    Module: argument_mod argument_mod.f90
-    Module: constants_mod constants_mod.f90
-    Module: fs_continuity_mod fs_continuity_mod.f90
-    Module: kernel_mod kernel_mod.f90

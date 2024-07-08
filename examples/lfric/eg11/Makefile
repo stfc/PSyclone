@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ compile: transform $(EXEC)
 transform: helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90
 
 helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90: helmholtz_solver_alg_mod.x90
-	${PSYCLONE} -s ./async_script.py -opsy helmholtz_solver_alg_psy.f90 -oalg helmholtz_solver_alg_mod.f90 $<
+	${PSYCLONE} -api lfric -s ./async_script.py -opsy helmholtz_solver_alg_psy.f90 -oalg helmholtz_solver_alg_mod.f90 $<
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,14 +62,14 @@ $(LFRIC_LIB):
 # Use the psyclone-kern tool to create an algorithm layer that will
 # 'invoke' our kernel
 test_alg_mod.x90: testkern_mod.F90
-	${KERNEL_ALG_GEN} -api dynamo0.3 -o test_alg_mod.x90 ../code/testkern_mod.F90
+	${KERNEL_ALG_GEN} -api lfric -o test_alg_mod.x90 ../code/testkern_mod.F90
 
 transform: test_alg_mod_psy.f90
 
 # Process the generated algorithm layer with PSyclone to generate a compilable
 # algorithm file and a suitable PSy-layer subroutine.
 test_alg_mod_psy.f90 test_alg_mod.f90: test_alg_mod.x90
-	${PSYCLONE} -d ../code -opsy test_alg_mod_psy.f90 -oalg test_alg_mod.f90 $<
+	${PSYCLONE} -api lfric -d ../code -opsy test_alg_mod_psy.f90 -oalg test_alg_mod.f90 $<
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean

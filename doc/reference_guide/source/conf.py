@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 #
-# Configuration file for the Sphinx documentation builder.
+'''
+Configuration file for the Sphinx documentation builder.
+
+'''
+
 #
 # This file does only contain a selection of the most common options. For a
 # full list see the documentation:
@@ -13,7 +17,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import subprocess
-# import os
+import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
@@ -21,15 +25,27 @@ import subprocess
 # -- Project information -----------------------------------------------------
 
 project = 'Reference Guide'
-copyright = ('2019-2023, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
-             ' S. Siso')
+project_copyright = ('2019-2024, R. W. Ford, J. Henrichs, I. Kavcic, '
+                     'A. R. Porter, S. Siso')
 author = 'R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
 
-# The short X.Y version
-version = ''
-# The full version, including alpha/beta/rc tags
-release = '2.3.1'
-
+# We use the version module in src/psyclone. However, rather than importing
+# it (which would require that PSyclone be installed first), we read it
+# using execfile().
+# We are in the doc/reference_guide/source directory but need to read
+# version.py from src/psyclone
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+BASE_PATH = os.path.dirname(os.path.dirname(os.path.dirname(BASE_PATH)))
+with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
+          encoding="utf-8") as f:
+    # pylint: disable-next=exec-used
+    exec(f.read())
+# pylint: disable=undefined-variable
+# The short X.Y version.
+version = __SHORT_VERSION__
+# The full version, including alpha/beta/rc tags.
+release = __VERSION__
+# pylint: enable=undefined-variable
 
 # -- General configuration ---------------------------------------------------
 

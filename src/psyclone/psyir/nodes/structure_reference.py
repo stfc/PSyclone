@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,14 +44,15 @@ from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import (
     ArrayOfStructuresMember)
+from psyclone.psyir.nodes.structure_accessor_mixin import (
+    StructureAccessorMixin)
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
-                                    DataTypeSymbol, DeferredType, ScalarType,
-                                    StructureType, UnknownType)
-from psyclone.errors import InternalError
+                                    DataTypeSymbol, UnresolvedType, ScalarType,
+                                    StructureType, UnsupportedType)
 
 
-class StructureReference(Reference):
+class StructureReference(Reference, StructureAccessorMixin):
     '''
     Node representing a reference to a component of a structure. As such
     it must have a single child representing the component being accessed.
@@ -174,7 +175,7 @@ class StructureReference(Reference):
 
         '''
         if not isinstance(symbol_type, (StructureType, DataTypeSymbol,
-                                        DeferredType, UnknownType)):
+                                        UnresolvedType, UnsupportedType)):
             raise TypeError(
                 f"A StructureReference must refer to a symbol that is (or "
                 f"could be) a structure, however symbol '{symbol.name}' has "
@@ -238,28 +239,12 @@ class StructureReference(Reference):
             result += "\n" + str(entity)
         return result
 
-    @property
-    def member(self):
-        '''
-        :returns: the member of the structure that this reference is to.
-        :rtype: :py:class:`psyclone.psyir.nodes.Member`
-
-        :raises InternalError: if the first child of this node is not an \
-                               instance of Member.
-        '''
-        if not self.children or not isinstance(self.children[0], Member):
-            raise InternalError(
-                f"{type(self).__name__} malformed or incomplete. It must have "
-                f"a single child that must be a (sub-class of) Member, but "
-                f"found: {self.children}")
-        return self.children[0]
-
     def get_signature_and_indices(self):
         ''':returns: the Signature of this structure reference, and \
             a list of the indices used for each component (empty list \
             if an access is not an array).
-        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
-            list of indices)
+        :rtype: Tuple[:py:class:`psyclone.core.Signature`, \
+                      List[List[:py:class:`psyclone.psyir.nodes.Node`]]]
 
         '''
         # Get the signature of self:
@@ -300,20 +285,23 @@ class StructureReference(Reference):
         if isinstance(dtype, DataTypeSymbol):
             dtype = dtype.datatype
 
-        if isinstance(dtype, (DeferredType, UnknownType)):
+        if isinstance(dtype, (UnresolvedType, UnsupportedType)):
             # We don't know the type of the symbol that defines the type
             # of this structure.
-            return DeferredType()
+            dtype = UnresolvedType()
 
         # We do have the definition of this structure - walk down it.
         cursor = self
         cursor_type = dtype
 
-        # The next four lines are required when this method is called for an
-        # ArrayOfStructuresReference.
+        # If the reference has explicit array syntax, we need to consider it
+        # to calculate the resulting shape.
         if isinstance(cursor, ArrayMixin):
-            # pylint: disable=protected-access
-            shape = cursor._get_effective_shape()
+            try:
+                # pylint: disable=protected-access
+                shape = cursor._get_effective_shape()
+            except NotImplementedError:
+                return UnresolvedType()
         else:
             shape = []
 
@@ -325,12 +313,16 @@ class StructureReference(Reference):
                 cursor_type = cursor_type.intrinsic
             if isinstance(cursor_type, DataTypeSymbol):
                 cursor_type = cursor_type.datatype
-            cursor_type = cursor_type.components[cursor.name].datatype
-            if isinstance(cursor_type, (UnknownType, DeferredType)):
-                return DeferredType()
+            if not isinstance(cursor_type, (UnresolvedType, UnsupportedType)):
+                # Once we've hit an Unresolved/UnsupportedType the cursor_type
+                # will remain set to that as we can't do any better.
+                cursor_type = cursor_type.components[cursor.name].datatype
             if isinstance(cursor, ArrayMixin):
                 # pylint: disable=protected-access
-                shape.extend(cursor._get_effective_shape())
+                try:
+                    shape.extend(cursor._get_effective_shape())
+                except NotImplementedError:
+                    return UnresolvedType()
 
         # We've reached the ultimate member of the structure access.
         if shape:
@@ -346,7 +338,7 @@ class StructureReference(Reference):
                 else:
                     # No indices so it is an access to a whole array.
                     cursor_shape = cursor_type.shape
-                if cursor_shape and shape != cursor_shape:
+                if cursor_shape and len(shape) != len(cursor_shape):
                     # This ultimate access is an array but we've already
                     # encountered one or more slices earlier in the access
                     # expression.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso  A. B. G. Chalk and N. Nobre,
+# Authors R. W. Ford, A. R. Porter, S. Siso, A. B. G. Chalk and N. Nobre,
 #           STFC Daresbury Lab
-#         I. Kavcic, Met Office
+#         I. Kavcic and L. Turner, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -337,7 +337,7 @@ class PSyLoop(Loop):
         nothing.
 
         TODO #1648 - this method should be removed when the corresponding
-        one in DynLoop is removed.
+        one in LFRicLoop is removed.
 
         :param parent: the node in the f2pygen AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,7 @@ Profiling
 ^^^^^^^^^
 
 PSyclone provides wrapper libraries for some common performance profiling
-tools, such as dl_timer and Dr Hook. More information can be found in
+tools, such as dl_timer, TAU, and Dr Hook. More information can be found in
 the :ref:`Profiling <profiling>` section.
 
 Profiling libraries are located in the ``lib/profiling`` `directory
@@ -87,8 +87,8 @@ invocation. More information can be found in the
 :ref:`PSy Kernel Extractor (PSyKE) <psyke>` section.
 
 Example libraries that extract input and output data into a NetCDF file
-for :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
-:ref:`GOcean1.0 <gocean1.0-api>` APIs are included with PSyclone in the
+for :ref:`LFRic <lfric-api>` and
+:ref:`GOcean <gocean-api>` APIs are included with PSyclone in the
 ``lib/extract/netcdf`` `directory
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf>`__.
 For detailed instructions on how to build and use these libraries
@@ -101,8 +101,8 @@ Read-only libraries check that a field declared as read-only is not
 modified during a kernel call. More information can be found in the
 :ref:`Read-Only Verification <psydata_read_verification>` section.
 
-The libraries for :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
-:ref:`GOcean1.0 <gocean1.0-api>` APIs are included with PSyclone in
+The libraries for :ref:`LFRic <lfric-api>` and
+:ref:`GOcean <gocean-api>` APIs are included with PSyclone in
 the ``lib/read_only`` `directory
 <https://github.com/stfc/PSyclone/tree/master/lib/read_only>`__.
 For detailed instructions on how to build and use these libraries
@@ -115,8 +115,8 @@ These libraries test all input and output parameters of a kernel to
 make sure they are not ``NaN`` or infinite.  More information can be
 found in the :ref:`NAN Test <psydata_nan_test>` section.
 
-The libraries for :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
-:ref:`GOcean1.0 <gocean1.0-api>` APIs are included with PSyclone in
+The libraries for :ref:`LFRic <lfric-api>` and
+:ref:`GOcean <gocean-api>` APIs are included with PSyclone in
 the ``lib/nan_test`` `directory
 <https://github.com/stfc/PSyclone/tree/master/lib/nan_test>`__.
 For detailed instructions on how to build and use these libraries
@@ -139,8 +139,8 @@ for full details about the PSyData API).
 
 Compilation of ``extract``, ``nan_test``, ``read_only`` and some of the
 profiling wrapper libraries depends on infrastructure libraries relevant
-to the API they are used for. :ref:`LFRic API <dynamo0.3-api>` uses the
-LFRic infrastructure and :ref:`GOcean1.0 <gocean1.0-api>` uses the
+to the API they are used for. :ref:`LFRic API <lfric-api>` uses the
+LFRic infrastructure and :ref:`GOcean <gocean-api>` uses the
 dl_esm_inf library. The LFRic infrastructure can be obtained from the
 LFRic `code repository <https://code.metoffice.gov.uk/trac/lfric/browser>`_,
 however this requires access to the `Met Office Science Repository Service
@@ -174,7 +174,7 @@ are specified with the ``PSYDATA_LIB_DIR`` and ``LIB_TMPLT_DIR`` variables.
 For testing purposes their default values are set to relative paths to the
 respective directories in the PSyclone repository.
 
-The locations of the infrastructure libraries for LFRic and GOcean1.0
+The locations of the infrastructure libraries for LFRic and GOcean
 applications can be configured with the variables ``LFRIC_INF_DIR`` and
 ``GOCEAN_INF_DIR``, respectively. Their default values are set to relative
 paths to the locations of these libraries in the PSyclone repository. The

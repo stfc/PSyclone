@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 #           A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 ''' Contains a Python function to generate an empty kernel
@@ -45,10 +45,10 @@ from __future__ import print_function
 import os
 
 import fparser
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
-from psyclone.configuration import Config
+from psyclone.configuration import Config, LFRIC_API_NAMES
 
 
 def generate(filename, api=""):
@@ -73,12 +73,12 @@ def generate(filename, api=""):
     :raises ParseError: if the given file could not be parsed.
 
     '''
-    if api == "":
-        api = Config.get().default_stub_api
-    if api not in Config.get().supported_stub_apis:
+    if api not in LFRIC_API_NAMES:
         raise GenerationError(
             f"Kernel stub generator: Unsupported API '{api}' specified. "
-            f"Supported APIs are {Config.get().supported_stub_apis}.")
+            f"Supported APIs are {LFRIC_API_NAMES[0]}.")
+    else:
+        Config.get().api = api
 
     if not os.path.isfile(filename):
         raise IOError(f"Kernel stub generator: File '{filename}' not found.")
@@ -93,8 +93,8 @@ def generate(filename, api=""):
         raise ParseError(f"Kernel stub generator: Code appears to be invalid "
                          f"Fortran: {error}.")
 
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
 
     return kernel.gen_stub

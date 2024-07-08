@@ -16,6 +16,7 @@ profile wrapper libraries:
 - dl_timer
 - drhook
 - lfric
+- tau
 
 By default (``make`` without an argument) the ``template`` library will 
 be used, which just prints the name of the regions called.
@@ -36,6 +37,11 @@ for the ``make`` command to pick a different version). The default build
 uses the "template" profiling library in ``lib/profiling/template``.
 More detailed instructions for compiling these libraries are are given in
 the corresponding subdirectories.
+
+If you are using the TAU profiling library, you need to install
+it yourself, and make sure that the ``tau_f90.sh`` compiler wrapper
+is in your path. The Makefile will automatically call ``tau_f90.sh``, there
+is no need to set ``$F90`` in this case.
 
 If you are using ``dl_timer`` or ``drhook``, you need to compile these
 libraries yourself first, and modify the ``Makefile`` in this directory
@@ -83,10 +89,10 @@ library, you should see:
  ...
  profile_PSyDataInit called
  ...
- PreStart called for module 'psy_test' region 'invoke_0:r0'
- PostEnd called for module 'psy_test' region 'invoke_0:r0'
- PreStart called for module 'psy_test' region 'invoke_1_update_field:update_field_code:r0'
- PostEnd called for module 'psy_test' region 'invoke_1_update_field:update_field_code:r0'
+ PreStart called for module 'invoke_0' region 'r0'
+ PostEnd called for module 'invoke_0' region 'r0'
+ PreStart called for module 'invoke_1_update_field' region 'r0'
+ PostEnd called for module 'invoke_1_update_field' region 'r0'
  ...  
  profile_PSyDataShutdown called
 ```
@@ -97,7 +103,7 @@ library, you should see:
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2021, Science and Technology Facilities Council.
+Copyright (c) 2020-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury La
 
 '''Module containing pytest tests for the _program_handler method in
 the class Fparser2Reader. This handler deals with the translation of
@@ -39,10 +40,13 @@ the fparser2 Program construct to PSyIR.'''
 
 from __future__ import absolute_import
 
+import pytest
+
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import FileContainer
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import CodeBlock, FileContainer
+from psyclone.psyir.symbols import RoutineSymbol
 
 
 def test_program_handler(parser):
@@ -77,3 +81,118 @@ def test_program_handler(parser):
     writer = FortranWriter()
     result = writer(psyir)
     assert result == expected
+
+
+def test_program_handler_no_module(parser):
+    ''' Test that the FileContainer contains the relevant RoutineSymbol
+    nodes when we have no containing module.'''
+    code = '''
+    subroutine a()
+    end subroutine
+    real function b(val)
+       real :: val
+       b = val
+    end function
+    '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    psyir = processor._program_handler(parse_tree, None)
+    assert isinstance(psyir, FileContainer)
+    assert psyir.parent is None
+    assert len(psyir.symbol_table.symbols) == 2
+    assert isinstance(psyir.symbol_table.symbols[0], RoutineSymbol)
+    assert psyir.symbol_table.symbols[0].name == 'a'
+    assert isinstance(psyir.symbol_table.symbols[1], RoutineSymbol)
+    assert psyir.symbol_table.symbols[1].name == 'b'
+
+
+def test_program_handler_routine_and_module(parser):
+    '''Xfailing test to show that a module specified doesn't result in a
+    symbol being created in the parent FileContainer.'''
+    code = '''
+    module other
+      integer :: x
+    end module
+    subroutine mysub(a)
+    use other, only: x
+    integer, intent(inout) :: a
+    a = a + 1
+    end subroutine
+    '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    psyir = processor._program_handler(parse_tree, None)
+    assert isinstance(psyir, FileContainer)
+    assert psyir.parent is None
+    assert len(psyir.symbol_table.symbols) != 2
+    pytest.xfail(reason="Issue #2201: Module specifiers in "
+                        "FileContainers don't produce symbols.")
+
+
+def test_program_handler_routine_and_module_and_program(parser):
+    '''
+    Xfailing test handling a FileContainer containing a program, module
+    and subroutine. Currently the FileContainer only contains a symbol for
+    the subroutine.
+    '''
+    code = '''
+    program test
+    end program test
+    module other
+      integer :: x
+    end module
+    subroutine mysub(a)
+    integer, intent(inout) :: a
+    a = a + 1
+    end subroutine
+    '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    psyir = processor._program_handler(parse_tree, None)
+    assert isinstance(psyir, FileContainer)
+    assert psyir.parent is None
+    assert isinstance(psyir.symbol_table.lookup("mysub"), RoutineSymbol)
+    assert len(psyir.symbol_table.symbols) != 3
+    pytest.xfail(reason="Issues #2201: Program and module specifiers in "
+                        "FileContainers don't produce symbols.")
+
+
+def test_non_named_program_with_subroutine(parser):
+    '''Test to show the behaviour of a non-named program whose
+    first declared element is a contained subroutine results in a CodeBlock.'''
+    code = '''
+    subroutine mysub(x)
+    integer, intent(inout) :: a
+    a = a + 1
+    end subroutine
+    end
+    '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    psyir = processor._program_handler(parse_tree, None)
+    assert isinstance(psyir, FileContainer)
+    assert isinstance(psyir.children[0], CodeBlock)
+
+
+def test_non_named_program_with_variables_and_subroutine(parser):
+    '''Test to show non-named program with both variables
+    and a contained subroutine results in a CodeBlock.'''
+    code = '''
+    integer :: b, c
+    contains
+    subroutine mysub(x)
+    integer, intent(inout) :: a
+    a = a + 1
+    end subroutine
+    end
+    '''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    psyir = processor._program_handler(parse_tree, None)
+    assert isinstance(psyir, FileContainer)
+    assert isinstance(psyir.children[0], CodeBlock)

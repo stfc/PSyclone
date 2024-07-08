@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,5 +35,9 @@
 
 # pip requirements file specifying the packages required to build
 # the PSyclone documentation. Used by readthedocs.
-sphinx
+# We have to pin Sphinx to less than version 7 to avoid an incompatibility
+# with the version of sphinx_rtd_theme used by RTD
+# (https://github.com/readthedocs/sphinx_rtd_theme/issues/1463).
+sphinx<7
+sphinx_rtd_theme
 sphinxcontrib.bibtex

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council
+# Copyright (c) 2018-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ DEPTH = 1
 
 
 def trans(psy):
-    '''PSyclone transformation script for the dynamo0.3 API to apply
+    '''PSyclone transformation script for the lfric API to apply
     redundant computation generically to all loops that iterate over
     dofs, with the exception of loops containing kernels with
     reductions.

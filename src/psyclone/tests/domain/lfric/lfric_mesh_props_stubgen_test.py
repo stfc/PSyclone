@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 # Modified: R. W. Ford, STFC Daresbury Laboratory
 
 '''
@@ -42,7 +42,7 @@ generation functionality with the LFRic (Dynamo0.3) API.
 
 import os
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 
 
 # Constants
@@ -50,7 +50,7 @@ BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 MESH_PROP_MDATA = '''
 module testkern_mesh_prop_quad_mod
@@ -85,8 +85,8 @@ def test_mesh_prop_stub_gen():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_mesh_prop_mod.F90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub).lower()
 
@@ -118,8 +118,8 @@ def test_mesh_props_quad_stub_gen():
     specifies both mesh and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
     ast = fpapi.parse(MESH_PROP_MDATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
 

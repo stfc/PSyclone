@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''A simple transformation script for the introduction of OpenMP with PSyclone.
 In order to use it you must first install PSyclone. See README.md in the
@@ -39,35 +39,35 @@ top-level psyclone directory.
 
 Once you have PSyclone installed, this script may be used by doing:
 
- >>> psyclone -api "nemo" -s ./omp_trans.py my_file.F90
+ >>> psyclone -s ./omp_trans.py my_file.F90
 
 This should produce a lot of output, ending with generated
 Fortran.
 
 '''
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.transformations import OMPParallelLoopTrans, TransformationError
+
+Loop.set_loop_type_inference_rules({
+        "lon": {"variable": "ji"},
+        "lat": {"variable": "jj"},
+        "levels": {"variable": "jk"},
+        "tracers": {"variable": "jt"}
+})
 
 # Get the transformation we will apply.
 OMP_TRANS = OMPParallelLoopTrans()
 
 
-def trans(psy):
+def trans(psyir):
     ''' Transform a specific Schedule by making all loops over vertical levels
     (that are immediate children of the root Schedule) OpenMP parallel.
 
-    :param psy: the object holding all information on the PSy layer \
-                to be modified.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
-
-    :returns: the transformed PSy object
-    :rtype:  :py:class:`psyclone.psyGen.PSy`
-
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
-    # Get the Schedule of the target routine
-    sched = psy.invokes.get('tra_adv').schedule
 
-    for child in sched.children:
+    for child in psyir.walk(Routine):
         if isinstance(child, Loop) and child.loop_type == "levels":
             try:
                 OMP_TRANS.apply(child)
@@ -75,7 +75,4 @@ def trans(psy):
                 pass
 
     # Display the transformed PSyIR
-    print(sched.view())
-
-    # Return the modified psy object
-    return psy
+    print(psyir.view())

@@ -38,7 +38,7 @@ subdirectories. To create and compile the example, type ``make compile``.
 This example uses the ``extract_transform.py`` transformation script
 which will add extract regions around the invokes:
 ```
-psyclone -nodm -l -api "gocean1.0"             \
+psyclone -nodm -l -api "gocean"             \
          --config ../../../../config/psyclone.cfg \
          -s ./extract_transform.py             \
          -opsy psy.f90 -oalg alg.f90 test.x90
@@ -108,7 +108,7 @@ extraction library, these files will be called ``main-update.nc`` and
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2022, Science and Technology Facilities Council.
+Copyright (c) 2020-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
-# Modified by I. Kavcic, Met Office
+# Modified by I. Kavcic and L.Turner, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module provides the LFRic-specific loop fusion transformation.
@@ -46,14 +46,14 @@ from psyclone.transformations import check_intergrid
 
 
 class LFRicLoopFuseTrans(LoopFuseTrans):
-    ''' Dynamo0.3 API specialisation of the
+    ''' LFRic API specialisation of the
     :py:class:`base class <LoopFuseTrans>` in order to fuse two Dynamo
     loops after performing validity checks. For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>>
-    >>> API = "dynamo0.3"
+    >>> API = "lfric"
     >>> FILENAME = "alg.x90"
     >>> ast, invokeInfo = parse(FILENAME, api=API)
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -82,9 +82,9 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         the LFRicLoopFuseTrans transformation to the supplied loops.
 
         :param node1: the first Loop to fuse.
-        :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type node1: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param node2: the second Loop to fuse.
-        :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type node2: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param bool options["same_space"]: this optional flag, set to `True`, \
@@ -120,15 +120,28 @@ class LFRicLoopFuseTrans(LoopFuseTrans):
         # Call the parent class validation first
 
         if not options:
-            options = {}
-        same_space = options.get("same_space", False)
+            my_options = {}
+        else:
+            my_options = options.copy()
+
+        # TODO #2498: access information for LFRic kernels do not have any
+        # index information for field accesses, and the loop fusion dependency
+        # tests will therefore fail. To avoid this, disable the dependency test
+        # in the generic loop fusion class for LFRic.
+        # TODO 257: if the loop-fusion transformation is implemented to just
+        # check that a variable with a stencil read-access is written, then
+        # the test could be enabled for LFRic as well, so the force option
+        # can be removed.
+        if "force" not in my_options:
+            my_options["force"] = True
+
+        same_space = my_options.get("same_space", False)
         if same_space and not isinstance(same_space, bool):
             raise TransformationError(
                 f"Error in {self.name} transformation: The value of the "
                 f"'same_space' flag must be either bool or None type, but the "
                 f"type of flag provided was '{type(same_space).__name__}'.")
-        super(LFRicLoopFuseTrans, self).validate(node1, node2,
-                                                 options=options)
+        super().validate(node1, node2, options=my_options)
         # Now test for Dynamo-specific constraints
 
         # 1) Check that we don't have an inter-grid kernel

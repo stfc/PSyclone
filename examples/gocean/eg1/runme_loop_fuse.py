@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,15 +62,17 @@ Fortran. In subroutine invoke_0 you will see the loop-fused code:
 
 '''
 
-from __future__ import print_function
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyir.backend.fortran import FortranWriter
 
-API = "gocean1.0"
+API = "gocean"
 _, INVOKEINFO = parse("shallow_alg.f90", api=API)
 PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
+
 # Print the vanilla, generated Fortran
-print(PSY.gen)
+writer = FortranWriter()
+print(writer(PSY.container))
 
 print(PSY.invokes.names)
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
@@ -98,4 +100,4 @@ FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
                  SCHEDULE.children[0].loop_body[1])
 print(SCHEDULE.view())
 
-print(PSY.gen)
+print(writer(PSY.container))

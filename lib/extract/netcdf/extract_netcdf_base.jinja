@@ -35,6 +35,7 @@
 {% if ALL_TYPES is not defined -%}
    {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
                         ("Real",   "real(kind=real32)",   32),
+                        ("Character",   "character(*)",   32),
                         ("Long",   "real(kind=int64)",    64),
                         ("Int",    "integer(kind=int32)", 32) ] %}
 {% endif -%}
@@ -216,6 +217,10 @@ contains
 
         call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                            num_pre_vars, num_post_vars)
+        if (this%verbosity >= 1) then
+            write(stderr,*) "Opening ", trim(module_name//"-"//region_name//".nc")
+        endif
+
 
         ! Open the NetCDF file. Explicitly request NetCDF 4 format, since
         ! this is required in order to use NF90_INT64 (further down)
@@ -252,6 +257,10 @@ contains
         integer :: retval
 
         call this%PSyDataBaseType%PreEndDeclaration()
+        if (this%verbosity >= 1) then
+            write(stderr,*) "Ending definition ", this%module_name // &
+                            "-"//this%region_name//".nc"
+        endif
         retval = CheckError(nf90_enddef(this%ncid))
 
     end subroutine PreEndDeclaration
@@ -270,6 +279,10 @@ contains
         class(ExtractNetcdfBaseType), intent(inout), target :: this
 
         integer :: retval
+        if (this%verbosity >= 1) then
+            write(stderr,*) "Closing ", this%module_name//"-" //&
+                            this%region_name//".nc"
+        endif
         retval = CheckError(nf90_close(this%ncid))
         call this%PSyDataBaseType%PostEnd()
 
@@ -279,6 +292,7 @@ contains
 {% set NCDF_TYPE_MAPPING = { "Double": "NF90_DOUBLE",
                              "Real":   "NF90_REAL",
                              "Logical":"NF90_INT",
+                             "Char":   "NF90_CHAR",
                              "Long":   "NF90_INT64",
                              "Int":    "NF90_INT"} -%}
 
@@ -315,6 +329,9 @@ contains
             call move_alloc(tmp_var_id, this%var_id)
             ! tmp_var_id is deallacted as part of move_alloc
         endif
+        if (this%verbosity >= 2) then
+            write(stderr,*) "Defining {{name}}."
+        endif
         retval = CheckError(nf90_def_var(this%ncid, name, {{NETCDF_TYPE}}, &
                                          this%var_id(this%next_var_index)))
         call this%PSyDataBaseType%DeclareScalar{{name}}(name, value)
@@ -342,6 +359,9 @@ contains
         integer                                             :: tmp
         {% endif -%}
 
+        if (this%verbosity >= 2) then
+            write(stderr,*) "Writing {{name}}."
+        endif
         {% if name == "Logical" %}
         if (value) then
             tmp = 1
@@ -404,6 +424,9 @@ contains
             ! tmp_var_id is deallacted as part of move_alloc
         endif
 
+        if (this%verbosity >= 2) then
+            write(stderr,*) "Declaring Array {{name}}."
+        endif
         {% for i in range(1, dim+1) %}
         ! A '%' is added to avoid a clash if the user should have say
         ! an array 'a', and 'adim1'.
@@ -437,9 +460,13 @@ contains
         integer :: retval
         {% if name == "Logical" %}
         integer, dimension({{SIZES}}) :: tmp
-
         {% endif %}
+
         if (.not. is_enabled) return
+        if (this%verbosity >= 2) then
+            write(stderr,*) "Writing Array {{name}}."
+        endif
+
         {% if name == "Logical" %}
         where(value)
             tmp = 1

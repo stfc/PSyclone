@@ -65,9 +65,9 @@ no modifications are:
   main program that sets up the model run, runs the main time-step loop by
   calling subroutines from the `time_evolution_alg_mod.x90` algorithm and
   outputs results calling an I/O routine from the
-  `write_diagnostics_mod.f90` module;
+  `write_diagnostics_alg_mod.x90` module;
 
-* [`write_diagnostics_mod.f90`](../gungho_lib/write_diagnostics_mod.f90)
+* [`write_diagnostics_alg_mod.x90`](../gungho_lib/write_diagnostics_alg_mod.x90)
   calls a diagnostic output routine to write the "model state" consisting of
   the coordinate and perturbation fields to a file;
 

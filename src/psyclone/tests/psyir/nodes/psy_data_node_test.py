@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,18 +36,22 @@
 
 ''' Module containing tests for generating PSyData hooks'''
 
+import os
 import re
 import pytest
 
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
-from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, Routine, \
-        CodeBlock
+from psyclone.psyir.nodes import (
+    CodeBlock, PSyDataNode, Schedule, Return, Routine)
+from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
-from psyclone.psyir.symbols import ContainerSymbol, ImportInterface, \
-    SymbolTable, DataTypeSymbol, DeferredType, DataSymbol, UnknownFortranType
-from psyclone.tests.utilities import get_invoke
+from psyclone.psyir.symbols import (
+    ContainerSymbol, ImportInterface, SymbolTable, DataTypeSymbol,
+    UnresolvedType, DataSymbol, UnsupportedFortranType)
+from psyclone.tests.utilities import get_base_path, get_invoke
 
 
 # -----------------------------------------------------------------------------
@@ -249,14 +253,14 @@ def test_psy_data_generate_symbols():
     typesymbol = routine.symbol_table.lookup("PSyDataType")
     assert isinstance(typesymbol, DataTypeSymbol)
     assert isinstance(typesymbol.interface, ImportInterface)
-    assert isinstance(typesymbol.datatype, DeferredType)
+    assert isinstance(typesymbol.datatype, UnresolvedType)
     assert routine.symbol_table.lookup_with_tag("PSyDataType") == typesymbol
 
     # - The instantiated object
     assert "psy_data" in routine.symbol_table
     objectsymbol = routine.symbol_table.lookup("psy_data")
     assert isinstance(objectsymbol, DataSymbol)
-    assert isinstance(objectsymbol.datatype, UnknownFortranType)
+    assert isinstance(objectsymbol.datatype, UnsupportedFortranType)
 
     # Executing it again doesn't add anything new
     psy_data.generate_symbols(routine.symbol_table)
@@ -269,7 +273,7 @@ def test_psy_data_generate_symbols():
     assert "psy_data_1" in routine.symbol_table
     objectsymbol = routine.symbol_table.lookup("psy_data_1")
     assert isinstance(objectsymbol, DataSymbol)
-    assert isinstance(objectsymbol.datatype, UnknownFortranType)
+    assert isinstance(objectsymbol.datatype, UnsupportedFortranType)
 
 
 # -----------------------------------------------------------------------------
@@ -278,7 +282,7 @@ def test_psy_data_node_incorrect_container():
     the symbol table already contains an entry for the PSyDataType that is
     not associated with the PSyData container. '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     csym = schedule.symbol_table.new_symbol("some_mod",
                                             symbol_type=ContainerSymbol)
@@ -296,7 +300,7 @@ def test_psy_data_node_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -315,7 +319,7 @@ def test_psy_data_node_invokes_gocean1p0():
                   "use psy_data_mod, only: PSyDataType.*"
                   r"TYPE\(PSyDataType\), target, save :: psy_data.*"
                   r"call psy_data%PreStart\(\"psy_single_invoke_different"
-                  r"_iterates_over\", \"invoke_0:compute_cv_code:r0\","
+                  r"_iterates_over\", \"invoke_0-compute_cv_code-r0\","
                   r" 0, 0\).*"
                   "do j.*"
                   "do i.*"
@@ -337,7 +341,7 @@ def test_psy_data_node_options():
     '''Check that the options for PSyData work as expected.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -466,7 +470,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
     # 1) Test that the listed variables will appear in the list
     # ---------------------------------------------------------
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -492,7 +496,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
     # 2) Test that variables suffixes are added as expected
     # -----------------------------------------------------
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           "gocean1.0", idx=0, dist_mem=False)
+                           "gocean", idx=0, dist_mem=False)
     schedule = invoke.schedule
     data_trans = PSyDataTrans()
 
@@ -516,3 +520,77 @@ def test_psy_data_node_lower_to_language_level_with_options():
 
     for codeblock, string in zip(codeblocks, expected):
         assert string == str(codeblock.ast)
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_psy_data_node_name_clash(fortran_writer):
+    '''Test the handling of symbols imported from other modules, or calls to
+    external functions that use module variables. In this example the external
+    module uses a variable with the same name as the user code, which causes
+    a name clash and must be renamed.
+
+    '''
+    api = "lfric"
+    infrastructure_path = get_base_path(api)
+    # Define the path to the ReadKernelData module (which contains functions
+    # to read extracted data from a file) relative to the infrastructure path:
+    psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.dirname(infrastructure_path)))))
+    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
+
+    module_manager = ModuleManager.get()
+    module_manager.add_search_path(infrastructure_path)
+    module_manager.add_search_path(read_mod_path)
+
+    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                           "symbols.f90", api, dist_mem=False, idx=1)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("import", "test")})
+
+    # First test, use the old-style gen_code way:
+    # -------------------------------------------
+    code = str(invoke.gen())
+
+    # Make sure the imported, clashing symbols 'f1' and 'f2' are renamed:
+    assert "USE module_with_name_clash_mod, ONLY: f1_data_1=>f1_data" in code
+    assert "USE module_with_name_clash_mod, ONLY: f2_data_1=>f2_data" in code
+    assert ('CALL extract_psy_data%PreDeclareVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("f2_data@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("f2_data_post@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f2_data@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f2_data_post@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+
+    # Second test, use lower_to_language_level:
+    # -----------------------------------------
+    invoke.schedule.children[0].lower_to_language_level()
+
+    # Note that atm we cannot fortran_writer() the schedule, LFRic does not
+    # yet fully support this. So we just lower each line individually:
+    code = "".join([fortran_writer(i) for i in invoke.schedule.children])
+
+    assert ('CALL extract_psy_data % PreDeclareVariable("f1_data_post", '
+            'f1_data)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f2_data@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f2_data@'
+            'module_with_name_clash_mod_post", f2_data_1)' in code)
+
+    assert ('CALL extract_psy_data % ProvideVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+    assert ('CALL extract_psy_data % ProvideVariable("f2_data@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert ('CALL extract_psy_data % ProvideVariable("f2_data@'
+            'module_with_name_clash_mod_post", f2_data_1)' in code)

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -153,12 +153,11 @@ are used or not.
 Distributed memory
 ##################
 
-As noted in the :ref:`distributed_memory` section, support for distributed
-memory in PSyclone is currently limited to the
-:ref:`LFRic (Dynamo0.3) API <dynamo0.3-api>`. Since the implementation
-generates calls to LFRic infrastructure (e.g. runtime checks for status
-of field halos), code extraction is not allowed when distributed memory
-is enabled.
+As noted in the :ref:`PSyKAl Introduction <introduction_to_psykal>` section,
+PSyKAl can support distributed memory. However, since the generated PSy-layer
+code with DM enabled contains infrastructure calls (e.g. checks for runtime
+status of field halos, halo exchanges etc.), code extraction is not allowed
+when distributed memory is enabled.
 
 .. _psyke-intro-restrictions-shared:
 
@@ -175,7 +174,7 @@ The ``ExtractTrans`` transformation cannot be applied to:
 * A Loop over cells in a colour without its parent Loop over colours in
   the LFRic API,
 
-* An inner Loop without its parent outer Loop in the GOcean1.0 API.
+* An inner Loop without its parent outer Loop in the GOcean API.
 
 .. _psyke-use:
 
@@ -394,7 +393,7 @@ and
 `lib/extract/netcdf/dl_esm_inf
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
 implement the full PSyData API for use with the
-:ref:`GOcean1.0 <gocean1.0-api>` dl_esm_inf infrastructure library.
+:ref:`GOcean <gocean-api>` dl_esm_inf infrastructure library.
 When running the instrumented executable, it will create either a binary or
 a NetCDF file for each instrumented
 code region. It includes all variables that are read before the code
@@ -452,18 +451,13 @@ and
 `lib/extract/netcdf/lfric
 <https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/lfric>`_
 implement the full PSyData API for use with the
-:ref:`LFRic <dynamo0.3-api>` infrastructure library. When running the
+:ref:`LFRic <lfric-api>` infrastructure library. When running the
 code, it will create an output file for each instrumented code region.
 The same logic for naming variables (using ``_post`` for output variables)
 used in :ref:`extraction_for_gocean` is used here.
 
-As in the case of e.g. :ref:`read-only verification
-<psydata_read_verification>`, this library uses the pared-down LFRic
-infrastructure located in a clone of PSyclone repository,
-``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
-However, this needs to be changed for any user (for instance with
-PSyclone installation). Please refer to the relevant ``README.md``
-documentation on how to build and link this library.
+Check :ref:`integrating_psy_data_lfric` for the recommended way of linking
+an extraction library to LFRic.
 
 The output file contains the values of all variables used in the
 subroutine. The ``LFRicExtractTrans`` transformation can automatically
@@ -495,14 +489,6 @@ optimisation of a stand-alone kernel.
     stores the variable names and will not be able to find a variable
     if its name has changed.
 
-.. note:: If the kernel, or any function called from an extracted kernel
-    should use a variable from a module directly (as opposed to supplying
-    this as parameter in the kernel call), this variable will not be
-    written to the extract data file, and the driver will also not try to
-    read in the value. As a result, the kernel will not be able to
-    run stand-alone. As a work-around, these values can be added manually
-    to the driver program. Issue #1990 tracks improvement of this situation.
-
 The LFRic kernel driver will inline all required external modules into the
 driver. It uses a ``ModuleManager`` to find the required modules, based on the
 assumption that a file ``my_special_mod.f90`` will define exactly one module
@@ -519,18 +505,36 @@ line.
 Therefore, compilation for a created driver, e.g. the one created in
 ``examples/lfric/eg17/full_example_extract``, is simple:
 
-.. code-block:: bash
+.. code-block:: output
 
    $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
    $ ./driver-main-update
-   cell correct
-   field1 correct
+       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
+           cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+    field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
+     dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
 
+(see :ref:`driver_summary_statistics` for details about the statistics`).
 Note that the Makefile in the example will actually provide additional include
 paths (infrastructure files and extraction library) for the compiler, but
 these flags are actually only required for compiling the example program, not
 for the driver.
 
+Restrictions of Kernel Extraction and Driver Creation
+#####################################################
+A few restrictions still apply to the current implementation of the driver
+creation code:
+
+- Distributed memory is not yet supported. See #1992.
+- The extraction code will now write variables that are used from other
+  modules to the kernel data file, and the driver will read these values in.
+  Unfortunately, if a variable is used that is defined as private,
+  the value cannot be written to the file, and compilation will abort.
+  The only solution is to modify this file and make all variables public.
+  This mostly affects ``log_mod.F90``, but a few other modules as well.
+- The new build system FAB will be able to remove ``private`` and
+  ``protected`` declarations in any source files, meaning no manual
+  modification of files is required anymore (TODO #2536).
 
 Extraction for NEMO
 ++++++++++++++++++++
@@ -550,3 +554,65 @@ is used here.
 
   Driver creation in NEMO is not yet supported, and is
   tracked in issue #2058.
+
+.. _driver_summary_statistics:
+
+Driver Summary Statistics
+-------------------------
+When a driver is executed, it will print summary statistics at the end
+for each variable that was modified, indicating the difference between the
+`original` values from when the data file was created, and the `new` ones
+computed when executing the kernel. These differences can be caused
+by changing the compilation options, or compiler version. Example output:
+
+.. code-block:: output
+
+       Variable      max_abs      max_rel      l2_diff       l2_cos    identical    #rel<1E-9    #rel<1E-6    #rel<1E-3
+           cell .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+    field1_data .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .5390000E+03 .0000000E+00 .0000000E+00 .0000000E+00
+     dummy_var1 .0000000E+00 .0000000E+00 .0000000E+00 .1000000E+01 .1000000E+01 .0000000E+00 .0000000E+00 .0000000E+00
+
+The columns from left to right are:
+
+..
+  In order to avoid a dependency to dvipng (which depends on latex)
+  by default do not use maths mode for html (instead represent the math
+  formulas textually). But if latex is being used, or the tag
+  `has_dvipng` is defined (by the build environment using `-t has_dvipng`)
+  still use the math support.
+  We also have to duplicate the whole bullet list, sphinx `only`
+  directive cannot be applied to a single bullet line only.
+
+.. only:: latex or has_dvipng
+
+  * The variable name.
+  * The maximum absolute error of all elements.
+  * The maximum relative error of all elements. If an element has the value
+    0, the relative error for this element is considered to be 1.0.
+  * The L2 difference: :math:`\sqrt{\sum{(original-new)^2}}`.
+  * The cosine of the angle between the two vectors: :math:`\frac{\sum{original*new}}{\sqrt{\sum{original*original}}*\sqrt{\sum{new*new}}}`.
+  * How many values are identical.
+  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical.
+  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
+
+.. only:: html and not has_dvipng
+
+  * The variable name.
+  * The maximum absolute error of all elements.
+  * The maximum relative error of all elements. If an element has the value
+    0, the relative error for this element is considered to be 1.0.
+  * The L2 difference: `sqrt(sum((original-new)`\ :sup:`2` `))`.
+  * The cosine of the angle between the two vectors: `sum(original*new)/(sqrt(sum(original*original))*sqrt(sum(new*new)))`.
+  * How many values are identical.
+  * How many values have a relative error of less than 10\ :sup:`-9` but are not identical.
+  * How many values have a relative error of less than 10\ :sup:`-6` but more than 10\ :sup:`-9`.
+  * How many values have a relative error of less than 10\ :sup:`-3` but more than 10\ :sup:`-6`.
+
+.. note:: The usefulness of the columns printed is still being evaluated. Early
+    indications are that the cosine of the angle between the two vectors,
+    which is commonly used in AI, might not be sensitive enough to give
+    a good indication of the differences.
+
+
+

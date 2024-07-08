@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,8 @@ PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
                        -dims=2
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
+OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o \
+	   compare_variables_mod.o read_kernel_data_mod.o
 
 default: $(PSYDATA_LIB)
 
@@ -78,14 +79,23 @@ extract_netcdf_base.o:	psy_data_base.o
 psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
+read_kernel_data_mod.f90: $(LIB_TMPLT_DIR)/read_kernel_data_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > read_kernel_data_mod.f90
+
 extract_netcdf_base.f90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90
+
+compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > compare_variables_mod.F90
 
 # The dl_esm_inf library
 $(INF_LIB):
 	$(MAKE) -C $(GOCEAN_INF_DIR)
 
 %.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:

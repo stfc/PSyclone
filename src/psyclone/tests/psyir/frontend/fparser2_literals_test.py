@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,15 +38,19 @@
     PSyIR front-end '''
 
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
+
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.frontend import fparser2
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     get_literal_precision
-from psyclone.psyir.symbols import (ScalarType, DataSymbol, INTEGER_TYPE,
-                                    UnknownFortranType, ContainerSymbol)
-from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule, Assignment
-from psyclone.errors import InternalError
+from psyclone.psyir.nodes import (
+    Node, Literal, CodeBlock, Schedule, Assignment, Routine)
+from psyclone.psyir.symbols import (
+    ScalarType, DataSymbol, INTEGER_TYPE, UnsupportedFortranType,
+    SymbolTable)
 
 
 @pytest.mark.parametrize("code, dtype",
@@ -73,8 +77,8 @@ def test_handling_literal(code, dtype):
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
     # Ensure the symbol table has an entry for "x"
-    fake_parent.symbol_table.add(DataSymbol("x",
-                                            UnknownFortranType("blah :: x")))
+    fake_parent.symbol_table.add(
+        DataSymbol("x", UnsupportedFortranType("blah :: x")))
     processor = Fparser2Reader()
     processor.process_nodes(fake_parent, [astmt])
     assert not fake_parent.walk(CodeBlock)
@@ -128,7 +132,8 @@ def test_literal_char_without_quotes_error():
     # Edit the resulting parse tree to remove the quotes
     astmt.children[2].items = ("hello", None)
     sched = Schedule()
-    sched.symbol_table.add(DataSymbol("x", UnknownFortranType("blah :: x")))
+    sched.symbol_table.add(
+        DataSymbol("x", UnsupportedFortranType("blah :: x")))
     processor = Fparser2Reader()
     with pytest.raises(InternalError) as err:
         processor.process_nodes(sched, [astmt])
@@ -154,11 +159,7 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
         code = f"x={value}_{dprecision}"
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
-    fake_parent = Schedule()
-    # Add a wildcard import so that there's somewhere for the precision
-    # symbols to have come from.
-    fake_parent.symbol_table.add(ContainerSymbol("amod",
-                                                 wildcard_import=True))
+    fake_parent = Routine.create("fake", SymbolTable(), [])
     # Ensure the symbol table has an entry for "x"
     fake_parent.symbol_table.add(
         DataSymbol("x", ScalarType(ScalarType.Intrinsic.INTEGER, 4)))
@@ -280,7 +281,6 @@ def test_handling_invalid_logic_literal():
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    from psyclone.errors import GenerationError
     reader = FortranStringReader("x = .true.")
     astmt = Fortran2003.Assignment_Stmt(reader)
     astmt.items[2].items = ('invalid', None)

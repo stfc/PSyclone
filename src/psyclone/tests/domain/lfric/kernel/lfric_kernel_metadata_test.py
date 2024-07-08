@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module containing tests for the LFRicKernelMetadata class.
 
@@ -50,7 +50,7 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, REAL_TYPE, \
-    UnknownFortranType
+    UnsupportedFortranType
 
 # pylint: disable=too-many-statements
 
@@ -155,8 +155,7 @@ def test_init_args_error():
 
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata(name="1_invalid")
-    assert ("Expected name to be a valid Fortran name but found "
-            "'1_invalid'." in str(info.value))
+    assert "Invalid Fortran name '1_invalid' found." in str(info.value)
 
 
 def test_validation_error_str():
@@ -1005,7 +1004,7 @@ def test_create_from_psyir_error():
         _ = LFRicKernelMetadata.create_from_psyir(
             DataTypeSymbol("x", REAL_TYPE))
     assert ("Expected kernel metadata to be stored in the PSyIR as an "
-            "UnknownFortranType, but found ScalarType." in str(info.value))
+            "UnsupportedFortranType, but found ScalarType." in str(info.value))
 
 
 @pytest.mark.parametrize("procedure_format", ["", "code =>"])
@@ -1121,7 +1120,7 @@ def test_create_from_fparser2_error():
 
 
 def test_lower_to_psyir():
-    '''Test that the metadata can be lowered to an UnknownFortranType
+    '''Test that the metadata can be lowered to an UnsupportedFortranType
     symbol.
 
     '''
@@ -1129,7 +1128,7 @@ def test_lower_to_psyir():
     symbol = metadata.lower_to_psyir()
     assert isinstance(symbol, DataTypeSymbol)
     assert symbol.name == metadata.name
-    assert isinstance(symbol.datatype, UnknownFortranType)
+    assert isinstance(symbol.datatype, UnsupportedFortranType)
     assert symbol.datatype.declaration == metadata.fortran_string()
 
 
@@ -1438,8 +1437,7 @@ def test_setter_getter_name():
     assert metadata.name is None
     with pytest.raises(ValueError) as info:
         metadata.name = "1_invalid"
-    assert ("Expected name to be a valid Fortran name but found "
-            "'1_invalid'." in str(info.value))
+    assert "Invalid Fortran name '1_invalid' found." in str(info.value)
     metadata.name = "kern_type"
     assert metadata.name == "kern_type"
 
@@ -1499,14 +1497,14 @@ def test_field_utility():
     metadata.validate()
     result = metadata.field_meta_args_on_fs(FieldArgMetadata, "w0")
     assert len(result) == 1
-    assert type(result[0]) == FieldArgMetadata
+    assert type(result[0]) is FieldArgMetadata
     result = metadata.field_meta_args_on_fs(FieldArgMetadata, "w1")
     assert len(result) == 0
     result = metadata.field_meta_args_on_fs(
         [FieldArgMetadata, FieldVectorArgMetadata], "w0")
     assert len(result) == 2
-    assert type(result[0]) == FieldArgMetadata
-    assert type(result[1]) == FieldVectorArgMetadata
+    assert type(result[0]) is FieldArgMetadata
+    assert type(result[1]) is FieldVectorArgMetadata
 
 
 def test_operator_utility():
@@ -1523,14 +1521,14 @@ def test_operator_utility():
     result = metadata.operator_meta_args_on_fs(
         ColumnwiseOperatorArgMetadata, "w0")
     assert len(result) == 1
-    assert type(result[0]) == ColumnwiseOperatorArgMetadata
+    assert type(result[0]) is ColumnwiseOperatorArgMetadata
     result = metadata.operator_meta_args_on_fs(OperatorArgMetadata, "w1")
     assert len(result) == 1
-    assert type(result[0]) == OperatorArgMetadata
+    assert type(result[0]) is OperatorArgMetadata
     result = metadata.operator_meta_args_on_fs(FieldArgMetadata, "w2")
     assert len(result) == 0
     result = metadata.operator_meta_args_on_fs(
         [OperatorArgMetadata, ColumnwiseOperatorArgMetadata], "w0")
     assert len(result) == 2
-    assert type(result[0]) == ColumnwiseOperatorArgMetadata
-    assert type(result[1]) == OperatorArgMetadata
+    assert type(result[0]) is ColumnwiseOperatorArgMetadata
+    assert type(result[1]) is OperatorArgMetadata

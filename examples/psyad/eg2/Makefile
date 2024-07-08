@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -74,12 +74,12 @@ transform: psy.f90
 
 # Process the generated test-harness algorithm with PSyclone.
 psy.f90 ${HARNESS_F90_FILE}: ${HARNESS_X90_FILE} ${ADJ_KERNEL_F90_FILE}
-	${PSYCLONE} -l all -api dynamo0.3 -nodm -opsy psy.f90 -oalg ${HARNESS_F90_FILE} ${HARNESS_X90_FILE}
+	${PSYCLONE} -l all -api lfric -nodm -opsy psy.f90 -oalg ${HARNESS_F90_FILE} ${HARNESS_X90_FILE}
 
 # Create the adjoint kernel and the corresponding test
 # harness in separate files.
 ${ADJ_KERNEL_X90_FILE} ${HARNESS_X90_FILE}: ${TL_KERNEL_FILE}
-	$(PSYAD) -api dynamo0.3 $< -otest ${HARNESS_X90_FILE} -oad ${ADJ_KERNEL_X90_FILE} ${GEOMETRY_VAR_LIST} -a ${ACTIVE_VAR_LIST}
+	$(PSYAD) -api lfric $< -otest ${HARNESS_X90_FILE} -oad ${ADJ_KERNEL_X90_FILE} ${GEOMETRY_VAR_LIST} -a ${ACTIVE_VAR_LIST}
 
 # Currently PSyAD does not update the kernel metadata (issue #1453)
 # so we do that manually here. We have to allow for the case where

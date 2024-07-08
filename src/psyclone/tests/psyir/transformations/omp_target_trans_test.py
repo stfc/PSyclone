@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -117,5 +117,5 @@ def test_omptargettrans_validate(sample_psyir):
     loops[0].loop_body.addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[0])
-    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTargetTrans "
+    assert ("cannot be enclosed by a OMPTargetTrans "
             "transformation" in str(err.value))

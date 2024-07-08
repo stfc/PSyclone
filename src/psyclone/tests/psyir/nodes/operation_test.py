@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2019-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,311 +40,20 @@
 sub-classes.
 
 '''
+
+from enum import Enum
 import pytest
 
-from psyclone.core import VariablesAccessInfo
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
-    NaryOperation, Literal, Reference, Return
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
-    REAL_SINGLE_TYPE
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import (
+    ArrayReference, BinaryOperation, colored, IntrinsicCall,
+    Literal, Range, Reference, Return, StructureReference, UnaryOperation)
+from psyclone.psyir.symbols import (
+    ArrayType, BOOLEAN_TYPE, DataSymbol, UnresolvedType, INTEGER_SINGLE_TYPE,
+    REAL_DOUBLE_TYPE, REAL_SINGLE_TYPE, ScalarType, Symbol, StructureType,
+    UnsupportedFortranType)
 from psyclone.tests.utilities import check_links
-from psyclone.psyir.nodes import Assignment, colored
-
-
-# Test Operation class. These are mostly covered by the subclass tests.
-
-def test_operation_named_arg_str():
-    '''Check the output of str from the Operation class when there is a
-    mixture of positional and named arguments. We use a
-    BinaryOperation example to exercise this method.
-
-    '''
-    lhs = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
-    rhs = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
-    oper = BinaryOperation.Operator.DOT_PRODUCT
-    binaryoperation = BinaryOperation.create(oper, lhs, ("named_arg", rhs))
-    assert "named_arg=Reference[name:'tmp2']" in str(binaryoperation)
-
-
-def test_operation_appendnamedarg():
-    '''Test the append_named_arg method in the Operation class. Check
-    it raises the expected exceptions if arguments are invalid and
-    that it works as expected when the input is valid. We use the
-    NaryOperation node to perform the tests.
-
-    '''
-    nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("2", INTEGER_SINGLE_TYPE)
-    op3 = Literal("3", INTEGER_SINGLE_TYPE)
-    # name arg wrong type
-    with pytest.raises(TypeError) as info:
-        nary_operation.append_named_arg(1, op1)
-    assert ("A name should be a string or None, but found int."
-            in str(info.value))
-    # name arg invalid
-    with pytest.raises(ValueError) as info:
-        nary_operation.append_named_arg("_", op2)
-    assert "Invalid name '_' found." in str(info.value)
-    # name arg already used
-    nary_operation.append_named_arg("name1", op1)
-    with pytest.raises(ValueError) as info:
-        nary_operation.append_named_arg("name1", op2)
-    assert ("The value of the name argument (name1) in 'append_named_arg' in "
-            "the 'Operator' node is already used for a named argument."
-            in str(info.value))
-    # ok
-    nary_operation.append_named_arg("name2", op2)
-    nary_operation.append_named_arg(None, op3)
-    assert nary_operation.children == [op1, op2, op3]
-    assert nary_operation.argument_names == ["name1", "name2", None]
-    # too many args
-    binary_operation = BinaryOperation.create(
-        BinaryOperation.Operator.DOT_PRODUCT, op1.copy(), op2.copy())
-    with pytest.raises(GenerationError) as info:
-        binary_operation.append_named_arg(None, op3.copy())
-    assert ("Item 'Literal' can't be child 2 of 'BinaryOperation'. The valid "
-            "format is: 'DataNode, DataNode'." in str(info.value))
-
-
-def test_operation_insertnamedarg():
-    '''Test the insert_named_arg method in the Operation class. Check
-    it raises the expected exceptions if arguments are invalid and
-    that it works as expected when the input is valid. We use the
-    NaryOperation node to perform the tests.
-
-    '''
-    nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("2", INTEGER_SINGLE_TYPE)
-    op3 = Literal("3", INTEGER_SINGLE_TYPE)
-    # name arg wrong type
-    with pytest.raises(TypeError) as info:
-        nary_operation.insert_named_arg(1, op1, 0)
-    assert ("A name should be a string or None, but found int."
-            in str(info.value))
-    # name arg invalid
-    with pytest.raises(ValueError) as info:
-        nary_operation.append_named_arg(" a", op2)
-    assert "Invalid name ' a' found." in str(info.value)
-    # name arg already used
-    nary_operation.insert_named_arg("name1", op1, 0)
-    with pytest.raises(ValueError) as info:
-        nary_operation.insert_named_arg("name1", op2, 0)
-    assert ("The value of the name argument (name1) in 'insert_named_arg' in "
-            "the 'Operator' node is already used for a named argument."
-            in str(info.value))
-    # invalid index type
-    with pytest.raises(TypeError) as info:
-        nary_operation.insert_named_arg("name2", op2, "hello")
-    assert ("The 'index' argument in 'insert_named_arg' in the 'Operator' "
-            "node should be an int but found str." in str(info.value))
-    # ok
-    assert nary_operation.children == [op1]
-    assert nary_operation.argument_names == ["name1"]
-    nary_operation.insert_named_arg("name2", op2, 0)
-    assert nary_operation.children == [op2, op1]
-    assert nary_operation.argument_names == ["name2", "name1"]
-    nary_operation.insert_named_arg(None, op3, 0)
-    assert nary_operation.children == [op3, op2, op1]
-    assert nary_operation.argument_names == [None, "name2", "name1"]
-    # invalid index value
-    binary_operation = BinaryOperation.create(
-        BinaryOperation.Operator.DOT_PRODUCT, op1.copy(), op2.copy())
-    with pytest.raises(GenerationError) as info:
-        binary_operation.insert_named_arg("name2", op2.copy(), 2)
-    assert ("Item 'Literal' can't be child 2 of 'BinaryOperation'. The valid "
-            "format is: 'DataNode, DataNode'." in str(info.value))
-
-
-def test_operation_replacenamedarg():
-    '''Test the replace_named_arg method in the Operation class. Check
-    it raises the expected exceptions if arguments are invalid and
-    that it works as expected when the input is valid. We use the
-    BinaryOperation node to perform the tests.
-
-    '''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.DOT_PRODUCT)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("2", INTEGER_SINGLE_TYPE)
-    op3 = Literal("3", INTEGER_SINGLE_TYPE)
-    binary_operation.append_named_arg("name1", op1)
-    binary_operation.append_named_arg("name2", op2)
-
-    # name arg wrong type
-    with pytest.raises(TypeError) as info:
-        binary_operation.replace_named_arg(1, op3)
-    assert ("The 'name' argument in 'replace_named_arg' in the 'Operation' "
-            "node should be a string, but found int."
-            in str(info.value))
-    # name arg is not found
-    with pytest.raises(ValueError) as info:
-        binary_operation.replace_named_arg("new_name", op3)
-    assert ("The value of the existing_name argument (new_name) in "
-            "'replace_named_arg' in the 'Operation' node was not found in the "
-            "existing arguments." in str(info.value))
-    # ok
-    assert binary_operation.children == [op1, op2]
-    assert binary_operation.argument_names == ["name1", "name2"]
-    assert binary_operation._argument_names[0][0] == id(op1)
-    assert binary_operation._argument_names[1][0] == id(op2)
-    binary_operation.replace_named_arg("name1", op3)
-    assert binary_operation.children == [op3, op2]
-    assert binary_operation.argument_names == ["name1", "name2"]
-    assert binary_operation._argument_names[0][0] == id(op3)
-    assert binary_operation._argument_names[1][0] == id(op2)
-
-
-def test_operation_argumentnames_after_removearg():
-    '''Test the argument_names property makes things consistent if a child
-    argument is removed. This is used transparently by the class to
-    keep things consistent. We use the BinaryOperation node to perform
-    the tests.
-
-    '''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.DOT_PRODUCT)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE)
-    binary_operation.append_named_arg("name1", op1)
-    binary_operation.append_named_arg("name2", op2)
-    assert len(binary_operation.children) == 2
-    assert len(binary_operation._argument_names) == 2
-    assert binary_operation.argument_names == ["name1", "name2"]
-    binary_operation.children.pop(0)
-    assert len(binary_operation.children) == 1
-    assert len(binary_operation._argument_names) == 2
-    # argument_names property makes _argument_names list consistent.
-    assert binary_operation.argument_names == ["name2"]
-    assert len(binary_operation._argument_names) == 1
-
-
-def test_operation_argumentnames_after_addarg():
-    '''Test the argument_names property makes things consistent if a child
-    argument is added. This is used transparently by the class to
-    keep things consistent. We use the NaryOperation node to perform
-    the tests (as it allows an arbitrary number of arguments.
-
-    '''
-    nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE)
-    op3 = Literal("1", INTEGER_SINGLE_TYPE)
-    nary_operation.append_named_arg("name1", op1)
-    nary_operation.append_named_arg("name2", op2)
-    assert len(nary_operation.children) == 2
-    assert len(nary_operation._argument_names) == 2
-    assert nary_operation.argument_names == ["name1", "name2"]
-    nary_operation.children.append(op3)
-    assert len(nary_operation.children) == 3
-    assert len(nary_operation._argument_names) == 2
-    # argument_names property makes _argument_names list consistent.
-    assert nary_operation.argument_names == ["name1", "name2", None]
-    assert len(nary_operation._argument_names) == 3
-
-
-def test_operation_argumentnames_after_replacearg():
-    '''Test the argument_names property makes things consistent if a child
-    argument is replaced with another. This is used transparently by
-    the class to keep things consistent. We use the BinaryOperation
-    node to perform the tests.
-
-    '''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.DOT_PRODUCT)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE)
-    op3 = Literal("1", INTEGER_SINGLE_TYPE)
-    binary_operation.append_named_arg("name1", op1)
-    binary_operation.append_named_arg("name2", op2)
-    assert len(binary_operation.children) == 2
-    assert len(binary_operation._argument_names) == 2
-    assert binary_operation.argument_names == ["name1", "name2"]
-    binary_operation.children[0] = op3
-    assert len(binary_operation.children) == 2
-    assert len(binary_operation._argument_names) == 2
-    # argument_names property makes _argument_names list consistent.
-    assert binary_operation.argument_names == [None, "name2"]
-    assert len(binary_operation._argument_names) == 2
-
-
-def test_operation_argumentnames_after_reorderearg():
-    '''Test the argument_names property makes things consistent if child
-    arguments are re-order. This is used transparently by the class to
-    keep things consistent. We use the BinaryOperation node to perform
-    the tests.
-
-    '''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.DOT_PRODUCT)
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE)
-    binary_operation.append_named_arg("name1", op1)
-    binary_operation.append_named_arg("name2", op2)
-    assert len(binary_operation.children) == 2
-    assert len(binary_operation._argument_names) == 2
-    assert binary_operation.argument_names == ["name1", "name2"]
-    tmp0 = binary_operation.children[0]
-    tmp1 = binary_operation.children[1]
-    tmp0.detach()
-    tmp1.detach()
-    binary_operation.children.extend([tmp1, tmp0])
-    assert len(binary_operation.children) == 2
-    assert len(binary_operation._argument_names) == 2
-    # argument_names property makes _argument_names list consistent.
-    assert binary_operation.argument_names == ["name2", "name1"]
-    assert len(binary_operation._argument_names) == 2
-
-
-def test_operation_reconcile_add():
-    '''Test that the reconcile method behaves as expected. Use an
-    NaryOperation example where we add a new arg.
-
-    '''
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("1", INTEGER_SINGLE_TYPE)
-    op3 = Literal("1", INTEGER_SINGLE_TYPE)
-    oper = NaryOperation.create(
-        NaryOperation.Operator.MAX, [("name1", op1), ("name2", op2)])
-    # consistent
-    assert len(oper._argument_names) == 2
-    assert oper._argument_names[0] == (id(oper.children[0]), "name1")
-    assert oper._argument_names[1] == (id(oper.children[1]), "name2")
-    oper.children.append(op3)
-    # inconsistent
-    assert len(oper._argument_names) == 2
-    assert oper._argument_names[0] == (id(oper.children[0]), "name1")
-    assert oper._argument_names[1] == (id(oper.children[1]), "name2")
-    oper._reconcile()
-    # consistent
-    assert len(oper._argument_names) == 3
-    assert oper._argument_names[0] == (id(oper.children[0]), "name1")
-    assert oper._argument_names[1] == (id(oper.children[1]), "name2")
-    assert oper._argument_names[2] == (id(oper.children[2]), None)
-
-
-def test_operation_reconcile_reorder():
-    '''Test that the reconcile method behaves as expected. Use a
-    BinaryOperation example where we reorder the arguments.
-
-    '''
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("2", INTEGER_SINGLE_TYPE)
-    oper = BinaryOperation.create(
-        BinaryOperation.Operator.DOT_PRODUCT, ("name1", op1), ("name2", op2))
-    # consistent
-    assert len(oper._argument_names) == 2
-    assert oper._argument_names[0] == (id(oper.children[0]), "name1")
-    assert oper._argument_names[1] == (id(oper.children[1]), "name2")
-    oper.children = [op2.detach(), op1.detach()]
-    # inconsistent
-    assert len(oper._argument_names) == 2
-    assert oper._argument_names[0] != (id(oper.children[0]), "name1")
-    assert oper._argument_names[1] != (id(oper.children[1]), "name2")
-    oper._reconcile()
-    # consistent
-    assert len(oper._argument_names) == 2
-    assert oper._argument_names[0] == (id(oper.children[0]), "name2")
-    assert oper._argument_names[1] == (id(oper.children[1]), "name1")
 
 
 # Test BinaryOperation class
@@ -410,26 +119,6 @@ def test_binaryoperation_create():
     assert result == "tmp1 + tmp2"
 
 
-def test_binaryoperation_named_create():
-    '''Test that the create method in the BinaryOperation class correctly
-    creates a BinaryOperation instance when one or more of the
-    arguments is a named argument.
-
-    '''
-    lhs = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
-    rhs = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
-    oper = BinaryOperation.Operator.DOT_PRODUCT
-    binaryoperation = BinaryOperation.create(oper, lhs, ("dim", rhs))
-    check_links(binaryoperation, [lhs, rhs])
-    result = FortranWriter().binaryoperation_node(binaryoperation)
-    assert result == "DOT_PRODUCT(tmp1, dim=tmp2)"
-    binaryoperation = BinaryOperation.create(
-        oper, ("dummy", lhs.detach()), ("dim", rhs.detach()))
-    check_links(binaryoperation, [lhs, rhs])
-    result = FortranWriter().binaryoperation_node(binaryoperation)
-    assert result == "DOT_PRODUCT(dummy=tmp1, dim=tmp2)"
-
-
 def test_binaryoperation_create_invalid():
     '''Test that the create method in a BinaryOperation class raises the
     expected exception if the provided input is invalid.
@@ -458,28 +147,6 @@ def test_binaryoperation_create_invalid():
     assert ("Item 'str' can't be child 1 of 'BinaryOperation'. The valid "
             "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
-    # rhs is an invalid tuple (too many elements)
-    oper = BinaryOperation.Operator.DOT_PRODUCT
-    with pytest.raises(GenerationError) as excinfo:
-        _ = BinaryOperation.create(oper, ref1, (1, 2, 3))
-    assert ("If the rhs argument in create method of BinaryOperation class "
-            "is a tuple, it's length should be 2, but it is 3."
-            in str(excinfo.value))
-
-    # rhs is an invalid tuple (1st element not str)
-    oper = BinaryOperation.Operator.DOT_PRODUCT
-    with pytest.raises(GenerationError) as excinfo:
-        _ = BinaryOperation.create(oper, ref1, (1, 2))
-    assert ("If the rhs argument in create method of BinaryOperation class "
-            "is a tuple, its first argument should be a str, but found "
-            "int." in str(excinfo.value))
-
-    # rhs has an invalid name (1st element invalid value)
-    oper = BinaryOperation.Operator.DOT_PRODUCT
-    with pytest.raises(ValueError) as info:
-        _ = BinaryOperation.create(oper, ref1.copy(), ("_", 2))
-    assert "Invalid name '_' found." in str(info.value)
-
 
 def test_binaryoperation_children_validation():
     '''Test that children added to BinaryOperation are validated.
@@ -507,27 +174,338 @@ def test_binaryoperation_children_validation():
             "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
 
-def test_binaryoperation_is_elemental():
-    '''Test that the is_elemental method properly returns if an operation is
-    elemental in each BinaryOperation.
+def test_binaryop_scalar_datatype():
+    '''Test the datatype property of BinaryOperation for scalar arguments.'''
+    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
+    ref2 = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.ADD
+    binaryoperation = BinaryOperation.create(oper, ref1, ref2)
+    assert binaryoperation.datatype == REAL_SINGLE_TYPE
+    iref1 = Reference(DataSymbol("itmp1", INTEGER_SINGLE_TYPE))
+    binop2 = BinaryOperation.create(oper, ref1.copy(), iref1)
+    assert binop2.datatype == REAL_SINGLE_TYPE
+    iref2 = Reference(DataSymbol("itmp2", INTEGER_SINGLE_TYPE))
+    binop3 = BinaryOperation.create(oper, iref1.copy(), iref2)
+    assert binop3.datatype == INTEGER_SINGLE_TYPE
+    # When any one of the arguments is of UnsupportedType then we know
+    # nothing about the type of the result.
+    uref1 = Reference(
+        DataSymbol("trouble",
+                   UnsupportedFortranType("real, volatile :: trouble")))
+    binop4 = BinaryOperation.create(oper, iref1.copy(), uref1)
+    assert isinstance(binop4.datatype, UnresolvedType)
+    binop5 = BinaryOperation.create(BinaryOperation.Operator.EQ,
+                                    iref1.copy(), iref2.copy())
+    assert binop5.datatype == BOOLEAN_TYPE
+    # Non-numeric type as operand of numerical operation.
+    binop6 = BinaryOperation.create(oper, iref1.copy(),
+                                    Reference(DataSymbol("switch",
+                                                         BOOLEAN_TYPE)))
+    with pytest.raises(TypeError) as err:
+        _ = binop6.datatype
+    assert ("Invalid argument of type 'Intrinsic.BOOLEAN' to numerical "
+            "operation 'Operator.ADD' in 'itmp1 + switch'" in str(err.value))
+
+
+def test_binaryop_get_result_precision(monkeypatch):
+    '''Test the _get_result_precision method of BinaryOperation gives the
+    correct precision.'''
+    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.ADD
+    # Two arguments of different precision (SINGLE and DOUBLE)
+    ref2 = Reference(DataSymbol("dtmp1", REAL_DOUBLE_TYPE))
+    binop1 = BinaryOperation.create(oper, ref1, ref2)
+    bprecn1 = binop1._get_result_precision([ref1.datatype.precision,
+                                            ref2.datatype.precision])
+    assert bprecn1 == ScalarType.Precision.DOUBLE
+    # Two arguments with different (integer) precision
+    ref3 = Reference(DataSymbol("tmp3",
+                                ScalarType(ScalarType.Intrinsic.REAL, 4)))
+    dref3 = Reference(DataSymbol("dtmp3",
+                                 ScalarType(ScalarType.Intrinsic.REAL, 8)))
+    binop3 = BinaryOperation.create(oper, ref3, dref3)
+    bprecn3 = binop3._get_result_precision([ref3.datatype.precision,
+                                            dref3.datatype.precision])
+    assert bprecn3 == 8
+    # A mixture of precisions
+    binop4 = BinaryOperation.create(oper, ref1.copy(), ref3.copy())
+    bprecn4 = binop4._get_result_precision([ref1.datatype.precision,
+                                            ref3.datatype.precision])
+    assert bprecn4 == ScalarType.Precision.UNDEFINED
+    # One argument of undefined precision
+    ref5 = Reference(DataSymbol("tmp5",
+                                ScalarType(ScalarType.Intrinsic.REAL,
+                                           ScalarType.Precision.UNDEFINED)))
+    binop5 = BinaryOperation.create(oper, ref5, ref1.copy())
+    bprecn5 = binop5._get_result_precision([ref5.datatype.precision,
+                                            ref1.datatype.precision])
+    assert bprecn5 == ScalarType.Precision.UNDEFINED
+
+    # Exercise the check that we aren't missing a supported precision. We have
+    # to monkeypatch the enum containing the supported precisions for this.
+    class FakePrecision(Enum):
+        '''Fake version of Precision enum for testing.'''
+        SINGLE = 1
+        DOUBLE = 2
+        UNDEFINED = 3
+        OTHER = 4
+
+    monkeypatch.setattr(ScalarType, "Precision", FakePrecision)
+    monkeypatch.setattr(ref1.datatype, "_precision",
+                        ScalarType.Precision.SINGLE)
+    # pylint: disable=no-member
+    monkeypatch.setattr(ref5.datatype, "_precision",
+                        ScalarType.Precision.OTHER)
+    with pytest.raises(InternalError) as err:
+        _ = binop5._get_result_precision([ref5.datatype.precision,
+                                          ref1.datatype.precision])
+    assert ("got unsupported Precision value(s) 'FakePrecision.OTHER' and "
+            "'FakePrecision.SINGLE' for operands 'tmp5' and 'tmp1'"
+            in str(err.value))
+
+
+def test_binaryop_array_datatype():
+    '''Test the datatype property of BinaryOperation for array arguments.'''
+    arrtype = ArrayType(REAL_SINGLE_TYPE, [10])
+    iarrtype = ArrayType(INTEGER_SINGLE_TYPE, [5])
+    sym1 = DataSymbol("tmp1", arrtype)
+    sym2 = DataSymbol("tmp2", arrtype)
+    ref1 = Reference(sym1)
+    ref2 = Reference(sym2)
+    oper = BinaryOperation.Operator.ADD
+    # Addition of two arrays.
+    binaryoperation = BinaryOperation.create(oper, ref1, ref2)
+    dtype = binaryoperation.datatype
+    assert isinstance(dtype, ArrayType)
+    assert dtype == arrtype
+    # Add one element of an array to all elements of another array.
+    aref1 = ArrayReference.create(sym1, [Literal("2", INTEGER_SINGLE_TYPE)])
+    binop2 = BinaryOperation.create(oper, ref1.copy(), aref1)
+    dtype2 = binop2.datatype
+    assert isinstance(dtype2, ArrayType)
+    assert dtype2 == arrtype
+    # Add two elements of an array together.
+    binop3 = BinaryOperation.create(oper, aref1.copy(), aref1.copy())
+    dtype3 = binop3.datatype
+    assert dtype3 == REAL_SINGLE_TYPE
+    # Add a scalar integer to all elements of a real array.
+    binop4 = BinaryOperation.create(oper, ref1.copy(),
+                                    Literal("3", INTEGER_SINGLE_TYPE))
+    assert binop4.datatype == arrtype
+    # Add a real scalar to all elements of an integer array.
+    ref4 = Reference(DataSymbol("tmp4", iarrtype))
+    ref5 = Reference(DataSymbol("tmp5", REAL_SINGLE_TYPE))
+    binop5 = BinaryOperation.create(oper, ref4, ref5)
+    dtype5 = binop5.datatype
+    assert isinstance(dtype5, ArrayType)
+    assert len(dtype5.shape) == 1
+    assert dtype5.shape[0].lower.value == "1"
+    assert dtype5.shape[0].upper.value == "5"
+    assert dtype5.intrinsic == ScalarType.Intrinsic.REAL
+    # Non-conforming shapes.
+    arr2dtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    ref6 = Reference(DataSymbol("tmp2d", arr2dtype))
+    binop6 = BinaryOperation.create(oper, ref1.copy(), ref6)
+    with pytest.raises(InternalError) as err:
+        _ = binop6.datatype
+    assert ("Binary operation 'tmp1 + tmp2d' has operands of different shape: "
+            "'tmp1' has rank 1 and 'tmp2d' has rank 2" in str(err.value))
+
+
+def test_binaryop_array_section_datatype():
+    '''Test the datatype property of BinaryOperation when the operands are
+    array sections.'''
+    arrtype = ArrayType(REAL_SINGLE_TYPE, [10])
+    iarrtype = ArrayType(INTEGER_SINGLE_TYPE, [10, 5])
+    ref1 = ArrayReference.create(
+        DataSymbol("tmp1", arrtype),
+        [Range.create(Literal("2", INTEGER_SINGLE_TYPE),
+                      Literal("3", INTEGER_SINGLE_TYPE))])
+    ref2 = ArrayReference.create(
+        DataSymbol("tmp2", arrtype),
+        [Range.create(Literal("9", INTEGER_SINGLE_TYPE),
+                      Literal("10", INTEGER_SINGLE_TYPE))])
+    oper = BinaryOperation.Operator.ADD
+    # Addition of two array sections.
+    binaryoperation = BinaryOperation.create(oper, ref1, ref2)
+    dtype1 = binaryoperation.datatype
+    assert len(dtype1.shape) == 1
+    assert dtype1.shape[0].lower.value == "1"
+    assert dtype1.shape[0].upper.debug_string() == "3 - 2 + 1"
+    # Repeat but for a non-contiguous 1D section of a rank 2, integer array.
+    ref3 = ArrayReference.create(
+        DataSymbol("tmp3", iarrtype),
+        [Literal("2", INTEGER_SINGLE_TYPE),
+         Range.create(Literal("4", INTEGER_SINGLE_TYPE),
+                      Literal("5", INTEGER_SINGLE_TYPE))])
+    binop3 = BinaryOperation.create(oper, ref1.copy(), ref3.copy())
+    dtype3 = binop3.datatype
+    assert dtype3.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert len(dtype3.shape) == 1
+    assert dtype3.shape[0].lower.value == "1"
+    assert dtype3.shape[0].upper.debug_string() == "3 - 2 + 1"
+
+
+def test_binaryop_datatype_recursion():
+    '''Test the datatype property of BinaryOperation when the operands are
+    themselves BinaryOperations.'''
+    iarrtype = ArrayType(INTEGER_SINGLE_TYPE, [10, 5])
+    ref1 = ArrayReference.create(
+        DataSymbol("tmp1", iarrtype),
+        [Range.create(Literal("2", INTEGER_SINGLE_TYPE),
+                      Literal("3", INTEGER_SINGLE_TYPE)),
+         Literal("3", INTEGER_SINGLE_TYPE)])
+    ref2 = ArrayReference.create(
+        DataSymbol("tmp2", iarrtype),
+        [Literal("2", INTEGER_SINGLE_TYPE),
+         Range.create(Literal("4", INTEGER_SINGLE_TYPE),
+                      Literal("5", INTEGER_SINGLE_TYPE))])
+    ref3 = Reference(DataSymbol("tmp3", REAL_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.SUB
+    binop1 = BinaryOperation.create(oper, ref2, ref3)
+    # Create tmp1(2:3) - (tmp2(4:5) - tmp3)
+    binop2 = BinaryOperation.create(oper, ref1, binop1)
+    dtype1 = binop2.datatype
+    assert isinstance(dtype1, ArrayType)
+    # Since tmp3 is real, the result should be real.
+    assert dtype1.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert len(dtype1.shape) == 1
+    assert dtype1.shape[0].lower.value == "1"
+    assert dtype1.shape[0].upper.debug_string() == "3 - 2 + 1"
+
+
+def test_binaryop_structure_datatype():
+    '''
+    Test the BinaryOperation datatype works when one or both arguments involve
+    structure types.
 
     '''
-    # MATMUL, SIZE, LBOUND, UBOUND and DOT_PRODUCT are not
-    # elemental
-    not_elemental = [
-        BinaryOperation.Operator.SIZE,
-        BinaryOperation.Operator.MATMUL,
-        BinaryOperation.Operator.LBOUND,
-        BinaryOperation.Operator.UBOUND,
-        BinaryOperation.Operator.DOT_PRODUCT
-    ]
+    arrtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    stype = StructureType.create([
+        ("nx", INTEGER_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("data", arrtype, Symbol.Visibility.PUBLIC, None)])
+    sym1 = DataSymbol("field", stype)
+    ref1 = StructureReference.create(sym1, ["nx"])
+    oper = BinaryOperation.Operator.SUB
+    # field%nx - 2.0
+    binop1 = BinaryOperation.create(oper,
+                                    ref1, Literal("2.0", REAL_SINGLE_TYPE))
+    dtype1 = binop1.datatype
+    assert dtype1 == REAL_SINGLE_TYPE
+    ref2 = StructureReference.create(sym1, ["data"])
+    # field%nx - field%data
+    binop2 = BinaryOperation.create(oper, ref1.copy(), ref2)
+    dtype2 = binop2.datatype
+    assert isinstance(dtype2, ArrayType)
+    assert len(dtype2.shape) == 2
+    assert dtype2.shape == arrtype.shape
+    assert dtype2.intrinsic == REAL_SINGLE_TYPE.intrinsic
 
-    for binary_operator in BinaryOperation.Operator:
-        operation = BinaryOperation(binary_operator)
-        if binary_operator in not_elemental:
-            assert operation.is_elemental is False
-        else:
-            assert operation.is_elemental is True
+
+def test_binaryop_unresolved_datatype():
+    '''
+    Test that the BinaryOperation datatype always returns UnresolvedType if
+    either (or both) operand(s) is of UnresolvedType.
+
+    '''
+    wind = Reference(DataSymbol("wind", UnresolvedType()))
+    sea = Reference(DataSymbol("sea", INTEGER_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.ADD
+    binop1 = BinaryOperation.create(oper, wind, sea)
+    assert isinstance(binop1.datatype, UnresolvedType)
+    binop2 = BinaryOperation.create(oper, sea.copy(), wind.copy())
+    assert isinstance(binop2.datatype, UnresolvedType)
+    binop3 = BinaryOperation.create(oper, wind.copy(), wind.copy())
+    assert isinstance(binop3.datatype, UnresolvedType)
+    # An Array of UnresolvedType.
+    arrtype = ArrayType(UnresolvedType(), [10])
+    air = Reference(DataSymbol("air", arrtype))
+    binop4 = BinaryOperation.create(oper, air, sea.copy())
+    assert isinstance(binop4.datatype, UnresolvedType)
+
+
+def test_binaryop_partial_datatype():
+    '''
+    Test the BinaryOperation datatype works when one or both arguments only
+    have partial type information.
+
+    '''
+    iarrtype = ArrayType(INTEGER_SINGLE_TYPE, [10, 5])
+    utype = UnsupportedFortranType(
+                "integer, dimension(10,5), pointer :: ref1",
+                partial_datatype=iarrtype)
+    ref1 = Reference(DataSymbol("ref1", utype))
+    ref2 = Reference(DataSymbol("ref2", REAL_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.MUL
+    binop1 = BinaryOperation.create(oper, ref1, ref2)
+    dtype1 = binop1.datatype
+    assert isinstance(dtype1, ArrayType)
+    assert dtype1.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    # Create a second Symbol of UnsupportedFortranType.
+    arrtype3 = ArrayType(REAL_SINGLE_TYPE, [10, 10])
+    utype3 = UnsupportedFortranType(
+                "real, dimension(10,10), pointer :: ref3",
+                partial_datatype=arrtype3)
+    # We are unable to determine the type of a Reference to a
+    # subsection of an array of UnsupportedType (since that would require
+    # updating the original UnsupportedType with a new shape).
+    ref3 = ArrayReference.create(
+        DataSymbol("ref3", utype3),
+        [":", Range.create(Literal("5", INTEGER_SINGLE_TYPE),
+                           Literal("10", INTEGER_SINGLE_TYPE))])
+    # Create ref1(:,:) * ref3(:,5:10)
+    binop3 = BinaryOperation.create(oper, ref1.copy(), ref3)
+    dtype3 = binop3.datatype
+    assert isinstance(dtype3, UnresolvedType)
+    # However, if a subsection is not involved then we are OK.
+    arrtype4 = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    utype4 = UnsupportedFortranType(
+                "real, dimension(10,5), pointer :: ref3",
+                partial_datatype=arrtype4)
+    ref4 = Reference(DataSymbol("ref4", utype4))
+    binop4 = BinaryOperation.create(oper, ref1.copy(), ref4)
+    dtype4 = binop4.datatype
+    assert len(dtype4.shape) == 2
+    assert dtype4.shape[0].lower.value == "1"
+    assert dtype4.shape[0].upper.value == "10"
+    assert dtype4.shape[1].lower.value == "1"
+    assert dtype4.shape[1].upper.value == "5"
+    assert dtype4.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    # A reference to an array of UnsupportedType but with partial type info.
+    utype5 = UnsupportedFortranType("real, pointer :: ref5",
+                                    partial_datatype=REAL_SINGLE_TYPE)
+    arrtype5 = ArrayType(utype5, [8])
+    ref5 = Reference(DataSymbol("ref5", arrtype5))
+    binop5 = BinaryOperation.create(oper, ref2.copy(), ref5)
+    dtype5 = binop5.datatype
+    assert isinstance(dtype5, ArrayType)
+    assert dtype5.intrinsic == REAL_SINGLE_TYPE.intrinsic
+    assert len(dtype5.shape) == 1
+    # Reference to an array of UnsupportedType without partial type information
+    utype6 = UnsupportedFortranType("real, dimension(10,5), pointer :: ref6")
+    arrtype6 = ArrayType(utype6, [10, 5])
+    ref6 = Reference(DataSymbol("ref6", arrtype6))
+    binop6 = BinaryOperation.create(oper, ref4.copy(), ref6)
+    dtype6 = binop6.datatype
+    assert isinstance(dtype6, UnresolvedType)
+
+
+def test_binaryoperation_intrinsic_fn_datatype():
+    '''
+    Check that we can get the datatype of an operation involving the result
+    of an intrinsic function.
+
+    TODO #1799 - this just returns UnresolvedType at the minute and needs
+    implementing.
+
+    '''
+    arrtype = ArrayType(REAL_SINGLE_TYPE, [10, 5])
+    aref = Reference(DataSymbol("array", arrtype))
+    arg1 = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAXVAL, [aref])
+    arg2 = Reference(DataSymbol("scalar", INTEGER_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.ADD
+    binop = BinaryOperation.create(oper, arg1, arg2)
+    assert isinstance(binop.datatype, UnresolvedType)
 
 
 # Test UnaryOperation class
@@ -543,13 +521,15 @@ def test_unaryoperation_initialization():
     assert uop._operator is UnaryOperation.Operator.MINUS
 
 
-def test_unaryoperation_operator():
+@pytest.mark.parametrize("operator_name", ['MINUS', 'PLUS', 'NOT'])
+def test_unaryoperation_operator(operator_name):
     '''Test that the operator property returns the unaryoperator in the
     unaryoperation.
 
     '''
-    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
-    assert unary_operation.operator == UnaryOperation.Operator.MINUS
+    operator = getattr(UnaryOperation.Operator, operator_name)
+    unary_operation = UnaryOperation(operator)
+    assert unary_operation.operator == operator
 
 
 def test_unaryoperation_node_str():
@@ -579,68 +559,11 @@ def test_unaryoperation_create():
 
     '''
     child = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
-    oper = UnaryOperation.Operator.SIN
+    oper = UnaryOperation.Operator.MINUS
     unaryoperation = UnaryOperation.create(oper, child)
     check_links(unaryoperation, [child])
     result = FortranWriter().unaryoperation_node(unaryoperation)
-    assert result == "SIN(tmp)"
-
-
-def test_unaryoperation_named_create():
-    '''Test that the create method in the UnaryOperation class correctly
-    creates a UnaryOperation instance when there is a named argument.
-
-    '''
-    child = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
-    oper = UnaryOperation.Operator.SIN
-    unaryoperation = UnaryOperation.create(oper, ("name", child))
-    assert unaryoperation.argument_names == ["name"]
-    check_links(unaryoperation, [child])
-    result = FortranWriter().unaryoperation_node(unaryoperation)
-    assert result == "SIN(name=tmp)"
-
-
-def test_unaryoperation_create_invalid1():
-    '''Test that the create method in a UnaryOperation class raises the
-    expected exception if the provided argument is a tuple that does
-    not have 2 elements.
-
-    '''
-    # oper not a UnaryOperator.Operator.
-    oper = UnaryOperation.Operator.SIN
-    with pytest.raises(GenerationError) as excinfo:
-        _ = UnaryOperation.create(
-            oper, (1, 2, 3))
-    assert ("If the argument in the create method of UnaryOperation class is "
-            "a tuple, it's length should be 2, but it is 3."
-            in str(excinfo.value))
-
-
-def test_unaryoperation_create_invalid2():
-    '''Test that the create method in a UnaryOperation class raises the
-    expected exception if the provided argument is a tuple and the
-    first element of the tuple is not a string.
-
-    '''
-    # oper not a UnaryOperator.Operator.
-    oper = UnaryOperation.Operator.SIN
-    with pytest.raises(GenerationError) as excinfo:
-        _ = UnaryOperation.create(
-            oper, (1, 2))
-    assert ("If the argument in the create method of UnaryOperation class "
-            "is a tuple, its first argument should be a str, but found int."
-            in str(excinfo.value))
-
-
-def test_unaryoperation_create_invalid3():
-    '''Test that the create method in a UnaryOperation class raises the
-    expected exception a named argument is provided with an invalid name.
-
-    '''
-    oper = UnaryOperation.Operator.SIN
-    with pytest.raises(ValueError) as info:
-        _ = UnaryOperation.create(oper, ("1", 2))
-    assert "Invalid name '1' found." in str(info.value)
+    assert result == "-tmp"
 
 
 def test_unaryoperation_create_invalid4():
@@ -664,7 +587,7 @@ def test_unaryoperation_children_validation():
     UnaryOperations accept just 1 DataNode as child.
 
     '''
-    operation = UnaryOperation(UnaryOperation.Operator.SIN)
+    operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     literal1 = Literal("1", INTEGER_SINGLE_TYPE)
     literal2 = Literal("2", INTEGER_SINGLE_TYPE)
     statement = Return()
@@ -683,210 +606,61 @@ def test_unaryoperation_children_validation():
             "format is: 'DataNode'.") in str(excinfo.value)
 
 
-def test_unaryoperation_is_elemental():
-    '''Test that the is_elemental method properly returns if an operation is
-    elemental in each UnaryOperation.
-
+def test_unaryop_datatype():
     '''
-    # All unary operators are elemental
-    for unary_operator in UnaryOperation.Operator:
-        operation = UnaryOperation(unary_operator)
-        assert operation.is_elemental is True
-
-
-# Test NaryOperation class
-def test_naryoperation_node_str():
-    ''' Check the node_str method of the Nary Operation class.'''
-    nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
-
-    coloredtext = colored("NaryOperation", NaryOperation._colour)
-    assert coloredtext+"[operator:'MAX']" in nary_operation.node_str()
-
-
-def test_naryoperation_can_be_printed():
-    '''Test that an Nary Operation instance can always be printed (i.e. is
-    initialised fully)'''
-    nary_operation = NaryOperation(NaryOperation.Operator.MAX)
-    assert "NaryOperation[operator:'MAX']" in str(nary_operation)
-    nary_operation.addchild(Literal("1", INTEGER_SINGLE_TYPE))
-    nary_operation.addchild(Literal("2", INTEGER_SINGLE_TYPE))
-    nary_operation.addchild(Literal("3", INTEGER_SINGLE_TYPE))
-    # Check the node children are also printed
-    assert ("Literal[value:'1', Scalar<INTEGER, SINGLE>]\n"
-            in str(nary_operation))
-    assert ("Literal[value:'2', Scalar<INTEGER, SINGLE>]\n"
-            in str(nary_operation))
-    assert ("Literal[value:'3', Scalar<INTEGER, SINGLE>]"
-            in str(nary_operation))
-
-
-def test_naryoperation_create():
-    '''Test that the create method in the NaryOperation class correctly
-    creates an NaryOperation instance.
-
+    Test the datatype property of UnaryOperation.
     '''
-    children = [Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE)),
-                Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
-                Reference(DataSymbol("tmp3", REAL_SINGLE_TYPE))]
-    oper = NaryOperation.Operator.MAX
-    naryoperation = NaryOperation.create(oper, children)
-    check_links(naryoperation, children)
-    result = FortranWriter().naryoperation_node(naryoperation)
-    assert result == "MAX(tmp1, tmp2, tmp3)"
-
-
-def test_naryoperation_named_create():
-    '''Test that the create method in the NaryOperation class correctly
-    creates a NaryOperation instance when one of the arguments is a
-    named argument.
-
-    '''
-    children = [Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE)),
-                Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
-                Reference(DataSymbol("tmp3", REAL_SINGLE_TYPE))]
-    oper = NaryOperation.Operator.MAX
-    naryoperation = NaryOperation.create(
-        oper, [children[0], children[1], ("name", children[2])])
-    check_links(naryoperation, children)
-    result = FortranWriter().naryoperation_node(naryoperation)
-    assert result == "MAX(tmp1, tmp2, name=tmp3)"
-
-
-def test_naryoperation_create_invalid():
-    '''Test that the create method in an NaryOperation class raises the
-    expected exception if the provided input is invalid.
-
-    '''
-    # oper not an NaryOperation.Operator
-    with pytest.raises(GenerationError) as excinfo:
-        _ = NaryOperation.create("invalid", [])
-    assert ("operator argument in create method of NaryOperation class should "
-            "be a PSyIR NaryOperation Operator but found 'str'."
-            in str(excinfo.value))
-
-    oper = NaryOperation.Operator.MAX
-
-    # children not a list
-    with pytest.raises(GenerationError) as excinfo:
-        _ = NaryOperation.create(oper, "invalid")
-    assert ("operands argument in create method of NaryOperation class should "
-            "be a list but found 'str'." in str(excinfo.value))
-
-    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
-    ref2 = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
-
-    # rhs is an invalid tuple (too many elements)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = NaryOperation.create(oper, [ref1, ref2, (1, 2, 3)])
-    assert ("If an element of the operands argument in create method of "
-            "NaryOperation class is a tuple, it's length should be 2, "
-            "but found 3." in str(excinfo.value))
-
-    # rhs is an invalid tuple (1st element not str)
-    with pytest.raises(GenerationError) as excinfo:
-        _ = NaryOperation.create(oper, [ref1.copy(), ref2.copy(), (1, 2)])
-    assert ("If an element of the operands argument in create method of "
-            "NaryOperation class is a tuple, its first argument should "
-            "be a str, but found int." in str(excinfo.value))
-
-
-def test_naryoperation_children_validation():
-    '''Test that children added to NaryOperation are validated. NaryOperations
-    accepts DataNodes nodes as children.
-
-    '''
-    nary = NaryOperation(NaryOperation.Operator.MAX)
-    literal1 = Literal("1", INTEGER_SINGLE_TYPE)
-    literal2 = Literal("2", INTEGER_SINGLE_TYPE)
-    literal3 = Literal("3", INTEGER_SINGLE_TYPE)
-    statement = Return()
-
-    # DataNodes are valid
-    nary.addchild(literal1)
-    nary.addchild(literal2)
-    nary.addchild(literal3)
-
-    # Statements are not valid
-    with pytest.raises(GenerationError) as excinfo:
-        nary.addchild(statement)
-    assert ("Item 'Return' can't be child 3 of 'NaryOperation'. The valid "
-            "format is: '[DataNode]+'.") in str(excinfo.value)
-
-
-def test_naryoperation_is_elemental():
-    '''Test that the is_elemental method properly returns if an operation is
-    elemental in each NaryOperation.
-
-    '''
-    # All nary operations are elemental
-    for nary_operator in NaryOperation.Operator:
-        operation = NaryOperation(nary_operator)
-        assert operation.is_elemental is True
+    # Numerical, scalar operation
+    oper = UnaryOperation.Operator.MINUS
+    uop = UnaryOperation.create(oper, Literal("1", INTEGER_SINGLE_TYPE))
+    assert uop.datatype == INTEGER_SINGLE_TYPE
+    # Numerical, array operation
+    ntype = ArrayType(REAL_DOUBLE_TYPE, [20])
+    nsym = DataSymbol("var", ntype)
+    uop1 = UnaryOperation.create(oper, Reference(nsym))
+    dtype = uop1.datatype
+    assert dtype == ntype
+    # Logical operation
+    oper = UnaryOperation.Operator.NOT
+    uop2 = UnaryOperation.create(oper, Literal("true", BOOLEAN_TYPE))
+    assert uop2.datatype == BOOLEAN_TYPE
+    # With logical array argument
+    atype = ArrayType(BOOLEAN_TYPE, [10, 10])
+    asym = DataSymbol("mask", atype)
+    uop3 = UnaryOperation.create(oper, Reference(asym))
+    dtype = uop3.datatype
+    assert isinstance(dtype, ArrayType)
+    assert dtype == atype
+    assert dtype.intrinsic == ScalarType.Intrinsic.BOOLEAN
 
 
 def test_operations_can_be_copied():
     ''' Test that an operation can be copied. '''
 
     operands = [Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE)),
-                Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE)),
-                Reference(DataSymbol("tmp3", REAL_SINGLE_TYPE))]
-    operation = NaryOperation.create(NaryOperation.Operator.MAX, operands)
+                Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))]
+    operation = BinaryOperation.create(BinaryOperation.Operator.ADD, *operands)
 
     operation1 = operation.copy()
-    assert isinstance(operation1, NaryOperation)
+    assert isinstance(operation1, BinaryOperation)
     assert operation1 is not operation
-    assert operation1.operator is NaryOperation.Operator.MAX
+    assert operation1.operator is BinaryOperation.Operator.ADD
     assert operation1.children[0].symbol.name == "tmp1"
     assert operation1.children[0] is not operands[0]
     assert operation1.children[0].parent is operation1
     assert operation1.children[1].symbol.name == "tmp2"
     assert operation1.children[1] is not operands[1]
     assert operation1.children[1].parent is operation1
-    assert operation1.children[2].symbol.name == "tmp3"
-    assert operation1.children[2] is not operands[2]
-    assert operation1.children[2].parent is operation1
-    assert len(operation1.children) == 3
-    assert len(operation.children) == 3
+    assert len(operation1.children) == 2
+    assert len(operation.children) == 2
 
     # Modifying the new operation does not affect the original
-    operation1._operator = NaryOperation.Operator.MIN
+    operation1._operator = BinaryOperation.Operator.MUL
     operation1.children.pop()
-    assert len(operation1.children) == 2
-    assert len(operation.children) == 3
-    assert operation1.operator is NaryOperation.Operator.MIN
-    assert operation.operator is NaryOperation.Operator.MAX
-
-
-def test_copy():
-    '''Test that the copy() method behaves as expected when there are
-    named arguments.
-
-    '''
-    op1 = Literal("1", INTEGER_SINGLE_TYPE)
-    op2 = Literal("2", INTEGER_SINGLE_TYPE)
-    oper = BinaryOperation.create(
-        BinaryOperation.Operator.DOT_PRODUCT, ("name1", op1), ("name2", op2))
-    # consistent operation
-    oper_copy = oper.copy()
-    assert oper._argument_names[0] == (id(oper.children[0]), "name1")
-    assert oper._argument_names[1] == (id(oper.children[1]), "name2")
-    assert oper_copy._argument_names[0] == (id(oper_copy.children[0]), "name1")
-    assert oper_copy._argument_names[1] == (id(oper_copy.children[1]), "name2")
-    assert oper._argument_names != oper_copy._argument_names
-
-    oper.children = [op2.detach(), op1.detach()]
-    assert oper._argument_names[0] != (id(oper.children[0]), "name2")
-    assert oper._argument_names[1] != (id(oper.children[1]), "name1")
-    # inconsistent operation
-    oper_copy = oper.copy()
-    assert oper._argument_names[0] == (id(oper.children[0]), "name2")
-    assert oper._argument_names[1] == (id(oper.children[1]), "name1")
-    assert oper_copy._argument_names[0] == (id(oper_copy.children[0]), "name2")
-    assert oper_copy._argument_names[1] == (id(oper_copy.children[1]), "name1")
-    assert oper._argument_names != oper_copy._argument_names
+    assert len(operation1.children) == 1
+    assert len(operation.children) == 2
+    assert operation1.operator is BinaryOperation.Operator.MUL
+    assert operation.operator is BinaryOperation.Operator.ADD
 
 
 def test_operation_equality():
@@ -906,50 +680,3 @@ def test_operation_equality():
     # change the operator
     binaryoperation2._operator = BinaryOperation.Operator.SUB
     assert binaryoperation1 != binaryoperation2
-
-    # Check with arguments names
-    binaryoperation3 = BinaryOperation.create(
-        oper, ("name1", lhs.copy()), rhs.copy())
-    binaryoperation4 = BinaryOperation.create(
-        oper, ("name1", lhs.copy()), rhs.copy())
-    assert binaryoperation3 == binaryoperation4
-
-    # Check with argument name and no argument name
-    assert binaryoperation3 != binaryoperation1
-
-    # Check with different argument names
-    binaryoperation5 = BinaryOperation.create(
-        oper, ("new_name", lhs.copy()), rhs.copy())
-    assert binaryoperation3 != binaryoperation5
-
-
-@pytest.mark.parametrize("operator", ["lbound", "ubound", "size"])
-def test_reference_accesses_bounds(operator, fortran_reader):
-    '''Test that the reference_accesses method behaves as expected when
-    the reference is the first argument to either the lbound or ubound
-    intrinsic as that is simply looking up the array bounds (therefore
-    var_access_info should be empty) and when the reference is the
-    second argument of either the lbound or ubound intrinsic (in which
-    case the access should be a read).
-
-    '''
-    code = f'''module test
-        contains
-        subroutine tmp()
-          real, dimension(:,:), allocatable:: a, b
-          integer :: n
-          n = {operator}(a, b(1,1))
-        end subroutine tmp
-        end module test'''
-    psyir = fortran_reader.psyir_from_source(code)
-    schedule = psyir.walk(Assignment)[0]
-
-    # By default, the access to 'a' should not be reported as read,
-    # but the access to b must be reported:
-    vai = VariablesAccessInfo(schedule)
-    assert str(vai) == "b: READ, n: WRITE"
-
-    # When explicitly requested, the access to 'a' should be reported:
-    vai = VariablesAccessInfo(schedule,
-                              options={"COLLECT-ARRAY-SHAPE-READS": True})
-    assert str(vai) == "a: READ, b: READ, n: WRITE"

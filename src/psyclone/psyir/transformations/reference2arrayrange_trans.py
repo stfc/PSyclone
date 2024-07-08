@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Range, Reference, ArrayReference, Literal,
-                                  BinaryOperation, IntrinsicCall)
+                                  IntrinsicCall, Assignment)
 from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -115,12 +115,12 @@ class Reference2ArrayRangeTrans(Transformation):
 
         # No explicit array bound information could be found so use the
         # LBOUND and UBOUND intrinsics.
-        lower_bound = BinaryOperation.create(
-            BinaryOperation.Operator.LBOUND, Reference(symbol),
-            Literal(str(index+1), INTEGER_TYPE))
-        upper_bound = BinaryOperation.create(
-            BinaryOperation.Operator.UBOUND, Reference(symbol),
-            Literal(str(index+1), INTEGER_TYPE))
+        lower_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(symbol), ("dim", Literal(str(index+1), INTEGER_TYPE))])
+        upper_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(symbol), ("dim", Literal(str(index+1), INTEGER_TYPE))])
         step = Literal("1", INTEGER_TYPE)
         return (lower_bound, upper_bound, step)
 
@@ -133,11 +133,11 @@ class Reference2ArrayRangeTrans(Transformation):
         :param options: a dict with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the node is not a Reference \
-            node or the Reference node not does not reference an array \
+        :raises TransformationError: if the node is not a Reference
+            node or the Reference node not does not reference an array
             symbol.
-        :raises TransformationError: if the Reference node is \
-            within an LBOUND, UBOUND, SIZE or DEALLOCATE intrinsic.
+        :raises TransformationError: if the Reference node is within an
+            inquiry or DEALLOCATE intrinsic.
 
         '''
         # TODO issue #1858. Add support for structures containing arrays.
@@ -150,20 +150,23 @@ class Reference2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
                 f"that is an array, but '{node.symbol.name}' is not.")
-        if (isinstance(node.parent, BinaryOperation) and
-                node.parent.operator in [
-                    BinaryOperation.Operator.LBOUND,
-                    BinaryOperation.Operator.UBOUND,
-                    BinaryOperation.Operator.SIZE]):
+        if isinstance(node.parent, IntrinsicCall) and node.parent.is_inquiry:
             raise TransformationError(
-                "References to arrays within LBOUND, UBOUND or SIZE "
-                "operators should not be transformed.")
+                f"References to arrays passed as arguments to intrinsic "
+                f"enquiry routine '{node.parent.routine.name}' should not be "
+                f"transformed.")
         if (isinstance(node.parent, IntrinsicCall) and
                 node.parent.routine.name in ["DEALLOCATE"]):
             raise TransformationError(LazyString(
-                lambda: f"References to arrays within "
-                f"{node.parent.routine.name} intrinsics should not be "
+                lambda: f"References to arrays passed to "
+                f"'{node.parent.routine.name}' intrinsics should not be "
                 f"transformed, but found:\n {node.parent.debug_string()}"))
+        assignment = node.ancestor(Assignment)
+        if assignment and assignment.is_pointer:
+            raise TransformationError(
+                f"'{type(self).__name__}' can not be applied to references"
+                f" inside pointer assignments, but found '{node.name}' in"
+                f" {assignment.debug_string()}")
 
     def apply(self, node, options=None):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified
@@ -185,6 +188,5 @@ class Reference2ArrayRangeTrans(Transformation):
             lbound, ubound, step = \
                 Reference2ArrayRangeTrans._get_array_bound(symbol, idx)
             indices.append(Range.create(lbound, ubound, step))
-
         array_ref = ArrayReference.create(symbol, indices)
         node.replace_with(array_ref)

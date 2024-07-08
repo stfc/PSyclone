@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ Module containing tests for the LFRic (Dynamo0.3) constants class.
 import pytest
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 from psyclone.errors import InternalError
 from psyclone import generator
 
@@ -60,7 +60,7 @@ def test_config_loaded_before_constants_created(monkeypatch):
     # If the psyclone command is executed, the flag should be set. The
     # parameters specified here will immediately abort, but still the
     # flag must be set at the end, since the command has to set this flag:
-    with pytest.raises(SystemExit) as err:
+    with pytest.raises(FileNotFoundError) as err:
         generator.main(["some_file.f90"])
     assert Config.has_config_been_initialised() is True
 
@@ -103,6 +103,23 @@ def test_specific_function_space_internal_error(monkeypatch):
         const.specific_function_space("any_wrong")
     assert ("Error mapping from meta-data function space to actual space: "
             "cannot handle 'any_wrong'" in str(err.value))
+
+
+def test_precision_for_type():
+    '''Check the precision_for_type() method.'''
+    const = LFRicConstants()
+    for module_info in const.DATA_TYPE_MAP.values():
+        assert (const.precision_for_type(module_info["type"])
+                == LFRicTypes(module_info["kind"].upper()))
+
+
+def test_precision_for_type_error():
+    '''Tests that exceptions are raised as expected from
+    precision_for_type().
+    '''
+    with pytest.raises(InternalError) as err:
+        LFRicConstants().precision_for_type("invalid")
+    assert "Unknown data type 'invalid', expected one of" in str(err.value)
 
 
 def test_quadrature_type_map():

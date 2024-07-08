@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ transformation within a transformation script.
 
 
 PSyclone can be used with a variety of existing profiling tools.
-It currently supports dl_timer, Dr Hook, the NVIDIA GPU profiling
+It currently supports dl_timer, TAU, Dr Hook, the NVIDIA GPU profiling
 tools and it comes with a simple stand-alone timer library. The
 :ref:`PSyData API <psy_data>` (see also the
 :ref:`Developer Guide <dev_guide:psy_data>`)
@@ -77,7 +77,7 @@ Interface to Third Party Profiling Tools
 ----------------------------------------
 
 PSyclone comes with :ref:`wrapper libraries <libraries>` to support
-usage of Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
+usage of TAU, Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
 and a simple non-thread-safe timing library. Support for further
 profiling libraries will be added in the future. To compile the
 wrapper libraries, change into the directory ``lib/profiling``
@@ -112,6 +112,10 @@ libraries that come with PSyclone:
     support. Additional link options might therefore be required
     (e.g. enabling OpenMP, or linking with MPI).
 
+``lib/profiling/tau``
+    This wrapper uses TAU profiling and tracing toolkit. It can be
+    downloaded from ``https://www.cs.uoregon.edu/research/tau``.
+
 ``lib/profiling/drhook``
     This wrapper uses the Dr Hook library. You need to contact
     ECMWF to obtain a copy of Dr Hook.
@@ -145,9 +149,10 @@ module. The functions that need to be implemented are described in
 the developer's guide (:ref:`dev_guide:psy_data`).
 
 Most libraries in ``lib/profiling`` need to be linked in
-with the corresponding 3rd party profiling tool. The
-exceptions are the template and simple_timing libraries,
-which are stand alone. The profiling example in
+with the corresponding 3rd party profiling tool, or use a compiler
+wrapper provided by the tool which will provide the required additional
+compiler parameters. The exceptions are the template and simple_timing
+libraries, which are stand alone. The profiling example in
 ``examples/gocean/eg5/profile`` can be used with any of the
 wrapper libraries (except ``nvidia``) to see how they work.
 
@@ -164,11 +169,15 @@ profile_PSyDataInit()
 This method needs to be called once to initialise the profiling tool.
 At this stage this call is not automatically inserted by PSyclone, so
 it is the responsibility of the user to add the call to an appropriate
-location in the application::
+location in the application:
 
-   use profile_psy_data_mod, only : profile_PSyDataInit
-   ...
-   call profile_PSyDataInit()
+.. code-block::
+    :caption: Adding profile_PSyDataInit.
+    :emphasize-lines: 3
+
+    use profile_psy_data_mod, only : profile_PSyDataInit
+    ...
+    call profile_PSyDataInit()
 
 The "appropriate" location might depend on the profiling library used.
 For example, it might be necessary to invoke this before or after
@@ -182,7 +191,11 @@ must be called.
 It will make sure that the measurements are printed, files are flushed,
 and that the profiling tool is closed correctly. Again at
 this stage it is necessary to manually insert the call at an appropriate
-location::
+location:
+
+.. code-block::
+    :caption: Adding profile_PSyDataShutdown.
+    :emphasize-lines: 3
 
     use profile_psy_data_mod, only : profile_PSyDataShutdown
     ...
@@ -195,20 +208,29 @@ used (e.g. before or after a call to ``MPI_Finalize()``).
 
 Profiling Command-Line Options
 ------------------------------
-PSyclone offers two command line options to automatically instrument
+PSyclone offers two command-line options to automatically instrument
 code with profiling regions. It can create profile regions around
-a full invoke (including all kernel calls in this invoke), and/or
-around each individual kernel. 
+a full invoke routine (including all kernel calls in this invoke), and/or
+around each individual kernel (for the PSyKAl APIs 'lfric' and
+'gocean'). 
 
 The option ``--profile invokes`` will automatically add calls to 
 start and end a profile region at the beginning and end of every
 invoke subroutine created by PSyclone. All kernels called within
 this invoke subroutine will be included in the profiled region.
 
-The option ``--profile kernels`` will surround each outer loop
-created by PSyclone with start and end profiling calls.
+The option ``--profile routines`` is a synonym for 'invokes' but is
+provided as it is more intuitive for users who are transforming
+existing code. (In this case, PSyclone will put a profiling region
+around every routine that it processes.)
 
-.. note:: In some APIs (for example :ref:`LFRic <dynamo0.3-api>`
+The option ``--profile kernels`` will surround each outer loop
+created by PSyclone with start and end profiling calls. Note that this
+option is only available if PSyclone was invoked with a ``-api``
+parameter. If you are only transforming existing code, this option
+cannot be used as there is no concept of `kernels`.
+
+.. note:: In some APIs (for example :ref:`LFRic <lfric-api>`
           when using distributed memory) additional minor code might
           get included in a profiled kernel section, for example
           ``setDirty()`` calls (expensive calls like ``HaloExchange``
@@ -230,7 +252,11 @@ profiling regions. Below we show an example of a schedule created
 when instrumenting invokes - all children of a Profile-Node will
 be part of the profiling region, including all loops created by
 PSyclone and all kernel calls (note that for brevity, the nodes
-holding the loop bounds have been omitted for all but the first loop)::
+holding the loop bounds have been omitted for all but the first loop):
+
+.. code-block::
+    :caption: Instrumenting invokes.
+    :emphasize-lines: 2
 
     GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
@@ -265,7 +291,11 @@ holding the loop bounds have been omitted for all but the first loop)::
 
 And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
-region::
+region:
+
+.. code-block::
+    :caption: Instrumenting kernels.
+    :emphasize-lines: 2,13,24
 
     GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
@@ -302,7 +332,11 @@ region::
                                 0: CodedKern compute_pnew_code(pnew_fld,pold_fld,
                                         cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
-Both options can be specified at the same time::
+Both options can be specified at the same time:
+
+.. code-block::
+    :caption: Instrumenting kernels and invokes.
+    :emphasize-lines: 2,4,16,28
 
     GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
@@ -353,7 +387,11 @@ takes either a single PSyIR Node or a list of PSyIR Nodes as argument,
 and will insert a Profile Node into the PSyIR, with the 
 specified nodes as children. At code creation time the
 listed children will all be enclosed in one profile region.
-As an example::
+As an example:
+
+.. code-block::
+    :caption: Explicitly adding profiling regions.
+    :emphasize-lines: 3,8
 
     from psyclone.psyir.transformations import ProfileTrans
 
@@ -370,12 +408,16 @@ explicitly, rather than being automatically created (see
 :ref:`profile_names` for details). This allows for potentially
 more intuitive names or finer grain control over profiling
 (as particular regions could be provided with the same profile
-names). For example::
+names). For example:
+
+.. code-block::
+    :caption: Setting profile region names.
+    :emphasize-lines: 5,8
 
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
-    # Use the actual psy-layer module and subroutine names.
+    # Use the actual PSy-layer module and subroutine names.
     options = {"region_name": (psy.name, invoke.name)}
     profile_trans.apply(schedule.children, options=options)
     # Use own names and repeat for different regions to aggregate profile.
@@ -401,12 +443,13 @@ Naming Profiling Regions
 ------------------------
 A profile region derives its name from two components:
 
-`module_name`
-    A string identifying the psy-layer containing this 
-    profile node.
-`region_name`
-    A string identifying the invoke containing 
-    this profile node and its location within the invoke
+``module_name``
+    A string identifying the PSy-layer (PSyKAl DSL) or module (existing code)
+    containing this profile node.
+
+``region_name``
+    A string identifying the invoke (PSyKAl DSL) or routine (existing code)
+    containing this profile node and its location within the invoke/routine
     (where necessary).
 
 By default PSyclone will generate appropriate names to uniquely
@@ -415,34 +458,37 @@ somewhat cryptic, alternative names can be specified by the user
 when adding profiling via a transformation script, see
 :ref:`dev_guide:psy_data_parameters_to_constructor`.
 
-The automatic name generation depends on the API according
-to the following rules:
+The automatic name generation depends on whether you are using a
+PSyKAl DSL or only the transformation capabilities of PSyclone. If
+you are transforming existing code:
 
-For the :ref:`NEMO API <nemo-api>`,
-
-* the `module_name` string is set to the name of the parent
+* the ``module_name`` string is set to the name of the parent
   function/subroutine/program. This name is unique as Fortran requires
   these names to be unique within a program.
 
-* the `region_name` is set to an `r` (standing for region) followed by
+* the ``region_name`` is set to an ``r`` (standing for region) followed by
   an integer which uniquely identifies the profile within the parent
   function/subroutine/program (based on the profile node's position in
   the PSyIR representation relative to any other profile nodes).
 
-For the :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
-:ref:`GOcean1.0 <gocean1.0-api>` APIs,
+For the :ref:`LFRic <lfric-api>` and
+:ref:`GOcean <gocean-api>` APIs:
 
-* the `module_name` string is set to the module name of the generated
+* the ``module_name`` string is set to the module name of the generated
   PSy-layer. This name should be unique by design (otherwise module
   names would clash when compiling).
 
-* the `region_name` is set to the name of the invoke in which it
-  resides, followed by a `:` and a kernel name if the
-  profile region contains a single kernel, and is completed by `:r`
+* the ``region_name`` is set to the name of the invoke in which it
+  resides, followed by a ``-`` and a kernel name if the
+  profile region contains a single kernel, and is completed by ``-r``
   (standing for region) followed by an integer which uniquely
   identifies the profile within the invoke (based on the profile
   node's position in the PSyIR representation relative to any other
-  profile nodes). For example::
+  profile nodes). For example:
+
+.. code-block::
+    :caption: PSyIR with profiling nodes.
+    :emphasize-lines: 2
 
     InvokeSchedule[invoke='invoke_0', dm=True]
       0: Profile[]
@@ -487,15 +533,19 @@ For the :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
                       0: CodedKern testkern_qr_code(f1,f2,m1,a,m2,istp)
                          [module_inline=False]
 
-This is the code created for this example::
+This is the code created for this example:
+
+.. code-block::
+    :caption: Created Fortran source code with profiling regions.
+    :emphasize-lines: 5,6,7,18,19,24,25
 
      MODULE container
       CONTAINS
       SUBROUTINE invoke_0(a, f1, f2, m1, m2, istp, qr)
         ...
-        CALL psy_data_3%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r0", &
+        CALL psy_data_3%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r0", &
                                      0, 0)
-        CALL psy_data%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r1", 0, 0)
+        CALL psy_data%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r1", 0, 0)
         IF (f2_proxy%is_dirty(depth=1)) THEN
           CALL f2_proxy%halo_exchange(depth=1)
         END IF 
@@ -506,14 +556,14 @@ This is the code created for this example::
           CALL m2_proxy%halo_exchange(depth=1)
         END IF 
         CALL psy_data%PreEnd()
-        CALL psy_data_1%PreStart("multi_functions_multi_invokes_psy", "invoke_0:r2", &
+        CALL psy_data_1%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r2", &
                                      0, 0)
         DO cell=1,mesh%get_last_halo_cell(1)
           CALL testkern_code(...)
         END DO 
         ...
         CALL psy_data_2%PreStart("multi_functions_multi_invokes_psy", &
-                          "invoke_0:testkern_code:r3", 0, 0)
+                          "invoke_0-testkern_code-r3", 0, 0)
         DO cell=1,mesh%get_last_halo_cell(1)
           CALL testkern_code(...)
         END DO 

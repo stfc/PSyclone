@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ from psyclone.tests.utilities import get_invoke
 
 # The version of the PSyclone API that the tests in this file
 # exercise
-API = "gocean1.0"
+API = "gocean"
 
 
 def test_const_loop_bounds_name_and_str():

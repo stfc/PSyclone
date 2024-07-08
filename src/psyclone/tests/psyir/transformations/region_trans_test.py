@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -115,7 +115,7 @@ def test_get_node_list():
 def test_validate_errors():
     '''Tests error handling of the region transformation.'''
 
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean",
                            name="invoke_loop1", dist_mem=False)
 
     schedule = invoke.schedule
@@ -169,15 +169,14 @@ def test_validate_errors():
                  schedule.children[2]]
     with pytest.raises(TransformationError) as err:
         my_rt.validate(node_list)
-    assert ("Transformation Error: Nodes of type 'GOLoop' cannot be enclosed"
-            in str(err.value))
+    assert "cannot be enclosed" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
 def test_validate_ok():
     '''Test parameters that validate should accept.'''
 
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean",
                            name="invoke_loop1")
     schedule = invoke.schedule
     my_rt = MyRegionTrans()

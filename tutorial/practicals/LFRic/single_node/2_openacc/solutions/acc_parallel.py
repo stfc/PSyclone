@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,9 @@ generically. This can be applied via the -s option in the psyclone
 command, it is not designed to be directly run from python.
 
 '''
-from __future__ import print_function
-from psyclone.transformations import ACCEnterDataTrans, \
-    ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans, ACCKernelsTrans
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import (
+    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
 from psyclone.domain.lfric import LFRicConstants
 
 
@@ -49,7 +49,7 @@ def trans(psy):
     '''PSyclone transformation script for the dynamo0p3 api to apply
     OpenACC loop, parallel and enter data directives generically.
 
-    :param psy: a PSyclone PSy object which captures the algorithm and \
+    :param psy: a PSyclone PSy object which captures the algorithm and
         kernel information required by PSyclone.
     :type psy: subclass of :py:class:`psyclone.psyGen.PSy`
 

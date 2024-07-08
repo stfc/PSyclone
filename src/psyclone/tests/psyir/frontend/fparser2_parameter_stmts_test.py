@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Tests Fortran parameter statements in the fparser2 PSyIR front-end '''
@@ -40,9 +41,10 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Routine, Literal, BinaryOperation, \
-    Container, CodeBlock, Reference
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.nodes import (
+    Routine, Literal, BinaryOperation, Container, CodeBlock, Reference,
+    UnaryOperation)
+from psyclone.psyir.symbols import Symbol, StaticInterface, ScalarType
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -63,8 +65,10 @@ def test_parameter_statements_work():
     processor.process_declarations(routine, fparser2spec.content, [])
     newsymbol = symtab.lookup("var1")
     assert newsymbol.is_constant
-    assert isinstance(newsymbol.constant_value, Literal)
-    assert newsymbol.constant_value.value == "3"
+    assert isinstance(newsymbol.initial_value, Literal)
+    assert newsymbol.initial_value.value == "3"
+    assert newsymbol.is_constant is True
+    assert isinstance(newsymbol.interface, StaticInterface)
 
     # Test with a single parameter with an expression
     reader = FortranStringReader('''
@@ -74,8 +78,9 @@ def test_parameter_statements_work():
     processor.process_declarations(routine, fparser2spec.content, [])
     newsymbol1 = symtab.lookup("var_expr")
     assert newsymbol1.is_constant
-    assert isinstance(newsymbol1.constant_value, BinaryOperation)
-    assert newsymbol1.constant_value.children[0].value == "10"
+    assert isinstance(newsymbol1.initial_value, BinaryOperation)
+    assert newsymbol1.initial_value.children[0].value == "10"
+    assert newsymbol1.is_constant is True
 
     # Test with multiple parameters of different types
     reader = FortranStringReader('''
@@ -94,14 +99,14 @@ def test_parameter_statements_work():
     assert newsymbol3.is_constant
     assert newsymbol4.is_constant
     assert newsymbol5.is_constant
-    assert isinstance(newsymbol2.constant_value, Literal)
-    assert newsymbol2.constant_value.value == "1"
-    assert isinstance(newsymbol3.constant_value, Literal)
-    assert newsymbol3.constant_value.value == "3.14"
-    assert isinstance(newsymbol4.constant_value, Literal)
-    assert newsymbol4.constant_value.value == "true"
-    assert isinstance(newsymbol5.constant_value, Literal)
-    assert newsymbol5.constant_value.value == "a"
+    assert isinstance(newsymbol2.initial_value, Literal)
+    assert newsymbol2.initial_value.value == "1"
+    assert isinstance(newsymbol3.initial_value, Literal)
+    assert newsymbol3.initial_value.value == "3.14"
+    assert isinstance(newsymbol4.initial_value, Literal)
+    assert newsymbol4.initial_value.value == "true"
+    assert isinstance(newsymbol5.initial_value, Literal)
+    assert newsymbol5.initial_value.value == "a"
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -129,12 +134,12 @@ def test_parameter_statements_complex_case_work():
     assert newsymbol1.is_constant
     assert newsymbol2.is_constant
     assert newsymbol3.is_constant
-    assert isinstance(newsymbol1.constant_value, Literal)
-    assert isinstance(newsymbol2.constant_value, Reference)
-    assert newsymbol2.constant_value.name == "var1"
-    assert isinstance(newsymbol3.constant_value, BinaryOperation)
-    assert newsymbol3.constant_value.children[0].name == "var1"
-    assert newsymbol3.constant_value.children[1].name == "var2"
+    assert isinstance(newsymbol1.initial_value, Literal)
+    assert isinstance(newsymbol2.initial_value, Reference)
+    assert newsymbol2.initial_value.name == "var1"
+    assert isinstance(newsymbol3.initial_value, BinaryOperation)
+    assert newsymbol3.initial_value.children[0].name == "var1"
+    assert newsymbol3.initial_value.children[1].name == "var2"
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -147,7 +152,7 @@ def test_parameter_statements_with_unsupported_symbols():
     symtab = routine.symbol_table
     processor = Fparser2Reader()
 
-    # Test with a UnknownType declaration
+    # Test with a UnsupportedType declaration
     reader = FortranStringReader('''
         character*5 :: var1
         parameter (var1='hello')''')
@@ -155,8 +160,8 @@ def test_parameter_statements_with_unsupported_symbols():
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not parse 'PARAMETER(var1 = 'hello')' because 'var1' has "
-            "an UnknownType." in str(error.value))
+    assert ("Could not process 'PARAMETER(var1 = 'hello')' because 'var1' has "
+            "an UnsupportedType." in str(error.value))
 
     # Test with a symbol which is not a DataSymbol
     symtab.add(Symbol("var2"))
@@ -166,8 +171,8 @@ def test_parameter_statements_with_unsupported_symbols():
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not parse 'PARAMETER(var2 = 'hello')' because 'var2' is not"
-            " a DataSymbol." in str(error.value))
+    assert ("Could not process 'PARAMETER(var2 = 'hello')' because 'var2' is "
+            "not a DataSymbol." in str(error.value))
 
     # Test with a symbol which is not a DataSymbol
     reader = FortranStringReader('''
@@ -176,7 +181,7 @@ def test_parameter_statements_with_unsupported_symbols():
 
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Could not parse 'PARAMETER(var3 = 3)' because: \"Could not "
+    assert ("Could not process 'PARAMETER(var3 = 3)' because: \"Could not "
             "find 'var3' in the Symbol Table.\"" in str(error.value))
 
 
@@ -216,6 +221,9 @@ def test_unsupported_parameter_statements_produce_codeblocks(fortran_reader,
     # statements
     code = fortran_writer(psyir)
     assert code == '''\
+! PSyclone CodeBlock (unsupported code) reason:
+!  - Could not process 'PARAMETER(var1 = 'hello')' because 'var1' has an \
+UnsupportedType.
 MODULE my_mod
   CHARACTER*5 :: var1
   PARAMETER(var1 = 'hello')
@@ -226,3 +234,32 @@ MODULE my_mod
   END SUBROUTINE my_sub
 END MODULE my_mod
 '''
+
+
+def test_parameter_before_decln(fortran_reader):
+    '''
+    Test when a PARAMETER statement occurs *before* the named symbol is
+    actually declared.
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+module test_mod
+  implicit none
+  PARAMETER(MPI_DISPLACEMENT_CURRENT = - 54278278)
+  INTEGER*8 :: MPI_DISPLACEMENT_CURRENT
+  PARAMETER(MPI_TROUBLE = atan(-1.0))
+  real :: mpi_trouble
+contains
+
+  subroutine some_sub()
+  end subroutine some_sub
+end module test_mod
+''')
+    # We should have succeeded in parsing the code and creating a Container.
+    assert isinstance(psyir.children[0], Container)
+    sym = psyir.children[0].symbol_table.lookup("MPI_DISPLACEMENT_CURRENT")
+    # The Symbol should be a runtime constant with an initial value.
+    assert sym.is_constant
+    assert isinstance(sym.initial_value, UnaryOperation)
+    sym2 = psyir.children[0].symbol_table.lookup("MPI_TROUBLE")
+    assert sym2.is_constant
+    assert sym2.datatype.intrinsic == ScalarType.Intrinsic.REAL

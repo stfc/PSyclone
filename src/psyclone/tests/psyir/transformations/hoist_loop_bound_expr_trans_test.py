@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -149,9 +149,6 @@ def test_validate_loop_with_directive(fortran_reader):
         end module test_mod
     ''')
     loop = psyir.walk(Loop)[0]
-    # Currently OMPLoops cannot be applied to generic Loops, we bypass this
-    # limitation by giving it a loop_type attribute.
-    loop.loop_type = None
     omplooptrans = OMPParallelLoopTrans()
     hoist_trans = HoistLoopBoundExprTrans()
     omplooptrans.apply(loop)

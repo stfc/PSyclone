@@ -10,7 +10,7 @@ Once you have installed PSyclone, either script may be supplied to
 PSyclone via the -s option, e.g.:
 
 ```sh
-psyclone -l all -api nemo -s ./extract_kernels.py ../code/tra_adv.F90
+psyclone -l all -s ./extract_kernels.py ../code/tra_adv.F90
 ```
 
 Executing this will output the transformed Fortran code with the 
@@ -57,7 +57,7 @@ Note that driver creation is not yet supported in NEMO, see issue #2058.
 
 BSD 3-Clause License
 
-Copyright (c) 2023, Science and Technology Facilities Council.
+Copyright (c) 2023-2024, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

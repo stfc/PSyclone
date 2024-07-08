@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,20 +40,13 @@
 
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-from fparser.two import Fortran2003
-
-from psyclone.psyGen import PSyFactory
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (
     ACCKernelsDirective, CodeBlock, Routine, Schedule, Call, IntrinsicCall,
     Reference, Node)
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, REAL_TYPE
-from psyclone.psyir.transformations import TransformationError, ACCUpdateTrans
-from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
-
-# Constants
-API = "nemo"
+from psyclone.psyir.transformations import (
+    ACCKernelsTrans, TransformationError, ACCUpdateTrans)
+from psyclone.transformations import ACCEnterDataTrans
 
 
 def test_validate():
@@ -90,31 +83,30 @@ def test_may_compute():
     assert not ACCUpdateTrans._may_compute(node)
 
 
-def test_simple_missed_region(parser, fortran_writer):
+def test_simple_missed_region(fortran_reader, fortran_writer):
     ''' Check code generation when there is a simple section of host code
     between two kernels regions. '''
-    code = '''
-SUBROUTINE tra_ldf_iso()
-  USE some_mod, only: dia_ptr_hst
-  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
-  INTEGER :: jn
-  LOGICAL :: l_ptr
-  INTEGER, DIMENSION(jpi,jpj) :: tmask
-  REAL, DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw
-  zftv(:,:,:) = 0.0d0
-  IF( l_ptr )THEN
-    CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
-    zftv(:,:,:) = 1.0d0
-  END IF
-  CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
-  zftu(:,:,1) = 1.0d0
-  tmask(:,:) = jpi
-end SUBROUTINE tra_ldf_iso
-'''
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ast)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        SUBROUTINE tra_ldf_iso()
+          USE some_mod, only: dia_ptr_hst
+          INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+          INTEGER :: jn
+          LOGICAL :: l_ptr
+          INTEGER, DIMENSION(jpi,jpj) :: tmask
+          REAL, DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw
+          zftv(:,:,:) = 0.0d0
+          IF( l_ptr )THEN
+            CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
+            zftv(:,:,:) = 1.0d0
+          END IF
+          CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
+          zftu(:,:,1) = 1.0d0
+          tmask(:,:) = jpi
+        end SUBROUTINE tra_ldf_iso
+        ''')
+    schedule = psyir.children[0]
+
     acc_trans = ACCEnterDataTrans()
     acc_kernels = ACCKernelsTrans()
     acc_update = ACCUpdateTrans()
@@ -137,39 +129,37 @@ end SUBROUTINE tra_ldf_iso
     assert ("    call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
             "    !$acc update if_present host(zftv)\n"
             "    zftv(:,:,:) = 1.0d0\n"
-            "    !$acc update if_present device(zftv)\n" in code)
+            "    !$acc update if_present device(jn,zftv)\n" in code)
     assert ("  !$acc update if_present host(jn,zftv)\n"
             "  call" in code)
 
 
-def test_nested_acc_in_if(parser, fortran_writer):
+def test_nested_acc_in_if(fortran_reader, fortran_writer):
     ''' Test that the necessary update directives are added when we have
     a kernels region within an IfBlock. '''
-    code = '''
-SUBROUTINE tra_ldf_iso()
-  USE some_mod, only: dia_ptr_hst
-  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
-  INTEGER :: jn
-  LOGICAL :: l_ptr
-  INTEGER, DIMENSION(jpi,jpj) :: tmask
-  REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftu, zftv, zftw
-  zftv(:,:,:) = 0.0d0
-  IF( l_ptr )THEN
-    CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
-    zftv(:,:,:) = 1.0d0
-    zftw(:,:,:) = -1.0d0
-  ELSE
-    CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
-  END IF
-  CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
-  zftu(:,:,1) = 1.0d0
-  tmask(:,:) = jpi
-end SUBROUTINE tra_ldf_iso
-'''
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ast)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        SUBROUTINE tra_ldf_iso()
+          USE some_mod, only: dia_ptr_hst
+          INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+          INTEGER :: jn
+          LOGICAL :: l_ptr
+          INTEGER, DIMENSION(jpi,jpj) :: tmask
+          REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftu, zftv, zftw
+          zftv(:,:,:) = 0.0d0
+          IF( l_ptr )THEN
+            CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
+            zftv(:,:,:) = 1.0d0
+            zftw(:,:,:) = -1.0d0
+          ELSE
+            CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
+          END IF
+          CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
+          zftu(:,:,1) = 1.0d0
+          tmask(:,:) = jpi
+        end SUBROUTINE tra_ldf_iso
+        ''')
+    schedule = psyir.children[0]
     acc_trans = ACCEnterDataTrans()
     acc_kernels = ACCKernelsTrans()
     acc_update = ACCUpdateTrans()
@@ -188,7 +178,7 @@ end SUBROUTINE tra_ldf_iso
     assert ("    !$acc update if_present host(zftv)\n"
             "    zftv(:,:,:) = 1.0d0\n"
             ) in code
-    assert ("    !$acc update if_present device(zftv)\n"
+    assert ("    !$acc update if_present device(jn,zftv)\n"
             "  else\n"
             ) in code
     assert ("  !$acc update if_present host(jn,zftv)\n"
@@ -196,26 +186,26 @@ end SUBROUTINE tra_ldf_iso
             ) in code
     assert ("  !$acc update if_present host(jpi,tmask)\n"
             "  tmask(:,:) = jpi\n"
-            "  !$acc update if_present device(tmask)\n"
+            "  !$acc update if_present device(jn,tmask,zftv)\n"
             ) in code
 
 
-def test_call_accesses(fortran_writer):
+def test_call_accesses(fortran_reader, fortran_writer):
     ''' Check that a call results in extra update directives, bar relocation,
     and that there are no redundant consecutive update directives. '''
-    code = '''
-SUBROUTINE tra_ldf_iso()
-  USE some_mod, only: dia_ptr_hst
-  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
-  INTEGER :: jn=2
-  REAL :: checksum
-  REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftv, zftw
-  zftv(:,:,:) = 0.0d0
-  CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
-  checksum = SUM(zftv)
-end SUBROUTINE tra_ldf_iso
-'''
-    psyir = FortranReader().psyir_from_source(code)
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        SUBROUTINE tra_ldf_iso()
+          USE some_mod, only: dia_ptr_hst
+          INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+          INTEGER :: jn=2
+          REAL :: checksum
+          REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftv, zftw
+          zftv(:,:,:) = 0.0d0
+          CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
+          checksum = SUM(zftv)
+        end SUBROUTINE tra_ldf_iso
+        ''')
     routine = psyir.walk(Routine)[0]
     acc_update = ACCUpdateTrans()
     acc_update.apply(routine)
@@ -226,31 +216,29 @@ end SUBROUTINE tra_ldf_iso
             "  call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
             "  !$acc update if_present host(checksum,zftv)\n"
             "  checksum = SUM(zftv)\n"
-            "  !$acc update if_present device(checksum)\n" in code)
+            "  !$acc update if_present device(checksum,jn,zftv)\n" in code)
 
 
-def test_call_within_if(parser, fortran_writer):
+def test_call_within_if(fortran_reader, fortran_writer):
     ''' Check that a Call within an If results in the expected update
     directive when one of its arguments is subsequently accessed on
     the CPU. '''
-    code = '''
-SUBROUTINE tra_ldf_iso()
-  USE some_mod, only: dia_ptr_hst
-  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
-  INTEGER :: jn=2
-  REAL :: checksum
-  REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftv, zftw
-  zftv(:,:,:) = 0.0d0
-  if(jn == 1)then
-    CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
-  end if
-  checksum = SUM(zftv)
-end SUBROUTINE tra_ldf_iso
-'''
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ast)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        SUBROUTINE tra_ldf_iso()
+          USE some_mod, only: dia_ptr_hst
+          INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+          INTEGER :: jn=2
+          REAL :: checksum
+          REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftv, zftw
+          zftv(:,:,:) = 0.0d0
+          if(jn == 1)then
+            CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
+          end if
+          checksum = SUM(zftv)
+        end SUBROUTINE tra_ldf_iso
+        ''')
+    schedule = psyir.children[0]
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     code = fortran_writer(schedule)
@@ -263,31 +251,29 @@ end SUBROUTINE tra_ldf_iso
             "  !$acc update if_present device(checksum)\n" in code)
 
 
-def test_loop_on_cpu(parser, fortran_writer):
+def test_loop_on_cpu(fortran_reader, fortran_writer):
     ''' Test the application of ACCUpdateTrans to CPU code containing a
     loop which itself contains a Call. '''
-    code = '''
-SUBROUTINE tra_ldf_iso()
-  USE some_mod, only: dia_ptr_hst
-  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2, start=2, step=2
-  INTEGER :: jn, ji
-  LOGICAL :: l_ptr
-  INTEGER, DIMENSION(jpi,jpj) :: tmask
-  REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftu, zftv, zftw
-  zftv(:,:,:) = 0.0d0
-  DO ji = start, jpi, step
-    CALL dia_ptr_hst( ji, 'ldf', zftv(ji,:,:)  )
-    zftv(ji,:,:) = 1.0d0
-    zftw(ji,:,:) = -1.0d0
-  END DO
-  zftu(:,:,1) = 1.0d0
-  tmask(:,:) = jpi
-end SUBROUTINE tra_ldf_iso
-'''
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ast)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        SUBROUTINE tra_ldf_iso()
+          USE some_mod, only: dia_ptr_hst
+          INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2, start=2, step=2
+          INTEGER :: jn, ji
+          LOGICAL :: l_ptr
+          INTEGER, DIMENSION(jpi,jpj) :: tmask
+          REAL, DIMENSION(jpi,jpj,jpk) :: zdit, zdjt, zftu, zftv, zftw
+          zftv(:,:,:) = 0.0d0
+          DO ji = start, jpi, step
+            CALL dia_ptr_hst( ji, 'ldf', zftv(ji,:,:)  )
+            zftv(ji,:,:) = 1.0d0
+            zftw(ji,:,:) = -1.0d0
+          END DO
+          zftu(:,:,1) = 1.0d0
+          tmask(:,:) = jpi
+        end SUBROUTINE tra_ldf_iso
+        ''')
+    schedule = psyir.children[0]
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     code = fortran_writer(schedule)
@@ -300,12 +286,12 @@ end SUBROUTINE tra_ldf_iso
             "  zftv(:,:,:) = 0.0d0\n"
             "  !$acc update if_present device(zftv)\n"
             "  do ji = start, jpi, step\n") in code
-    assert ("    !$acc update if_present host(zftv)\n"
+    assert ("    !$acc update if_present host(ji,zftv)\n"
             "    call") in code
-    assert ("    !$acc update if_present host(zftv,zftw)\n"
+    assert ("    !$acc update if_present host(ji,zftv,zftw)\n"
             "    zftv(ji,:,:) = 1.0d0\n"
             "    zftw(ji,:,:) = -1.0d0\n"
-            "    !$acc update if_present device(zftv,zftw)\n") in code
+            "    !$acc update if_present device(ji,zftv,zftw)\n") in code
     # TODO #1872: All of these variables are actually local to the subroutine
     # so should not be copied back to the device.
     assert ("  !$acc update if_present host(jpi,tmask,zftu)\n"
@@ -315,76 +301,72 @@ end SUBROUTINE tra_ldf_iso
             in code)
 
 
-def test_codeblock(parser, fortran_writer):
+def test_codeblock(fortran_reader, fortran_writer):
     ''' Test that we can reason about CodeBlocks.'''
-    code = '''
-subroutine lbc_update()
-  use oce, only: tmask, jpi, jpj, jpk
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        subroutine lbc_update()
+          use oce, only: tmask, jpi, jpj, jpk
 
-  open(unit=32, file="some_forcing.dat")
-  read(32, *) jpi, jpj, jpk
-  allocate(tmask(jpi, jpj))
-  read(32, *) tmask
+          open(unit=32, file="some_forcing.dat")
+          read(32, *) jpi, jpj, jpk
+          allocate(tmask(jpi, jpj))
+          read(32, *) tmask
 
-end subroutine lbc_update
-'''
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ast)
-    schedule = psy.invokes.invoke_list[0].schedule
+        end subroutine lbc_update
+        ''')
+    schedule = psyir.children[0]
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     assert isinstance(schedule[1], CodeBlock)
     code = fortran_writer(schedule)
     assert ('''  !$acc update if_present host(jpi,jpj,jpk,tmask)\n'''
+            '''  ! PSyclone CodeBlock (unsupported code) reason:\n'''
+            '''  !  - Unsupported statement: Open_Stmt\n'''
+            '''  !  - Unsupported statement: Read_Stmt\n'''
             '''  OPEN(UNIT = 32, FILE = "some_forcing.dat")''' in code)
     assert ("  READ(32, *) tmask\n"
             "  !$acc update if_present device(tmask)" in code)
 
 
-def test_codeblock_no_access(parser):
+def test_codeblock_no_access(fortran_reader):
     ''' Check that we also permit a CodeBlock if it doesn't access data. '''
-    code = '''
-subroutine lbc_update()
-  use oce, only: tmask, jpi, jpj, jpk
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        subroutine lbc_update()
+          use oce, only: tmask, jpi, jpj, jpk
 
-  open(unit=32, file="some_forcing.dat")
-  write(32, *) "Hello"
+          open(unit=32, file="some_forcing.dat")
+          write(32, *) "Hello"
 
-end subroutine lbc_update
-'''
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ast)
-    schedule = psy.invokes.invoke_list[0].schedule
+        end subroutine lbc_update
+        ''')
+    schedule = psyir.children[0]
     acc_update = ACCUpdateTrans()
     acc_update.apply(schedule)
     assert len(schedule.children) == 1
     assert isinstance(schedule[0], CodeBlock)
-    assert isinstance(schedule[0].get_ast_nodes[0], Fortran2003.Open_Stmt)
 
 
-def test_loop_host_overwriting(parser, fortran_writer):
+def test_loop_host_overwriting(fortran_reader, fortran_writer):
     ''' Test the placement of update directives when a loop contains a host
     statement writing the same variable as a host statement outside the loop.
     The host statememnt inside the loop is placed before a kernel writing a
     variable said statement uses as input. '''
-    code = '''
-SUBROUTINE tra_ldf_iso()
-  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2, start=2, step=2
-  INTEGER :: ji
-  REAL, DIMENSION(jpi,jpj,jpk) :: zftv, zftw
-  zftv(:,:,:) = 0.0d0
-  DO ji = start, jpi, step
-    zftv(ji,:,:) = zftw(ji,:,:)
-    zftw(ji,:,:) = -1.0d0
-  END DO
-end SUBROUTINE tra_ldf_iso
-'''
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ast)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        SUBROUTINE tra_ldf_iso()
+          INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2, start=2, step=2
+          INTEGER :: ji
+          REAL, DIMENSION(jpi,jpj,jpk) :: zftv, zftw
+          zftv(:,:,:) = 0.0d0
+          DO ji = start, jpi, step
+            zftv(ji,:,:) = zftw(ji,:,:)
+            zftw(ji,:,:) = -1.0d0
+          END DO
+        end SUBROUTINE tra_ldf_iso
+        ''')
+    schedule = psyir.children[0]
     acc_enter = ACCEnterDataTrans()
     acc_update = ACCUpdateTrans()
     acc_kernels = ACCKernelsTrans()
@@ -394,9 +376,9 @@ end SUBROUTINE tra_ldf_iso
     code = fortran_writer(schedule)
     # Loop variable should not be copied to device
     assert "device(ji)" not in code
-    assert ("  !$acc update if_present host(jpi,start,step,zftv)\n"
+    assert ("  !$acc update if_present host(ji,jpi,start,step,zftv)\n"
             "  zftv(:,:,:) = 0.0d0\n"
-            "  !$acc enter data copyin(zftw)\n"
+            "  !$acc enter data copyin(ji,zftw)\n"
             "  do ji = start, jpi, step\n"
             "    !$acc update if_present host(zftw)\n"
             "    zftv(ji,:,:) = zftw(ji,:,:)\n"
@@ -407,26 +389,24 @@ end SUBROUTINE tra_ldf_iso
             "  !$acc update if_present device(zftv)\n" in code)
 
 
-def test_if_host_overwriting(parser, fortran_writer):
+def test_if_host_overwriting(fortran_reader, fortran_writer):
     ''' Test the placement of update host directives when an IfBlock contains
      a host statement writing the same variable as a previous host statement
      outside the IfBlock with no depedent device kernel in between them. '''
-    code = '''
-SUBROUTINE tra_ldf_iso()
-  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
-  LOGICAL :: l_ptr
-  REAL, DIMENSION(jpi,jpj,jpk) :: zftv, zftw
-  zftv(:,:,:) = 0.0d0
-  IF( l_ptr )THEN
-    zftw(:,:,:) = -1.0d0
-    zftv(1,:,:) = 1.0d0
-  END IF
-end SUBROUTINE tra_ldf_iso
-'''
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ast)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        SUBROUTINE tra_ldf_iso()
+          INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+          LOGICAL :: l_ptr
+          REAL, DIMENSION(jpi,jpj,jpk) :: zftv, zftw
+          zftv(:,:,:) = 0.0d0
+          IF( l_ptr )THEN
+            zftw(:,:,:) = -1.0d0
+            zftv(1,:,:) = 1.0d0
+          END IF
+        end SUBROUTINE tra_ldf_iso
+        ''')
+    schedule = psyir.children[0]
     acc_update = ACCUpdateTrans()
     acc_kernels = ACCKernelsTrans()
     acc_kernels.apply(schedule[1].if_body[0])
@@ -443,24 +423,22 @@ end SUBROUTINE tra_ldf_iso
             "  !$acc update if_present device(zftv)") in code
 
 
-def test_if_update_device(parser, fortran_writer):
+def test_if_update_device(fortran_reader, fortran_writer):
     ''' Test the placement of update device directives when an IfBlock contains
      a host statement writing the same variable as a preceding kernel. '''
-    code = '''
-SUBROUTINE tra_ldf_iso()
-  INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
-  LOGICAL :: l_ptr
-  REAL, DIMENSION(jpi,jpj,jpk) :: zftv
-  IF( l_ptr )THEN
-    zftv(:,:,:) = 0.0d0
-    zftv(1,:,:) = 1.0d0
-  END IF
-end SUBROUTINE tra_ldf_iso
-'''
-    reader = FortranStringReader(code)
-    ast = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(ast)
-    schedule = psy.invokes.invoke_list[0].schedule
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        SUBROUTINE tra_ldf_iso()
+          INTEGER, PARAMETER :: jpi=2, jpj=2, jpk=2
+          LOGICAL :: l_ptr
+          REAL, DIMENSION(jpi,jpj,jpk) :: zftv
+          IF( l_ptr )THEN
+            zftv(:,:,:) = 0.0d0
+            zftv(1,:,:) = 1.0d0
+          END IF
+        end SUBROUTINE tra_ldf_iso
+        ''')
+    schedule = psyir.children[0]
     acc_update = ACCUpdateTrans()
     acc_kernels = ACCKernelsTrans()
     acc_kernels.apply(schedule[0].if_body[0])

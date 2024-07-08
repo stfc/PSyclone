@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,9 @@
 
 import pytest
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause,\
-    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause,\
-    OMPDependClause, OMPPrivateClause, OMPFirstprivateClause,\
+from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause, \
+    OMPDependClause, OMPPrivateClause, OMPFirstprivateClause, \
     OMPDefaultClause, OMPScheduleClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference

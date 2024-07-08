@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,16 +34,14 @@
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''A transformation script that seeks to apply OpenACC DATA and KERNELS
-directives to NEMO style code.  In order to use
-it you must first install PSyclone. See README.md in the top-level
-psyclone directory.
+directives to NEMO style code.  In order to use it you must first install
+PSyclone. See README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s ./kernels_trans.py some_source_file.f90
+ $ psyclone -s ./kernels_trans.py some_source_file.f90
 
-This should produce a lot of output, ending with generated
-Fortran. Note that the Fortran source files provided to PSyclone must
+Note that the Fortran source files provided to PSyclone must
 have already been preprocessed (if required).
 
 The transformation script attempts to insert Kernels directives at the
@@ -66,39 +64,28 @@ PSyclone. Issue #309 will tackle this limitation.
 
 '''
 
-from __future__ import print_function
-from psyclone.psyGen import TransInfo
 from kernel_utils import add_kernels
-from psyclone.psyir.nodes import ACCDirective
+from psyclone.psyGen import TransInfo
+from psyclone.psyir.nodes import Routine, ACCDirective
 
 
 # Get the PSyclone transformations we will use
 ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
 
 
-def trans(psy):
-    '''A PSyclone-script compliant transformation function. Applies
-    OpenACC 'kernels' and 'data' directives to NEMO code.
+def trans(psyir):
+    ''' Applies OpenACC 'kernels' and 'data' directives to NEMO code.
 
-    :param psy: The PSy layer object to apply transformations to.
-    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
-    print("Invokes found:\n" +
-          "\n".join([str(name) for name in psy.invokes.names]) + "\n")
+    for subroutine in psyir.walk(Routine):
+        print(f"Transforming subroutine: {subroutine.name}")
 
-    for invoke in psy.invokes.invoke_list:
+        add_kernels(subroutine.children)
 
-        sched = invoke.schedule
-        if not sched:
-            print(f"Invoke {invoke.name} has no Schedule! Skipping...")
-            continue
-        print(sched.view())
-
-        add_kernels(sched.children)
-        print(sched.view())
-
-        directives = sched.walk(ACCDirective)
+        directives = subroutine.walk(ACCDirective)
         if not directives:
             # We only need a data region if we've added any directives
             continue
@@ -109,7 +96,3 @@ def trans(psy):
         # regions bigger but this is only an example.
         for directive in directives:
             ACC_DATA_TRANS.apply([directive])
-
-        print(sched.view())
-
-        invoke.schedule = sched

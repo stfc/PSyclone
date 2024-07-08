@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,12 +41,13 @@ from psyclone.errors import InternalError, LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, Container, IntrinsicCall, Range, Routine, Reference, Return,
-    Literal, Assignment, StructureMember, StructureReference)
+    CodeBlock, Container, IntrinsicCall, Node, Range, Routine, Reference,
+    Return, Literal, Assignment, StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
-    ArgumentInterface, ArrayType, DataSymbol, DeferredType, INTEGER_TYPE,
-    StaticInterface, Symbol, SymbolError, UnknownInterface, UnknownType)
+    ArgumentInterface, ArrayType, DataSymbol, UnresolvedType, INTEGER_TYPE,
+    RoutineSymbol, StaticInterface, Symbol, SymbolError, UnknownInterface,
+    UnsupportedType, IntrinsicSymbol)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -109,7 +110,8 @@ class InlineTrans(Transformation):
         * the routine contains an early Return statement;
         * the routine contains a variable with UnknownInterface;
         * the routine contains a variable with StaticInterface;
-        * the routine contains an UnknownType variable with ArgumentInterface;
+        * the routine contains an UnsupportedType variable with
+          ArgumentInterface;
         * the routine has a named argument;
         * the shape of any array arguments as declared inside the routine does
           not match the shape of the arrays being passed as arguments;
@@ -132,7 +134,6 @@ class InlineTrans(Transformation):
 
         '''
         self.validate(node, options)
-
         # The table associated with the scoping region holding the Call.
         table = node.scope.symbol_table
         # Find the routine to be inlined.
@@ -159,7 +160,8 @@ class InlineTrans(Transformation):
 
         # Shallow copy the symbols from the routine into the table at the
         # call site.
-        table.merge(routine_table, include_arguments=False)
+        table.merge(routine_table,
+                    symbols_to_skip=self._symbols_to_skip(routine_table))
 
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array
@@ -168,7 +170,7 @@ class InlineTrans(Transformation):
         # as a Reference.
         ref2arraytrans = Reference2ArrayRangeTrans()
 
-        for child in node.children:
+        for child in node.arguments:
             try:
                 # TODO #1858, this won't yet work for arrays inside structures.
                 ref2arraytrans.apply(child)
@@ -181,7 +183,15 @@ class InlineTrans(Transformation):
         for ref in refs[:]:
             self._replace_formal_arg(ref, node, formal_args)
 
+        # Store the Routine level symbol table and node's current scope
+        # so we can merge symbol tables later if required.
+        ancestor_table = node.ancestor(Routine).scope.symbol_table
+        scope = node.scope
+
         # Copy the nodes from the Routine into the call site.
+        # TODO #924 - while doing this we should ensure that any References
+        # to common/shared Symbols in the inlined code are updated to point
+        # to the ones at the call site.
         if isinstance(new_stmts[-1], Return):
             # If the final statement of the routine is a return then
             # remove it from the list.
@@ -209,6 +219,48 @@ class InlineTrans(Transformation):
             for child in new_stmts[1:]:
                 idx += 1
                 parent.addchild(child, idx)
+
+        # If the scope we merged the inlined function's symbol table into
+        # is not a Routine scope then we now merge that symbol table into
+        # the ancestor Routine. This avoids issues like #2424 when
+        # applying ParallelLoopTrans to loops containing inlined calls.
+        if ancestor_table is not scope.symbol_table:
+            ancestor_table.merge(scope.symbol_table)
+            replacement = type(scope.symbol_table)()
+            scope.symbol_table.detach()
+            replacement.attach(scope)
+
+    def _symbols_to_skip(self, table):
+        '''
+        Constructs a list of those Symbols in the table of the called routine
+        that must be excluded when merging that table with the one at the
+        call site.
+
+        These are:
+         - those Symbols representing routine arguments;
+         - any RoutineSymbol representing the called routine itself.
+
+        :param table: the symbol table of the routine to be inlined.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :returns: those Symbols that must be skipped when merging the
+                  supplied table into the one at the call site.
+        :rtype: list[:py:class:`psyclone.psyir.symbols.Symbol`]
+
+        '''
+        # We need to exclude formal arguments and any RoutineSymbol
+        # representing the routine itself.
+        symbols_to_skip = table.argument_list[:]
+        try:
+            # We don't want or need the symbol representing that routine.
+            rsym = table.lookup_with_tag("own_routine_symbol")
+            if isinstance(rsym, RoutineSymbol):
+                # We only want to skip RoutineSymbols, not DataSymbols (which
+                # we may have if we have a Fortran function).
+                symbols_to_skip.append(rsym)
+        except KeyError:
+            pass
+        return symbols_to_skip
 
     def _replace_formal_arg(self, ref, call_node, formal_args):
         '''
@@ -240,7 +292,7 @@ class InlineTrans(Transformation):
             return ref
 
         # Lookup the actual argument that corresponds to this formal argument.
-        actual_arg = call_node.children[formal_args.index(ref.symbol)]
+        actual_arg = call_node.arguments[formal_args.index(ref.symbol)]
 
         # If the local reference is a simple Reference then we can just
         # replace it with a copy of the actual argument, e.g.
@@ -554,7 +606,7 @@ class InlineTrans(Transformation):
         Checks that the supplied node is a valid target for inlining.
 
         :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
+        :type node: subclass of :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
@@ -571,7 +623,7 @@ class InlineTrans(Transformation):
         :raises TransformationError: if any of the variables declared within \
             the called routine have a StaticInterface.
         :raises TransformationError: if any of the subroutine arguments is of \
-            UnknownType.
+            UnsupportedType.
         :raises TransformationError: if a symbol of a given name is imported \
             from different containers at the call site and within the routine.
         :raises TransformationError: if the routine accesses an un-resolved \
@@ -596,7 +648,6 @@ class InlineTrans(Transformation):
             raise TransformationError(
                 f"Cannot inline an IntrinsicCall ('{node.routine.name}')")
         name = node.routine.name
-
         # Check that we can find the source of the routine being inlined.
         routine = self._find_routine(node)
 
@@ -631,15 +682,15 @@ class InlineTrans(Transformation):
         routine_table = routine.symbol_table
 
         for sym in routine_table.datasymbols:
-            # We don't inline symbols that have an UnknownType and are
-            # arguments since we don't know if a simple assingment if
+            # We don't inline symbols that have an UnsupportedType and are
+            # arguments since we don't know if a simple assignment if
             # enough (e.g. pointers)
             if isinstance(sym.interface, ArgumentInterface):
-                if isinstance(sym.datatype, UnknownType):
+                if isinstance(sym.datatype, UnsupportedType):
                     raise TransformationError(
                         f"Routine '{routine.name}' cannot be inlined because "
                         f"it contains a Symbol '{sym.name}' which is an "
-                        f"Argument of UnknownType: "
+                        f"Argument of UnsupportedType: "
                         f"'{sym.datatype.declaration}'")
             # We don't inline symbols that have an UnknownInterface, as we
             # don't know how they are brought into this scope.
@@ -650,7 +701,8 @@ class InlineTrans(Transformation):
                     f" '{sym.datatype.declaration}'")
             # Check that there are no static variables in the routine (because
             # we don't know whether the routine is called from other places).
-            if isinstance(sym.interface, StaticInterface):
+            if (isinstance(sym.interface, StaticInterface) and
+                    not sym.is_constant):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because it "
                     f"has a static (Fortran SAVE) interface for Symbol "
@@ -659,7 +711,9 @@ class InlineTrans(Transformation):
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
         try:
-            table.check_for_clashes(routine_table)
+            table.check_for_clashes(
+                routine_table,
+                symbols_to_skip=self._symbols_to_skip(routine_table))
         except SymbolError as err:
             raise TransformationError(
                 f"One or more symbols from routine '{routine.name}' cannot be "
@@ -674,16 +728,21 @@ class InlineTrans(Transformation):
         # table. If a precision symbol is only used within Statements then we
         # don't currently capture the fact that it is a precision symbol.
         ref_or_lits = routine.walk((Reference, Literal))
-        # Check for symbols in any constant-value expressions
-        # (Fortran parameters) or array dimensions.
-        for sym in routine_table.automatic_datasymbols:
-            if sym.is_constant:
+        # Check for symbols in any initial-value expressions
+        # (including Fortran parameters) or array dimensions.
+        for sym in routine_table.datasymbols:
+            if sym.initial_value:
                 ref_or_lits.extend(
-                    sym.constant_value.walk((Reference, Literal)))
+                    sym.initial_value.walk((Reference, Literal)))
             if isinstance(sym.datatype, ArrayType):
                 for dim in sym.shape:
-                    ref_or_lits.extend(dim.lower.walk(Reference, Literal))
-                    ref_or_lits.extend(dim.upper.walk(Reference, Literal))
+                    if isinstance(dim, ArrayType.ArrayBounds):
+                        if isinstance(dim.lower, Node):
+                            ref_or_lits.extend(dim.lower.walk(Reference,
+                                                              Literal))
+                        if isinstance(dim.upper, Node):
+                            ref_or_lits.extend(dim.upper.walk(Reference,
+                                                              Literal))
         # Keep a reference to each Symbol that we check so that we can avoid
         # repeatedly checking the same Symbol.
         _symbol_cache = set()
@@ -698,6 +757,8 @@ class InlineTrans(Transformation):
             if sym in _symbol_cache:
                 continue
             _symbol_cache.add(sym)
+            if isinstance(sym, IntrinsicSymbol):
+                continue
             # We haven't seen this Symbol before.
             if sym.is_unresolved:
                 try:
@@ -720,16 +781,16 @@ class InlineTrans(Transformation):
 
         # Check that the shapes of any formal array arguments are the same as
         # those at the call site.
-        if len(routine_table.argument_list) != len(node.children):
+        if len(routine_table.argument_list) != len(node.arguments):
             raise TransformationError(LazyString(
                 lambda: f"Cannot inline '{node.debug_string().strip()}' "
                 f"because the number of arguments supplied to the call "
-                f"({len(node.children)}) does not match the number of "
+                f"({len(node.arguments)}) does not match the number of "
                 f"arguments the routine is declared to have "
                 f"({len(routine_table.argument_list)})."))
 
         for formal_arg, actual_arg in zip(routine_table.argument_list,
-                                          node.children):
+                                          node.arguments):
             # If the formal argument is an array with non-default bounds then
             # we also need to know the bounds of that array at the call site.
             if not isinstance(formal_arg.datatype, ArrayType):
@@ -757,8 +818,12 @@ class InlineTrans(Transformation):
             # type information on the actual argument.
             # TODO #924. It would be useful if the `datatype` property was
             # a method that took an optional 'resolve' argument to indicate
-            # that it should attempt to resolve any DeferredTypes.
-            if isinstance(actual_arg.datatype, (DeferredType, UnknownType)):
+            # that it should attempt to resolve any UnresolvedTypes.
+            if (isinstance(actual_arg.datatype,
+                           (UnresolvedType, UnsupportedType)) or
+                (isinstance(actual_arg.datatype, ArrayType) and
+                 isinstance(actual_arg.datatype.intrinsic,
+                            (UnresolvedType, UnsupportedType)))):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because "
                     f"the type of the actual argument "
@@ -821,7 +886,7 @@ class InlineTrans(Transformation):
 
         '''
         name = call_node.routine.name
-        routine_sym = call_node.routine
+        routine_sym = call_node.routine.symbol
 
         if routine_sym.is_modulevar:
             table = routine_sym.find_symbol_table(call_node)

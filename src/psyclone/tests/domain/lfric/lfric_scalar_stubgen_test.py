@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#          I. Kavcic and A. Coughtrie, Met Office;
+#          I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office;
 #          C. M. Maynard, Met Office/University of Reading;
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -46,8 +46,8 @@ import os
 import pytest
 
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicScalarArgs
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
+                                   LFRicKernMetadata, LFRicScalarArgs)
 from psyclone.f2pygen import ModuleGen
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
@@ -58,7 +58,7 @@ BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 
 def test_lfricscalars_stub_err():
@@ -70,8 +70,8 @@ def test_lfricscalars_stub_err():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_one_int_scalar_mod.f90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid data type
     arg = kernel.arguments.args[1]
@@ -131,7 +131,7 @@ def test_stub_generate_with_scalar_sums_err():
     a reduction (since these are not permitted for user-supplied kernels). '''
     with pytest.raises(ParseError) as err:
         _ = generate(
-            os.path.join(BASE_PATH, "simple_with_reduction.f90"),
+            os.path.join(BASE_PATH, "testkern_simple_with_reduction_mod.f90"),
             api=TEST_API)
     assert (
         "A user-supplied LFRic kernel must not write/update a scalar "

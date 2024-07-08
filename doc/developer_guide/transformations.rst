@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -75,19 +75,6 @@ to a domain-specific PSyIR. The resulting PSyIR will then contain
 nodes representing higher-level concepts such as kernels or halo
 exchanges. This raising is performed by means of the transformations
 listed in the sub-sections below.
-
-Raising Transformations for the NEMO API
-----------------------------------------
-
-The top-level raising transformation creates NEMO PSy layer PSyIR:
-
-.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoPSyTrans
-
-This transformation is itself implemented using three separate transformations:
-
-.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoKernelTrans
-.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoLoopTrans
-.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoInvokeScheduleTrans
 
 Raising Transformations for the LFRic API
 -----------------------------------------
@@ -324,39 +311,6 @@ In the current implementation it does a just-when-is-needed synchronous data
 transfer using a single command queue which can bottleneck the OpenCL
 performance if there are many I/O operations.
 
-
-ArrayRange2LoopTrans
-====================
-
-The ArrayRange2LoopTrans transformation has the following known
-issues:
-
-1) code in the NEMO API remains unchanged after this transformation is
-   applied. This is the case for all transformations that manipulate
-   the PSyIR as the NEMO API currently manipulates and outputs the
-   underlying fparser2 tree. In the future the NEMO API will output
-   code from the PSyIR representation using the back-ends provided.
-
-2) if the indices of the ranges in different array accesses that are
-   going to be modified to use a loop index are not the same then the
-   transformation raises an exception. For example ``a(1:2) =
-   b(2:3)``. Issue #814 captures removing this limitation.
-
-3) at the moment, to test whether two loop ranges are the same, we
-   first check whether they both access the full bounds of the
-   array. If so we assume that they are the same (otherwise the code
-   will not run). If this is not the case, then PSyclone uses :ref:`SymPy`
-   for comparing ranges, which will consider the two ranges
-   ``range(1:n+1:1)`` and ``range(1:1+n:1)`` to be equal.
-
-4) there is a test for non-elementwise operations on the rhs of an
-   assignment as it is not possible to turn this into an explicit
-   loop. At the moment, the type of data that a PSyIR Expression Node
-   returns can not be determined, so it is not possible to check
-   directly for a non-elementwise operation. Fixing this issue is the
-   subject of #685. For the moment the test just checks for MATMUL as
-   that is currently the only non-elementwise operation in the PSyiR.
-
 Inlining
 ========
 
@@ -416,9 +370,9 @@ In this case, the correct index expressions for the inlined code will
 depend on the bounds with which the `data` member of `my_type` is
 declared and therefore this information must be available.
 
-OpenMP Tasking
-==============
-OpenMP tasking is supported in PSyclone, currently by the combination
+OpenMP Tasking with Taskloops
+=============================
+OpenMP taskloops are supported in PSyclone, currently by the combination
 of the `OMPTaskloopTrans` and the `OMPTaskwaitTrans`.
 Dependency analysis and handling is done by the `OMPTaskwaitTrans`,
 which uses its own `get_forward_dependence` function to compute them.
@@ -464,3 +418,94 @@ These structures are the only way to satisfy dependencies between taskloops,
 and any other structures of dependent taskloops will be caught by the
 `OMPTaskwaitTransformation.validate` call, which will raise an Error explaining
 why the dependencies cannot be resolved.
+
+OpenMP Tasking
+==============
+
+OpenMP explicit tasking is also supported by PSyclone, by the `OMPTaskTrans`
+transformation. Dependencies between tasks are handled by the task directives,
+and validated by the containing `OMPSerialDirective`. `OMPTaskwaitDirective`
+nodes are added to handle any dependencies not covered by the OpenMP standard.
+
+The `OMPTaskTrans` is a parallel loop trans, so explicit tasking is only supported
+on loops in PSyclone at this time.
+
+Restrictions
+------------
+When using explicit tasking, PSyclone has a variety of restrictions. These
+restrictions are either due to the OpenMP standard, or difficulty in
+computing the dependencies at compile-time.
+
+1) Array indices cannot be `ArrayReference` or `ArrayMember` nodes inside a
+   task region.
+
+2) Array indices that are `BinaryOperation` nodes must have one `Reference`
+   and one `Literal` child, and must be either `ADD` or `SUB` operations.
+
+3) Array indices cannot be shared variables.
+
+4) `StructureReference` nodes cannot contain multiple `ArrayMember` or
+   `ArrayOfStructureMember` children when accessed inside a task.
+
+5) `ArrayOfStructureReference` nodes cannot contain any `ArrayMember` or
+   `ArrayOfStructureMember` children when accessed inside a task.
+
+6) The left hand side of any `Assignment` node must be a `Reference` or
+   sub-class inside a task region.
+
+7) `Loop` nodes inside task regions must not have a `shared` loop variable.
+
+8) `Loop` nodes inside task regions must not have `ArrayReference` nodes for
+   the start, stop or step expressions.
+
+Dependency computation details
+------------------------------
+OpenMP task nodes in PSyclone will have 5 `Clause` children, 3 data-sharing
+attribute clauses (`OMPPrivateClause`, `OMPFirstprivateClause`, `OMPSharedClause`)
+and 2 dependency clauses (`OMPDependClause`, one with `IN` `DependClauseType` and
+the other with `OUT` `DependClauseType`).
+
+These are computed at code-generation time. The data-sharing clauses are based upon
+the information from the ancestor `OMPParallelDirective`. All variables declared as
+`private` or `firstprivate` by the ancestor parallel region will be either
+`private` or `firstprivate` for the task (but not necessarily the same as for the
+ancestor), while all variables declared `shared` by the ancestor parallel region
+will be explicitly declared either `shared` or `firstprivate` for the task.
+
+To help improve dependencies between tasks, PSyclone introduces the concepts of 
+"parent loop variable" and "proxy loop variable".
+
+A parent loop variable is the
+loop variable of any ancestor `Loop` node that is contained in the subtree of
+the ancestor `OMPParallelDirective` of the task.
+
+A proxy loop variable is the variable of a child `Loop` node, where the loop's
+start node is based upon a parent loop variable, e.g. if `i` is a parent loop
+variable, then loops such as `do j=i, i+32` or `do k=i+1, i+33` would satisfy
+the criteria, and both `j` and `k` would be marked as proxy loop variables.
+
+When computing dependencies on indices that are proxy loop variables, the
+dependency system will ensure that the relevant parent loop variable is
+`firstprivate`, and then use the parent loop variable in the dependency
+clause instead of the proxy loop variable (i.e. in the previous code segments,
+dependencies based upon `j` or `k` would instead be based upon `i`). This enables
+the dependencies to exist upon smaller sections of arrays, which we expect to
+improve parallelism both between loop iterations and between loops.
+
+In addition, rather than creating dependencies to array sections, PSyclone will
+aim to create dependencies to individual indices of arrays, so a dependency on
+`array(i:i+32)` is instead created on `array(i)`. If the array access uses a
+`BinaryOperation` for indexing, the array will appear multiple times in the
+`depend` clause, with each index being based upon the step size of the containing
+loop where possible. If PSyclone cannot reduce the dependency to a single element,
+then the full array will be indexed in the depend clause instead.
+
+All array dependencies are validated by the `OMPSerialDirective`. If there are
+dependencies between tasks that will not be covered by the computed `OMPDependClause`
+nodes, then additional `OMPTaskwaitDirectives` will be added to ensure code
+correctness.
+
+If an OpenMP task region contains an `LBOUND`, `UBOUND` or `SIZE` intrinsic inside
+an if condition or a loop condition, and that intrinsic contains an array section
+then PSyclone may generate extra dependencies, which may hurt code performance. If
+this causes issues, please open an issue.

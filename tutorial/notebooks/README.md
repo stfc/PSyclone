@@ -2,7 +2,7 @@
 
 Welcome to the Jupyter-based parts of the PSyclone tutorial. It
 provides material on fparser (the Fortran parser used by PSyclone),
-the PSyclone Internal Representation and the NEMO API.  To get started
+the PSyclone Intermediate Representation and the NEMO API.  To get started
 you will need a working Jupyter installation:
 
 ```bash
@@ -34,7 +34,7 @@ $ jupyter-notebook --no-browser
 [C 10:56:46.529 NotebookApp]
 
     To access the notebook, open this file in a browser:
-        file:///home/aporter/.local/share/jupyter/runtime/nbserver-463-open.html
+        file:///home/me/.local/share/jupyter/runtime/nbserver-463-open.html
     Or copy and paste one of these URLs:
         http://localhost:8888/?token=5192928a6ac972470f65f303c276271bcf12
      or http://127.0.0.1:8888/?token=5192928a6ac972470f65f303c276271bcf12

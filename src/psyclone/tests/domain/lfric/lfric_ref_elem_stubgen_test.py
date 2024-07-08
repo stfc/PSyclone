@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
 # Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+#           L. Turner, Met Office
 
 '''
 Module containing pytest tests for the reference-element stub generation
@@ -41,13 +42,13 @@ functionality of the LFRic (Dynamo0.3) API.
 
 import os
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.domain.lfric import LFRicKern, LFRicKernMetadata
 
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
-TEST_API = "dynamo0.3"
+TEST_API = "lfric"
 
 REF_ELEM_QUAD_MDATA = '''
 module testkern_refelem_quad_mod
@@ -80,8 +81,8 @@ def test_refelem_stub_gen():
     ast = fpapi.parse(os.path.join(BASE_PATH,
                                    "testkern_ref_elem_mod.F90"),
                       ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
 
@@ -129,8 +130,8 @@ def test_refelem_quad_stub_gen():
     contain reference element and quadrature properties (quadrature
     properties should be placed at the end of subroutine argument list). '''
     ast = fpapi.parse(REF_ELEM_QUAD_MDATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    metadata = LFRicKernMetadata(ast)
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
 

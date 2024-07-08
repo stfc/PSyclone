@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022-2024, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the KernelMetadataSymbol
 kernel-layer-specific symbol. The tests include translation of
@@ -181,8 +181,7 @@ def test_goceankernelmetadata_init2():
 
     with pytest.raises(ValueError) as info:
         _ = GOceanKernelMetadata(name="1error")
-    assert ("Expected name to be a valid value but found '1error'."
-            in str(info.value))
+    assert "Invalid Fortran name '1error' found." in str(info.value)
 
     metadata = GOceanKernelMetadata(
         iterates_over="go_all_pts", index_offset="go_offset_ne", meta_args=[],
@@ -211,7 +210,7 @@ def test_goceankernelmetadata_create1(fortran_reader):
     with pytest.raises(InternalError) as info:
         _ = GOceanKernelMetadata.create_from_psyir(symbol)
     assert ("Expected kernel metadata to be stored in the PSyIR as an "
-            "UnknownFortranType, but found ScalarType." in str(info.value))
+            "UnsupportedFortranType, but found ScalarType." in str(info.value))
 
 
 # create_from_fortran_string
@@ -240,7 +239,7 @@ def test_create_iteratesover():
     with pytest.raises(ValueError) as info:
         _ = GOceanKernelMetadata.create_from_fortran_string(modified_metadata)
     config = Config.get()
-    constants = config.api_conf("gocean1.0").get_constants()
+    constants = config.api_conf("gocean").get_constants()
     valid_iterates_over = constants.VALID_ITERATES_OVER
     assert (f"Expected one of {valid_iterates_over} for 'iterates_over' "
             f"metadata, but found 'invalid'." in str(info.value))
@@ -262,7 +261,7 @@ def test_create_indexoffset():
     with pytest.raises(ValueError) as info:
         _ = GOceanKernelMetadata.create_from_fortran_string(modified_metadata)
     config = Config.get()
-    constants = config.api_conf("gocean1.0").get_constants()
+    constants = config.api_conf("gocean").get_constants()
     supported_offsets = constants.SUPPORTED_OFFSETS
     assert (f"Expected one of {supported_offsets} for 'index_offset' "
             f"metadata, but found 'invalid'." in str(info.value))
@@ -351,7 +350,7 @@ def test_create_metaargs():
     with pytest.raises(ParseError) as info:
         _ = GOceanKernelMetadata.create_from_fortran_string(modified_metadata)
     config = Config.get()
-    constants = config.api_conf("gocean1.0").get_constants()
+    constants = config.api_conf("gocean").get_constants()
     field_grid_types = constants.VALID_FIELD_GRID_TYPES
     scalar_types = constants.VALID_SCALAR_TYPES
     assert (f"Expected a 'meta_arg' entry with 3 arguments to either be a "
@@ -421,7 +420,7 @@ def test_iteratesover():
     with pytest.raises(ValueError) as info:
         kernel_metadata.iterates_over = "hello"
     config = Config.get()
-    constants = config.api_conf("gocean1.0").get_constants()
+    constants = config.api_conf("gocean").get_constants()
     iterates_over_types = constants.VALID_ITERATES_OVER
     assert (f"Expected one of {iterates_over_types} for 'iterates_over' "
             f"metadata, but found 'hello'." in str(info.value))
@@ -436,7 +435,7 @@ def test_indexoffset():
     with pytest.raises(ValueError) as info:
         kernel_metadata.index_offset = "hello"
     config = Config.get()
-    constants = config.api_conf("gocean1.0").get_constants()
+    constants = config.api_conf("gocean").get_constants()
     offset_types = constants.SUPPORTED_OFFSETS
     assert (f"Expected one of {offset_types} for 'index_offset' metadata, "
             f"but found 'hello'." in str(info.value))
@@ -478,8 +477,7 @@ def test_metadata_name():
     assert kernel_metadata.name == "new_name"
     with pytest.raises(ValueError) as info:
         kernel_metadata.name = "1invalid"
-    assert ("Expected name to be a valid value but found "
-            "'1invalid'." in str(info.value))
+    assert "Invalid Fortran name '1invalid' found." in str(info.value)
 
 
 # internal GridArg class
@@ -531,7 +529,7 @@ def test_gridarg_access():
     with pytest.raises(ValueError) as info:
         grid_arg.access = "hello"
     config = Config.get()
-    constants = config.api_conf("gocean1.0").get_constants()
+    constants = config.api_conf("gocean").get_constants()
     access_types = constants.get_valid_access_types()
     assert (f"The first metadata entry for a grid property argument should "
             f"be a valid access descriptor (one of {access_types}), but "
@@ -548,7 +546,7 @@ def test_gridarg_name():
     with pytest.raises(ValueError) as info:
         grid_arg.name = "hello"
     config = Config.get()
-    api_config = config.api_conf("gocean1.0")
+    api_config = config.api_conf("gocean")
     grid_property_names = list(api_config.grid_properties.keys())
     assert (f"The second metadata entry for a grid property argument should "
             f"have a valid name (one of {grid_property_names}), but found "
@@ -611,7 +609,7 @@ def test_fieldarg_access():
     with pytest.raises(ValueError) as info:
         field_arg.access = "hello"
     config = Config.get()
-    constants = config.api_conf("gocean1.0").get_constants()
+    constants = config.api_conf("gocean").get_constants()
     access_types = constants.get_valid_access_types()
     assert (f"The first metadata entry for a field argument should be a "
             f"recognised access descriptor (one of {access_types}), but "
@@ -629,7 +627,7 @@ def test_fieldarg_grid_point_type():
     with pytest.raises(ValueError) as info:
         field_arg.grid_point_type = "hello"
     config = Config.get()
-    constants = config.api_conf("gocean1.0").get_constants()
+    constants = config.api_conf("gocean").get_constants()
     field_grid_types = constants.VALID_FIELD_GRID_TYPES
     assert (f"The second metadata entry for a field argument should be a "
             f"recognised grid-point type descriptor (one of "
@@ -739,7 +737,7 @@ def test_scalararg_access():
     with pytest.raises(ValueError) as info:
         scalar_arg.access = "hello"
     config = Config.get()
-    constants = config.api_conf("gocean1.0").get_constants()
+    constants = config.api_conf("gocean").get_constants()
     access_types = constants.get_valid_access_types()
     assert (f"The first metadata entry for a scalar argument should be a "
             f"recognised access descriptor (one of {access_types}), but "
@@ -756,7 +754,7 @@ def test_scalararg_datatype():
     with pytest.raises(ValueError) as info:
         scalar_arg.datatype = "hello"
     config = Config.get()
-    constants = config.api_conf("gocean1.0").get_constants()
+    constants = config.api_conf("gocean").get_constants()
     scalar_types = constants.VALID_SCALAR_TYPES
     assert (f"The second metadata entry for a scalar argument should be a "
             f"recognised name (one of {scalar_types}), but found 'hello'."

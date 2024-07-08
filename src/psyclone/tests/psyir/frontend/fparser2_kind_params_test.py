@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# Copyright (c) 2017-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,9 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
                                               _kind_find_or_create)
 from psyclone.psyir.nodes import KernelSchedule
-from psyclone.psyir.symbols import (DataSymbol, ScalarType, UnknownFortranType,
-                                    RoutineSymbol, SymbolTable, Symbol,
-                                    DeferredType, ContainerSymbol)
+from psyclone.psyir.symbols import (
+    DataSymbol, ScalarType, UnsupportedFortranType, RoutineSymbol, SymbolTable,
+    Symbol, UnresolvedType, ContainerSymbol, UnresolvedInterface)
 
 
 def process_declarations(code):
@@ -92,7 +92,7 @@ def test_process_declarations_kind_new_param():
     # references the same 'wp' symbol.
     var2_var = fake_parent.symbol_table.lookup("var2")
     assert var2_var.datatype.precision is wp_var
-    # Check that we get a symbol of unknown type if the KIND expression has
+    # Check that we get a symbol of unsupported type if the KIND expression has
     # an unexpected structure
     # Break the parse tree by changing Name('wp') into a str
     fp2spec[0].items[0].items[1].items = ("(", "blah", ")")
@@ -102,7 +102,7 @@ def test_process_declarations_kind_new_param():
     processor.process_declarations(fake_parent, [fp2spec[0]], [])
     sym = fake_parent.symbol_table.lookup("var3")
     assert isinstance(sym, DataSymbol)
-    assert isinstance(sym.datatype, UnknownFortranType)
+    assert isinstance(sym.datatype, UnsupportedFortranType)
 
 
 @pytest.mark.xfail(reason="Kind parameter declarations not supported - #569")
@@ -144,12 +144,12 @@ def test_process_declarations_kind_use():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_kind_param_unknowntype():
+def test_kind_param_unsupportedtype():
     ''' Check that the _kind_find_or_create() routine preserves the type of
-    a Symbol representing a kind parameter if it is of UnknownType. '''
+    a Symbol representing a kind parameter if it is of UnsupportedType. '''
     symbol_table = SymbolTable()
-    wp_sym = DataSymbol("wp",
-                        UnknownFortranType("integer, parameter :: wp = dp"))
+    wp_sym = DataSymbol(
+        "wp", UnsupportedFortranType("integer, parameter :: wp = dp"))
     symbol_table.add(wp_sym)
     kind_sym = _kind_find_or_create("wp", symbol_table)
     assert kind_sym is wp_sym
@@ -157,11 +157,12 @@ def test_kind_param_unknowntype():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_kind_param_deferredtype():
+def test_kind_param_unresolvedtype():
     ''' Check that the _kind_find_or_create() routine changes the type of
-    a Symbol representing a kind parameter if it is of DeferredType. '''
+    a Symbol representing a kind parameter if it is of UnresolvedType. '''
     symbol_table = SymbolTable()
-    wp_sym = DataSymbol("wp", DeferredType())
+    wp_sym = DataSymbol(
+        "wp", UnresolvedType(), interface=UnresolvedInterface())
     symbol_table.add(wp_sym)
     kind_sym = _kind_find_or_create("wp", symbol_table)
     assert kind_sym is wp_sym
@@ -175,7 +176,7 @@ def test_wrong_type_kind_param():
     type.
 
     '''
-    fake_parent, _ = process_declarations("integer :: r_def\n"
+    fake_parent, _ = process_declarations("integer, parameter :: r_def=4\n"
                                           "real(kind=r_def) :: var2")
     r_def = fake_parent.symbol_table.lookup("r_def")
     # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol
@@ -225,10 +226,11 @@ def test_process_declarations_kind_literals(vartype, kind, precision):
                           ("real", "kvar(1)")])
 @pytest.mark.usefixtures("f2008_parser")
 def test_unsupported_kind(vartype, kind):
-    ''' Check that we get an unknown type for an unsupported kind specifier.
+    ''' Check that we get an unsupported type for an unsupported kind
+        specifier.
         TODO #569 - add support for some/all of these.
 
     '''
     sched, _ = process_declarations(f"{vartype}(kind=KIND({kind})) :: var")
     assert isinstance(sched.symbol_table.lookup("var").datatype,
-                      UnknownFortranType)
+                      UnsupportedFortranType)

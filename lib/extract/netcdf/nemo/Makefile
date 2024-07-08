@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,8 @@ PROCESS_ARGS = -prefix=extract_ -types=int,long,real,double \
                        -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o
+OBJS = psy_data_base.o kernel_data_netcdf.o extract_netcdf_base.o \
+	   compare_variables_mod.o
 
 default: $(PSYDATA_LIB)
 
@@ -74,7 +75,13 @@ psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 extract_netcdf_base.f90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90
 
+compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > compare_variables_mod.F90
+
 %.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+%.o: %.F90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:

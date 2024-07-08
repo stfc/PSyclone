@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ class GOceanConstants():
 
         '''
         if not GOceanConstants._VALID_ACCESS_TYPES:
-            conf = Config.get().api_conf("gocean1.0")
+            conf = Config.get().api_conf("gocean")
             GOceanConstants._VALID_ACCESS_TYPES = \
                 list(conf.get_access_mapping().keys())
         return GOceanConstants._VALID_ACCESS_TYPES

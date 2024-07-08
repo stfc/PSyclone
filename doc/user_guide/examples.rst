@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2023, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2024, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -53,10 +53,11 @@ so that a user can find one that is appropriate to them. For details of
 what each example does and how to run each example please see the
 ``README.md`` files in the associated directories.
 
-Alternatively, some of the examples have associated Jupyter notebooks
-that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
-This is most easily done by following the links from the top-level
-`README <https://github.com/stfc/PSyclone#user-content-try-it-on-binder>`_.
+.. TODO #2627
+    Alternatively, some of the examples have associated Jupyter notebooks
+    that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
+    This is most easily done by following the links from the top-level
+    `README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
 
 For the purposes of correctness checking, the whole suite of examples
 may be executed using Gnu ``make`` (this functionality is used by GitHub
@@ -140,8 +141,9 @@ so it can be recorded in this table.
 ======================= =======================================================
 Compiler                Version
 ======================= =======================================================
-Gnu Fortran compiler    9.3
-Intel Fortran compiler  17, 21
+Gnu Fortran             9.3
+Intel Fortran           17, 21
+NVIDIA Fortran          23.5
 ======================= =======================================================
 
 .. _examples_dependencies:
@@ -264,7 +266,7 @@ Example 5.2: Profiling
 This example shows how to use the profiling support in PSyclone.
 It instruments two invoke statements and can link in with any
 of the following profiling wrapper libraries: template,
-simple_timer, dl_timer, and DrHook (see
+simple_timer, dl_timer, TAU, and DrHook (see
 :ref:`profiling_third_party_tools`). The ``README.md``
 file contains detailed instructions on how to build the
 different executables. By default (i.e. just using ``make``
@@ -360,7 +362,7 @@ Example 1: Basic Operation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Basic operation of PSyclone with an ``invoke()`` containing two
-kernels, one :ref:`user-supplied <dynamo0.3-kernel>`, the other a
+kernels, one :ref:`user-supplied <lfric-kernel>`, the other a
 :ref:`Built-in <lfric-built-ins>`. Code is generated both with and
 without distributed-memory support. Also demonstrates the use of the
 ``-d`` flag to specify where to search for user-supplied kernel code
@@ -370,7 +372,7 @@ Example 2: Applying Transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A more complex example showing the use of PSyclone
-:ref:`transformations <dynamo0.3-api-transformations>` to
+:ref:`transformations <lfric-api-transformations>` to
 change the generated PSy-layer code. Provides examples of
 kernel-inlining and loop-fusion transformations.
 
@@ -479,34 +481,49 @@ better job when optimising the code.
 Example 14: OpenACC
 ^^^^^^^^^^^^^^^^^^^
 
-Example of adding OpenACC directives in the dynamo0.3 API.
-A single transformation script (``acc_parallel_dm.py``) is provided
-which demonstrates how to add OpenACC Loop, Parallel and Enter Data
+Example of adding OpenACC directives in the LFRic API.
+A single transformation script (``acc_parallel.py``) is provided
+which demonstrates how to add OpenACC Kernels and Enter Data
 directives to the PSy-layer. It supports distributed memory being
-switched on by placing an OpenACC Parallel directive around each
-OpenACC Loop directive, rather than having one for the whole invoke.
+switched on by placing an OpenACC Kernels directive around each
+(parallelisable) loop, rather than having one for the whole invoke.
 This approach avoids having halo exchanges within an OpenACC Parallel
 region. The script also uses :ref:`ACCRoutineTrans <available_kernel_trans>`
 to transform the one user-supplied kernel through
 the addition of an ``!$acc routine`` directive. This ensures that the
 compiler builds a version suitable for execution on the accelerator (GPU).
 
-The generated code has two problems:
+This script is used by the supplied Makefile. The invocation of PSyclone
+within that Makefile also specifies the ``--profile invokes`` option so that
+each ``invoke`` is enclosed within profiling calipers (by default the
+'template' profiling library supplied with PSyclone is used at the link
+stage). Compilation of the example using the NVIDIA compiler may be performed
+by e.g.:
 
- 1. There are no checks on whether loops are safe to parallelise or not,
-    it is just assumed they are - i.e. support for colouring or locking
-    is not yet implemented.
- 2. Although the user-supplied kernel is transformed so as to have the
-    necessary ``!$acc routine`` directive, the associated (but unnecessary)
-    ``use`` statement in the transformed Algorithm layer still uses the
-    name of the original, untransformed kernel (issue #1724).
+.. code-block:: bash
+		
+   > F90=nvfortran F90FLAGS="-acc -Minfo=all" make compile
 
-Since no colouring is required in this case, the generated Alg layer
-may be fixed by hand (by simply deleting the offending ``use`` statement)
-and the resulting code compiled and run on GPU. However, performance will
-be very poor as, with the limited optimisations and directives currently
-applied, the NVIDIA compiler refuses to run the user-supplied kernel in
-parallel.
+Launching the resulting binary with ``NV_ACC_NOTIFY`` set will show details
+of the kernel launches and data transfers:
+
+.. code-block:: bash
+
+   > NV_ACC_NOTIFY=3 ./example_openacc
+   ...
+     Step             5 : chksm =    2.1098315506694516E-004
+     PreStart called for module 'main_psy' region 'invoke_2-setval_c-r2'
+    upload CUDA data  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=183 device=0 threadid=1 variable=.attach. bytes=144
+    upload CUDA data  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=183 device=0 threadid=1 variable=.attach. bytes=144
+    launch CUDA kernel  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=186 device=0 threadid=1 num_gangs=5 num_workers=1 vector_length=128 grid=5 block=128
+     PostEnd called for module 'main_psy' region 'invoke_2-setval_c-r2'
+    download CUDA data  file=PSyclone/src/psyclone/tests/test_files/dynamo0p3/infrastructure//field/field_r64_mod.f90 function=log_minmax line=756 device=0 threadid=1 variable=self%data(:) bytes=4312
+    20230807214504.374+0100:INFO : Min/max minmax of field1 =   0.30084014E+00  0.17067212E+01
+   ...
+
+However, performance will be very poor as, with the limited
+optimisations and directives currently applied, the NVIDIA compiler
+refuses to run the user-supplied kernel in parallel.
 
 Example 15: CPU Optimisation of Matvec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

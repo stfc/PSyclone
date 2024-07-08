@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -114,6 +114,7 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
             :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
 
         '''
+        cls._index += 1  # ncell_3d
         cls._add_arg(meta_arg)
 
     @classmethod
@@ -127,6 +128,10 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
 
         '''
         cls._add_arg(meta_arg)
+        cls._index += 1  # nrow
+        if meta_arg.function_space_to != meta_arg.function_space_from:
+            cls._index += 1  # ncol
+        cls._index += 5  # bandwidth, alpha, beta, gamma_m, gamma_p
 
     @classmethod
     def _add_arg(cls, meta_arg):

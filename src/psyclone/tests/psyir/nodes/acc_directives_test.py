@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,37 +34,83 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 
-from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import ACCRoutineDirective, \
-    ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
-from psyclone.psyir.symbols import SymbolTable
-from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCKernelsTrans
+from psyclone.psyir.nodes import (ACCKernelsDirective,
+                                  ACCLoopDirective,
+                                  ACCParallelDirective,
+                                  ACCRegionDirective,
+                                  ACCRoutineDirective,
+                                  ACCUpdateDirective,
+                                  ACCAtomicDirective,
+                                  Assignment,
+                                  Literal,
+                                  Reference,
+                                  Return,
+                                  Routine)
+from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
+from psyclone.psyir.transformations import ACCKernelsTrans
+from psyclone.transformations import (
+    ACCDataTrans, ACCEnterDataTrans, ACCLoopTrans,
+    ACCParallelTrans, ACCRoutineTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use a new Config instance.'''
-    Config._instance = None
-    yield
-    Config._instance = None
+# Class ACCRegionDirective
 
+class MyACCRegion(ACCRegionDirective):
+    '''Concreate test class sub-classed from ACCRegionDirective.'''
+
+
+def test_accregiondir_validate_global(fortran_reader):
+    '''Check that the validate_global_constraints() method rejects PSyDataNode
+    and CodeBlock nodes.'''
+    accnode = MyACCRegion()
+    cblock = fortran_reader.psyir_from_statement("write(*,*) 'hello'",
+                                                 SymbolTable())
+    accnode.dir_body.addchild(cblock)
+    with pytest.raises(GenerationError) as err:
+        accnode.validate_global_constraints()
+    assert ("Cannot include CodeBlocks or calls to PSyData routines within "
+            "OpenACC regions but found ['CodeBlock'] within a region enclosed "
+            "by an 'MyACCRegion'" in str(err.value))
+
+
+def test_accregiondir_signatures():
+    '''Test the signatures property of ACCRegionDirective.'''
+    routine = Routine("test_prog")
+    accnode = MyACCRegion()
+    routine.addchild(accnode)
+    bob = DataSymbol("bob", INTEGER_TYPE)
+    richard = DataSymbol("richard", INTEGER_TYPE)
+    routine.symbol_table.add(bob)
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Reference(richard)))
+    # pylint: disable=unbalanced-tuple-unpacking
+    reads, writes = accnode.signatures
+    assert Signature("richard") in reads
+    assert Signature("bob") in writes
 
 # Class ACCEnterDataDirective start
 
@@ -74,12 +120,13 @@ def test_accenterdatadirective_gencode_1():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, raises the expected exception as there is no
     following OpenACC Parallel or OpenACC Kernels directive as at
-    least one is required. This test uses the dynamo0.3 API.
+    least one is required. This test uses the lfric API.
 
     '''
+    API = "lfric"
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     acc_enter_trans.apply(sched)
     with pytest.raises(GenerationError) as excinfo:
@@ -103,12 +150,13 @@ def test_accenterdatadirective_gencode_2():
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with multiple loops, raises the expected exception, as there is no
     following OpenACC Parallel or OpenACCKernels directive and at
-    least one is required. This test uses the dynamo0.3 API.
+    least one is required. This test uses the lfric API.
 
     '''
+    API = "lfric"
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
     acc_enter_trans.apply(sched)
     with pytest.raises(GenerationError) as excinfo:
@@ -124,21 +172,21 @@ def test_accenterdatadirective_gencode_3(trans):
     '''Test that an OpenACC Enter Data directive, when added to a schedule
     with a single loop, produces the expected code (there should be
     "copy in" data as there is a following OpenACC parallel or kernels
-    directive). This test uses the dynamo0.3 API.
+    directive). This test uses the lfric API.
 
     '''
+    API = "lfric"
     acc_trans = trans()
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
     acc_trans.apply(sched.children)
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
-        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "      !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
+        "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n" in code)
 
 
@@ -153,23 +201,23 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     with multiple loops and multiple OpenACC parallel and/or Kernel
     directives, produces the expected code (when the same argument is
     used in multiple loops there should only be one entry). This test
-    uses the dynamo0.3 API.
+    uses the lfric API.
 
     '''
+    API = "lfric"
     acc_trans1 = trans1()
     acc_trans2 = trans2()
     acc_enter_trans = ACCEnterDataTrans()
-    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    _, info = parse(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0').schedule
     acc_trans1.apply([sched.children[1]])
     acc_trans2.apply([sched.children[0]])
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
-        "f2_proxy,f2_proxy%data,f3_proxy,f3_proxy%data,m1_proxy,m1_proxy%data,"
-        "m2_proxy,m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
+        "      !$acc enter data copyin(f1_data,f2_data,f3_data,m1_data,"
+        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
         "nlayers,undf_w1,undf_w2,undf_w3)\n" in code)
 
 
@@ -184,8 +232,8 @@ def test_accloopdirective_node_str(monkeypatch):
                         lambda x: "ACCLoopDirective")
 
     # Default value output
-    expected = ("ACCLoopDirective[sequential=False,collapse=None,"
-                "independent=True]")
+    expected = ("ACCLoopDirective[sequential=False,gang=False,vector=False,"
+                "collapse=None,independent=True]")
     assert directive.node_str() == expected
     assert str(directive) == expected
 
@@ -193,8 +241,10 @@ def test_accloopdirective_node_str(monkeypatch):
     directive._sequential = True
     directive._collapse = 2
     directive._independent = False
-    expected = ("ACCLoopDirective[sequential=True,collapse=2,"
-                "independent=False]")
+    directive._gang = True
+    directive._vector = True
+    expected = ("ACCLoopDirective[sequential=True,gang=True,vector=True,"
+                "collapse=2,independent=False]")
     assert directive.node_str() == expected
     assert str(directive) == expected
 
@@ -244,6 +294,60 @@ def test_accloopdirective_equality():
     directive2._sequential = not directive1._sequential
     assert directive1 != directive2
 
+    # Check equality fails when gang is different
+    directive2._sequential = directive1.sequential
+    directive2._gang = not directive1._gang
+    assert directive1 != directive2
+
+    # Check equality fails when vector is different
+    directive2._gang = directive1.gang
+    directive2._vector = not directive1._vector
+    assert directive1 != directive2
+
+
+def test_accloopdirective_validate(fortran_reader):
+    '''
+    Check the validate_global_constraints method of ACCLoopDirective. For
+    an ACC loop to validate, it must either be within an 'ACC parallel/kernels'
+    region or in a routine with an 'ACC routine' directive.
+
+    '''
+    code = '''\
+subroutine my_sub()
+  implicit none
+  real, dimension(10,10) :: var
+  integer :: ji, jj
+  do jj = 1, 10
+    do ji = 1, 10
+      var(ji,jj) = ji + jj
+    end do
+  end do
+end subroutine my_sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    # Add an orphan ACC loop directive.
+    acclooptrans = ACCLoopTrans()
+    acclooptrans.apply(routine[0])
+    # This should be rejected.
+    with pytest.raises(GenerationError) as err:
+        routine[0].validate_global_constraints()
+    assert ("ACCLoopDirective in routine 'my_sub' must either have an "
+            "ACCParallelDirective or ACCKernelsDirective as an ancestor in "
+            "the Schedule or the routine must contain an ACCRoutineDirective."
+            in str(err.value))
+    # Add an ACCRoutineDirective.
+    accrtrans = ACCRoutineTrans()
+    accrtrans.apply(routine)
+    routine[0].validate_global_constraints()
+    # Remove the ACCRoutineDirective.
+    routine.children.pop(index=0)
+    with pytest.raises(GenerationError) as err:
+        routine[0].validate_global_constraints()
+    # Add an ACC Parallel region
+    accptrans = ACCParallelTrans()
+    accptrans.apply(routine.children)
+    routine[0].validate_global_constraints()
+
 # Class ACCLoopDirective end
 
 
@@ -268,11 +372,12 @@ def test_acckernelsdirective_init():
 @pytest.mark.parametrize("default_present", [False, True])
 def test_acckernelsdirective_gencode(default_present):
     '''Check that the gen_code method in the ACCKernelsDirective class
-    generates the expected code. Use the dynamo0.3 API.
+    generates the expected code. Use the lfric API.
 
     '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"))
-    psy = PSyFactory(distributed_memory=False).create(info)
+    API = "lfric"
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"), api=API)
+    psy = PSyFactory(api=API, distributed_memory=False).create(info)
     sched = psy.invokes.get('invoke_0_testkern_type').schedule
 
     trans = ACCKernelsTrans()
@@ -284,7 +389,7 @@ def test_acckernelsdirective_gencode(default_present):
         string = " default(present)"
     assert (
         f"      !$acc kernels{string}\n"
-        f"      DO cell=loop0_start,loop0_stop\n" in code)
+        f"      DO cell = loop0_start, loop0_stop, 1\n" in code)
     assert (
         "      END DO\n"
         "      !$acc end kernels\n" in code)
@@ -312,15 +417,40 @@ def test_acc_routine_directive_constructor_and_strings():
     ''' Test the ACCRoutineDirective constructor and its output
     strings.'''
     target = ACCRoutineDirective()
-    assert target.begin_string() == "acc routine"
+    # Defaults to sequential.
+    assert target.begin_string() == "acc routine seq"
     assert str(target) == "ACCRoutineDirective[]"
 
     temporary_module = ModuleGen("test")
     target.gen_code(temporary_module)
-    assert "!$acc routine\n" in str(temporary_module.root)
+    assert "!$acc routine seq\n" in str(temporary_module.root)
 
+    target2 = ACCRoutineDirective("VECTOR")
+    assert target2.parallelism == "vector"
+    assert target2.begin_string() == "acc routine vector"
+    target3 = ACCRoutineDirective("GANG")
+    assert target3.parallelism == "gang"
+    target4 = ACCRoutineDirective("WORKER")
+    assert target4.parallelism == "worker"
+
+
+def test_acc_routine_parallelism():
+    ''' Test the ACCRoutineDirective parallelism property. '''
+    target = ACCRoutineDirective()
+    assert target.parallelism == "seq"
+    target.parallelism = "vector"
+    assert target.parallelism == "vector"
+    with pytest.raises(TypeError) as err:
+        target.parallelism = 1
+    assert ("Expected a str to specify the level of parallelism but got 'int'"
+            in str(err.value))
+    with pytest.raises(ValueError) as err:
+        target.parallelism = "sequential"
+    assert ("Expected one of ['seq', 'vector', 'worker', 'gang'] for the level"
+            " of parallelism but got 'sequential'" in str(err.value))
 
 # Class ACCUpdateDirective
+
 
 def test_accupdatedirective_init():
     ''' Test the constructor of ACCUpdateDirective node. '''
@@ -390,3 +520,172 @@ def test_accupdatedirective_equality():
     # Check equality fails when different if_present settings
     directive5 = ACCUpdateDirective(sig, "device", if_present=False)
     assert directive1 != directive5
+
+
+def test_accdatadirective_update_data_movement_clauses(fortran_reader,
+                                                       fortran_writer):
+    '''Test that the data movement clauses are constructed correctly for the
+    ACCDataDirective class and that they are updated appropriately when the
+    tree beneath them is changed.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "program dtype_read\n"
+        "use field_mod, only: fld_type\n"
+        "integer, parameter :: jpj = 10\n"
+        "type(fld_type), dimension(5) :: small_holding\n"
+        "real, dimension(jpj) :: sto_tmp\n"
+        "integer :: ji, jf\n"
+        "real, dimension(jpj) :: sfactor\n"
+        "sfactor(:) = 0.1\n"
+        "sto_tmp(:) = 0.0\n"
+        "jf = 3\n"
+        "do ji = 1,jpj\n"
+        "  sto_tmp(ji) = sto_tmp(ji) + small_holding(3)%grid(jf)%data(ji)\n"
+        "  sto_tmp(ji) = sfactor * sto_tmp(ji)\n"
+        "end do\n"
+        "end program dtype_read\n")
+    loop = psyir.walk(Loop)[0]
+    dtrans = ACCDataTrans()
+    dtrans.apply(loop)
+    output = fortran_writer(psyir)
+    expected = ("!$acc data copyin(sfactor,small_holding,small_holding(3)%grid"
+                ",small_holding(3)%grid(jf)%data), copy(sto_tmp)")
+    assert expected in output
+    # Check that calling update_signal() explicitly has no effect as the tree
+    # has not changed.
+    loop.update_signal()
+    output = fortran_writer(psyir)
+    assert expected in output
+    # Now remove the second statement from the loop body.
+    del loop.loop_body.children[1]
+    output = fortran_writer(psyir)
+    # 'sfactor' should have been removed from the copyin()
+    assert ("!$acc data copyin(small_holding,small_holding(3)%grid,"
+            "small_holding(3)%grid(jf)%data), copy(sto_tmp)" in output)
+
+
+def test_accparalleldirective():
+    '''
+    Test the ACCParallelDirective constructors, property getters and
+    setters and string methods.
+    '''
+
+    # It can be created
+    accpar = ACCParallelDirective()
+    assert isinstance(accpar, ACCParallelDirective)
+    assert accpar._default_present is True
+
+    # Also without default(present)
+    accpar = ACCParallelDirective(default_present=False)
+    assert isinstance(accpar, ACCParallelDirective)
+    assert accpar._default_present is False
+
+    # But only with boolean values
+    with pytest.raises(TypeError) as err:
+        _ = ACCParallelDirective(default_present=3)
+    assert ("The ACCParallelDirective default_present property must be a "
+            "boolean but value '3' has been given." in str(err.value))
+
+    # The default present value has getter and setter
+    accpar.default_present = True
+    assert accpar.default_present is True
+
+    with pytest.raises(TypeError) as err:
+        accpar.default_present = "invalid"
+    assert ("The ACCParallelDirective default_present property must be a "
+            "boolean but value 'invalid' has been given." in str(err.value))
+
+    # The begin string depends on the default present value
+    accpar.default_present = True
+    assert accpar.begin_string() == "acc parallel default(present)"
+    accpar.default_present = False
+    assert accpar.begin_string() == "acc parallel"
+
+    # It has an end_string
+    assert accpar.end_string() == "acc end parallel"
+
+
+def test_acc_atomics_is_valid_atomic_statement(fortran_reader):
+    ''' Test the ACCAtomicDirective can identify when a statement is a valid
+    expression to support OpenACC atomics. '''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) * 2
+        A(1,1) = A(1,1) / (2 + 3 - 5)
+        A(1,1) = MAX(A(1,1), A(1,2))
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    for stmt in tree.walk(Assignment):
+        assert ACCAtomicDirective.is_valid_atomic_statement(stmt)
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) ** 2  ! Operator is not supported
+        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
+        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
+        A(:,1) = A(:,1) / 2      ! It is not a scalar expression
+        A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    for stmt in tree.walk(Assignment):
+        assert not ACCAtomicDirective.is_valid_atomic_statement(stmt)
+
+    # Its also not valid if its not an Assignment
+    assert not ACCAtomicDirective.is_valid_atomic_statement(Return())
+
+
+def test_acc_atomics_validate_global_constraints(fortran_reader, monkeypatch):
+    ''' Test the ACCAtomicDirective can check the globals constraints to
+    validate that the directive is correctly formed.'''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) * 2
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    routine = tree.walk(Routine)[0]
+    stmt = routine.children[0]
+    atomic = ACCAtomicDirective()
+    atomic.dir_body.addchild(stmt.detach())
+    routine.addchild(atomic)
+
+    # This is a valid atomic
+    atomic.validate_global_constraints()
+
+    # If the statement is invalid (for any reason already tested in a previous
+    # test), it raises an error
+    monkeypatch.setattr(atomic, "is_valid_atomic_statement", lambda _: False)
+    with pytest.raises(GenerationError) as err:
+        atomic.validate_global_constraints()
+    assert "is not a valid OpenACC Atomic statement." in str(err.value)
+
+    # If it doesn not have an associated statement
+    atomic.dir_body[0].detach()
+    with pytest.raises(GenerationError) as err:
+        atomic.validate_global_constraints()
+    assert ("Atomic directives must always have one and only one associated "
+            "statement, but found " in str(err.value))
+
+
+def test_acc_atomics_srtings():
+    ''' Test the ACCAtomicDirective begin and end strings '''
+    atomic = ACCAtomicDirective()
+    assert atomic.begin_string() == "acc atomic"
+    assert atomic.end_string() == "acc end atomic"

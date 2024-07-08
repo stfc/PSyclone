@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -105,11 +105,11 @@ single_prof.exe: ${INF_LIB} ${PROFILE_LIB} psy_prof.f90 kernels psy_prof.o alg_p
 ${PROFILE_LIB} ${NVTX_LINK} -o single.exe
 
 psy.f90 alg_gen.f90: alg.f90
-	${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py -opsy psy.f90 \
+	${PSYCLONE} -api "gocean" -s ./acc_transform.py -opsy psy.f90 \
 -oalg alg_gen.f90 alg.f90
 
 psy_prof.f90 alg_prof.f90: alg.f90
-	${PSYCLONE} -l all -api "gocean1.0" -s ./acc_prof_transform.py -opsy psy_prof.f90 \
+	${PSYCLONE} -l all -api "gocean" -s ./acc_prof_transform.py -opsy psy_prof.f90 \
 -oalg alg_prof.f90 alg.f90
 
 %.o: %.f90

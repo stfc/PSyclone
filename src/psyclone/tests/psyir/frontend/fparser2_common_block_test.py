@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import CommonBlockInterface, \
-    UnknownFortranType
+    UnsupportedFortranType
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -64,7 +64,7 @@ def test_named_common_block():
 
     # There is a name1 commonblock symbol
     commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert isinstance(commonblock.datatype, UnsupportedFortranType)
     assert commonblock.datatype.declaration == "COMMON /name1/ a, b, c"
 
     # The variables have been updated to a common block interface
@@ -104,9 +104,9 @@ def test_unnamed_commonblock():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is an UnknownFortranType symbol containing the commonblock
+    # There is an UnsupportedFortranType symbol containing the commonblock
     commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert isinstance(commonblock.datatype, UnsupportedFortranType)
     assert commonblock.datatype.declaration == "COMMON // a, b, c"
 
     # The variables have been updated to a common block interface
@@ -133,12 +133,12 @@ def test_multiple_commonblocks_in_statement():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is a UnknownFortranType symbol containing each the commonblock
+    # There is a UnsupportedFortranType symbol containing each the commonblock
     commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert isinstance(commonblock.datatype, UnsupportedFortranType)
     assert commonblock.datatype.declaration == "COMMON /name1/ a, b /name2/ c"
     commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK_1")
-    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert isinstance(commonblock.datatype, UnsupportedFortranType)
     assert commonblock.datatype.declaration == "COMMON /name2/ d"
 
     # The variables have been updated to a common block interface
@@ -165,9 +165,9 @@ def test_named_commonblock_with_posterior_declaration():
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(routine, fparser2spec.content, [])
 
-    # There is an UnknownFortranType symbol containing the commonblock
+    # There is an UnsupportedFortranType symbol containing the commonblock
     commonblock = symtab.lookup("_PSYCLONE_INTERNAL_COMMONBLOCK")
-    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert isinstance(commonblock.datatype, UnsupportedFortranType)
     assert commonblock.datatype.declaration == "COMMON /name1/ a, b"
 
     # The variables have been updated to a common block interface
@@ -216,3 +216,23 @@ def test_commonblock_with_explicit_array_shape_symbol():
     assert ("The symbol interface of a common block variable could not be "
             "updated because of \"Could not find 'a(10, 4)' in the Symbol "
             "Table.\"." in str(err.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_commonblock_with_explicit_init_symbol():
+    ''' Test that commonblocks containing a symbol declared with explicit
+    initialisation produce NotImplementedError.'''
+
+    # Create a dummy test routine
+    routine = Routine("test_routine")
+    processor = Fparser2Reader()
+
+    # This is also invalid Fortran, but fparser2 doesn't notice.
+    reader = FortranStringReader('''
+        integer :: a = 10
+        common /name1/ a''')
+    fparser2spec = Specification_Part(reader)
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(routine, fparser2spec.content, [])
+    assert ("Symbol 'a' has an initial value (10) but appears in a common "
+            "block." in str(err.value))
