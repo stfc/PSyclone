@@ -580,6 +580,16 @@ class FortranWriter(LanguageWriter):
         datatype = gen_datatype(symbol.datatype, symbol.name)
         result = f"{self._nindent}{datatype}"
 
+        # if (isinstance(symbol, (DataSymbol, StructureType.ComponentType))
+        #     and symbol.is_pointer):
+        if symbol.is_pointer:
+            result += ", pointer"
+
+        # if (isinstance(symbol, (DataSymbol, StructureType.ComponentType))
+        #     and symbol.is_target):
+        if symbol.is_target:
+            result += ", target"
+
         if ArrayType.Extent.DEFERRED in array_shape:
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"

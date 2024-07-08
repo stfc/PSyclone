@@ -1908,9 +1908,20 @@ class Fparser2Reader():
         decln_access_spec = None
         # 6) Whether this declaration has the SAVE attribute.
         has_save_attr = False
+        # 7) Whether this declaration has the POINTER or TARGET attribute.
+        has_pointer_attr = False
+        has_target_attr = False
         if attr_specs:
             for attr in attr_specs.items:
-                if isinstance(attr, Fortran2003.Attr_Spec):
+                # NOTE: for a routine declaration, 'POINTER' or 'TARGET' is
+                # an Attr_Spec, but in a derived type declaration component
+                # it is not.
+                normalized_string = str(attr).lower().replace(' ', '')
+                if normalized_string == "pointer":
+                        has_pointer_attr = True
+                elif normalized_string == "target":
+                        has_target_attr = True
+                elif isinstance(attr, Fortran2003.Attr_Spec):
                     normalized_string = str(attr).lower().replace(' ', '')
                     if normalized_string == "save":
                         if interface is not None:
@@ -1953,8 +1964,9 @@ class Fparser2Reader():
                             f"{err.value}") from err
                 else:
                     raise NotImplementedError(
-                        f"Could not process declaration '{decl}'. Unrecognised"
-                        f" attribute type '{type(attr).__name__}'.")
+                        f"Could not process declaration '{decl}'. "
+                        f"Unrecognised attribute type "
+                        f"'{type(attr).__name__}'.")
 
             # There are some combinations of attributes that are not valid
             # Fortran but fparser does not check, so we need to check for them
@@ -2084,7 +2096,9 @@ class Fparser2Reader():
                                    visibility=visibility,
                                    interface=this_interface,
                                    is_constant=has_constant_value,
-                                   initial_value=init_expr)
+                                   initial_value=init_expr,
+                                   is_pointer=has_pointer_attr,
+                                   is_target=has_target_attr)
                 else:
                     if sym is symbol_table.lookup_with_tag(
                             "own_routine_symbol"):
@@ -2108,7 +2122,9 @@ class Fparser2Reader():
                     sym = DataSymbol(sym_name, datatype,
                                      visibility=visibility,
                                      is_constant=has_constant_value,
-                                     initial_value=init_expr)
+                                     initial_value=init_expr,
+                                     is_pointer=has_pointer_attr,
+                                     is_target=has_target_attr)
                 except ValueError:
                     # Error setting initial value have to be raised as
                     # NotImplementedError in order to create an UnsupportedType
@@ -2230,7 +2246,8 @@ class Fparser2Reader():
             # Convert from Symbols to type information
             for symbol in local_table.symbols:
                 dtype.add(symbol.name, symbol.datatype, symbol.visibility,
-                          symbol.initial_value)
+                          symbol.initial_value, symbol.is_pointer,
+                          symbol.is_target)
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype

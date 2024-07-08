@@ -724,8 +724,11 @@ class StructureType(DataType):
     '''
     # Each member of a StructureType is represented by a ComponentType
     # (named tuple).
+    # NOTE: the defaults are set to False for the last two arguments,
+    # is_pointer and is_target.
     ComponentType = namedtuple("ComponentType", [
-        "name", "datatype", "visibility", "initial_value"])
+        "name", "datatype", "visibility", "initial_value", "is_pointer", 
+        "is_target"], defaults=[False, False])
 
     def __init__(self):
         self._components = OrderedDict()
@@ -745,7 +748,9 @@ class StructureType(DataType):
             :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`,
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`,
-            Optional[:py:class:`psyclone.psyir.symbols.DataNode`]
+            Optional[:py:class:`psyclone.psyir.symbols.DataNode`],
+            bool,
+            bool
             ]]
 
         :returns: the new type object.
@@ -754,10 +759,11 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) != 4:
+            if len(component) not in (4, 5, 6):
                 raise TypeError(
-                    f"Each component must be specified using a 4-tuple of "
-                    f"(name, type, visibility, initial_value) but found a "
+                    f"Each component must be specified using a 6-tuple of "
+                    f"(name, type, visibility, initial_value, is_pointer, "
+                    f"is_target), the two of which are optional, but found a "
                     f"tuple with {len(component)} members: {component}")
             stype.add(*component)
         return stype
@@ -770,7 +776,8 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility, initial_value):
+    def add(self, name, datatype, visibility, initial_value, is_pointer=False,
+            is_target=False):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
@@ -784,6 +791,8 @@ class StructureType(DataType):
         :param initial_value: the initial value of the new component.
         :type initial_value: Optional[
             :py:class:`psyclone.psyir.nodes.DataNode`]
+        :param bool is_pointer: whether this component is a pointer.
+        :param bool is_target: whether this component is a target.
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
@@ -818,9 +827,22 @@ class StructureType(DataType):
                 f"The initial value of a component of a StructureType must "
                 f"be None or an instance of 'DataNode', but got "
                 f"'{type(initial_value).__name__}'.")
+        if not isinstance(is_pointer, bool):
+            raise TypeError(
+                f"The is_pointer attribute of a component of a StructureType "
+                f"must be a 'bool' but got '{type(is_pointer).__name__}'.")
+        if not isinstance(is_target, bool):
+            raise TypeError(
+                f"The is_target attribute of a component of a StructureType "
+                f"must be a 'bool' but got '{type(is_target).__name__}'.")
+        if is_pointer and is_target:
+            raise ValueError(
+                f"A component of a StructureType cannot be both a pointer "
+                f"and a target but got is_pointer={is_pointer} and "
+                f"is_target={is_target}.")
 
         self._components[name] = self.ComponentType(
-            name, datatype, visibility, initial_value)
+            name, datatype, visibility, initial_value, is_pointer, is_target)
 
     def lookup(self, name):
         '''
