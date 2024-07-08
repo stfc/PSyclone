@@ -622,7 +622,7 @@ def test_parallelregion_refuse_codeblock():
                                     None)])
     with pytest.raises(TransformationError) as err:
         otrans.validate([parent])
-    assert ("cannot be enclosed by a "
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
             "OMPParallelTrans transformation" in str(err.value))
 
 
@@ -640,7 +640,7 @@ def test_parallellooptrans_refuse_codeblock():
                                     None)])
     with pytest.raises(TransformationError) as err:
         otrans.validate(parent)
-    assert ("cannot be enclosed "
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed "
             "by a OMPParallelLoopTrans transformation" in str(err.value))
 
 
@@ -678,8 +678,8 @@ def test_ompsingle_nested():
     single.apply(schedule[0])
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
-    assert ("cannot be enclosed by a OMPSingleTrans transformation"
-            in str(err.value))
+    assert ("Nodes of type 'OMPSingleDirective' cannot be enclosed by a "
+            "OMPSingleTrans transformation" in str(err.value))
 
 
 # Tests for OMPMasterTrans
@@ -708,8 +708,8 @@ def test_ompmaster_nested():
     assert schedule[0].dir_body[0] is node
     with pytest.raises(TransformationError) as err:
         master.apply(schedule[0])
-    assert ("cannot be enclosed by a OMPMasterTrans transformation"
-            in str(err.value))
+    assert ("Nodes of type 'OMPMasterDirective' cannot be enclosed by a "
+            "OMPMasterTrans transformation" in str(err.value))
 
 
 # Tests for ProfileTrans

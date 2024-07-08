@@ -49,7 +49,10 @@ MPI=yes make
 It uses ``NO_MPI`` as preprocessor directive, which is what the LFRic build
 environment uses, so the source files can be copied into the LFRic build, and
 will automatically be using MPI (or not), depending on compilation options used
-for LFRic.
+for LFRic. In order to support MPI in extraction (which means each process will write
+its own output data by appending its rank to the filename), set the environment
+variable ``MPI=yes`` before starting the build process (which will make sure
+that ``NO_MPI`` is not set).
 
 By default the ``Makefile`` links with the pared-down
 LFRic infrastructure located in a clone of PSyclone repository,

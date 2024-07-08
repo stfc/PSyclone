@@ -159,10 +159,9 @@ file name. So each kernel and each rank will produce one file. It is possible
 to extract several consecutive kernels, but there must be no halo exchange
 call between the kernels. The extraction transformation will test for this
 and raise an exception if this should happen.
-Note that at this stage the driver does not actually support reading in
-several files (or files with a rank number). You need to manually remove
-the rank number in order for the driver to read the file. Issue #2382 keeps
-track of improving this.
+The compiled driver program accepts the name of the extracted kernel file as command
+line parameter. If this is not specified, it will use the default name
+(``module-region`` without a rank).
 
 
 .. _psyke-intro-restrictions-shared:
