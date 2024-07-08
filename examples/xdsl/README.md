@@ -24,7 +24,7 @@ The xDSL backend has the following dependencies:
 
     > See the [xDSL training](https://github.com/xdslproject/training-intro/blob/main/practical/general/local.md) for more information on building and installing the required MLIR and LLVM tool.
 
-3. The PSyclone xDSL dialects and transformations [`psy`](https://github.com/xdslproject/psy) are also required (commit hash [#d7e836c](https://github.com/xdslproject/psy/commits/d7e836c) in the `initial_merge_update` branch).
+3. The PSyclone xDSL dialects and transformations [`psy`](https://github.com/xdslproject/psy) are also required.
 4. The PSyclone xDSL Fortran support functionality [`ftn`](https://github.com/xdslproject/ftn) 
 5. Once you have installed the above dependencies, you will need to set your `PYTHONPATH` environment variable to include the following directories:
 
