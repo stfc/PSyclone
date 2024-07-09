@@ -86,6 +86,19 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         cls._info = symbol_table
 
     @classmethod
+    def _add_precision_symbol(cls, sym):
+        '''
+        '''
+        if sym.name in cls._info:
+            return
+        const = lfric.LFRicConstants()
+        mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+        mod_sym = cls._info.find_or_create(mod_name,
+                                           symbol_type=symbols.ContainerSymbol)
+        sym.interface = symbols.ImportInterface(mod_sym)
+        cls._info.add(sym)
+
+    @classmethod
     def _cell_position(cls):
         ''''cell' argument providing the cell position. This is an integer of
         type i_def and has intent in.
@@ -704,34 +717,43 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         ndf_name = cls._ndf_name(function_space)
         ndf_symbol = cls._get_or_create_lfric_symbol(
             "NumberOfDofsDataSymbol", ndf_name)
+
         for shape in cls._metadata.shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
+                quad_name = shape.split('_')[-1]
                 if shape == "gh_quadrature_xyoz":
                     np_xy_symbol = cls._get_or_create_lfric_symbol(
-                        "LFRicIntegerScalarDataSymbol", "np_xy")
+                        "LFRicIntegerScalarDataSymbol",
+                        f"np_xy_qr_{quad_name}")
                     np_z_symbol = cls._get_or_create_lfric_symbol(
-                        "LFRicIntegerScalarDataSymbol", "np_z")
+                        "LFRicIntegerScalarDataSymbol", f"np_z_qr_{quad_name}")
+                    cls._append_to_arg_list(np_xy_symbol)
+                    cls._append_to_arg_list(np_z_symbol)
                     dims = [dimension_literal, ndf_symbol, np_xy_symbol,
                             np_z_symbol]
                 elif shape == "gh_quadrature_face":
                     np_xyz_symbol = cls._get_or_create_lfric_symbol(
-                        "LFRicIntegerScalarDataSymbol", "np_xyz")
+                        "LFRicIntegerScalarDataSymbol", f"np_xyz_qr_{quad_name}")
                     nfaces_symbol = cls._get_or_create_lfric_symbol(
-                        "LFRicIntegerScalarDataSymbol", "nfaces")
+                        "LFRicIntegerScalarDataSymbol", f"nfaces_qr_{quad_name}")
+                    cls._append_to_arg_list(np_xyz_symbol)
+                    cls._append_to_arg_list(nfaces_symbol)
                     dims = [dimension_literal, ndf_symbol, np_xyz_symbol,
                             nfaces_symbol]
                 elif shape == "gh_quadrature_edge":
                     np_xyz_symbol = cls._get_or_create_lfric_symbol(
-                        "LFRicIntegerScalarDataSymbol", "np_xyz")
+                        "LFRicIntegerScalarDataSymbol", f"np_xyz_qr_{quad_name}")
                     nedges_symbol = cls._get_or_create_lfric_symbol(
-                        "LFRicIntegerScalarDataSymbol", "nedges")
+                        "LFRicIntegerScalarDataSymbol", f"nedges_qr_{quad_name}")
+                    cls._append_to_arg_list(np_xyz_symbol)
+                    cls._append_to_arg_list(nedges_symbol)
                     dims = [dimension_literal, ndf_symbol, np_xyz_symbol,
                             nedges_symbol]
                 else:
                     raise Exception("xxx")
                 cls._add_array_symbol_name(
-                    "LFRicIntegerScalarDataType",
-                    f"{name}_{function_space_name}_qr_{shape.split('_')[-1]}",
+                    "LFRicRealScalarDataType",
+                    f"{name}_{function_space_name}_qr_{quad_name}",
                     dims)
             elif shape in const.VALID_EVALUATOR_SHAPES:
                 if cls._metadata.evaluator_targets:
@@ -824,28 +846,51 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             metadata is found.
 
         '''
+        return # ARPDBG
         const = lfric.LFRicConstants()
         for quad in shapes:
             quad_name = quad.split('_')[-1]
             if quad == "gh_quadrature_xyoz":
-                cls.arg_info.extend([
-                    f"npxy_{quad_name}", f"np_z_{quad_name}",
-                    f"weights_xz_{quad_name}", f"weights_z_{quad_name}"])
-                cls._arg_index += 4
+                #cls.arg_info.extend([
+                #    f"npxy_{quad_name}", f"np_z_{quad_name}",
+                #    f"weights_xz_{quad_name}", f"weights_z_{quad_name}"])
+                #cls._arg_index += 4
+                np_xy_symbol = cls._get_or_create_lfric_symbol(
+                    "LFRicIntegerScalarDataSymbol", "np_xy")
+                np_z_symbol = cls._get_or_create_lfric_symbol(
+                    "LFRicIntegerScalarDataSymbol", "np_z")
+                dims = [dimension_literal, ndf_symbol, np_xy_symbol,
+                        np_z_symbol]
             elif quad == "gh_quadrature_face":
-                cls.arg_info.extend([
-                    f"nfaces_{quad_name}", f"np_xyz_{quad_name}",
-                    f"weights_xyz_{quad_name}"])
-                cls._arg_index += 3
+                #cls.arg_info.extend([
+                #    f"nfaces_{quad_name}", f"np_xyz_{quad_name}",
+                #    f"weights_xyz_{quad_name}"])
+                #cls._arg_index += 3
+                np_xyz_symbol = cls._get_or_create_lfric_symbol(
+                    "LFRicIntegerScalarDataSymbol", "np_xyz")
+                nfaces_symbol = cls._get_or_create_lfric_symbol(
+                    "LFRicIntegerScalarDataSymbol", "nfaces")
+                dims = [dimension_literal, ndf_symbol, np_xyz_symbol,
+                        nfaces_symbol]
             elif quad == "gh_quadrature_edge":
-                cls.arg_info.extend([
-                    f"nedges_{quad_name}", f"np_xyz_{quad_name}",
-                    f"weights_xyz_{quad_name}"])
-                cls._arg_index += 3
+                #cls.arg_info.extend([
+                #    f"nedges_{quad_name}", f"np_xyz_{quad_name}",
+                #    f"weights_xyz_{quad_name}"])
+                #cls._arg_index += 3
+                np_xyz_symbol = cls._get_or_create_lfric_symbol(
+                    "LFRicIntegerScalarDataSymbol", "np_xyz")
+                nedges_symbol = cls._get_or_create_lfric_symbol(
+                    "LFRicIntegerScalarDataSymbol", "nedges")
+                dims = [dimension_literal, ndf_symbol, np_xyz_symbol,
+                        nedges_symbol]
             else:
                 raise InternalError(
                     f"Unexpected shape metadata. Found '{quad}' but expected "
                     f"one of {const.VALID_QUADRATURE_SHAPES}.")
+            cls._add_array_symbol_name(
+                "LFRicIntegerScalarDataType",
+                f"{name}_{function_space_name}_qr_{shape.split('_')[-1]}",
+                dims)
 
     # pylint: disable=unidiomatic-typecheck
     @classmethod
@@ -1111,6 +1156,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         array_symbol = symbols.DataSymbol(
             symbol_name, array_type, interface=interface)
         cls._add_to_symbol_table(array_symbol)
+
         return array_symbol
 
     @classmethod
@@ -1164,13 +1210,19 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
     @classmethod
     def _add_to_symbol_table(cls, symbol):
         ''' xxx '''
+        #if isinstance(symbol.interface, symbols.ArgumentInterface):
+        #    cls._info.append_argument(symbol, tag=symbol.name)
+        #else:
         cls._info.add(symbol, tag=symbol.name)
+        if isinstance(symbol.datatype.precision, symbols.DataSymbol):
+            cls._add_precision_symbol(symbol.datatype.precision)
 
     @classmethod
     def _append_to_arg_list(cls, symbol):
         ''' xxx '''
         cls._info._argument_list.append(symbol)
-        # TODO???
+        # TODO this should really use SymbolTable.append_argument() but that
+        # *adds* the symbol to the table too.
         # symbol_table.specify_argument_list([arg1])
 
     @classmethod
@@ -1188,7 +1240,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         datatype = meta_arg.datatype[3:4]
         meta_arg_index = cls._metadata.meta_args.index(meta_arg)
-        return f"{datatype}field_{meta_arg_index+1}"
+        return f"{datatype}field_{meta_arg_index+1}_{meta_arg.function_space}"
 
     @classmethod
     def _operator_name(cls, meta_arg):
