@@ -105,13 +105,19 @@ def generate(filename, api=""):
     from psyclone.psyir.symbols import DataTypeSymbol
     from psyclone.errors import InternalError
     freader = fortran.FortranReader()
-    kern_psyir = freader.psyir_from_file(filename)
+    try:
+        kern_psyir = freader.psyir_from_file(filename)
+    except ValueError as err:
+        raise ParseError(f"Kernel stub generator: Code appears to be invalid "
+                         f"Fortran: {err}.") from err
+
     table = kern_psyir.children[0].symbol_table
     for sym in table.symbols:
         if isinstance(sym, DataTypeSymbol) and not sym.is_import:
             break
     else:
         raise InternalError("No DataTypeSymbol found.")
+
     metadata = LFRicKernelMetadata.create_from_psyir(sym)
     new_table = FormalKernelArgsFromMetadata.mapping(metadata)
     mod_name = re.sub(r"_type$", r"_mod", sym.name)
