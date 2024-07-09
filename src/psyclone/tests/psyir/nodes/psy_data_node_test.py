@@ -481,7 +481,8 @@ def test_psy_data_node_lower_to_language_level_with_options():
                                                "post_var_list": [("", "b")]})
 
     codeblocks = schedule.walk(CodeBlock)
-    expected = ['CALL psy_data % PreStart("invoke_0", "r0", 1, 1)',
+    expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
+                'iterates_over", "invoke_0-r0", 1, 1)',
                 'CALL psy_data % PreDeclareVariable("a", a)',
                 'CALL psy_data % PreDeclareVariable("b", b)',
                 'CALL psy_data % PreEndDeclaration',
@@ -509,7 +510,8 @@ def test_psy_data_node_lower_to_language_level_with_options():
                                                "post_var_postfix": "_post"})
 
     codeblocks = schedule.walk(CodeBlock)
-    expected = ['CALL psy_data % PreStart("invoke_0", "r0", 1, 1)',
+    expected = ['CALL psy_data % PreStart("psy_single_invoke_different_'
+                'iterates_over", "invoke_0-r0", 1, 1)',
                 'CALL psy_data % PreDeclareVariable("a_pre", a)',
                 'CALL psy_data % PreDeclareVariable("b_post", b)',
                 'CALL psy_data % PreEndDeclaration',
