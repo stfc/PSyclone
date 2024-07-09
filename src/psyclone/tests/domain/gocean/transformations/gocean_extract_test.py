@@ -626,7 +626,7 @@ def test_rename_region():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
-def test_change_prefix(monkeypatch):
+def test_change_prefix(monkeypatch, dist_mem):
     '''
     This tests that the prefix of a gocean extract transformation
     can be changed, and that the new prefix is also used in the
@@ -636,7 +636,7 @@ def test_change_prefix(monkeypatch):
     # Use tmpdir so that the driver is created in tmp
 
     psy, invoke = get_invoke("single_invoke_scalar_float_arg.f90",
-                             GOCEAN_API, idx=0, dist_mem=False)
+                             GOCEAN_API, idx=0, dist_mem=dist_mem)
 
     # In order to use a different prefix, this prefix needs to be valid.
     # So monkeypatch the valid prefix names in the config object:

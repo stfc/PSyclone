@@ -744,12 +744,13 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
         the created driver) can be specified, which allows the driver to
         be used with different files, e.g. several dumps from one run, and/or
         a separate file from each process. It will also add the code to
-        open the input file using PSyclone's read_kernel_data module.
+        open the input file using the read_kernel_data routine from the
+        extraction library.
 
         :param program: The driver PSyIR.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param psy_data_var: the symbol of the PSyDataExtraction type.
-        :type psy_data_var: :py:class:`psyclone.psyir.symbols.Symbol`]]
+        :type psy_data_var: :py:class:`psyclone.psyir.symbols.Symbol`
         :param str module_name: the name of the module, used to create the
             implicit default kernel dump file name.
         :param str region_name: the name of the region, used to create the
