@@ -760,9 +760,9 @@ class PSyDataNode(Statement):
         module_name = self._module_name
         if module_name is None:
             container = routine_schedule.ancestor(Container)
-            # See if there current code is inside of a module. If so,
-            # use this module as module name, otherwise (e.g. subroutine
-            # outside of any module) use the routine name as 'module_name'
+            # If the current code is inside a module use the module name,
+            # otherwise (e.g. subroutine outside of any module) use the
+            # routine name as 'module_name'
             if container and not isinstance(container, FileContainer):
                 module_name = container.name
             else:

@@ -462,14 +462,30 @@ The automatic name generation depends on whether you are using a
 PSyKAl DSL or only the transformation capabilities of PSyclone. If
 you are transforming existing code:
 
-* the ``module_name`` string is set to the name of the parent
-  function/subroutine/program. This name is unique as Fortran requires
+* the ``module_name`` string is set to the module which contains the
+  current code. If there is no module (e.g. a stand-alone subroutine),
+  the subroutine name is used instead. This name is unique as Fortran requires
   these names to be unique within a program.
 
-* the ``region_name`` is set to an ``r`` (standing for region) followed by
-  an integer which uniquely identifies the profile within the parent
-  function/subroutine/program (based on the profile node's position in
-  the PSyIR representation relative to any other profile nodes).
+* the ``region_name`` is set to the name of the subroutine, followed by
+  an ``r`` (standing for region) followed by an integer which uniquely identifies
+  the profile within the parent function/subroutine/program (based on the
+  profile node's position in the PSyIR representation relative to any other
+  profile nodes). If there is no module name (which means the ``module_name``
+  is already set to the subroutine name), only the ``r`` followed by an
+  integer number is specified.
+
+  Example:
+    .. code-block::
+        :caption: Profiling names used when transforming existing code.
+        :emphasize-lines: 2,4
+
+        ! If the subroutine tra_adv is contained in module tra_adv_mod:
+        CALL profile_psy_data % PreStart("tra_adv_mod", "tra_adv-r0", 0, 0)
+        ! If the subroutinetra_adv is not contained in a module:
+        CALL profile_psy_data % PreStart("tra_adv", "r0", 0, 0)
+
+
 
 For the :ref:`LFRic <lfric-api>` and
 :ref:`GOcean <gocean-api>` APIs:
@@ -486,96 +502,69 @@ For the :ref:`LFRic <lfric-api>` and
   node's position in the PSyIR representation relative to any other
   profile nodes). For example:
 
-.. code-block::
-    :caption: PSyIR with profiling nodes.
-    :emphasize-lines: 2
+    .. code-block::
+        :caption: PSyIR with profiling nodes.
+        :emphasize-lines: 2,4,12
 
-    InvokeSchedule[invoke='invoke_0', dm=True]
-      0: Profile[]
-          Schedule[]
-              0: Profile[]
-                  Schedule[]
-                      0: HaloExchange[field='f2', type='region', depth=1,
-                                      check_dirty=True]
-                      1: HaloExchange[field='m1', type='region', depth=1,
-                                      check_dirty=True]
-                      2: HaloExchange[field='m2', type='region', depth=1,
-                                      check_dirty=True]
-              1: Profile[]
-                  Schedule[]
-                      0: Loop[type='', field_space='w1', it_space='cells',
-                              upper_bound='cell_halo(1)']
-                          Literal[value:'1', DataType.INTEGER]
-                          Literal[value:'mesh%get_last_halo_cell(1)',
-                                  DataType.INTEGER]
-                          Literal[value:'1', DataType.INTEGER]
-                          Schedule[]
-                              0: CodedKern testkern_code(a,f1,f2,m1,m2)
-                                 [module_inline=False]
-                      1: Profile[]
-                          Schedule[]
-                              0: Loop[type='', field_space='w1',
-                                      it_space='cells',
-                                      upper_bound='cell_halo(1)']
-                                  Literal[value:'1', DataType.INTEGER]
-                                  Literal[value:'mesh%get_last_halo_cell(1)',
-                                          DataType.INTEGER]
-                                  Literal[value:'1', DataType.INTEGER]
-                                  Schedule[]
-                                      0: CodedKern testkern_code(a,f1,f2,m1,m2)
-                                         [module_inline=False]
-              2: Loop[type='', field_space='w1', it_space='cells',
-                      upper_bound='cell_halo(1)']
-                  Literal[value:'1', DataType.INTEGER]
-                  Literal[value:'mesh%get_last_halo_cell(1)', DataType.INTEGER]
-                  Literal[value:'1', DataType.INTEGER]
-                  Schedule[]
-                      0: CodedKern testkern_qr_code(f1,f2,m1,a,m2,istp)
-                         [module_inline=False]
+        InvokeSchedule[invoke='invoke_0', dm=True]
+          0: Profile[]
+              Schedule[]
+                  0: Profile[]
+                      Schedule[]
+                          0: HaloExchange[field='f2', type='region', depth=1,
+                                          check_dirty=True]
+                          1: HaloExchange[field='m1', type='region', depth=1,
+                                          check_dirty=True]
+                          2: HaloExchange[field='m2', type='region', depth=1,
+                                          check_dirty=True]
+                  1: Profile[]
+                      Schedule[]
+                          0: Loop[type='', field_space='w1', it_space='cells',
+                                  upper_bound='cell_halo(1)']
+                              Literal[value:'1', DataType.INTEGER]
+                              Literal[value:'mesh%get_last_halo_cell(1)',
+                                      DataType.INTEGER]
+                              Literal[value:'1', DataType.INTEGER]
+                              Schedule[]
+                                  0: CodedKern testkern_code(a,f1,f2,m1,m2)
+                                     [module_inline=False]
 
-This is the code created for this example:
+    This is the code created for this example:
 
-.. code-block::
-    :caption: Created Fortran source code with profiling regions.
-    :emphasize-lines: 5,6,7,18,19,24,25
+    .. code-block::
+        :caption: Created Fortran source code with profiling regions.
+        :emphasize-lines: 5,6,7,17,18,19,24,30
 
-     MODULE container
-      CONTAINS
-      SUBROUTINE invoke_0(a, f1, f2, m1, m2, istp, qr)
-        ...
-        CALL psy_data_3%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r0", &
+         MODULE container
+          CONTAINS
+          SUBROUTINE invoke_0(a, f1, f2, m1, m2, istp, qr)
+            ...
+            CALL psy_data_2%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r0", &
                                      0, 0)
-        CALL psy_data%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r1", 0, 0)
-        IF (f2_proxy%is_dirty(depth=1)) THEN
-          CALL f2_proxy%halo_exchange(depth=1)
-        END IF 
-        IF (m1_proxy%is_dirty(depth=1)) THEN
-          CALL m1_proxy%halo_exchange(depth=1)
-        END IF 
-        IF (m2_proxy%is_dirty(depth=1)) THEN
-          CALL m2_proxy%halo_exchange(depth=1)
-        END IF 
-        CALL psy_data%PreEnd()
-        CALL psy_data_1%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r2", &
+            CALL psy_data%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r1", 0, 0)
+            IF (f2_proxy%is_dirty(depth=1)) THEN
+              CALL f2_proxy%halo_exchange(depth=1)
+            END IF 
+            IF (m1_proxy%is_dirty(depth=1)) THEN
+              CALL m1_proxy%halo_exchange(depth=1)
+            END IF 
+            IF (m2_proxy%is_dirty(depth=1)) THEN
+              CALL m2_proxy%halo_exchange(depth=1)
+            END IF 
+            CALL psy_data%PreEnd()
+            CALL psy_data_1%PreStart("multi_functions_multi_invokes_psy", "invoke_0-r2", &
                                      0, 0)
-        DO cell=1,mesh%get_last_halo_cell(1)
-          CALL testkern_code(...)
-        END DO 
-        ...
-        CALL psy_data_2%PreStart("multi_functions_multi_invokes_psy", &
-                          "invoke_0-testkern_code-r3", 0, 0)
-        DO cell=1,mesh%get_last_halo_cell(1)
-          CALL testkern_code(...)
-        END DO 
-        ...
-        CALL psy_data_2%PostEnd()
-        CALL psy_data_1%PostEnd()
-        ...
-        DO cell=1,mesh%get_last_halo_cell(1)
-          CALL testkern_qr_code(...)
-        END DO 
-        ...
-        CALL psy_data_3%PostEnd()
-        ...
-      END SUBROUTINE invoke_0
-    END MODULE container
+            DO cell=1,mesh%get_last_halo_cell(1)
+              CALL testkern_code(...)
+            END DO 
+
+            CALL psy_data_1%PostEnd()
+            ...
+            DO cell=1,mesh%get_last_halo_cell(1)
+              CALL testkern_qr_code(...)
+            END DO 
+            ...
+            CALL psy_data_2%PostEnd()
+            ...
+          END SUBROUTINE invoke_0
+        END MODULE container
