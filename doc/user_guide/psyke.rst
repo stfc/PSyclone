@@ -157,11 +157,11 @@ Kernel extraction for distributed memory is supported in as much as each
 process will write its own output file by adding its rank to the output
 file name. So each kernel and each rank will produce one file. It is possible
 to extract several consecutive kernels, but there must be no halo exchange
-call between the kernels. The extraction transformation will test for this
+calls between the kernels. The extraction transformation will test for this
 and raise an exception if this should happen.
-The compiled driver program accepts the name of the extracted kernel file as command
-line parameter. If this is not specified, it will use the default name
-(``module-region`` without a rank).
+The compiled driver program accepts the name of the extracted kernel file as
+a command line parameter. If this is not specified, it will use the default
+name (``module-region`` without a rank).
 
 
 .. _psyke-intro-restrictions-shared:
@@ -396,9 +396,9 @@ support by setting the variable ``MPI=yes``:
   make MPI=yes ...
 
 The only difference is that the output files will now have the process
-rank in the name. Issue #2382 keeps track of improving the driver program
-to be able to read several data files, at this stage the driver will only
-the file names without a rank.
+rank in the name. The compiled driver program accepts the name of the
+extracted kernel file as a command line parameter. If this is not specified,
+it will use the default name (``module-region`` without a rank).
 
 
 .. _extraction_for_gocean:

@@ -166,8 +166,9 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine is called to open a binary file for reading. The
-    !! filename is based on the module and kernel name. This is used by a
-    !! driver program that will read a binary file previously created by the
+    !! filename is specified explicitly (as opposed to be based on module-name
+    !! and region name in OpenReadModuleRegion). This is used by a driver
+    !! program that will read a binary file previously created by the
     !! PSyData API.
     !! @param[in,out] this The instance of the ReadKernelDataType.
     !! @param[in] module_name The name of the module of the instrumented

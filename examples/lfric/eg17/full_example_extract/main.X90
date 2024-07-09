@@ -32,6 +32,14 @@
 ! Modifications: A. R. Porter, STFC Daresbury Laboratory
 
 program main
+    !> This program is a simple LFRic program that contains two invokes,
+    !> the first to initialise a few fields, the second to update a field.
+    !> It can be used with kernel extraction for both invokes. After
+    !> instrumenting the code using PSyclone with the extract_transform.py
+    !> script, it can be compiled, and when executed will create two kernel data
+    !> files. The instrumentation will also create two stand-alone driver
+    !> programs, which can be compiled. They will each read the corresponding
+    !> kernel data file, execute the kernel, and compare the results.
 
 #ifdef _MPI
     use mpi

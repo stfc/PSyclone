@@ -47,6 +47,21 @@ environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../../README.md#compilation) and flags to use. They
 default to ``gfortran`` and the empty string.
 
+The library can be compiled with MPI support, which will add the process rank
+to each output filename, by setting ``MPI=yes``:
+
+```shell
+MPI=yes make
+```
+
+It uses ``NO_MPI`` as a preprocessor directive, which is what the LFRic build
+environment uses, so the source files can be copied into the LFRic build, and
+will automatically be using MPI (or not), depending on compilation options used
+for LFRic. In order to support MPI in extraction (which means each process will write
+its own output data by appending its rank to the filename), set the environment
+variable ``MPI=yes`` before starting the build process (which will make sure
+that ``NO_MPI`` is not set).
+
 The NetCDF helper program ``nf-config`` is used to get the NetCDF-specific
 include paths. By default it is set to the relative path to the pared-down
 LFRic infrastructure located in a clone of PSyclone repository,
@@ -68,10 +83,6 @@ specified using the environment variables ``$LIB_TMPLT_DIR`` and
 ``$PSYDATA_LIB_DIR``, respectively. They default to the relative paths to
 the [``lib/extract/netcdf``](./../) and top-level [``lib``](./../../../)
 directories.
-
-In order to support MPI in extraction (which means each process will write
-its own output data by appending its rank to the filename), set the environment
-variable ``MPI=yes`` before starting the build process.
 
 The compilation process will create the wrapper library
 ``lib_extract.a``. The ``Makefile`` will compile the LFRic
