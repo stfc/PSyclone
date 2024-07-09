@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2023-2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -129,8 +129,18 @@ def check_arg_symbols(cls, symbol_dict):
         assert cls._info._argument_list[idx].name == symbol_name
 
 
-# TODO test _initialise
+def check_common_cma_symbols(fs1, fs2):
+    ''' xxx '''
+    operator_meta_arg = lfric.kernel.ColumnwiseOperatorArgMetadata(
+        "GH_REAL", "GH_WRITE", fs1, fs2)
+    metadata = lfric.kernel.LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[operator_meta_arg])
+    metadata.validate()
+    cls = call_method("_cma_operator", operator_meta_arg, metadata=metadata)
+    return cls
 
+
+# TODO test _initialise
 
 def test_cell_position():
     ''' Test _cell_position method. '''
@@ -230,17 +240,6 @@ def test_operator():
     # Symbols added to the symbol table but not to the argument list.
     check_symbols(
         cls, {"ndf_w3": lfric_dofs_class, "ndf_w2": lfric_dofs_class})
-
-
-def check_common_cma_symbols(fs1, fs2):
-    ''' xxx '''
-    operator_meta_arg = lfric.kernel.ColumnwiseOperatorArgMetadata(
-        "GH_REAL", "GH_WRITE", fs1, fs2)
-    metadata = lfric.kernel.LFRicKernelMetadata(
-        operates_on="cell_column", meta_args=[operator_meta_arg])
-    metadata.validate()
-    cls = call_method("_cma_operator", operator_meta_arg, metadata=metadata)
-    return cls
 
 
 def test_cma_operator():

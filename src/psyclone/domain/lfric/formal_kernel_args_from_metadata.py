@@ -47,7 +47,7 @@ from psyclone.psyir import nodes, symbols
 
 class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
     '''Provides the expected kernel subroutine arguments within an LFRic
-    PSyIR symbol table based in the provided LFRic Kernel metadata.
+    PSyIR symbol table based on the provided LFRic Kernel metadata.
 
     '''
     _access_lookup = {

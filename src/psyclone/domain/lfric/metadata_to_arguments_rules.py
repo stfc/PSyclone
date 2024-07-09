@@ -84,11 +84,14 @@ class MetadataToArgumentsRules():
         to add to an existing object if required.
 
         :param metadata: the kernel metadata.
-        :type metadata: \
+        :type metadata:
             py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
-        :param info: optional object to initialise the _info \
+        :param info: optional object to initialise the _info
             variable. Defaults to None.
         :type info: :py:class:`Object`
+
+        :returns: something
+        :rtype:
 
         '''
         cls._initialise(info)
