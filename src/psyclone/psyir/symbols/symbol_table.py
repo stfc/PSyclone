@@ -65,9 +65,6 @@ class _Default:
     :param Any value: a value associated with this instance.
 
     '''
-    def __repr__(self):
-        return f"Default Value: {self.value} ({type(self.value)})"
-
     def __init__(self, value):
         self.value = value
 
