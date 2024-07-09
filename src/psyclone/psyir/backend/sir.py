@@ -222,8 +222,8 @@ class SIRWriter(PSyIRVisitor):
                   f"VerticalRegion.Forward))\n"
         return result
 
-    def nemoinvokeschedule_node(self, node):
-        '''This method is called when a NemoInvokeSchedule instance is found
+    def routine_node(self, node):
+        '''This method is called when a Routine instance is found
         in the PSyIR tree.
 
         :param node: a KernelSchedule PSyIR node.

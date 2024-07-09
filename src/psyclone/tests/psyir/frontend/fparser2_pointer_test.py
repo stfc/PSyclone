@@ -1,7 +1,8 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023-2024, Science and Technology Facilities Council.
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,26 +32,53 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Author: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for the Nemo-specific extract features.
-'''
+''' Performs py.test tests on the handling of pointers in the fparser2
+    PSyIR front-end. '''
+
+from psyclone.psyir.nodes import CodeBlock, Assignment
 
 
-from psyclone.configuration import Config
-from psyclone.psyir.transformations import ExtractTrans
-from psyclone.tests.utilities import get_invoke
+def test_pointer_assignments(fortran_reader):
+    '''
+    Test that pointer assignments are parsed as Assignment with the is_pointer
+    attributes set to True. Also when accessing derived types no CodeBlocks
+    must be produced.
+    '''
+    test_module = '''
+    subroutine mysub()
+        use other_symbols
+        integer, target :: a = 1
+        integer, pointer :: b => null()
+
+        b => a
+        field(3,c)%pointer => b
+    end subroutine
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    assert not file_container.walk(CodeBlock)
+    assignments = file_container.walk(Assignment)
+    assert len(assignments) == 2
+    for assignment in assignments:
+        assert assignment.is_pointer is True
 
 
-# --------------------------------------------------------------------------- #
-def test_extract_distributed_memory_nemo(monkeypatch):
-    '''Check that extraction for the Nemo API works without disabling
-    distributed memory (which is implied in the Nemo API).'''
+def test_unsupported_pointer_assignments(fortran_reader):
+    '''
+    Test that pointer assignments that have an array-accessor syntax
+    on the inner element are not supported.
+    '''
+    test_module = '''
+    subroutine mysub()
+        use other_symbols
 
-    etrans = ExtractTrans()
-    config = Config.get()
-    monkeypatch.setattr(config, "_api", "nemo")
-    _, invoke = get_invoke("array_valued_function.f90",
-                           "nemo", idx=0, dist_mem=True)
-    etrans.apply(invoke.schedule.children[0])
+        array(3:) => ptr
+        field(3,c)%array_of_pointer(1:) => ptr
+        field(3,c)%array_of_pointer(1:3) => ptr
+    end subroutine
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    assert file_container.walk(CodeBlock)
+    assert not file_container.walk(Assignment)

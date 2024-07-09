@@ -53,10 +53,11 @@ so that a user can find one that is appropriate to them. For details of
 what each example does and how to run each example please see the
 ``README.md`` files in the associated directories.
 
-Alternatively, some of the examples have associated Jupyter notebooks
-that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
-This is most easily done by following the links from the top-level
-`README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
+.. TODO #2627
+    Alternatively, some of the examples have associated Jupyter notebooks
+    that may be launched with Binder on `MyBinder <https://mybinder.org/>`_.
+    This is most easily done by following the links from the top-level
+    `README <https://github.com/stfc/PSyclone#try-it-on-binder>`_.
 
 For the purposes of correctness checking, the whole suite of examples
 may be executed using Gnu ``make`` (this functionality is used by GitHub
@@ -511,11 +512,11 @@ of the kernel launches and data transfers:
    > NV_ACC_NOTIFY=3 ./example_openacc
    ...
      Step             5 : chksm =    2.1098315506694516E-004
-     PreStart called for module 'main_psy' region 'invoke_2:setval_c:r2'
+     PreStart called for module 'main_psy' region 'invoke_2-setval_c-r2'
     upload CUDA data  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=183 device=0 threadid=1 variable=.attach. bytes=144
     upload CUDA data  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=183 device=0 threadid=1 variable=.attach. bytes=144
     launch CUDA kernel  file=PSyclone/examples/lfric/eg14/main_psy.f90 function=invoke_2 line=186 device=0 threadid=1 num_gangs=5 num_workers=1 vector_length=128 grid=5 block=128
-     PostEnd called for module 'main_psy' region 'invoke_2:setval_c:r2'
+     PostEnd called for module 'main_psy' region 'invoke_2-setval_c-r2'
     download CUDA data  file=PSyclone/src/psyclone/tests/test_files/dynamo0p3/infrastructure//field/field_r64_mod.f90 function=log_minmax line=756 device=0 threadid=1 variable=self%data(:) bytes=4312
     20230807214504.374+0100:INFO : Min/max minmax of field1 =   0.30084014E+00  0.17067212E+01
    ...

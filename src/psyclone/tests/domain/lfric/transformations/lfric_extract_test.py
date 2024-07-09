@@ -139,7 +139,7 @@ def test_distmem_error(monkeypatch):
     monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(schedule.children[2:4])
-    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
@@ -155,7 +155,7 @@ def test_distmem_error(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(glob_sum)
 
-    assert ("Nodes of type 'DynGlobalSum' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
 
@@ -173,7 +173,7 @@ def test_repeat_extract():
     # Now try applying it again on the ExtractNode
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(schedule.children[0])
-    assert ("Nodes of type 'ExtractNode' cannot be enclosed by a "
+    assert ("cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
 
@@ -319,7 +319,7 @@ def test_single_node_dynamo0p3():
     output = '''      ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_psy", \
-"invoke_0_testkern_type:testkern_code:r0", 17, 2)
+"invoke_0_testkern_type-testkern_code-r0", 17, 2)
       CALL extract_psy_data%PreDeclareVariable("a", a)
       CALL extract_psy_data%PreDeclareVariable("f1_data", f1_data)
       CALL extract_psy_data%PreDeclareVariable("f2_data", f2_data)
@@ -388,7 +388,7 @@ def test_node_list_dynamo0p3():
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", \
-"invoke_0:r0", 11, 5)
+"invoke_0-r0", 11, 5)
       CALL extract_psy_data%PreDeclareVariable("f3_data", f3_data)
       CALL extract_psy_data%PreDeclareVariable("loop0_start", loop0_start)
       CALL extract_psy_data%PreDeclareVariable("loop0_stop", loop0_stop)
@@ -524,7 +524,7 @@ def test_extract_single_builtin_dynamo0p3():
     output = """! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:setval_c:r0", 2, 2)
+      """"invoke_0-setval_c-r0", 2, 2)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
       CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
@@ -557,7 +557,7 @@ def test_extract_single_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_psy", """ \
-      """"invoke_0:inc_ax_plus_y:r0", 4, 2)
+      """"invoke_0-inc_ax_plus_y-r0", 4, 2)
       CALL extract_psy_data%PreDeclareVariable("f1_data", f1_data)
       CALL extract_psy_data%PreDeclareVariable("f2_data", f2_data)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
@@ -602,7 +602,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
-      """"invoke_0:r0", 9, 4)
+      """"invoke_0-r0", 9, 4)
       CALL extract_psy_data%PreDeclareVariable("f3_data", f3_data)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
       CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
@@ -689,7 +689,7 @@ def test_extract_colouring_omp_dynamo0p3():
       ! ExtractStart
       !
       CALL extract_psy_data%PreStart("multikernel_invokes_7_psy", """
-              """"invoke_0:ru_code:r0", 30, 3)
+              """"invoke_0-ru_code-r0", 30, 3)
       CALL extract_psy_data%PreDeclareVariable("a_data", a_data)
       CALL extract_psy_data%PreDeclareVariable("b_data", b_data)
       CALL extract_psy_data%PreDeclareVariable("basis_w0_qr", basis_w0_qr)

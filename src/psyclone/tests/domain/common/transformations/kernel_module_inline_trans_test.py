@@ -540,7 +540,7 @@ def test_module_inline_apply_bring_in_non_local_symbols(
         implicit none
         contains
         subroutine code()
-            a => b
+            write(*,*) a + b
         end subroutine code
     end module my_mod
     ''')

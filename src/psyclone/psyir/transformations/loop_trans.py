@@ -39,10 +39,11 @@
 
 import abc
 
+from psyclone.errors import LazyString
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.nodes import Schedule, Loop
+from psyclone.psyir.nodes import Schedule, Loop, Assignment
 
 
 class LoopTrans(Transformation, metaclass=abc.ABCMeta):
@@ -72,6 +73,8 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
         :param bool options["node-type-check"]: this flag controls if the \
             type of the nodes enclosed in the loop should be tested to \
             avoid including unsupported nodes in a transformation.
+        :param bool options["verbose"]: log the reason the validation failed,
+            at the moment with a comment in the provided PSyIR node.
 
         :raises TransformationError: if the supplied node is not a (fully- \
                 formed) Loop.
@@ -102,17 +105,38 @@ class LoopTrans(Transformation, metaclass=abc.ABCMeta):
                 f"Transformation validate method 'options' argument must be a "
                 f"dictionary but found '{type(options).__name__}'.")
 
+        verbose = options.get("verbose", False)
+
         # Check that the proposed region contains only supported node types
         if options.get("node-type-check", True):
             # Stop at any instance of Kern to avoid going into the
             # actual kernels, e.g. in Nemo inlined kernels
+            # pylint: disable=cell-var-from-loop
             flat_list = [item for item in node.walk(object, stop_type=Kern)
                          if not isinstance(item, Schedule)]
             for item in flat_list:
                 if isinstance(item, self.excluded_node_types):
-                    raise TransformationError(
+                    message = (
                         f"Nodes of type '{type(item).__name__}' cannot be "
-                        f"enclosed by a {self.name} transformation")
+                        f"enclosed by a {self.name} transformation (use "
+                        f"the 'node-type-check: False' option to accept them "
+                        f"at your own risk)")
+                    if verbose:
+                        node.append_preceding_comment(message)
+                    raise TransformationError(LazyString(
+                        lambda: f"{message} in:\n{node.debug_string()}"))
+
+            for assignment in node.walk(Assignment):
+                if assignment.is_pointer:
+                    message = (
+                        f"'{type(self).__name__}' can not be applied to nodes"
+                        f" that contain pointer assignments by default (use "
+                        f"the 'node-type-check: False' option to accept them "
+                        f"at your own risk)")
+                    if verbose:
+                        node.append_preceding_comment(message)
+                    raise TransformationError(LazyString(
+                        lambda: f"{message} in:\n{node.debug_string()}"))
 
         # Disable warning to avoid circular dependency
         # pylint: disable=import-outside-toplevel

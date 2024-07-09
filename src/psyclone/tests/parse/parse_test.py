@@ -86,7 +86,7 @@ def test_kerneltypefactory_wrong_api():
 def test_kerntypefactory_create_broken_type():
     ''' Check that we raise an error if the KernelTypeFactory.create()
     method encounters an unrecognised API. '''
-    factory = KernelTypeFactory(api="")
+    factory = KernelTypeFactory(api="lfric")
     # Deliberately break the 'type' (API) of this factory
     factory._type = "invalid_api"
     test_builtin_name = "aX_plus_Y"
@@ -115,7 +115,7 @@ def test_unrecognised_builtin():
     ''' Check that we raise an error if we call the BuiltInKernelTypeFactory
     with an unrecognised built-in name '''
     from psyclone.domain.lfric import lfric_builtins
-    factory = BuiltInKernelTypeFactory()
+    factory = BuiltInKernelTypeFactory("lfric")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(lfric_builtins.BUILTIN_MAP,
                            None,
