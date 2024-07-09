@@ -189,13 +189,12 @@ contains
 
     ! -------------------------------------------------------------------------
     !> @brief This subroutine is called to open a NetCDF file for reading. The
-    !! filename is based on the module and kernel name. This is used by a
-    !! driver program that will read a NetCDF file previously created by the
-    !! PSyData API.
+    !! filename is specified explicitly (as opposed to be based on module-name
+    !! and region name in OpenReadModuleRegion). This is used by a driver
+    !! program that will read a NetCDF file previously created by the PSyData
+    !! API.
     !! @param[in,out] this The instance of the ReadKernelDataType.
-    !! @param[in] module_name The name of the module of the instrumented
-    !!            region.
-    !! @param[in] region_name The name of the instrumented region.
+    !! @param[in] file_name The name of the NetCDF file to open.
     subroutine OpenReadFileName(this, file_name)
 
         use netcdf, only : nf90_open, NF90_NOWRITE

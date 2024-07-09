@@ -50,7 +50,7 @@ to each output filename, by setting ``MPI=yes``:
 MPI=yes make
 ```
 
-The build environment will provide ``NO_MPI`` as pre-processor definition when
+The build environment will provide ``NO_MPI`` as a pre-processor definition when
 MPI is not enabled (to be compatible with LFRic) so that MPI specific code can
 be disabled.
 

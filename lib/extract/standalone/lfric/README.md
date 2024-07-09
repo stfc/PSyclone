@@ -46,7 +46,7 @@ to each output filename, by setting ``MPI=yes``:
 MPI=yes make
 ```
 
-It uses ``NO_MPI`` as preprocessor directive, which is what the LFRic build
+It uses ``NO_MPI`` as a preprocessor directive, which is what the LFRic build
 environment uses, so the source files can be copied into the LFRic build, and
 will automatically be using MPI (or not), depending on compilation options used
 for LFRic. In order to support MPI in extraction (which means each process will write
