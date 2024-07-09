@@ -1094,10 +1094,15 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         function_space_name = cls._function_space_name(function_space)
         name = cls._cma_operator_name(cma_operator)
-        print("TO BE DONE")
-        exit(1)
-        # cls._add_lfric_symbol_name(
-        #    f"cbanded_map_{function_space_name}_{name}")
+        ndf_name = cls._ndf_name(function_space)
+        ndf_symbol = cls._get_or_create_lfric_symbol(
+            "NumberOfDofsDataSymbol", ndf_name)
+        nlayers = cls._get_or_create_lfric_symbol("MeshHeightDataSymbol",
+                                                  "nlayers")
+        cls._add_lfric_symbol_name(
+            "ColumnBandedDofMapDataSymbol",
+            f"cbanded_map_{function_space_name}_{name}",
+            dims=[ndf_symbol, nlayers])
 
     @classmethod
     def _indirection_dofmap(cls, function_space, cma_operator):
@@ -1131,10 +1136,17 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         function_space_name = cls._function_space_name(function_space)
         name = cls._cma_operator_name(cma_operator)
 
-        print("TO BE DONE")
-        exit(1)
-        # cls._add_lfric_symbol_name("",
-        #     f"cma_indirection_map_{function_space_name}_{name}")
+        if function_space == cma_operator.function_space_to:
+            nrow = cls._get_or_create_lfric_symbol(
+                "LFRicIntegerScalarDataSymbol", f"nrow_{name}")
+            dims = [nrow]
+        else:
+            ncol = cls._get_or_create_lfric_symbol(
+                "LFRicIntegerScalarDataSymbol", f"ncol_{name}")
+            dims = [ncol]
+        cls._add_lfric_symbol_name(
+            "CMADofMapDataSymbol",
+            f"cma_dofmap_{function_space_name}_{name}", dims=dims)
 
     @classmethod
     def _create_datatype(cls, class_name):

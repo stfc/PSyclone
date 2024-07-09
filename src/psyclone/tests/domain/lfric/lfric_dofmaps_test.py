@@ -180,18 +180,18 @@ def test_unique_fs_comments():
     assert output in code
 
 
-def test_stub_decl_dofmaps():
+def test_stub_decl_dofmaps(fortran_writer):
     '''
     Check that LFRicDofmaps generates the expected declarations in the stub.
 
     '''
 
-    result = generate(os.path.join(BASE_PATH,
-                                   "columnwise_op_asm_kernel_mod.F90"),
-                      api=TEST_API)
-
-    assert ("INTEGER(KIND=i_def), intent(in) :: cma_op_2_nrow, cma_op_2_ncol"
-            in str(result))
+    psyir = generate(os.path.join(BASE_PATH,
+                                  "columnwise_op_asm_kernel_mod.F90"),
+                     api=TEST_API)
+    result = fortran_writer(psyir)
+    assert "integer(kind=i_def), intent(in) :: nrow_cma_op_2" in result
+    assert "integer(kind=i_def), intent(in) :: ncol_cma_op_2" in result
 
 
 def test_lfricdofmaps_stub_gen():

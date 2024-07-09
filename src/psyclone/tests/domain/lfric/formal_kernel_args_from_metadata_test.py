@@ -198,7 +198,7 @@ def test_field():
         operates_on="cell_column", meta_args=[field_meta_arg])
     metadata.validate()
     cls = check_single_symbol(
-        "_field", "RealFieldDataSymbol", "rfield_1", field_meta_arg,
+        "_field", "RealFieldDataSymbol", "rfield_1_w3", field_meta_arg,
         metadata=metadata)
     lfric_class = lfric.LFRicTypes("NumberOfUniqueDofsDataSymbol")
     # Symbols added to the symbol table but not to the argument list.
@@ -216,8 +216,8 @@ def test_field_vector():
     lfric_class = lfric.LFRicTypes("RealFieldDataSymbol")
     # Symbols added to the symbol table and to the argument list.
     check_arg_symbols(cls, OrderedDict(
-        [("rfield_1_v1", lfric_class), ("rfield_1_v2", lfric_class),
-         ("rfield_1_v3", lfric_class)]))
+        [("rfield_1_w3_v1", lfric_class), ("rfield_1_w3_v2", lfric_class),
+         ("rfield_1_w3_v3", lfric_class)]))
     lfric_class = lfric.LFRicTypes("NumberOfUniqueDofsDataSymbol")
     # Symbols added to the symbol table but not to the argument list.
     check_symbols(cls, {"undf_w3": lfric_class})
@@ -572,7 +572,9 @@ def test_basis():
     metadata.validate()
     cls = call_method("_basis", function_space, metadata=metadata)
     check_arg_symbols(cls, OrderedDict(
-        [("basis_w3_qr_xyoz", symbols.DataSymbol)]))
+        [("np_xy_qr_xyoz", symbols.DataSymbol),
+         ("np_z_qr_xyoz", symbols.DataSymbol),
+         ("basis_w3_qr_xyoz", symbols.DataSymbol)]))
     # Check that basis is an array with the expected extent.
     basis_symbol = cls._info.lookup("basis_w3_qr_xyoz")
     assert basis_symbol.is_array
@@ -580,8 +582,8 @@ def test_basis():
     ndf_name = lfric.FormalKernelArgsFromMetadata._ndf_name(function_space)
     assert basis_symbol.datatype.shape[0].upper.value == "1"
     assert basis_symbol.datatype.shape[1].upper.symbol.name == ndf_name
-    assert basis_symbol.datatype.shape[2].upper.symbol.name == "np_xy"
-    assert basis_symbol.datatype.shape[3].upper.symbol.name == "np_z"
+    assert basis_symbol.datatype.shape[2].upper.symbol.name == "np_xy_qr_xyoz"
+    assert basis_symbol.datatype.shape[3].upper.symbol.name == "np_z_qr_xyoz"
 
 
 def test_diff_basis():
@@ -596,7 +598,9 @@ def test_diff_basis():
     metadata.validate()
     cls = call_method("_diff_basis", function_space, metadata=metadata)
     check_arg_symbols(cls, OrderedDict(
-        [("diff_basis_w3_qr_xyoz", symbols.DataSymbol)]))
+        [("np_xy_qr_xyoz", symbols.DataSymbol),
+         ("np_z_qr_xyoz", symbols.DataSymbol),
+         ("diff_basis_w3_qr_xyoz", symbols.DataSymbol)]))
     # Check that diff basis is an array with the expected extent.
     diff_basis_symbol = cls._info.lookup("diff_basis_w3_qr_xyoz")
     assert diff_basis_symbol.is_array
@@ -604,5 +608,7 @@ def test_diff_basis():
     ndf_name = lfric.FormalKernelArgsFromMetadata._ndf_name(function_space)
     assert diff_basis_symbol.datatype.shape[0].upper.value == "3"
     assert diff_basis_symbol.datatype.shape[1].upper.symbol.name == ndf_name
-    assert diff_basis_symbol.datatype.shape[2].upper.symbol.name == "np_xy"
-    assert diff_basis_symbol.datatype.shape[3].upper.symbol.name == "np_z"
+    assert (diff_basis_symbol.datatype.shape[2].upper.symbol.name ==
+            "np_xy_qr_xyoz")
+    assert (diff_basis_symbol.datatype.shape[3].upper.symbol.name ==
+            "np_z_qr_xyoz")
