@@ -41,6 +41,7 @@
 
 import abc
 
+from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -166,10 +167,22 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         # Check that the proposed region contains only supported node types
         if options.get("node-type-check", True):
             for child in node_list:
-                if child.walk(self.excluded_node_types):
-                    raise TransformationError(
-                        f"Nodes of type '{self.excluded_node_types}' cannot "
-                        f"be enclosed by a {self.name} transformation")
+                for bad in child.walk(self.excluded_node_types):
+                    # Ideally we'd just use `wrong.debug_string()` always
+                    # but this sometimes causes errors if nodes do their
+                    # own validation (rather than relying on the backend),
+                    # e.g. ACCEnterDataDirective.begin_string().
+                    # pylint: disable-next=import-outside-toplevel
+                    from psyclone.psyir.nodes import CodeBlock
+                    if isinstance(bad, CodeBlock):
+                        msg = LazyString(
+                            lambda: f"Nodes of type '{type(bad).__name__}' "
+                            f"cannot be enclosed by a {self.name} "
+                            f"transformation but found:\n{bad.debug_string()}")
+                    else:
+                        msg = (f"Nodes of type '{type(bad).__name__}' cannot "
+                               f"be enclosed by a {self.name} transformation.")
+                    raise TransformationError(msg)
 
         # If we've been passed a list that contains one or more Schedules
         # then something is wrong. e.g. two Schedules that are both children
