@@ -42,7 +42,7 @@ Once you have PSyclone installed, this script may be used by doing:
  >>> psyclone -s ./omp_trans.py my_file.F90
 
 '''
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Routine
 from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 
 # Get the transformation we will apply
@@ -60,8 +60,9 @@ def trans(psyir):
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-    '''
 
-    for loop in psyir.walk(Loop):
-        if loop.loop_type == "levels":
-            OMP_TRANS.apply(loop)
+    '''
+    routine = psyir.walk(Routine)[0]
+    for child in routine.children:
+        if isinstance(child, Loop) and child.loop_type == "levels":
+            OMP_TRANS.apply(child)
