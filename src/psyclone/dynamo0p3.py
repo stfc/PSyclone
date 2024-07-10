@@ -1199,7 +1199,7 @@ class DynReferenceElement(LFRicCollection):
                     lhs=Reference(self._nfaces_h_symbol),
                     rhs=Call.create(
                         StructureReference.create(
-                            ref_element, f"get_number_horizontal_faces")))
+                            ref_element, ["get_number_horizontal_faces"])))
             self._invoke.schedule.addchild(stmt, cursor)
             cursor += 1
             # parent.add(
@@ -2648,9 +2648,9 @@ class DynMeshes():
         #     name = self._symbol_table.lookup_with_tag(mtype).name
         #     parent.add(UseGen(parent, name=mmod, only=True,
         #                       funcnames=[name]))
-        if self.intergrid_kernels:
-            parent.add(UseGen(parent, name=mmap_mod, only=True,
-                              funcnames=[mmap_type]))
+        # if self.intergrid_kernels:
+        #     parent.add(UseGen(parent, name=mmap_mod, only=True,
+        #                       funcnames=[mmap_type]))
         # Declare the mesh object(s) and associated halo depths
         # for tag_name in self._mesh_tag_names:
         #     name = self._symbol_table.lookup_with_tag(tag_name).name
@@ -2664,6 +2664,7 @@ class DynMeshes():
         #                            kind=api_config.default_kind["integer"],
         #                            entity_decls=[name]))
 
+        return cursor
         # Declare the inter-mesh map(s) and cell map(s)
         for kern in self.intergrid_kernels:
             parent.add(TypeDeclGen(parent, pointer=True,
@@ -2821,10 +2822,10 @@ class DynMeshes():
                 cursor += 1
             return cursor
 
-        parent.add(CommentGen(
-            parent,
-            " Look-up mesh objects and loop limits for inter-grid kernels"))
-        parent.add(CommentGen(parent, ""))
+        # parent.add(CommentGen(
+        #     parent,
+        #     " Look-up mesh objects and loop limits for inter-grid kernels"))
+        # parent.add(CommentGen(parent, ""))
 
         # Keep a list of quantities that we've already initialised so
         # that we don't generate duplicate assignments
@@ -2835,107 +2836,200 @@ class DynMeshes():
             # We need pointers to both the coarse and the fine mesh as well
             # as the maximum halo depth for each.
             fine_mesh = self._schedule.symbol_table.find_or_create_tag(
-                f"mesh_{dig.fine.name}").name
+                f"mesh_{dig.fine.name}")
             coarse_mesh = self._schedule.symbol_table.find_or_create_tag(
-                f"mesh_{dig.coarse.name}").name
+                f"mesh_{dig.coarse.name}")
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
-                parent.add(
-                    AssignGen(parent, pointer=True,
-                              lhs=fine_mesh,
-                              rhs="%".join([dig.fine.proxy_name_indexed,
-                                            dig.fine.ref_name(),
-                                            "get_mesh()"])))
+                assignment = Assignment.create(
+                        lhs=Reference(fine_mesh),
+                        rhs=dig.fine.generate_method_call("get_mesh"),
+                        is_pointer=True)
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(
+                #     AssignGen(parent, pointer=True,
+                #               lhs=fine_mesh,
+                #               rhs="%".join([dig.fine.proxy_name_indexed,
+                #                             dig.fine.ref_name(),
+                #                             "get_mesh()"])))
                 if Config.get().distributed_memory:
                     max_halo_f_mesh = (
                         self._schedule.symbol_table.find_or_create_tag(
-                            f"max_halo_depth_mesh_{dig.fine.name}").name)
+                            f"max_halo_depth_mesh_{dig.fine.name}"))
+                    assignment = Assignment.create(
+                            lhs=Reference(max_halo_f_mesh),
+                            rhs=Call.create(StructureReference.create(
+                                fine_mesh, ["get_halo_depth"])))
+                    self._schedule.addchild(assignment, cursor)
+                    cursor += 1
 
-                    parent.add(AssignGen(parent, lhs=max_halo_f_mesh,
-                                         rhs=f"{fine_mesh}%get_halo_depth()"))
+                    # parent.add(AssignGen(parent, lhs=max_halo_f_mesh,
+                    #                      rhs=f"{fine_mesh}%get_halo_depth()"))
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
-                parent.add(
-                    AssignGen(parent, pointer=True,
-                              lhs=coarse_mesh,
-                              rhs="%".join([dig.coarse.proxy_name_indexed,
-                                            dig.coarse.ref_name(),
-                                            "get_mesh()"])))
+                assignment = Assignment.create(
+                        lhs=Reference(coarse_mesh),
+                        rhs=dig.coarse.generate_method_call("get_mesh"),
+                        is_pointer=True)
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(
+                #     AssignGen(parent, pointer=True,
+                #               lhs=coarse_mesh,
+                #               rhs="%".join([dig.coarse.proxy_name_indexed,
+                #                             dig.coarse.ref_name(),
+                #                             "get_mesh()"])))
                 if Config.get().distributed_memory:
                     max_halo_c_mesh = (
                         self._schedule.symbol_table.find_or_create_tag(
-                            f"max_halo_depth_mesh_{dig.coarse.name}").name)
-                    parent.add(AssignGen(
-                        parent, lhs=max_halo_c_mesh,
-                        rhs=f"{coarse_mesh}%get_halo_depth()"))
+                            f"max_halo_depth_mesh_{dig.coarse.name}"))
+                    assignment = Assignment.create(
+                            lhs=Reference(max_halo_c_mesh),
+                            rhs=Call.create(StructureReference.create(
+                                coarse_mesh, ["get_halo_depth"])))
+                    self._schedule.addchild(assignment, cursor)
+                    cursor += 1
+                    # parent.add(AssignGen(
+                    #     parent, lhs=max_halo_c_mesh,
+                    #     rhs=f"{coarse_mesh}%get_halo_depth()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
             if dig.mmap not in initialised:
                 initialised.append(dig.mmap)
-                parent.add(
-                    AssignGen(parent, pointer=True,
-                              lhs=dig.mmap,
-                              rhs=f"{coarse_mesh}%get_mesh_map({fine_mesh})"))
+                digmmap = self._schedule.symbol_table.lookup(dig.mmap)
+                assignment = Assignment.create(
+                        lhs=Reference(digmmap),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, ["get_mesh_map"])),
+                        is_pointer=True)
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(
+                #     AssignGen(parent, pointer=True,
+                #               lhs=dig.mmap,
+                #               rhs=f"{coarse_mesh}%get_mesh_map({fine_mesh})"))
 
             # Cell map. This is obtained from the mesh map.
             if dig.cell_map not in initialised:
                 initialised.append(dig.cell_map)
-                parent.add(
-                    AssignGen(parent, pointer=True, lhs=dig.cell_map,
-                              rhs=dig.mmap+"%get_whole_cell_map()"))
+                digcellmap = self._schedule.symbol_table.lookup(dig.cell_map)
+                assignment = Assignment.create(
+                        lhs=Reference(digcellmap),
+                        rhs=Call.create(StructureReference.create(
+                            digmmap, ["get_whole_cell_map"])),
+                        is_pointer=True)
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(
+                #     AssignGen(parent, pointer=True, lhs=dig.cell_map,
+                #               rhs=dig.mmap+"%get_whole_cell_map()"))
 
             # Number of cells in the fine mesh
             if dig.ncell_fine not in initialised:
                 initialised.append(dig.ncell_fine)
+                digncellfine = self._schedule.symbol_table.lookup(
+                                                dig.ncell_fine)
                 if Config.get().distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
                     # order to support redundant computation
-                    parent.add(
-                        AssignGen(parent, lhs=dig.ncell_fine,
-                                  rhs=(fine_mesh+"%get_last_halo_cell"
-                                       "(depth=2)")))
+                    assignment = Assignment.create(
+                            lhs=Reference(digncellfine),
+                            rhs=Call.create(StructureReference.create(
+                                digmmap, ["get_last_halo_cell"])))
+                    self._schedule.addchild(assignment, cursor)
+                    cursor += 1
+                    # parent.add(
+                    #     AssignGen(parent, lhs=dig.ncell_fine,
+                    #               rhs=(fine_mesh+"%get_last_halo_cell"
+                    #                    "(depth=2)")))
                 else:
-                    parent.add(
-                        AssignGen(parent, lhs=dig.ncell_fine,
-                                  rhs="%".join([dig.fine.proxy_name,
-                                                dig.fine.ref_name(),
-                                                "get_ncell()"])))
+                    assignment = Assignment.create(
+                            lhs=Reference(digncellfine),
+                            rhs=Call.create(StructureReference.create(
+                                digmmap, ["get_ncell"])),
+                            is_pointer=True)
+                    self._schedule.addchild(assignment, cursor)
+                    cursor += 1
+                    # parent.add(
+                    #     AssignGen(parent, lhs=dig.ncell_fine,
+                    #               rhs="%".join([dig.fine.proxy_name,
+                    #                             dig.fine.ref_name(),
+                    #                             "get_ncell()"])))
 
             # Number of fine cells per coarse cell in x.
             if dig.ncellpercellx not in initialised:
                 initialised.append(dig.ncellpercellx)
-                parent.add(
-                    AssignGen(parent, lhs=dig.ncellpercellx,
-                              rhs=dig.mmap +
-                              "%get_ntarget_cells_per_source_x()"))
+                digncellpercellx = self._schedule.symbol_table.lookup(
+                                                dig.ncellpercellx)
+                assignment = Assignment.create(
+                        lhs=Reference(digncellpercellx),
+                        rhs=Call.create(StructureReference.create(
+                            digmmap, ["get_ncell"])),
+                        is_pointer=True)
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(
+                #     AssignGen(parent, lhs=dig.ncellpercellx,
+                #               rhs=dig.mmap +
+                #               "%get_ntarget_cells_per_source_x()"))
 
             # Number of fine cells per coarse cell in y.
             if dig.ncellpercelly not in initialised:
                 initialised.append(dig.ncellpercelly)
-                parent.add(
-                    AssignGen(parent, lhs=dig.ncellpercelly,
-                              rhs=dig.mmap +
-                              "%get_ntarget_cells_per_source_y()"))
+                digncellpercelly = self._schedule.symbol_table.lookup(
+                                                dig.ncellpercelly)
+                assignment = Assignment.create(
+                        lhs=Reference(digncellpercelly),
+                        rhs=Call.create(StructureReference.create(
+                            digmmap, ["get_ncell"])),
+                        is_pointer=True)
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(
+                #     AssignGen(parent, lhs=dig.ncellpercelly,
+                #               rhs=dig.mmap +
+                #               "%get_ntarget_cells_per_source_y()"))
 
             # Colour map for the coarse mesh (if required)
             if dig.colourmap_symbol:
                 # Number of colours
-                parent.add(AssignGen(parent, lhs=dig.ncolours_var_symbol.name,
-                                     rhs=coarse_mesh + "%get_ncolours()"))
+                assignment = Assignment.create(
+                        lhs=Reference(dig.ncolours_var_symbol),
+                        rhs=Call.create(StructureReference.create(
+                            digmmap, ["get_ncell"])),
+                        is_pointer=True)
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(AssignGen(parent, lhs=dig.ncolours_var_symbol.name,
+                #                      rhs=coarse_mesh + "%get_ncolours()"))
                 # Colour map itself
-                parent.add(AssignGen(parent, lhs=dig.colourmap_symbol.name,
-                                     pointer=True,
-                                     rhs=coarse_mesh + "%get_colour_map()"))
+                assignment = Assignment.create(
+                        lhs=Reference(dig.colourmap_symbol),
+                        rhs=Call.create(StructureReference.create(
+                            digmmap, ["get_ncell"])),
+                        is_pointer=True)
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(AssignGen(parent, lhs=dig.colourmap_symbol.name,
+                #                      pointer=True,
+                #                      rhs=coarse_mesh + "%get_colour_map()"))
                 # Last halo/edge cell per colour.
                 sym = dig.last_cell_var_symbol
                 if len(sym.datatype.shape) == 2:
                     # Array is 2D so is a halo access.
-                    name = "%get_last_halo_cell_all_colours()"
+                    name = "get_last_halo_cell_all_colours"
                 else:
                     # Array is just 1D so go to the last edge cell.
-                    name = "%get_last_edge_cell_all_colours()"
-                parent.add(AssignGen(parent, lhs=sym.name,
-                                     rhs=coarse_mesh + name))
+                    name = "get_last_edge_cell_all_colours"
+                assignment = Assignment.create(
+                        lhs=Reference(sym),
+                        rhs=Call.create(StructureReference.create(
+                            coarse_mesh, [name])))
+                self._schedule.addchild(assignment, cursor)
+                cursor += 1
+                # parent.add(AssignGen(parent, lhs=sym.name,
+                #                      rhs=coarse_mesh + name))
         return cursor
 
     @property

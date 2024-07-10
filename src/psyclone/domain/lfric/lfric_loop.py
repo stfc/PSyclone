@@ -52,7 +52,7 @@ from psyclone.psyGen import InvokeSchedule, HaloExchange
 from psyclone.psyir.nodes import (
     Loop, Literal, Schedule, Reference, ArrayReference, ACCRegionDirective,
     OMPRegionDirective, Routine, StructureReference, Call, BinaryOperation,
-    ArrayOfStructuresReference)
+    ArrayOfStructuresReference, Directive)
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, UnresolvedType, UnresolvedInterface
 
 
@@ -134,7 +134,7 @@ class LFRicLoop(PSyLoop):
         if Config.get().distributed_memory:
             if self._loop_type != "colour":
                 if self.unique_modified_args("gh_field"):
-                    self.gen_mark_halos_clean_dirty(None, self.position - 1)
+                    self.gen_mark_halos_clean_dirty(None)
 
         if self._loop_type != "null":
             # This is not a 'domain' loop (i.e. there is a real loop). First
@@ -1048,7 +1048,7 @@ class LFRicLoop(PSyLoop):
 
         parent.add(CommentGen(parent, ""))
 
-    def gen_mark_halos_clean_dirty(self, parent, insert_loc):
+    def gen_mark_halos_clean_dirty(self, parent):
         '''
         Generates the necessary code to mark halo regions for all modified
         fields as clean or dirty following execution of this loop.
@@ -1061,7 +1061,13 @@ class LFRicLoop(PSyLoop):
         fields = self.unique_modified_args("gh_field")
 
         sym_table = self.ancestor(InvokeSchedule).symbol_table
-        cursor = self.position
+        insert_loc = self
+        # If it has ancestor directive keep going up
+        while isinstance(insert_loc.parent.parent, Directive):
+            insert_loc = insert_loc.parent.parent
+        cursor = insert_loc.position
+        insert_loc = insert_loc.parent
+        init_cursor = cursor
 
         # First set all of the halo dirty unless we are subsequently going to
         # set all of the halo clean
@@ -1089,18 +1095,21 @@ class LFRicLoop(PSyLoop):
                         call = Call.create(ArrayOfStructuresReference.create(
                             field_symbol, [idx_literal], ["set_dirty"]))
                         cursor += 1
-                        self.parent.addchild(call, cursor)
+                        insert_loc.addchild(call, cursor)
                 else:
                     call = Call.create(StructureReference.create(
                         field_symbol, ["set_dirty"]))
                     cursor += 1
-                    self.parent.addchild(call, cursor)
+                    insert_loc.addchild(call, cursor)
 
-            if cursor >= self.position + 1:
+            if cursor > init_cursor:
                 # This is the first one
-                self.parent[self.position + 1].preceding_comment = (
+                insert_loc[init_cursor + 1].preceding_comment = (
                     "Set halos dirty/clean for fields modified in the above "
-                    "loop")
+                    "loop(s)")
+                if cursor < len(insert_loc.children) - 1:
+                    insert_loc[cursor + 1].preceding_comment = (
+                        "End of set dirty/clean section for above loop(s)")
 
             # Now set appropriate parts of the halo clean where
             # redundant computation has been performed.
@@ -1119,7 +1128,7 @@ class LFRicLoop(PSyLoop):
                                     field_symbol, index, ["set_clean"]))
                             set_clean.addchild(Literal(str(halo_depth), INTEGER_TYPE))
                             cursor += 1
-                            self.parent.addchild(set_clean, cursor)
+                            insert_loc.addchild(set_clean, cursor)
                             # parent.add(CallGen(
                             #     parent, name=f"{field.proxy_name}({index})%"
                             #     f"set_clean({halo_depth})"))
@@ -1129,7 +1138,7 @@ class LFRicLoop(PSyLoop):
                                 field_symbol, ["set_clean"]))
                         set_clean.addchild(Literal(str(halo_depth), INTEGER_TYPE))
                         cursor += 1
-                        self.parent.addchild(set_clean, cursor)
+                        insert_loc.addchild(set_clean, cursor)
                         # parent.add(CallGen(
                         #     parent, name=f"{field.proxy_name}%set_clean("
                         #     f"{halo_depth})"))
@@ -1155,7 +1164,7 @@ class LFRicLoop(PSyLoop):
                                 field_symbol, index, ["set_clean"]))
                         set_clean.addchild(halo_depth)
                         cursor += 1
-                        self.parent.addchild(set_clean, cursor)
+                        insert_loc.addchild(set_clean, cursor)
                         # call = CallGen(parent,
                         #                name=f"{field.proxy_name}({index})%"
                         #                f"set_clean({halo_depth})")
@@ -1166,7 +1175,7 @@ class LFRicLoop(PSyLoop):
                             field_symbol, ["set_clean"]))
                     set_clean.addchild(halo_depth)
                     cursor += 1
-                    self.parent.addchild(set_clean, cursor)
+                    insert_loc.addchild(set_clean, cursor)
                     # call = CallGen(parent, name=f"{field.proxy_name}%"
                     #                f"set_clean({halo_depth})")
                     # parent.add(call)

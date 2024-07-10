@@ -264,7 +264,6 @@ class RegionDirective(Directive):
         for loop in self.walk(PSyLoop):
             if not isinstance(loop.parent, Loop):
                 loop.gen_mark_halos_clean_dirty(parent)
-                
                 if not commented and loop.unique_modified_args("gh_field"):
                     loop.parent[loop.position + 1].preceeding_comment = (
                         "Set halos dirty/clean for fields modified in the "

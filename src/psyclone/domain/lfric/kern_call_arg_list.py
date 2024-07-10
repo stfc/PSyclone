@@ -945,7 +945,7 @@ class KernCallArgList(ArgOrdering):
                 # If there is only one colourmap we need to specify the tag
                 # to make sure we get the right symbol.
                 tag = "cmap"
-            array_ref = self.get_array_reference(self._kern.colourmap,
+            array_ref = self.get_array_reference(self._kern.colourmap.name,
                                                  [Reference(colour_sym),
                                                   Reference(cell_sym)],
                                                  ScalarType.Intrinsic.INTEGER,

@@ -116,10 +116,12 @@ class StructureReference(Reference, StructureAccessorMixin):
         :raises TypeError: if the supplied symbol is not a DataSymbol.
 
         '''
-        if not isinstance(symbol, DataSymbol):
-            raise TypeError(
-                f"The 'symbol' argument to StructureReference.create() "
-                f"should be a DataSymbol but found '{type(symbol).__name__}'.")
+        dt = None
+        if isinstance(symbol, DataSymbol):
+            dt = symbol.datatype
+            # raise TypeError(
+            #     f"The 'symbol' argument to StructureReference.create() "
+            #     f"should be a DataSymbol but found '{type(symbol).__name__}'.")
 
         if overwrite_datatype and not isinstance(overwrite_datatype, DataType):
             raise TypeError(
@@ -128,7 +130,7 @@ class StructureReference(Reference, StructureAccessorMixin):
                 f"'{type(symbol).__name__}'.")
 
         return StructureReference.\
-            _create(symbol, symbol.datatype, members, parent=parent,
+            _create(symbol, dt, members, parent=parent,
                     overwrite_datatype=overwrite_datatype)
 
     @classmethod
@@ -174,12 +176,12 @@ class StructureReference(Reference, StructureAccessorMixin):
             do not have full type information available.
 
         '''
-        if not isinstance(symbol_type, (StructureType, DataTypeSymbol,
-                                        UnresolvedType, UnsupportedType)):
-            raise TypeError(
-                f"A StructureReference must refer to a symbol that is (or "
-                f"could be) a structure, however symbol '{symbol.name}' has "
-                f"type '{symbol_type}'.")
+        # if not isinstance(symbol_type, (StructureType, DataTypeSymbol,
+        #                                 UnresolvedType, UnsupportedType)):
+        #     raise TypeError(
+        #         f"A StructureReference must refer to a symbol that is (or "
+        #         f"could be) a structure, however symbol '{symbol.name}' has "
+        #         f"type '{symbol_type}'.")
         if not isinstance(members, list):
             raise TypeError(
                 f"The 'members' argument to StructureReference._create() "

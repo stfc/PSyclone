@@ -360,7 +360,8 @@ class Call(Statement, DataNode):
             values).  If this information is not known then it returns None.
         :rtype: NoneType | bool
         '''
-        if self.routine and self.routine.symbol:
+        if self.routine and self.routine.symbol and \
+                isinstance(self.routine.symbol, RoutineSymbol):
             return self.routine.symbol.is_pure
         return None
 

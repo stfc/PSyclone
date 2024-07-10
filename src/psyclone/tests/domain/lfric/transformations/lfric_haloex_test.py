@@ -445,7 +445,7 @@ def test_write_cont_dirty(tmpdir, monkeypatch, annexed):
     assert len(hexchs) == 0
     # The field that is written to should be marked as dirty.
     code = str(psy.gen)
-    assert "CALL f1_proxy%set_dirty()\n" in code
+    assert "call f1_proxy%set_dirty()\n" in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -654,8 +654,8 @@ def test_stencil_then_w3_read(tmpdir):
     assert f4_hex.field.name == "f4"
 
     result = str(psy.gen)
-    assert ("      IF (f4_proxy%is_dirty(depth=extent)) THEN\n"
-            "        CALL f4_proxy%halo_exchange(depth=extent)\n"
-            "      END IF" in result)
+    assert ("    if (f4_proxy%is_dirty(depth=extent)) then\n"
+            "      call f4_proxy%halo_exchange(depth=extent)\n"
+            "    end if" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

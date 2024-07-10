@@ -243,7 +243,7 @@ def test_colour_trans(tmpdir, dist_mem):
             "    enddo\n"
             "\n"
             "    ! set halos dirty/clean for fields modified in the "
-            "above loop\n"
+            "above loop(s)\n"
             "    call f1_proxy%set_dirty()\n")
         assert dirty_str in gen
         assert gen.count("set_dirty()") == 1
@@ -429,17 +429,17 @@ def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
     ctrans.apply(loop)
     result = str(psy.gen).lower()
     # Declarations.
-    assert ("integer(kind=i_def), allocatable :: "
-            "last_edge_cell_all_colours_field1(:)" in result)
+    assert ("integer(kind=i_def), allocatable, dimension(:) :: "
+            "last_edge_cell_all_colours_field1" in result)
     # Initialisation.
     assert ("last_edge_cell_all_colours_field1 = mesh_field1%"
             "get_last_edge_cell_all_colours()" in result)
     # Usage. Since there is no need to loop into the halo, the upper loop
     # bound should be independent of whether or not DM is enabled.
     upper_bound = "last_edge_cell_all_colours_field1(colour)"
-    assert (f"      do colour = loop0_start, loop0_stop, 1\n"
-            f"        do cell = loop1_start, {upper_bound}, 1\n"
-            f"          call restrict_w2_code(nlayers" in result)
+    assert (f"    do colour = loop0_start, loop0_stop, 1\n"
+            f"      do cell = loop1_start, {upper_bound}, 1\n"
+            f"        call restrict_w2_code(nlayers" in result)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -552,17 +552,17 @@ def test_omp_colour_trans(tmpdir, dist_mem):
 
     code = str(psy.gen)
 
-    assert ("      ncolour = mesh%get_ncolours()\n"
-            "      cmap => mesh%get_colour_map()\n" in code)
+    assert ("    ncolour = mesh%get_ncolours()\n"
+            "    cmap => mesh%get_colour_map()\n" in code)
     if dist_mem:
         lookup = "last_halo_cell_all_colours(colour,1)"
     else:
         lookup = "last_edge_cell_all_colours(colour)"
     output = (
-        f"      do colour = loop0_start, loop0_stop, 1\n"
-        f"        !$omp parallel do default(shared), private(cell), "
+        f"    do colour = loop0_start, loop0_stop, 1\n"
+        f"      !$omp parallel do default(shared), private(cell), "
         f"schedule(static)\n"
-        f"        do cell = loop1_start, {lookup}, 1\n")
+        f"      do cell = loop1_start, {lookup}, 1\n")
     assert output in code
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -1295,41 +1295,40 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         lookup = "last_edge_cell_all_colours(colour)"
 
     output = (
-        f"      do colour = loop0_start, loop0_stop, 1\n"
-        f"        !$omp parallel default(shared), private(cell)\n"
-        f"        !$omp do schedule(static)\n"
-        f"        do cell = loop1_start, {lookup}, 1\n"
-        f"          call ru_code(nlayers, a_data, b_data, "
+        f"    do colour = loop0_start, loop0_stop, 1\n"
+        f"      !$omp parallel default(shared), private(cell)\n"
+        f"      !$omp do schedule(static)\n"
+        f"      do cell = loop1_start, {lookup}, 1\n"
+        f"        call ru_code(nlayers, a_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
         f"map_w3(:,cmap(colour,cell)), basis_w3_qr, ndf_w0, undf_w0, "
         f"map_w0(:,cmap(colour,cell)), basis_w0_qr, diff_basis_w0_qr, "
         f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        f"        enddo\n"
-        f"        !$omp end do\n"
-        f"        !$omp do schedule(static)\n"
-        f"        do cell = loop2_start, {lookup}, 1\n"
-        f"          call ru_code(nlayers, f_data, b_data, "
+        f"      enddo\n"
+        f"      !$omp end do\n"
+        f"      !$omp do schedule(static)\n"
+        f"      do cell = loop2_start, {lookup}, 1\n"
+        f"        call ru_code(nlayers, f_data, b_data, "
         f"istp, rdt, d_data, e_1_data, e_2_data, "
         f"e_3_data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
         f"map_w3(:,cmap(colour,cell)), basis_w3_qr, ndf_w0, undf_w0, "
         f"map_w0(:,cmap(colour,cell)), basis_w0_qr, diff_basis_w0_qr, "
         f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        f"        enddo\n"
-        f"        !$omp end do\n"
-        f"        !$omp end parallel\n"
-        f"      enddo\n")
+        f"      enddo\n"
+        f"      !$omp end do\n"
+        f"      !$omp end parallel\n"
+        f"    enddo\n")
     assert output in code
 
     if dist_mem:
         set_dirty_str = (
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      call a_proxy%set_dirty()\n"
-            "      call f_proxy%set_dirty()\n")
+            "    ! Set halos dirty/clean for fields modified in the "
+            "above loop(s)\n"
+            "    call a_proxy%set_dirty()\n"
+            "    call f_proxy%set_dirty()\n")
         assert set_dirty_str in code
         assert code.count("set_dirty()") == 2
 
@@ -1450,31 +1449,30 @@ def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             assert ("loop0_stop = f2_proxy%vspace%get_last_dof_owned()"
                     in result)
         code = (
-            "      !$omp parallel do default(shared), private(df), "
+            "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      do df = loop0_start, loop0_stop, 1\n"
-            "        ! Built-in: setval_X (set a real-valued field "
+            "    do df = loop0_start, loop0_stop, 1\n"
+            "      ! Built-in: setval_X (set a real-valued field "
             "equal to another such field)\n"
-            "        f2_data(df) = f1_data(df)\n"
-            "      enddo\n"
-            "      !$omp end parallel do\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
+            "      f2_data(df) = f1_data(df)\n"
+            "    enddo\n"
+            "    !$omp end parallel do\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
-            "      !\n"
-            "      call f2_proxy%set_dirty()")
+            "    call f2_proxy%set_dirty()")
         assert code in result
     else:  # not distmem. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f2" in result
         assert (
-            "      !$omp parallel do default(shared), private(df), "
+            "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      do df = loop0_start, loop0_stop, 1\n"
-            "        ! Built-in: setval_X (set a real-valued field "
+            "    do df = loop0_start, loop0_stop, 1\n"
+            "      ! Built-in: setval_X (set a real-valued field "
             "equal to another such field)\n"
-            "        f2_data(df) = f1_data(df)\n"
-            "      enddo\n"
-            "      !$omp end parallel do") in result
+            "      f2_data(df) = f1_data(df)\n"
+            "    enddo\n"
+            "    !$omp end parallel do") in result
 
 
 def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1506,80 +1504,75 @@ def test_builtin_multiple_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
                     f"get_last_dof_{name}()" in result)
 
         code = (
-            "      !$omp parallel do default(shared), private(df), "
+            "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      do df = loop0_start, loop0_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "    do df = loop0_start, loop0_stop, 1\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f1_data(df) = fred\n"
-            "      enddo\n"
-            "      !$omp end parallel do\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
+            "      f1_data(df) = fred\n"
+            "    enddo\n"
+            "    !$omp end parallel do\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
-            "      !\n"
-            "      call f1_proxy%set_dirty()\n"
-            "      !\n"
-            "      ! End of set dirty/clean section for above loop(s)\n"
-            "      !\n"
-            "      !$omp parallel do default(shared), private(df), "
+            "    call f1_proxy%set_dirty()\n"
+            "\n"
+            "    ! End of set dirty/clean section for above loop(s)\n"
+            "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      do df = loop1_start, loop1_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "    do df = loop1_start, loop1_stop, 1\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f2_data(df) = 3.0_r_def\n"
-            "      enddo\n"
-            "      !$omp end parallel do\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
+            "      f2_data(df) = 3.0_r_def\n"
+            "    enddo\n"
+            "    !$omp end parallel do\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
-            "      !\n"
-            "      call f2_proxy%set_dirty()\n"
-            "      !\n"
-            "      ! End of set dirty/clean section for above loop(s)\n"
-            "      !\n"
-            "      !$omp parallel do default(shared), private(df), "
+            "    call f2_proxy%set_dirty()\n"
+            "\n"
+            "    ! End of set dirty/clean section for above loop(s)\n"
+            "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      do df = loop2_start, loop2_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "    do df = loop2_start, loop2_stop, 1\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f3_data(df) = ginger\n"
-            "      enddo\n"
-            "      !$omp end parallel do\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
+            "      f3_data(df) = ginger\n"
+            "    enddo\n"
+            "    !$omp end parallel do\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
-            "      !\n"
-            "      call f3_proxy%set_dirty()")
+            "    call f3_proxy%set_dirty()")
         assert code in result
     else:  # not distmem. annexed can be True or False
         for idx in range(1, 4):
             assert f"loop{idx-1}_stop = undf_aspc1_f{idx}" in result
         assert (
-            "      !$omp parallel do default(shared), private(df), "
+            "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      do df = loop0_start, loop0_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "    do df = loop0_start, loop0_stop, 1\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f1_data(df) = fred\n"
-            "      enddo\n"
-            "      !$omp end parallel do\n"
-            "      !$omp parallel do default(shared), private(df), "
+            "      f1_data(df) = fred\n"
+            "    enddo\n"
+            "    !$omp end parallel do\n"
+            "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      do df = loop1_start, loop1_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "    do df = loop1_start, loop1_stop, 1\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f2_data(df) = 3.0_r_def\n"
-            "      enddo\n"
-            "      !$omp end parallel do\n"
-            "      !$omp parallel do default(shared), private(df), "
+            "      f2_data(df) = 3.0_r_def\n"
+            "    enddo\n"
+            "    !$omp end parallel do\n"
+            "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      do df = loop2_start, loop2_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "    do df = loop2_start, loop2_stop, 1\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f3_data(df) = ginger\n"
-            "      enddo\n"
-            "      !$omp end parallel do\n") in result
+            "      f3_data(df) = ginger\n"
+            "    enddo\n"
+            "    !$omp end parallel do\n") in result
 
 
 def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1614,45 +1607,44 @@ def test_builtin_loop_fuse_pdo(tmpdir, monkeypatch, annexed, dist_mem):
             assert ("loop0_stop = f1_proxy%vspace%get_last_dof_owned()"
                     in result)
         code = (
-            "      !$omp parallel do default(shared), private(df), "
+            "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      do df = loop0_start, loop0_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "    do df = loop0_start, loop0_stop, 1\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f1_data(df) = fred\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "      f1_data(df) = fred\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f2_data(df) = 3.0_r_def\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "      f2_data(df) = 3.0_r_def\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f3_data(df) = ginger\n"
-            "      enddo\n"
-            "      !$omp end parallel do\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
+            "      f3_data(df) = ginger\n"
+            "    enddo\n"
+            "    !$omp end parallel do\n"
+            "\n"
+            "    ! Set halos dirty/clean for fields modified in the "
             "above loop(s)\n"
-            "      !\n"
-            "      call f1_proxy%set_dirty()\n"
-            "      call f2_proxy%set_dirty()\n"
-            "      call f3_proxy%set_dirty()")
+            "    call f1_proxy%set_dirty()\n"
+            "    call f2_proxy%set_dirty()\n"
+            "    call f3_proxy%set_dirty()")
         assert code in result
     else:  # distmem is False. annexed can be True or False
         assert "loop0_stop = undf_aspc1_f1" in result
         assert (
-            "      !$omp parallel do default(shared), private(df), "
+            "    !$omp parallel do default(shared), private(df), "
             "schedule(static)\n"
-            "      do df = loop0_start, loop0_stop, 1\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "    do df = loop0_start, loop0_stop, 1\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f1_data(df) = fred\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "      f1_data(df) = fred\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f2_data(df) = 3.0_r_def\n"
-            "        ! Built-in: setval_c (set a real-valued field to "
+            "      f2_data(df) = 3.0_r_def\n"
+            "      ! Built-in: setval_c (set a real-valued field to "
             "a real scalar value)\n"
-            "        f3_data(df) = ginger\n"
-            "      enddo\n"
-            "      !$omp end parallel do") in result
+            "      f3_data(df) = ginger\n"
+            "    enddo\n"
+            "    !$omp end parallel do") in result
 
 
 def test_builtin_single_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
@@ -7077,7 +7069,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "        call m2_proxy%halo_exchange_finish(depth=2)\n"
         "      end if\n") in result
     assert (
-        "      ! Set halos dirty/clean for fields modified in the above loop\n"
+        "      ! Set halos dirty/clean for fields modified in the above loop(s)\n"
         "      !\n"
         "      call m2_proxy%set_dirty()\n"
         "      call m2_proxy%set_clean(2)\n") in result
@@ -7097,7 +7089,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "        call m2_proxy%halo_exchange_finish(depth=2)\n"
         "      end if\n") in result
     assert (
-        "      ! Set halos dirty/clean for fields modified in the above loop\n"
+        "      ! Set halos dirty/clean for fields modified in the above loop(s)\n"
         "      !\n"
         "      call m2_proxy%set_dirty()\n"
         "      call m2_proxy%set_clean(2)\n") in result
@@ -7119,7 +7111,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir):
         "        call m2_proxy%halo_exchange_finish(depth=3)\n"
         "      end if\n") in result
     assert (
-        "      ! Set halos dirty/clean for fields modified in the above loop\n"
+        "      ! Set halos dirty/clean for fields modified in the above loop(s)\n"
         "      !\n"
         "      call m2_proxy%set_dirty()\n"
         "      call m2_proxy%set_clean(3)\n") in result
