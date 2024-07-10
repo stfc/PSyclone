@@ -68,11 +68,11 @@ tutorial:
    ```python
    for loop in psyir.walk(Loop):
        if loop.loop_type == "levels":
-           OMP_TRANS.apply(child)
+           OMP_TRANS.apply(loop)
    ```
 
 Hopefully that looks similar to what you may have ended up with at the
-end of the profiling part of this tutorial although we are applying a
+end of the profiling part of this tutorial, although we are applying a
 different transformation here.
 
 Note that in this tutorial, we will only be applying OpenMP
