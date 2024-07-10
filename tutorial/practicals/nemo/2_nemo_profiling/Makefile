@@ -42,8 +42,8 @@ include ../../../common.mk
 # We use the PSyData simple_timing implementation since it has no
 # dependencies.
 PROFILE_WRAPPER_DIR ?= ../../../../lib/profiling/simple_timing
-PROFILE_WRAPPER_LINK ?= -lsimple_timing
 PROFILE_WRAPPER_LIB ?= ${PROFILE_WRAPPER_DIR}/libsimple_timing.a
+PROFILE_WRAPPER_LINK ?= ${PROFILE_WRAPPER_LIB}
 # There's no separate library for 'simple_timing' - its functionality
 # is incorporated in the PSyData wrapper.
 PROFILE_DIR ?=

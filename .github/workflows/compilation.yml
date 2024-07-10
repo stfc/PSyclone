@@ -131,4 +131,4 @@ jobs:
         module load hdf5/${HDF5_VERSION} netcdf_c/${NETCDF_C_VERSION} netcdf_fortran/${NETCDF_FORTRAN_VERSION}
         # TODO #2251. Cannot build the LFRic practicals with nvfortran 23.5-23.9
         # because the compilation of nan_test.f90 gives an ICE.
-        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/nemo compile
+        NV_ACC_NOTIFY=2 F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/nemo run
