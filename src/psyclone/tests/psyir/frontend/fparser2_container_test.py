@@ -49,94 +49,6 @@ from psyclone.psyir.nodes import Container, FileContainer, KernelSchedule
 from psyclone.psyir.symbols import Symbol, RoutineSymbol
 
 
-def test_generate_container(parser):
-    ''' Test that generate_container creates a PSyIR container with the
-    contents of the given fparser2 fortran module.'''
-    dummy_module = '''
-    module dummy_mod
-        use mod1
-        use mod2, only: var1
-        implicit none
-        real :: modvar1
-    contains
-        subroutine dummy_code(f1, f2, f3)
-            real(wp), dimension(:,:), intent(in)  :: f1
-            real(wp), dimension(:,:), intent(out)  :: f2
-            real(wp), dimension(:,:) :: f3
-            f2 = f1 + 1
-        end subroutine dummy_code
-    end module dummy_mod
-    '''
-    reader = FortranStringReader(dummy_module)
-    ast = parser(reader)
-    processor = Fparser2Reader()
-    container = processor.generate_container(ast)
-    assert isinstance(container, Container)
-    print(container)
-    assert not container.children
-    assert container.symbol_table
-    assert container.symbol_table.lookup("modvar1")
-    assert container.symbol_table.lookup("var1")
-    assert container.symbol_table.lookup("mod1")
-    assert container.symbol_table.lookup("mod2")
-    assert container.symbol_table.lookup("dummy_code")
-
-
-def test_generate_container_no_module(parser):
-    ''' Check that generate_container returns None if the parse tree does
-    not contain a module. '''
-    processor = Fparser2Reader()
-    reader = FortranStringReader(
-        "program my_prog\n"
-        "integer :: flag\n"
-        "end program")
-    ast = parser(reader)
-    processor = Fparser2Reader()
-    container = processor.generate_container(ast)
-    assert container is None
-
-
-def test_generate_container_two_modules(parser):
-    ''' Tests the fparser2Reader generate_container method raises an exception
-    when more than one fparser2 module node is provided.
-    '''
-    reader = FortranStringReader("module dummy1_mod\n"
-                                 "end module dummy1_mod\n"
-                                 "module dummy2_mod\n"
-                                 "end module dummy2_mod\n")
-    ast = parser(reader)
-    processor = Fparser2Reader()
-    # Test kernel with two modules
-    with pytest.raises(GenerationError) as error:
-        _ = processor.generate_container(ast)
-    assert "Could not process" in str(error.value)
-    assert "Just one module definition per file supported." in str(error.value)
-
-
-def test_generate_container_routine_names(parser):
-    ''' Test that the generate_container method correctly populates the
-    SymbolTable with entries for routines contained within the module. '''
-    reader = FortranStringReader("module dummy1_mod\n"
-                                 "  public my_func\n"
-                                 "contains\n"
-                                 "  subroutine my_sub()\n"
-                                 "    implicit none\n"
-                                 "    write(*,*) my_func()\n"
-                                 "  end subroutine my_sub\n"
-                                 "  function my_func()\n"
-                                 "    integer :: my_func\n"
-                                 "    my_func = 1\n"
-                                 "  end function my_func\n"
-                                 "end module dummy1_mod\n")
-    ast = parser(reader)
-    processor = Fparser2Reader()
-    container = processor.generate_container(ast)
-    func = container.symbol_table.lookup("my_func")
-    assert isinstance(func, RoutineSymbol)
-    sub = container.symbol_table.lookup("my_sub")
-    assert isinstance(sub, RoutineSymbol)
-
-
 def test_access_stmt_no_unqualified_use(parser):
     '''Check that no error is raised if an undeclared symbol is listed in
     an access statement and there are no unqualified use statements to
@@ -151,7 +63,7 @@ def test_access_stmt_no_unqualified_use(parser):
         "public var3\n"
         "end module modulename")
     fparser2spec = parser(reader)
-    processor.generate_container(fparser2spec)
+    processor.generate_psyir(fparser2spec)
 
 
 def test_default_public_container(parser):
@@ -167,7 +79,8 @@ def test_default_public_container(parser):
         "private var3\n"
         "end module modulename")
     fparser2spec = parser(reader)
-    container = processor.generate_container(fparser2spec)
+    fcontainer = processor.generate_psyir(fparser2spec)
+    container = fcontainer.children[0]
     assert "var1" in container.symbol_table
     assert (container.symbol_table.lookup("var1").visibility ==
             Symbol.Visibility.PRIVATE)
@@ -190,7 +103,8 @@ def test_default_private_container(parser):
         "public var3\n"
         "end module modulename")
     fparser2spec = parser(reader)
-    container = processor.generate_container(fparser2spec)
+    fcontainer = processor.generate_psyir(fparser2spec)
+    container = fcontainer.children[0]
     assert "var1" in container.symbol_table
     assert (container.symbol_table.lookup("var1").visibility ==
             Symbol.Visibility.PUBLIC)
@@ -213,7 +127,8 @@ def test_access_stmt_undeclared_symbol(parser):
         "private var5\n"
         "end module modulename")
     fparser2spec = parser(reader)
-    container = processor.generate_container(fparser2spec)
+    fcontainer = processor.generate_psyir(fparser2spec)
+    container = fcontainer.children[0]
     sym_table = container.symbol_table
     assert "var3" in sym_table
     assert sym_table.lookup("var3").visibility == Symbol.Visibility.PUBLIC
@@ -284,7 +199,8 @@ def test_access_stmt_routine_name(parser):
         "  end subroutine my_routine\n"
         "end module modulename")
     fparser2spec = parser(reader)
-    container = processor.generate_container(fparser2spec)
+    fcontainer = processor.generate_psyir(fparser2spec)
+    container = fcontainer.children[0]
     sym = container.symbol_table.lookup("my_routine")
     assert isinstance(sym, RoutineSymbol)
     assert sym.visibility == Symbol.Visibility.PUBLIC
@@ -302,7 +218,7 @@ def test_public_private_symbol_error(parser):
         "end module modulename")
     fparser2spec = parser(reader)
     with pytest.raises(GenerationError) as err:
-        processor.generate_container(fparser2spec)
+        processor.generate_psyir(fparser2spec)
     assert ("Symbols ['var3'] appear in access statements with both PUBLIC "
             "and PRIVATE" in str(err.value))
 
@@ -319,7 +235,7 @@ def test_multiple_access_stmt_error(parser):
         "end module modulename")
     fparser2spec = parser(reader)
     with pytest.raises(GenerationError) as err:
-        processor.generate_container(fparser2spec)
+        processor.generate_psyir(fparser2spec)
     assert ("Module 'modulename' contains more than one access statement with"
             in str(err.value))
 

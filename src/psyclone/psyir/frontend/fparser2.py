@@ -1188,56 +1188,6 @@ class Fparser2Reader():
         result.name = filename
         return result.detach()
 
-    def generate_container(self, module_ast):
-        '''
-        Create a Container from the supplied fparser2 module AST.
-
-        :param module_ast: fparser2 AST of the full module.
-        :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-
-        :returns: PSyIR container representing the given module_ast or None \
-                  if there's no module in the parse tree.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
-
-        :raises GenerationError: unable to generate a Container from the \
-                                 provided fpaser2 parse tree.
-        '''
-        # Assume just 1 or 0 Fortran module definitions in the file
-        modules = walk(module_ast, Fortran2003.Module_Stmt)
-        if len(modules) > 1:
-            raise GenerationError(
-                f"Could not process {module_ast}. Just one module definition "
-                f"per file supported.")
-        if not modules:
-            return None
-
-        module = modules[0].parent
-        mod_name = str(modules[0].children[1])
-
-        # Create a container to capture the module information
-        new_container = Container(mod_name)
-
-        # Search for any accessibility statements (e.g. "PUBLIC :: my_var") to
-        # determine the default accessibility of symbols as well as identifying
-        # those that are explicitly declared as public or private.
-        (default_visibility, visibility_map) = self.process_access_statements(
-            module)
-        new_container.symbol_table.default_visibility = default_visibility
-
-        # Create symbols for all routines defined within this module
-        _process_routine_symbols(module_ast, new_container,
-                                 new_container.symbol_table,
-                                 visibility_map)
-
-        # Parse the declarations if it has any
-        for child in module.children:
-            if isinstance(child, Fortran2003.Specification_Part):
-                self.process_declarations(new_container, child.children,
-                                          [], visibility_map)
-                break
-
-        return new_container
-
     def get_routine_schedules(self, name, module_ast):
         '''Create one or more schedules for routines corresponding to the
         supplied name in the supplied fparser2 AST. (There can be more than
