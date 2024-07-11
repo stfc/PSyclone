@@ -76,8 +76,8 @@ this session.)
    see timing information printed to the terminal, e.g.:
 
        ===========================================
-       module::region   count	sum	   min		average		max
-       tra_adv::r0        1   0.718750000    0.718750000   0.718750000    0.718750000
+       module::region           count	sum	   min		average		max
+       tra_adv_mod::tra_adv-r0 1   0.718750000    0.718750000   0.718750000    0.718750000
        ===========================================
 
    Timings are only reported for a single region because our mini-app consists
@@ -99,7 +99,7 @@ in this tutorial.
 
        ===========================================
        module::region   count	sum	   min		average		max
-       tra_adv::r0        1   0.718750000    0.718750000   0.718750000    0.718750000
+       tra_adv_mod::tra_adv-r0 1   0.718750000    0.718750000   0.718750000    0.718750000
        ===========================================
 
    If you examine the PSyIR that is displayed when running PSyclone with
@@ -168,13 +168,16 @@ transformation script to perform finer-grained profiling.
    regions (r0-r13) reported by the timing library:
 
        ===========================================
-       module::region   count	       sum	     min		average	          max
-       tra_adv::r0        1 	  3.12500000E-02    3.12500000E-02   3.12500000E-02    3.12500000E-02
-       tra_adv::r1        1 	  0.00000000        0.00000000       0.00000000        0.00000000
-       tra_adv::r2       10 	  3.12500000E-02    0.00000000       3.12500005E-03    3.12500000E-02
+       module::region                 count       sum         min     average         max
+       tra_adv_mod::tra_adv-r0            1      2.24609375E-02      2.24609375E-02      2.24609375E-02      2.24609375E-02
+       tra_adv_mod::tra_adv-r1            1      0.00000000          0.00000000          0.00000000          0.00000000
+       tra_adv_mod::tra_adv-r2           10      5.66406250E-02      3.90625000E-03      5.66406269E-03      1.07421875E-02
+       tra_adv_mod::tra_adv-r3           10      5.17578125E-02      2.92968750E-03      5.17578144E-03      1.17187500E-02
        ...
-       tra_adv::r13       1 	  0.187500000       0.187500000      0.187500000       0.187500000
+       tra_adv_mod::tra_adv-r12          10      2.73437500E-02      9.76562500E-04      2.73437495E-03      3.90625000E-03
+       tra_adv_mod::tra_adv-r13           1     0.449218750         0.449218750         0.449218750         0.449218750
        ===========================================
+
 
 
 2. Many PSyclone transformations allow additional options to be supplied

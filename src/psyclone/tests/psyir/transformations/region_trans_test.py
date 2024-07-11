@@ -169,7 +169,7 @@ def test_validate_errors():
                  schedule.children[2]]
     with pytest.raises(TransformationError) as err:
         my_rt.validate(node_list)
-    assert "cannot be enclosed" in str(err.value)
+    assert "Nodes of type 'GOLoop' cannot be enclosed" in str(err.value)
 
 
 # -----------------------------------------------------------------------------
