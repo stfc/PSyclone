@@ -87,8 +87,8 @@ def test_no_kernels_error(fortran_reader):
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children[0:2], {"default_present": True})
-    assert ("cannot be enclosed by a ACCKernelsTrans transformation"
-            in str(err.value))
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
+            "ACCKernelsTrans transformation" in str(err.value))
 
 
 def test_acc_kernels_gocean_error():
@@ -222,8 +222,8 @@ def test_no_code_block_kernels(fortran_reader):
     acc_trans = ACCKernelsTrans()
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children)
-    assert ("cannot be enclosed by a ACCKernelsTrans "
-            in str(err.value))
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a "
+            "ACCKernelsTrans" in str(err.value))
 
 
 def test_no_default_present(fortran_reader, fortran_writer):
