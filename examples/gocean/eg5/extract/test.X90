@@ -1,4 +1,16 @@
 Program test
+    !> This program is a simple gocean program that contains two invokes,
+    !> the first to initialise a few fields, the second to update a field.
+    !> It can be used with kernel extraction for both invokes. After
+    !> instrumenting the code using PSyclone with the extract_transform.py
+    !> script, it can be compiled, and when executed will create two kernel data
+    !> files. The instrumentation will also create two stand-alone driver
+    !> programs, which can be compiled. They will each read the corresponding
+    !> kernel data file, execute the kernel, and compare the results.
+
+#ifdef _MPI
+    use mpi
+#endif
     USE field_mod
     USE grid_mod
     use decomposition_mod, only    : decomposition_type
@@ -17,6 +29,11 @@ Program test
     ! interface does not provide a method for single precision).
     real(kind=kind(1.0d0))        :: z
     TYPE(grid_type), target       :: grid
+#ifdef _MPI
+    integer                       :: ierr
+
+    call MPI_Init(ierr)
+#endif
 
     call parallel_init()
     call extract_PSyDataInit()
@@ -42,4 +59,9 @@ Program test
 
     print *,a_fld%data(1:5, 1:5)
     call extract_PSyDataShutdown()
+
+#ifdef _MPI
+    call MPI_Finalize(ierr)
+#endif
+
 end program test
