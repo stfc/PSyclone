@@ -200,7 +200,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''Argument providing an LFRic field.
 
         :param meta_arg: the metadata associated with this field argument.
-        :type meta_arg: \
+        :type meta_arg:
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
@@ -526,7 +526,6 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         :param str function_space: the current function space.
 
         '''
-        function_space_name = cls._function_space_name(function_space)
         undf_name = cls._undf_name(function_space)
         # This symbol might be used to dimension an array in another
         # method and therefore could have already been declared.
@@ -1146,7 +1145,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             dims = [ncol]
         cls._add_lfric_symbol_name(
             "CMADofMapDataSymbol",
-            f"cma_dofmap_{function_space_name}_{name}", dims=dims)
+            f"cma_dofmap_{function_space_name}", dims=dims)
 
     @classmethod
     def _create_datatype(cls, class_name):
@@ -1252,7 +1251,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         datatype = meta_arg.datatype[3:4]
         meta_arg_index = cls._metadata.meta_args.index(meta_arg)
-        return f"{datatype}field_{meta_arg_index+1}_{meta_arg.function_space}"
+        fs_name = cls._function_space_name(meta_arg.function_space)
+        return f"{datatype}field_{meta_arg_index+1}_{fs_name}"
 
     @classmethod
     def _operator_name(cls, meta_arg):
@@ -1298,9 +1298,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         if "any_space_" in function_space:
-            return f"as_{function_space[10:]}"
+            return f"aspc{function_space[10:]}"
         if "any_discontinuous_space_" in function_space:
-            return f"ads_{function_space[24:]}"
+            return f"adspc{function_space[24:]}"
         return function_space
 
     @classmethod
