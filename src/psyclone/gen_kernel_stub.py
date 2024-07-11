@@ -85,21 +85,6 @@ def generate(filename, api=""):
     if not os.path.isfile(filename):
         raise IOError(f"Kernel stub generator: File '{filename}' not found.")
 
-    # Drop cache
-    # fparser.one.parsefortran.FortranParser.cache.clear()
-    # fparser.logging.disable(fparser.logging.CRITICAL)
-    # try:
-    #     ast = fparser.api.parse(filename, ignore_comments=False)
-    #
-    # except (fparser.common.utils.AnalyzeError, AttributeError) as error:
-    #    raise ParseError(f"Kernel stub generator: Code appears to be invalid "
-    #                      f"Fortran: {error}.")
-    #
-    # metadata = LFRicKernMetadata(ast)
-    # kernel = LFRicKern()
-    #
-    # return kernel.gen_stub
-
     from psyclone.psyir.frontend import fortran
     from psyclone.psyir import nodes
     from psyclone.psyir.symbols import DataTypeSymbol

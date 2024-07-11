@@ -128,7 +128,6 @@ def test_stub_generate_with_scalar_sums_err():
         _ = generate(
             os.path.join(BASE_PATH, "testkern_simple_with_reduction_mod.f90"),
             api=TEST_API)
-    assert (
-        "A user-supplied LFRic kernel must not write/update a scalar "
-        "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_sum' access." in str(err.value))
+    assert ("Scalar arguments to general-purpose kernels with 'operates_on == "
+            "cell_column' must be read-only but found 'gh_real' scalar with "
+            "'gh_sum' access in" in str(err.value))
