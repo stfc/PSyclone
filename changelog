@@ -159,6 +159,10 @@
 	56) PR #2646 for #2641. Fixes incorrect module names within the
 	PSyData API (e.g. when profiling).
 
+	57) PR #2647 for #1992. Adds MPI support to PSyKE. Each rank will write
+        its own output file(s). The generated driver has been extended so that
+        the name of the file to use can be specified on the command line.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
