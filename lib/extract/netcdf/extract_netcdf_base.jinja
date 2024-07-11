@@ -203,6 +203,9 @@ contains
     subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                         num_post_vars)
 
+#ifndef NO_MPI
+        use mpi
+#endif
         use netcdf, only : nf90_create, NF90_CLOBBER, NF90_NETCDF4
 
         implicit none
@@ -214,6 +217,11 @@ contains
                                                                num_post_vars
 
         integer :: retval
+        character(1024) :: file_name
+#ifndef NO_MPI
+        integer :: rank, size, ierr, num_digits
+        character(7) :: rank_format, rank_string
+#endif
 
         call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                            num_pre_vars, num_post_vars)
@@ -222,11 +230,24 @@ contains
         endif
 
 
+#ifdef NO_MPI
+        file_name = module_name//"-"//region_name//".nc"
+#else
+        ! Add the rank to the file name:
+        call MPI_Comm_size(MPI_COMM_WORLD, size, ierr)
+        call MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
+        num_digits = floor(log(real(size))/log(10.0)) + 1
+        write(rank_format, "('(I',I0,'.',I0,')')") num_digits, num_digits
+        write(rank_string, rank_format) rank
+        file_name = module_name//"-"//region_name//"-"//trim(rank_string)//".nc"
+#endif
+
         ! Open the NetCDF file. Explicitly request NetCDF 4 format, since
         ! this is required in order to use NF90_INT64 (further down)
-        retval = CheckError(nf90_create(module_name//"-"//region_name//".nc", &
+        retval = CheckError(nf90_create(trim(file_name), &
                                         IOR(NF90_NETCDF4,NF90_CLOBBER),       &
                                         this%ncid))
+
         ! Allocate the array that will store the variable IDs of all
         ! variables that are going to be declared. Note that there might
         ! actually be more variables stored (in LFRic vector fields are
@@ -327,7 +348,7 @@ contains
             tmp_var_id(1:size(this%var_id)) = this%var_id
             deallocate(this%var_id)
             call move_alloc(tmp_var_id, this%var_id)
-            ! tmp_var_id is deallacted as part of move_alloc
+            ! tmp_var_id is deallocated as part of move_alloc
         endif
         if (this%verbosity >= 2) then
             write(stderr,*) "Defining {{name}}."
@@ -421,7 +442,7 @@ contains
             tmp_var_id(1:size(this%var_id)) = this%var_id
             deallocate(this%var_id)
             call move_alloc(tmp_var_id, this%var_id)
-            ! tmp_var_id is deallacted as part of move_alloc
+            ! tmp_var_id is deallocated as part of move_alloc
         endif
 
         if (this%verbosity >= 2) then

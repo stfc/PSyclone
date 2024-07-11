@@ -121,7 +121,7 @@ def test_driver_creation1():
   real*8 :: in_fld_grid_dx
   real*8, allocatable, dimension(:,:) :: in_out_fld_post
   type(ReadKernelDataType) :: extract_psy_data
-  call extract_psy_data%OpenRead('psy_extract_example_with_various_variable_''' \
+  call extract_psy_data%OpenReadModuleRegion('psy_extract_example_with_various_variable_''' \
   '''access_patterns', 'invoke_0_compute_kernel-compute_kernel_code-r0')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
   ALLOCATE(out_fld, mold=out_fld_post)
@@ -192,7 +192,7 @@ def test_driver_creation2():
   real*8 :: in_fld_grid_dx
   real*8, allocatable, dimension(:,:) :: in_out_fld_post
   type(ReadKernelDataType) :: extract_psy_data
-  call extract_psy_data%OpenRead('module_name', 'local_name')
+  call extract_psy_data%OpenReadModuleRegion('module_name', 'local_name')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
   ALLOCATE(out_fld, mold=out_fld_post)
   out_fld = 0

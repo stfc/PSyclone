@@ -64,7 +64,8 @@ module read_kernel_data_mod
     contains
 
         ! The various procedures used
-        procedure :: OpenRead
+        procedure :: OpenReadFileName
+        procedure :: OpenReadModuleRegion
 
         procedure :: ReadScalarChar
         procedure :: ReadArray1dChar
@@ -170,7 +171,7 @@ contains
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
     !! @param[in] region_name The name of the instrumented region.
-    subroutine OpenRead(this, module_name, region_name)
+    subroutine OpenReadModuleRegion(this, module_name, region_name)
 
         use netcdf, only : nf90_open, NF90_NOWRITE
 
@@ -184,7 +185,29 @@ contains
         retval = CheckError(nf90_open(module_name//"-"//region_name//".nc", &
                                         NF90_NOWRITE, this%ncid))
 
-    end subroutine OpenRead
+    end subroutine OpenReadModuleRegion
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine is called to open a NetCDF file for reading. The
+    !! filename is specified explicitly (as opposed to be based on module-name
+    !! and region name in OpenReadModuleRegion). This is used by a driver
+    !! program that will read a NetCDF file previously created by the PSyData
+    !! API.
+    !! @param[in,out] this The instance of the ReadKernelDataType.
+    !! @param[in] file_name The name of the NetCDF file to open.
+    subroutine OpenReadFileName(this, file_name)
+
+        use netcdf, only : nf90_open, NF90_NOWRITE
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target :: this
+        character(*), intent(in)                         :: file_name
+        integer :: retval
+
+        retval = CheckError(nf90_open(file_name, NF90_NOWRITE, this%ncid))
+
+    end subroutine OpenReadFilename
 
 
     ! -------------------------------------------------------------------------
