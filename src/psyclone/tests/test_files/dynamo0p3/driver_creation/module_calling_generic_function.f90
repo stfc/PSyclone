@@ -33,8 +33,9 @@
 !-------------------------------------------------------------------------------
 ! Author J. Henrichs, Bureau of Meteorology
 
-! A simple module that calls a kernel and also uses a builtin. This is used
-! for testing the basic functionality of extraction and driver creation
+! A simple module that calls a generic function in
+! module_calling_generic_function.f90. This is used to test the call tree
+! tools when using generic functions.
 
 module module_calling_generic_function
 
