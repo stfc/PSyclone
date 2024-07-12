@@ -117,10 +117,6 @@ explicitly listed may be assumed to be unsupported):
 |                      |PRIVATE             |                    |
 +----------------------+--------------------+--------------------+
 
-.. warning:: Checking for equality between Type objects is currently
-	     only implemented for ``ScalarType``. This will be
-	     completed in #1799.
-
 It was decided to include datatype intrinsic as an attribute of ScalarType
 rather than subclassing. So, for example, a 4-byte real scalar is
 defined like this:
@@ -219,6 +215,32 @@ possible that these should reflect a global view. One issue is that
 the `__contains__` method has no mechanism to pass a `scope_limit`
 optional argument. This would probably require a separate `setter` and
 `getter` to specify whether to check ancestors or not.
+
+Copying Symbols and Symbol Tables
+=================================
+
+Since Symbols can contain PSyIR nodes and other Symbols (e.g. as part
+of the definition of their precision or initial value), creating copies
+is not entirely straightforward. Every `Symbol` has the `copy` method:
+
+.. automethod:: psyclone.psyir.symbols.Symbol.copy
+
+This ensures that the precision and initial-value properties are copied
+appropriately (e.g. new PSyIR nodes constructed) but any Symbols
+referred to by those properties remain unchanged.
+
+When performing a deep copy of a PSyIR tree, obviously all Symbols will
+need to be replaced with their equivalents in the new tree. The
+`SymbolTable.deep_copy()` method:
+
+.. automethod:: psyclone.psyir.symbols.SymbolTable.deep_copy
+
+handles this by first creating shallow copies of all Symbols in the table
+and then ensuring that each is updated to refer to
+Symbols in the new scope. This is achieved using the `update_symbols_from`
+method:
+
+.. automethod:: psyclone.psyir.symbols.Symbol.update_symbols_from
 
 Specialising Symbols
 ====================
