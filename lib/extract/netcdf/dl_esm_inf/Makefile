@@ -39,8 +39,14 @@
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
-F90 ?= gfortran
 F90FLAGS ?=
+ifeq ($(MPI), yes)
+       F90 ?= mpif90
+else
+       F90 ?= gfortran
+       F90FLAGS += -DNO_MPI
+endif
+
 # Path to the 'dl_esm_inf' infrastructure library. It defaults to the version
 # distributed with PSyclone. Overwrite for a different infrastructure version.
 GOCEAN_INF_DIR ?= ./../../../../external/dl_esm_inf/finite_difference
@@ -82,8 +88,8 @@ psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 read_kernel_data_mod.f90: $(LIB_TMPLT_DIR)/read_kernel_data_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) $< > read_kernel_data_mod.f90
 
-extract_netcdf_base.f90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
-	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90
+extract_netcdf_base.F90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.F90
 
 compare_variables_mod.F90: $(PSYDATA_LIB_DIR)/extract/compare_variables_mod.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > compare_variables_mod.F90

@@ -27,6 +27,10 @@ it in their own directory (to allow for the required data types to be
 supported). The API-specific implementations do not link with the compiled
 version in this directory.
 
+In order to support MPI in extraction (which means each process will write
+its own output data by appending its rank to the filename), set the environment
+variable ``MPI=yes``.
+
 ## [``dl_esm_inf``](./dl_esm_inf) directory
 
 Contains the NetCDF-extract, PSyData-API-based, wrapper library for the
