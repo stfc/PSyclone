@@ -167,8 +167,8 @@ class Literal(DataNode):
         :returns: description of this PSyIR node.
         :rtype: str
         '''
-        return f"{self.coloured_name(colour)}"\
-               f"[value:'{self._value}', {self.datatype}]"
+        return (f"{self.coloured_name(colour)}"
+                f"[value:'{self._value}', {self.datatype}]")
 
     def update_symbols_from(self, table):
         '''
@@ -178,9 +178,10 @@ class Literal(DataNode):
 
         :param table: the symbol table in which to look up replacement symbols.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         '''
         self.datatype.update_symbols_from(table)
-        # Literal is a leaf so no need to call super().
+        super().update_symbols_from(table)
 
 
 # For AutoAPI documentation generation

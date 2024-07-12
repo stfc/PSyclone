@@ -70,7 +70,7 @@ class DataType(metaclass=abc.ABCMeta):
 
     def copy(self):
         '''
-        :returns: a shallow copy of this datatype.
+        :returns: a copy of this datatype.
         :rtype: :py:class:`psyclone.psyir.symbols.datatypes.DataType`
         '''
         return copy.copy(self)
@@ -177,8 +177,8 @@ class UnsupportedFortranType(UnsupportedType):
         '''
         :returns: partial datatype information if it can be determined,
             else None.
-        :rtype: NoneType | :py:class:`psyclone.psyir.symbols.DataType` |
-            :py:class:`psyclone.symbols.symbols.DataTypeSymbol`
+        :rtype: Optional[:py:class:`psyclone.psyir.symbols.DataType` |
+                         :py:class:`psyclone.symbols.symbols.DataTypeSymbol`]
         '''
         return self._partial_datatype
 
@@ -256,7 +256,7 @@ class UnsupportedFortranType(UnsupportedType):
 
     def copy(self):
         '''
-        :returns: a shallow copy of this datatype.
+        :returns: a copy of this datatype.
         :rtype: :py:class:`psyclone.psyir.symbols.datatypes.UnknownFortranType`
         '''
         new = copy.copy(self)
@@ -380,11 +380,20 @@ class ScalarType(DataType):
         if not super().__eq__(other):
             return False
 
+        # TODO #2659 - the following should be sufficient but isn't because
+        # currently, each new instance of an LFRicIntegerScalarDataType ends
+        # up with a brand new instance of a precision symbol.
+        # return (self.precision == other.precision and
+        #         self.intrinsic == other.intrinsic)
+        # Therefore, we have to take special action in the case where the
+        # precision is given by a Symbol:
         if isinstance(other.precision, Symbol) and isinstance(self.precision,
                                                               Symbol):
             # If the precision in both types is given by a Symbol then we just
-            # compare the names of those symbols.
-            precision_match = other.precision.name == self.precision.name
+            # compare their interfaces and their names.
+            precision_match = (
+                other.precision.name == self.precision.name and
+                other.precision.interface == self.precision.interface)
         else:
             precision_match = self.precision == other.precision
         return precision_match and self.intrinsic == other.intrinsic
@@ -452,7 +461,7 @@ class ArrayType(DataType):
 
         def copy(self):
             '''
-            :returns: a shallow copy of self.
+            :returns: a copy of self.
             :rtype: :py:class:`psyclone.psyir.symbols.ArrayType.Extent`
             '''
             return copy.copy(self)
@@ -788,7 +797,7 @@ class ArrayType(DataType):
 
     def copy(self):
         '''
-        Create a shallow copy of this ArrayType. Any shape expressions will be
+        Create a copy of this ArrayType. Any shape expressions will be
         re-created but any referenced Symbols will remain unchanged.
 
         :returns: a copy of this ArrayType.

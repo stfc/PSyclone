@@ -133,7 +133,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         # first positional argument.
         return type(self)(self.name, self.datatype.copy(),
                           visibility=self.visibility,
-                          interface=self.interface)
+                          interface=self.interface.copy())
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from

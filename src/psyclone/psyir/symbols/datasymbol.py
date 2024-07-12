@@ -298,9 +298,9 @@ class DataSymbol(TypedSymbol):
         original will not be affected so the copy will not be referred
         to by any other object.
 
-        N.B. any Symbols referenced in either the datatype or the initial_value
-        properties will remain unchanged in the copied object. See the
-        `update_symbols_from` method.
+        N.B. any other Symbols referenced in either the datatype or the
+        initial_value properties of the original symbol will remain unchanged
+        in the copied object. See the `update_symbols_from` method.
 
         :returns: An object with the same properties as this symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -322,7 +322,7 @@ class DataSymbol(TypedSymbol):
             new_datatype = self.datatype
         return DataSymbol(self.name, new_datatype,
                           visibility=self.visibility,
-                          interface=self.interface,
+                          interface=self.interface.copy(),
                           is_constant=self.is_constant,
                           initial_value=new_init_value)
 

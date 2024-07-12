@@ -150,7 +150,7 @@ class GenericInterfaceSymbol(RoutineSymbol):
         return type(self)(self.name, self.routines[:],
                           datatype=self.datatype.copy(),
                           visibility=self.visibility,
-                          interface=self.interface)
+                          interface=self.interface.copy())
 
     def update_symbols_from(self, table):
         '''
