@@ -2459,7 +2459,8 @@ class LFRicSignXKern(LFRicBuiltIn):
 
     def __str__(self):
         return (f"Built-in: {self._case_name} (sign of "
-                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field, "
+                f"applied to a scalar argument)")
 
     def lower_to_language_level(self):
         '''
