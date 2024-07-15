@@ -122,6 +122,8 @@ def gen_datatype(datatype, name):
     '''
     if isinstance(datatype, DataTypeSymbol):
         # Symbol is of derived type
+        if datatype.is_class:
+            return f"class({datatype.name})"
         return f"type({datatype.name})"
 
     if (isinstance(datatype, ArrayType) and
