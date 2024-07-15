@@ -36,16 +36,14 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for PSyclone ExtractTrans
-and ExtractNode.
+''' Module containing tests for PSyclone ExtractTrans.
 '''
 
 import pytest
 
 from psyclone.core import Signature
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.errors import InternalError
-from psyclone.psyir.nodes import ExtractNode, Loop, Node
+from psyclone.psyir.nodes import Loop
 from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
@@ -121,21 +119,6 @@ def test_determine_postfix():
 
 
 # --------------------------------------------------------------------------- #
-def test_malformed_extract_node(monkeypatch):
-    ''' Check that we raise the expected error if an ExtractNode does not have
-    a single Schedule node as its child. '''
-    enode = ExtractNode()
-    monkeypatch.setattr(enode, "_children", [])
-    with pytest.raises(InternalError) as err:
-        _ = enode.extract_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-    monkeypatch.setattr(enode, "_children", [Node(), Node()])
-    with pytest.raises(InternalError) as err:
-        _ = enode.extract_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-
-
-# --------------------------------------------------------------------------- #
 def test_get_default_options():
     '''Check the default options.'''
 
@@ -154,16 +137,17 @@ def test_extract_validate():
 
 
 # -----------------------------------------------------------------------------
-def test_extract_distributed_memory():
-    '''Test that distributed memory must be disabled.'''
+def test_extract_halo_exchange():
+    '''Test that if distributed memory is enabled, halo exchanges are
+    not allowed to be included.'''
 
     _, invoke = get_invoke("single_invoke_three_kernels.f90",
                            "gocean", idx=0, dist_mem=True)
     etrans = ExtractTrans()
     with pytest.raises(TransformationError) as excinfo:
-        etrans.validate(invoke.schedule.children[3])
-    assert ("Error in ExtractTrans: Distributed memory is "
-            "not supported.") in str(excinfo.value)
+        etrans.validate(invoke.schedule)
+    assert ("Nodes of type 'GOHaloExchange' cannot be enclosed by a "
+            "ExtractTrans transformation" in str(excinfo.value))
 
 
 # -----------------------------------------------------------------------------

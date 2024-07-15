@@ -39,6 +39,10 @@ specified using the environment variables ``$LIB_TMPLT_DIR`` and
 the [``lib/extract/standalone``](./../) and top-level [``lib``](./../../../)
 directories.
 
+In order to support MPI in extraction (which means each process will write
+its own output data by appending its rank to the filename), set the environment
+variable ``MPI=yes`` before starting the build process.
+
 The compilation process will create the wrapper library
 ``lib_extract.a``.
 
