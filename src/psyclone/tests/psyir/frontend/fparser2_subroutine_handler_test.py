@@ -207,7 +207,7 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
         f"  function my_fUnc()\n"
         f"    {basic_type} :: my_fUnc\n"
         f"\n"
-        f"    my_fUnc = {rhs_val}\n"
+        f"    my_func = {rhs_val}\n"
         f"\n"
         f"  end function my_fUnc\n"
         f"\n"
@@ -224,8 +224,8 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     result = fortran_writer(psyir)
     assert result == expected
     # Also check that the "own_routine_symbol" tag is maintained
-    assert routine.symbol_table.lookup_with_tag("own_routine_symbol") \
-        is return_sym
+    assert (routine.symbol_table.lookup_with_tag("own_routine_symbol")
+            is return_sym)
 
 
 FN1_IN = ("  function my_func() result(my_val)\n"
