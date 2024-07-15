@@ -37,6 +37,7 @@
 ''' This module contains the ScopingNode implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import SymbolTable
 
 
@@ -98,9 +99,13 @@ class ScopingNode(Node):
         # pylint: disable-next=protected-access
         self._symbol_table._node = self  # Associate to self
 
-        # Update of children to point to the equivalent symbols in
-        # the new symbol table attached to self.
-        self.replace_symbols_using(self.symbol_table)
+        # pylint: disable-next=import-outside-toplevel
+        from psyclone.psyir.nodes.loop import Loop
+
+        for node in self.walk((Reference, Loop)):
+            # Update of children to point to the equivalent symbols in
+            # the new symbol table attached to self.
+            node.replace_symbols_using(node.scope.symbol_table, recurse=False)
 
     @property
     def symbol_table(self):

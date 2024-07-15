@@ -250,15 +250,15 @@ class Reference(DataNode):
             return all_accesses[index+1].node
         return None
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table, recurse=True):
         '''
-
         Update any Symbols referenced by this Node with those in the
         supplied table with matching names. If there is no match for a given
         Symbol then it is left unchanged.
 
         :param table: the symbol table in which to look up replacement symbols.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         '''
         try:
             self.symbol = table.lookup(self.symbol.name)
@@ -268,7 +268,7 @@ class Reference(DataNode):
         # datatype or initial_value) are also updated.
         self.symbol.replace_symbols_using(table)
         # Walk on down the tree.
-        super().replace_symbols_using(table)
+        super().replace_symbols_using(table, recurse=recurse)
 
 
 # For AutoAPI documentation generation

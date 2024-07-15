@@ -412,7 +412,7 @@ class Loop(Statement):
         self._check_variable(var)
         self._variable = var
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table, recurse=True):
         '''
         Replace the Symbol referred to by this object's `variable` property
         with that in the supplied SymbolTable with a matching name. If there
@@ -422,6 +422,7 @@ class Loop(Statement):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
+        super().replace_symbols_using(table, recurse=recurse)
         if not self._variable:
             # Loop variable not yet set.
             return
@@ -430,7 +431,6 @@ class Loop(Statement):
             self.variable = new_sym
         except KeyError:
             pass
-        super().replace_symbols_using(table)
 
     def __str__(self):
         # Give Loop sub-classes a specialised name

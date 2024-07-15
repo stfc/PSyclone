@@ -207,7 +207,7 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
         f"  function my_fUnc()\n"
         f"    {basic_type} :: my_fUnc\n"
         f"\n"
-        f"    my_func = {rhs_val}\n"
+        f"    my_fUnc = {rhs_val}\n"
         f"\n"
         f"  end function my_fUnc\n"
         f"\n"

@@ -1732,7 +1732,7 @@ class Node():
         result_list.reverse()
         return result_list
 
-    def replace_symbols_using(self, table):
+    def replace_symbols_using(self, table, recurse=True):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable with matching names. If there
@@ -1743,8 +1743,14 @@ class Node():
         :param table: the symbol table in which to look up replacement symbols.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
+        if not recurse:
+            return
+        if table.node and table.node.children:
+            next_table = table.node.children[0].scope.symbol_table
+        else:
+            next_table = table
         for child in self.children:
-            child.replace_symbols_using(table)
+            child.replace_symbols_using(next_table)
 
 
 # For automatic documentation generation
