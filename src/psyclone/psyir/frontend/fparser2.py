@@ -5135,7 +5135,7 @@ class Fparser2Reader():
         # `Intrinsic_Function_Reference` so we redirect to the correct
         # handler for fparser2 tests to pass. This should be removed once
         # fparser2 is fixed.
-        if str(node.items[0]).lower() == "null":
+        if str(node.items[0]).lower() == "null" and node.items[1] is None:
             return self._intrinsic_handler(node, parent)
         self.process_nodes(parent=call, nodes=[node.items[0]])
         routine = call.children[0]
