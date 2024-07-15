@@ -780,7 +780,13 @@ class DependencyTools():
                 continue
 
             # Access the symbol by inspecting the first access reference
-            symbol = var_info.all_accesses[0].node.symbol
+            try:
+                symbol = var_info.all_accesses[0].node.symbol
+            except AttributeError:
+                # If its a node without a symbol, look it up
+                var_name = signature.var_name
+                symbol_table = loop.scope.symbol_table
+                symbol = symbol_table.lookup(var_name)
 
             # TODO #1270 - the is_array_access function might be moved
             is_array = symbol.is_array_access(access_info=var_info)

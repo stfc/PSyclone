@@ -86,8 +86,6 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         :param node: the node we are checking.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-            This transform supports "collapse", which is the number of nested
-            loops to collapse.
         :type options: Optional[Dict[str, Any]]
         :param bool|int options["collapse"]: if it's a bool and is False
             (default), it won't collapse. If it's a bool and is True, it will
@@ -230,8 +228,6 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         # If 'collapse' is specified, check that it is an int and that the
         # loop nest has at least that number of loops in it
         if collapse:
-            max_loops = collapse if isinstance(collapse, int) else 999
-
             # Count the number of perfectly nested loops that can be collapsed
             num_collapsable_loops = 0
             next_loop = node
@@ -254,8 +250,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                 if not isinstance(next_loop, Loop):
                     break
 
-                # If it is a loop dependent on a previous iteration variable (e.g.
-                # a triangular iteration space), it can not be collapsed
+                # If it is a loop dependent on a previous iteration variable
+                # (e.g. a triangular iteration space), it can not be collapsed
                 dependent_of_previous_variable = False
                 for bound in (next_loop.start_expr, next_loop.stop_expr,
                               next_loop.step_expr):

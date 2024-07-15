@@ -41,7 +41,7 @@
 
 import pytest
 from psyclone.psyGen import TransInfo
-from psyclone.psyir.transformations import TransformationError, ACCKernelsTrans
+from psyclone.psyir.transformations import ACCKernelsTrans
 from psyclone.psyir.nodes import Loop
 from psyclone.errors import GenerationError
 

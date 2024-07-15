@@ -235,7 +235,7 @@ def normalise_loops(
 
 
 def insert_explicit_loop_parallelism(
-        subroutine,
+        schedule,
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
@@ -243,8 +243,8 @@ def insert_explicit_loop_parallelism(
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
 
-    :param subroutine: the NEMO Routine to transform.
-    :type subroutine: :py:class:`psyclone.psyir.nodes.Routine`
+    :param schedule: the PSyIR schedule to transform.
+    :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
     :param region_directive_trans: PSyclone transformation that inserts the
         region directive.
     :type region_directive_trans: \
@@ -258,7 +258,7 @@ def insert_explicit_loop_parallelism(
 
     '''
     # Add the parallel directives in each loop
-    for loop in subroutine.walk(Loop):
+    for loop in schedule.walk(Loop):
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
@@ -323,7 +323,7 @@ def insert_explicit_loop_parallelism(
             opts = {"force": True}
 
         try:
-            # First check that the region_directive is fesible for this region
+            # First check that the region_directive is feasible for this region
             if region_directive_trans:
                 region_directive_trans.validate(loop, options=opts)
 
