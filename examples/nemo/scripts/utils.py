@@ -300,27 +300,15 @@ def insert_explicit_loop_parallelism(
                 " 'nlay_i' or 'nlay_s'.")
             continue
 
-        def skip_for_correctness(loop):
-            for call in loop.walk(Call):
-                if not call.is_available_on_device():
-                    print(f"Loop not parallelised because it has a "
-                          f"{call.intrinsic.name} not available on GPUs.")
-                    return True
-            if loop.walk(CodeBlock):
-                print("Loop not parallelised because it has a CodeBlock")
-                return True
-            return False
-
         # If we see one such ice linearised loop, we assume
         # calls/codeblocks are not a problem (they are not)
-        if not any(ref.symbol.name in ('npti',)
-                   for ref in loop.stop_expr.walk(Reference)):
-            if skip_for_correctness(loop):
-                continue
+        # if not any(ref.symbol.name in ('npti',)
+        #            for ref in loop.stop_expr.walk(Reference)):
+        #     opts = {"force": True}
 
         # pnd_lev requires manual privatisation of ztmp
         if any(name in routine_name for name in ('tab_', 'pnd_')):
-            opts = {"force": True}
+            opts = {"ignore_dependencies_for": "ztmp"}
 
         try:
             # First check that the region_directive is feasible for this region
