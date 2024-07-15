@@ -102,8 +102,8 @@ class ArrayAssignment2LoopsTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
         :param bool options["allow_string"]: whether to allow the
             transformation on a character type array range. Defaults to False.
-        :param bool options["verbose"]: whether report the reasons the validate
-            has failed.
+        :param bool options["verbose"]: log the reason the validation failed,
+            at the moment with a comment in the provided PSyIR node.
 
         '''
         self.validate(node, options)
@@ -187,8 +187,8 @@ class ArrayAssignment2LoopsTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
         :param bool options["allow_string"]: whether to allow the
             transformation on a character type array range. Defaults to False.
-        :param bool options["verbose"]: whether report the reasons the validate
-            has failed.
+        :param bool options["verbose"]: log the reason the validation failed,
+            at the moment with a comment in the provided PSyIR node.
 
         :raises TransformationError: if the node argument is not an
             Assignment.

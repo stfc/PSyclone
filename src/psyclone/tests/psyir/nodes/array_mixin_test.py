@@ -153,17 +153,34 @@ def test_is_upper_lower_bound(fortran_reader):
     class.
 
     '''
-    code = (
-        "subroutine test()\n"
-        "real a(n)\n"
-        "a(1:n) = 0.0\n"
-        "end subroutine\n")
-
-    # Return True as the symbolic values of the declaration and array
-    # reference match.
+    code = '''
+    subroutine test(kttrd, ptrd)
+      use some_mod
+      real a(n-1)
+      integer, dimension(2), intent(in) :: kttrd
+      real, dimension(kttrd(1):,kttrd(2):,:), intent(in) ::   ptrd
+      trdt(ntsi-(0):,ntsj-(0):ntej+(0),:) =    &
+         ptrd(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:)
+      a(1:n-1) = 0.0
+    end subroutine
+    '''
     psyir = fortran_reader.psyir_from_source(code)
     assigns = psyir.walk(Assignment)
-    array_ref = assigns[0].lhs
+    trdt_ref = assigns[0].lhs
+    assert not trdt_ref.is_lower_bound(0)
+    assert trdt_ref.is_upper_bound(0)
+    assert not trdt_ref.is_upper_bound(1)
+    assert not trdt_ref.is_lower_bound(1)
+    assert trdt_ref.is_upper_bound(2)
+    assert trdt_ref.is_lower_bound(2)
+    ptrd_ref = assigns[0].rhs
+    assert not ptrd_ref.is_lower_bound(0)
+    assert not ptrd_ref.is_upper_bound(0)
+    assert ptrd_ref.is_lower_bound(2)
+    assert ptrd_ref.is_upper_bound(2)
+    # Return True as the symbolic values of the declaration and array
+    # reference match.
+    array_ref = assigns[1].lhs
     assert array_ref.is_lower_bound(0)
     assert array_ref.is_upper_bound(0)
 
@@ -302,13 +319,11 @@ def test_is_bound_extent(fortran_reader):
     ("10", "1", True, False), ("10", "10", False, True),
     ("10", "5", False, False), ("n", "1", True, False),
     ("n", "n", False, True), ("n", "n-4", False, False),
-    ("10", "5+5", False, True)])
+    ("10", "5+5", False, True), ("n+8", "n+8", False, True),
+    ("n-5:n+5", "n-5", True, False)])
 def test_is_bound_access(fortran_reader, bounds, access, lower, upper):
     '''Test the _is_bound method returns True when the array access
-    matches the array declaration and False if not. Note, the method
-    supports array declarations that are expressions, however,
-    currently the PSyIR does not recognise these so they can't be
-    tested (TODO issue #949).
+    matches the array declaration and False if not.
 
     '''
     code = (
@@ -341,6 +356,8 @@ def test_is_same_array(fortran_reader):
     """)
 
     assignments = psyir.walk(Assignment)
+    # Argument must be a Member or Reference
+    assert not assignments[0].lhs.is_same_array(Literal("1", INTEGER_TYPE))
     # Check that the array itself is the same, not the accessed index
     assert assignments[0].lhs.is_same_array(assignments[1].lhs)
     # Also works when comparing with a plain reference of the array
@@ -823,28 +840,25 @@ def test_same_range(fortran_reader):
 
     # If the values are implicit, but we know the declaration we can also
     # compare them.
-    # TODO #949: Currently expressions inside shape (e.g. dimension(5-1)),
-    # produce an UnsupportedFortranType but when this is resolved, shape
-    # comparisons should also work symbolically
     code = '''
     subroutine test()
-        real, dimension(1:4, 1:4, 2:5) :: A, C
+        real, dimension(1+0:4, 1:4, 2:4+1) :: A, C
         real, dimension(4,   4,   4) :: B
         A(:,:,:) = B(:,:,:)
         C(:,:4,:4) = 0
     end subroutine
     '''
     psyir = fortran_reader.psyir_from_source(code)
-    array1, array2 = psyir.walk(Assignment)[0].children
-    array3, _ = psyir.walk(Assignment)[1].children
-    assert array1.same_range(0, array2, 0) is True
-    assert array1.same_range(1, array2, 1) is True
-    assert array1.same_range(2, array2, 2) is False
+    aref, bref = psyir.walk(Assignment)[0].children
+    cref, _ = psyir.walk(Assignment)[1].children
+    assert aref.same_range(0, bref, 0) is True
+    assert aref.same_range(1, bref, 1) is True
+    assert aref.same_range(2, bref, 2) is False
     # If the type in known, ranges in different assignments can also be
     # compared
-    assert array1.same_range(0, array3, 0) is True
-    assert array1.same_range(1, array3, 1) is True
-    assert array1.same_range(2, array3, 2) is False
+    assert aref.same_range(0, cref, 0) is True
+    assert aref.same_range(1, cref, 1) is True
+    assert aref.same_range(2, cref, 2) is False
 
     # If the values are implicit, and the declaration uses ATTRIBUTE or
     # DEFERRED shape, we return the appropriate results
@@ -867,6 +881,28 @@ def test_same_range(fortran_reader):
     assert array1.same_range(0, array2, 0) is True
     assert array3.same_range(0, array4, 0) is False
     assert array5.same_range(0, array6, 0) is False
+
+    # A mixture of expressions and assumed-size dimensions.
+    code = '''
+    module test_mod
+      use some_mod
+      real, allocatable, dimension(:,:,:) ::   trdt
+    contains
+    subroutine test(kttrd, ptrd)
+      integer, dimension(2), intent(in) :: kttrd
+      real, dimension(kttrd(1):,kttrd(2):,:), intent(in) ::   ptrd
+      trdt(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:) =    &
+         ptrd(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:) * &
+         tmask(ntsi-(0):ntei+(0),ntsj-(0):ntej+(0),:)
+    end subroutine
+    end module
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assign = psyir.walk(Assignment)[0]
+    lhs = assign.lhs
+    ptrd = assign.rhs.children[0]
+    assert lhs.same_range(0, ptrd, 0) is True
+    assert lhs.same_range(2, ptrd, 2) is False
 
     # This functionality also works with SoA and SoAoS
     code = '''

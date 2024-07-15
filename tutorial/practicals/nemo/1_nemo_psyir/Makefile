@@ -48,8 +48,9 @@ compile: transform
 run: compile
 	@echo "No run targets for example tutorial/1_nemo_psyir"
 
+# (output.f90 is created when following the tutorial instructions)
 clean:
-	rm -f *.o *.mod *~
+	rm -f output.f90 *.o *.mod *~
 
 allclean: clean
 	rm -f *.exe output.dat

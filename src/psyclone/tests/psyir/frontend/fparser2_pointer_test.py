@@ -1,7 +1,8 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2024, Science and Technology Facilities Council
+# Copyright (c) 2024, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,37 +32,53 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
+''' Performs py.test tests on the handling of pointers in the fparser2
+    PSyIR front-end. '''
 
-Once you have PSyclone installed, this script may be used by doing:
-
- >>> psyclone -s ./omp_trans.py my_file.F90
-
-'''
-from psyclone.psyir.nodes import Loop
-from psyclone.transformations import OMPParallelLoopTrans, TransformationError
-
-# Get the transformation we will apply
-OMP_TRANS = OMPParallelLoopTrans()
-
-# Specify some loop-type inference rules to make it easier to identify
-# loops of interest.
-Loop.set_loop_type_inference_rules({"levels": {"variable": "jk"},
-                                    "tracers": {"variable": "jt"}})
+from psyclone.psyir.nodes import CodeBlock, Assignment
 
 
-def trans(psyir):
-    ''' Parallelise the provided file by making all loops over vertical (jk)
-    levels OpenMP parallel.
-
-    :param psyir: the PSyIR of the provided file.
-    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+def test_pointer_assignments(fortran_reader):
     '''
+    Test that pointer assignments are parsed as Assignment with the is_pointer
+    attributes set to True. Also when accessing derived types no CodeBlocks
+    must be produced.
+    '''
+    test_module = '''
+    subroutine mysub()
+        use other_symbols
+        integer, target :: a = 1
+        integer, pointer :: b => null()
 
-    for loop in psyir.walk(Loop):
-        if loop.loop_type == "levels":
-            OMP_TRANS.apply(loop)
+        b => a
+        field(3,c)%pointer => b
+    end subroutine
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    assert not file_container.walk(CodeBlock)
+    assignments = file_container.walk(Assignment)
+    assert len(assignments) == 2
+    for assignment in assignments:
+        assert assignment.is_pointer is True
+
+
+def test_unsupported_pointer_assignments(fortran_reader):
+    '''
+    Test that pointer assignments that have an array-accessor syntax
+    on the inner element are not supported.
+    '''
+    test_module = '''
+    subroutine mysub()
+        use other_symbols
+
+        array(3:) => ptr
+        field(3,c)%array_of_pointer(1:) => ptr
+        field(3,c)%array_of_pointer(1:3) => ptr
+    end subroutine
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    assert file_container.walk(CodeBlock)
+    assert not file_container.walk(Assignment)

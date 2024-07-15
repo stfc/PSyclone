@@ -141,6 +141,31 @@
 	50) PR #2607 FOR #2600. Update psyclone command and script interface
 	to remove mention of 'nemo' API.
 
+	51) PR #2575 towards #2201. Allow FileContainer to have symbols of their
+	inner subroutines. It also solves an issue with missing PURE, ELEMENTAL, ...
+
+	52) PR #2632 for #2116. Update the code-transformation tutorial.
+
+	53) PR #2639 for #2638. Upgrade CI markdown-linkcheck to linkspector.
+
+	54) PR #2583 towards #2577. Adds partial support for pointer
+	assignments. (Array accessors within structures are not supported.)
+	Pointer *declarations* will still result in symbols of
+	UnsupportedFortranType.
+
+	55) PR #2445 for #2444. Changes the kernel-extraction tooling so
+	that filenames are construction using dashes instead of colons.
+
+	56) PR #2646 for #2641. Fixes incorrect module names within the
+	PSyData API (e.g. when profiling).
+
+	57) PR #2647 for #1992. Adds MPI support to PSyKE. Each rank will write
+    its own output file(s). The generated driver has been extended so that
+    the name of the file to use can be specified on the command line.
+
+	58) PR #2637 for #2138. Add Fortran frontend support to parser array
+	declarations with expressions in their shape dimensions.
+
 release 2.5.0 14th of February 2024
 
 	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
