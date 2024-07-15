@@ -243,8 +243,8 @@ def insert_explicit_loop_parallelism(
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
 
-    :param schedule: the PSyIR schedule to transform.
-    :type schedule: :py:class:`psyclone.psyir.nodes.Schedule`
+    :param schedule: the PSyIR Schedule to transform.
+    :type schedule: :py:class:`psyclone.psyir.nodes.node`
     :param region_directive_trans: PSyclone transformation that inserts the
         region directive.
     :type region_directive_trans: \
@@ -302,7 +302,7 @@ def insert_explicit_loop_parallelism(
 
         # If we see one such ice linearised loop, we assume
         # calls/codeblocks are not a problem (they are not)
-        # if not any(ref.symbol.name in ('npti',)
+        # if any(ref.symbol.name in ('npti',)
         #            for ref in loop.stop_expr.walk(Reference)):
         #     opts = {"force": True}
 

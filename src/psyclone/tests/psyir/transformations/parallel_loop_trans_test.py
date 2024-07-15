@@ -82,12 +82,13 @@ def test_paralooptrans_validate_force(fortran_reader):
     trans = ParaTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
-    assert "Dependency analysis failed with the following" in str(err.value)
+    assert "because the dependency analysis reported" in str(err.value)
     # Set the 'force' option to True - no exception should be raised.
     trans.validate(loop, {"force": True})
 
 
-def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader):
+def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader,
+                                                        fortran_writer):
     '''
     Test that the 'ignore_dependencies_for' option allows the validate check to
     succeed even when the dependency analysis finds a possible loop-carried
@@ -98,10 +99,19 @@ def test_paralooptrans_validate_ignore_dependencies_for(fortran_reader):
     loop = psyir.walk(Loop)[0]
     trans = ParaTrans()
     with pytest.raises(TransformationError) as err:
-        trans.validate(loop)
-    assert ("Dependency analysis failed with the following messages:\n"
-            "Warning: Variable 'sum' is read first, which indicates a "
-            "reduction. Variable: 'sum'.") in str(err.value)
+        trans.validate(loop, options={"verbose": True})
+    assert ("Loop can not be parallelised because the dependency analysis "
+            "reported:\nWarning: Variable 'sum' is read first, which indicates"
+            " a reduction. Variable: 'sum'.") in str(err.value)
+    # With the verbose option, the dependency issue will be log as a comment
+    print(fortran_writer(psyir))
+    assert ("! PSyclone: Loop can not be parallelised because the dependency"
+            " analysis reported:" in fortran_writer(psyir))
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop, {"ignore_dependencies_for": "sum"})
+    assert ("The 'ignore_dependencies_for' option must be an Iterable object "
+            "containing containing str representing the symbols to ignore, but"
+            " got 'sum'.") in str(err.value)
     # Set the ignore_dependencies_for option to ignore "sum"
     trans.validate(loop, {"ignore_dependencies_for": ["sum"]})
 
@@ -217,6 +227,41 @@ previous iteration variable 'j'
 enddo
 ''' in fortran_writer(test_loop.parent.parent)
 
+    # Also it won't collapse if the loop inside is not perfectly nested,
+    # regardless of the force option, but we consider this expected and
+    # verbose won't log the reason.
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_sub()
+          integer :: i, j, k
+          real :: var(10,10,10) = 1
+          integer, dimension(10) :: map
+
+          do i = 1, 10  ! This loop is iteration independent
+            do j = 1, 10  ! This loop has a loop-carried dependency in var1
+              do k = 1, 10
+                var(i,j,k) = var(i, map(j), k)
+              end do
+              var(i,j,5) = 0
+            end do
+          end do
+        end subroutine my_sub''')
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+    test_loop = psyir.copy().walk(Loop, stop_type=Loop)[0]
+    trans.apply(test_loop, {"collapse": True, "verbose": True, "force": True})
+    print(fortran_writer(test_loop.parent.parent))
+    assert '''\
+!$omp parallel do collapse(2) default(shared), private(i,j,k)
+do i = 1, 10, 1
+  do j = 1, 10, 1
+    do k = 1, 10, 1
+      var(i,j,k) = var(i,map(j),k)
+    enddo
+    var(i,j,5) = 0
+  enddo
+enddo
+''' in fortran_writer(test_loop.parent.parent)
+
 
 def test_paralooptrans_validate_sequential(fortran_reader):
     '''
@@ -229,7 +274,7 @@ def test_paralooptrans_validate_sequential(fortran_reader):
     trans = ParaTrans()
     with pytest.raises(TransformationError) as err:
         trans.validate(loop)
-    assert "Dependency analysis failed with the following" in str(err.value)
+    assert "because the dependency analysis reported" in str(err.value)
     # Set the 'sequential' option to True - no exception should be raised.
     trans.validate(loop, {"sequential": True})
 

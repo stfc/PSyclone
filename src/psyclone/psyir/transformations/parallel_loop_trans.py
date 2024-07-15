@@ -143,12 +143,13 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             return
 
         if ignore_dependencies_for:
-            if (not isinstance(ignore_dependencies_for, Iterable) or not all(
+            if (not isinstance(ignore_dependencies_for, Iterable) or
+                    isinstance(ignore_dependencies_for, str) or not all(
                     isinstance(v, str) for v in ignore_dependencies_for)):
                 raise TransformationError(
                     f"The 'ignore_dependencies_for' option must be an Iterable"
                     f" object containing containing str representing the "
-                    f"symbols to ignore, but got {ignore_dependencies_for}.")
+                    f"symbols to ignore, but got '{ignore_dependencies_for}'.")
 
         dep_tools = DependencyTools()
 
@@ -165,12 +166,12 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                     continue
                 all_msg_str = [str(message) for message in
                                dep_tools.get_all_messages()]
-                messages = "\n".join(all_msg_str)
+                messages = ("Loop can not be parallelised "
+                            "because the dependency analysis reported:\n" +
+                            "\n".join(all_msg_str))
                 if verbose:
-                    node.preceding_comment = messages
-                raise TransformationError(
-                    f"Dependency analysis failed with the following "
-                    f"messages:\n{messages}")
+                    node.append_preceding_comment(f"PSyclone: {messages}")
+                raise TransformationError(messages)
 
     def apply(self, node, options=None):
         '''
