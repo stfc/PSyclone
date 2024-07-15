@@ -252,8 +252,10 @@ class Reference(DataNode):
 
     def update_symbols_from(self, table):
         '''
-        Update the Symbol referred to by this Node with the matching entry in
-        the supplied table. If there is no match then it is left unchanged.
+
+        Update any Symbols referenced by this Node with those in the
+        supplied table with matching names. If there is no match for a given
+        Symbol then it is left unchanged.
 
         :param table: the symbol table in which to look up replacement symbols.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`

@@ -1734,9 +1734,9 @@ class Node():
 
     def update_symbols_from(self, table):
         '''
-        Update any Symbols referenced by this Node with those in the
-        supplied table with matching names. If there is no match for a given
-        Symbol then it is left unchanged.
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
 
         This base implementation simply propagates the call to any child Nodes.
 

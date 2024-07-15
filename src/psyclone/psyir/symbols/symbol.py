@@ -510,10 +510,9 @@ class Symbol():
 
     def update_symbols_from(self, table):
         '''
-        Replace any Symbols referred to by this object with those of the
-        same name in the supplied SymbolTable. If, for a given Symbol, there
-        is no corresponding entry in the supplied table, then that
-        Symbol is left unchanged.
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
 
         :param table: the symbol table from which to get replacement symbols.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`

@@ -172,9 +172,9 @@ class Literal(DataNode):
 
     def update_symbols_from(self, table):
         '''
-        Update any Symbols referenced by this Literal node with those in the
-        supplied table with matching names. If there is no match for a given
-        Symbol then it is left unchanged.
+        Replace any Symbols referred to by this object with those in the
+        supplied SymbolTable with matching names. If there
+        is no match for a given Symbol then it is left unchanged.
 
         :param table: the symbol table in which to look up replacement symbols.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
