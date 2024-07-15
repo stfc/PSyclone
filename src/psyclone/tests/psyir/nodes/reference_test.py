@@ -510,8 +510,8 @@ def test_reference_previous_access_with_codeblock(fortran_reader):
                      "reference_accesses")
 
 
-def test_reference_update_symbols_from():
-    '''Test the update_symbols_from() method correctly updates the Symbol
+def test_reference_replace_symbols_using():
+    '''Test the replace_symbols_using() method correctly updates the Symbol
     to which the Reference refers.
 
     '''
@@ -520,18 +520,18 @@ def test_reference_update_symbols_from():
     asym = DataSymbol("asym", stype)
     ref = Reference(asym)
     table = SymbolTable()
-    ref.update_symbols_from(table)
+    ref.replace_symbols_using(table)
     # Empty table so no change.
     assert ref.symbol is asym
     assert ref.symbol.datatype.precision is wp
     asym2 = asym.copy()
     table.add(asym2)
-    ref.update_symbols_from(table)
+    ref.replace_symbols_using(table)
     assert ref.symbol is asym2
     assert ref.symbol.datatype.precision is wp
     # Check that the update is performed on the Symbol properties too.
     wp2 = wp.copy()
     table.add(wp2)
-    ref.update_symbols_from(table)
+    ref.replace_symbols_using(table)
     assert ref.symbol is asym2
     assert ref.symbol.datatype.precision is wp2

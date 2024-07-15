@@ -231,7 +231,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
             return self._datatype.shape
         return []
 
-    def update_symbols_from(self, table):
+    def replace_symbols_using(self, table):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable with matching names. If there
@@ -241,7 +241,7 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        super().update_symbols_from(table)
+        super().replace_symbols_using(table)
 
         from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
         if isinstance(self.datatype, DataTypeSymbol):
@@ -250,4 +250,4 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
             except KeyError:
                 pass
         else:
-            self._datatype.update_symbols_from(table)
+            self._datatype.replace_symbols_using(table)

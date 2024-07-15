@@ -1732,7 +1732,7 @@ class Node():
         result_list.reverse()
         return result_list
 
-    def update_symbols_from(self, table):
+    def replace_symbols_using(self, table):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable with matching names. If there
@@ -1744,7 +1744,7 @@ class Node():
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         '''
         for child in self.children:
-            child.update_symbols_from(table)
+            child.replace_symbols_using(table)
 
 
 # For automatic documentation generation

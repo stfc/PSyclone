@@ -300,7 +300,7 @@ class DataSymbol(TypedSymbol):
 
         N.B. any other Symbols referenced in either the datatype or the
         initial_value properties of the original symbol will remain unchanged
-        in the copied object. See the `update_symbols_from` method.
+        in the copied object. See the `replace_symbols_using` method.
 
         :returns: An object with the same properties as this symbol object.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -343,7 +343,7 @@ class DataSymbol(TypedSymbol):
         self._is_constant = symbol_in.is_constant
         self._initial_value = symbol_in.initial_value
 
-    def update_symbols_from(self, table):
+    def replace_symbols_using(self, table):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable with matching names. If there
@@ -353,8 +353,8 @@ class DataSymbol(TypedSymbol):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        super().update_symbols_from(table)
+        super().replace_symbols_using(table)
 
         # Ensure any Symbols referenced in the initial value are updated.
         if self.initial_value:
-            self.initial_value.update_symbols_from(table)
+            self.initial_value.replace_symbols_using(table)

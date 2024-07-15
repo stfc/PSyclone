@@ -400,24 +400,24 @@ def test_symbol_array_handling():
     assert not asym.is_array_access()
 
 
-def test_symbol_update_symbols_from():
-    '''Test the update_symbols_from() method in Symbol.'''
+def test_symbol_replace_symbols_using():
+    '''Test the replace_symbols_using() method in Symbol.'''
     interf = DefaultModuleInterface()
     asym = Symbol("a", interface=interf)
     table = SymbolTable()
     # No symbols in table and nothing to update.
-    asym.update_symbols_from(table)
+    asym.replace_symbols_using(table)
     assert asym.interface is interf
     cont = ContainerSymbol("genesis")
     binterf = ImportInterface(cont, orig_name="e")
     bsym = Symbol("b", interface=binterf)
     # No symbols in table.
-    bsym.update_symbols_from(table)
+    bsym.replace_symbols_using(table)
     assert bsym.interface is binterf
     assert bsym.interface.container_symbol is cont
     # Add a new ContainerSymbol to the table.
     cont2 = cont.copy()
     table.add(cont2)
-    bsym.update_symbols_from(table)
+    bsym.replace_symbols_using(table)
     assert bsym.interface is not binterf
     assert bsym.interface.container_symbol is cont2

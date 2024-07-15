@@ -285,7 +285,7 @@ class SymbolTable():
         # Update any references to Symbols within Symbols (initial values,
         # precision etc.)
         for symbol in new_st.symbols:
-            symbol.update_symbols_from(new_st)
+            symbol.replace_symbols_using(new_st)
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility

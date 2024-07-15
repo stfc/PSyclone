@@ -361,7 +361,7 @@ class LFRicExtractDriverCreator(BaseDriverCreator):
                                                  tag=reference.name,
                                                  symbol_type=DataSymbol,
                                                  datatype=datatype.copy())
-            new_symbol.update_symbols_from(symbol_table)
+            new_symbol.replace_symbols_using(symbol_table)
             reference.symbol = new_symbol
 
         # Now handle all derived type. The name of a derived type is

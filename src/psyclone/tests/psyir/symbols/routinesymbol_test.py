@@ -187,22 +187,22 @@ def test_routinesymbol_copy():
     assert new_sym4.interface.container_symbol is csym
 
 
-def test_routinesymbol_update_symbols_from():
-    '''Test that the update_symbols_from() method updates any symbols in
+def test_routinesymbol_replace_symbols_using():
+    '''Test that the replace_symbols_using() method updates any symbols in
     the datatype of a RoutineSymbol.
 
     '''
     sym1 = RoutineSymbol('a')
     table = SymbolTable()
-    sym1.update_symbols_from(table)
+    sym1.replace_symbols_using(table)
     assert isinstance(sym1.datatype, NoType)
     # Test when the routine has a datatype.
     wp = DataSymbol("wp", INTEGER_TYPE)
     sym3 = RoutineSymbol("getit", ScalarType(ScalarType.Intrinsic.REAL, wp))
     # No symbol in table.
-    sym3.update_symbols_from(table)
+    sym3.replace_symbols_using(table)
     assert sym3.datatype.precision is wp
     wp_new = wp.copy()
     table.add(wp_new)
-    sym3.update_symbols_from(table)
+    sym3.replace_symbols_using(table)
     assert sym3.datatype.precision is wp_new

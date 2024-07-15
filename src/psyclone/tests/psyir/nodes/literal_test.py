@@ -262,15 +262,15 @@ def test_literal_equality():
     assert literal != literal4
 
 
-def test_literal_update_symbols_from():
-    '''Test the update_symbols_from() method of Literal.'''
+def test_literal_replace_symbols_using():
+    '''Test the replace_symbols_using() method of Literal.'''
     idef = DataSymbol("idef", INTEGER_SINGLE_TYPE)
     stype = ScalarType(ScalarType.Intrinsic.INTEGER, idef)
     lit = Literal("1", stype)
     table = SymbolTable()
-    lit.update_symbols_from(table)
+    lit.replace_symbols_using(table)
     assert lit.datatype.precision is idef
     idef2 = idef.copy()
     table.add(idef2)
-    lit.update_symbols_from(table)
+    lit.replace_symbols_using(table)
     assert lit.datatype.precision is idef2

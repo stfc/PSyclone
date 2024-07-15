@@ -250,7 +250,7 @@ class Reference(DataNode):
             return all_accesses[index+1].node
         return None
 
-    def update_symbols_from(self, table):
+    def replace_symbols_using(self, table):
         '''
 
         Update any Symbols referenced by this Node with those in the
@@ -266,9 +266,9 @@ class Reference(DataNode):
             pass
         # Ensure any references to Symbols within the Symbol definition (e.g.
         # datatype or initial_value) are also updated.
-        self.symbol.update_symbols_from(table)
+        self.symbol.replace_symbols_using(table)
         # Walk on down the tree.
-        super().update_symbols_from(table)
+        super().replace_symbols_using(table)
 
 
 # For AutoAPI documentation generation

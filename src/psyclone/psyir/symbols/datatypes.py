@@ -75,7 +75,7 @@ class DataType(metaclass=abc.ABCMeta):
         '''
         return copy.copy(self)
 
-    def update_symbols_from(self, table):
+    def replace_symbols_using(self, table):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable with matching names. If there
@@ -263,7 +263,7 @@ class UnsupportedFortranType(UnsupportedType):
             new._partial_datatype = self._partial_datatype.copy()
         return new
 
-    def update_symbols_from(self, table):
+    def replace_symbols_using(self, table):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable with matching names. If there
@@ -274,7 +274,7 @@ class UnsupportedFortranType(UnsupportedType):
 
         '''
         if self.partial_datatype:
-            self.partial_datatype.update_symbols_from(table)
+            self.partial_datatype.replace_symbols_using(table)
 
 
 class ScalarType(DataType):
@@ -396,7 +396,7 @@ class ScalarType(DataType):
             precision_match = self.precision == other.precision
         return precision_match and self.intrinsic == other.intrinsic
 
-    def update_symbols_from(self, table):
+    def replace_symbols_using(self, table):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable with matching names. If there
@@ -813,7 +813,7 @@ class ArrayType(DataType):
                 new_shape.append(dim)
         return ArrayType(self.datatype, new_shape)
 
-    def update_symbols_from(self, table):
+    def replace_symbols_using(self, table):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable with matching names. If there
@@ -829,7 +829,7 @@ class ArrayType(DataType):
             except KeyError:
                 pass
         else:
-            self.datatype.update_symbols_from(table)
+            self.datatype.replace_symbols_using(table)
 
         # TODO #1857: we will probably remove '_precision' and have
         # 'intrinsic' be 'datatype'.
@@ -855,7 +855,7 @@ class ArrayType(DataType):
                 exprns = [dim]
             for bnd in exprns:
                 if isinstance(bnd, Node):
-                    bnd.update_symbols_from(table)
+                    bnd.replace_symbols_using(table)
 
 
 class StructureType(DataType):
@@ -996,7 +996,7 @@ class StructureType(DataType):
 
         return True
 
-    def update_symbols_from(self, table):
+    def replace_symbols_using(self, table):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable with matching names. If there
@@ -1016,10 +1016,10 @@ class StructureType(DataType):
                 except KeyError:
                     new_type = component.datatype
             else:
-                component.datatype.update_symbols_from(table)
+                component.datatype.replace_symbols_using(table)
                 new_type = component.datatype
             if component.initial_value:
-                component.initial_value.update_symbols_from(table)
+                component.initial_value.replace_symbols_using(table)
             # Construct the new ComponentType
             new_components[component.name] = StructureType.ComponentType(
                 component.name, new_type, component.visibility,

@@ -118,8 +118,8 @@ def test_gis_copy():
     assert holly in rsyms
 
 
-def test_gis_update_symbols_from():
-    '''Test that update_symbols_from() correctly updates symbols referred
+def test_gis_replace_symbols_using():
+    '''Test that replace_symbols_using() correctly updates symbols referred
     to by a GenericInterfaceSymbol.
 
     '''
@@ -131,11 +131,11 @@ def test_gis_update_symbols_from():
         assert rinfo.symbol in [ash, holly]
     ashling = ash.copy()
     table.add(ashling)
-    coppice.update_symbols_from(table)
+    coppice.replace_symbols_using(table)
     for rinfo in coppice.routines:
         assert rinfo.symbol in [ashling, holly]
     newholly = holly.copy()
     table.add(newholly)
-    coppice.update_symbols_from(table)
+    coppice.replace_symbols_using(table)
     for rinfo in coppice.routines:
         assert rinfo.symbol in [ashling, newholly]

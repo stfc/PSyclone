@@ -170,7 +170,7 @@ class Literal(DataNode):
         return (f"{self.coloured_name(colour)}"
                 f"[value:'{self._value}', {self.datatype}]")
 
-    def update_symbols_from(self, table):
+    def replace_symbols_using(self, table):
         '''
         Replace any Symbols referred to by this object with those in the
         supplied SymbolTable with matching names. If there
@@ -180,8 +180,8 @@ class Literal(DataNode):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        self.datatype.update_symbols_from(table)
-        super().update_symbols_from(table)
+        self.datatype.replace_symbols_using(table)
+        super().replace_symbols_using(table)
 
 
 # For AutoAPI documentation generation
