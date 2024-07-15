@@ -94,9 +94,8 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
     # Default visibility is public so there should be no explicit 'public ::'
     # statements.
     assert "public ::" not in code
-    # Add remaining structures so that we can generate compilable code
-    container.symbol_table.add(RoutineSymbol("eos1d"))
-    container.symbol_table.add(RoutineSymbol("eos2d"))
+    # Remove the my_sub RoutineSymbol before we readd it
+    container.symbol_table.remove(container.symbol_table.lookup("my_sub"))
     # We have to make the interfaces to the two 'module procedures' different
     # so we give 'eos1d' an integer argument.
     arg = DataSymbol("var1", datatype=INTEGER_TYPE,
@@ -104,6 +103,7 @@ def test_fw_unsupported_interface_decln(tmpdir, fortran_writer):
     eos1d_table = SymbolTable()
     eos1d_table.add(arg)
     eos1d_table.specify_argument_list([arg])
+    # Routines add their own symbols into the Container's symbol table
     container.addchild(Routine.create("eos1d", eos1d_table, []))
     container.addchild(Routine.create("eos2d", SymbolTable(), []))
     container.addchild(Routine.create("my_sub", SymbolTable(), []))

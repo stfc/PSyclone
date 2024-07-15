@@ -40,6 +40,7 @@
 
 ''' This module contains the Routine node implementation.'''
 
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.schedule import Schedule
@@ -72,23 +73,28 @@ class Routine(Schedule, CommentableMixin):
     _children_valid_format = "[Statement]*"
     _text_name = "Routine"
 
-    def __init__(self, name, is_program=False, symbol=None, **kwargs):
+    def __init__(self, name, is_program=False, symbol=None,
+                 symbol_tag=None, **kwargs):
         # These attributes need to be set before anything, as the _symbol
         # is required for setting the _parent, which is overriden by Routine
         self._symbol = symbol
+        self._symbol_tag = symbol_tag
+        self._symbol_in_table = False
         self._parent_node = None
         super().__init__(**kwargs)
 
         self._return_symbol = None
-        # Symbol is set-up by the name setter property.
-        # name property is taken from the symbol.
-        self._has_set_name = False
-        self.name = name
-
         if not isinstance(is_program, bool):
             raise TypeError(f"Routine argument 'is_program' must be a bool "
                             f"but got '{type(is_program).__name__}'")
         self._is_program = is_program
+
+        # Symbol is set-up by the name setter property.
+        # name property is taken from the symbol.
+        # We do this last to avoid any other errors resulting in a
+        # symbol in a SymbolTable that we shouldn't have.
+        self._has_set_name = False
+        self.name = name
 
     def __eq__(self, other):
         '''
@@ -188,10 +194,33 @@ class Routine(Schedule, CommentableMixin):
     @_parent.setter
     def _parent(self, parent):
         if self._parent_node is not None:
-            self._parent_node.symbol_table.remove(self._symbol)
+            try:
+                self._parent_node.symbol_table.remove(self._symbol)
+                self._symbol_in_table = False
+            except ValueError:
+                pass
         self._parent_node = parent
         if self._symbol and parent is not None:
-            parent.symbol_table.add(self._symbol)
+            # If we weren't able to remove this symbol from a previous symbol
+            # table then we need to create a new symbol for this Routine.
+            if self._symbol_in_table:
+                # Check if the symbol is already present in the parent's symbol
+                # table. If it is and if its the symbol already associated with
+                # this routine.
+                try:
+                    sym = parent.symbol_table.lookup(self.name)
+                except KeyError:
+                    sym = None
+                if sym is self._symbol:
+                    self._symbol_in_table = True
+                else:
+                    symbol_copy = self._symbol.copy()
+                    self._symbol = symbol_copy
+                    parent.symbol_table.add(self._symbol, self._symbol_tag)
+                    self._symbol_in_table = True
+            else:
+                parent.symbol_table.add(self._symbol, self._symbol_tag)
+                self._symbol_in_table = True
 
     @property
     def dag_name(self):
@@ -244,7 +273,8 @@ class Routine(Schedule, CommentableMixin):
                         new_name, NoType(), interface=DefaultModuleInterface()
                                )
             if self._parent:
-                self.parent.symbol_table.add(self._symbol)
+                self.parent.symbol_table.add(self._symbol, self._symbol_tag)
+                self._symbol_in_table = True
 
             # Since the constructor can not mark methods as functions directly
             # the symbol will always start being NoType and must be updated
@@ -259,6 +289,9 @@ class Routine(Schedule, CommentableMixin):
             container_sym_tab = symbol.find_symbol_table(self)
             if container_sym_tab is not None:
                 container_sym_tab.rename_symbol(symbol, new_name)
+            else:
+                # Symbol isn't in a symbol table so we can modify its name.
+                symbol._name = new_name
 
     def __str__(self):
         result = self.node_str(False) + ":\n"
@@ -312,7 +345,7 @@ class Routine(Schedule, CommentableMixin):
         # add the return value to the symbol table (as its a symbol that
         # can be used in the PSyIR).
         if value not in self.symbol_table.datasymbols:
-            self.symble_table.add(value)
+            self.symbol_table.add(value)
 
     def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most
@@ -322,10 +355,67 @@ class Routine(Schedule, CommentableMixin):
         :type other: :py:class:`psyclone.psyir.node.Routine`
 
         '''
+        # Removing the parent_node knowledge from the default copy method
+        # before calling the super, else in Node we set self._parent = None
+        # and attempt to remove this symbol from a symbol table that doesn't
+        # contain it.
+        self._parent_node = None
+        self._symbol = other._symbol.copy()
         super()._refine_copy(other)
         if other.return_symbol is not None:
             self.return_symbol = self.symbol_table.lookup(
                     other.return_symbol.name)
+
+    def replace_with(self, node, keep_name_in_context=True):
+        '''Removes self and its descendents from the PSyIR tree to which it
+        is connected and replaces it with the supplied node (and its
+        descendents).
+
+        The node must be a Routine (or subclass) and has the same Symbol as
+        self.
+
+        keep_name_in_context is ignored for this replace_with implementation,
+        however we keep the argument to match with the base implementation.
+
+        :param node: the node that will replace self in the PSyIR tree.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
+        :param bool keep_name_in_context: ignored.
+
+        :raises TypeError: if the argument node is not a Routine.
+        :raises GenerationError: if this node does not have a parent.
+        :raises GenerationError: if the argument 'node' has a parent
+        :raises GenerationError: if self and node do not have the same Symbol.
+        '''
+        if not isinstance(node, Routine):
+            raise TypeError(
+                f"The argument node in method replace_with in the Routine "
+                f"class should be a Routine but found '{type(node).__name__}'.")
+        if not self.parent:
+            raise GenerationError(
+                "This node should have a parent if its replace_with method "
+                "is called.")
+        if node.parent is not None:
+            raise GenerationError(
+                f"The parent of argument node in method replace_with in the "
+                f"Routine class should be None but found "
+                f"'{type(node.parent).__name__}'.")
+        if self._symbol != node._symbol:
+            raise GenerationError(
+                "The symbol of argument node in method replace_with in the "
+                "Routine class should be the same as the Routine being "
+                "replaced.")
+        # We want to not use the childrenList update information.
+        index = self.position
+        node._parent_node = self._parent_node
+        node._has_constructor_parent = False
+        self._parent_node = None
+        self._has_constructor_parent = False
+        # Just calling node._parent_node.children.__setitem__ attempt
+        # to update the _parent of the replacements. Due to the nature
+        # of the replace_with and symbol functionality on Routines, this
+        # will not work. Instead we use the list.__setitem__ method to
+        # update this directly.
+        list.__setitem__(node._parent_node.children, index, node)
 
 
 # For automatic documentation generation

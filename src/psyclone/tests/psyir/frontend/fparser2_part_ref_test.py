@@ -121,6 +121,7 @@ def test_handling_part_ref_function(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
 
     function = psyir.children[0].children[1]
+    assert function.name == "test_func"
     assert isinstance(function, Routine)
     assert isinstance(function.return_symbol, DataSymbol)
     assert isinstance(function.return_symbol.datatype, ScalarType)

@@ -932,9 +932,8 @@ class GOOpenCLTrans(Transformation):
             # will generate it.
             pass
 
-        # Create the new Routine and RoutineSymbol
-        node.symbol_table.add(RoutineSymbol(sub_name), tag=sub_name)
-        argsetter = Routine(sub_name)
+        # Create the new Routine
+        argsetter = Routine(sub_name, symbol_tag=sub_name)
         arg_list = []
 
         # Add subroutine imported symbols
@@ -1044,10 +1043,8 @@ class GOOpenCLTrans(Transformation):
             # will generate it.
             pass
 
-        # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol("psy_init",
-                                            symbol_type=RoutineSymbol,
-                                            tag="ocl_init_routine").name
+        # Create the symbol for the routine.
+        subroutine_symbol = RoutineSymbol("psy_init")
 
         # Choose a round-robin device number if it has MPI and multiple
         # accelerators.
@@ -1097,11 +1094,18 @@ class GOOpenCLTrans(Transformation):
         fortran_reader = FortranReader()
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
-        # Rename subroutine
-        subroutine.name = subroutine_name
+        sym_tab = subroutine.symbol_table.deep_copy()
+        generated_code = subroutine.pop_all_children()
+
+        real_subroutine = Routine(subroutine_symbol.name,
+                                  symbol=subroutine_symbol,
+                                  symbol_table=sym_tab,
+                                  symbol_tag="ocl_init_routine")
+        for nodes in generated_code:
+            real_subroutine.addchild(nodes)
 
         # Add the subroutine as child of the provided node
-        node.addchild(subroutine.detach())
+        node.addchild(real_subroutine)
 
         return symtab.lookup_with_tag("ocl_init_routine")
 
@@ -1128,10 +1132,8 @@ class GOOpenCLTrans(Transformation):
             # will generate it.
             pass
 
-        # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol("initialise_grid_device_buffers",
-                                            symbol_type=RoutineSymbol,
-                                            tag="ocl_init_grid_buffers").name
+        # Create the symbol for the routine.
+        subroutine_symbol = RoutineSymbol("initialise_grid_device_buffers")
 
         # Get the GOcean API property names used in this routine
         api_config = Config.get().api_conf("gocean")
@@ -1192,11 +1194,18 @@ class GOOpenCLTrans(Transformation):
         fortran_reader = FortranReader()
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
-        # Rename subroutine
-        subroutine.name = subroutine_name
+
+        sym_tab = subroutine.symbol_table.deep_copy()
+        generated_code = subroutine.pop_all_children()
+        real_subroutine = Routine(subroutine_symbol.name,
+                                  symbol=subroutine_symbol,
+                                  symbol_table=sym_tab,
+                                  symbol_tag="ocl_init_grid_buffers")
+        for nodes in generated_code:
+            real_subroutine.addchild(nodes)
 
         # Add the subroutine as child of the provided node
-        node.addchild(subroutine.detach())
+        node.addchild(real_subroutine)
 
         return symtab.lookup_with_tag("ocl_init_grid_buffers")
 
@@ -1222,10 +1231,8 @@ class GOOpenCLTrans(Transformation):
             # will generate it.
             pass
 
-        # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol("write_grid_buffers",
-                                            symbol_type=RoutineSymbol,
-                                            tag="ocl_write_grid_buffers").name
+        # Create the symbol for the routine.
+        subroutine_symbol = RoutineSymbol("write_grid_buffers")
 
         # Get the GOcean API property names used in this routine
         api_config = Config.get().api_conf("gocean")
@@ -1275,11 +1282,18 @@ class GOOpenCLTrans(Transformation):
         fortran_reader = FortranReader()
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
-        # Rename subroutine
-        subroutine.name = subroutine_name
+
+        sym_tab = subroutine.symbol_table.deep_copy()
+        generated_code = subroutine.pop_all_children()
+        real_subroutine = Routine(subroutine_symbol.name,
+                                  symbol=subroutine_symbol,
+                                  symbol_table=sym_tab,
+                                  symbol_tag="ocl_write_grid_buffers")
+        for nodes in generated_code:
+            real_subroutine.addchild(nodes)
 
         # Add the subroutine as child of the provided node
-        node.addchild(subroutine.detach())
+        node.addchild(real_subroutine)
 
         return symtab.lookup_with_tag("ocl_write_grid_buffers")
 
@@ -1304,10 +1318,8 @@ class GOOpenCLTrans(Transformation):
             # generated first.
             pass
 
-        # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol("read_from_device",
-                                            symbol_type=RoutineSymbol,
-                                            tag="ocl_read_func").name
+        # Create the symbol for the routine.
+        subroutine_symbol = RoutineSymbol("read_from_device")
 
         # Code of the subroutine in Fortran
         code = f'''
@@ -1368,11 +1380,17 @@ class GOOpenCLTrans(Transformation):
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
 
-        # Rename subroutine
-        subroutine.name = subroutine_name
+        sym_tab = subroutine.symbol_table.deep_copy()
+        generated_code = subroutine.pop_all_children()
+        real_subroutine = Routine(subroutine_symbol.name,
+                                  symbol=subroutine_symbol,
+                                  symbol_table=sym_tab,
+                                  symbol_tag="ocl_read_func")
+        for nodes in generated_code:
+            real_subroutine.addchild(nodes)
 
         # Add the subroutine as child of the provided node
-        node.addchild(subroutine.detach())
+        node.addchild(real_subroutine)
 
         return symtab.lookup_with_tag("ocl_read_func")
 
@@ -1397,10 +1415,8 @@ class GOOpenCLTrans(Transformation):
             # generated first.
             pass
 
-        # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol("write_to_device",
-                                            symbol_type=RoutineSymbol,
-                                            tag="ocl_write_func").name
+        # Create the symbol for the routine.
+        subroutine_symbol = RoutineSymbol("write_to_device")
 
         # Code of the subroutine in Fortran
         code = f'''
@@ -1460,11 +1476,18 @@ class GOOpenCLTrans(Transformation):
         fortran_reader = FortranReader()
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
-        # Rename subroutine
-        subroutine.name = subroutine_name
+
+        sym_tab = subroutine.symbol_table.deep_copy()
+        generated_code = subroutine.pop_all_children()
+        real_subroutine = Routine(subroutine_symbol.name,
+                                  symbol=subroutine_symbol,
+                                  symbol_table=sym_tab,
+                                  symbol_tag="ocl_write_func")
+        for nodes in generated_code:
+            real_subroutine.addchild(nodes)
 
         # Add the subroutine as child of the provided node
-        node.addchild(subroutine.detach())
+        node.addchild(real_subroutine)
 
         return symtab.lookup_with_tag("ocl_write_func")
 
@@ -1490,10 +1513,8 @@ class GOOpenCLTrans(Transformation):
             # will generate it.
             pass
 
-        # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol("initialise_device_buffer",
-                                            symbol_type=RoutineSymbol,
-                                            tag="ocl_init_buffer_func").name
+        # Create the symbol for the routine .
+        subroutine_symbol = RoutineSymbol("initialise_device_buffer")
 
         # Get the GOcean API property names used in this routine
         api_config = Config.get().api_conf("gocean")
@@ -1536,11 +1557,17 @@ class GOOpenCLTrans(Transformation):
         fortran_reader = FortranReader()
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
-        # Rename subroutine
-        subroutine.name = subroutine_name
+        sym_tab = subroutine.symbol_table.deep_copy()
+        generated_code = subroutine.pop_all_children()
+        real_subroutine = Routine(subroutine_symbol.name,
+                                  symbol=subroutine_symbol,
+                                  symbol_table=sym_tab,
+                                  symbol_tag="ocl_init_buffer_func")
+        for nodes in generated_code:
+            real_subroutine.addchild(nodes)
 
         # Add the subroutine as child of the provided node
-        node.addchild(subroutine.detach())
+        node.addchild(real_subroutine)
 
         return symtab.lookup_with_tag("ocl_init_buffer_func")
 

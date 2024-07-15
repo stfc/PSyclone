@@ -130,6 +130,8 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
                                                 [Reference(symbol_i)])))
 
     new_schedule = schedule.copy()
+    # Need to modify the name of the new schedule
+    new_schedule.name = "routine2"
 
     # Check that the symbol_table has been deep copied
     assert new_schedule.symbol_table is not schedule.symbol_table
@@ -176,13 +178,13 @@ module module
     a = b_global(i)
 
   end subroutine routine
-  subroutine routine(a)
+  subroutine routine2(a)
     integer, intent(inout) :: a
     integer :: i_new
 
     a = b_global(i_new)
 
-  end subroutine routine
+  end subroutine routine2
 
 end module module
 '''

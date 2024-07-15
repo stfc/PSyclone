@@ -228,18 +228,17 @@ def test_psy_data_generate_symbols():
     ''' Check that the generate_symbols method inserts the appropriate
     symbols in the provided symbol table if they don't exist already. '''
 
-    # By inserting the psy_data no symbols are created (only the routine symbol
-    # name exists)
+    # By inserting the psy_data no symbols are created.
     routine = Routine('my_routine')
     psy_data = PSyDataNode()
     psy_data2 = PSyDataNode()
     routine.addchild(psy_data)
     routine.addchild(psy_data2)
-    assert len(routine.symbol_table.symbols) == 1
+    assert len(routine.symbol_table.symbols) == 0
 
     # Executing generate_symbols adds 3 more symbols:
     psy_data.generate_symbols(routine.symbol_table)
-    assert len(routine.symbol_table.symbols) == 4
+    assert len(routine.symbol_table.symbols) == 3
 
     # - The module (with a tag equal to its name)
     assert "psy_data_mod" in routine.symbol_table
@@ -264,12 +263,12 @@ def test_psy_data_generate_symbols():
 
     # Executing it again doesn't add anything new
     psy_data.generate_symbols(routine.symbol_table)
-    assert len(routine.symbol_table.symbols) == 4
+    assert len(routine.symbol_table.symbols) == 3
 
     # But executing it again from a different psy_data re-utilises the module
     # and type but creates a new object instance
     psy_data2.generate_symbols(routine.symbol_table)
-    assert len(routine.symbol_table.symbols) == 5
+    assert len(routine.symbol_table.symbols) == 4
     assert "psy_data_1" in routine.symbol_table
     objectsymbol = routine.symbol_table.lookup("psy_data_1")
     assert isinstance(objectsymbol, DataSymbol)

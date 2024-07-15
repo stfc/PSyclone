@@ -36,9 +36,10 @@
 
 ''' This module contains the ScopingNode implementation.'''
 
+from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import RoutineSymbol, SymbolTable
 
 
 class ScopingNode(Node):
@@ -62,7 +63,6 @@ class ScopingNode(Node):
     _symbol_table_class = SymbolTable
 
     def __init__(self, children=None, parent=None, symbol_table=None):
-        super().__init__(children=children, parent=parent)
         self._symbol_table = None
 
         if symbol_table is not None:
@@ -71,6 +71,12 @@ class ScopingNode(Node):
         else:
             # Create a new symbol table attached to this scope
             self._symbol_table = self._symbol_table_class(self)
+
+        # As Routines add their own symbol into their parent's symbol
+        # table its necessary to ensure that the _symbol_table exists
+        # before we add the children to the Node (which happens in the
+        # super constructor).
+        super().__init__(children=children, parent=parent)
 
     def __eq__(self, other):
         '''
@@ -94,10 +100,39 @@ class ScopingNode(Node):
         :type other: :py:class:`psyclone.psyir.node.Node`
 
         '''
-        super(ScopingNode, self)._refine_copy(other)
+        # Reorganise the symbol table construction to occur before we add
+        # the children.
         self._symbol_table = other.symbol_table.deep_copy()
-        # pylint: disable=protected-access
         self._symbol_table._node = self  # Associate to self
+
+        # Remove symbols corresponding to Routines that are contained in this
+        # ScopingNode. These symbols will be added automatically by the Routine
+        # objects when we add them to our child list in the super refine_copy
+        # call.
+        # We have to import Routine here to avoid a circular dependency.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.routine import Routine
+        symbols_to_fix = []
+        for node in other.walk(Routine):
+            try:
+                if isinstance(self._symbol_table.lookup(node.name),
+                              RoutineSymbol):
+                    self._symbol_table.remove(
+                            self._symbol_table.lookup(node.name))
+            except KeyError:
+                pass
+            except ValueError:
+                # If remove fails for the RoutineSymbol then we have to force
+                # the removal of the symbol. Any references to this symbol
+                # will be fixed later.
+                symbol = self._symbol_table.lookup(node.name)
+                norm_name = self._symbol_table._normalize(symbol.name)
+                symbols_to_fix.append(
+                        self._symbol_table._symbols.pop(norm_name)
+                )
+
+        super(ScopingNode, self)._refine_copy(other)
+        # pylint: disable=protected-access
 
         # Update of children references to point to the equivalent symbols in
         # the new symbol table attached to self.
@@ -119,6 +154,14 @@ class ScopingNode(Node):
                 if node.variable in other.symbol_table.symbols:
                     node.variable = self.symbol_table.lookup(
                         node.variable.name)
+
+        # Fix the Calls which now have broken links to the symbols they call.
+        all_calls = self.walk(Call)
+        for call in all_calls:
+            if call.routine.symbol in symbols_to_fix:
+                print(call.routine.ancestor(type(self)))
+                print(self)
+                assert False
 
     @property
     def symbol_table(self):

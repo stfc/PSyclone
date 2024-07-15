@@ -848,6 +848,7 @@ def test_process_declarations():
     # Check we catch duplicated symbols
     reader = FortranStringReader("integer :: i2")
     fparser2spec = Specification_Part(reader).content[0]
+    print("---")
     with pytest.raises(SymbolError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbol 'i2' already present in SymbolTable with a defined "

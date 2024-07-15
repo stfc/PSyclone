@@ -682,7 +682,6 @@ def test_derived_types_case(fortran_reader, fortran_writer):
 
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
-
     # Check that the interface implementation has been inserted
     has_cmp_interface(output)
 

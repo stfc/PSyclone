@@ -386,7 +386,23 @@ def _find_or_create_psyclone_internal_cmp(node):
 
             # Add the new functions and interface to the ancestor container
             container.children.extend(dummymod.pop_all_children())
-            container.symbol_table.merge(dummymod.symbol_table)
+            # The routine symbols fail to be removed from dummymod when calling
+            # pop_all_children as they're referenced by the interface. We can't
+            # merge the symbol tables together since it results in duplicated
+            # symbols, so instead we just need to fix the name interface
+            # manually.
+            sym = dummymod.symbol_table.lookup(name_interface)
+            routine_symbol1 = container.symbol_table.lookup(name_f_int)
+            routine_symbol2 = container.symbol_table.lookup(name_f_logical)
+            routine_symbol3 = container.symbol_table.lookup(name_f_char)
+            symbol = GenericInterfaceSymbol(
+                    sym.name,
+                    [(routine_symbol1, sym.routines[0][1]),
+                     (routine_symbol2, sym.routines[1][1]),
+                     (routine_symbol3, sym.routines[2][1])],
+                    visibility=sym.visibility
+                    )
+            container.symbol_table.add(symbol)
             symbol = container.symbol_table.lookup(name_interface)
             # Add the appropriate tag to find it regardless of the name
             container.symbol_table.tags_dict['psyclone_internal_cmp'] = symbol
@@ -2030,6 +2046,7 @@ class Fparser2Reader():
             tag = None
             try:
                 sym = symbol_table.lookup(sym_name, scope_limit=scope)
+                print(sym)
                 # pylint: disable=unidiomatic-typecheck
                 if type(sym) is Symbol:
                     # This was a generic symbol. We now know what it is
@@ -2039,8 +2056,9 @@ class Fparser2Reader():
                                    is_constant=has_constant_value,
                                    initial_value=init_expr)
                 else:
-                    if sym is symbol_table.lookup_with_tag(
-                            "own_routine_symbol"):
+                    routine_ancestor = scope.ancestor(Routine)
+                    if (routine_ancestor and
+                            routine_ancestor.return_symbol is sym):
                         # In case it is its own function routine
                         # symbol, Fortran will declare it inside the
                         # function as a DataSymbol.  Remove the
@@ -2074,7 +2092,6 @@ class Fparser2Reader():
                             f"UnsupportedType, but found this case in "
                             f"'{sym_name}'.")
                     raise NotImplementedError()
-
                 symbol_table.add(sym, tag=tag)
 
             if init_expr:
@@ -2482,7 +2499,6 @@ class Fparser2Reader():
             # The include_handler just raises an error so we use that to
             # reduce code duplication.
             self._include_handler(incl_nodes[0], parent)
-
         # Now we've captured any derived-type definitions, proceed to look
         # at the variable declarations.
         for node in nodes:

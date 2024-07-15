@@ -2153,9 +2153,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
             pass
 
         # Create the symbol for the routine and add it to the symbol table.
-        subroutine_name = symtab.new_symbol(
-            "read_from_device", symbol_type=RoutineSymbol,
-            tag="openacc_read_func").name
+        subroutine_symbol = RoutineSymbol("read_from_device")
 
         code = '''
             subroutine read_openacc(from, to, startx, starty, nx, ny, blocking)
@@ -2175,9 +2173,15 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         # Add an ACCUpdateDirective inside the subroutine
         subroutine.addchild(ACCUpdateDirective([Signature("to")], "host",
                                                if_present=False))
+        sym_tab = subroutine.symbol_table.deep_copy()
+        generated_code = subroutine.pop_all_children()
 
-        # Rename subroutine
-        subroutine.name = subroutine_name
+        real_subroutine = Routine(subroutine_symbol.name,
+                                  symbol=subroutine_symbol,
+                                  symbol_table=sym_tab,
+                                  symbol_tag="openacc_read_func")
+        for node in generated_code:
+            real_subroutine.addchild(node)
 
         # Insert the routine as a child of the ancestor Container
         if not self.ancestor(Container):
@@ -2185,7 +2189,8 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
                 f"The GOACCEnterDataDirective can only be generated/lowered "
                 f"inside a Container in order to insert a sibling "
                 f"subroutine, but '{self}' is not inside a Container.")
-        self.ancestor(Container).addchild(subroutine.detach())
+
+        self.ancestor(Container).addchild(real_subroutine)
 
         return symtab.lookup_with_tag("openacc_read_func")
 

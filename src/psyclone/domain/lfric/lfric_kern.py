@@ -699,7 +699,8 @@ class LFRicKern(CodedKern):
         # but this should use RaisePSyIR2LFRicKernTrans once KernelInterface
         # is fully functional (#928).
         ksched = KernelSchedule(sched.name,
-                                symbol_table=sched.symbol_table.detach())
+                                symbol_table=sched.symbol_table.detach(),
+                                symbol=sched._symbol)
         for child in sched.pop_all_children():
             ksched.addchild(child)
         sched.replace_with(ksched)

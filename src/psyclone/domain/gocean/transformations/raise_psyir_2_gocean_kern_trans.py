@@ -241,7 +241,8 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
         # pylint: disable=undefined-loop-variable
         gotable = GOSymbolTable.create_from_table(routine.symbol_table)
         gokernsched = GOKernelSchedule(metadata.procedure_name,
-                                       symbol_table=gotable.detach())
+                                       symbol_table=gotable.detach(),
+                                       symbol=routine._symbol)
         for child in routine.pop_all_children():
             gokernsched.addchild(child)
         routine.replace_with(gokernsched)
