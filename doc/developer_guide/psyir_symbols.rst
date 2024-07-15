@@ -105,6 +105,9 @@ explicitly listed may be assumed to be unsupported):
 +----------------------+--------------------+--------------------+
 |                      |PUBLIC, PRIVATE     |                    |
 +----------------------+--------------------+--------------------+
+|                      |Data statements     |                    |
+|                      |(limited)           |                    |
++----------------------+--------------------+--------------------+
 |Imports/globals       |USE with ONLY and   |User-defined        |
 |                      |renaming            |operators           |
 |                      |                    |                    |
