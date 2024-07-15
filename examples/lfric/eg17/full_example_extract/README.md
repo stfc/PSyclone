@@ -40,6 +40,14 @@ export F90=gfortran
 export F90FLAGS="-Wall -g -fcheck=bound"
 ```
 
+This example can also be used to showcase the extraction if MPI is enabled.
+Note that the code is *not* setup to run in parallel with MPI, but it can
+be compiled with MPI and run as a single process job.
+Extraction in this case means that the single process will write
+its output data by appending its rank to the outpout filename. To enable
+this, set the environment variable ``MPI=yes``.
+
+
 The location of the PSyData wrapper library can be set with
 the environment variable ``EXTRACT_DIR`` specifying the location of the
 extraction library. The location of the LFRic infrastructure files is set

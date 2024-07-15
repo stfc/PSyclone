@@ -161,6 +161,10 @@ contains
     subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                         num_post_vars)
 
+#ifndef NO_MPI
+        use mpi
+#endif
+
         implicit none
 
         class(ExtractStandaloneBaseType), intent(inout), target :: this
@@ -168,14 +172,30 @@ contains
                                                                region_name
         integer, intent(in)                                 :: num_pre_vars, &
                                                                num_post_vars
-
+#ifndef NO_MPI
+        integer :: rank, size, ierr, num_digits
+        character(7) :: rank_format, rank_string
+#endif
         integer :: retval
 
         call this%PSyDataBaseType%PreStart(module_name, region_name, &
                                            num_pre_vars, num_post_vars)
 
+#ifdef NO_MPI
         open(newunit=this%unit_number, access='sequential',  &
              form="unformatted", file=module_name//"-"//region_name//".binary")
+#else
+        ! Add the rank to the file name:
+        call MPI_Comm_size(MPI_COMM_WORLD, size, ierr)
+        call MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
+        num_digits = floor(log(real(size))/log(10.0)) + 1
+        write(rank_format, "('(I',I0,'.',I0,')')") num_digits, num_digits
+        write(rank_string, rank_format) rank
+        open(newunit=this%unit_number, access='sequential',  &
+             form="unformatted",                             &
+             file=module_name//"-"//region_name//"-"//       &
+                  trim(rank_string)//".binary")
+#endif
 
     end subroutine PreStart
 
