@@ -707,7 +707,8 @@ class LFRicKernelMetadata(CommonMetadata):
         # itself.
         if isinstance(datatype, StructureType):
             type_declaration = FortranWriter().gen_typedecl(symbol)
-            type_declaration.replace(", public", "").replace(", private", "")
+            type_declaration = type_declaration.replace(", public", "")
+            type_declaration = type_declaration.replace(", private", "")
             return LFRicKernelMetadata.create_from_fortran_string(
                 type_declaration)
 
