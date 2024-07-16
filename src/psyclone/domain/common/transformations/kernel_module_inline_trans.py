@@ -43,7 +43,7 @@ from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import (
     RoutineSymbol, DataSymbol, IntrinsicSymbol, DataTypeSymbol, Symbol,
-    ContainerSymbol, DefaultModuleInterface)
+    ContainerSymbol)
 from psyclone.psyir.nodes import (
     Container, ScopingNode, Reference, Routine, Literal, CodeBlock, Call)
 
@@ -278,12 +278,9 @@ class KernelModuleInlineTrans(Transformation):
         self._prepare_code_to_inline(code_to_inline)
 
         if not existing_symbol:
-            # If it doesn't exist already, module-inline the subroutine by:
-            # 1) Registering the subroutine symbol in the Container
-            node.ancestor(Container).symbol_table.add(RoutineSymbol(
-                    name, interface=DefaultModuleInterface()
-            ))
-            # 2) Insert the relevant code into the tree.
+            # If it doesn't exist already, module-inline the subroutine by
+            # inserting the relevant code into the tree. The Routine now
+            # automatically places its symbol into the symbol table.
             node.ancestor(Container).addchild(code_to_inline.detach())
         else:
             # The routine symbol already exist, and we know from the validation
