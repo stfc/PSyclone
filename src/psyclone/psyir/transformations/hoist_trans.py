@@ -43,7 +43,7 @@ is a name that is often used to describe this type of transformation.
 from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
-    Loop, Assignment, Schedule, Call, IntrinsicCall, CodeBlock)
+    Loop, Assignment, Schedule, Call, CodeBlock)
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -112,6 +112,10 @@ class HoistTrans(Transformation):
 
         # Place the assignment node before the loop.
         loop.parent.children.insert(loop.position, node)
+
+        # Remove loop is no more children are left.
+        if len(loop.loop_body.children) == 0:
+            loop.detach()
 
     def validate(self, node, options=None):
         '''Checks that the supplied node is a valid target for a hoist
