@@ -125,9 +125,11 @@ class Loop(Statement):
     @property
     def loop_type(self):
         '''
-        :returns: the type of this loop.
-        :rtype: str
+        :returns: the type of this loop, if set.
+        :rtype: Optional[str]
         '''
+        if not self._variable:
+            return None
         return self._loop_type_inference_rules.get(self.variable.name, None)
 
     @classmethod
@@ -412,7 +414,7 @@ class Loop(Statement):
         self._check_variable(var)
         self._variable = var
 
-    def replace_symbols_using(self, table, recurse=True):
+    def replace_symbols_using(self, table):
         '''
         Replace the Symbol referred to by this object's `variable` property
         with that in the supplied SymbolTable with a matching name. If there
@@ -422,21 +424,22 @@ class Loop(Statement):
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        super().replace_symbols_using(table, recurse=recurse)
-        if not self._variable:
-            # Loop variable not yet set.
-            return
-        try:
-            new_sym = table.lookup(self.variable.name)
-            self.variable = new_sym
-        except KeyError:
-            pass
+        if self._variable:
+            try:
+                new_sym = table.lookup(self._variable.name)
+                self.variable = new_sym
+            except KeyError:
+                pass
+        super().replace_symbols_using(table)
 
     def __str__(self):
         # Give Loop sub-classes a specialised name
         name = self.__class__.__name__
         result = name + "["
-        result += f"variable:'{self.variable.name}'"
+        if self._variable:
+            result += f"variable:'{self.variable.name}'"
+        else:
+            result += "variable:None"
         if self.loop_type:
             result += f", loop_type:'{self.loop_type}'"
         result += "]\n"

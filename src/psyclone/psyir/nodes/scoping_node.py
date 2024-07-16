@@ -37,8 +37,7 @@
 ''' This module contains the ScopingNode implementation.'''
 
 from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import SymbolError, SymbolTable
 
 
 class ScopingNode(Node):
@@ -54,7 +53,7 @@ class ScopingNode(Node):
     :param parent: the parent node of this node in the PSyIR.
     :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
     :param symbol_table: attach the given symbol table to the new node.
-    :type symbol_table: \
+    :type symbol_table:
             Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
 
     '''
@@ -99,13 +98,36 @@ class ScopingNode(Node):
         # pylint: disable-next=protected-access
         self._symbol_table._node = self  # Associate to self
 
-        # pylint: disable-next=import-outside-toplevel
-        from psyclone.psyir.nodes.loop import Loop
+        # Now we've updated the symbol table, walk back down the tree and
+        # update any Symbols.
+        self.replace_symbols_using(self._symbol_table)
 
-        for node in self.walk((Reference, Loop)):
-            # Update of children to point to the equivalent symbols in
-            # the new symbol table attached to self.
-            node.replace_symbols_using(node.scope.symbol_table, recurse=False)
+    def replace_symbols_using(self, table):
+        '''
+        Update any Symbols referenced by this Node (and its descendants) with
+        those in the supplied table with matching names. If there is no match
+        for a given Symbol then it is left unchanged.
+
+        Since this is a ScopingNode, it is associated with a symbol table.
+        Therefore, if the supplied table is the one for the scope containing
+        this node (if any), the one passed to the child nodes is updated to be
+        the one associated with this node.
+
+        :param table: the symbol table in which to look up replacement symbols.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        next_table = table
+        if self.parent:
+            try:
+                # If this node is not within a scope we get a SymbolError
+                if table is self.parent.scope.symbol_table:
+                    next_table = self.symbol_table
+            except SymbolError:
+                pass
+
+        for child in self.children:
+            child.replace_symbols_using(next_table)
 
     @property
     def symbol_table(self):
