@@ -321,9 +321,9 @@ def insert_explicit_loop_parallelism(
             # And if successful, the region directive on top.
             if region_directive_trans:
                 region_directive_trans.apply(loop.parent.parent)
-        except TransformationError:
+        except TransformationError as err:
             # This loop can not be transformed, proceed to next loop
-            continue
+            loop.append_preceding_comment(f"PSyclone: {err.value}")
 
 
 def add_profiling(children):

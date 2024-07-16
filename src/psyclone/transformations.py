@@ -1217,6 +1217,7 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
             children of the same parent (siblings).
 
         '''
+        node_list = self.get_node_list(node_list)
         if isinstance(node_list[0], InvokeSchedule):
             raise TransformationError(
                 f"A {self.name} transformation cannot be applied to an "

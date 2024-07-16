@@ -38,8 +38,9 @@
 
 ''' This module provides the OMPTargetTrans PSyIR transformation '''
 
-from psyclone.psyir.nodes import CodeBlock, OMPTargetDirective
+from psyclone.psyir.nodes import CodeBlock, OMPTargetDirective, Call
 from psyclone.psyir.transformations.region_trans import RegionTrans
+from psyclone.psyir.transformations import TransformationError
 
 
 class OMPTargetTrans(RegionTrans):
@@ -86,12 +87,34 @@ class OMPTargetTrans(RegionTrans):
     '''
     excluded_node_types = (CodeBlock, )
 
+    def validate(self, node, options=None):
+        # pylint: disable=signature-differs
+        '''
+        Check that we can safely enclose the supplied node or list of nodes
+        within OpenACC kernels ... end kernels directives.
+
+        :param node: the PSyIR node or nodes to enclose in the OpenMP
+                      target region.
+        :type node: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        '''
+        node_list = self.get_node_list(node)
+        for node in node_list:
+            for call in node.walk(Call):
+                if not call.is_available_on_device():
+                    raise TransformationError(
+                        f"'{call.routine.name}' is not available on the "
+                        f"accelerator device, and therefore it can not "
+                        f"be enclosed in a OMP target region.")
+        super().validate(node, options)
+
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list
         of nodes.
 
-        :param node: the PSyIR node or nodes to enclose in the OpenMP \
-                      target region.
+        :param node: the PSyIR node or nodes to enclose in the OpenMP
+                     target region.
         :type node: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str,Any]]
