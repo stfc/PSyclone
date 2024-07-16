@@ -393,6 +393,66 @@ def test_validate_dependencies_if_statement(fortran_reader):
             "the loop, outside the supplied statement." in str(err.value))
 
 
+def test_validate_checks_for_side_effects(fortran_reader):
+    ''' Test that the validate refuses cases that may contain side effects
+    such as CodeBlocks or Call not guaranteed to be pure.
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        subroutine test()
+          use other
+          do i=1,10
+              write(zchar1, '(I2.2)') i
+              zanm = 'e_s' // '_l' // zcahr1
+          enddo
+        end subroutine test''')
+    loop = psyir.children[0][0]
+    assignment = loop.loop_body[1]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.apply(assignment)
+    assert ("The supplied assignment should not have side effects, but "
+            "we can't prove this for 'zanm =" in str(err.value))
+
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        function myfunc(a)
+            use side_effects, only: myglobal
+            integer :: a
+            integer :: myfunc
+            myglobal = a
+            myfunc = a
+        end function
+        subroutine test()
+          use other
+          do i=1,10
+              zanm = myfunc(3)
+          enddo
+        end subroutine test''')
+    loop = psyir.children[1][0]
+    assignment = loop.loop_body[0]
+    hoist_trans = HoistTrans()
+    with pytest.raises(TransformationError) as err:
+        hoist_trans.apply(assignment)
+    assert ("The supplied assignment should not have side effects, but "
+            "we can't prove this for 'zanm =" in str(err.value))
+
+    # The same but with a pure Call (a IntrinsicCall in this case) succeeds
+    psyir = fortran_reader.psyir_from_source(
+        '''
+        subroutine test()
+          use other
+          integer :: a = 1
+          do i=1,10
+              zanm = max(a, 3)
+          enddo
+        end subroutine test''')
+    loop = psyir.children[0][0]
+    assignment = loop.loop_body[0]
+    hoist_trans = HoistTrans()
+    hoist_trans.apply(assignment)
+
+
 # str
 
 def test_str():
