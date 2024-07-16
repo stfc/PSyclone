@@ -1985,3 +1985,27 @@ def test_componenttype_initialisation(fortran_reader, fortran_writer):
         "    integer, public :: i = 1\n"
         "    integer, public :: j\n"
         "  end type my_type\n" in result)
+
+
+def test_pointer_assignments(fortran_reader, fortran_writer):
+    ''' That assignments are produced by the Fortran backend, respecting the
+    is_pointer attribute.
+    '''
+    test_module = '''
+    subroutine mysub()
+        use other_symbols
+        integer, target :: a = 1
+        integer, pointer :: b => null()
+
+        a = 4
+        b => a
+        field(3,c)%pointer => b
+    end subroutine
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    code = fortran_writer(file_container)
+    assert not file_container.walk(CodeBlock)
+    assert len(file_container.walk(Assignment)) == 3
+    assert "a = 4" in code
+    assert "b => a" in code
+    assert "field(3,c)%pointer => b" in code

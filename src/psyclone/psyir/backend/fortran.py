@@ -1265,7 +1265,8 @@ class FortranWriter(LanguageWriter):
         '''
         lhs = self._visit(node.lhs)
         rhs = self._visit(node.rhs)
-        result = f"{self._nindent}{lhs} = {rhs}\n"
+        op = "=>" if node.is_pointer else "="
+        result = f"{self._nindent}{lhs} {op} {rhs}\n"
         return result
 
     def binaryoperation_node(self, node):

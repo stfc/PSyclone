@@ -132,7 +132,7 @@ def test_lfric_driver_valid_unit_name():
     new_name = LFRicExtractDriverCreator._make_valid_unit_name(long_name)
     assert new_name == "A"*63
 
-    special_characters = "aaa:bbb"
+    special_characters = "aaa-bbb"
     new_name = \
         LFRicExtractDriverCreator._make_valid_unit_name(special_characters)
     assert new_name == "aaabbb"
@@ -270,7 +270,11 @@ def test_lfric_driver_simple_test():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
-    for line in ["call extract_psy_data%OpenRead('field', 'test')",
+    for line in ["if (ALLOCATED(psydata_filename)) then",
+                 "call extract_psy_data%OpenReadFileName(psydata_filename)",
+                 "else",
+                 "call extract_psy_data%OpenReadModuleRegion('field', 'test')",
+                 "end if",
                  "call extract_psy_data%ReadVariable('a', a)",
                  "call extract_psy_data%ReadVariable('loop0_start', "
                  "loop0_start)",

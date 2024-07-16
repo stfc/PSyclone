@@ -166,9 +166,11 @@ class RegionTrans(Transformation, metaclass=abc.ABCMeta):
         # Check that the proposed region contains only supported node types
         if options.get("node-type-check", True):
             for child in node_list:
-                if child.walk(self.excluded_node_types):
+                invalid_nodes = child.walk(self.excluded_node_types)
+                if invalid_nodes:
+                    item = invalid_nodes[0]
                     raise TransformationError(
-                        f"Nodes of type '{self.excluded_node_types}' cannot "
+                        f"Nodes of type '{type(item).__name__}' cannot "
                         f"be enclosed by a {self.name} transformation")
 
         # If we've been passed a list that contains one or more Schedules
