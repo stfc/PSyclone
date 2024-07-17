@@ -100,6 +100,7 @@ class OMPTargetTrans(RegionTrans):
         :type options: Optional[Dict[str, Any]]
         '''
         node_list = self.get_node_list(node)
+        super().validate(node, options)
         for node in node_list:
             for call in node.walk(Call):
                 if not call.is_available_on_device():
@@ -107,7 +108,6 @@ class OMPTargetTrans(RegionTrans):
                         f"'{call.routine.name}' is not available on the "
                         f"accelerator device, and therefore it can not "
                         f"be enclosed in a OMP target region.")
-        super().validate(node, options)
 
     def apply(self, node, options=None):
         ''' Insert an OMPTargetDirective before the provided node or list

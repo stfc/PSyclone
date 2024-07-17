@@ -112,6 +112,48 @@ def test_accparallel():
             "but found '3'." in str(err.value))
 
 
+def test_accparalleltrans_validate(fortran_reader):
+    ''' Test that ACCParallelTrans validation fails if it contains non-allowed
+    constructs. '''
+
+    omptargettrans = ACCParallelTrans()
+
+    code = '''
+    function myfunc(a)
+        integer :: a
+        integer :: myfunc
+    end function
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer :: i
+        integer :: j
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = myfunc(3)
+            end do
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                char = 'a' // 'b'
+            end do
+        end do
+    end subroutine
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop, stop_type=Loop)
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[0])
+    assert ("'myfunc' is not available on the accelerator device, and "
+            "therefore it can not be enclosed in a ACC parallel region."
+            in str(err.value))
+
+    with pytest.raises(TransformationError) as err:
+        omptargettrans.validate(loops[1])
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a ACCParallel"
+            "Trans transformation" in str(err.value))
+
+
 def test_accenterdata():
     ''' Generic tests for the ACCEnterDataTrans class '''
     acct = ACCEnterDataTrans()

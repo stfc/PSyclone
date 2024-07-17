@@ -1613,6 +1613,7 @@ class ACCParallelTrans(ParallelRegionTrans):
             inserted directive should include the default_present clause.
 
         '''
+        node_list = self.get_node_list(node_list)
         super().validate(node_list, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
@@ -1620,6 +1621,13 @@ class ACCParallelTrans(ParallelRegionTrans):
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
+        for node in node_list:
+            for call in node.walk(Call):
+                if not call.is_available_on_device():
+                    raise TransformationError(
+                        f"'{call.routine.name}' is not available on the "
+                        f"accelerator device, and therefore it can not "
+                        f"be enclosed in a ACC parallel region.")
 
     def apply(self, target_nodes, options=None):
         '''
