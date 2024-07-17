@@ -678,9 +678,8 @@ def test_ompsingle_nested():
     single.apply(schedule[0])
     with pytest.raises(TransformationError) as err:
         single.apply(schedule[0])
-    assert ("Transformation Error: Nodes of type 'OMPSingleDirective' cannot"
-            " be enclosed by a OMPSingleTrans transformation"
-            in str(err.value))
+    assert ("Nodes of type 'OMPSingleDirective' cannot be enclosed by a "
+            "OMPSingleTrans transformation" in str(err.value))
 
 
 # Tests for OMPMasterTrans
@@ -709,9 +708,8 @@ def test_ompmaster_nested():
     assert schedule[0].dir_body[0] is node
     with pytest.raises(TransformationError) as err:
         master.apply(schedule[0])
-    assert ("Transformation Error: Nodes of type 'OMPMasterDirective' cannot"
-            " be enclosed by a OMPMasterTrans transformation"
-            in str(err.value))
+    assert ("Nodes of type 'OMPMasterDirective' cannot be enclosed by a "
+            "OMPMasterTrans transformation" in str(err.value))
 
 
 # Tests for ProfileTrans

@@ -41,9 +41,6 @@
 '''
 
 import pytest
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.symbol_table import SYMBOL_TABLES
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.transformations import ProfileTrans, TransformationError
 
 
@@ -51,43 +48,21 @@ from psyclone.psyir.transformations import ProfileTrans, TransformationError
 PTRANS = ProfileTrans()
 
 
-def get_nemo_schedule(parser, code):
-    ''' Utility to construct the PSyIR of the supplied Fortran code.
-
-    :param parser: the Fortran parser to use.
-    :type parser: :py:class:`fparser.two.Fortran2003.Program`
-    :param str code: the Fortran code to process.
-
-    :returns: 2-tuple of the top-level PSy object and the Schedule of \
-              the first Invoke (routine) in `code`.
-    :rtype: (:py:class:`psyclone.nemo.NemoPSy`, \
-             :py:class:`psyclone.nemo.NemoInvokeSchedule`)
-
-    '''
-    SYMBOL_TABLES.clear()
-    reader = FortranStringReader(code)
-    ptree = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(ptree)
-    schedule = psy.invokes.invoke_list[0].schedule
-
-    return psy, schedule
-
-
-def test_profile_single_loop(parser):
+def test_profile_single_loop(fortran_reader, fortran_writer):
     ''' Check that the correct code is added to the generated Fortran
     when profiling a single loop nest. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program do_loop\n"
-                                      "use kind_mod, only: wp\n"
-                                      "integer :: ji\n"
-                                      "integer, parameter :: jpj=2\n"
-                                      "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-                                      "do ji = 1,jpj\n"
-                                      "  sto_tmp(ji) = 1.0d0\n"
-                                      "end do\n"
-                                      "end program do_loop\n")
-    PTRANS.apply(schedule.children[0])
-    code = str(psy.gen).lower()
+    psyir = fortran_reader.psyir_from_source(
+              "program do_loop\n"
+              "use kind_mod, only: wp\n"
+              "integer :: ji\n"
+              "integer, parameter :: jpj=2\n"
+              "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
+              "do ji = 1,jpj\n"
+              "  sto_tmp(ji) = 1.0d0\n"
+              "end do\n"
+              "end program do_loop\n")
+    PTRANS.apply(psyir.children[0].children[0])
+    code = fortran_writer(psyir).lower()
     assert (
         "  use kind_mod, only : wp\n"
         "  use profile_psy_data_mod, only : profile_psydatatype\n" in code)
@@ -104,48 +79,49 @@ def test_profile_single_loop(parser):
         "  call profile_psy_data % postend\n" in code)
 
 
-def test_profile_single_loop_named(parser):
+def test_profile_single_loop_named(fortran_reader, fortran_writer):
     '''Check that the correct code is added to the generated Fortran when
     profiling a single loop nest with the profile being named by the
     user.
 
     '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program do_loop\n"
-                                      "integer :: ji\n"
-                                      "integer, parameter :: jpj=34\n"
-                                      "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-                                      "do ji = 1,jpj\n"
-                                      "  sto_tmp(ji) = 1.0d0\n"
-                                      "end do\n"
-                                      "end program do_loop\n")
+    psyir = fortran_reader.psyir_from_source(
+              "program do_loop\n"
+              "integer :: ji\n"
+              "integer, parameter :: jpj=34\n"
+              "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
+              "do ji = 1,jpj\n"
+              "  sto_tmp(ji) = 1.0d0\n"
+              "end do\n"
+              "end program do_loop\n")
     options = {"region_name": ("my_routine", "my_region")}
-    PTRANS.apply(schedule.children[0], options=options)
-    code = str(psy.gen).lower()
+    PTRANS.apply(psyir.children[0].children[0], options=options)
+    code = fortran_writer(psyir).lower()
     assert ("call profile_psy_data % prestart(\"my_routine\", \"my_region\", "
             "0, 0)" in code)
 
 
-def test_profile_two_loops(parser):
+def test_profile_two_loops(fortran_reader, fortran_writer):
     ''' Check that the correct code is added to the generated Fortran
     when profiling two, separate loop nests. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "program do_loop\n"
-                                      "use kind_mod, only: wp\n"
-                                      "integer :: ji\n"
-                                      "integer, parameter :: jpj=8\n"
-                                      "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-                                      "do ji = 1,jpj\n"
-                                      "  sto_tmp(ji) = 1.0d0\n"
-                                      "end do\n"
-                                      "do ji = 1,jpj\n"
-                                      "  sto_tmp2(ji) = 1.0d0\n"
-                                      "end do\n"
-                                      "end program do_loop\n")
+    psyir = fortran_reader.psyir_from_source(
+              "program do_loop\n"
+              "use kind_mod, only: wp\n"
+              "integer :: ji\n"
+              "integer, parameter :: jpj=8\n"
+              "real :: sto_tmp(jpj), sto_tmp2(jpj)\n"
+              "do ji = 1,jpj\n"
+              "  sto_tmp(ji) = 1.0d0\n"
+              "end do\n"
+              "do ji = 1,jpj\n"
+              "  sto_tmp2(ji) = 1.0d0\n"
+              "end do\n"
+              "end program do_loop\n")
+    schedule = psyir.children[0]
     # Create two separate profiling regions
     PTRANS.apply(schedule[1])
     PTRANS.apply(schedule[0])
-    code = str(psy.gen).lower()
+    code = fortran_writer(psyir).lower()
     assert (
         "  use kind_mod, only : wp\n"
         "  use profile_psy_data_mod, only : profile_psydatatype\n"
@@ -171,21 +147,22 @@ def test_profile_two_loops(parser):
         "  call profile_psy_data % postend\n" in code)
 
 
-def test_profile_codeblock(parser):
+def test_profile_codeblock(fortran_reader, fortran_writer):
     ''' Check that we can put profiling calls around a region containing
     a CodeBlock. '''
-    psy, schedule = get_nemo_schedule(parser,
-                                      "subroutine cb_test()\n"
-                                      "use kind_mod, only: wp\n"
-                                      "integer :: ji\n"
-                                      "integer, parameter :: jpj=128\n"
-                                      "real :: sto_tmp2(jpj)\n"
-                                      "do ji = 1,jpj\n"
-                                      "  write(*,*) sto_tmp2(ji)\n"
-                                      "end do\n"
-                                      "end subroutine cb_test\n")
+    psyir = fortran_reader.psyir_from_source(
+              "subroutine cb_test()\n"
+              "use kind_mod, only: wp\n"
+              "integer :: ji\n"
+              "integer, parameter :: jpj=128\n"
+              "real :: sto_tmp2(jpj)\n"
+              "do ji = 1,jpj\n"
+              "  write(*,*) sto_tmp2(ji)\n"
+              "end do\n"
+              "end subroutine cb_test\n")
+    schedule = psyir.children[0]
     PTRANS.apply(schedule.children[0])
-    code = str(psy.gen).lower()
+    code = fortran_writer(psyir).lower()
     assert (
         "  call profile_psy_data % prestart(\"cb_test\", \"r0\", 0, 0)\n"
         "  do ji = 1, jpj, 1\n"
@@ -196,12 +173,11 @@ def test_profile_codeblock(parser):
         "  call profile_psy_data % postend\n" in code)
 
 
-def test_profile_inside_if1(parser):
+def test_profile_inside_if1(fortran_reader, fortran_writer):
     ''' Check that we can put a profiling region inside an If block when
     we pass the transformation the first (and only) child of the Schedule
     of the If. '''
-    psy, schedule = get_nemo_schedule(
-        parser,
+    psyir = fortran_reader.psyir_from_source(
         "subroutine inside_if_test()\n"
         "use kind_mod, only: wp\n"
         "integer :: ji\n"
@@ -214,19 +190,19 @@ def test_profile_inside_if1(parser):
         "  end do\n"
         "endif\n"
         "end subroutine inside_if_test\n")
+    schedule = psyir.children[0]
     PTRANS.apply(schedule.children[0].if_body[0])
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir).lower()
     assert ("  if (do_this) then\n"
             "    call profile_psy_data % prestart(" in gen_code)
     assert ("    call profile_psy_data % postend\n"
             "  end if\n" in gen_code)
 
 
-def test_profile_inside_if2(parser):
+def test_profile_inside_if2(fortran_reader, fortran_writer):
     ''' Check that we can put a profiling region inside an If block
     when we pass the transformation the Schedule rather than its child. '''
-    psy, schedule = get_nemo_schedule(
-        parser,
+    psyir = fortran_reader.psyir_from_source(
         "subroutine inside_if_test()\n"
         "use kind_mod, only: wp\n"
         "integer :: ji\n"
@@ -239,19 +215,19 @@ def test_profile_inside_if2(parser):
         "  end do\n"
         "endif\n"
         "end subroutine inside_if_test\n")
+    schedule = psyir.children[0]
     PTRANS.apply(schedule.children[0].if_body)
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir).lower()
     assert ("  if (do_this) then\n"
             "    call profile_psy_data % prestart(" in gen_code)
     assert ("    call profile_psy_data % postend\n"
             "  end if\n" in gen_code)
 
 
-def test_profile_single_line_if(parser):
+def test_profile_single_line_if(fortran_reader, fortran_writer):
     ''' Test that we can put the body of a single-line if statement inside a
     profiling region. '''
-    psy, schedule = get_nemo_schedule(
-        parser,
+    psyir = fortran_reader.psyir_from_source(
         "subroutine one_line_if_test()\n"
         "use kind_mod, only: wp\n"
         "integer :: ji\n"
@@ -260,8 +236,9 @@ def test_profile_single_line_if(parser):
         "logical, parameter :: do_this = .true.\n"
         "if(do_this) write(*,*) sto_tmp2(ji)\n"
         "end subroutine one_line_if_test\n")
+    schedule = psyir.children[0]
     PTRANS.apply(schedule[0].if_body)
-    gen_code = str(psy.gen).lower()
+    gen_code = fortran_writer(psyir).lower()
     assert (
         "  if (do_this) then\n"
         "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0,"
@@ -273,12 +250,12 @@ def test_profile_single_line_if(parser):
         "  end if\n" in gen_code)
 
 
-def test_profiling_case(parser):
+def test_profiling_case(fortran_reader, fortran_writer):
     ''' Check that we can put profiling around a case statement. This is
     harder than might be expected because of the complexity of mapping back
     from the PSyIR (where SELECT CASE blocks are represented as If blocks)
     to the fparser2 parse tree. '''
-    code = (
+    psyir = fortran_reader.psyir_from_source(
         "subroutine my_test()\n"
         "   integer :: ji, jj, ii, je_2, jpi, jpj, nldj_crs\n"
         "   integer :: nistr, niend, njstr, njend, nn_factx, nn_facty\n"
@@ -319,7 +296,7 @@ def test_profiling_case(parser):
         "        DEALLOCATE(zsurfmsk)\n"
         "   END SELECT\n"
         "end subroutine my_test\n")
-    psy, sched = get_nemo_schedule(parser, code)
+    sched = psyir.children[0]
     # Innermost if-body
     PTRANS.apply(sched[1].if_body[2].if_body[0].if_body.children)
     # Body of first CASE
@@ -328,7 +305,7 @@ def test_profiling_case(parser):
     PTRANS.apply(sched[1].else_body.children)
     # Whole routine
     PTRANS.apply(sched.children)
-    code = str(psy.gen).lower()
+    code = fortran_writer(psyir).lower()
     assert (
         "  type(profile_psydatatype), save, target :: profile_psy_data\n"
         "  type(profile_psydatatype), save, target :: profile_psy_data_1\n"
@@ -358,75 +335,78 @@ def test_profiling_case(parser):
             "end subroutine my_test" in code)
 
 
-def test_profiling_case_loop(parser):
+def test_profiling_case_loop(fortran_reader, fortran_writer):
     ''' Check that we can put profiling around a CASE and a subsequent
     loop. '''
-    code = ("subroutine my_test()\n"
-            "  use my_mod, only: a_type, ctl_stop\n"
-            "  integer :: igrd, ib, ii\n"
-            "  type(a_type) :: idx\n"
-            "  real, dimension(:,:,:) :: pmask, tmask\n"
-            "  real, dimension(:,:) :: bdypmask, bdytmask\n"
-            "  select case(igrd)\n"
-            "     case(1)\n"
-            "        pmask => tmask(:,:,:)\n"
-            "        bdypmask => bdytmask(:,:)\n"
-            "     case default ;   CALL ctl_stop('unrecognised value')\n"
-            "  end select\n"
-            "  do ib = 1, idx%nblenrim(igrd)\n"
-            "     ii = idx%nbi(ib,igrd)\n"
-            "  end do\n"
-            "end subroutine\n")
-    psy, sched = get_nemo_schedule(parser, code)
+    psyir = fortran_reader.psyir_from_source(
+                "subroutine my_test()\n"
+                "  use my_mod, only: a_type, ctl_stop\n"
+                "  integer :: igrd, ib, ii\n"
+                "  type(a_type) :: idx\n"
+                "  real, dimension(:,:,:) :: pmask, tmask\n"
+                "  real, dimension(:,:) :: bdypmask, bdytmask\n"
+                "  select case(igrd)\n"
+                "     case(1)\n"
+                "        pmask => tmask(:,:,:)\n"
+                "        bdypmask => bdytmask(:,:)\n"
+                "     case default ;   CALL ctl_stop('unrecognised value')\n"
+                "  end select\n"
+                "  do ib = 1, idx%nblenrim(igrd)\n"
+                "     ii = idx%nbi(ib,igrd)\n"
+                "  end do\n"
+                "end subroutine\n")
+    sched = psyir.children[0]
     PTRANS.apply(sched.children)
-    code = str(psy.gen).lower()
+    code = fortran_writer(psyir).lower()
     assert ("  call profile_psy_data % prestart(\"my_test\", \"r0\", 0, 0)\n"
             "  if (igrd == 1) then\n" in code)
     assert ("call profile_psy_data % postend\n\n"
             "end subroutine" in code)
 
 
-def test_profiling_mod_use_clash(parser):
+def test_profiling_mod_use_clash(fortran_reader):
     ''' Check that we abort cleanly if we encounter a 'use' of a module that
     clashes with the one we would 'use' for the profiling API. '''
-    _, schedule = get_nemo_schedule(parser,
-                                    "program the_clash\n"
-                                    "  use profile_psy_data_mod, only: "
-                                    "some_var\n"
-                                    "  real :: my_array(20,10)\n"
-                                    "  my_array(:,:) = 0.0\n"
-                                    "end program the_clash\n")
+    psyir = fortran_reader.psyir_from_source(
+                "program the_clash\n"
+                "  use profile_psy_data_mod, only: "
+                "some_var\n"
+                "  real :: my_array(20,10)\n"
+                "  my_array(:,:) = 0.0\n"
+                "end program the_clash\n")
+    schedule = psyir.children[0]
     with pytest.raises(TransformationError) as err:
         PTRANS.apply(schedule.children[0])
     assert ("Cannot add PSyData calls because there is already a symbol "
             "named 'profile_psy_data_mod' which clashes" in str(err.value))
 
 
-def test_profiling_mod_name_clash(parser):
+def test_profiling_mod_name_clash(fortran_reader):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with the name of the profiling API module. '''
-    _, schedule = get_nemo_schedule(parser,
-                                    "program profile_psy_data_mod\n"
-                                    "  real :: my_array(3,3)\n"
-                                    "  my_array(:,:) = 0.0\n"
-                                    "end program profile_psy_data_mod\n")
+    psyir = fortran_reader.psyir_from_source(
+                "program profile_psy_data_mod\n"
+                "  real :: my_array(3,3)\n"
+                "  my_array(:,:) = 0.0\n"
+                "end program profile_psy_data_mod\n")
+    schedule = psyir.children[0]
     with pytest.raises(TransformationError) as err:
         PTRANS.apply(schedule.children[0])
     assert ("Cannot add PSyData calls because there is already a symbol "
             "named 'profile_psy_data_mod' which clashes " in str(err.value))
 
 
-def test_profiling_symbol_clash(parser):
+def test_profiling_symbol_clash(fortran_reader):
     ''' Check that we abort cleanly if we encounter code that has a name
     clash with any of the symbols we 'use' from profile_mode. '''
     for sym in ["PSyDataType", "psy_data_mod"]:
-        _, schedule = get_nemo_schedule(
-            parser,
+        psyir = fortran_reader.psyir_from_source(
             f"program my_test\n"
             f"  real :: my_array(3,3)\n"
             f"  integer :: profile_{sym}\n"
             f"  my_array(:,:) = 0.0\n"
             f"end program my_test\n")
+        schedule = psyir.children[0]
         with pytest.raises(TransformationError) as err:
             PTRANS.apply(schedule.children[0])
         assert (f"Cannot add PSyData calls because there is already a symbol "
@@ -435,29 +415,28 @@ def test_profiling_symbol_clash(parser):
                 in str(err.value))
 
 
-def test_profiling_var_clash(parser):
+def test_profiling_var_clash(fortran_reader, fortran_writer):
     ''' Check that we generate the expected code if we encounter code that has
     a potential name clash with the variables we will introduce for each
     profiling region. '''
-    psy, schedule = get_nemo_schedule(
-        parser,
+    psyir = fortran_reader.psyir_from_source(
         "program my_test\n"
         "  real :: my_array(3,3)\n"
         "  integer :: profile_psy_data\n"
         "  my_array(:,:) = 0.0\n"
         "end program my_test\n")
+    schedule = psyir.children[0]
     PTRANS.apply(schedule.children[0])
-    code = str(psy.gen).lower()
+    code = fortran_writer(psyir).lower()
     assert ("  integer :: profile_psy_data\n"
             "  type(profile_psydatatype), save, target :: profile_psy_data_1"
             in code)
 
 
-def test_no_return_in_profiling(parser):
+def test_no_return_in_profiling(fortran_reader):
     ''' Check that the transformation refuses to include a Return node within
     a profiled region. '''
-    _, schedule = get_nemo_schedule(
-        parser,
+    psyir = fortran_reader.psyir_from_source(
         "subroutine my_test()\n"
         "  integer :: my_test\n"
         "  real :: my_array(3,3)\n"
@@ -465,7 +444,8 @@ def test_no_return_in_profiling(parser):
         "  my_test = 1\n"
         "  return\n"
         "end subroutine my_test\n")
+    schedule = psyir.children[0]
     with pytest.raises(TransformationError) as err:
         PTRANS.apply(schedule.children)
-    assert ("Nodes of type 'Return' cannot be enclosed by a ProfileTrans "
+    assert ("cannot be enclosed by a ProfileTrans "
             "transformation" in str(err.value))

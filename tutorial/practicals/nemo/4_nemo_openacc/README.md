@@ -7,13 +7,12 @@ mini-app. When built with a suitable compiler this then enables the
 code to be run on a GPU (but this is not required for this tutorial).
 
 You may find it helpful to read the section on
-[OpenACC](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#openacc)
+[OpenACC](https://psyclone.readthedocs.io/en/latest/transformations.html?highlight=accdatatrans#openacc)
 in the
-[Transformations](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#transformations)
+[Transformations](https://psyclone.readthedocs.io/en/latest/transformations.html?highlight=accdatatrans#transformations)
 section of the PSyclone User Guide.
 
-The OpenACC specification may be found at
-https://www.openacc.org/sites/default/files/inline-files/OpenACC.2.6.final.pdf
+The OpenACC specification may be found at https://www.openacc.org/specification.
 
 ## Prerequisites ##
 
@@ -42,7 +41,7 @@ target, i.e. `make tra_adv.exe`.
 The simplest way to add OpenACC directives to a code is often to use
 the KERNELS directive - this instructs the compiler to automatically
 parallelise any loop nests within the marked-up region. In PSyclone
-this is achieved by applying the [`ACCKernelsTrans`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCKernelsTrans.html)
+this is achieved by applying the [`ACCKernelsTrans`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1psyir_1_1transformations_1_1acc__kernels__trans_1_1ACCKernelsTrans.html)
 transformation to suitable regions of the code. The advantage of this
 approach is that it minimises the number of directives that must be
 inserted and makes use of the compiler's own dependency analysis to
@@ -52,9 +51,10 @@ top-level loop (that does not contain a CodeBlock) within a KERNELS
 region:
 
 ```python
-    for node in sched.children:
+    subroutine = psyir.children[0].children[0]
+    for node in subroutine.children:
         if isinstance(node, Loop):
-	    try:
+            try:
                 ACC_KERNELS_TRANS.apply(node)
             except TransformationError:
                 pass
@@ -108,7 +108,7 @@ various ways in which PSyclone can be used.)
    ```python
    # Find the outer, 'iteration' loop
    tloop = None
-   for node in sched.children:
+   for node in subroutine.children:
        if isinstance(node, Loop) and node.loop_type == "tracers":
            tloop = node
            break
@@ -125,8 +125,8 @@ various ways in which PSyclone can be used.)
 
 2. Use the supplied Makefile to run PSyclone and generate the transformed
    code (just type `make tra_adv.exe`). If you examine the generated Fortran
-   in `psy_openacc.f90` you should see that ACC Kernels Directive nodes have
-   been added to the Schedule, e.g.:
+   in `psy_openacc.f90` you should see that ACC Kernels Directives have
+   been added, e.g.:
    ```fortran
     DO jt = 1, it
       !$ACC KERNELS
@@ -226,9 +226,11 @@ of that between the CPU and main memory. Therefore, frequent data
 movement on and off the GPU will destroy performance.
 
 The OpenACC specification allows for both implicit (compiler generated)
-and explicit data movement. NVIDIA also supports 'managed'/'unified' memory
-where page faults on either the CPU or GPU cause the necessary memory
-to be moved automatically to the correct location.
+and explicit data movement. In addition, various GPU vendors also have
+support for so-called 'unified' memory. Depending on the vendor, this
+may be implemented either in hardware or software (where page faults on
+either the CPU or GPU cause the necessary memory
+to be moved automatically to the correct location).
 
 Explicit data movement can be controlled using OpenACC Data Regions and
 PSyclone can create these using the [`ACCDataTrans`](https://psyclone-ref.readthedocs.io/en/latest/_static/html/classpsyclone_1_1transformations_1_1ACCDataTrans.html)
@@ -274,7 +276,7 @@ between various kernel invocations.
    it is clearly not necessary to copy it back to the CPU).
 
 (Currently PSyclone's analysis is limited to the contents of the DATA
-region.  In our example, we can see that although `zind` for instance
+region.  In our example, we can see that although e.g. `zind`
 is written to within the data region, it is in fact not used again
 outside the data region and therefore does not actually need to be
 copied back from the GPU.)
@@ -323,7 +325,7 @@ add the necessary option to add the `COLLAPSE` clause.
     from psyclone.transformations import ACCLoopTrans, TransformationError
     ACC_LOOP_TRANS = ACCLoopTrans()
     ...
-    loops = sched.walk(Loop)
+    loops = subroutine.walk(Loop)
     for loop in loops:
         if loop.loop_type == "lat":
             try:
@@ -348,7 +350,7 @@ add the necessary option to add the `COLLAPSE` clause.
    ```python
     # Find the outer, 'iteration' loop
     tloop = None
-    for node in sched.children:
+    for node in subroutine.children:
         if isinstance(node, Loop) and node.loop_type == "tracers":
             tloop = node
             break
@@ -376,7 +378,7 @@ add the necessary option to add the `COLLAPSE` clause.
 
 4. How do we add the `COLLAPSE` clause? If we look at the documentation
    for `ACCLoopTrans` in the
-   [Transformations](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#transformations)
+   [Transformations](https://psyclone.readthedocs.io/en/latest/transformations.html?highlight=accdatatrans#transformations)
    section of the User Guide, we see that it takes an `options`
    dictionary argument. We can therefore specify that we want
    `COLLAPSE(2)` by doing:
@@ -417,14 +419,11 @@ the nodes in the `loop_body` of the candidate latitude loop.)
 
 ## 5. Managed Memory ##
 
-In practice, the work being done to extend PSyclone to process the
-whole of the NEMO code is currently using NVIDIA's 'managed memory'
+In practice, the use of PSyclone to process the whole of the NEMO
+ocean code is currently relying on NVIDIA's 'managed memory'
 support. No explicit data regions are added to the code. Instead, the
 run-time system moves data to/from the GPU automatically when page
-faults occur. This was originally intended as being a quick way to get
-something working on the GPU but it has actually proved to work well
-in general.
-
+faults occur.
 
 ## 6. Conclusion ##
 

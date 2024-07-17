@@ -53,7 +53,7 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Data_Component_Def_Stmt, Component_Decl
 # pylint: enable=no-name-in-module
 
-from psyclone.configuration import Config, LFRIC_API_NAMES, NO_API_NAMES
+from psyclone.configuration import Config, LFRIC_API_NAMES
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import BuiltInKernelTypeFactory, get_kernel_ast, \
     KernelTypeFactory
@@ -172,20 +172,15 @@ class Parser():
         parse tree of the code contained therein and an object
         containing information about the 'invoke' calls in the
         algorithm file and any associated kernels within the invoke
-        calls. If the NEMO API is being used then the parsed code is
-        returned without any additional information about the code.
+        calls.
 
         :param str alg_filename: The file containing the algorithm code.
 
-        :returns: 2-tuple consisting of the fparser2 parse tree of the \
-            algorithm code and an object holding details of the \
-            algorithm code and the invokes found within it, unless it \
-            is the NEMO API, where the first entry of the tuple is \
-            None and the second is the fparser2 parse tree of the \
-            code.
-        :rtype: (:py:class:`fparser.two.Fortran2003.Program`, \
-            :py:class:`psyclone.parse.FileInfo`) or (NoneType, \
-            :py:class:`fparser.two.Fortran2003.Program`)
+        :returns: 2-tuple consisting of the fparser2 parse tree of the
+            algorithm code and an object holding details of the
+            algorithm code and the invokes found within it.
+        :rtype: Tuple[:py:class:`fparser.two.Fortran2003.Program`,
+                      :py:class:`psyclone.parse.FileInfo`]
 
         '''
         self._alg_filename = alg_filename
@@ -193,11 +188,6 @@ class Parser():
             # Make sure the code conforms to the line length limit.
             check_line_length(alg_filename)
         alg_parse_tree = parse_fp2(alg_filename)
-
-        if self._api in NO_API_NAMES:
-            # For this API we just parse the NEMO code and return the resulting
-            # fparser2 AST with None for the Algorithm AST.
-            return None, alg_parse_tree
 
         return alg_parse_tree, self.invoke_info(alg_parse_tree)
 
@@ -315,7 +305,7 @@ class Parser():
                     invoke_call = self.create_invoke_call(statement)
                     invoke_calls.append(invoke_call)
 
-        return FileInfo(container_name, invoke_calls)
+        return AlgFileInfo(container_name, invoke_calls)
 
     def create_invoke_call(self, statement):
         '''Takes the part of a parse tree containing an invoke call and
@@ -854,14 +844,14 @@ def create_var_name(arg_parse_tree):
 # Section 3: Classes holding algorithm information.
 
 
-class FileInfo():
+class AlgFileInfo():
     '''Captures information about the algorithm file and the invoke calls
     found within the contents of the file.
 
-    :param str name: the name of the algorithm program unit (program, \
-    module, subroutine or function)
+    :param str name: the name of the algorithm program unit (program,
+                     module, subroutine or function)
     :param calls: information about the invoke calls in the algorithm code.
-    :type calls: list of :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :type calls: list[:py:class:`psyclone.parse.algorithm.InvokeCall`]
 
     '''
 
@@ -1167,6 +1157,7 @@ class Arg():
         return self._form == "literal"
 
 
+# For auto-API documentation generation.
 __all__ = ["parse", "Parser", "get_builtin_defs", "get_invoke_label",
-           "get_kernel", "create_var_name", "FileInfo", "InvokeCall",
+           "get_kernel", "create_var_name", "AlgFileInfo", "InvokeCall",
            "ParsedCall", "KernelCall", "BuiltInCall", "Arg"]
