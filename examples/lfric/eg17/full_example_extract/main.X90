@@ -32,6 +32,18 @@
 ! Modifications: A. R. Porter, STFC Daresbury Laboratory
 
 program main
+    !> This program is a simple LFRic program that contains two invokes,
+    !> the first to initialise a few fields, the second to update a field.
+    !> It can be used with kernel extraction for both invokes. After
+    !> instrumenting the code using PSyclone with the extract_transform.py
+    !> script, it can be compiled, and when executed will create two kernel data
+    !> files. The instrumentation will also create two stand-alone driver
+    !> programs, which can be compiled. They will each read the corresponding
+    !> kernel data file, execute the kernel, and compare the results.
+
+#ifdef _MPI
+    use mpi
+#endif
 
     use global_mesh_base_mod,   only: global_mesh_base_type
     use mesh_mod,               only: mesh_type, PLANE
@@ -62,9 +74,13 @@ program main
     integer(kind=i_def)                        :: ndata_sz
     real(kind=r_def)                           :: one
     logical(kind=l_def)                        :: some_logical
-    integer                                    :: i
+    integer                                    :: i, ierr
 
     ! Use the unit-testing constructor:
+
+#ifdef _MPI
+    call MPI_Init(ierr)
+#endif
     global_mesh = global_mesh_base_type()
     global_mesh_ptr => global_mesh
 
@@ -106,5 +122,9 @@ program main
                                                                some_logical) )
 
     call field1%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field1")
+
+#ifdef _MPI
+    call MPI_Finalize(ierr)
+#endif
 
 end program main

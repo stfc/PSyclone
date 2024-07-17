@@ -117,5 +117,5 @@ def test_omptargettrans_validate(sample_psyir):
     loops[0].loop_body.addchild(CodeBlock([], CodeBlock.Structure.STATEMENT))
     with pytest.raises(TransformationError) as err:
         omptargettrans.validate(loops[0])
-    assert ("cannot be enclosed by a OMPTargetTrans "
+    assert ("Nodes of type 'CodeBlock' cannot be enclosed by a OMPTargetTrans "
             "transformation" in str(err.value))
