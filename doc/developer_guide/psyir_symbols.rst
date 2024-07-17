@@ -235,12 +235,21 @@ need to be replaced with their equivalents in the new tree. The
 
 .. automethod:: psyclone.psyir.symbols.SymbolTable.deep_copy
 
-handles this by first creating shallow copies of all Symbols in the table
-and then ensuring that each is updated to refer to
-Symbols in the new scope. This is achieved using the `update_symbols_from`
+handles this by first creating shallow copies of all Symbols in the
+table and then ensuring that each is updated to refer to Symbols in
+the new scope. This is achieved with the `replace_symbols_using`
 method:
 
-.. automethod:: psyclone.psyir.symbols.Symbol.update_symbols_from
+.. automethod:: psyclone.psyir.symbols.Symbol.replace_symbols_using
+
+All PSyIR `Node` classes also implement this method. In this case, it
+walks down the PSyIR tree and updates any Symbols using those in the supplied
+table. As the PSyIR supports nested scopes,  each `ScopingNode` is associated
+with a new symbol table. Therefore, the implementation within this class
+is slightly different:
+
+.. automethod:: psyclone.psyir.nodes.ScopingNode.replace_symbols_using
+
 
 Specialising Symbols
 ====================
