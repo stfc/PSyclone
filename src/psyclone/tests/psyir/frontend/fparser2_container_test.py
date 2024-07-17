@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes import Container, FileContainer, KernelSchedule
+from psyclone.psyir.nodes import FileContainer, KernelSchedule
 from psyclone.psyir.symbols import Symbol, RoutineSymbol
 
 
